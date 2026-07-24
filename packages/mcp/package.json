@@ -14,7 +14,7 @@
     "kind": "module",
     "manifest": "./voyant",
     "compatibleWith": {
-      "framework": "^0.64.0",
+      "framework": "^0.64.1",
       "targets": [
         "node"
       ],
