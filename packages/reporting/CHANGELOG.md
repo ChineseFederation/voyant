@@ -1,5 +1,15 @@
 # @voyant-travel/reporting
 
+## 0.3.8
+
+### Patch Changes
+
+- Updated dependencies [952d817]
+  - @voyant-travel/core@0.136.0
+  - @voyant-travel/db@0.118.5
+  - @voyant-travel/hono@0.134.5
+  - @voyant-travel/reporting-contracts@0.3.6
+
 ## 0.3.7
 
 ### Patch Changes

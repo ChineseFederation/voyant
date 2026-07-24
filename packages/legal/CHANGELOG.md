@@ -1,5 +1,44 @@
 # @voyant-travel/legal
 
+## 0.200.0
+
+### Minor Changes
+
+- 952d817: Replace unsafe booking-contract document generation with the Legal-owned
+  durable operation/provider protocol. Legacy generation routes and direct
+  generator services and exports are removed. Standard Operator now selects and
+  constructs the shipped provider from its exact database, document-storage, and
+  renderer bindings; startup and action activation require behavioral provider
+  preflight, and pending recovery fails loudly if that provider disappears.
+  Local Standard document bytes now require probed, atomic filesystem durability,
+  and the bundled renderer embeds a Latin Extended Unicode font. Custom font
+  bytes are also supported by the basic PDF utility. Opaque renderer/S3
+  transports require explicit backend identity. Remove the
+  Notifications document-bundle lifecycle callbacks, fully-paid orchestration
+  subscriber, and its Realtime invalidation declaration; document generation is
+  available only through admitted Legal actions.
+
+  Recognize transaction-bound outbox appends as durable domain-event emissions
+  and publish the existing Trips requirement-sourcing event contracts.
+
+### Patch Changes
+
+- Updated dependencies [952d817]
+  - @voyant-travel/legal-contracts@0.107.0
+  - @voyant-travel/commerce@0.43.0
+  - @voyant-travel/core@0.136.0
+  - @voyant-travel/storage@0.114.0
+  - @voyant-travel/utils@0.110.0
+  - @voyant-travel/distribution@0.190.0
+  - @voyant-travel/inventory@0.19.3
+  - @voyant-travel/action-ledger@0.113.2
+  - @voyant-travel/bookings@0.200.0
+  - @voyant-travel/db@0.118.5
+  - @voyant-travel/finance@0.200.0
+  - @voyant-travel/hono@0.134.5
+  - @voyant-travel/public-document-delivery@0.4.16
+  - @voyant-travel/relationships@0.131.2
+
 ## 0.199.0
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/reporting-contracts",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Domain-neutral reporting datasets, widgets, templates, and query contracts for Voyant.",
   "license": "Apache-2.0",
   "type": "module",

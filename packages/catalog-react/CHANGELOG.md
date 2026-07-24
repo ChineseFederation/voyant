@@ -1,5 +1,14 @@
 # @voyant-travel/catalog-react
 
+## 0.198.0
+
+### Patch Changes
+
+- @voyant-travel/distribution-react@0.190.0
+- @voyant-travel/commerce-react@0.82.0
+- @voyant-travel/inventory-react@0.82.0
+- @voyant-travel/ui@0.109.6
+
 ## 0.197.0
 
 ### Patch Changes

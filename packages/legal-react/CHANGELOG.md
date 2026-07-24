@@ -1,5 +1,38 @@
 # @voyant-travel/legal-react
 
+## 0.200.0
+
+### Minor Changes
+
+- 952d817: Replace unsafe booking-contract document generation with the Legal-owned
+  durable operation/provider protocol. Legacy generation routes and direct
+  generator services and exports are removed. Standard Operator now selects and
+  constructs the shipped provider from its exact database, document-storage, and
+  renderer bindings; startup and action activation require behavioral provider
+  preflight, and pending recovery fails loudly if that provider disappears.
+  Local Standard document bytes now require probed, atomic filesystem durability,
+  and the bundled renderer embeds a Latin Extended Unicode font. Custom font
+  bytes are also supported by the basic PDF utility. Opaque renderer/S3
+  transports require explicit backend identity. Remove the
+  Notifications document-bundle lifecycle callbacks, fully-paid orchestration
+  subscriber, and its Realtime invalidation declaration; document generation is
+  available only through admitted Legal actions.
+
+  Recognize transaction-bound outbox appends as durable domain-event emissions
+  and publish the existing Trips requirement-sourcing event contracts.
+
+### Patch Changes
+
+- Updated dependencies [952d817]
+  - @voyant-travel/legal@0.200.0
+  - @voyant-travel/bookings-react@0.200.0
+  - @voyant-travel/utils@0.110.0
+  - @voyant-travel/distribution-react@0.190.0
+  - @voyant-travel/commerce-react@0.82.0
+  - @voyant-travel/inventory-react@0.82.0
+  - @voyant-travel/relationships-react@0.200.0
+  - @voyant-travel/ui@0.109.6
+
 ## 0.199.0
 
 ### Patch Changes

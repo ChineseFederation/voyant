@@ -1,5 +1,16 @@
 # @voyant-travel/commerce-react
 
+## 0.82.0
+
+### Patch Changes
+
+- Updated dependencies [952d817]
+  - @voyant-travel/commerce@0.43.0
+  - @voyant-travel/utils@0.110.0
+  - @voyant-travel/distribution-react@0.190.0
+  - @voyant-travel/inventory-react@0.82.0
+  - @voyant-travel/ui@0.109.6
+
 ## 0.81.0
 
 ### Patch Changes

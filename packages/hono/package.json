@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/hono",
-  "version": "0.134.4",
+  "version": "0.134.5",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/setup",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Organization-level first-run setup state for Voyant.",
   "license": "Apache-2.0",
   "type": "module",

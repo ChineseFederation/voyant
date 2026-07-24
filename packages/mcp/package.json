@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/mcp",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
@@ -78,7 +78,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@voyant-travel/framework": "^0.64.0"
+    "@voyant-travel/framework": "^0.64.1"
   },
   "repository": {
     "type": "git",
