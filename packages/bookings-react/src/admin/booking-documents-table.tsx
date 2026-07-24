@@ -1,13 +1,11 @@
 // agent-quality: file-size exception -- owner: bookings-react; existing UI surface stays co-located until a dedicated split preserves behavior and tests.
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 import { useAdminNavigate, useLocale, useOperatorAdminMessages } from "@voyant-travel/admin"
 import {
   type LegalContractAttachmentRecord,
   type LegalContractRecord,
-  legalQueryKeys,
   useLegalContractAttachments,
   useLegalContracts,
   useVoyantLegalContext,
@@ -25,20 +23,17 @@ import {
   Button,
 } from "@voyant-travel/ui/components"
 import { DataTable } from "@voyant-travel/ui/components/data-table"
-import { ArrowUpRight, Download, FileText, Loader2, Plus, RotateCw, Trash2 } from "lucide-react"
+import { ArrowUpRight, Download, FileText, Loader2, Plus, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { BookingDocumentDialog } from "../components/booking-document-dialog.js"
 import { IconActionButton } from "../components/icon-action-button.js"
 import { StatusBadge } from "../components/status-badge.js"
 import {
   type BookingTravelerRecord,
-  useBooking,
-  useBookingContractGenerationMutation,
   useBookingTravelerDocumentMutation,
   useBookingTravelerDocuments,
   useTravelers,
 } from "../index.js"
-import { BookingContractDialog } from "./booking-contract-dialog.js"
 
 type DocumentsTableMessages = ReturnType<
   typeof useOperatorAdminMessages
@@ -68,35 +63,6 @@ type UnifiedRow =
       traveler: BookingTravelerRecord | null
     }
 
-const CONTRACT_GENERATION_FAILURE_LABELS: Record<string, keyof DocumentsTableMessages> = {
-  render_unavailable: "contractGenerationTemplateError",
-  generator_failed: "contractGenerationGeneratorFailed",
-}
-
-function resolveContractGenerationFailure(contract: LegalContractRecord) {
-  const metadata = contract.metadata
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
-    return null
-  }
-
-  const status = metadata.lastGenerationStatus
-  if (typeof status !== "string" || status === "generated") {
-    return null
-  }
-
-  return {
-    status,
-    error:
-      typeof metadata.lastGenerationError === "string" && metadata.lastGenerationError.trim()
-        ? metadata.lastGenerationError
-        : null,
-    attemptedAt:
-      typeof metadata.lastGenerationAttemptedAt === "string"
-        ? metadata.lastGenerationAttemptedAt
-        : null,
-  }
-}
-
 /**
  * Unified Documents tab for a booking — flattens auto-generated legal
  * contracts and per-traveler documents (passport, visa, insurance…) into
@@ -110,12 +76,8 @@ export function BookingDocumentsTable({
 }: BookingDocumentsTableProps): React.ReactElement {
   const t = useOperatorAdminMessages().bookings.detail.documentsTable
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [contractDialogOpen, setContractDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<TravelerDocPayload | null>(null)
   const [deletePending, setDeletePending] = useState(false)
-
-  const bookingQuery = useBooking(bookingId)
-  const booking = bookingQuery.data?.data ?? null
 
   const contractsQuery = useLegalContracts({ bookingId, limit: 25 })
   const contracts = contractsQuery.data?.data ?? []
@@ -131,8 +93,7 @@ export function BookingDocumentsTable({
 
   const removeTravelerDoc = useBookingTravelerDocumentMutation(bookingId).remove
 
-  const isLoading =
-    bookingQuery.isLoading || contractsQuery.isLoading || travelerDocsQuery.isLoading
+  const isLoading = contractsQuery.isLoading || travelerDocsQuery.isLoading
 
   const rows = useMemo<UnifiedRow[]>(
     () => [
@@ -251,15 +212,6 @@ export function BookingDocumentsTable({
           {t.title}
         </h2>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setContractDialogOpen(true)}
-            disabled={!booking}
-          >
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            {t.addContract}
-          </Button>
           <Button size="sm" variant="outline" onClick={() => setUploadOpen(true)}>
             <Plus className="mr-1 h-3.5 w-3.5" />
             {t.uploadDocument}
@@ -277,13 +229,6 @@ export function BookingDocumentsTable({
       )}
 
       <BookingDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} bookingId={bookingId} />
-
-      <BookingContractDialog
-        open={contractDialogOpen}
-        onOpenChange={setContractDialogOpen}
-        bookingId={bookingId}
-        bookingNumber={booking?.bookingNumber ?? null}
-      />
 
       <AlertDialog
         open={Boolean(deleteTarget)}
@@ -375,26 +320,10 @@ function TravelerDocumentCell({ doc }: { doc: TravelerDocPayload }) {
 
 function ContractStatusCell({
   contract,
-  messages,
 }: {
   contract: LegalContractRecord
   messages: DocumentsTableMessages
 }) {
-  const generationFailure = resolveContractGenerationFailure(contract)
-  if (generationFailure) {
-    const failureLabelKey = CONTRACT_GENERATION_FAILURE_LABELS[generationFailure.status]
-    const failureLabel = failureLabelKey
-      ? messages[failureLabelKey]
-      : messages.contractGenerationFailed
-    return (
-      <div className="max-w-80 space-y-1">
-        <StatusBadge status="failed">{failureLabel}</StatusBadge>
-        <p className="text-muted-foreground text-xs">
-          {generationFailure.error ?? messages.contractGenerationErrorFallback}
-        </p>
-      </div>
-    )
-  }
   return <StatusBadge status={contract.status}>{contract.status.replace(/_/g, " ")}</StatusBadge>
 }
 
@@ -424,18 +353,13 @@ function ContractDateCell({
   messages: DocumentsTableMessages
 }) {
   const { resolvedLocale } = useLocale()
-  const generationFailure = resolveContractGenerationFailure(contract)
   const attachmentsQuery = useLegalContractAttachments({ contractId: contract.id })
   const attachments = (attachmentsQuery.data ?? []).filter(
     (a: LegalContractAttachmentRecord) => a.kind === "document",
   )
   const hasDocument = attachments.length > 0
-  const dateIso = generationFailure?.attemptedAt ?? contract.issuedAt ?? contract.createdAt ?? null
-  const dateLabel = generationFailure
-    ? messages.contractGenerationAttemptedLabel
-    : hasDocument
-      ? messages.contractIssuedLabel
-      : messages.contractPendingSinceLabel
+  const dateIso = contract.issuedAt ?? contract.createdAt ?? null
+  const dateLabel = hasDocument ? messages.contractIssuedLabel : messages.contractPendingSinceLabel
   if (!dateIso) return <span className="text-muted-foreground text-xs">—</span>
   return (
     <span className="text-muted-foreground text-xs">
@@ -471,17 +395,13 @@ function ContractActionsCell({
   contract: LegalContractRecord
   messages: DocumentsTableMessages
 }) {
-  const queryClient = useQueryClient()
   const navigateTo = useAdminNavigate()
   const attachmentsQuery = useLegalContractAttachments({ contractId: contract.id })
   const attachments = (attachmentsQuery.data ?? []).filter(
     (a: LegalContractAttachmentRecord) => a.kind === "document",
   )
   const latest = attachments[0] ?? null
-  const hasDocument = latest !== null
   const downloadHref = useContractAttachmentDownloadHref(latest)
-
-  const { generate } = useBookingContractGenerationMutation(contract.bookingId ?? "")
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -503,29 +423,6 @@ function ContractActionsCell({
           }}
         />
       ) : null}
-      <IconActionButton
-        label={hasDocument ? messages.contractRegenerateTooltip : messages.contractGenerateTooltip}
-        icon={
-          generate.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RotateCw className="h-3.5 w-3.5" />
-          )
-        }
-        disabled={generate.isPending || !contract.bookingId}
-        onClick={(e) => {
-          e.stopPropagation()
-          if (!contract.bookingId) return
-          generate.mutate(
-            { force: hasDocument },
-            {
-              onSuccess: () => {
-                void queryClient.invalidateQueries({ queryKey: legalQueryKeys.contracts() })
-              },
-            },
-          )
-        }}
-      />
     </div>
   )
 }

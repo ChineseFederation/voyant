@@ -19,20 +19,14 @@ runtimePorts: [
   requirePort(legalRuntimePort),
   requirePort(documentRendererPort, { optional: true }),
 ]
-runtime: { export: "createLegalBookingContractVoyantRuntime" }
-runtimePorts: [requirePort(legalBookingContractSubscriberRuntimePort)]
-subscribers: [{ runtime: { export: "legalBookingContractConfirmedSubscriber" } }]
 `,
     "packages/legal/src/index.ts": "export function createLegalApiModule() {}\n",
     "packages/legal/src/runtime-contributor.ts": `
 const ports = {
   [legalRuntimePort.id]: {},
-  [legalBookingContractSubscriberRuntimePort.id]: {},
 }
 `,
-    "packages/operator-standard/src/index.ts": `
-const extensions = [{ resolve: "@voyant-travel/legal/booking-contract-extension" }]
-`,
+    "packages/operator-standard/src/index.ts": "const extensions = []\n",
     "packages/runtime/src/deployment-resources.ts": "const ports = {}\n",
     "starters/operator/voyant.config.ts": "export default defineConfig({})\n",
     ...overrides,
@@ -55,11 +49,12 @@ describe("Legal subscriber authority checker", () => {
     assert.match(result.stdout, /Legal subscriber authority: OK/)
   })
 
-  it("rejects an unselected Legal booking-contract extension", async () => {
+  it("rejects a restored Legal booking-contract extension", async () => {
     const root = await createFixture({
-      "packages/operator-standard/src/index.ts": "const extensions = []\n",
+      "packages/operator-standard/src/index.ts":
+        'const extensions = [{ resolve: "@voyant-travel/legal/booking-contract-extension" }]\n',
     })
-    await assert.rejects(runChecker(root), /distribution must select the Legal booking-contract/)
+    await assert.rejects(runChecker(root), /must not select the retired Legal booking-contract/)
   })
 
   it("rejects redundant Legal selection in authored Operator config", async () => {

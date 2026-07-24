@@ -9,10 +9,6 @@ export {
   useBookingCancelMutation,
 } from "./use-booking-cancel-mutation.js"
 export {
-  type GenerateBookingContractInput,
-  useBookingContractGenerationMutation,
-} from "./use-booking-contract-generation.js"
-export {
   type ConvertProductToBookingInput,
   useBookingConvertMutation,
 } from "./use-booking-convert-mutation.js"

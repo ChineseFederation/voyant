@@ -42,6 +42,8 @@ export interface StorageObject {
 export interface StorageProvider {
   /** Diagnostic provider name (for example `"memory:media"`). */
   readonly name: string
+  /** Resolve an opaque fingerprint of the complete backend routing/auth binding. */
+  resolveBackendIdentity?(): Promise<string>
   /** Upload an object. */
   upload(body: StorageUploadBody, options?: UploadOptions): Promise<StorageObject>
   /** Delete an object by key. No-op if the key does not exist. */

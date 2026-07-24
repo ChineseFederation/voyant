@@ -16,11 +16,15 @@ import {
 } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-
+import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
 import type { ContractDocumentRoutesOptions } from "./contract-document-routes.js"
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
 import { legalContractDetail, legalContractSummary } from "./contract-dto.js"
 import { executeLegalContractLifecycleCommand } from "./contract-lifecycle-command.js"
+import {
+  type LegalDocumentArtifactProvider,
+  legalDocumentArtifactProviderPort,
+} from "./contracts/document-artifact-provider.js"
 import type { ContractLifecycleRuntimeOptions } from "./contracts/lifecycle.js"
 import { buildContractsRouteRuntime } from "./contracts/route-runtime.js"
 import type { ContractAttachment, ContractTemplate } from "./contracts/schema.js"
@@ -83,16 +87,21 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const documentRuntime = resources[legalContractDocumentRuntimePort.id] as
       | ContractDocumentRoutesOptions
       | undefined
+    const documentProvider = resources[legalDocumentArtifactProviderPort.id] as
+      | LegalDocumentArtifactProvider
+      | undefined
+    const actionLedgerContext = legalActionLedgerContext(c)
 
     return {
-      legal: createLegalToolServices(db, lifecycleRuntime, legalActionLedgerContext(c)),
-      ...(documentRuntime
+      legal: createLegalToolServices(db, lifecycleRuntime, actionLedgerContext),
+      ...(documentRuntime && documentProvider
         ? {
             legalContractDocument: createLegalContractDocumentToolServices({
               runtime: documentRuntime,
+              provider: documentProvider,
               env: c.env,
               db,
-              eventBus: c.get("eventBus"),
+              requestContext: actionLedgerContext,
             }),
           }
         : {}),
@@ -377,38 +386,30 @@ function pageMeta(result: { total: number; limit: number; offset: number }) {
 
 export function createLegalContractDocumentToolServices(input: {
   runtime: ContractDocumentRoutesOptions
+  provider: LegalDocumentArtifactProvider
   env: unknown
-  db: unknown
-  eventBus: unknown
+  db: PostgresJsDatabase
+  requestContext: ActionLedgerRequestContextValues
 }): LegalContractDocumentToolServices {
+  async function mutate(
+    mode: "generate" | "regenerate",
+    command: Parameters<LegalContractDocumentToolServices["generate"]>[0],
+    admitted: ToolHandlerActionPolicyContext,
+  ) {
+    const result = await executeLegalContractDocumentCommand({
+      db: input.db,
+      context: input.requestContext,
+      admitted,
+      mode,
+      commandInput: command,
+      provider: input.provider,
+    })
+    return result.value
+  }
+
   return {
-    previewBookingContract({ bookingId }) {
-      return input.runtime.previewContract(input.env, input.db, bookingId)
-    },
-    async generateBookingContract({ bookingId, force, includeDelivery }) {
-      if (includeDelivery && !input.runtime.resolveGeneratedDocument) {
-        throw new ToolError(
-          "The selected contract-document provider does not support authorized delivery resolution.",
-          "MISSING_SERVICE",
-        )
-      }
-      const generated = await input.runtime.generateContract(
-        input.env,
-        input.db,
-        input.eventBus,
-        bookingId,
-        { force },
-      )
-      if (!generated) return null
-      const delivery = includeDelivery
-        ? ((await input.runtime.resolveGeneratedDocument?.(
-            input.env,
-            input.db,
-            generated.attachmentId,
-          )) ?? null)
-        : null
-      return { ...generated, delivery }
-    },
+    generate: (command, admitted) => mutate("generate", command, admitted),
+    regenerate: (command, admitted) => mutate("regenerate", command, admitted),
     async resolveDelivery({ attachmentId }) {
       if (!input.runtime.resolveGeneratedDocument) {
         throw new ToolError(

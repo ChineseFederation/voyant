@@ -39,7 +39,7 @@ describe("standard Operator distribution", () => {
       "@voyant-travel/catalog-authoring",
       "@voyant-travel/reporting",
     ])
-    expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toHaveLength(25)
+    expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toHaveLength(24)
     expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toContain(
       "@voyant-travel/distribution/extension",
     )
@@ -50,7 +50,7 @@ describe("standard Operator distribution", () => {
     expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.modules).size).toBe(
       STANDARD_OPERATOR_DISTRIBUTION.modules.length,
     )
-    expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.extensions).size).toBe(25)
+    expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.extensions).size).toBe(24)
   })
 
   it("defaults authored differences without treating extensions as plugins", () => {

@@ -40,10 +40,6 @@ export function createNotificationsRuntime(
       return createDefaultBookingDocumentAttachment(document)
     },
     resolveDb: (bindings) => primitives.database.resolve(bindings),
-    autoConfirmAndDispatch: {
-      enabled: true,
-      templateSlug: "booking-confirmation",
-    },
     resolveReminderJobRuntime: (bindings) => {
       const env = resolveStringEnvironment(primitives.env(bindings))
       return createNotificationReminderJobRuntime({

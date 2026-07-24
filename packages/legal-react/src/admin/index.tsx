@@ -20,7 +20,6 @@ import { Scale } from "lucide-react"
 // data layer (client + response schemas) stays out of the workspace-chrome
 // chunk that evaluates this factory.
 import { defaultFetcher, type FetchWithValidationOptions } from "../client.js"
-import { legalContractGenerationSetupMessageDefinitions } from "../i18n/setup.js"
 
 /**
  * Semantic destinations the legal admin surfaces navigate to
@@ -335,16 +334,6 @@ export function createSelectedLegalAdminExtension({
 
   return {
     ...extension,
-    setupSteps: [
-      {
-        id: "@voyant-travel/legal#setup.contract-generation",
-        order: 50,
-        skippable: true,
-        href: "/legal/templates",
-        messages: legalContractGenerationSetupMessageDefinitions,
-        isComplete: hasContractGenerationSettings,
-      },
-    ],
     navigation: [
       {
         order: -40,
@@ -373,32 +362,4 @@ export function createSelectedLegalAdminExtension({
       },
     ],
   }
-}
-
-async function hasContractGenerationSettings({
-  runtime,
-}: AdminRouteLoaderContext): Promise<boolean> {
-  const request = runtime.fetcher ?? fetch
-  const [templateResponse, seriesResponse] = await Promise.all([
-    request(`${runtime.baseUrl}/v1/admin/legal/contracts/templates/default?scope=customer`),
-    request(`${runtime.baseUrl}/v1/admin/legal/contracts/number-series?scope=customer&active=true`),
-  ])
-  if (!templateResponse.ok || !seriesResponse.ok) return false
-
-  const template = (
-    (await templateResponse.json()) as {
-      data?: { active?: boolean; isDefault?: boolean; currentVersionId?: string | null } | null
-    }
-  ).data
-  const series = (
-    (await seriesResponse.json()) as {
-      data?: Array<{ active?: boolean; isDefault?: boolean }>
-    }
-  ).data
-  return Boolean(
-    template?.active &&
-      template.isDefault &&
-      template.currentVersionId &&
-      series?.some((row) => row.active && row.isDefault),
-  )
 }

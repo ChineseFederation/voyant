@@ -6,24 +6,17 @@ import { legalRuntimePort } from "../../src/runtime-port.js"
 
 describe("Legal runtime port", () => {
   it("accepts route providers and rejects malformed provider methods", async () => {
+    await expect(assertPortConforms(legalRuntimePort, {})).resolves.toBeUndefined()
     await expect(
       assertPortConforms(legalRuntimePort, {
-        resolveDocumentGenerator: () => undefined,
-        resolveBookingPiiService: async () => null,
-      }),
-    ).resolves.toBeUndefined()
-    await expect(
-      assertPortConforms(legalRuntimePort, {
-        resolveDocumentGenerator: "invalid",
+        resolveDocumentStorage: "invalid",
       } as never),
-    ).rejects.toThrow(/resolveDocumentGenerator must be a function/)
+    ).rejects.toThrow(/resolveDocumentStorage must be a function/)
   })
 })
 
 describe("Legal contract-document runtime port", () => {
   const provider = {
-    generateContract: async () => null,
-    previewContract: async () => null,
     resolveGeneratedDocument: async () => null,
     resolveStorage: () => null,
     guessMimeType: () => "application/octet-stream",

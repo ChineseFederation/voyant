@@ -1,5 +1,6 @@
 import path from "node:path"
 
+import { STANDARD_OPERATOR_DISTRIBUTION } from "@voyant-travel/framework"
 import { resolveProject } from "@voyant-travel/framework/project"
 import { describe, expect, it } from "vitest"
 import config from "../voyant.config.js"
@@ -8,8 +9,8 @@ const operatorRoot = process.cwd()
 
 describe("Operator project config", () => {
   it("authors only deployment differences", () => {
-    expect(config.modules).toHaveLength(49)
-    expect(config.extensions).toHaveLength(25)
+    expect(config.modules).toHaveLength(STANDARD_OPERATOR_DISTRIBUTION.modules.length)
+    expect(config.extensions).toHaveLength(STANDARD_OPERATOR_DISTRIBUTION.extensions.length)
     expect(config.plugins).toHaveLength(0)
     expect(config.productBom).toEqual({
       schemaVersion: "voyant.product-bom-reference.v1",
@@ -30,11 +31,13 @@ describe("Operator project config", () => {
       "read-only",
     ])
 
-    expect(config.selections?.modules).toHaveLength(49)
+    expect(config.selections?.modules).toHaveLength(STANDARD_OPERATOR_DISTRIBUTION.modules.length)
     expect(
       config.selections?.modules.every(({ provenance }) => provenance.kind === "package"),
     ).toBe(true)
-    expect(config.selections?.extensions).toHaveLength(25)
+    expect(config.selections?.extensions).toHaveLength(
+      STANDARD_OPERATOR_DISTRIBUTION.extensions.length,
+    )
     expect(config.selections?.plugins).toEqual([])
     expect(config.extensions.every((unit) => unit.schemaVersion === "voyant.extension.v1")).toBe(
       true,

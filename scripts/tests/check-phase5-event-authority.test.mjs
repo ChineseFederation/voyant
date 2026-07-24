@@ -161,6 +161,57 @@ describe("Phase 5 event authority checker", () => {
     assert.match(result.stdout, /1\/1 mutation packages covered/)
   })
 
+  it("accepts persistence mutations covered by a durable outbox append", async () => {
+    const covered = `${validManifest}
+const EXAMPLE_CHANGED = "example.changed"
+async function save(db) {
+  await db.insert(records).values({})
+  await insertOutboxEvents(db, [{ name: EXAMPLE_CHANGED, data: {} }])
+}
+`
+    const result = await runFixture(covered)
+    assert.match(result.stdout, /1\/1 mutation packages covered/)
+    assert.match(result.stdout, /1 emitted types/)
+  })
+
+  it("rejects durable outbox appends without package-owned contracts", async () => {
+    const invalid = `${validManifest}
+async function save(db) {
+  await db.insert(records).values({})
+  await insertOutboxEvents(db, [{ name: "example.undeclared", data: {} }])
+}
+`
+    await assert.rejects(runFixture(invalid), /emitter publishes undeclared event type/)
+  })
+
+  it("does not mistake nested outbox payload names for event types", async () => {
+    const covered = `${validManifest}
+async function save(db) {
+  await db.insert(records).values({})
+  await insertOutboxEvents(db, [{
+    name: "example.changed",
+    data: { name: "customer.display-name" },
+  }])
+}
+`
+    const result = await runFixture(covered)
+    assert.match(result.stdout, /1 emitted types/)
+    assert.doesNotMatch(result.stdout, /customer\.display-name/)
+  })
+
+  it("does not let a nested payload name cover a dynamic outbox event", async () => {
+    const invalid = `${validManifest}
+async function save(db) {
+  await db.insert(records).values({})
+  await insertOutboxEvents(db, [{
+    name: resolveEventName(),
+    data: { name: "example.changed" },
+  }])
+}
+`
+    await assert.rejects(runFixture(invalid), /persistence mutations but emits no declared event/)
+  })
+
   it("reports runtime subscriptions without manifest owners", async () => {
     const result = await runFixture(
       `${validManifest}\neventBus.subscribe("example.changed", handler)\n`,

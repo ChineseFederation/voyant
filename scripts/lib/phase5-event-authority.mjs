@@ -178,6 +178,118 @@ export function collectEventCalls(source, method, knownConstants = new Map()) {
     .filter(Boolean)
 }
 
+function extractCallAt(source, start) {
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character
+      continue
+    }
+    if (character === "(") depth += 1
+    if (character === ")" && --depth === 0) return source.slice(start + 1, index)
+  }
+  return ""
+}
+
+function splitTopLevelArguments(source) {
+  const argumentsList = []
+  let start = 0
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character
+      continue
+    }
+    if (character === "(" || character === "[" || character === "{") depth += 1
+    else if (character === ")" || character === "]" || character === "}") depth -= 1
+    else if (character === "," && depth === 0) {
+      argumentsList.push(source.slice(start, index).trim())
+      start = index + 1
+    }
+  }
+  argumentsList.push(source.slice(start).trim())
+  return argumentsList
+}
+
+function topLevelPropertyToken(source, property) {
+  let depth = 0
+  let quote = null
+  let escaped = false
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (character === "\\") escaped = true
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character
+      continue
+    }
+    if (character === "{") {
+      depth += 1
+      continue
+    }
+    if (character === "}") {
+      depth -= 1
+      continue
+    }
+    if (depth !== 1 || !source.startsWith(property, index)) continue
+    const before = source[index - 1]
+    const after = source[index + property.length]
+    if ((before && /[\w$]/.test(before)) || (after && /[\w$]/.test(after))) continue
+    const remainder = source.slice(index + property.length)
+    const separator = /^\s*:\s*/.exec(remainder)
+    if (!separator) continue
+    const value = remainder.slice(separator[0].length)
+    const literal = /^(["'])([^"']+)\1/.exec(value)
+    if (literal) return { literal: literal[2] }
+    const constant = /^([A-Z][A-Z0-9_]*)\b/.exec(value)?.[1]
+    if (constant) return { constant }
+  }
+}
+
+/**
+ * Find domain events appended through the transaction-bound outbox seam.
+ * These are the durable equivalent of EventBus.emit(), not a coverage escape.
+ */
+export function collectOutboxEventCalls(source, knownConstants = new Map()) {
+  const constants = new Map([...knownConstants, ...collectEventConstants(source)])
+  const events = []
+  for (const match of source.matchAll(/\binsertOutboxEvents\s*\(/g)) {
+    const lineStart = source.lastIndexOf("\n", match.index) + 1
+    if (/^\s*(?:\/\/|\*)/.test(source.slice(lineStart, match.index))) continue
+    const start = source.indexOf("(", match.index)
+    const call = extractCallAt(source, start)
+    const eventsArgument = splitTopLevelArguments(call)[1] ?? ""
+    for (const event of objectEntries(eventsArgument)) {
+      const name = topLevelPropertyToken(event, "name")
+      const eventType = name?.literal ?? constants.get(name?.constant)
+      if (eventType) events.push(eventType)
+    }
+  }
+  return events
+}
+
 /** Find direct Drizzle-style persistence mutations without treating array helpers as writes. */
 export function collectPersistenceMutationCalls(source) {
   return [...source.matchAll(/\b(?:db|tx|trx|database)\.(insert|update|delete)\s*\(/g)].map(

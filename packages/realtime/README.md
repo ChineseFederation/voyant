@@ -84,10 +84,6 @@ const realtime = createRealtimeApiModule({
   // Fan domain events out to channels. Payload is an invalidation hint.
   bridgeRoutes: {
     "booking.confirmed": (e) => ["admin", `booking:${e.bookingId}`],
-    "booking.fully-paid": (e) => ({
-      channels: ["admin", `booking:${e.bookingId}`],
-      hint: { entity: "booking", id: e.bookingId },
-    }),
     "availability.slot.changed": (e) => ({
       channels: ["admin", `product:${e.productId}`],
       hint: { entity: "availability", id: e.productId },

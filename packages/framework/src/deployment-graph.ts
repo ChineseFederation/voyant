@@ -27,7 +27,6 @@ import {
   type VoyantGraphJobSchedule,
   type VoyantGraphJobSchedulingPolicy,
   type VoyantGraphJsonObject,
-  type VoyantGraphJsonValue,
   type VoyantGraphLifecycleDeclaration,
   type VoyantGraphLinkDeclaration,
   type VoyantGraphMessageReference,
@@ -1070,13 +1069,6 @@ export function childGraphEntityId(parentId: string, childId: string): string {
 
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(canonicalize(value))
-}
-
-function toGraphJsonValue(value: unknown): VoyantGraphJsonValue | undefined {
-  if (value === undefined || typeof value === "function") return undefined
-  const text = JSON.stringify(value)
-  if (text === undefined) return undefined
-  return JSON.parse(text) as VoyantGraphJsonValue
 }
 
 export async function sha256(value: unknown): Promise<string> {
@@ -4868,10 +4860,6 @@ function isPackageGraphNamespace(graphPackageId: string, packageName: string): b
 
 function isCanonicalGraphId(id: string): boolean {
   return GRAPH_ID_PATTERN.test(id)
-}
-
-function isGraphEntityIdSegment(value: string): boolean {
-  return /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(value)
 }
 
 function usesReservedCapabilityNamespace(token: string): boolean {

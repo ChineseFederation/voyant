@@ -19,6 +19,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@fontsource-variable/inter-tight": "^5.2.7",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/devtools-vite": "^0.8.1",
     "@tanstack/react-start": "^1.168.27",
@@ -34,6 +35,7 @@
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/runtime-core": "workspace:^",
     "@voyant-travel/storage": "workspace:^",
+    "@voyant-travel/utils": "workspace:^",
     "@voyant-travel/vite-config": "workspace:^",
     "@voyant-travel/webhook-delivery": "workspace:^",
     "hono": "catalog:",
@@ -48,6 +50,8 @@
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/cruises": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
+    "@voyant-travel/legal": "workspace:^",
+    "@voyant-travel/operator-standard": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "drizzle-orm": "catalog:",
     "typescript": "catalog:",

@@ -1,4 +1,3 @@
-import type { EventBus } from "@voyant-travel/core"
 import { definePort } from "@voyant-travel/core/project"
 import type { BookingTaxSettings, PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -36,13 +35,6 @@ export interface CommerceLegalRuntime extends AcceptanceSignatureLegalPort {
     db: PostgresJsDatabase,
     input: CommerceAcceptanceDraftInput,
   ): Promise<void>
-  generateContractPdf(input: {
-    bindings: unknown
-    db: PostgresJsDatabase
-    eventBus: EventBus
-    bookingId: string
-    force?: boolean
-  }): Promise<{ contractId: string; attachmentId: string } | null>
 }
 
 export interface CommerceCardPaymentRuntime {
@@ -85,7 +77,6 @@ export const commerceLegalRuntimePort = objectPort<CommerceLegalRuntime>("commer
   "sendContract",
   "signContract",
   "persistAcceptanceDraftContract",
-  "generateContractPdf",
 ])
 
 export const commerceCardPaymentRuntimePort = objectPort<CommerceCardPaymentRuntime>(

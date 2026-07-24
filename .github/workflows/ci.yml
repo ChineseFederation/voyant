@@ -26,7 +26,7 @@ jobs:
   quality-graph:
     name: quality-graph
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       HUSKY: 0
       NODE_OPTIONS: --max-old-space-size=12288
@@ -70,7 +70,7 @@ jobs:
   tests:
     name: tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       HUSKY: 0
       NODE_OPTIONS: --max-old-space-size=12288
@@ -378,6 +378,20 @@ jobs:
       TURBO_API: ${{ vars.TURBO_API }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voyant
+          POSTGRES_PASSWORD: voyant
+          POSTGRES_DB: voyant_starter_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

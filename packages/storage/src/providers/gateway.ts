@@ -26,6 +26,11 @@ export interface GatewayStorageProviderOptions {
   tier?: string
 }
 
+async function opaqueBackendIdentity(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
 /**
  * Build a storage provider that talks to an HTTP storage gateway.
  *
@@ -58,6 +63,8 @@ export function createGatewayStorageProvider(
 
   return {
     name,
+    resolveBackendIdentity: () =>
+      opaqueBackendIdentity(`gateway:${endpoint}:${tier || "default"}:${options.token}`),
     async upload(
       body: StorageUploadBody,
       uploadOptions: UploadOptions = {},

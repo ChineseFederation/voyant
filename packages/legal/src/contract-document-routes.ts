@@ -1,24 +1,22 @@
 /**
  * Contract-document HTTP routes, owned by the legal module.
  *
- *   POST   /v1/admin/bookings/:bookingId/generate-contract
  *   GET    /v1/admin/documents/files/*
  *
- * The first route generates (or previews) a booking's contract PDF; the second
- * streams private document bytes from the deployment's document storage — used
+ * This route streams private document bytes from the deployment's document storage — used
  * as the authenticated download fallback for environments where object storage
  * isn't backed by a real S3 SigV4 signer.
  *
  * These shapes (validation, status codes, headers, the scriptable-mime safety,
  * the path-traversal-safe key parser) are framework logic and live here. The
- * deployment supplies the contract generator/preview, the document storage
- * resolver, and the MIME guesser via `ContractDocumentRoutesOptions`.
+ * deployment supplies the document storage resolver and MIME guesser via
+ * `ContractDocumentRoutesOptions`.
  *
  * The routes are mounted at absolute paths (the family spans multiple prefixes),
  * so a deployment composes them via `lazyRoutes` using
  * `CONTRACT_DOCUMENT_ROUTE_PATHS`.
  */
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { OpenAPIHono } from "@hono/zod-openapi"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
@@ -43,27 +41,6 @@ export interface ContractDocumentDelivery {
  * concrete types inside these callbacks.
  */
 export interface ContractDocumentRoutesOptions {
-  /**
-   * Generate (and persist) the booking's contract PDF. Returns `null` when
-   * document storage isn't configured (→ 503). The deployment reads its
-   * concrete db / event bus from `c` and casts as needed.
-   */
-  generateContract(
-    env: unknown,
-    db: unknown,
-    eventBus: unknown,
-    bookingId: string,
-    options: { force?: boolean },
-  ): Promise<{ contractId: string; attachmentId: string } | null>
-  /**
-   * Render the contract preview HTML for a booking. Returns `null` when the
-   * contract template can't be found (→ 404).
-   */
-  previewContract(
-    env: unknown,
-    db: unknown,
-    bookingId: string,
-  ): Promise<{ html: string; templateName: string; templateLanguage: string } | null>
   /** Resolve a deployment-authorized download URL for a generated attachment. */
   resolveGeneratedDocument?(
     env: unknown,
@@ -80,10 +57,7 @@ export interface ContractDocumentRoutesOptions {
 }
 
 /** Absolute path matchers for the deployment's `lazyRoutes.paths`. */
-export const CONTRACT_DOCUMENT_ROUTE_PATHS = [
-  "/v1/admin/bookings/:bookingId/generate-contract",
-  "/v1/admin/documents/files/*",
-] as const
+export const CONTRACT_DOCUMENT_ROUTE_PATHS = ["/v1/admin/documents/files/*"] as const
 
 const SCRIPTABLE_MIME_TYPES = new Set([
   "application/ecmascript",
@@ -166,89 +140,18 @@ function parseDocumentKey(path: string) {
   return segments.join("/")
 }
 
-// --- OpenAPI route definitions (voyant#2114) --------------------------------
-//
-// The booking generate-contract leg is a documented JSON operation surfaced via
-// `.openapi()`. The body is optional (`force`/`preview`), so it declares no
-// forcing OpenAPI request body and parses in-handler. The
-// `/v1/admin/documents/files/*` byte-stream is an admin-only raw download served
+// `/v1/admin/documents/files/*` is an admin-only raw download served
 // via `new Response`; it stays a plain `.get(...)` wildcard on the same
 // `OpenAPIHono` (catch-all path keys aren't expressible as a published OpenAPI
 // JSON operation), so it keeps working at runtime without polluting the spec.
 
-const errorResponseSchema = z.object({ error: z.string() })
-
-const generateContractDocumentEnvelopeSchema = z.object({
-  data: z.record(z.string(), z.unknown()),
-})
-
-const generateBookingContractRoute = createRoute({
-  method: "post",
-  path: "/v1/admin/bookings/{bookingId}/generate-contract",
-  "x-voyant-api-id": "@voyant-travel/legal#contract-document.api",
-  request: { params: z.object({ bookingId: z.string() }) },
-  responses: {
-    200: {
-      description: "The generated contract document reference, or a rendered preview",
-      content: { "application/json": { schema: generateContractDocumentEnvelopeSchema } },
-    },
-    400: {
-      description: "bookingId route param is required",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    404: {
-      description: "Contract template not found (preview mode)",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    502: {
-      description: "Contract document generation failed",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    503: {
-      description: "Contract document storage is not configured",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-  },
-})
-
 /**
  * Build the contract-document routes (absolute paths). A deployment composes
- * these via `lazyRoutes` and supplies the generator/preview, storage resolver,
- * and MIME guesser.
+ * these via `lazyRoutes` and supplies the storage resolver and MIME guesser.
  */
 export function createContractDocumentRoutes(options: ContractDocumentRoutesOptions) {
-  const { generateContract, previewContract, resolveStorage, guessMimeType } = options
-
+  const { resolveStorage, guessMimeType } = options
   const hono = new OpenAPIHono({ defaultHook: openApiValidationHook })
-    // Manual contract-PDF generation for the booking detail page's Documents tab.
-    .openapi(generateBookingContractRoute, async (c) => {
-      const bookingId = c.req.valid("param").bookingId
-      if (!bookingId) return c.json({ error: "bookingId route param is required" }, 400)
-
-      const body = await c.req
-        .json<{ force?: boolean; preview?: boolean }>()
-        .catch(() => ({}) as { force?: boolean; preview?: boolean })
-      try {
-        if (body.preview === true) {
-          const preview = await previewContract(c.env, c.get("db"), bookingId)
-          if (!preview) {
-            return c.json({ error: "Contract template not found" }, 404)
-          }
-          return c.json({ data: preview }, 200)
-        }
-
-        const result = await generateContract(c.env, c.get("db"), c.get("eventBus"), bookingId, {
-          force: body.force === true,
-        })
-        if (!result) {
-          return c.json({ error: "Contract document storage is not configured" }, 503)
-        }
-        return c.json({ data: result }, 200)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        return c.json({ error: message }, 502)
-      }
-    })
 
   // GET /v1/admin/documents/files/* — admin-only stream of private
   // documents bytes from the document storage. Used as the fallback
@@ -282,7 +185,7 @@ export function createContractDocumentRoutes(options: ContractDocumentRoutesOpti
   return hono
 }
 
-/** Package-owned module descriptor; deployments inject document generation and storage. */
+/** Package-owned module descriptor; deployments inject document storage. */
 export function createContractDocumentApiModule(options: ContractDocumentRoutesOptions): ApiModule {
   return {
     module: { name: "contract-document" },

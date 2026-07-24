@@ -52,7 +52,6 @@ export const realtimeInvalidationRoutes = {
   "promotion.changed": (event) => adminHint("promotion", firstId(event, "offerId")),
   "booking.confirmed": (event) => bookingHint(event, "booking"),
   "booking.cancelled": (event) => bookingHint(event, "booking"),
-  "booking.fully-paid": (event) => bookingHint(event, "payment"),
   "booking.refunded": (event) => bookingHint(event, "payment"),
   "payment.completed": (event) =>
     adminHint("payment", firstId(event, "bookingId", "paymentSessionId")),
@@ -124,8 +123,6 @@ export const realtimeBookingConfirmedInvalidationSubscriber =
   invalidationSubscriber("booking.confirmed")
 export const realtimeBookingCancelledInvalidationSubscriber =
   invalidationSubscriber("booking.cancelled")
-export const realtimeBookingFullyPaidInvalidationSubscriber =
-  invalidationSubscriber("booking.fully-paid")
 export const realtimeBookingRefundedInvalidationSubscriber =
   invalidationSubscriber("booking.refunded")
 export const realtimePaymentCompletedInvalidationSubscriber =

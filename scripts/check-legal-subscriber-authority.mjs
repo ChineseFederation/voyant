@@ -36,10 +36,10 @@ const rejectMatch = (source, pattern, message) => {
   if (pattern.test(source)) failures.push(message)
 }
 
-requireMatch(
+rejectMatch(
   sources.distribution,
   /resolve:\s*["']@voyant-travel\/legal\/booking-contract-extension["']/,
-  "Standard Operator distribution must select the Legal booking-contract extension",
+  "Standard Operator distribution must not select the retired Legal booking-contract extension",
 )
 rejectMatch(
   sources.config,
@@ -51,15 +51,10 @@ requireMatch(
   /runtimePorts:\s*\[[^\]]*requirePort\(legalRuntimePort\)[^\]]*\]/,
   "Legal module must declare its API runtime port",
 )
-requireMatch(
+rejectMatch(
   sources.manifest,
-  /export:\s*["']createLegalBookingContractVoyantRuntime["'][\s\S]*runtimePorts:\s*\[requirePort\(legalBookingContractSubscriberRuntimePort\)\]/,
-  "Legal extension must declare its subscriber runtime factory and port",
-)
-requireMatch(
-  sources.manifest,
-  /export:\s*["']legalBookingContractConfirmedSubscriber["']/,
-  "Legal manifest must own the booking-contract subscriber runtime reference",
+  /createLegalBookingContractVoyantRuntime|legalBookingContractConfirmedSubscriber|legalBookingContractSubscriberRuntimePort/,
+  "Legal manifest must not retain the retired booking-contract subscriber",
 )
 rejectMatch(
   sources.legalModule,
@@ -71,10 +66,10 @@ requireMatch(
   /\[legalRuntimePort\.id\]\s*:/,
   "Legal package contributor must provide the API runtime by port id",
 )
-requireMatch(
+rejectMatch(
   sources.contributor,
-  /\[legalBookingContractSubscriberRuntimePort\.id\]\s*:/,
-  "Legal package contributor must provide the subscriber runtime by port id",
+  /legalBookingContractSubscriberRuntimePort/,
+  "Legal package contributor must not provide the retired subscriber runtime port",
 )
 rejectMatch(
   sources.composition,

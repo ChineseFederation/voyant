@@ -35,7 +35,6 @@ const commercePorts = [
   "catalogCheckoutApiRuntimePort",
   "catalogCheckoutDatabaseRuntimePort",
   "catalogCheckoutLegalRuntimePort",
-  "catalogCheckoutContractPdfRuntimePort",
   "promotionRedemptionDatabaseRuntimePort",
   "promotionsBulkReindexRuntimePort",
 ]

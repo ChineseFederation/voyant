@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import type {
@@ -45,6 +45,19 @@ function safeDiskPath(root: string, key: string): string | null {
 function withDiskProvider(inner: StorageProvider, dir: string): StorageProvider {
   const provider: StorageProvider = {
     name: `${inner.name}+fs`,
+    resolveBackendIdentity: async () => {
+      const innerIdentity = await inner.resolveBackendIdentity?.()
+      if (!innerIdentity) {
+        throw new Error("Filesystem persistence requires the wrapped store backend identity.")
+      }
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(`filesystem:${path.resolve(dir)}:${innerIdentity}`),
+      )
+      return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+        "",
+      )
+    },
     async upload(body: StorageUploadBody, options?: UploadOptions): Promise<StorageObject> {
       const bytes = await toBytes(body)
       const result = await inner.upload(bytes, options)
@@ -89,6 +102,100 @@ function withDiskProvider(inner: StorageProvider, dir: string): StorageProvider 
   return provider
 }
 
+async function syncDirectory(dir: string): Promise<void> {
+  const handle = await open(dir, "r")
+  try {
+    await handle.sync()
+  } finally {
+    await handle.close()
+  }
+}
+
+async function writeDurably(filePath: string, bytes: Uint8Array): Promise<void> {
+  const parent = path.dirname(filePath)
+  await mkdir(parent, { recursive: true })
+  const temporary = `${filePath}.${crypto.randomUUID()}.tmp`
+  try {
+    const handle = await open(temporary, "wx")
+    try {
+      await handle.writeFile(bytes)
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await rename(temporary, filePath)
+    await syncDirectory(parent)
+  } catch (error) {
+    await rm(temporary, { force: true }).catch(() => undefined)
+    throw error
+  }
+}
+
+function withRequiredDiskProvider(inner: StorageProvider, dir: string): StorageProvider {
+  const provider: StorageProvider = {
+    name: `${inner.name}+required-fs`,
+    resolveBackendIdentity: async () => {
+      const innerIdentity = await inner.resolveBackendIdentity?.()
+      if (!innerIdentity) {
+        throw new Error("Durable document storage requires the wrapped store backend identity.")
+      }
+      const digest = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(`required-filesystem:${path.resolve(dir)}:${innerIdentity}`),
+      )
+      return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+        "",
+      )
+    },
+    async upload(body: StorageUploadBody, options?: UploadOptions): Promise<StorageObject> {
+      const bytes = await toBytes(body)
+      const result = await inner.upload(bytes, options)
+      const filePath = safeDiskPath(dir, result.key)
+      if (!filePath) {
+        await inner.delete(result.key).catch(() => undefined)
+        throw new Error(`Durable document storage rejected unsafe object key "${result.key}".`)
+      }
+      try {
+        await writeDurably(filePath, bytes)
+      } catch (error) {
+        await inner.delete(result.key).catch(() => undefined)
+        throw error
+      }
+      return result
+    },
+    async delete(key: string): Promise<void> {
+      const filePath = safeDiskPath(dir, key)
+      if (!filePath)
+        throw new Error(`Durable document storage rejected unsafe object key "${key}".`)
+      await rm(filePath, { force: true })
+      try {
+        await syncDirectory(path.dirname(filePath))
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+      }
+      await inner.delete(key)
+    },
+    async get(key: string): Promise<ArrayBuffer | null> {
+      const filePath = safeDiskPath(dir, key)
+      if (!filePath)
+        throw new Error(`Durable document storage rejected unsafe object key "${key}".`)
+      try {
+        const buffer = await readFile(filePath)
+        const copy = new Uint8Array(buffer.byteLength)
+        copy.set(buffer)
+        return copy.buffer
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+        throw error
+      }
+    },
+  }
+  if (inner.signedUrl) {
+    provider.signedUrl = (key, expiresIn) => inner.signedUrl!(key, expiresIn)
+  }
+  return provider
+}
+
 /**
  * Wrap a storage resolver so each resolved store persists uploaded bytes to disk
  * under `${dir}/${name}` and reads fall back to disk. Resolved providers are
@@ -107,6 +214,45 @@ export function withFilesystemPersistence(
       const wrapped = inner ? withDiskProvider(inner, path.join(dir, name)) : null
       cache.set(name, wrapped)
       return wrapped
+    },
+  }
+}
+
+/**
+ * Require restart-safe filesystem persistence for the documents store while
+ * retaining the existing best-effort behavior for other local stores.
+ */
+export async function withRequiredDocumentFilesystemPersistence(
+  resolver: StorageProviderResolver,
+  dir: string,
+): Promise<StorageProviderResolver> {
+  const root = path.join(dir, "documents")
+  await mkdir(root, { recursive: true })
+  const probe = path.join(root, `.voyant-storage-probe-${crypto.randomUUID()}`)
+  const probeBytes = new TextEncoder().encode("voyant-durable-document-storage")
+  try {
+    await writeDurably(probe, probeBytes)
+    const persisted = await readFile(probe)
+    if (!persisted.equals(probeBytes)) {
+      throw new Error("Durable document storage startup probe returned different bytes.")
+    }
+  } finally {
+    await rm(probe, { force: true })
+  }
+  await syncDirectory(root)
+
+  const bestEffort = withFilesystemPersistence(resolver, dir)
+  let documents: StorageProvider | null | undefined
+  return {
+    resolve(name: VoyantStorageName): StorageProvider | null {
+      if (name !== "documents") return bestEffort.resolve(name)
+      if (documents !== undefined) return documents
+      const inner = resolver.resolve("documents")
+      if (!inner) {
+        throw new Error("Durable document storage requires a documents store.")
+      }
+      documents = withRequiredDiskProvider(inner, root)
+      return documents
     },
   }
 }

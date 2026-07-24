@@ -42,6 +42,8 @@ export interface PdfRenderRequest {
 /** Cross-cutting HTML-to-document capability supplied by a deployment. */
 export interface DocumentRenderer {
   readonly name: string
+  /** Resolve an opaque fingerprint of the complete backend routing/auth binding. */
+  resolveBackendIdentity?(): Promise<string>
   renderPdf(request: PdfRenderRequest): Promise<Uint8Array>
 }
 

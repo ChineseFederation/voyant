@@ -1,7 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi"
 import type { Module } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
-import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { openApiValidationHook, stampOpenApiRegistryApiId } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import {
@@ -13,7 +12,6 @@ import {
   createContractsAdminRoutes,
   createContractsPublicRoutes,
 } from "./contracts/routes.js"
-import type { AutoGenerateContractOptions } from "./contracts/service-auto-generate.js"
 import { legalLinkable } from "./linkables.js"
 import { policiesAdminRoutes, policiesPublicRoutes } from "./policies/routes.js"
 import { legalRuntimePort } from "./runtime-port.js"
@@ -27,25 +25,7 @@ export const legalModule: Module = {
   requiresTransactionalDb: true,
 }
 
-export interface CreateLegalApiModuleOptions extends ContractsRouteOptions {
-  /**
-   * Required when `autoGenerateContractOnConfirmed.enabled` is true. The
-   * `booking.confirmed` subscriber fires outside request scope, so it
-   * needs its own db handle from runtime bindings. Returns `AnyDrizzleDb`
-   * (the `PostgresJsDatabase | NeonHttpDatabase` union from
-   * `@voyant-travel/db`) so consumers don't need to cast through `unknown` when
-   * wiring a Hyperdrive/Neon client.
-   */
-  resolveDb?: (bindings: Record<string, unknown>) => AnyDrizzleDb
-  /**
-   * Opt-in auto-generate on `booking.confirmed`. When enabled + a
-   * `templateSlug` is supplied + a `documentGenerator` is resolvable, every
-   * booking.confirmed event creates a contract against the template's
-   * current version and generates its attachment via the configured
-   * generator (object-storage-backed PDF, etc.).
-   */
-  autoGenerateContractOnConfirmed?: AutoGenerateContractOptions
-}
+export type CreateLegalApiModuleOptions = ContractsRouteOptions
 
 export function createLegalApiModule(options: CreateLegalApiModuleOptions = {}): ApiModule {
   // Parents are `OpenAPIHono` so the contracts/policies/terms sub-chains'
@@ -100,31 +80,18 @@ export {
 } from "./contract-document-routes.js"
 export { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
 export {
-  createLegalBookingContractSubscriberDescriptor,
-  LEGAL_BOOKING_CONTRACT_SUBSCRIBER_ID,
-  LEGAL_BOOKING_CONTRACT_SUBSCRIBER_RUNTIME_KEY,
-  type LegalBookingConfirmedEvent,
-  type LegalBookingContractSubscriberDependencies,
-  type LegalBookingContractSubscriberHost,
-  type LegalBookingContractSubscriberRuntime,
-  legalBookingContractConfirmedSubscriber,
-  legalBookingContractSubscriberRuntimePort,
-  registerLegalBookingContractSubscriberRuntime,
-} from "./contracts/booking-contract-subscriber-runtime.js"
-export {
-  type ContractDocumentService,
-  type ContractDocumentServiceOptions,
-  createContractDocumentService,
-  type DefaultContractSeries,
-  ensureDefaultContractSeries,
-  resetContractDocumentForBooking,
-} from "./contracts/contract-document-service.js"
-export {
-  buildContractVariableBindings,
-  type ContractOperatorPaymentInstructions,
-  type ContractOperatorProfile,
-  type ContractVariableBindingsOptions,
-} from "./contracts/contract-variables.js"
+  assertLegalDocumentArtifactProviderConformance,
+  checksumLegalDocumentBytes,
+  LEGAL_DOCUMENT_ARTIFACT_PROVIDER_PROTOCOL,
+  type LegalDocumentArtifactIdentity,
+  type LegalDocumentArtifactInspection,
+  LegalDocumentArtifactMismatchError,
+  type LegalDocumentArtifactProvider,
+  type LegalDocumentArtifactReference,
+  type LegalDocumentRenderDescriptor,
+  type LegalDocumentRenderedArtifact,
+  legalDocumentArtifactProviderPort,
+} from "./contracts/document-artifact-provider.js"
 export * from "./contracts/index.js"
 export {
   buildContractsRouteRuntime,
@@ -132,18 +99,6 @@ export {
   type ContractsRouteRuntime,
 } from "./contracts/route-runtime.js"
 export type { ContractsRouteOptions } from "./contracts/routes.js"
-export {
-  type AutoGenerateContractOptions,
-  type AutoGenerateContractResult,
-  type AutoGenerateContractRuntime,
-  autoGenerateContractForBooking,
-  type BookingConfirmedLikeEvent,
-  type ContractSeriesIdentity,
-  type DefaultContractVariables,
-  type GenerateContractForBookingResult,
-  generateContractForBookingFromDefaults,
-  type ResolveContractVariablesFn,
-} from "./contracts/service-auto-generate.js"
 export * from "./policies/index.js"
 export { legalRuntimePort } from "./runtime-port.js"
 export * from "./terms/index.js"

@@ -10,8 +10,8 @@ import {
 } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, join, resolve } from "node:path"
-import { fileURLToPath, pathToFileURL, URL } from "node:url"
-import type { Alias, Plugin, PluginOption, ResolverFunction, UserConfig } from "vite"
+import { fileURLToPath, URL } from "node:url"
+import type { Plugin, PluginOption, UserConfig } from "vite"
 
 /**
  * Force heavy vendor libs into their own chunks so they're only downloaded
@@ -45,6 +45,10 @@ export function voyantVendorChunk(id: string): string | undefined {
   if (normalizedId.includes("/@tiptap/") || normalizedId.includes("/prosemirror-")) {
     return "tiptap"
   }
+  // Drizzle contains legitimate circular ESM relationships between its base
+  // column builders. Keep the complete package in one chunk so Rollup cannot
+  // split a base class away from the subclass that extends it.
+  if (isNodeModulePackage(normalizedId, "drizzle-orm")) return "drizzle-orm"
   if (normalizedId.includes("/recharts/")) return "recharts"
   if (normalizedId.includes("/pdf-lib/") || normalizedId.includes("/@pdf-lib/")) {
     return "pdf-lib"
@@ -236,10 +240,6 @@ export interface VoyantStartViteConfigOptions {
   extraManualChunks?: (id: string) => string | undefined
   /** Extra SSR optimizeDeps entries appended to the Voyant set. */
   ssrOptimizeDepsInclude?: readonly string[]
-  /** Exact client aliases to physical ESM facades owned by the selected product BOM. */
-  dependencyAliases?: Readonly<Record<string, string>>
-  /** Stable product facade specifiers used when server bundles externalize frontend roots. */
-  serverDependencyFacades?: Readonly<Record<string, string>>
   /**
    * Build the SSR/server environment for a Node runtime (voyant#2966: Voyant
    * deployments are Node-only — no `@cloudflare/vite-plugin`). Adds the
@@ -253,8 +253,10 @@ export interface VoyantStartViteConfigOptions {
    * - `ssr.resolve.conditions` with `development` ahead of `node` so those
    *   packages resolve from `./src` and the app build stands alone (no
    *   prebuilt `dist` / `turbo ^build` needed).
-   * - `ssr.external` for the CommonJS `pg` driver so Node loads its native
-   *   constructor exports instead of bundling them into namespace objects.
+   * - `ssr.external` for the CommonJS `pg` driver so Node preserves its native
+   *   constructor exports. Drizzle stays bundled in the single `drizzle-orm`
+   *   vendor chunk above so packaged servers remain self-contained without
+   *   splitting its circular ESM graph.
    *
    * This is the config a Cloud-built hosted admin image would otherwise copy;
    * packaging it keeps it a version bump, not a copy (voyant#3044).
@@ -273,14 +275,6 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
     appRootUrl,
     VOYANT_SSR_OPTIMIZE_DEPS,
   )
-  const serverDependencyFacades = options.serverDependencyFacades ?? {}
-  const dependencyFacadePlugin = createDependencyFacadePlugin(serverDependencyFacades)
-  const dependencyFacadeAliases = createDependencyFacadeAliases(
-    options.dependencyAliases ?? {},
-    serverDependencyFacades,
-  )
-  const nestedDependencyIncludes = createNestedDependencyIncludes(serverDependencyFacades)
-
   return {
     server: {
       allowedHosts,
@@ -295,17 +289,12 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
       },
     },
     resolve: {
-      alias: [
-        { find: "@", replacement: fileURLToPath(new URL("./src", appRootUrl)) },
-        ...dependencyFacadeAliases,
-      ],
+      alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", appRootUrl)) }],
       dedupe: resolvableAppRootDependencies(appRootUrl, VOYANT_DEDUPE_DEPENDENCIES),
       tsconfigPaths: true,
     },
     optimizeDeps: {
-      include: nestedDependencyIncludes,
       exclude: [...VOYANT_CLIENT_OPTIMIZE_DEPS_EXCLUDE],
-      ...(Object.keys(serverDependencyFacades).length > 0 ? { holdUntilCrawlEnd: false } : {}),
     },
     ssr: {
       optimizeDeps: {
@@ -324,110 +313,8 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
           }
         : {}),
     },
-    plugins: [dependencyFacadePlugin, ...plugins],
+    plugins,
   }
-}
-
-function createDependencyFacadePlugin(serverFacades: Readonly<Record<string, string>>): Plugin {
-  const nestedDependencyIncludes = createNestedDependencyIncludes(serverFacades)
-  const productBomId = productBomPackageName(serverFacades)
-  return {
-    name: "voyant:dependency-facades",
-    enforce: "pre",
-    configEnvironment: {
-      order: "post",
-      handler(_name, config) {
-        if (config.consumer !== "client" || !productBomId) return
-        const include = config.optimizeDeps?.include
-        if (!include) return
-        config.optimizeDeps!.include = [
-          ...new Set(
-            include.map((dependency) =>
-              nestedDependencyIncludes.includes(dependency)
-                ? dependency
-                : qualifyFrontendSingletonInclude(dependency, productBomId),
-            ),
-          ),
-        ]
-      },
-    },
-    async resolveId(source, importer, options) {
-      if (
-        source.startsWith("#frontend/") &&
-        importer &&
-        this.environment.config.consumer === "server" &&
-        this.environment.mode === "dev"
-      ) {
-        const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
-        return resolved
-          ? { ...resolved, id: pathToFileURL(resolved.id).href, external: true }
-          : null
-      }
-      return null
-    },
-  }
-}
-
-function qualifyFrontendSingletonInclude(dependency: string, productBomId: string): string {
-  const rootPackage = packageNameForSubpath(dependency.split(">")[0]!.trim())
-  return VOYANT_DEDUPE_DEPENDENCIES.includes(rootPackage)
-    ? `${productBomId} > ${dependency}`
-    : dependency
-}
-
-function createDependencyFacadeAliases(
-  aliases: Readonly<Record<string, string>>,
-  serverFacades: Readonly<Record<string, string>>,
-): Alias[] {
-  return Object.entries(aliases).map(([specifier, replacement]) => {
-    const facade = serverFacades[specifier]
-    if (!facade) {
-      throw new Error(`Missing server dependency facade for ${specifier}`)
-    }
-    // Vite 8 applies aliases before user `resolveId` hooks. Its alias custom resolver
-    // type is synchronous even though the implementation awaits resolver promises.
-    // Keep this bridge until Vite exposes environment-specific aliases.
-    const customResolver = async function (
-      this: ThisParameterType<ResolverFunction>,
-      updatedId: Parameters<ResolverFunction>[0],
-      importer: Parameters<ResolverFunction>[1],
-      options: Parameters<ResolverFunction>[2],
-    ) {
-      if (this.environment.config.consumer !== "server") {
-        const dependencyImporter = importer?.replaceAll("\\", "/").includes("/node_modules/")
-        return this.resolve(dependencyImporter ? specifier : updatedId, importer, {
-          ...options,
-          skipSelf: true,
-        })
-      }
-      if (this.environment.mode !== "dev") return { id: facade, external: true }
-      const resolved = await this.resolve(facade, undefined, { ...options, skipSelf: true })
-      return resolved ? { ...resolved, id: pathToFileURL(resolved.id).href, external: true } : null
-    }
-
-    return {
-      find: new RegExp(`^${escapeRegExp(specifier)}$`),
-      replacement,
-      customResolver: customResolver as never,
-    }
-  })
-}
-
-function createNestedDependencyIncludes(facades: Readonly<Record<string, string>>): string[] {
-  const productBomId = productBomPackageName(facades)
-  if (!productBomId) return []
-
-  const reactStore = `${productBomId} > @tanstack/react-router > @tanstack/react-store`
-  return [reactStore, `${reactStore} > use-sync-external-store/shim/with-selector`]
-}
-
-function productBomPackageName(facades: Readonly<Record<string, string>>): string | undefined {
-  const routerFacade = facades["@tanstack/react-router"]
-  return routerFacade ? packageNameForSubpath(routerFacade) : undefined
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 function resolvableAppRootDependencies(

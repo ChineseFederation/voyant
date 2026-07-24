@@ -13,7 +13,6 @@ import { describe, expect, it } from "vitest"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "../../src/checkout/runtime-ports.js"
@@ -232,14 +231,12 @@ describe("commerce deployment manifest", () => {
           { id: catalogCheckoutApiRuntimePort.id },
           { id: catalogCheckoutDatabaseRuntimePort.id },
           { id: catalogCheckoutLegalRuntimePort.id },
-          { id: catalogCheckoutContractPdfRuntimePort.id },
         ],
       },
       runtimePorts: [
         { id: catalogCheckoutApiRuntimePort.id },
         { id: catalogCheckoutDatabaseRuntimePort.id },
         { id: catalogCheckoutLegalRuntimePort.id },
-        { id: catalogCheckoutContractPdfRuntimePort.id },
       ],
       api: [
         {

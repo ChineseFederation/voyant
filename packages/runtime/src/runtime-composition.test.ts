@@ -1,9 +1,12 @@
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/customer-business-onboarding-runtime-port"
+import { createVoyantGraphRuntime } from "@voyant-travel/framework/deployment-artifacts"
+import { legalDocumentArtifactProviderPort } from "@voyant-travel/legal"
 import { describe, expect, it, vi } from "vitest"
 import {
   configureSearchProviderRuntime,
+  configureStandardLegalProviderRuntime,
   createGeneratedProject,
   createTestIndexerProvider,
   getRuntimeCompositionMocks,
@@ -13,6 +16,96 @@ import {
 const mocks = getRuntimeCompositionMocks()
 
 describe("Voyant project runtime composition", () => {
+  it("uses a statically injected generated runtime without importing a second framework graph", async () => {
+    const projectRoot = await createGeneratedProject()
+    const generatedProjectRuntime = {
+      kind: "application" as const,
+      graphHash: "graph-hash",
+      deployment: { mode: "self-hosted" as const, providers: mocks.deploymentProviders },
+      graphRuntime: createVoyantGraphRuntime({
+        graphHash: "graph-hash",
+        entries: {},
+        modules: [],
+        plugins: [],
+      }),
+      createRuntimePorts: () => ({}),
+    }
+
+    await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: { DATABASE_URL: "postgres://example.invalid/voyant" },
+      generatedProjectRuntime,
+    })
+
+    expect(
+      mocks.tsImport.mock.calls.some(([url]) => url.includes("project-runtime.generated.ts")),
+    ).toBe(false)
+  })
+
+  it("activates and behaviorally preflights the concrete Standard Legal provider", async () => {
+    await configureStandardLegalProviderRuntime()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(new TextEncoder().encode("%PDF-standard"), { status: 200 })),
+    )
+    const projectRoot = await createGeneratedProject()
+
+    const project = await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: {
+        APP_URL: "http://localhost:3300",
+        DATABASE_URL: "postgres://example.invalid/voyant",
+        VOYANT_DOCUMENT_RENDERER_URL: "https://renderer.example/pdf",
+      },
+    })
+    const provider = project.runtimePorts[legalDocumentArtifactProviderPort.id]
+
+    expect(provider).toMatchObject({
+      identity: {
+        id: "voyant.standard.legal-document",
+        protocol: "legal-document-artifact.v1",
+      },
+    })
+    await expect(legalDocumentArtifactProviderPort.test(provider as never)).resolves.toBeUndefined()
+    expect(mocks.loadVoyantNodeRuntime.mock.calls[0]?.[0]).toMatchObject({
+      graphRuntime: mocks.activatedGraphRuntime,
+    })
+    expect(
+      (mocks.loadVoyantNodeRuntime.mock.calls[0]?.[0] as { graphRuntime?: unknown }).graphRuntime,
+    ).not.toBe(mocks.graphRuntime)
+  })
+
+  it("uses the bundled renderer when no HTTP renderer is configured", async () => {
+    await configureStandardLegalProviderRuntime()
+    const projectRoot = await createGeneratedProject()
+
+    const project = await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin"),
+      env: {
+        APP_URL: "http://localhost:3300",
+        DATABASE_URL: "postgres://example.invalid/voyant",
+      },
+    })
+    const provider = project.runtimePorts[legalDocumentArtifactProviderPort.id] as {
+      render(input: {
+        contractId: string
+        body: string
+        bodyFormat: "html"
+      }): Promise<{ bytes: Uint8Array; metadata: Record<string, string> }>
+    }
+    const artifact = await provider.render({
+      contractId: "contract-bundled-renderer",
+      body: "<h1>Diferență rămasă scadentă</h1>",
+      bodyFormat: "html",
+    })
+
+    expect(new TextDecoder().decode(artifact.bytes.subarray(0, 4))).toBe("%PDF")
+    expect(artifact.metadata.renderer).toBe("voyant-basic-document-renderer")
+  })
+
   it("selects admin assets from the same generated artifact layout", async () => {
     const developmentRoot = await createGeneratedProject()
     await mkdir(path.join(developmentRoot, ".voyant/admin/client"), { recursive: true })

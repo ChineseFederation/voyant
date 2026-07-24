@@ -27,7 +27,7 @@ const frontendSingletonRoots = [
   "react-dom",
 ]
 
-test("legacy minimal starter serves project API and SSR routes without direct frontend dependencies", {
+test("packaged minimal starter serves project API and SSR routes", {
   timeout: 420_000,
 }, async (t) => {
   const root = mkdtempSync(join(tmpdir(), "voyant-minimal-starter-acceptance-"))
@@ -59,7 +59,7 @@ test("legacy minimal starter serves project API and SSR routes without direct fr
       app,
     )
     removeReleasePeerFixtures(app, releasePeerFixtures)
-    assertNonHoistedConsumerLayout(app)
+    assertStrictConsumerLayout(app)
     assertPublishedPackageLayout(app)
     write(app, "src/api/admin/health/route.ts", "export const GET = (c) => c.json({ ok: true })\n")
     write(
@@ -206,7 +206,13 @@ async function assertVoyantServerMode(app, mode, t) {
   const server = spawnVoyant(app, mode, port)
   const output = captureOutput(server)
   try {
-    await waitForListening("127.0.0.1", port, server, output)
+    try {
+      await waitForListening("127.0.0.1", port, server, output)
+    } catch (error) {
+      if (mode !== "start") throw error
+      const diagnostic = await diagnosePackagedStart(app)
+      throw new Error(`${String(error)}\nDirect packaged runtime diagnostic:\n${diagnostic}`)
+    }
 
     const api = await readResponse(`http://127.0.0.1:${port}/api/v1/public/starter-proof`, {
       headers: { authorization: "Bearer starter-acceptance-internal-key" },
@@ -264,6 +270,62 @@ function spawnVoyant(app, mode, port) {
   })
 }
 
+async function diagnosePackagedStart(app) {
+  const projectRequire = createRequire(join(app, "package.json"))
+  const cliStartEntry = projectRequire.resolve("@voyant-travel/cli/commands/start")
+  const diagnostic = [
+    'import { readFile } from "node:fs/promises"',
+    'import { fileURLToPath, pathToFileURL } from "node:url"',
+    "const { loadProjectRuntime } = await import(pathToFileURL(process.argv[1]).href)",
+    "const runtime = await loadProjectRuntime(process.cwd())",
+    "try {",
+    "  const handle = await runtime.startVoyantProject({",
+    "    projectRoot: process.cwd(),",
+    "    port: 0,",
+    "    preferBuiltAdminAssets: true,",
+    "  })",
+    "  await handle.close()",
+    '  console.error("Direct packaged runtime start unexpectedly succeeded.")',
+    "} catch (error) {",
+    "  const stack = error instanceof Error ? error.stack : String(error)",
+    "  console.error(stack)",
+    "  const frame = stack?.match(/at (file:\\/\\/[^:\\n]+):(\\d+):(\\d+)/)",
+    "  if (frame) {",
+    '    const lines = (await readFile(fileURLToPath(frame[1]), "utf8")).split("\\n")',
+    "    const line = Number(frame[2])",
+    "    const start = Math.max(0, line - 9)",
+    "    const end = Math.min(lines.length, line + 8)",
+    '    console.error("Failing bundled module excerpt:")',
+    "    for (let index = start; index < end; index += 1) {",
+    '      console.error(String(index + 1).padStart(5, " ") + " | " + lines[index])',
+    "    }",
+    "  }",
+    "  process.exitCode = 1",
+    "}",
+  ].join("\n")
+
+  return new Promise((resolvePromise) => {
+    execFile(
+      process.execPath,
+      ["--input-type=module", "--eval", diagnostic, cliStartEntry],
+      {
+        cwd: app,
+        env: acceptanceEnvironment(),
+        encoding: "utf8",
+        timeout: 30_000,
+      },
+      (error, stdout, stderr) => {
+        resolvePromise(
+          [stdout, stderr, error && !stderr.includes(error.message) ? error.stack : ""]
+            .filter(Boolean)
+            .join("\n")
+            .trim(),
+        )
+      },
+    )
+  })
+}
+
 function acceptanceEnvironment() {
   return {
     ...process.env,
@@ -299,9 +361,6 @@ function useInstalledToolingArtifacts(app, publishedPackages) {
       "string",
       `Supported packaged starter must directly own ${dependency}`,
     )
-    // Exercise the runtime bridge used by existing projects created before
-    // direct frontend singleton ownership became part of the starter contract.
-    delete packageJson.dependencies[dependency]
   }
   // A Changesets PR references versions that do not exist on npm yet. Admit
   // the complete local candidate closure for install-time peer resolution,
@@ -342,20 +401,19 @@ function removeReleasePeerFixtures(app, dependencies) {
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
 }
 
-function assertNonHoistedConsumerLayout(app) {
+function assertStrictConsumerLayout(app) {
   const packageJson = JSON.parse(readFileSync(join(app, "package.json"), "utf8"))
 
   assert.ok(packageJson.dependencies["@voyant-travel/operator-standard"])
   for (const dependency of frontendSingletonRoots) {
     assert.equal(
-      packageJson.dependencies[dependency],
-      undefined,
-      `Legacy packaged acceptance unexpectedly declares ${dependency}`,
+      typeof packageJson.dependencies[dependency],
+      "string",
+      `Packaged starter must directly declare ${dependency}`,
     )
-    assert.equal(
+    assert.ok(
       existsSync(join(app, "node_modules", dependency)),
-      false,
-      `Legacy packaged acceptance unexpectedly hoisted ${dependency}`,
+      `Packaged starter did not install ${dependency} at the application root`,
     )
   }
   assert.equal(packageJson.dependencies["@voyant-travel/admin"], undefined)
@@ -375,9 +433,6 @@ function assertPublishedPackageLayout(app) {
     assert.ok(existsSync(join(packageRoot, "dist")), `${name} is missing its published dist layout`)
   }
   const operatorRoot = realpathSync(join(app, "node_modules/@voyant-travel/operator-standard"))
-  const operatorManifest = JSON.parse(readFileSync(join(operatorRoot, "package.json"), "utf8"))
-  assert.equal(operatorManifest.exports["./runtime/react"].browser, "./dist/runtime/react.js")
-  assert.equal(operatorManifest.imports["#frontend/react"], "react")
   const resolveFromOperator = createRequire(join(operatorRoot, "package.json"))
   assert.doesNotThrow(
     () => resolveFromOperator.resolve("@voyant-travel/identity-react"),

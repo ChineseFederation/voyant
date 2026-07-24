@@ -19,8 +19,14 @@ export interface S3CompatibleProviderOptions {
   sessionToken?: string
   publicBaseUrl?: string
   name?: string
+  backendIdentity?: string
   generateKey?: () => string
   client?: S3Client
+}
+
+async function opaqueBackendIdentity(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
 
 /**
@@ -32,12 +38,23 @@ export function createS3CompatibleStorageProvider(
   options: S3CompatibleProviderOptions,
 ): StorageProvider {
   assertCredentialPair(options)
+  const backendIdentity = resolveConfiguredBackendIdentity(options)
   const client = options.client ?? new S3Client(clientConfig(options))
   const publicBaseUrl = normalizeBaseUrl(options.publicBaseUrl)
   const generateKey = options.generateKey ?? defaultKey
 
   return {
     name: options.name ?? "s3-compatible",
+    resolveBackendIdentity: () =>
+      opaqueBackendIdentity(
+        JSON.stringify({
+          endpoint: options.endpoint ?? "aws",
+          region: options.region,
+          bucket: options.bucket,
+          forcePathStyle: options.forcePathStyle ?? false,
+          backendIdentity,
+        }),
+      ),
     async upload(
       body: StorageUploadBody,
       uploadOptions: UploadOptions = {},
@@ -78,6 +95,26 @@ export function createS3CompatibleStorageProvider(
       }
     },
   }
+}
+
+function resolveConfiguredBackendIdentity(options: S3CompatibleProviderOptions): string {
+  const explicit = options.backendIdentity?.trim()
+  if (explicit) return explicit
+  if (options.client) {
+    throw new Error(
+      "S3-compatible storage backendIdentity is required when a custom client is supplied.",
+    )
+  }
+  if (!options.accessKeyId || !options.secretAccessKey) {
+    throw new Error(
+      "S3-compatible storage backendIdentity is required when using the default credential chain.",
+    )
+  }
+  return JSON.stringify({
+    accessKeyId: options.accessKeyId,
+    secretAccessKey: options.secretAccessKey,
+    sessionToken: options.sessionToken ?? null,
+  })
 }
 
 function clientConfig(options: S3CompatibleProviderOptions): S3ClientConfig {

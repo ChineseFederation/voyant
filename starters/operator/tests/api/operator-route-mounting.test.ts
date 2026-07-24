@@ -105,10 +105,11 @@ async function responseWithSessionActor(
 }
 
 async function buildGraphComposition() {
-  const runtime = createGeneratedGraphRuntime()
+  const selected = await createGeneratedTestDeploymentResources(createGeneratedGraphRuntime())
   return composeVoyantGraphRuntime({
-    runtime,
-    ...(await createGeneratedTestDeploymentResources(runtime)),
+    runtime: selected.runtime,
+    capabilities: selected.capabilities,
+    ports: selected.ports,
   })
 }
 

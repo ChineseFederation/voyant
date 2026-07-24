@@ -2,8 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
-import type { Alias, Plugin, ResolverFunction } from "vite"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   VOYANT_ROUTE_FILE_IGNORE_PATTERN,
   VOYANT_SSR_OPTIMIZE_DEPS,
@@ -31,6 +30,19 @@ describe("voyantVendorChunk", () => {
     expect(voyantVendorChunk("/repo/node_modules/recharts/es6/index.js")).toBe("recharts")
     expect(voyantVendorChunk("/repo/node_modules/pdf-lib/cjs/index.js")).toBe("pdf-lib")
     expect(voyantVendorChunk("/repo/node_modules/@pdf-lib/fontkit/index.js")).toBe("pdf-lib")
+  })
+
+  it("keeps the complete Drizzle ESM graph in one chunk", () => {
+    expect(
+      voyantVendorChunk(
+        "/repo/node_modules/.pnpm/drizzle-orm@0.45.2/node_modules/drizzle-orm/pg-core/columns/int.common.js",
+      ),
+    ).toBe("drizzle-orm")
+    expect(
+      voyantVendorChunk(
+        "/repo/node_modules/.pnpm/drizzle-orm@0.45.2/node_modules/drizzle-orm/pg-core/columns/common.js",
+      ),
+    ).toBe("drizzle-orm")
   })
 
   it("keeps class-name helpers out of heavy vendor chunks", () => {
@@ -106,154 +118,6 @@ describe("voyantStartViteConfig", () => {
     const aliases = config.resolve?.alias
 
     expect(aliases).toEqual([{ find: "@", replacement: "/repo/starters/operator/src" }])
-  })
-
-  it("resolves legacy frontend imports from the product BOM in each Vite environment", async () => {
-    const dependencyAliases = {
-      react: "/product/runtime/react.js",
-      "react/jsx-runtime": "/product/runtime/react-jsx-runtime.js",
-      "@tanstack/react-router": "/product/runtime/tanstack-react-router.js",
-    }
-    const serverDependencyFacades = {
-      react: "@acme/operator/runtime/react",
-      "react/jsx-runtime": "@acme/operator/runtime/react/jsx-runtime",
-      "@tanstack/react-router": "@acme/operator/runtime/tanstack/react-router",
-    }
-    const config = voyantStartViteConfig({
-      ...base,
-      dependencyAliases,
-      serverDependencyFacades,
-      nodeSsr: true,
-    })
-    const plugin = (config.plugins as Plugin[]).find(
-      (candidate) => candidate.name === "voyant:dependency-facades",
-    )
-    const resolveId = plugin?.resolveId as Exclude<Plugin["resolveId"], object | undefined>
-    const configEnvironmentHook = plugin?.configEnvironment
-    const configEnvironment =
-      typeof configEnvironmentHook === "object"
-        ? configEnvironmentHook.handler
-        : configEnvironmentHook
-    const resolve = vi.fn(async (source: string) => ({ id: `/resolved/${source}` }))
-    const aliases = config.resolve?.alias as Alias[]
-    expect(aliases[0]).toEqual({ find: "@", replacement: "/repo/starters/operator/src" })
-    expect(aliases.slice(1).map(({ find }) => String(find))).toEqual([
-      "/^react$/",
-      "/^react\\/jsx-runtime$/",
-      "/^@tanstack\\/react-router$/",
-    ])
-    const reactAlias = aliases[1]!
-    const customResolver = reactAlias.customResolver as ResolverFunction
-
-    await expect(
-      customResolver.call(
-        { environment: { config: { consumer: "server" }, mode: "build" } } as never,
-        reactAlias.replacement,
-        "/app/route.tsx",
-        {} as never,
-      ),
-    ).resolves.toEqual({ id: serverDependencyFacades.react, external: true })
-
-    await expect(
-      customResolver.call(
-        { environment: { config: { consumer: "client" }, mode: "dev" }, resolve } as never,
-        reactAlias.replacement,
-        "/app/route.tsx",
-        {} as never,
-      ),
-    ).resolves.toEqual({ id: `/resolved/${reactAlias.replacement}` })
-    expect(resolve).toHaveBeenCalledWith(reactAlias.replacement, "/app/route.tsx", {
-      skipSelf: true,
-    })
-
-    await expect(
-      customResolver.call(
-        { environment: { config: { consumer: "client" }, mode: "dev" }, resolve } as never,
-        reactAlias.replacement,
-        "/product/node_modules/react-dom/index.js",
-        {} as never,
-      ),
-    ).resolves.toEqual({ id: "/resolved/react" })
-    expect(resolve).toHaveBeenCalledWith("react", "/product/node_modules/react-dom/index.js", {
-      skipSelf: true,
-    })
-
-    const jsxAlias = aliases[2]!
-    await expect(
-      (jsxAlias.customResolver as ResolverFunction).call(
-        { environment: { config: { consumer: "server" }, mode: "dev" }, resolve } as never,
-        jsxAlias.replacement,
-        "/app/route.tsx",
-        {} as never,
-      ),
-    ).resolves.toEqual({
-      id: "file:///resolved/@acme/operator/runtime/react/jsx-runtime",
-      external: true,
-    })
-    expect(resolve).toHaveBeenCalledWith(serverDependencyFacades["react/jsx-runtime"], undefined, {
-      skipSelf: true,
-    })
-
-    await expect(
-      resolveId.call(
-        { environment: { config: { consumer: "server" }, mode: "dev" }, resolve } as never,
-        "#frontend/react",
-        "/product/runtime/react.js",
-        {} as never,
-      ),
-    ).resolves.toEqual({
-      id: "file:///resolved/%23frontend/react",
-      external: true,
-    })
-    expect(resolve).toHaveBeenCalledWith("#frontend/react", "/product/runtime/react.js", {
-      skipSelf: true,
-    })
-    await expect(
-      resolveId.call(
-        { environment: { config: { consumer: "client" }, mode: "build" } } as never,
-        "unrelated",
-        "/app/route.tsx",
-        {} as never,
-      ),
-    ).resolves.toBeNull()
-
-    const clientEnvironment = {
-      consumer: "client",
-      optimizeDeps: {
-        include: [
-          ...(config.optimizeDeps?.include ?? []),
-          "react",
-          "react-dom/client",
-          "@tanstack/react-router > @tanstack/react-store",
-          "unrelated-package",
-        ],
-      },
-    }
-    await configEnvironment?.call(
-      {} as never,
-      "client",
-      clientEnvironment as never,
-      { command: "serve", mode: "development" } as never,
-    )
-    expect(clientEnvironment.optimizeDeps.include).toEqual([
-      ...(config.optimizeDeps?.include ?? []),
-      "@acme/operator > react",
-      "@acme/operator > react-dom/client",
-      "unrelated-package",
-    ])
-
-    expect(config.optimizeDeps?.exclude).toEqual([
-      "@voyant-travel/operator-standard",
-      "@voyant-travel/operator-standard/standard-frontend",
-    ])
-    expect(config.optimizeDeps?.include).toEqual([
-      "@acme/operator > @tanstack/react-router > @tanstack/react-store",
-      "@acme/operator > @tanstack/react-router > @tanstack/react-store > use-sync-external-store/shim/with-selector",
-    ])
-    expect(config.optimizeDeps?.holdUntilCrawlEnd).toBe(false)
-    expect(config.ssr?.optimizeDeps?.include).toEqual([])
-    expect(config.ssr?.external).toEqual(["pg"])
-    expect(config.ssr?.noExternal).toEqual([/^@voyant-travel\//, /^@pxmstudio\//])
   })
 
   it("deduplicates framework dependencies declared and resolvable from a fresh app root", () => {
@@ -365,10 +229,10 @@ describe("voyantStartViteConfig", () => {
     ])
   })
 
-  it("keeps the CommonJS Postgres driver external in Node SSR builds", () => {
+  it("keeps only the CommonJS database driver external in Node SSR builds", () => {
     const config = voyantStartViteConfig({ ...base, nodeSsr: true })
 
-    expect(config.ssr?.external).toContain("pg")
+    expect(config.ssr?.external).toEqual(["pg"])
   })
 
   it("allows dev tunnel hosts by default and supports an explicit host list", () => {

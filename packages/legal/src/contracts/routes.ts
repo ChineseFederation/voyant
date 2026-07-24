@@ -18,12 +18,9 @@
 // in-handler; multipart upload + redirect download legs declare their non-JSON
 // shapes explicitly. The factory/provider wiring + business logic are unchanged.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
-import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
-import { type BookingPiiService, shouldRevealBookingPii } from "@voyant-travel/bookings"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
   idempotencyKey,
-  isStaffRbacEnforced,
   openApiValidationHook,
   parseJsonBody,
   parseOptionalJsonBody,
@@ -32,7 +29,6 @@ import {
 import { legalTargetKindSchema } from "@voyant-travel/legal-contracts/targets/validation"
 import {
   createDrizzlePublicDocumentDeliveryGrantStore,
-  createPublicDocumentDeliveryGrant,
   resolvePublicDocumentDeliveryGrant,
 } from "@voyant-travel/public-document-delivery"
 import type { StorageProvider } from "@voyant-travel/storage"
@@ -47,8 +43,7 @@ import {
 } from "./route-runtime.js"
 import { renderPreviewResponse } from "./route-template-preview.js"
 import type { Contract, ContractSignature } from "./schema.js"
-import { contractsService } from "./service.js"
-import { generateContractForBookingFromDefaults } from "./service-auto-generate.js"
+import { contractsService, DurableContractDocumentAttachmentMutationError } from "./service.js"
 import {
   contractBodyFormatSchema,
   contractListQuerySchema,
@@ -60,8 +55,6 @@ import {
   contractStatusSchema,
   contractTemplateDefaultQuerySchema,
   contractTemplateListQuerySchema,
-  generateContractDocumentInputSchema,
-  generateContractForBookingInputSchema,
   insertContractAttachmentSchema,
   insertContractNumberSeriesSchema,
   insertContractSchema,
@@ -119,15 +112,7 @@ function getClientIp(c: Context) {
   )
 }
 
-export type ContractDocumentGenerator = Parameters<
-  typeof contractsService.generateContractDocument
->[3]["generator"]
-
 export interface ContractsRouteOptions {
-  documentGenerator?: ContractDocumentGenerator
-  resolveDocumentGenerator?: (
-    bindings: Record<string, unknown>,
-  ) => ContractDocumentGenerator | undefined
   resolveDocumentDownloadUrl?: (
     bindings: Record<string, unknown>,
     storageKey: string,
@@ -140,10 +125,6 @@ export interface ContractsRouteOptions {
   resolveLifecycleHooks?: (
     bindings: Record<string, unknown>,
   ) => readonly ContractLifecycleHook[] | undefined
-  bookingPiiService?: BookingPiiService | null
-  resolveBookingPiiService?: (
-    bindings: Record<string, unknown>,
-  ) => BookingPiiService | Promise<BookingPiiService | null | undefined> | null | undefined
 }
 
 function getRuntime(
@@ -155,40 +136,6 @@ function getRuntime(
     resolveFromContainer?.(CONTRACTS_ROUTE_RUNTIME_CONTAINER_KEY) ??
     buildContractsRouteRuntime(bindings, options)
   )
-}
-
-function getActionLedgerRequestContext(c: Context<Env>): ActionLedgerRequestContextValues {
-  return {
-    userId: c.get("userId") ?? null,
-    agentId: c.get("agentId") ?? null,
-    workflowPrincipalId: c.get("workflowPrincipalId") ?? null,
-    principalSubtype: c.get("principalSubtype") ?? null,
-    sessionId: c.get("sessionId") ?? null,
-    apiTokenId: c.get("apiTokenId") ?? c.get("apiKeyId") ?? null,
-    callerType: c.get("callerType") ?? null,
-    actor: c.get("actor") ?? null,
-    isInternalRequest: c.get("isInternalRequest") ?? false,
-    organizationId: c.get("organizationId") ?? null,
-    workflowRunId: c.get("workflowRunId") ?? null,
-    workflowStepId: c.get("workflowStepId") ?? null,
-    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
-  }
-}
-
-async function resolveAuthorizedBookingPiiService(
-  c: Context<Env>,
-  runtime: ContractsRouteRuntime,
-): Promise<BookingPiiService | null> {
-  const reveal = shouldRevealBookingPii({
-    actor: c.get("actor"),
-    scopes: c.get("scopes"),
-    callerType: c.get("callerType"),
-    isInternalRequest: c.get("isInternalRequest"),
-    enforceRbac: isStaffRbacEnforced(c.env),
-  })
-  if (!reveal) return null
-
-  return runtime.bookingPiiService ?? (await runtime.resolveBookingPiiService?.(c.env)) ?? null
 }
 
 function getMultipartString(value: unknown) {
@@ -229,7 +176,10 @@ async function buildUploadedAttachmentInput({
 }) {
   const originalName = file.name || "document"
   const name = getMultipartString(form.name)?.trim() || originalName
-  const kind = getMultipartString(form.kind)?.trim() || "document"
+  const kind = getMultipartString(form.kind)?.trim() || "appendix"
+  if (kind === "document" || kind === "document-history") {
+    throw new DurableContractDocumentAttachmentMutationError()
+  }
   const mimeType = file.type || "application/octet-stream"
   const body = await file.arrayBuffer()
   const checksum = await sha256Checksum(body)
@@ -352,16 +302,24 @@ async function uploadContractAttachment(
   const parsed = await parseAttachmentUploadRequest(c)
   if (parsed.error) return parsed.error
 
-  const row = await contractsService.createAttachment(
-    c.get("db"),
-    contractId,
-    await buildUploadedAttachmentInput({
-      storage,
+  let row: Awaited<ReturnType<typeof contractsService.createAttachment>>
+  try {
+    row = await contractsService.createAttachment(
+      c.get("db"),
       contractId,
-      form: parsed.form,
-      file: parsed.file,
-    }),
-  )
+      await buildUploadedAttachmentInput({
+        storage,
+        contractId,
+        form: parsed.form,
+        file: parsed.file,
+      }),
+    )
+  } catch (error) {
+    if (error instanceof DurableContractDocumentAttachmentMutationError) {
+      return c.json({ error: error.message }, 409)
+    }
+    throw error
+  }
   if (!row) return c.json({ error: "Contract not found" }, 404)
   return c.json({ data: row }, 201)
 }
@@ -379,20 +337,34 @@ async function replaceContractAttachmentUpload(
 
   const existing = await contractsService.getAttachmentById(c.get("db"), attachmentId)
   if (!existing) return c.json({ error: "Attachment not found" }, 404)
+  if (existing.kind === "document" || existing.kind === "document-history") {
+    return c.json(
+      { error: "Canonical and historical contract documents cannot be replaced here." },
+      409,
+    )
+  }
 
   const parsed = await parseAttachmentUploadRequest(c)
   if (parsed.error) return parsed.error
 
-  const row = await contractsService.updateAttachment(
-    c.get("db"),
-    attachmentId,
-    await buildUploadedAttachmentInput({
-      storage,
-      contractId: existing.contractId,
-      form: parsed.form,
-      file: parsed.file,
-    }),
-  )
+  let row: Awaited<ReturnType<typeof contractsService.updateAttachment>>
+  try {
+    row = await contractsService.updateAttachment(
+      c.get("db"),
+      attachmentId,
+      await buildUploadedAttachmentInput({
+        storage,
+        contractId: existing.contractId,
+        form: parsed.form,
+        file: parsed.file,
+      }),
+    )
+  } catch (error) {
+    if (error instanceof DurableContractDocumentAttachmentMutationError) {
+      return c.json({ error: error.message }, 409)
+    }
+    throw error
+  }
   if (!row) return c.json({ error: "Attachment not found" }, 404)
   if (existing.storageKey && existing.storageKey !== row.storageKey) {
     try {
@@ -413,7 +385,15 @@ async function deleteContractAttachment(
   options: ContractsRouteOptions,
 ): Promise<Response> {
   const attachmentId = c.req.param("attachmentId")!
-  const row = await contractsService.deleteAttachment(c.get("db"), attachmentId)
+  let row: Awaited<ReturnType<typeof contractsService.deleteAttachment>>
+  try {
+    row = await contractsService.deleteAttachment(c.get("db"), attachmentId)
+  } catch (error) {
+    if (error instanceof DurableContractDocumentAttachmentMutationError) {
+      return c.json({ error: error.message }, 409)
+    }
+    throw error
+  }
   if (!row) return c.json({ error: "Attachment not found" }, 404)
 
   const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -431,170 +411,6 @@ async function deleteContractAttachment(
   }
 
   return c.json({ success: true } as const, 200)
-}
-
-async function regenerateContractDocument(
-  c: Context<Env>,
-  options: ContractsRouteOptions,
-  contractId: string,
-): Promise<Response> {
-  const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
-  const generator = runtime.documentGenerator
-  if (!generator) {
-    return c.json({ error: "Contract document generator is not configured" }, 501)
-  }
-
-  const input = await parseOptionalJsonBody(c, generateContractDocumentInputSchema)
-  const result = await contractsService.regenerateContractDocument(c.get("db"), contractId, input, {
-    generator,
-    bindings: c.env,
-    eventBus: runtime.eventBus,
-    lifecycleHooks: runtime.lifecycleHooks,
-  })
-
-  if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
-  if (result.status === "not_draft") {
-    return c.json({ error: "Only draft contracts can be auto-issued for document generation" }, 409)
-  }
-  if (result.status === "render_unavailable") {
-    return c.json({ error: "Contract has no renderable body or template version" }, 409)
-  }
-  if (result.status === "generator_failed") {
-    return c.json({ error: "Contract document generation failed" }, 502)
-  }
-  if (!("attachment" in result)) {
-    return c.json({ error: "Contract document generation failed" }, 502)
-  }
-
-  return c.json({ data: await attachDownloadEnvelope(c, runtime, result, input) })
-}
-
-async function generateContractDocumentForBooking(
-  c: Context<Env>,
-  options: ContractsRouteOptions,
-): Promise<Response> {
-  const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
-  const generator = runtime.documentGenerator
-  if (!generator) {
-    return c.json({ error: "Contract document generator is not configured" }, 501)
-  }
-
-  const input =
-    (await parseOptionalJsonBody(c, generateContractForBookingInputSchema)) ??
-    generateContractForBookingInputSchema.parse({})
-  const bookingId = c.req.param("bookingId")
-  if (!bookingId) {
-    return c.json({ error: "Booking id is required" }, 400)
-  }
-
-  const result = await generateContractForBookingFromDefaults(
-    c.get("db"),
-    bookingId,
-    input,
-    {
-      generator,
-      bindings: c.env,
-      eventBus: runtime.eventBus,
-      lifecycleHooks: runtime.lifecycleHooks,
-      bookingPiiService: await resolveAuthorizedBookingPiiService(c, runtime),
-      actionLedgerContext: getActionLedgerRequestContext(c),
-    },
-    c.get("userId") ?? null,
-  )
-
-  if (result.status === "template_not_found") {
-    return c.json({ error: "Default contract template not found" }, 404)
-  }
-  if (result.status === "template_version_missing") {
-    return c.json({ error: "Default contract template has no current version" }, 409)
-  }
-  if (result.status === "series_not_found") {
-    return c.json({ error: "Active contract number series not found" }, 404)
-  }
-  if (result.status === "series_ambiguous") {
-    return c.json({ error: "Multiple active contract number series match this scope" }, 409)
-  }
-  if (result.status === "booking_not_found") return c.json({ error: "Booking not found" }, 404)
-  if (result.status === "contract_create_failed") {
-    return c.json({ error: "Contract could not be created" }, 500)
-  }
-  if (result.status === "document_failed") {
-    return c.json({ error: "Contract document generation failed", reason: result.reason }, 502)
-  }
-  if (result.status === "preview") {
-    // Defensive: this route never opts into preview mode, but the
-    // discriminated union now carries that variant. Surface it as a
-    // server-side bug rather than a silent miscast.
-    return c.json({ error: "Preview result returned from non-preview route" }, 500)
-  }
-
-  const [contract, attachment] = await Promise.all([
-    contractsService.getContractById(c.get("db"), result.contractId),
-    contractsService.getAttachmentById(c.get("db"), result.attachmentId),
-  ])
-
-  if (!contract || !attachment) {
-    return c.json({ error: "Generated contract document could not be loaded" }, 500)
-  }
-
-  return c.json(
-    {
-      data: await attachDownloadEnvelope(c, runtime, { contract, attachment }, input),
-    },
-    201,
-  )
-}
-
-async function attachDownloadEnvelope<
-  T extends {
-    attachment: {
-      id?: string | null
-      storageKey?: string | null
-      metadata?: unknown
-      name?: string | null
-      mimeType?: string | null
-    }
-  },
->(
-  c: Context<Env>,
-  runtime: ContractsRouteRuntime,
-  result: T,
-  input: { publicDelivery?: boolean; publicDeliveryTtlSeconds?: number | undefined },
-) {
-  const download = await resolveStoredDocumentDownload(
-    { ...result.attachment, filename: result.attachment.name },
-    {
-      bindings: c.env,
-      resolveDocumentDownloadUrl: runtime.resolveDocumentDownloadUrl,
-    },
-  )
-  const withAdminDownload =
-    download.status === "ready" ? { ...result, download: download.download } : result
-
-  if (!input.publicDelivery || !result.attachment.storageKey) {
-    return withAdminDownload
-  }
-
-  const publicDownload = await createPublicDocumentDeliveryGrant(
-    createDrizzlePublicDocumentDeliveryGrantStore(c.get("db")),
-    {
-      storageKey: result.attachment.storageKey,
-      publicBaseUrl: new URL(c.req.url).origin,
-      ttlSeconds: input.publicDeliveryTtlSeconds,
-      filename:
-        result.attachment.name ?? (download.status === "ready" ? download.download.filename : null),
-      contentType: result.attachment.mimeType,
-      source: {
-        module: "legal",
-        entity: "contract_attachment",
-        id: result.attachment.id ?? null,
-      },
-      createdBy: c.get("userId") ?? null,
-      createdByType: c.get("userId") ? "staff" : null,
-    },
-  )
-
-  return { ...withAdminDownload, publicDownload }
 }
 
 // --- shared response building blocks ----------------------------------------
@@ -886,7 +702,6 @@ const renderPreviewEnvelopeSchema = z.object({ data: jsonRecord })
 // The document-generate envelope is `{ data: <contract+attachment+download> }`
 // composed by `attachDownloadEnvelope`; the dynamic download/publicDownload
 // fields keep it an open record.
-const documentEnvelopeSchema = z.object({ data: jsonRecord })
 
 export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) {
   // --- templates + preview --------------------------------------------------
@@ -1233,31 +1048,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         : c.json({ error: "Series not found" }, 404)
     })
 
-  // --- contracts (CRUD + booking generate) ----------------------------------
-
-  const generateForBookingRoute = createRoute({
-    method: "post",
-    path: "/bookings/{bookingId}/generate-document",
-    request: {
-      params: z.object({ bookingId: idSchema }),
-      body: {
-        required: false,
-        content: { "application/json": { schema: generateContractForBookingInputSchema } },
-      },
-    },
-    responses: {
-      201: {
-        description: "The generated contract + document for the booking",
-        content: { "application/json": { schema: documentEnvelopeSchema } },
-      },
-      400: invalidRequestResponse,
-      404: notFoundResponse("Booking or default template not found"),
-      409: conflictResponse("Default template version or number series unavailable/ambiguous"),
-      500: notFoundResponse("Contract could not be created or loaded"),
-      501: notFoundResponse("Contract document generator is not configured"),
-      502: notFoundResponse("Contract document generation failed"),
-    },
-  })
+  // --- contracts CRUD --------------------------------------------------------
 
   const listContractsRoute = createRoute({
     method: "get",
@@ -1337,9 +1128,6 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
   })
 
   const contractRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-    .openapi(generateForBookingRoute, (c) =>
-      asRouteResponse(generateContractDocumentForBooking(c, options)),
-    )
     .openapi(listContractsRoute, async (c) =>
       c.json(await contractsService.listContracts(c.get("db"), c.req.valid("query")), 200),
     )
@@ -1561,103 +1349,6 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       ),
     )
 
-  // --- contract document generation -----------------------------------------
-
-  const generateDocumentRoute = createRoute({
-    method: "post",
-    path: "/{id}/generate-document",
-    request: { params: idParamSchema },
-    responses: {
-      201: {
-        description: "The generated contract document envelope",
-        content: { "application/json": { schema: documentEnvelopeSchema } },
-      },
-      404: notFoundResponse("Contract not found"),
-      409: conflictResponse("Contract is not draft or has no renderable body"),
-      501: notFoundResponse("Contract document generator is not configured"),
-      502: notFoundResponse("Contract document generation failed"),
-    },
-  })
-
-  const regenerateDocumentRoute = createRoute({
-    method: "post",
-    path: "/{id}/regenerate-document",
-    request: { params: idParamSchema },
-    responses: {
-      200: {
-        description: "The regenerated contract document envelope",
-        content: { "application/json": { schema: documentEnvelopeSchema } },
-      },
-      404: notFoundResponse("Contract not found"),
-      409: conflictResponse("Contract is not draft or has no renderable body"),
-      501: notFoundResponse("Contract document generator is not configured"),
-      502: notFoundResponse("Contract document generation failed"),
-    },
-  })
-
-  const regeneratePdfRoute = createRoute({
-    method: "post",
-    path: "/{id}/regenerate-pdf",
-    request: { params: idParamSchema },
-    responses: {
-      200: {
-        description: "The regenerated contract document envelope",
-        content: { "application/json": { schema: documentEnvelopeSchema } },
-      },
-      404: notFoundResponse("Contract not found"),
-      409: conflictResponse("Contract is not draft or has no renderable body"),
-      501: notFoundResponse("Contract document generator is not configured"),
-      502: notFoundResponse("Contract document generation failed"),
-    },
-  })
-
-  const documentRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-    .openapi(generateDocumentRoute, async (c) => {
-      const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
-      const generator = runtime.documentGenerator
-      if (!generator) {
-        return c.json({ error: "Contract document generator is not configured" }, 501)
-      }
-
-      const input = await parseOptionalJsonBody(c, generateContractDocumentInputSchema)
-      const result = await contractsService.generateContractDocument(
-        c.get("db"),
-        c.req.valid("param").id,
-        input,
-        {
-          generator,
-          bindings: c.env,
-          eventBus: runtime.eventBus,
-          lifecycleHooks: runtime.lifecycleHooks,
-        },
-      )
-
-      if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
-      if (result.status === "not_draft") {
-        return c.json(
-          { error: "Only draft contracts can be auto-issued for document generation" },
-          409,
-        )
-      }
-      if (result.status === "render_unavailable") {
-        return c.json({ error: "Contract has no renderable body or template version" }, 409)
-      }
-      if (result.status === "generator_failed") {
-        return c.json({ error: "Contract document generation failed" }, 502)
-      }
-      if (!("attachment" in result)) {
-        return c.json({ error: "Contract document generation failed" }, 502)
-      }
-
-      return c.json({ data: await attachDownloadEnvelope(c, runtime, result, input) }, 201)
-    })
-    .openapi(regenerateDocumentRoute, (c) =>
-      asRouteResponse(regenerateContractDocument(c, options, c.req.valid("param").id)),
-    )
-    .openapi(regeneratePdfRoute, (c) =>
-      asRouteResponse(regenerateContractDocument(c, options, c.req.valid("param").id)),
-    )
-
   // --- signatures + attachments ---------------------------------------------
 
   const attachmentParamSchema = z.object({ attachmentId: idSchema })
@@ -1710,6 +1401,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       },
       400: invalidRequestResponse,
       404: notFoundResponse("Contract not found"),
+      409: conflictResponse("Durable contract document kinds cannot be created here"),
     },
   })
 
@@ -1724,21 +1416,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       },
       400: notFoundResponse("Missing file field in multipart body"),
       404: notFoundResponse("Contract not found"),
-      501: notFoundResponse("Contract document storage is not configured"),
-    },
-  })
-
-  const attachDocumentRoute = createRoute({
-    method: "post",
-    path: "/{id}/attach-document",
-    request: { params: idParamSchema, body: multipartUploadBody },
-    responses: {
-      201: {
-        description: "The uploaded contract attachment",
-        content: { "application/json": { schema: dataEnvelope(contractAttachmentSchema) } },
-      },
-      400: notFoundResponse("Missing file field in multipart body"),
-      404: notFoundResponse("Contract not found"),
+      409: conflictResponse("Durable contract document kinds cannot be uploaded here"),
       501: notFoundResponse("Contract document storage is not configured"),
     },
   })
@@ -1760,6 +1438,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       },
       400: invalidRequestResponse,
       404: notFoundResponse("Attachment not found"),
+      409: conflictResponse("Durable contract documents cannot be mutated here"),
     },
   })
 
@@ -1774,6 +1453,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       },
       400: notFoundResponse("Missing file field in multipart body"),
       404: notFoundResponse("Attachment not found"),
+      409: conflictResponse("Durable contract documents cannot be replaced here"),
       501: notFoundResponse("Contract document storage is not configured"),
     },
   })
@@ -1799,6 +1479,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         content: { "application/json": { schema: successResponseSchema } },
       },
       404: notFoundResponse("Attachment not found"),
+      409: conflictResponse("Durable contract documents cannot be deleted here"),
     },
   })
 
@@ -1812,25 +1493,38 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       return c.json({ data: rows }, 200)
     })
     .openapi(createAttachmentRoute, async (c) => {
-      const row = await contractsService.createAttachment(
-        c.get("db"),
-        c.req.valid("param").id,
-        c.req.valid("json"),
-      )
+      let row: Awaited<ReturnType<typeof contractsService.createAttachment>>
+      try {
+        row = await contractsService.createAttachment(
+          c.get("db"),
+          c.req.valid("param").id,
+          c.req.valid("json"),
+        )
+      } catch (error) {
+        if (error instanceof DurableContractDocumentAttachmentMutationError) {
+          return c.json({ error: error.message }, 409)
+        }
+        throw error
+      }
       return row ? c.json({ data: row }, 201) : c.json({ error: "Contract not found" }, 404)
     })
     .openapi(uploadAttachmentRoute, (c) =>
       asRouteResponse(uploadContractAttachment(c, options, c.req.valid("param").id)),
     )
-    .openapi(attachDocumentRoute, (c) =>
-      asRouteResponse(uploadContractAttachment(c, options, c.req.valid("param").id)),
-    )
     .openapi(updateAttachmentRoute, async (c) => {
-      const row = await contractsService.updateAttachment(
-        c.get("db"),
-        c.req.valid("param").attachmentId,
-        c.req.valid("json"),
-      )
+      let row: Awaited<ReturnType<typeof contractsService.updateAttachment>>
+      try {
+        row = await contractsService.updateAttachment(
+          c.get("db"),
+          c.req.valid("param").attachmentId,
+          c.req.valid("json"),
+        )
+      } catch (error) {
+        if (error instanceof DurableContractDocumentAttachmentMutationError) {
+          return c.json({ error: error.message }, 409)
+        }
+        throw error
+      }
       return row ? c.json({ data: row }, 200) : c.json({ error: "Attachment not found" }, 404)
     })
     .openapi(updateAttachmentUploadRoute, (c) =>
@@ -1874,7 +1568,6 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
     .route("/", numberSeriesRoutes)
     .route("/", contractRoutes)
     .route("/", lifecycleRoutes)
-    .route("/", documentRoutes)
     .route("/", signatureAttachmentRoutes)
 }
 

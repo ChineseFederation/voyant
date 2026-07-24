@@ -16,7 +16,6 @@ export {
 } from "./lifecycle.js"
 export { contractLinkable, contractsLinkable, contractTemplateLinkable } from "./linkables.js"
 export type {
-  ContractDocumentGenerator,
   ContractsAdminRoutes,
   ContractsPublicRoutes,
   ContractsRouteOptions,
@@ -25,6 +24,7 @@ export { createContractsAdminRoutes, createContractsPublicRoutes } from "./route
 export type {
   Contract,
   ContractAttachment,
+  ContractDocumentOperation,
   ContractLifecycleCommandResult,
   ContractNumberSeries,
   ContractSignature,
@@ -34,6 +34,7 @@ export type {
   ContractTemplateVersion,
   NewContract,
   NewContractAttachment,
+  NewContractDocumentOperation,
   NewContractLifecycleCommandResult,
   NewContractNumberSeries,
   NewContractSignature,
@@ -42,6 +43,7 @@ export type {
 } from "./schema.js"
 export {
   contractAttachments,
+  contractDocumentOperations,
   contractLifecycleCommandResults,
   contractNumberSeries,
   contractSignatures,
@@ -59,38 +61,6 @@ export {
   validateContractTemplateBody,
   validateTemplateVariables,
 } from "./service.js"
-export type {
-  ContractDocumentGeneratedEvent,
-  ContractDocumentGeneratorContext,
-  ContractDocumentRuntimeOptions,
-  GeneratedContractDocumentArtifact,
-  GeneratedContractDocumentRecord,
-  StorageBackedContractDocumentGeneratorOptions,
-  StorageBackedContractDocumentSerializer,
-  StorageBackedContractDocumentUpload,
-} from "./service-documents.js"
-export {
-  createPdfContractDocumentGenerator,
-  createStorageBackedContractDocumentGenerator,
-  defaultPdfContractDocumentSerializer,
-  defaultStorageBackedContractDocumentSerializer,
-} from "./service-documents.js"
-export type {
-  CloudBrowserGoToOptions,
-  CloudBrowserPdfInput,
-  CloudBrowserPdfOptions,
-  CloudBrowserRenderClient,
-  CloudBrowserWaitUntil,
-  CreateBrowserRenderedPdfContractDocumentSerializerOptions,
-  CreateRenderedPdfContractDocumentSerializerOptions,
-  DocumentNavigationOptions,
-  DocumentPdfOptions,
-} from "./service-documents-browser.js"
-export {
-  createBrowserRenderedPdfContractDocumentSerializer,
-  createRenderedPdfContractDocumentSerializer,
-  defaultContractHtmlWrapper,
-} from "./service-documents-browser.js"
 export type {
   ContractTemplateLiquidSnippet,
   ContractTemplateVariableCategory,
@@ -112,10 +82,6 @@ export {
   contractStatusSchema,
   contractTemplateDefaultQuerySchema,
   contractTemplateListQuerySchema,
-  generateContractDocumentInputSchema,
-  generateContractForBookingInputSchema,
-  generatedContractDocumentAttachmentSchema,
-  generatedContractDocumentResultSchema,
   insertContractAttachmentSchema,
   insertContractNumberSeriesSchema,
   insertContractSchema,

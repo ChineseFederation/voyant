@@ -16,7 +16,6 @@ import type { Context } from "hono"
 import type { BookingMaintenanceRoutesOptions } from "./checkout/routes.js"
 import type {
   CatalogCheckoutApiRuntime,
-  CatalogCheckoutContractPdfRuntime,
   CatalogCheckoutDatabaseRuntime,
 } from "./checkout/runtime-ports.js"
 import { marketsApiModule } from "./markets/index.js"
@@ -88,7 +87,6 @@ export interface CommerceRuntime {
   checkoutApi: CatalogCheckoutApiRuntime
   checkoutDatabase: CatalogCheckoutDatabaseRuntime
   checkoutLegal: CommerceLegalRuntime
-  checkoutContractPdf: CatalogCheckoutContractPdfRuntime
   promotionRedemptionDatabase: PromotionRedemptionDatabaseRuntime
   promotionsBulkReindex: PromotionsBulkReindexRuntime
 }
@@ -159,9 +157,6 @@ export function createCommerceRuntime(requirements: CommerceRuntimeRequirements)
         ),
     },
     checkoutLegal: legal,
-    checkoutContractPdf: {
-      generate: (input) => legal.generateContractPdf(input),
-    },
     promotionRedemptionDatabase: {
       withDb: <T>(bindings: unknown, operation: (db: AnyDrizzleDb) => Promise<T>) =>
         primitives.database.transaction(bindings, (database) =>

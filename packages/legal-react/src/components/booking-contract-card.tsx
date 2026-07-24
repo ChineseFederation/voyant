@@ -1,23 +1,13 @@
 "use client"
 
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@voyant-travel/ui/components"
-import { Download, FilePlus2, FileText, Loader2, RotateCw } from "lucide-react"
+import { Badge, Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components"
+import { Download, FileText, Loader2 } from "lucide-react"
 import { useLegalUiI18nOrDefault } from "../i18n/index.js"
 import type { LegalUiMessages } from "../i18n/messages.js"
 import {
   type LegalContractAttachmentRecord,
   type LegalContractRecord,
-  useDefaultLegalContractTemplate,
   useLegalContractAttachments,
-  useLegalContractMutation,
-  useLegalContractNumberSeries,
   useLegalContracts,
   useVoyantLegalContext,
 } from "../index.js"
@@ -43,14 +33,6 @@ export type BookingContractCardLabels = Partial<
 export interface BookingContractCardProps {
   /** Booking whose contracts we list. Required — the card filters server-side. */
   bookingId: string
-  /** Contract scope used to resolve the default template + active number series. */
-  contractScope?: "customer" | "supplier" | "partner" | "channel" | "other"
-  /** Optional language preference for default-template resolution. */
-  language?: string
-  /** Optional channel preference for default-template resolution. */
-  channelId?: string | null
-  /** Optional language fallbacks for default-template resolution. */
-  fallbackLanguages?: string[]
   /**
    * API base for attachment download redirects. Defaults to the active
    * `VoyantLegalProvider` base URL; override when a host needs a different
@@ -66,62 +48,17 @@ export interface BookingContractCardProps {
  *  - List contracts linked to this booking
  *  - Show each contract's latest status + number
  *  - Let the operator download the generated PDF (opens in a new tab)
- *  - Let the operator force a regeneration when the template or booking
- *    data has changed
  *
- * Contract creation is handled by the package booking generation endpoint.
- * The card only offers the action when the server-visible prerequisites
- * exist: a default template with a current version and exactly one active
- * number series for the selected scope.
+ * Document generation is deliberately not exposed from the React package.
+ * Deployments initiate durable operations through their admitted workflow.
  */
-export function BookingContractCard({
-  bookingId,
-  contractScope = "customer",
-  language,
-  channelId,
-  fallbackLanguages,
-  apiBaseUrl,
-  labels,
-}: BookingContractCardProps) {
+export function BookingContractCard({ bookingId, apiBaseUrl, labels }: BookingContractCardProps) {
   const i18n = useLegalUiI18nOrDefault()
   const { baseUrl } = useVoyantLegalContext()
   const resolvedApiBaseUrl = apiBaseUrl ?? baseUrl
   const merged = { ...i18n.messages.bookingContractCard, ...labels }
   const contractsQuery = useLegalContracts({ bookingId, limit: 25 })
   const contracts = contractsQuery.data?.data ?? []
-  const shouldCheckGeneration = !contractsQuery.isLoading && contracts.length === 0
-  const defaultTemplateQuery = useDefaultLegalContractTemplate({
-    scope: contractScope,
-    language,
-    channelId: channelId ?? undefined,
-    fallbackLanguages,
-    enabled: shouldCheckGeneration,
-  })
-  const numberSeriesQuery = useLegalContractNumberSeries({
-    scope: contractScope,
-    active: true,
-    enabled: shouldCheckGeneration,
-  })
-  const { generateForBooking } = useLegalContractMutation()
-  const activeSeries = numberSeriesQuery.data?.data ?? []
-  const canGenerate =
-    Boolean(defaultTemplateQuery.data?.currentVersionId) && activeSeries.length === 1
-  const generationPrerequisitesLoaded =
-    shouldCheckGeneration && !defaultTemplateQuery.isLoading && !numberSeriesQuery.isLoading
-
-  const handleGenerateForBooking = () => {
-    generateForBooking.mutate({
-      bookingId,
-      input: {
-        scope: contractScope,
-        language,
-        channelId,
-        fallbackLanguages,
-        requireNumberSeries: true,
-      },
-    })
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -137,29 +74,7 @@ export function BookingContractCard({
             {i18n.messages.common.loading}
           </div>
         ) : contracts.length === 0 ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">{merged.empty}</p>
-            {generationPrerequisitesLoaded && canGenerate ? (
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleGenerateForBooking}
-                disabled={generateForBooking.isPending}
-                className="w-fit"
-              >
-                {generateForBooking.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FilePlus2 className="h-3.5 w-3.5" />
-                )}
-                <span className="ml-1 text-xs">
-                  {generateForBooking.isPending ? merged.generating : merged.generateContract}
-                </span>
-              </Button>
-            ) : generationPrerequisitesLoaded ? (
-              <p className="text-[11px] text-muted-foreground">{merged.generateUnavailable}</p>
-            ) : null}
-          </div>
+          <p className="text-xs text-muted-foreground">{merged.empty}</p>
         ) : (
           contracts.map((contract) => (
             <BookingContractRow
@@ -190,16 +105,6 @@ function BookingContractRow({
   const documentAttachments = attachments.filter(
     (a: LegalContractAttachmentRecord) => a.kind === "document",
   )
-  const { generateDocument, regenerateDocument } = useLegalContractMutation()
-
-  const isPending = generateDocument.isPending || regenerateDocument.isPending
-  const hasDocument = documentAttachments.length > 0
-
-  const handleGenerate = () => {
-    const mutation = hasDocument ? regenerateDocument : generateDocument
-    mutation.mutate({ id: contract.id, input: { replaceExisting: true, kind: "document" } })
-  }
-
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <div className="flex items-center justify-between gap-2">
@@ -212,20 +117,6 @@ function BookingContractRow({
             {i18n.messages.bookingContractCard.contractStatusLabels[contract.status]}
           </Badge>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleGenerate}
-          disabled={isPending}
-        >
-          {isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RotateCw className="h-3.5 w-3.5" />
-          )}
-          <span className="ml-1 text-xs">{hasDocument ? labels.regenerate : labels.generate}</span>
-        </Button>
       </div>
 
       {contract.issuedAt ? (

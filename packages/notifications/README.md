@@ -157,57 +157,6 @@ should override that behavior with `documentAttachmentResolver` or
 or `createNotificationsApiModule()`, so attachment URLs are resolved at send
 time from the current storage/runtime context.
 
-## Booking Document Bundle Lifecycle
-
-`createNotificationsApiModule()` can subscribe to booking confirmation and
-fully-paid lifecycle signals through `documentBundleLifecycle`. The hook
-resolves the booking, primary customer/recipient, travelers, booking items, and
-existing legal/finance document bundle before invoking the configured policy.
-
-```ts
-const notificationsModule = createNotificationsApiModule({
-  resolveDb: (bindings) => getDbFromEnv(bindings),
-  resolveProviders,
-  documentBundleLifecycle: {
-    enabled: true,
-    confirmation: {
-      notification: { templateSlug: "booking-confirmation" },
-    },
-    fullyPaid: {
-      documentTypes: ["contract", "invoice"],
-      notification: { templateSlug: "booking-paid-in-full" },
-    },
-    ensureLegalDocuments: async (context) => {
-      await generateContractForBooking(context.booking.id)
-    },
-    ensureFinanceDocuments: async (context, request) => {
-      await generateInvoiceDocuments(context.booking.id, request.documentTypes)
-    },
-    notificationPolicy: async (context, result) => ({
-      templateSlug:
-        context.trigger === "booking.fully-paid"
-          ? "booking-paid-in-full"
-          : "booking-confirmation",
-      documentTypes: result.documents.map((document) => document.documentType),
-    }),
-  },
-})
-```
-
-The default policy is idempotent by document type: confirmation asks for
-`contract` + `proforma`, and fully-paid asks for `contract` + `invoice`. If a
-contract was already generated at confirmation, the fully-paid hook records it
-as existing and only calls the configured finance generator for the missing
-invoice. Generator exceptions are returned as failed lifecycle results and the
-module subscriber logs booking id plus status only; it does not log document
-contents, attachment bodies, or customer data.
-
-Host apps can replace the entire policy with `policy`, or keep the default
-composition and override only `notificationPolicy`. Product brochures remain an
-extension point via `resolveBrochureDocuments`, so apps that install
-`@voyant-travel/inventory` can add current brochure artifacts without making
-notifications depend on products at runtime.
-
 ## Exports
 
 | Entry | Description |

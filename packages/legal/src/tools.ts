@@ -8,6 +8,7 @@ import {
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { z } from "zod"
+import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "./contract-document-policy.js"
 import { LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION } from "./created-target-policy.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "./existing-target-policy.js"
 
@@ -297,31 +298,25 @@ const sendContractInputSchema = transitionContractInputSchema.extend({
   subject: z.string().max(500).nullable().optional(),
   message: z.string().max(10_000).nullable().optional(),
 })
-const previewBookingContractDocumentInputSchema = z.object({
-  bookingId: z.string().trim().min(1),
-})
-const generateBookingContractDocumentInputSchema = previewBookingContractDocumentInputSchema.extend(
-  {
-    includeDelivery: z.boolean().default(false),
-  },
-)
 const resolveContractDocumentDeliveryInputSchema = z.object({
   attachmentId: z.string().trim().min(1),
 })
-const contractDocumentPreviewSchema = z.object({
-  html: z.string(),
-  templateName: z.string(),
-  templateLanguage: z.string(),
+const mutateBookingContractDocumentInputSchema = z.object({
+  bookingId: z.string().trim().min(1),
+  contractId: z.string().trim().min(1),
+})
+const contractDocumentOperationResultSchema = z.object({
+  operationId: z.string(),
+  bookingId: z.string(),
+  contractId: z.string(),
+  attachmentId: z.string(),
+  mode: z.enum(["generate", "regenerate"]),
+  checksumSha256: z.string(),
 })
 const contractDocumentDeliverySchema = z.object({
   url: z.string().min(1),
   filename: z.string(),
   contentType: z.string().nullable(),
-})
-const generatedContractDocumentSchema = z.object({
-  contractId: z.string(),
-  attachmentId: z.string(),
-  delivery: contractDocumentDeliverySchema.nullable(),
 })
 
 export type LegalContractSummary = z.infer<typeof legalContractSummarySchema>
@@ -394,12 +389,14 @@ export interface LegalLifecycleCommandToolServices {
 }
 
 export interface LegalContractDocumentToolServices {
-  previewBookingContract(
-    input: z.infer<typeof previewBookingContractDocumentInputSchema>,
-  ): Promise<z.infer<typeof contractDocumentPreviewSchema> | null>
-  generateBookingContract(
-    input: z.infer<typeof generateBookingContractDocumentInputSchema> & { force: boolean },
-  ): Promise<z.infer<typeof generatedContractDocumentSchema> | null>
+  generate(
+    input: z.infer<typeof mutateBookingContractDocumentInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<z.infer<typeof contractDocumentOperationResultSchema>>
+  regenerate(
+    input: z.infer<typeof mutateBookingContractDocumentInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<z.infer<typeof contractDocumentOperationResultSchema>>
   resolveDelivery(
     input: z.infer<typeof resolveContractDocumentDeliveryInputSchema>,
   ): Promise<z.infer<typeof contractDocumentDeliverySchema> | null>
@@ -736,92 +733,6 @@ const contractDocumentReadMetadata = {
   annotations: { readOnlyHint: true, idempotentHint: true },
 }
 
-export const previewBookingContractDocumentTool = defineTool({
-  ...contractDocumentReadMetadata,
-  capabilityId: `${OWNER}#tool.preview-booking-contract-document`,
-  name: "preview_booking_contract_document",
-  description:
-    "Render the selected booking contract preview through the deployment's legal document provider without persisting a document.",
-  inputSchema: previewBookingContractDocumentInputSchema,
-  outputSchema: contractDocumentPreviewSchema,
-  async handler(input, ctx: LegalToolContext) {
-    const result = await legalContractDocument(ctx).previewBookingContract(input)
-    if (!result) {
-      throw new ToolError(
-        `No contract template was found for booking "${input.bookingId}".`,
-        "NOT_FOUND",
-        { bookingId: input.bookingId },
-      )
-    }
-    return result
-  },
-})
-export const generateBookingContractDocumentTool = defineTool({
-  owner: OWNER,
-  capabilityVersion: VERSION,
-  requiredScopes: WRITE_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "write",
-  capabilityId: `${OWNER}#tool.generate-booking-contract-document`,
-  name: "generate_booking_contract_document",
-  description:
-    "Generate and persist a booking contract through the selected document provider. Optional delivery is resolved only through the provider-authorized attachment resolver.",
-  inputSchema: generateBookingContractDocumentInputSchema,
-  outputSchema: generatedContractDocumentSchema,
-  riskPolicy: {
-    destructive: false,
-    reversible: true,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["data-write"],
-  },
-  async handler(input, ctx: LegalToolContext) {
-    const result = await legalContractDocument(ctx).generateBookingContract({
-      ...input,
-      force: false,
-    })
-    if (!result) {
-      throw new ToolError(
-        "Contract document storage is not configured for the selected deployment.",
-        "MISSING_SERVICE",
-      )
-    }
-    return result
-  },
-})
-export const regenerateBookingContractDocumentTool = defineTool({
-  owner: OWNER,
-  capabilityVersion: VERSION,
-  requiredScopes: WRITE_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "destructive",
-  capabilityId: `${OWNER}#tool.regenerate-booking-contract-document`,
-  name: "regenerate_booking_contract_document",
-  description:
-    "Replace the canonical generated document for a booking through the selected provider. This deletes the previous document record and requires explicit confirmation plus selected approval.",
-  inputSchema: generateBookingContractDocumentInputSchema,
-  outputSchema: generatedContractDocumentSchema,
-  riskPolicy: {
-    destructive: true,
-    reversible: false,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["data-write"],
-  },
-  async handler(input, ctx: LegalToolContext) {
-    const result = await legalContractDocument(ctx).generateBookingContract({
-      ...input,
-      force: true,
-    })
-    if (!result) {
-      throw new ToolError(
-        "Contract document storage is not configured for the selected deployment.",
-        "MISSING_SERVICE",
-      )
-    }
-    return result
-  },
-})
 export const resolveContractDocumentDeliveryTool = defineTool({
   ...contractDocumentReadMetadata,
   capabilityId: `${OWNER}#tool.resolve-contract-document-delivery`,
@@ -840,6 +751,40 @@ export const resolveContractDocumentDeliveryTool = defineTool({
       )
     return result
   },
+})
+
+export const generateBookingContractDocumentTool = defineTool({
+  ...lifecycleWriteMetadata,
+  capabilityId: `${OWNER}#tool.generate-booking-contract-document`,
+  name: "generate_booking_contract_document",
+  description:
+    "Generate the first canonical document for an existing booking contract through the durable legal document operation.",
+  inputSchema: mutateBookingContractDocumentInputSchema,
+  outputSchema: contractDocumentOperationResultSchema,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  handler: (input, ctx: LegalToolContext) =>
+    legalContractDocument(ctx).generate(
+      input,
+      admitHandlerActionPolicy(ctx, LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS.generate),
+    ),
+})
+
+export const regenerateBookingContractDocumentTool = defineTool({
+  ...lifecycleWriteMetadata,
+  capabilityId: `${OWNER}#tool.regenerate-booking-contract-document`,
+  name: "regenerate_booking_contract_document",
+  description:
+    "Replace the admitted canonical booking-contract document through the durable legal document operation and retain truthful history.",
+  inputSchema: mutateBookingContractDocumentInputSchema,
+  outputSchema: contractDocumentOperationResultSchema,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  handler: (input, ctx: LegalToolContext) =>
+    legalContractDocument(ctx).regenerate(
+      input,
+      admitHandlerActionPolicy(ctx, LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS.regenerate),
+    ),
 })
 
 export const legalTools = [
@@ -864,7 +809,6 @@ export const legalTools = [
 ] as const
 
 export const legalContractDocumentTools = [
-  previewBookingContractDocumentTool,
   generateBookingContractDocumentTool,
   regenerateBookingContractDocumentTool,
   resolveContractDocumentDeliveryTool,

@@ -2040,191 +2040,6 @@
         "x-voyant-surface": "admin"
       }
     },
-    "/v1/admin/legal/contracts/bookings/{bookingId}/generate-document": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "bookingId",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "scope": {
-                    "type": "string",
-                    "enum": ["customer", "supplier", "partner", "channel", "other"],
-                    "default": "customer"
-                  },
-                  "language": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 10
-                  },
-                  "channelId": {
-                    "type": ["string", "null"]
-                  },
-                  "fallbackLanguages": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 2,
-                      "maxLength": 10
-                    },
-                    "default": []
-                  },
-                  "requireNumberSeries": {
-                    "type": "boolean",
-                    "default": true
-                  },
-                  "forceRecompute": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "publicDelivery": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "publicDeliveryTtlSeconds": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 2592000
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The generated contract + document for the booking",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "additionalProperties": {}
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request: request body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Booking or default template not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Default template version or number series unavailable/ambiguous",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Contract could not be created or loaded",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Contract document generator is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Contract document generation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminLegalContractsBookingsByBookingIdGenerateDocument",
-        "summary": "POST /v1/admin/legal/contracts/bookings/{bookingId}/generate-document",
-        "tags": ["legal"],
-        "x-voyant-module": "legal",
-        "x-voyant-surface": "admin"
-      }
-    },
     "/v1/admin/legal/contracts": {
       "get": {
         "parameters": [
@@ -5587,312 +5402,6 @@
         "x-voyant-surface": "admin"
       }
     },
-    "/v1/admin/legal/contracts/{id}/generate-document": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "The generated contract document envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "additionalProperties": {}
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Contract not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Contract is not draft or has no renderable body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Contract document generator is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Contract document generation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminLegalContractsByIdGenerateDocument",
-        "summary": "POST /v1/admin/legal/contracts/{id}/generate-document",
-        "tags": ["legal"],
-        "x-voyant-module": "legal",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/legal/contracts/{id}/regenerate-document": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The regenerated contract document envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "additionalProperties": {}
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Contract not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Contract is not draft or has no renderable body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Contract document generator is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Contract document generation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminLegalContractsByIdRegenerateDocument",
-        "summary": "POST /v1/admin/legal/contracts/{id}/regenerate-document",
-        "tags": ["legal"],
-        "x-voyant-module": "legal",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/legal/contracts/{id}/regenerate-pdf": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The regenerated contract document envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "additionalProperties": {}
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Contract not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Contract is not draft or has no renderable body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Contract document generator is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Contract document generation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminLegalContractsByIdRegeneratePdf",
-        "summary": "POST /v1/admin/legal/contracts/{id}/regenerate-pdf",
-        "tags": ["legal"],
-        "x-voyant-module": "legal",
-        "x-voyant-surface": "admin"
-      }
-    },
     "/v1/admin/legal/contracts/{id}/signatures": {
       "get": {
         "parameters": [
@@ -6408,6 +5917,22 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Durable contract document kinds cannot be created here",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postAdminLegalContractsByIdAttachments",
@@ -6565,6 +6090,22 @@
               }
             }
           },
+          "409": {
+            "description": "Durable contract document kinds cannot be uploaded here",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "501": {
             "description": "Contract document storage is not configured",
             "content": {
@@ -6584,178 +6125,6 @@
         },
         "operationId": "postAdminLegalContractsByIdAttachmentsUpload",
         "summary": "POST /v1/admin/legal/contracts/{id}/attachments/upload",
-        "tags": ["legal"],
-        "x-voyant-module": "legal",
-        "x-voyant-surface": "admin"
-      }
-    },
-    "/v1/admin/legal/contracts/{id}/attach-document": {
-      "post": {
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {}
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "The uploaded contract attachment",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "contractId": {
-                          "type": "string"
-                        },
-                        "kind": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "mimeType": {
-                          "type": ["string", "null"]
-                        },
-                        "fileSize": {
-                          "type": ["integer", "null"]
-                        },
-                        "storageKey": {
-                          "type": ["string", "null"]
-                        },
-                        "checksum": {
-                          "type": ["string", "null"]
-                        },
-                        "targetKind": {
-                          "type": ["string", "null"],
-                          "enum": [
-                            "booking",
-                            "quote_version",
-                            "program",
-                            "product",
-                            "inventory_item",
-                            "supplier_channel_relationship",
-                            "provider_source_ref",
-                            null
-                          ]
-                        },
-                        "targetId": {
-                          "type": ["string", "null"]
-                        },
-                        "targetProvider": {
-                          "type": ["string", "null"]
-                        },
-                        "targetSourceRef": {
-                          "type": ["string", "null"]
-                        },
-                        "legacyTransactionOfferId": {
-                          "type": ["string", "null"]
-                        },
-                        "legacyTransactionOrderId": {
-                          "type": ["string", "null"]
-                        },
-                        "metadata": {},
-                        "createdAt": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "contractId",
-                        "kind",
-                        "name",
-                        "mimeType",
-                        "fileSize",
-                        "storageKey",
-                        "checksum",
-                        "targetKind",
-                        "targetId",
-                        "targetProvider",
-                        "targetSourceRef",
-                        "legacyTransactionOfferId",
-                        "legacyTransactionOrderId",
-                        "createdAt"
-                      ]
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing file field in multipart body",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Contract not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "Contract document storage is not configured",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminLegalContractsByIdAttachDocument",
-        "summary": "POST /v1/admin/legal/contracts/{id}/attach-document",
         "tags": ["legal"],
         "x-voyant-module": "legal",
         "x-voyant-surface": "admin"
@@ -7026,6 +6395,22 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Durable contract documents cannot be mutated here",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "patchAdminLegalContractsAttachmentsByAttachmentId",
@@ -7065,6 +6450,22 @@
           },
           "404": {
             "description": "Attachment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Durable contract documents cannot be deleted here",
             "content": {
               "application/json": {
                 "schema": {
@@ -7221,6 +6622,22 @@
           },
           "404": {
             "description": "Attachment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Durable contract documents cannot be replaced here",
             "content": {
               "application/json": {
                 "schema": {

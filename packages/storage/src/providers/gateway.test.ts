@@ -81,6 +81,24 @@ async function bodyToArrayBuffer(body: BodyInit | null | undefined): Promise<Arr
 }
 
 describe("createGatewayStorageProvider", () => {
+  it("binds opaque backend identity to the workspace credential", async () => {
+    const first = createGatewayStorageProvider({
+      endpoint: "https://gateway.example",
+      tier: "documents",
+      token: "workspace-a-secret",
+    })
+    const second = createGatewayStorageProvider({
+      endpoint: "https://gateway.example",
+      tier: "documents",
+      token: "workspace-b-secret",
+    })
+
+    const firstIdentity = await first.resolveBackendIdentity?.()
+    expect(firstIdentity).toMatch(/^[a-f0-9]{64}$/)
+    expect(await second.resolveBackendIdentity?.()).not.toBe(firstIdentity)
+    expect(firstIdentity).not.toContain("workspace-a-secret")
+  })
+
   it("uploads bytes and returns the gateway-issued key and url", async () => {
     const gateway = createFakeGateway()
     const provider = createGatewayStorageProvider({

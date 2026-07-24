@@ -112,6 +112,7 @@ export const STANDARD_OPERATOR_DEPLOYMENT: VoyantGraphProjectDeployment = {
     realtime: "none",
     scheduledJobs: "node-cron",
     outboundWebhooks: "postgres",
+    legalDocumentArtifact: "standard",
     payments: "custom",
   },
 }
@@ -194,7 +195,6 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     { resolve: "@voyant-travel/bookings" },
     { resolve: "@voyant-travel/finance" },
     { resolve: "@voyant-travel/legal" },
-    { resolve: "@voyant-travel/legal/contract-document" },
     { resolve: "@voyant-travel/public-document-delivery" },
     { resolve: "@voyant-travel/notifications" },
     { resolve: "@voyant-travel/storage" },
@@ -313,10 +313,6 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     {
       resolve: "@voyant-travel/notifications/reminder-subscribers-extension",
       owners: ["@voyant-travel/notifications"],
-    },
-    {
-      resolve: "@voyant-travel/legal/booking-contract-extension",
-      owners: ["@voyant-travel/legal"],
     },
     {
       resolve: "@voyant-travel/legal/standard-product-links",

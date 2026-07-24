@@ -59,7 +59,9 @@ for (const required of [
   "createVoyantNodeEnv(rawEnv, providerPlan)",
   "resolveSelectedGraphProviderPorts",
   "providerPorts",
-  'providerPorts["storage.object"]',
+  "selectedStoragePorts",
+  'selectedStoragePorts["storage.object"]',
+  "runtimeProviderPorts",
 ]) {
   if (!operatorRuntime.includes(required)) {
     violations.push(`runtime must consume graph-native Node runtime authority: ${required}`)
@@ -85,7 +87,8 @@ if (operatorRuntime.includes("enqueuePostgresWebhookEvent")) {
 }
 if (
   !operatorRuntime.includes('providerPlan.storage === "custom"') ||
-  !operatorRuntime.includes(': providerPorts["storage.object"]') ||
+  !operatorRuntime.includes('(options.host?.storage ?? selectedStoragePorts["storage.object"])') ||
+  !operatorRuntime.includes(': selectedStoragePorts["storage.object"]') ||
   !operatorRuntime.includes(
     'const runtimeProviderPorts = { ...providerPorts, "storage.object": storage }',
   )

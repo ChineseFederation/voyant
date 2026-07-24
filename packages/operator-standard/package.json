@@ -10,55 +10,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./standard-frontend": "./src/standard-frontend.tsx",
-    "./runtime/react": {
-      "types": "./src/runtime/react.ts",
-      "browser": "./src/runtime/react.ts",
-      "node": "./src/runtime/react-node.ts",
-      "default": "./src/runtime/react.ts"
-    },
-    "./runtime/react-dom": {
-      "types": "./src/runtime/react-dom.ts",
-      "browser": "./src/runtime/react-dom.ts",
-      "node": "./src/runtime/react-dom-node.ts",
-      "default": "./src/runtime/react-dom.ts"
-    },
-    "./runtime/react-dom/client": {
-      "types": "./src/runtime/react-dom-client.ts",
-      "browser": "./src/runtime/react-dom-client.ts",
-      "node": "./src/runtime/react-dom-client-node.ts",
-      "default": "./src/runtime/react-dom-client.ts"
-    },
-    "./runtime/react-dom/server": {
-      "types": "./src/runtime/react-dom-server.ts",
-      "node": "./src/runtime/react-dom-server-node.ts",
-      "default": "./src/runtime/react-dom-server.ts"
-    },
-    "./runtime/react/jsx-runtime": {
-      "types": "./src/runtime/react-jsx-runtime.ts",
-      "browser": "./src/runtime/react-jsx-runtime.ts",
-      "node": "./src/runtime/react-jsx-runtime-node.ts",
-      "default": "./src/runtime/react-jsx-runtime.ts"
-    },
-    "./runtime/react/jsx-dev-runtime": {
-      "types": "./src/runtime/react-jsx-dev-runtime.ts",
-      "browser": "./src/runtime/react-jsx-dev-runtime.ts",
-      "node": "./src/runtime/react-jsx-dev-runtime-node.ts",
-      "default": "./src/runtime/react-jsx-dev-runtime.ts"
-    },
-    "./runtime/tanstack/react-query": "./src/runtime/tanstack-react-query.ts",
-    "./runtime/tanstack/react-router": "./src/runtime/tanstack-react-router.ts",
     "./standard-route-files": "./src/standard-route-files.ts",
     "./standard-styles.css": "./src/standard-styles.css"
-  },
-  "imports": {
-    "#frontend/react": "react",
-    "#frontend/react-dom": "react-dom",
-    "#frontend/react-dom/client": "react-dom/client",
-    "#frontend/react-dom/server": "react-dom/server",
-    "#frontend/react/jsx-runtime": "react/jsx-runtime",
-    "#frontend/react/jsx-dev-runtime": "react/jsx-dev-runtime",
-    "#frontend/tanstack/react-query": "@tanstack/react-query",
-    "#frontend/tanstack/react-router": "@tanstack/react-router"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json --noCheck",
@@ -195,51 +148,6 @@
         "types": "./dist/standard-frontend.d.ts",
         "import": "./dist/standard-frontend.js",
         "default": "./dist/standard-frontend.js"
-      },
-      "./runtime/react": {
-        "types": "./dist/runtime/react.d.ts",
-        "browser": "./dist/runtime/react.js",
-        "node": "./dist/runtime/react-node.js",
-        "default": "./dist/runtime/react.js"
-      },
-      "./runtime/react-dom": {
-        "types": "./dist/runtime/react-dom.d.ts",
-        "browser": "./dist/runtime/react-dom.js",
-        "node": "./dist/runtime/react-dom-node.js",
-        "default": "./dist/runtime/react-dom.js"
-      },
-      "./runtime/react-dom/client": {
-        "types": "./dist/runtime/react-dom-client.d.ts",
-        "browser": "./dist/runtime/react-dom-client.js",
-        "node": "./dist/runtime/react-dom-client-node.js",
-        "default": "./dist/runtime/react-dom-client.js"
-      },
-      "./runtime/react-dom/server": {
-        "types": "./dist/runtime/react-dom-server.d.ts",
-        "node": "./dist/runtime/react-dom-server-node.js",
-        "default": "./dist/runtime/react-dom-server.js"
-      },
-      "./runtime/react/jsx-runtime": {
-        "types": "./dist/runtime/react-jsx-runtime.d.ts",
-        "browser": "./dist/runtime/react-jsx-runtime.js",
-        "node": "./dist/runtime/react-jsx-runtime-node.js",
-        "default": "./dist/runtime/react-jsx-runtime.js"
-      },
-      "./runtime/react/jsx-dev-runtime": {
-        "types": "./dist/runtime/react-jsx-dev-runtime.d.ts",
-        "browser": "./dist/runtime/react-jsx-dev-runtime.js",
-        "node": "./dist/runtime/react-jsx-dev-runtime-node.js",
-        "default": "./dist/runtime/react-jsx-dev-runtime.js"
-      },
-      "./runtime/tanstack/react-query": {
-        "types": "./dist/runtime/tanstack-react-query.d.ts",
-        "import": "./dist/runtime/tanstack-react-query.js",
-        "default": "./dist/runtime/tanstack-react-query.js"
-      },
-      "./runtime/tanstack/react-router": {
-        "types": "./dist/runtime/tanstack-react-router.d.ts",
-        "import": "./dist/runtime/tanstack-react-router.js",
-        "default": "./dist/runtime/tanstack-react-router.js"
       },
       "./standard-route-files": {
         "types": "./dist/standard-route-files.d.ts",

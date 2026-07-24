@@ -6,10 +6,9 @@ import {
   type AcceptanceSignatureLegalPort,
   persistAcceptanceSignature,
 } from "./acceptance-signature.js"
-import { type CatalogCheckoutContractPdfGenerator, finalizeCheckout } from "./finalize.js"
+import { finalizeCheckout } from "./finalize.js"
 import {
   type CatalogCheckoutDatabaseRuntime,
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "./runtime-ports.js"
@@ -17,12 +16,10 @@ import {
 export type { AcceptanceSignatureLegalPort } from "./acceptance-signature.js"
 export type {
   CatalogCheckoutApiRuntime,
-  CatalogCheckoutContractPdfRuntime,
   CatalogCheckoutDatabaseRuntime,
 } from "./runtime-ports.js"
 export {
   catalogCheckoutApiRuntimePort,
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "./runtime-ports.js"
@@ -46,7 +43,6 @@ export interface AcceptanceSignatureSubscriberRuntimeOptions<TBindings = unknown
 
 export interface CheckoutFinalizeSubscriberRuntimeOptions<TBindings = unknown>
   extends CatalogCheckoutRuntimeDatabase<TBindings> {
-  generateContractPdf?: CatalogCheckoutContractPdfGenerator
   finalize?: typeof finalizeCheckout
   logger?: Pick<Console, "error">
 }
@@ -119,7 +115,6 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
                   paymentSessionId: data.paymentSessionId,
                   paymentIntent: data.paymentIntent,
                 },
-                generateContractPdf: options.generateContractPdf,
               }),
             )
           } catch (error) {
@@ -148,18 +143,13 @@ export const createAcceptanceSignatureSubscriberGraphRuntime = defineGraphRuntim
 /** Selected-graph factory for inline payment finalization. */
 export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFactory(
   async ({ getPort }) => {
-    const [database, contractPdf] = await Promise.all([
-      getPort(catalogCheckoutDatabaseRuntimePort),
-      getPort(catalogCheckoutContractPdfRuntimePort),
-    ])
+    const database = await getPort(catalogCheckoutDatabaseRuntimePort)
     return {
       id: COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
       eventType: "payment.completed",
       register: async (context: BootstrapContext) => {
         const descriptor = createCheckoutFinalizeSubscriberRuntime({
           ...database,
-          generateContractPdf: (input) =>
-            contractPdf.generate({ ...input, bindings: context.bindings }),
         })
         await descriptor.register(context)
       },

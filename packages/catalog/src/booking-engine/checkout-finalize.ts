@@ -70,24 +70,6 @@ export interface CheckoutFinalizeDeps {
    */
   findProformaForBooking?: (bookingId: string) => Promise<{ invoiceId: string } | null>
   /**
-   * Generate the contract PDF for the booking. Checkout finalization
-   * requests a refresh after final payment linkage. The implementation owns
-   * a durable final-payment render version so retries return the refreshed
-   * attachment rather than forcing it again.
-   *
-   * Returning `null` is treated as "no contract template wired" and
-   * skipped silently — the operator may not have configured one,
-   * which is a deployment choice rather than a saga failure.
-   *
-   * Optional: when omitted, the saga skips this step entirely
-   * (operators that don't want explicit-step recording leave it
-   * unset and rely on the subscriber).
-   */
-  generateContractPdf?: (input: {
-    bookingId: string
-    force?: boolean
-  }) => Promise<{ contractId: string; attachmentId: string } | null>
-  /**
    * Reconcile paid `payment_sessions` for the booking against the
    * just-issued invoice: update each paid session's `invoice_id`
    * pointer and write a `payments` row so the invoice flips to paid.
@@ -179,21 +161,6 @@ export const checkoutFinalizeSaga = createSaga("checkout-finalize", [
         invoiceId: issueOutput.invoiceId,
         paymentSessionId: input.paymentSessionId,
       }),
-    )
-  }),
-
-  sagaStep<CheckoutFinalizeInput, { contractId: string; attachmentId: string } | null>(
-    "generate_contract_pdf",
-  ).run(async (input, ctx) => {
-    const deps = ctx.results.__deps as CheckoutFinalizeDeps | undefined
-    if (!deps) throw new Error("checkout-finalize: deps not seeded into context")
-    // Optional step — when no generator is wired, the saga
-    // proceeds without a contract document (some operators don't
-    // attach a customer-facing contract). Keeping this explicit also makes
-    // the operation's outcome observable to its caller.
-    if (!deps.generateContractPdf) return null
-    return runStep("generate_contract_pdf", deps.recorder, () =>
-      deps.generateContractPdf!({ bookingId: input.bookingId, force: true }),
     )
   }),
 ])

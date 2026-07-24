@@ -36,11 +36,7 @@ const packagePorts = {
   relationships: ["storefrontIntakeRuntimePort"],
   notifications: ["storefrontVerificationRuntimePort"],
   trips: ["storefrontPaymentLinkRuntimePort"],
-  legal: [
-    "legalRuntimePort",
-    "legalContractDocumentRuntimePort",
-    "legalBookingContractSubscriberRuntimePort",
-  ],
+  legal: ["legalRuntimePort", "legalContractDocumentRuntimePort"],
   inventory: ["inventoryRuntimePort", "inventoryBrochureRuntimePort"],
 }
 const contributors = {

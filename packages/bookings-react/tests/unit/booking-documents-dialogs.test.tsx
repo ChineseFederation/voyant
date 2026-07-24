@@ -7,86 +7,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const testState = vi.hoisted(() => ({
   createDocument: vi.fn(async () => ({ id: "bdoc_123" })),
-  uploadContract: vi.fn(async () => ({ id: "att_123" })),
-  createContract: vi.fn(async () => ({ id: "ctr_123" })),
-  invalidateQueries: vi.fn(async () => undefined),
-  previewMutate: vi.fn(),
-  previewReset: vi.fn(),
-  generateContract: vi.fn(async () => ({ contractId: "ctr_123", attachmentId: "att_123" })),
-  previewState: {
-    data: undefined as undefined | { html: string; templateName?: string },
-    isPending: false,
-    isError: false,
-    error: null as unknown,
-  },
 }))
 
 ;(
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true
 
-const adminMessages = {
-  bookings: {
-    detail: {
-      contractDialog: {
-        title: "Add contract",
-        description: "Generate a contract from the configured template or upload a signed PDF.",
-        modeLabel: "Source",
-        modeGenerate: "Generate",
-        modeUpload: "Upload",
-        previewLabel: "Preview",
-        previewIframeFallback: "Contract preview",
-        previewTemplateLabel: "Template:",
-        previewFailed: "Could not render the contract preview.",
-        previewErrorPrefix: "Preview error:",
-        previewUnavailable: "Contract generation is not ready for this booking.",
-        previewSetupHint:
-          "Configure an active customer contract template with a published version in Legal > Templates, and make sure the deployment has contract document generation configured.",
-        uploadTitleLabel: "Title",
-        uploadTitlePlaceholder: "Contract title",
-        uploadTitleHint: "Defaults to the booking reference when left empty.",
-        uploadFileLabel: "PDF file",
-        uploadFileRequired: "Choose a PDF to upload.",
-        generateAction: "Create contract",
-        uploadAction: "Upload contract",
-        cancel: "Cancel",
-      },
-    },
-  },
-}
-
-vi.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: testState.invalidateQueries }),
-}))
-
-vi.mock("@voyant-travel/admin", () => ({
-  useOperatorAdminMessages: () => adminMessages,
-}))
-
-vi.mock("@voyant-travel/legal-react", () => ({
-  legalQueryKeys: {
-    contracts: () => ["legal", "contracts"],
-  },
-  useLegalContractAttachmentMutation: () => ({
-    upload: { mutateAsync: testState.uploadContract },
-  }),
-  useLegalContractMutation: () => ({
-    create: { mutateAsync: testState.createContract },
-  }),
-}))
-
 vi.mock("../../src/index.js", () => ({
-  useBookingContractGenerationMutation: () => ({
-    preview: {
-      ...testState.previewState,
-      mutate: testState.previewMutate,
-      reset: testState.previewReset,
-    },
-    generate: {
-      isPending: false,
-      mutateAsync: testState.generateContract,
-    },
-  }),
   useBookingTravelerDocumentMutation: () => ({
     create: {
       isPending: false,
@@ -178,8 +105,6 @@ vi.mock("@voyant-travel/ui/components", () => ({
   ),
 }))
 
-import { BookingContractDialog } from "../../src/admin/booking-contract-dialog.js"
-import { VoyantApiError } from "../../src/client.js"
 import { BookingDocumentDialog } from "../../src/components/booking-document-dialog.js"
 
 function getButton(container: HTMLElement, label: string): HTMLButtonElement {
@@ -196,16 +121,6 @@ describe("booking document dialogs", () => {
 
   beforeEach(() => {
     testState.createDocument.mockClear()
-    testState.uploadContract.mockClear()
-    testState.createContract.mockClear()
-    testState.invalidateQueries.mockClear()
-    testState.previewMutate.mockClear()
-    testState.previewReset.mockClear()
-    testState.generateContract.mockClear()
-    testState.previewState.data = undefined
-    testState.previewState.isPending = false
-    testState.previewState.isError = false
-    testState.previewState.error = null
     container = document.createElement("div")
     document.body.appendChild(container)
     root = createRoot(container)
@@ -237,46 +152,5 @@ describe("booking document dialogs", () => {
     })
 
     expect(getButton(container, "Add document").disabled).toBe(true)
-  })
-
-  it("explains why generated contract creation is disabled without preview content", () => {
-    act(() => {
-      root.render(
-        <BookingContractDialog
-          open
-          onOpenChange={() => undefined}
-          bookingId="book_123"
-          bookingNumber="BK-123"
-        />,
-      )
-    })
-
-    expect(testState.previewMutate).toHaveBeenCalledOnce()
-    expect(container.textContent).toContain("Contract generation is not ready for this booking.")
-    expect(container.textContent).toContain("Legal > Templates")
-    expect(getButton(container, "Create contract").disabled).toBe(true)
-  })
-
-  it("shows contract setup guidance when preview returns missing template", () => {
-    testState.previewState.isError = true
-    testState.previewState.error = new VoyantApiError("No active customer template", 404, {
-      error: { message: "No active customer template" },
-    })
-
-    act(() => {
-      root.render(
-        <BookingContractDialog
-          open
-          onOpenChange={() => undefined}
-          bookingId="book_123"
-          bookingNumber="BK-123"
-        />,
-      )
-    })
-
-    expect(container.textContent).toContain("Contract generation is not ready for this booking.")
-    expect(container.textContent).toContain("Legal > Templates")
-    expect(container.textContent).not.toContain("Preview error:")
-    expect(getButton(container, "Create contract").disabled).toBe(true)
   })
 })

@@ -45,6 +45,7 @@ interface RuntimeCompositionMocks {
   tsImport: Mock<(url: string) => Promise<unknown>>
   runtimePorts: Record<string, unknown>
   graphRuntime: Record<string, unknown>
+  activatedGraphRuntime: Record<string, unknown>
 }
 
 const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
@@ -110,6 +111,7 @@ const mocks: RuntimeCompositionMocks = vi.hoisted(() => {
     tsImport: vi.fn(),
     runtimePorts,
     graphRuntime: selectedGraphRuntime,
+    activatedGraphRuntime: selectedGraphRuntime,
   }
 })
 
@@ -205,6 +207,31 @@ vi.mock("./deployment-resources.js", async (importOriginal) => {
       if (args[2]?.excludedPorts?.includes("storage.object")) return resolved
       return { "storage.object": { resolve: () => null }, ...resolved }
     },
+    resolveSelectedGraphRuntimeProviders: async (
+      ...args: Parameters<typeof actual.resolveSelectedGraphRuntimeProviders>
+    ) => {
+      mocks.activatedGraphRuntime = { ...args[0], activatedForConditionalActions: true }
+      if ((args[0].providers ?? []).length === 0) {
+        return {
+          graphHash: args[0].graphHash,
+          selectedProviders: [],
+          getProvider: async () => undefined,
+          activateRuntime: async () => mocks.activatedGraphRuntime,
+        }
+      }
+      const ports = await actual.resolveSelectedGraphProviderPorts(...args)
+      return {
+        graphHash: args[0].graphHash,
+        selectedProviders: Object.keys(ports).map((port) => ({
+          unitId: "test",
+          declarationId: `test:${port}`,
+          port,
+          selection: { role: "test", value: "test" },
+        })),
+        getProvider: async (port: string) => ports[port],
+        activateRuntime: async () => mocks.activatedGraphRuntime,
+      }
+    },
   }
 })
 
@@ -299,6 +326,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true })))
 })
 
@@ -377,6 +405,114 @@ export function configureSearchProviderRuntime(
     }),
   }
   return configured
+}
+
+export async function configureStandardLegalProviderRuntime(): Promise<void> {
+  const [
+    { STANDARD_OPERATOR_DEPLOYMENT },
+    { legalVoyantModule },
+    { createLegalDocumentArtifactGraphProvider },
+    { storageVoyantModule },
+    { createMemoryGraphStorageProvider },
+  ] = await Promise.all([
+    import("@voyant-travel/operator-standard"),
+    import("@voyant-travel/legal/voyant"),
+    import("@voyant-travel/legal/runtime-contributor"),
+    import("@voyant-travel/storage/voyant"),
+    import("@voyant-travel/storage/providers/graph"),
+  ])
+  const legalProvider = legalVoyantModule.providers?.find(
+    ({ selection }) => selection?.role === "legalDocumentArtifact",
+  )
+  const storageProvider = storageVoyantModule.providers?.find(
+    ({ selection }) => selection?.role === "storage" && selection.value === "memory",
+  )
+  if (!legalProvider || !storageProvider)
+    throw new Error("Standard Legal provider graph is missing.")
+
+  const legalReference = {
+    id: "legal-document-artifact-provider",
+    unitId: legalVoyantModule.id,
+    facet: "providers.runtime" as const,
+    entityId: legalProvider.id,
+    runtime: legalProvider.runtime,
+    importEntry: "@voyant-travel/legal/runtime-contributor",
+  }
+  const storageReference = {
+    id: "memory-storage-provider",
+    unitId: storageVoyantModule.id,
+    facet: "providers.runtime" as const,
+    entityId: storageProvider.id,
+    runtime: storageProvider.runtime,
+    importEntry: "@voyant-travel/storage/providers/graph",
+  }
+  mocks.deploymentProviders = {
+    ...mocks.deploymentProviders,
+    ...STANDARD_OPERATOR_DEPLOYMENT.providers,
+  } as Record<string, string>
+  mocks.graphRuntime = {
+    ...createVoyantGraphRuntime({
+      graphHash: "sha256:standard-legal-provider",
+      providerSelections: {
+        search: STANDARD_OPERATOR_DEPLOYMENT.providers!.search!,
+        storage: STANDARD_OPERATOR_DEPLOYMENT.providers!.storage!,
+        legalDocumentArtifact: STANDARD_OPERATOR_DEPLOYMENT.providers!.legalDocumentArtifact!,
+      },
+      entries: {
+        [legalReference.importEntry]: async () => ({
+          createLegalDocumentArtifactGraphProvider,
+        }),
+        [storageReference.importEntry]: async () => ({ createMemoryGraphStorageProvider }),
+      },
+      modules: [
+        {
+          id: storageVoyantModule.id,
+          kind: "module",
+          packageName: storageVoyantModule.packageName!,
+          order: 0,
+          references: [storageReference],
+          providers: [
+            {
+              unitId: storageVoyantModule.id,
+              declaration: storageProvider,
+              referenceId: storageReference.id,
+            },
+          ],
+          config: (storageVoyantModule.config ?? []).map((declaration) => ({
+            unitId: storageVoyantModule.id,
+            declaration,
+          })),
+          selectedIds: { routes: [], tools: [], events: [], webhooks: [] },
+          routes: [],
+        },
+        {
+          id: legalVoyantModule.id,
+          kind: "module",
+          packageName: legalVoyantModule.packageName!,
+          order: 1,
+          references: [legalReference],
+          resources: (legalVoyantModule.resources ?? []).map((declaration) => ({
+            unitId: legalVoyantModule.id,
+            declaration,
+          })),
+          providers: [
+            {
+              unitId: legalVoyantModule.id,
+              declaration: legalProvider,
+              referenceId: legalReference.id,
+            },
+          ],
+          selectedIds: { routes: [], tools: [], events: [], webhooks: [] },
+          routes: [],
+        },
+      ],
+      plugins: [],
+    }),
+  }
+  mocks.resolveNodeDatabase.mockReturnValue({
+    transaction: async (operation: (tx: { execute: Mock }) => Promise<unknown>) =>
+      operation({ execute: vi.fn(async () => []) }),
+  })
 }
 
 export function createTestIndexerProvider(source: string) {

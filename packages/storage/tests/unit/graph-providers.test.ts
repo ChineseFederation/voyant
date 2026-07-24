@@ -45,4 +45,21 @@ describe("graph-selected storage providers", () => {
   it("fails closed when required S3 graph config is absent", () => {
     expect(() => createS3CompatibleGraphStorageProvider(context({}))).toThrow(/S3_REGION/)
   })
+
+  it("requires deployment identity for the default S3 credential chain", () => {
+    const values = {
+      "@voyant-travel/storage#config.s3-region": "auto",
+      "@voyant-travel/storage#config.documents-bucket": "documents",
+      "@voyant-travel/storage#config.media-bucket": "media",
+    }
+    expect(() => createS3CompatibleGraphStorageProvider(context(values))).toThrow(/backendIdentity/)
+    expect(() =>
+      createS3CompatibleGraphStorageProvider(
+        context({
+          ...values,
+          "@voyant-travel/storage#config.s3-backend-identity": "aws-account-123",
+        }),
+      ),
+    ).not.toThrow()
+  })
 })

@@ -81,6 +81,7 @@ describe("standard package manifests", () => {
 
   it("runs selected product jobs in the standard Operator by default", () => {
     expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.scheduledJobs).toBe("node-cron")
+    expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.legalDocumentArtifact).toBe("standard")
   })
 
   it("selects the composed dashboard with a staff preset that satisfies every source scope", () => {

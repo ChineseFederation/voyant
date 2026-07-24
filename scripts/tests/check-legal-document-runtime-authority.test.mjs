@@ -27,13 +27,24 @@ async function fixture(overrides = {}) {
       },
       dependencies: {
         "@voyant-travel/bookings": "workspace:^",
-        "@voyant-travel/operator-settings": "workspace:^",
       },
     }),
     "packages/legal/src/runtime-contributor.ts":
-      "createLegalRuntime legalRuntimePort.id legalContractDocumentRuntimePort.id legalBookingContractSubscriberRuntimePort.id",
-    "packages/legal/src/runtime.ts":
-      "buildContractVariableBindings createContractDocumentService resolveContractDocumentGenerator resolveBookingPiiService createBookingContractSubscriberHost",
+      "createLegalRuntime legalRuntimePort.id legalContractDocumentRuntimePort.id createLegalDocumentArtifactGraphProvider legalContractDocumentJobRuntimePort.id",
+    "packages/legal/src/runtime.ts": "createContractDocumentRoutesOptions resolveStorage",
+    "packages/legal/src/document-artifact-runtime.ts":
+      "createStandardLegalDocumentArtifactProvider pg_advisory_xact_lock operation.operationKey",
+    "packages/legal/src/contract-document-command.ts":
+      "executeAdmittedExistingTargetCommand claimActionId claimIdempotencyFingerprint claimCommandPayload",
+    "packages/legal/src/contract-document-job.ts":
+      "hasPort(legalDocumentArtifactProviderPort) direct selected provider",
+    "packages/legal/src/mcp-runtime.ts": "executeLegalContractDocumentCommand",
+    "packages/legal/src/voyant.ts":
+      'generate_booking_contract_document regenerate_booking_contract_document status: "unavailable" selectedProviderPorts legalDocumentArtifactProviderPort.id legal.contract-document-operations',
+    "packages/legal/src/index.ts": "public Legal exports",
+    "packages/commerce/src/runtime-port.ts": "Commerce Legal acceptance only",
+    "packages/commerce/src/runtime.ts": "createCommerceRuntime",
+    "packages/legal/src/contracts/routes.ts": "appendix attachments",
     "packages/operator-standard/package.json": JSON.stringify({
       dependencies: { "@voyant-travel/legal": "workspace:*" },
     }),

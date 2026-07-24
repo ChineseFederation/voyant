@@ -220,6 +220,7 @@ export const typeIdSchemas = {
   contractSignature: typeIdSchema("contract_signatures"),
   contractNumberSeries: typeIdSchema("contract_number_series"),
   contractAttachment: typeIdSchema("contract_attachments"),
+  contractDocumentOperation: typeIdSchema("contract_document_operations"),
   policy: typeIdSchema("policies"),
   policyVersion: typeIdSchema("policy_versions"),
   policyRule: typeIdSchema("policy_rules"),

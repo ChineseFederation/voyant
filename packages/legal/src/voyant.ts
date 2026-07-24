@@ -6,11 +6,10 @@ import {
   providePort,
   requirePort,
 } from "@voyant-travel/core/project"
-import { documentRendererPort } from "@voyant-travel/core/runtime-port"
+import { legalContractDocumentJobRuntimePort } from "./contract-document-job-runtime-port.js"
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
-import { legalBookingContractSubscriberRuntimePort } from "./contracts/booking-contract-subscriber-port.js"
+import { legalDocumentArtifactProviderPort } from "./contracts/document-artifact-provider.js"
 import {
-  bookingContractGeneratedEventPayloadSchema,
   contractDocumentGeneratedEventPayloadSchema,
   contractExecutedEventPayloadSchema,
   contractIssuedEventPayloadSchema,
@@ -27,17 +26,200 @@ const legalAdminRuntime = {
 
 const linkableSource = "@voyant-travel/legal/linkables"
 
+const contractDocumentTools = [
+  {
+    id: "@voyant-travel/legal#tool.generate-booking-contract-document",
+    name: "generate_booking_contract_document",
+    runtime: {
+      entry: "@voyant-travel/legal/tools",
+      export: "generateBookingContractDocumentTool",
+    },
+    requiredScopes: ["legal:write"],
+    context: ["legalContractDocument"],
+    risk: "high" as const,
+  },
+  {
+    id: "@voyant-travel/legal#tool.regenerate-booking-contract-document",
+    name: "regenerate_booking_contract_document",
+    runtime: {
+      entry: "@voyant-travel/legal/tools",
+      export: "regenerateBookingContractDocumentTool",
+    },
+    requiredScopes: ["legal:write"],
+    context: ["legalContractDocument"],
+    risk: "critical" as const,
+  },
+  {
+    id: "@voyant-travel/legal#tool.resolve-contract-document-delivery",
+    name: "resolve_contract_document_delivery",
+    runtime: {
+      entry: "@voyant-travel/legal/tools",
+      export: "resolveContractDocumentDeliveryTool",
+    },
+    requiredScopes: ["legal:read"],
+    context: ["legalContractDocument"],
+    risk: "high" as const,
+  },
+] as const
+
+const contractDocumentActions = [
+  {
+    id: "@voyant-travel/legal#action.generate-booking-contract-document",
+    version: "v1",
+    kind: "execute" as const,
+    targetType: "booking",
+    commandTargetField: "bookingId",
+    targetLifecycle: "existing" as const,
+    existingTarget: { durability: "handler-command-result-v1" as const },
+    availability: {
+      status: "unavailable" as const,
+      reasonCode: "provider-not-conformant",
+      enableWhen: {
+        selectedProviderPorts: {
+          mode: "all" as const,
+          ports: [legalDocumentArtifactProviderPort.id],
+        },
+      },
+    },
+    effectBoundary: "multistage" as const,
+    durability: {
+      strategy: "outbox" as const,
+      testReference: "packages/legal/tests/integration/document-operation.test.ts",
+    },
+    resource: "legal",
+    action: "write",
+    requiredScopes: ["legal:write"],
+    risk: "high" as const,
+    ledger: "required" as const,
+    approval: "required" as const,
+    policy: "legal.contract-document.v1",
+    reversible: false,
+    allowedActorTypes: ["staff" as const],
+    from: { tools: ["@voyant-travel/legal#tool.generate-booking-contract-document"] },
+  },
+  {
+    id: "@voyant-travel/legal#action.regenerate-booking-contract-document",
+    version: "v1",
+    kind: "execute" as const,
+    targetType: "booking",
+    commandTargetField: "bookingId",
+    targetLifecycle: "existing" as const,
+    existingTarget: { durability: "handler-command-result-v1" as const },
+    availability: {
+      status: "unavailable" as const,
+      reasonCode: "provider-not-conformant",
+      enableWhen: {
+        selectedProviderPorts: {
+          mode: "all" as const,
+          ports: [legalDocumentArtifactProviderPort.id],
+        },
+      },
+    },
+    effectBoundary: "multistage" as const,
+    durability: {
+      strategy: "outbox" as const,
+      testReference: "packages/legal/tests/integration/document-operation.test.ts",
+    },
+    resource: "legal",
+    action: "write",
+    requiredScopes: ["legal:write"],
+    risk: "critical" as const,
+    ledger: "required" as const,
+    approval: "required" as const,
+    policy: "legal.contract-document.v1",
+    reversible: false,
+    allowedActorTypes: ["staff" as const],
+    from: { tools: ["@voyant-travel/legal#tool.regenerate-booking-contract-document"] },
+  },
+  {
+    id: "@voyant-travel/legal#action.resolve-contract-document-delivery",
+    version: "v1",
+    kind: "sensitive-read" as const,
+    targetType: "contract-document-delivery",
+    resource: "legal",
+    action: "read",
+    requiredScopes: ["legal:read"],
+    risk: "high" as const,
+    ledger: "required" as const,
+    approval: "never" as const,
+    allowedActorTypes: ["staff" as const],
+    from: { tools: ["@voyant-travel/legal#tool.resolve-contract-document-delivery"] },
+  },
+] as const
+
+const contractDocumentJobs = [
+  {
+    id: "legal.contract-document-operations",
+    schedule: { every: "1m", overlap: "skip" as const },
+    scheduling: {
+      required: true,
+      profiles: {
+        eager: { every: "1m", overlap: "skip" as const },
+        economical: { every: "5m", overlap: "skip" as const },
+      },
+    },
+    wakeup: true,
+    runtime: {
+      entry: "@voyant-travel/legal/contract-document-job",
+      export: "runDueLegalContractDocumentOperationsJob",
+    },
+  },
+] as const
+
 /** Import-cheap deployment declaration owned by the legal package. */
 export const legalVoyantModule = defineModule({
   id: "@voyant-travel/legal",
   packageName: "@voyant-travel/legal",
   localId: "legal",
   provides: {
-    ports: [providePort(commerceLegalRuntimePort), providePort(legalRuntimePort)],
+    ports: [
+      providePort(commerceLegalRuntimePort),
+      providePort(legalRuntimePort),
+      providePort(legalContractDocumentRuntimePort),
+      providePort(legalDocumentArtifactProviderPort),
+      providePort(legalContractDocumentJobRuntimePort),
+    ],
   },
   runtimePorts: [
     requirePort(legalRuntimePort),
-    requirePort(documentRendererPort, { optional: true }),
+    requirePort(legalContractDocumentRuntimePort),
+    requirePort(legalDocumentArtifactProviderPort, { optional: true }),
+    requirePort(legalContractDocumentJobRuntimePort),
+  ],
+  resources: [
+    {
+      id: "@voyant-travel/legal#resource.database",
+      kind: "database",
+      required: true,
+    },
+    {
+      id: "@voyant-travel/legal#resource.document-storage",
+      kind: "document-storage",
+      required: true,
+    },
+    {
+      id: "@voyant-travel/legal#resource.document-renderer",
+      kind: "document-renderer",
+      required: true,
+    },
+  ],
+  providers: [
+    {
+      id: "@voyant-travel/legal#provider.document-artifact",
+      port: legalDocumentArtifactProviderPort.id,
+      selection: { role: "legalDocumentArtifact", value: "standard" },
+      uses: {
+        resources: [
+          "@voyant-travel/legal#resource.database",
+          "@voyant-travel/legal#resource.document-storage",
+          "@voyant-travel/legal#resource.document-renderer",
+        ],
+      },
+      runtime: {
+        entry: "@voyant-travel/legal/runtime-contributor",
+        export: "createLegalDocumentArtifactGraphProvider",
+      },
+    },
   ],
   api: [
     {
@@ -49,6 +231,16 @@ export const legalVoyantModule = defineModule({
       runtime: {
         entry: "@voyant-travel/legal",
         export: "createLegalVoyantRuntime",
+      },
+    },
+    {
+      id: "@voyant-travel/legal#api.contract-document",
+      surface: "admin",
+      resource: "legal",
+      openapi: { document: "contract-document" },
+      runtime: {
+        entry: "@voyant-travel/legal/contract-document-routes",
+        export: "createContractDocumentApiModule",
       },
     },
     {
@@ -199,14 +391,6 @@ export const legalVoyantModule = defineModule({
       visibility: "internal",
       audit: { sourceModule: "legal", category: "domain" },
     },
-    {
-      id: "@voyant-travel/legal#event.booking.contract.generated",
-      eventType: "booking.contract.generated",
-      version: "1.0.0",
-      payloadSchema: bookingContractGeneratedEventPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "legal", category: "domain" },
-    },
   ],
   access: {
     resources: [
@@ -231,86 +415,89 @@ export const legalVoyantModule = defineModule({
     ],
   },
   tools: [
-    ["list-contracts", "list_legal_contracts", "listLegalContractsTool", "legal:read", "medium"],
-    ["get-contract", "get_legal_contract", "getLegalContractTool", "legal:read", "medium"],
-    [
-      "create-contract-draft",
-      "create_legal_contract_draft",
-      "createLegalContractDraftTool",
-      "legal:write",
-      "high",
-    ],
-    [
-      "list-contract-templates",
-      "list_contract_templates",
-      "listContractTemplatesTool",
-      "legal:read",
-      "medium",
-    ],
-    [
-      "get-contract-template",
-      "get_contract_template",
-      "getContractTemplateTool",
-      "legal:read",
-      "medium",
-    ],
-    [
-      "preview-contract-template",
-      "preview_contract_template",
-      "previewContractTemplateTool",
-      "legal:read",
-      "medium",
-    ],
-    [
-      "create-contract-template",
-      "create_contract_template",
-      "createContractTemplateTool",
-      "legal:write",
-      "high",
-    ],
-    [
-      "update-contract-template",
-      "update_contract_template",
-      "updateContractTemplateTool",
-      "legal:write",
-      "high",
-    ],
-    ["list-policies", "list_legal_policies", "listLegalPoliciesTool", "legal:read", "medium"],
-    ["get-policy", "get_legal_policy", "getLegalPolicyTool", "legal:read", "medium"],
-    ["resolve-policy", "resolve_legal_policy", "resolveLegalPolicyTool", "legal:read", "medium"],
-    [
-      "evaluate-cancellation-policy",
-      "evaluate_cancellation_policy",
-      "evaluateCancellationPolicyTool",
-      "legal:read",
-      "medium",
-    ],
-    ["list-terms", "list_legal_terms", "listLegalTermsTool", "legal:read", "medium"],
-    ["get-term", "get_legal_term", "getLegalTermTool", "legal:read", "medium"],
-    [
-      "list-contract-attachments",
-      "list_contract_attachments",
-      "listContractAttachmentsTool",
-      "legal:read",
-      "medium",
-    ],
-    ["issue-contract", "issue_legal_contract", "issueLegalContractTool", "legal:write", "high"],
-    ["send-contract", "send_legal_contract", "sendLegalContractTool", "legal:write", "high"],
-    [
-      "execute-contract",
-      "execute_legal_contract",
-      "executeLegalContractTool",
-      "legal:write",
-      "critical",
-    ],
-  ].map(([id, name, exportName, scope, risk]) => ({
-    id: `@voyant-travel/legal#tool.${id}`,
-    name: name!,
-    runtime: { entry: "@voyant-travel/legal/tools", export: exportName! },
-    requiredScopes: [scope!],
-    context: ["legal"],
-    risk: risk as "medium" | "high" | "critical",
-  })),
+    ...[
+      ["list-contracts", "list_legal_contracts", "listLegalContractsTool", "legal:read", "medium"],
+      ["get-contract", "get_legal_contract", "getLegalContractTool", "legal:read", "medium"],
+      [
+        "create-contract-draft",
+        "create_legal_contract_draft",
+        "createLegalContractDraftTool",
+        "legal:write",
+        "high",
+      ],
+      [
+        "list-contract-templates",
+        "list_contract_templates",
+        "listContractTemplatesTool",
+        "legal:read",
+        "medium",
+      ],
+      [
+        "get-contract-template",
+        "get_contract_template",
+        "getContractTemplateTool",
+        "legal:read",
+        "medium",
+      ],
+      [
+        "preview-contract-template",
+        "preview_contract_template",
+        "previewContractTemplateTool",
+        "legal:read",
+        "medium",
+      ],
+      [
+        "create-contract-template",
+        "create_contract_template",
+        "createContractTemplateTool",
+        "legal:write",
+        "high",
+      ],
+      [
+        "update-contract-template",
+        "update_contract_template",
+        "updateContractTemplateTool",
+        "legal:write",
+        "high",
+      ],
+      ["list-policies", "list_legal_policies", "listLegalPoliciesTool", "legal:read", "medium"],
+      ["get-policy", "get_legal_policy", "getLegalPolicyTool", "legal:read", "medium"],
+      ["resolve-policy", "resolve_legal_policy", "resolveLegalPolicyTool", "legal:read", "medium"],
+      [
+        "evaluate-cancellation-policy",
+        "evaluate_cancellation_policy",
+        "evaluateCancellationPolicyTool",
+        "legal:read",
+        "medium",
+      ],
+      ["list-terms", "list_legal_terms", "listLegalTermsTool", "legal:read", "medium"],
+      ["get-term", "get_legal_term", "getLegalTermTool", "legal:read", "medium"],
+      [
+        "list-contract-attachments",
+        "list_contract_attachments",
+        "listContractAttachmentsTool",
+        "legal:read",
+        "medium",
+      ],
+      ["issue-contract", "issue_legal_contract", "issueLegalContractTool", "legal:write", "high"],
+      ["send-contract", "send_legal_contract", "sendLegalContractTool", "legal:write", "high"],
+      [
+        "execute-contract",
+        "execute_legal_contract",
+        "executeLegalContractTool",
+        "legal:write",
+        "critical",
+      ],
+    ].map(([id, name, exportName, scope, risk]) => ({
+      id: `@voyant-travel/legal#tool.${id}`,
+      name: name!,
+      runtime: { entry: "@voyant-travel/legal/tools", export: exportName! },
+      requiredScopes: [scope!],
+      context: ["legal"],
+      risk: risk as "medium" | "high" | "critical",
+    })),
+    ...contractDocumentTools,
+  ],
   actions: [
     {
       id: "@voyant-travel/legal#action.inspect-contracts",
@@ -474,15 +661,12 @@ export const legalVoyantModule = defineModule({
       allowedActorTypes: ["staff"],
       from: { tools: [`@voyant-travel/legal#tool.${tool}`] },
     })),
+    ...contractDocumentActions,
   ],
+  jobs: contractDocumentJobs,
   admin: {
     compositionOrder: 60,
-    setupSteps: [
-      {
-        id: "@voyant-travel/legal#setup.contract-generation",
-        skippable: true,
-      },
-    ],
+    setupSteps: [],
     runtime: {
       entry: "@voyant-travel/legal-react/admin",
       export: "createSelectedLegalAdminExtension",
@@ -541,178 +725,6 @@ export const legalVoyantModule = defineModule({
   lifecycle: {
     uninstall: { default: "retain-data", purge: "not-supported" },
   },
-  meta: {
-    ownership: "package",
-  },
-})
-
-export const legalContractDocumentVoyantModule = defineModule({
-  id: "@voyant-travel/legal#contract-document",
-  packageName: "@voyant-travel/legal",
-  localId: "legal.contract-document",
-  provides: { ports: [providePort(legalContractDocumentRuntimePort)] },
-  runtime: {
-    entry: "@voyant-travel/legal/contract-document-routes",
-    export: "createContractDocumentVoyantRuntime",
-  },
-  runtimePorts: [requirePort(legalContractDocumentRuntimePort)],
-  api: [
-    {
-      id: "@voyant-travel/legal#contract-document.api",
-      surface: "admin",
-      resource: "legal",
-      openapi: { document: "contract-document" },
-      runtime: {
-        entry: "@voyant-travel/legal/contract-document-routes",
-        export: "createContractDocumentApiModule",
-      },
-    },
-  ],
-  tools: [
-    {
-      id: "@voyant-travel/legal#tool.preview-booking-contract-document",
-      name: "preview_booking_contract_document",
-      runtime: {
-        entry: "@voyant-travel/legal/tools",
-        export: "previewBookingContractDocumentTool",
-      },
-      requiredScopes: ["legal:read"],
-      context: ["legalContractDocument"],
-      risk: "high",
-    },
-    {
-      id: "@voyant-travel/legal#tool.generate-booking-contract-document",
-      name: "generate_booking_contract_document",
-      runtime: {
-        entry: "@voyant-travel/legal/tools",
-        export: "generateBookingContractDocumentTool",
-      },
-      requiredScopes: ["legal:write"],
-      context: ["legalContractDocument"],
-      risk: "high",
-    },
-    {
-      id: "@voyant-travel/legal#tool.regenerate-booking-contract-document",
-      name: "regenerate_booking_contract_document",
-      runtime: {
-        entry: "@voyant-travel/legal/tools",
-        export: "regenerateBookingContractDocumentTool",
-      },
-      requiredScopes: ["legal:write"],
-      context: ["legalContractDocument"],
-      risk: "critical",
-    },
-    {
-      id: "@voyant-travel/legal#tool.resolve-contract-document-delivery",
-      name: "resolve_contract_document_delivery",
-      runtime: {
-        entry: "@voyant-travel/legal/tools",
-        export: "resolveContractDocumentDeliveryTool",
-      },
-      requiredScopes: ["legal:read"],
-      context: ["legalContractDocument"],
-      risk: "high",
-    },
-  ],
-  actions: [
-    {
-      id: "@voyant-travel/legal#action.preview-booking-contract-document",
-      version: "v1",
-      kind: "sensitive-read",
-      targetType: "booking-contract-document",
-      resource: "legal",
-      action: "read",
-      requiredScopes: ["legal:read"],
-      risk: "high",
-      ledger: "required",
-      approval: "never",
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/legal#tool.preview-booking-contract-document"] },
-    },
-    {
-      id: "@voyant-travel/legal#action.generate-booking-contract-document",
-      version: "v1",
-      kind: "execute",
-      targetType: "booking",
-      commandTargetField: "bookingId",
-      targetLifecycle: "existing",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      resource: "legal",
-      action: "write",
-      requiredScopes: ["legal:write"],
-      risk: "high",
-      ledger: "required",
-      approval: "required",
-      reversible: true,
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/legal#tool.generate-booking-contract-document"] },
-    },
-    {
-      id: "@voyant-travel/legal#action.regenerate-booking-contract-document",
-      version: "v1",
-      kind: "execute",
-      targetType: "booking-contract-document",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      resource: "legal",
-      action: "write",
-      requiredScopes: ["legal:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      policy: "legal.contract-document.regeneration.v1",
-      reversible: false,
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/legal#tool.regenerate-booking-contract-document"] },
-    },
-    {
-      id: "@voyant-travel/legal#action.resolve-contract-document-delivery",
-      version: "v1",
-      kind: "sensitive-read",
-      targetType: "contract-document-delivery",
-      resource: "legal",
-      action: "read",
-      requiredScopes: ["legal:read"],
-      risk: "high",
-      ledger: "required",
-      approval: "never",
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/legal#tool.resolve-contract-document-delivery"] },
-    },
-  ],
-  meta: {
-    ownership: "package",
-  },
-})
-
-export const legalBookingContractVoyantExtension = defineExtension({
-  id: "@voyant-travel/legal#booking-contract-extension",
-  packageName: "@voyant-travel/legal",
-  localId: "legal.booking-contract-extension",
-  provides: { ports: [providePort(legalBookingContractSubscriberRuntimePort)] },
-  runtime: {
-    entry: "@voyant-travel/legal/booking-contract-subscriber",
-    export: "createLegalBookingContractVoyantRuntime",
-  },
-  runtimePorts: [requirePort(legalBookingContractSubscriberRuntimePort)],
-  subscribers: [
-    {
-      id: "@voyant-travel/legal#subscriber.booking-contract-confirmed",
-      eventType: "booking.confirmed",
-      source: "@voyant-travel/legal/booking-contract-subscriber",
-      runtime: {
-        entry: "@voyant-travel/legal/booking-contract-subscriber",
-        export: "legalBookingContractConfirmedSubscriber",
-      },
-    },
-  ],
   meta: {
     ownership: "package",
   },

@@ -7,6 +7,8 @@ export interface RenderPdfDocumentInput {
   content: string
   format?: PdfContentFormat
   metadataLines?: string[]
+  fontBytes?: Uint8Array
+  fontkit?: Parameters<PDFDocument["registerFontkit"]>[0]
 }
 
 function decodeEntities(input: string) {
@@ -97,8 +99,16 @@ function wrapLine(text: string, width: number, measure: (value: string) => numbe
 
 export async function renderPdfDocument(input: RenderPdfDocumentInput): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create()
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  if (input.fontBytes) {
+    if (!input.fontkit) {
+      throw new Error("Custom PDF font bytes require an explicit fontkit runtime.")
+    }
+    pdfDoc.registerFontkit(input.fontkit)
+  }
+  const font = input.fontBytes
+    ? await pdfDoc.embedFont(input.fontBytes)
+    : await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const bold = input.fontBytes ? font : await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
   const PAGE_WIDTH = 595.28
   const PAGE_HEIGHT = 841.89

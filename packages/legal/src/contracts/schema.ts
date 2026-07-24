@@ -401,11 +401,104 @@ export const contractAttachments = pgTable(
     ),
     index("idx_contract_attachments_legacy_transaction_offer").on(table.legacyTransactionOfferId),
     index("idx_contract_attachments_legacy_transaction_order").on(table.legacyTransactionOrderId),
+    uniqueIndex("uq_contract_attachments_canonical_document")
+      .on(table.contractId)
+      // agent-quality: raw-sql reviewed -- owner: legal; the partial index enforces one canonical rendition per contract.
+      .where(sql`${table.kind} = 'document'`),
   ],
 )
 
 export type ContractAttachment = typeof contractAttachments.$inferSelect
 export type NewContractAttachment = typeof contractAttachments.$inferInsert
+
+// ---------- durable contract document operations ----------
+
+/**
+ * Package-owned write-ahead state for document generation. The row is the
+ * immutable request/result authority; action-ledger claims point at its id.
+ * Bytes are always written under `operations/<id>/...`, never under a stable
+ * contract key.
+ */
+export const contractDocumentOperations = pgTable(
+  "contract_document_operations",
+  {
+    id: typeId("contract_document_operations"),
+    bookingId: typeIdRef("booking_id").notNull(),
+    contractId: typeIdRef("contract_id").references(() => contracts.id, {
+      onDelete: "restrict",
+    }),
+    organizationId: typeIdRef("organization_id"),
+    principalType: text("principal_type").notNull(),
+    principalId: text("principal_id").notNull(),
+    tenantScope: text("tenant_scope").notNull(),
+    claimActionId: text("claim_action_id").notNull(),
+    claimActionName: text("claim_action_name").notNull(),
+    claimActionVersion: text("claim_action_version").notNull(),
+    claimTargetType: text("claim_target_type").notNull(),
+    claimTargetId: text("claim_target_id").notNull(),
+    claimIdempotencyScope: text("claim_idempotency_scope").notNull(),
+    claimIdempotencyFingerprint: text("claim_idempotency_fingerprint").notNull(),
+    claimCommandPayload: jsonb("claim_command_payload").$type<Record<string, unknown>>().notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    mode: text("mode").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    targetFingerprint: text("target_fingerprint").notNull(),
+    providerId: text("provider_id").notNull(),
+    providerVersion: text("provider_version").notNull(),
+    providerProtocol: text("provider_protocol").notNull(),
+    status: text("status").notNull().default("prepared"),
+    checkpoint: text("checkpoint").notNull().default("prepared"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(8),
+    fencingToken: integer("fencing_token").notNull().default(0),
+    leaseOwner: text("lease_owner"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    operationKey: text("operation_key").notNull(),
+    renderDescriptor: jsonb("render_descriptor").notNull(),
+    renderedPayload: text("rendered_payload"),
+    artifactMetadata: jsonb("artifact_metadata"),
+    artifactName: text("artifact_name"),
+    artifactContentType: text("artifact_content_type"),
+    artifactChecksum: text("artifact_checksum"),
+    artifactByteLength: integer("artifact_byte_length"),
+    previousAttachmentId: typeIdRef("previous_attachment_id"),
+    previousStorageKey: text("previous_storage_key"),
+    previousProviderId: text("previous_provider_id"),
+    previousProviderVersion: text("previous_provider_version"),
+    previousProviderProtocol: text("previous_provider_protocol"),
+    previousCanonicalFingerprint: jsonb("previous_canonical_fingerprint"),
+    canonicalAttachmentId: typeIdRef("canonical_attachment_id"),
+    result: jsonb("result"),
+    eventId: text("event_id").notNull(),
+    lastError: text("last_error"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    deadLetteredAt: timestamp("dead_lettered_at", { withTimezone: true }),
+    cleanupCompletedAt: timestamp("cleanup_completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_contract_document_operations_request").on(
+      table.tenantScope,
+      table.bookingId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("uq_contract_document_operations_event").on(table.eventId),
+    uniqueIndex("uq_contract_document_operations_key").on(table.operationKey),
+    uniqueIndex("uq_contract_document_operations_claim").on(table.claimActionId),
+    index("idx_contract_document_operations_due").on(
+      table.status,
+      table.nextAttemptAt,
+      table.leaseExpiresAt,
+    ),
+    index("idx_contract_document_operations_booking").on(table.bookingId, table.createdAt),
+    index("idx_contract_document_operations_contract").on(table.contractId, table.createdAt),
+  ],
+)
+
+export type ContractDocumentOperation = typeof contractDocumentOperations.$inferSelect
+export type NewContractDocumentOperation = typeof contractDocumentOperations.$inferInsert
 
 // ---------- relations ----------
 

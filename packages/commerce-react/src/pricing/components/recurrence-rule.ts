@@ -98,7 +98,6 @@ export function serializeRecurrence(state: RecurrenceState): string {
       }
       return freqPrefix("monthly")
     }
-    case "custom":
     default:
       return state.raw
   }

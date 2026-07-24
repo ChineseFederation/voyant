@@ -94,7 +94,6 @@ declare module "@voyant-travel/admin" {
 // chunk. Hosts/dialogs/widgets import from their specific modules
 // (`@voyant-travel/bookings-react/admin/booking-detail-host`, ...); only their
 // TYPES re-export here, plus the lean slot ids and skeletons.
-export type { BookingContractDialogProps } from "./booking-contract-dialog.js"
 export type {
   BookingDetailHostProps,
   BookingDetailHostSlot,

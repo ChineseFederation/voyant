@@ -1,5 +1,6 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import {
+  type ResolvedVoyantGraphRuntimeProviders,
   resolveVoyantGraphRuntimeProviders,
   type VoyantGraphRuntime,
   type VoyantGraphRuntimePorts,
@@ -25,6 +26,7 @@ export interface VoyantDeploymentResources {
 
 export interface ResolveSelectedGraphProviderPortsOptions {
   excludedPorts?: readonly string[]
+  includedPorts?: readonly string[]
   deploymentValueAliases?: Readonly<Record<string, readonly string[]>>
   /**
    * Supplies deployment-owned resources to graph providers. The resolver is
@@ -78,18 +80,47 @@ export function createVoyantDeploymentResources(
   }
 }
 
-/** Resolve deployment-selected graph providers into contributor-visible runtime ports. */
-export async function resolveSelectedGraphProviderPorts(
+/** Resolve selected provider loaders so startup can preflight and activate the graph runtime. */
+export async function resolveSelectedGraphRuntimeProviders(
   runtime: VoyantGraphRuntime,
   deploymentValues: Readonly<Record<string, unknown>>,
   options: ResolveSelectedGraphProviderPortsOptions = {},
-): Promise<VoyantGraphRuntimePorts> {
+): Promise<ResolvedVoyantGraphRuntimeProviders> {
+  const ports = selectedProviderPorts(runtime, options)
+  const resourceValues = Object.fromEntries(
+    runtime.resources.map(({ declaration }) => [
+      declaration.id,
+      options.resolveResource?.({ id: declaration.id, kind: declaration.kind }),
+    ]),
+  )
+
+  return resolveVoyantGraphRuntimeProviders(runtime, {
+    ports,
+    deploymentValues,
+    resourceValues,
+    ...(options.deploymentValueAliases
+      ? { deploymentValueAliases: options.deploymentValueAliases }
+      : {}),
+  })
+}
+
+function selectedProviderPorts(
+  runtime: VoyantGraphRuntime,
+  options: ResolveSelectedGraphProviderPortsOptions,
+): string[] {
   const excluded = new Set(options.excludedPorts ?? [])
-  const ports = [
+  const included = options.includedPorts ? new Set(options.includedPorts) : undefined
+  return [
     ...new Set(
       (runtime.providers ?? []).flatMap(({ declaration }) => {
         const selection = declaration.selection
-        if (!selection || excluded.has(declaration.port)) return []
+        if (
+          !selection ||
+          excluded.has(declaration.port) ||
+          (included && !included.has(declaration.port))
+        ) {
+          return []
+        }
         const selectedValue = runtime.providerSelections?.[selection.role]
         if (selectedValue === selection.value) return [declaration.port]
         if (!selectedValue || selectedValue === "none") return []
@@ -104,24 +135,19 @@ export async function resolveSelectedGraphProviderPorts(
       }),
     ),
   ].sort()
-  if (ports.length === 0) return {}
+}
 
-  const resourceValues = Object.fromEntries(
-    runtime.resources.map(({ declaration }) => [
-      declaration.id,
-      options.resolveResource?.({ id: declaration.id, kind: declaration.kind }),
-    ]),
-  )
-
-  const providers = await resolveVoyantGraphRuntimeProviders(runtime, {
-    ports,
-    deploymentValues,
-    resourceValues,
-    ...(options.deploymentValueAliases
-      ? { deploymentValueAliases: options.deploymentValueAliases }
-      : {}),
-  })
+/** Resolve deployment-selected graph providers into contributor-visible runtime ports. */
+export async function resolveSelectedGraphProviderPorts(
+  runtime: VoyantGraphRuntime,
+  deploymentValues: Readonly<Record<string, unknown>>,
+  options: ResolveSelectedGraphProviderPortsOptions = {},
+): Promise<VoyantGraphRuntimePorts> {
+  if (selectedProviderPorts(runtime, options).length === 0) return {}
+  const providers = await resolveSelectedGraphRuntimeProviders(runtime, deploymentValues, options)
   const resolved: Record<string, unknown> = {}
-  for (const port of ports) resolved[port] = await providers.getProvider(port)
+  for (const { port } of providers.selectedProviders) {
+    resolved[port] = await providers.getProvider(port)
+  }
   return resolved
 }

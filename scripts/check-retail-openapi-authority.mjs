@@ -37,7 +37,7 @@ const claims = new Map([
   ["@voyant-travel/bookings#booking-supplier-extension.api", "bookings"],
   ["@voyant-travel/finance#bookings-create-extension.api", "bookings"],
   ["@voyant-travel/finance#booking-schedule-extension.api.admin", "bookings"],
-  ["@voyant-travel/legal#contract-document.api", "contract-document"],
+  ["@voyant-travel/legal#api.contract-document", "contract-document"],
   ["@voyant-travel/quotes#api", "quotes"],
   ["@voyant-travel/quotes#proposal-extension.api.admin", "quotes"],
 ])
@@ -79,10 +79,6 @@ const exactOperationOwners = new Map([
   [
     "packages/finance/src/payment-schedule/routes.ts",
     ["@voyant-travel/finance#booking-schedule-extension.api.admin", 1],
-  ],
-  [
-    "packages/legal/src/contract-document-routes.ts",
-    ["@voyant-travel/legal#contract-document.api", 1],
   ],
   [
     "packages/quotes/src/routes/quote-versions.ts",

@@ -6,12 +6,10 @@
     "packages/auth",
     "packages/catalog",
     "packages/charters",
-    "packages/cruises",
     "packages/db",
     "packages/flights",
     "packages/identity",
     "packages/media",
-    "packages/operator-settings",
-    "packages/trips"
+    "packages/operator-settings"
   ]
 }

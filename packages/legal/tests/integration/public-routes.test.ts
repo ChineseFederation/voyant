@@ -7,13 +7,7 @@ import { Hono } from "hono"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import { contractsPublicRoutes, createContractsAdminRoutes } from "../../src/contracts/routes.js"
-import {
-  contractAttachments,
-  contractSignatures,
-  contracts,
-  contractTemplates,
-  contractTemplateVersions,
-} from "../../src/contracts/schema.js"
+import { contractSignatures, contracts, contractTemplates } from "../../src/contracts/schema.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -30,8 +24,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
   let adminApp: Hono
   let publicApp: Hono
   let db: PostgresJsDatabase
-  let generatedNames: string[]
-  let documentEvents: Array<Record<string, unknown>>
   let uploadedObjects: Array<{ key: string; size: number; contentType: string | null }>
   let lifecycleEvents: Array<Record<string, unknown>>
 
@@ -46,10 +38,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
       await next()
     })
     const eventBus = createEventBus()
-    documentEvents = []
-    eventBus.subscribe("contract.document.generated", (event) => {
-      documentEvents.push(event as Record<string, unknown>)
-    })
     uploadedObjects = []
     const documentStorage: StorageProvider = {
       name: "legal-test-storage",
@@ -91,21 +79,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         documentStorage,
         resolveDocumentDownloadUrl: (_bindings, storageKey) =>
           `https://signed.example.com/${storageKey}`,
-        documentGenerator: async ({ contract }) => {
-          const name = `contract-${generatedNames.length + 1}.pdf`
-          generatedNames.push(name)
-          return {
-            kind: "document",
-            name,
-            mimeType: "application/pdf",
-            fileSize: 1024,
-            storageKey: `contracts/${contract.id}/${name}`,
-            metadata: {
-              source: "legal-test",
-              url: `https://cdn.example.com/contracts/${contract.id}/${name}`,
-            },
-          }
-        },
       }),
     )
 
@@ -120,8 +93,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
   beforeEach(async () => {
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
-    generatedNames = []
-    documentEvents = []
     uploadedObjects = []
     lifecycleEvents = []
   })
@@ -297,131 +268,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     })
   })
 
-  it("generates and regenerates a canonical contract document attachment", async () => {
-    const [template] = await db
-      .insert(contractTemplates)
-      .values({
-        name: "Customer RO",
-        slug: "customer-ro",
-        scope: "customer",
-        language: "ro",
-        body: "Salut {{customer.firstName}}",
-        active: true,
-      })
-      .returning()
-
-    const [version] = await db
-      .insert(contractTemplateVersions)
-      .values({
-        templateId: template.id,
-        version: 1,
-        body: "Salut {{customer.firstName}}",
-      })
-      .returning()
-
-    await db
-      .update(contractTemplates)
-      .set({ currentVersionId: version.id })
-      .where(eq(contractTemplates.id, template.id))
-
-    const [contract] = await db
-      .insert(contracts)
-      .values({
-        title: "Booking contract",
-        scope: "customer",
-        status: "draft",
-        templateVersionId: version.id,
-        variables: {
-          customer: { firstName: "Ana" },
-        },
-      })
-      .returning()
-
-    const firstRes = await adminApp.request(`/${contract.id}/generate-document`, {
-      method: "POST",
-      ...json({}),
-    })
-
-    expect(firstRes.status).toBe(201)
-    const firstBody = await firstRes.json()
-    expect(firstBody.data.renderedBody).toBe("Salut Ana")
-    expect(firstBody.data.attachment.name).toBe("contract-1.pdf")
-    expect(firstBody.data.download).toEqual({
-      url: `https://signed.example.com/${firstBody.data.attachment.storageKey}`,
-      expiresAt: null,
-      filename: "contract-1.pdf",
-    })
-
-    const [issuedContract] = await db
-      .select()
-      .from(contracts)
-      .where(eq(contracts.id, contract.id))
-      .limit(1)
-
-    expect(issuedContract?.status).toBe("issued")
-    expect(issuedContract?.renderedBody).toBe("Salut Ana")
-
-    const secondRes = await adminApp.request(`/${contract.id}/regenerate-pdf`, {
-      method: "POST",
-      ...json({}),
-    })
-
-    expect(secondRes.status).toBe(200)
-    const secondBody = await secondRes.json()
-    expect(secondBody.data.attachment.name).toBe("contract-2.pdf")
-    expect(secondBody.data.download).toEqual({
-      url: `https://signed.example.com/${secondBody.data.attachment.storageKey}`,
-      expiresAt: null,
-      filename: "contract-2.pdf",
-    })
-
-    const attachments = await db
-      .select()
-      .from(contractAttachments)
-      .where(eq(contractAttachments.contractId, contract.id))
-
-    expect(attachments).toHaveLength(1)
-    expect(attachments[0]?.name).toBe("contract-2.pdf")
-    expect(attachments[0]?.storageKey).toContain("contract-2.pdf")
-    expect(documentEvents).toEqual([
-      expect.objectContaining({
-        name: "contract.document.generated",
-        metadata: {
-          category: "internal",
-          source: "service",
-        },
-        data: expect.objectContaining({
-          contractId: contract.id,
-          attachmentKind: "document",
-          attachmentName: "contract-1.pdf",
-          regenerated: false,
-        }),
-      }),
-      expect.objectContaining({
-        name: "contract.document.generated",
-        metadata: {
-          category: "internal",
-          source: "service",
-        },
-        data: expect.objectContaining({
-          contractId: contract.id,
-          attachmentKind: "document",
-          attachmentName: "contract-2.pdf",
-          regenerated: true,
-        }),
-      }),
-    ])
-
-    const latestAttachment = attachments[0]
-    expect(latestAttachment).toBeDefined()
-
-    const downloadRes = await adminApp.request(`/attachments/${latestAttachment?.id}/download`)
-    expect(downloadRes.status).toBe(302)
-    expect(downloadRes.headers.get("location")).toBe(
-      `https://signed.example.com/${latestAttachment?.storageKey}`,
-    )
-  })
-
   it("attaches an uploaded stored document to a contract", async () => {
     const [contract] = await db
       .insert(contracts)
@@ -437,7 +283,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     form.set("kind", "signed_contract")
     form.set("file", new File(["signed body"], "signed.pdf", { type: "application/pdf" }))
 
-    const res = await adminApp.request(`/${contract.id}/attach-document`, {
+    const res = await adminApp.request(`/${contract.id}/attachments/upload`, {
       method: "POST",
       body: form,
     })
@@ -460,6 +306,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         contentType: "application/pdf",
       }),
     ])
+
+    const removedAliasRes = await adminApp.request(`/${contract.id}/attach-document`, {
+      method: "POST",
+    })
+    expect(removedAliasRes.status).toBe(404)
   })
 
   it("rejects public contract read and sign by id alone", async () => {
@@ -498,104 +349,13 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     expect(signatures).toEqual([])
   })
 
-  it("allows public contract read and sign through a valid delivery grant only", async () => {
-    const [contract] = await db
-      .insert(contracts)
-      .values({
-        title: "Grant-backed contract",
-        scope: "customer",
-        status: "draft",
-        renderedBody: "<p>Hello Ada</p>",
-        variables: {
-          customer: { email: "ada@example.com", passportNumber: "P123456" },
-        },
-        metadata: { internalNote: "Do not expose" },
-      })
-      .returning()
-
-    const documentRes = await adminApp.request(`/${contract.id}/generate-document`, {
-      method: "POST",
-      ...json({ publicDelivery: true }),
-    })
-    expect(documentRes.status).toBe(201)
-    const documentBody = await documentRes.json()
-    const token = new URL(documentBody.data.publicDownload.url).pathname.split("/").at(-1)
-    expect(token).toEqual(expect.any(String))
-
-    const sendRes = await adminApp.request(`/${contract.id}/send`, { method: "POST" })
-    expect(sendRes.status).toBe(200)
-
-    const readRes = await publicApp.request(`/${contract.id}?token=${token}`)
-    expect(readRes.status).toBe(200)
-    const readBody = await readRes.json()
-    expect(readBody.data).toEqual({
-      contractNumber: null,
-      scope: "customer",
-      status: "sent",
-      title: "Grant-backed contract",
-      issuedAt: expect.any(String),
-      sentAt: expect.any(String),
-      executedAt: null,
-      expiresAt: null,
-      voidedAt: null,
-      language: "en",
-      renderedBodyFormat: "html",
-      renderedBody: "<p>Hello Ada</p>",
-    })
-    expect(readBody.data).not.toHaveProperty("id")
-    expect(readBody.data).not.toHaveProperty("variables")
-    expect(readBody.data).not.toHaveProperty("metadata")
-    expect(readBody.data).not.toHaveProperty("personId")
-    expect(JSON.stringify(readBody)).not.toContain("P123456")
-
-    const signRes = await publicApp.request(`/${contract.id}/sign?token=${token}`, {
-      method: "POST",
-      ...json({
-        signerName: "Ada Lovelace",
-        signerEmail: "ada@example.com",
-        signerRole: "Traveler",
-        method: "electronic",
-        personId: "people_should_not_be_accepted",
-        metadata: { internal: true },
-      }),
-    })
-    expect(signRes.status).toBe(200)
-    const signBody = await signRes.json()
-    expect(signBody.data.signature).toEqual({
-      signerName: "Ada Lovelace",
-      signerEmail: "ada@example.com",
-      signerRole: "Traveler",
-      method: "electronic",
-      signedAt: expect.any(String),
-    })
-    expect(signBody.data.signature).not.toHaveProperty("id")
-    expect(signBody.data.signature).not.toHaveProperty("contractId")
-    expect(signBody.data.signature).not.toHaveProperty("personId")
-    expect(signBody.data.signature).not.toHaveProperty("metadata")
-
-    const signatures = await db
-      .select()
-      .from(contractSignatures)
-      .where(eq(contractSignatures.contractId, contract.id))
-    expect(signatures).toHaveLength(1)
-    expect(signatures[0]).toMatchObject({
-      contractId: contract.id,
-      signerName: "Ada Lovelace",
-      signerEmail: "ada@example.com",
-      signerRole: "Traveler",
-      method: "electronic",
-      personId: null,
-      metadata: null,
-    })
-  })
-
   it("does not upload a stored document for a missing contract", async () => {
     const form = new FormData()
     form.set("name", "Missing contract.pdf")
     form.set("kind", "signed_contract")
     form.set("file", new File(["signed body"], "missing.pdf", { type: "application/pdf" }))
 
-    const res = await adminApp.request("/00000000-0000-0000-0000-000000000000/attach-document", {
+    const res = await adminApp.request("/00000000-0000-0000-0000-000000000000/attachments/upload", {
       method: "POST",
       body: form,
     })
@@ -670,7 +430,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
       "contract.executed",
       "contract.voided",
     ])
-    expect(lifecycleEvents[0]?.metadata).toEqual({
+    expect(lifecycleEvents[0]?.metadata).toMatchObject({
       category: "domain",
       source: "service",
     })

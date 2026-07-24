@@ -8,30 +8,8 @@ const legalState = vi.hoisted(() => ({
 }))
 
 vi.mock("./index.js", () => ({
-  useDefaultLegalContractTemplate: () => ({
-    data: null,
-    isLoading: false,
-  }),
   useLegalContractAttachments: ({ contractId }: { contractId: string }) => ({
     data: legalState.attachmentsByContractId[contractId] ?? [],
-  }),
-  useLegalContractMutation: () => ({
-    generateDocument: {
-      isPending: false,
-      mutate: vi.fn(),
-    },
-    generateForBooking: {
-      isPending: false,
-      mutate: vi.fn(),
-    },
-    regenerateDocument: {
-      isPending: false,
-      mutate: vi.fn(),
-    },
-  }),
-  useLegalContractNumberSeries: () => ({
-    data: { data: [] },
-    isLoading: false,
   }),
   useLegalContracts: () => ({
     data: { data: legalState.contracts },

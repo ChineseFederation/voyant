@@ -7,11 +7,10 @@ import { eq } from "drizzle-orm"
 
 import { contracts } from "./contracts/schema.js"
 import { contractsService } from "./contracts/service.js"
-import { generateContractPdfForBooking } from "./runtime.js"
 
 /** Legal-owned contract operations consumed by Commerce checkout. */
 export function createCommerceLegalRuntime(
-  primitives: VoyantRuntimeHostPrimitives,
+  _primitives: VoyantRuntimeHostPrimitives,
 ): CommerceLegalRuntime {
   return {
     async getContract(db, contractId) {
@@ -28,8 +27,6 @@ export function createCommerceLegalRuntime(
     signContract: (db, contractId, input, eventBus) =>
       contractsService.signContract(db, contractId, input as never, { eventBus }),
     persistAcceptanceDraftContract,
-    generateContractPdf: ({ bindings, db, eventBus, bookingId, force }) =>
-      generateContractPdfForBooking(primitives, bindings, db, eventBus, bookingId, { force }),
   }
 }
 

@@ -2,7 +2,6 @@
   "availability.slot.changed": { "kind": "availability" },
   "booking.cancelled": { "entity": "booking", "kind": "booking" },
   "booking.confirmed": { "entity": "booking", "kind": "booking" },
-  "booking.fully-paid": { "entity": "payment", "kind": "booking" },
   "booking.refunded": { "entity": "payment", "kind": "booking" },
   "contract.executed": { "entity": "contract", "idKeys": ["contractId", "id"], "kind": "admin" },
   "contract.issued": { "entity": "contract", "idKeys": ["contractId", "id"], "kind": "admin" },

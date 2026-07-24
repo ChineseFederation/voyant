@@ -14,10 +14,8 @@ import {
 import { notificationsRuntimePort } from "./runtime-port.js"
 import { notificationsModule } from "./schema.js"
 import { createNotificationService } from "./service.js"
-import type { BookingDocumentBundleLifecycleOptions } from "./service-booking-document-lifecycle.js"
 import {
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
-  type NotificationsAutoConfirmAndDispatchOptions,
   type NotificationsSubscriberRuntime,
 } from "./subscriber-runtime.js"
 
@@ -92,28 +90,6 @@ export {
   renderNotificationTemplate,
 } from "./service.js"
 export type {
-  BookingDocumentBundleLifecycleContext,
-  BookingDocumentBundleLifecycleDocumentType,
-  BookingDocumentBundleLifecycleEnsureDocuments,
-  BookingDocumentBundleLifecycleEvent,
-  BookingDocumentBundleLifecycleOptions,
-  BookingDocumentBundleLifecyclePolicy,
-  BookingDocumentBundleLifecyclePolicyResult,
-  BookingDocumentBundleLifecycleResolveBrochures,
-  BookingDocumentBundleLifecycleResult,
-  BookingDocumentBundleLifecycleStageOptions,
-  BookingDocumentBundleLifecycleStep,
-  BookingDocumentBundleLifecycleTrigger,
-  BookingDocumentBundleNotificationPolicy,
-  BookingFullyPaidEvent,
-} from "./service-booking-document-lifecycle.js"
-export {
-  BOOKING_FULLY_PAID_EVENT,
-  bookingDocumentBundleLifecycleService,
-  createDefaultBookingDocumentBundlePolicy,
-  resolveBookingDocumentBundleLifecycleContext,
-} from "./service-booking-document-lifecycle.js"
-export type {
   BookingDocumentAttachmentResolver,
   BookingDocumentsSentEvent,
   SendBookingDocumentsRuntimeOptions,
@@ -128,29 +104,22 @@ export {
  * false` (or leave the option off entirely) to opt out.
  */
 export type {
-  NotificationsAutoConfirmAndDispatchOptions,
   NotificationsSubscriberDependencies,
   NotificationsSubscriberRuntime,
 } from "./subscriber-runtime.js"
 export {
   createBookingCancelledReminderSubscriberRuntime,
-  createBookingConfirmationAutoDispatchSubscriberRuntime,
   createBookingConfirmedReminderSubscriberRuntime,
   createBookingExpiredReminderSubscriberRuntime,
-  createBookingFullyPaidDocumentLifecycleSubscriberRuntime,
   createPaymentCompletedReminderSubscriberRuntime,
   NOTIFICATIONS_BOOKING_CANCELLED_REMINDER_SUBSCRIBER_ID,
-  NOTIFICATIONS_BOOKING_CONFIRMATION_AUTO_DISPATCH_SUBSCRIBER_ID,
   NOTIFICATIONS_BOOKING_CONFIRMED_REMINDER_SUBSCRIBER_ID,
   NOTIFICATIONS_BOOKING_EXPIRED_REMINDER_SUBSCRIBER_ID,
-  NOTIFICATIONS_BOOKING_FULLY_PAID_DOCUMENT_LIFECYCLE_SUBSCRIBER_ID,
   NOTIFICATIONS_PAYMENT_COMPLETED_REMINDER_SUBSCRIBER_ID,
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   notificationsBookingCancelledReminderSubscriber,
-  notificationsBookingConfirmationAutoDispatchSubscriber,
   notificationsBookingConfirmedReminderSubscriber,
   notificationsBookingExpiredReminderSubscriber,
-  notificationsBookingFullyPaidDocumentLifecycleSubscriber,
   notificationsPaymentCompletedReminderSubscriber,
   notificationsReminderSubscriberRuntimeDescriptors,
 } from "./subscriber-runtime.js"
@@ -229,23 +198,8 @@ export {
 } from "./validation.js"
 
 export interface CreateNotificationsApiModuleOptions extends NotificationsRoutesOptions {
-  /**
-   * Resolves a database from runtime bindings. Required for
-   * `autoConfirmAndDispatch` — the `booking.confirmed` subscriber fires
-   * outside a request scope and needs its own db handle. Returns
-   * `AnyDrizzleDb` (the union of `PostgresJsDatabase | NeonHttpDatabase`)
-   * so consumers don't have to cast through `unknown` when wiring a
-   * Hyperdrive/Neon client.
-   */
+  /** Resolve the deployment database for package-owned subscriber and job runtimes. */
   resolveDb?: (bindings: Record<string, unknown>) => AnyDrizzleDb
-  autoConfirmAndDispatch?: NotificationsAutoConfirmAndDispatchOptions
-  /**
-   * First-class booking lifecycle hook for composing customer document
-   * bundles after confirmation and fully-paid transitions. Host apps can
-   * plug legal/finance/brochure generators and override notification policy
-   * without replacing the upstream event wiring.
-   */
-  documentBundleLifecycle?: BookingDocumentBundleLifecycleOptions
 }
 
 export function createNotificationsApiModule(
@@ -315,7 +269,5 @@ function createNotificationsSubscriberRuntime(
       provider.resolveDb(runtimeBindings as Record<string, unknown>) as PostgresJsDatabase,
     dispatcher: createNotificationService(runtime.providers),
     documentAttachmentResolver: runtime.documentAttachmentResolver,
-    autoConfirmAndDispatch: provider.autoConfirmAndDispatch,
-    documentBundleLifecycle: provider.documentBundleLifecycle,
   }
 }

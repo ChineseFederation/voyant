@@ -23,7 +23,6 @@ import { catalogCommerceRuntimeExtension } from "./catalog-runtime-extension.js"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "./checkout/runtime-ports.js"
@@ -114,9 +113,6 @@ export function createCommerceRuntimePortContribution(
       (runtime) => runtime.checkoutDatabase,
     ),
     [catalogCheckoutLegalRuntimePort.id]: contribution.then((runtime) => runtime.checkoutLegal),
-    [catalogCheckoutContractPdfRuntimePort.id]: contribution.then(
-      (runtime) => runtime.checkoutContractPdf,
-    ),
     [promotionRedemptionDatabaseRuntimePort.id]: contribution.then(
       (runtime) => runtime.promotionRedemptionDatabase,
     ),

@@ -276,7 +276,7 @@ const packageAuthority = [
   ["packages/finance/src/voyant.ts", "financeBookingScheduleVoyantPlugin"],
   ["packages/flights/src/voyant.ts", "createFlightsVoyantRuntime"],
   ["packages/inventory/src/voyant.ts", "createInventoryVoyantRuntime"],
-  ["packages/legal/src/voyant.ts", "legalContractDocumentVoyantModule"],
+  ["packages/legal/src/voyant.ts", "legalVoyantModule"],
   ["packages/notifications/src/voyant.ts", "createNotificationsVoyantRuntime"],
   ["packages/quotes/src/voyant.ts", "createQuoteProposalVoyantRuntime"],
   ["packages/relationships/src/voyant.ts", "createRelationshipsVoyantRuntime"],

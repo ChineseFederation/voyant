@@ -22,14 +22,15 @@ describe("@voyant-travel/legal package exports", () => {
     })
   })
 
-  it("publishes the booking-contract subscriber runtime subpath", () => {
-    expect(packageJson.exports["./booking-contract-subscriber"]).toBe(
-      "./src/contracts/booking-contract-subscriber-runtime.ts",
-    )
-    expect(packageJson.publishConfig.exports["./booking-contract-subscriber"]).toEqual({
-      types: "./dist/contracts/booking-contract-subscriber-runtime.d.ts",
-      import: "./dist/contracts/booking-contract-subscriber-runtime.js",
-      default: "./dist/contracts/booking-contract-subscriber-runtime.js",
-    })
+  it("does not publish retired document-generation runtime subpaths", () => {
+    for (const subpath of [
+      "./booking-contract-subscriber",
+      "./contract-document",
+      "./contract-variables",
+      "./runtime",
+    ]) {
+      expect(packageJson.exports).not.toHaveProperty(subpath)
+      expect(packageJson.publishConfig.exports).not.toHaveProperty(subpath)
+    }
   })
 })

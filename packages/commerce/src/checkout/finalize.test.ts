@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   completePaymentSession: vi.fn(),
   convertProformaToInvoice: vi.fn(),
   ensureFinalization: vi.fn(),
-  generateContractPdf: vi.fn(),
   getDelivery: vi.fn(),
   getFinalization: vi.fn(),
   issueInvoiceFromBooking: vi.fn(),
@@ -248,7 +247,7 @@ describe("finalizeCheckout", () => {
     expect(authorities.get("booking_1")?.invoiceId).toBe("invoice_explicit")
   })
 
-  it("serializes distinct payment sessions on one booking authority without duplicate invoice, link, or final render", async () => {
+  it("serializes distinct payment sessions on one booking authority without duplicate invoice or link", async () => {
     const sessions = [
       paidSession("session_1", "provider_payment_1"),
       paidSession("session_2", "provider_payment_2"),
@@ -259,13 +258,8 @@ describe("finalizeCheckout", () => {
     const secondIdentity = { bookingId: "booking_1", paymentSessionId: "session_2" }
     ensureState(firstIdentity)
     ensureState(secondIdentity)
-    const first = buildCheckoutFinalizeDeps(db, eventBus, firstIdentity, mocks.generateContractPdf)
-    const second = buildCheckoutFinalizeDeps(
-      db,
-      eventBus,
-      secondIdentity,
-      mocks.generateContractPdf,
-    )
+    const first = buildCheckoutFinalizeDeps(db, eventBus, firstIdentity)
+    const second = buildCheckoutFinalizeDeps(db, eventBus, secondIdentity)
     mocks.convertProformaToInvoice.mockResolvedValue({
       status: "ok",
       invoice: { id: "invoice_from_proforma" },
@@ -276,10 +270,6 @@ describe("finalizeCheckout", () => {
       session.invoiceId = "invoice_from_proforma"
       session.paymentId = `payment_${sessionId}`
       return session
-    })
-    mocks.generateContractPdf.mockResolvedValue({
-      contractId: "contract_1",
-      attachmentId: "attachment_final_payment",
     })
 
     const [firstInvoice, secondInvoice] = await Promise.all([
@@ -306,18 +296,8 @@ describe("finalizeCheckout", () => {
     expect(mocks.completePaymentSession).toHaveBeenCalledTimes(2)
     expect(authorities.get("booking_1")?.paymentRevision).toBe(1)
 
-    await Promise.all([
-      first.generateContractPdf?.({ bookingId: "booking_1", force: true }),
-      second.generateContractPdf?.({ bookingId: "booking_1", force: true }),
-    ])
-    expect(mocks.generateContractPdf).toHaveBeenCalledOnce()
-    expect(mocks.generateContractPdf).toHaveBeenCalledWith(
-      expect.objectContaining({ bookingId: "booking_1", force: true }),
-    )
     expect(authorities.get("booking_1")).toMatchObject({
       invoiceId: "invoice_from_proforma",
-      finalPaymentRenderVersion: 1,
-      contractAttachmentId: "attachment_final_payment",
     })
   })
 })

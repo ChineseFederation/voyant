@@ -76,7 +76,7 @@ function resolvePath(obj: unknown, path: string): unknown {
  * Default placeholder for output tags whose value is null / undefined
  * / empty-string. Applied to every contract render — preview at the
  * storefront, manual previews from the admin, AND the post-confirm
- * auto-generated PDFs — so authored templates don't have to spell out
+ * rendered previews and provider-owned PDFs — so authored templates don't have to spell out
  * `| default: "-"` on every variable.
  *
  * Authors who prefer a different fallback for a specific variable can

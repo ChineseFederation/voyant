@@ -54,21 +54,66 @@ matching template only when no explicit default exists for that selector.
 
 ## Contract Document Operations
 
-The contracts route surface exposes stable operations for storefront previews
-and stored document handling:
+The contracts route surface exposes template previews and generic appendix
+handling:
 
 - `POST /v1/public/legal/contracts/templates/:id/render-preview`
 - `POST /v1/public/legal/contracts/templates/by-slug/:slug/render-preview`
 - `POST /v1/admin/legal/contracts/templates/:id/render-preview`
-- `POST /v1/admin/legal/contracts/:id/attach-document`
-- `POST /v1/admin/legal/contracts/:id/regenerate-pdf`
+- `POST /v1/admin/legal/contracts/:id/attachments`
+- `POST /v1/admin/legal/contracts/:id/attachments/upload`
 
-Preview routes accept `{ variables }` and return only the rendered text. Public
-preview routes require the template to be active. `attach-document` expects a
-multipart `file` field plus optional `name` and `kind`, uploads through the
-configured `documentStorage`, and persists a contract attachment. `regenerate-pdf`
-uses the configured contract document generator and replaces the canonical
-generated document artifact.
+Preview routes accept `{ variables }` and return only rendered text. Public
+preview routes require the template to be active. Generic attachment creation,
+upload, replacement, reclassification, and deletion reject the durable-owned
+`document` and `document-history` kinds. Multipart uploads default to
+`appendix`; there is no `attach-document` compatibility alias.
+
+Generated booking contracts now use the package-owned
+`contract_document_operations` state machine. It prepares an immutable intent,
+renders outside the database transaction, writes bytes at an operation-specific
+key, reconciles ambiguous writes by SHA-256, and atomically swaps the canonical
+attachment with the immutable result and deterministic outbox event. The prior
+canonical attachment remains readable until that final transaction; deletion
+of its old object is an idempotent, resumable cleanup checkpoint.
+
+The previous direct generator/reset routes have been removed:
+
+- `POST /v1/admin/legal/contracts/bookings/:bookingId/generate-document`
+- `POST /v1/admin/legal/contracts/:id/generate-document`
+- `POST /v1/admin/legal/contracts/:id/regenerate-document`
+- `POST /v1/admin/legal/contracts/:id/regenerate-pdf`
+- `POST /v1/admin/bookings/:bookingId/generate-contract`
+
+The booking preview route is also removed because its render-variable path
+materialized booking PII without a caller-bound `bookings-pii:read` grant.
+
+The Legal graph unit declares approved
+`generate_booking_contract_document` and
+`regenerate_booking_contract_document` Tools. Both require an explicit
+`bookingId`, its existing `contractId`, an admitted invocation idempotency key,
+and a contract with an immutable rendered body. The selected provider uses
+exact-key, mismatch-rejecting artifact writes and is bound as one immutable
+runtime-port instance.
+Deployments can exercise the provider protocol with
+`assertLegalDocumentArtifactProviderConformance`.
+Both mutation actions remain unavailable unless the deployment explicitly
+selects `legal.document-artifact-provider` and the framework resolves the exact
+request-bound resolver and passes its typed-port behavioral conformance before
+runtime activation.
+
+The approved action-ledger claim and durable operation admission commit in one
+transaction. Each operation stores the exact claim, action, target, principal,
+idempotency scope/fingerprint, and immutable command payload. First execution
+and every retry resolve only that claim-bound operation; caller-provided
+approval controls cannot invoke the engine directly.
+
+Admitted requests execute the durable operation immediately; the fixed, wakeable
+`legal.contract-document-operations` job resumes crashes, retries, and cleanup.
+Regeneration compares the full admitted canonical fingerprint before swapping,
+including row, storage, checksum, provider protocol, target, and file identity.
+Delivery resolution is a separate ephemeral read and is never part of the
+operation result or request fingerprint.
 
 ## Contract Lifecycle
 
@@ -104,15 +149,15 @@ The selected module publishes staff-only, typed Tools from `@voyant-travel/legal
 - contract, template, policy, term, and attachment inspection;
 - draft creation and guarded contract-template authoring;
 - approved issue, send, and execute lifecycle transitions; and
-- booking-contract preview, generation, and provider-authorized document delivery.
+- durable booking-contract generation/regeneration and provider-authorized document delivery.
 
 Lifecycle Tools never create signature evidence and do not expose void/delete operations. Signing
 remains with the authoritative customer/provider workflow, while destructive lifecycle operations
 remain unavailable until a deployment selects an explicit destructive-action policy. Generated
 document delivery returns only an authorized URL and never exposes private storage keys.
-Regeneration is separate from ordinary generation because it replaces the previous document record;
-the graph marks it critical, irreversible, ledger-required, and approval-required under the named
-`legal.contract-document.regeneration.v1` policy.
+Regeneration is separate from ordinary generation because it replaces the previous canonical
+document; the graph marks it critical, irreversible, ledger-required, and approval-required under
+the named `legal.contract-document.v1` policy.
 
 ### Policies
 

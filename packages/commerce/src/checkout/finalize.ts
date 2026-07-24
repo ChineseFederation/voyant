@@ -1,5 +1,5 @@
 // agent-quality: file-size exception -- owner: commerce; checkout finalization
-// (confirm booking, issue invoice, link payments, contract PDF) is one cohesive
+// (confirm booking, issue invoice, and link payments) is one cohesive
 // domain operation.
 import { bookingsService } from "@voyant-travel/bookings"
 import { bookings } from "@voyant-travel/bookings/schema"
@@ -27,25 +27,10 @@ import {
   withCheckoutFinalizationLock,
 } from "./finalization-store.js"
 
-/**
- * Optional callback that generates (or fetches existing) the contract PDF for
- * a booking. Wired by the deployment and forwarded into the explicit
- * contract-generation step. The deployment supplies its
- * platform bindings (`env`) when constructing it, so this package-level type
- * only carries the booking-scoped inputs the step needs.
- */
-export type CatalogCheckoutContractPdfGenerator = (input: {
-  db: PostgresJsDatabase
-  eventBus: EventBus
-  bookingId: string
-  force?: boolean
-}) => Promise<{ contractId: string; attachmentId: string } | null>
-
 export function buildCheckoutFinalizeDeps(
   db: PostgresJsDatabase,
   eventBus: EventBus,
   identity: CheckoutFinalizationIdentity,
-  generateContractPdf?: CatalogCheckoutContractPdfGenerator,
 ): CheckoutFinalizeDeps {
   return {
     db,
@@ -156,47 +141,6 @@ export function buildCheckoutFinalizeDeps(
         .limit(1)
       return proforma ? { invoiceId: proforma.id } : null
     },
-    generateContractPdf: generateContractPdf
-      ? async ({ bookingId }) =>
-          withCheckoutFinalizationLock(db, identity, async (tx, state) => {
-            if (!state.invoiceId || state.paymentRevision < 1) {
-              throw new Error("checkout-finalize: contract render preceded payment linkage")
-            }
-            const renderKey = finalPaymentRenderKey(
-              identity.bookingId,
-              state.invoiceId,
-              state.paymentRevision,
-            )
-            if (
-              state.finalPaymentRenderVersion === state.paymentRevision &&
-              state.finalPaymentRenderKey === renderKey &&
-              state.contractId &&
-              state.contractAttachmentId
-            ) {
-              return {
-                contractId: state.contractId,
-                attachmentId: state.contractAttachmentId,
-              }
-            }
-
-            // Exactly one forced render occurs after payment linkage. The row
-            // lock prevents an overlapping delivery from forcing a second one.
-            const generated = await generateContractPdf({
-              db: tx,
-              eventBus,
-              bookingId,
-              force: true,
-            })
-            if (!generated) return null
-            await updateCheckoutFinalization(tx, identity, state.revision, {
-              contractId: generated.contractId,
-              contractAttachmentId: generated.attachmentId,
-              finalPaymentRenderVersion: state.paymentRevision,
-              finalPaymentRenderKey: renderKey,
-            })
-            return generated
-          })
-      : undefined,
     linkPaymentToInvoice: async ({ bookingId, invoiceId, paymentSessionId }) => {
       return withCheckoutFinalizationLock(db, identity, async (tx, state) => {
         if (!state.invoiceId) {
@@ -385,19 +329,10 @@ async function markBookingConfirmed(
   })
 }
 
-function finalPaymentRenderKey(
-  bookingId: string,
-  invoiceId: string,
-  paymentRevision: number,
-): string {
-  return `v1:${bookingId}:${invoiceId}:payment-revision-${paymentRevision}`
-}
-
 export interface FinalizeCheckoutParams {
   db: PostgresJsDatabase
   eventBus: EventBus
   input: CheckoutFinalizeInput
-  generateContractPdf?: CatalogCheckoutContractPdfGenerator
 }
 
 /**
@@ -415,12 +350,7 @@ export async function finalizeCheckout(params: FinalizeCheckoutParams): Promise<
   const delivery = await getCheckoutFinalizationDelivery(params.db, paymentSessionId)
   if (delivery?.completedAt) return
 
-  const deps = buildCheckoutFinalizeDeps(
-    params.db,
-    params.eventBus,
-    identity,
-    params.generateContractPdf,
-  )
+  const deps = buildCheckoutFinalizeDeps(params.db, params.eventBus, identity)
   await runCheckoutFinalize(params.input, deps)
   await withCheckoutFinalizationLock(params.db, identity, async (tx) => {
     const current = await getCheckoutFinalizationDelivery(tx, paymentSessionId)

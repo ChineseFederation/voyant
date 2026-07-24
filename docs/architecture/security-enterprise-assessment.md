@@ -125,7 +125,7 @@ serve route derived `Content-Type` from the client-supplied filename extension.
 upload; add a global CSP.
 
 ### H3 — Template engines do not HTML-escape → stored XSS / SSRF in invoices, contracts, emails
-**`packages/templating/src/template-renderer.ts:12,160,197`, `packages/notifications/src/liquid.ts:3`, `packages/finance/src/service-documents.ts:265`, `packages/legal/src/contracts/service-documents-browser.ts:227`**
+**`packages/templating/src/template-renderer.ts:12,160,197`, `packages/notifications/src/liquid.ts:3`, `packages/finance/src/service-documents.ts:265`**
 
 Both Liquid engines are constructed without `outputEscape`, and the Mustache fallback emits raw values. LiquidJS does not auto-escape `{{ }}` (Shopify-compatible), so every interpolated value is inserted verbatim. Customer/staff free-text (traveler names, addresses, line-item descriptions, invoice notes) reaches these renderers as data, and the rendered HTML is then:
 - fed to **Cloudflare Browser Rendering** for PDF generation with `networkidle0` — a headless, network-enabled Chrome executes any injected `<script>`/`<img onerror>`, enabling SSRF / data exfiltration during render;

@@ -8,9 +8,7 @@
     "./linkables": "./src/linkables.ts",
     "./standard-links": "./src/standard-links.ts",
     "./contract-document-routes": "./src/contract-document-routes.ts",
-    "./contract-document": "./src/contracts/contract-document-service.ts",
-    "./contract-variables": "./src/contracts/contract-variables.ts",
-    "./booking-contract-subscriber": "./src/contracts/booking-contract-subscriber-runtime.ts",
+    "./contract-document-job": "./src/contract-document-job.ts",
     "./schema": "./src/schema.ts",
     "./contracts": "./src/contracts/index.ts",
     "./contracts/linkables": "./src/contracts/linkables.ts",
@@ -31,7 +29,6 @@
     "./runtime-port": "./src/runtime-port.ts",
     "./contract-document-runtime-port": "./src/contract-document-runtime-port.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
-    "./runtime": "./src/runtime.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/legal.json",
@@ -58,7 +55,6 @@
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/legal-contracts": "workspace:^",
-    "@voyant-travel/operator-settings": "workspace:^",
     "@voyant-travel/public-document-delivery": "workspace:^",
     "@voyant-travel/relationships": "workspace:^",
     "@voyant-travel/storage": "workspace:^",
@@ -108,20 +104,10 @@
         "import": "./dist/contract-document-routes.js",
         "default": "./dist/contract-document-routes.js"
       },
-      "./contract-document": {
-        "types": "./dist/contracts/contract-document-service.d.ts",
-        "import": "./dist/contracts/contract-document-service.js",
-        "default": "./dist/contracts/contract-document-service.js"
-      },
-      "./contract-variables": {
-        "types": "./dist/contracts/contract-variables.d.ts",
-        "import": "./dist/contracts/contract-variables.js",
-        "default": "./dist/contracts/contract-variables.js"
-      },
-      "./booking-contract-subscriber": {
-        "types": "./dist/contracts/booking-contract-subscriber-runtime.d.ts",
-        "import": "./dist/contracts/booking-contract-subscriber-runtime.js",
-        "default": "./dist/contracts/booking-contract-subscriber-runtime.js"
+      "./contract-document-job": {
+        "types": "./dist/contract-document-job.d.ts",
+        "import": "./dist/contract-document-job.js",
+        "default": "./dist/contract-document-job.js"
       },
       "./schema": {
         "types": "./dist/schema.d.ts",
@@ -222,11 +208,6 @@
         "types": "./dist/runtime-contributor.d.ts",
         "import": "./dist/runtime-contributor.js",
         "default": "./dist/runtime-contributor.js"
-      },
-      "./runtime": {
-        "types": "./dist/runtime.d.ts",
-        "import": "./dist/runtime.js",
-        "default": "./dist/runtime.js"
       },
       "./tools": {
         "types": "./dist/mcp-runtime.d.ts",

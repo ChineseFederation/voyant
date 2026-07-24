@@ -77,6 +77,7 @@ export interface VoyantNodeRuntimeEnv extends VoyantBindings {
   S3_SECRET_ACCESS_KEY?: string
   S3_SESSION_TOKEN?: string
   S3_FORCE_PATH_STYLE?: string
+  STORAGE_S3_BACKEND_IDENTITY?: string
   STORAGE_MEDIA_BUCKET?: string
   STORAGE_DOCUMENTS_BUCKET?: string
   MEDIA_PUBLIC_BASE_URL?: string

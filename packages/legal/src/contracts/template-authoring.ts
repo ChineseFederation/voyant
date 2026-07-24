@@ -37,7 +37,7 @@ export interface ContractTemplateLiquidSnippet {
 
 /**
  * Catalog of variables exposed to contract templates. Mirrors the shape
- * built by `service-auto-generate.ts` (server-side render) and the
+ * supplied by the admitted durable document workflow and the
  * storefront's `resolveContractVariables` (preview render). Both code
  * paths emit the same keys, so a template authored once renders
  * identically in either context.

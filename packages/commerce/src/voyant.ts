@@ -19,7 +19,6 @@ import { checkoutInquiryRuntimePort } from "@voyant-travel/quotes-contracts/runt
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
 } from "./checkout/runtime-ports.js"
@@ -503,14 +502,12 @@ export const commerceCatalogCheckoutVoyantPlugin = defineExtension({
       providePort(catalogCheckoutApiRuntimePort),
       providePort(catalogCheckoutDatabaseRuntimePort),
       providePort(catalogCheckoutLegalRuntimePort),
-      providePort(catalogCheckoutContractPdfRuntimePort),
     ],
   },
   runtimePorts: [
     requirePort(catalogCheckoutApiRuntimePort),
     requirePort(catalogCheckoutDatabaseRuntimePort),
     requirePort(catalogCheckoutLegalRuntimePort),
-    requirePort(catalogCheckoutContractPdfRuntimePort),
   ],
   api: [
     {

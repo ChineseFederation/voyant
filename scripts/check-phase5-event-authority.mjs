@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 import {
   collectEventCalls,
   collectEventConstants,
+  collectOutboxEventCalls,
   collectPersistenceMutationCalls,
   collectPhase5EventAuthority,
   inspectPhase5EventAuthority,
@@ -118,7 +119,11 @@ for (const { source, sourcePath } of packageSources) {
   if (owner && collectPersistenceMutationCalls(source).length > 0) {
     mutationPackages.add(path.relative(repoRoot, owner.packageRoot).split(path.sep).join("/"))
   }
-  for (const eventType of collectEventCalls(source, "emit", eventConstants)) {
+  const emittedEventTypes = [
+    ...collectEventCalls(source, "emit", eventConstants),
+    ...collectOutboxEventCalls(source, eventConstants),
+  ]
+  for (const eventType of emittedEventTypes) {
     observedEmits.add(eventType)
     if (owner && eventTypes.has(eventType)) {
       packagesEmittingDeclaredEvents.add(

@@ -1,6 +1,6 @@
 // agent-quality: file-size exception -- owner: runtime; project bootstrap, Vite lifecycle, and generated route handling remain together until the public tooling contract stabilizes.
 import { randomUUID } from "node:crypto"
-import { access, cp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises"
+import { access, cp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -41,16 +41,6 @@ const DEVELOPMENT_READINESS_TIMEOUT_MS = 30_000
 const TANSTACK_SERVER_ENTRY = "virtual:tanstack-start-server-entry"
 const PRODUCT_BOM_ARTIFACT = ".voyant/product-bom.generated.json"
 const PRODUCT_ROUTE_FILES_EXPORT = "standard-route-files"
-const FRONTEND_RUNTIME_FACADES = {
-  react: "runtime/react",
-  "react-dom": "runtime/react-dom",
-  "react-dom/client": "runtime/react-dom/client",
-  "react-dom/server": "runtime/react-dom/server",
-  "react/jsx-runtime": "runtime/react/jsx-runtime",
-  "react/jsx-dev-runtime": "runtime/react/jsx-dev-runtime",
-  "@tanstack/react-query": "runtime/tanstack/react-query",
-  "@tanstack/react-router": "runtime/tanstack/react-router",
-} as const
 const FRONTEND_SINGLETON_ROOTS = [
   "react",
   "react-dom",
@@ -80,8 +70,6 @@ interface DevelopmentReadiness {
 }
 
 interface ProjectBootstrap {
-  frontendDependencyAliases?: Readonly<Record<string, string>>
-  frontendDependencyFacades?: Readonly<Record<string, string>>
   serverEntry: string
   routerEntry?: string
   stylesEntry?: string
@@ -265,8 +253,6 @@ async function prepareProjectViteConfig(
 export function createProjectViteConfig(options: ProjectViteConfigOptions): InlineConfig {
   const config = voyantStartViteConfig({
     appRootUrl: options.appRootUrl,
-    dependencyAliases: options.bootstrap.frontendDependencyAliases,
-    serverDependencyFacades: options.bootstrap.frontendDependencyFacades,
     nodeSsr: true,
     plugins: [
       createDevelopmentReadinessPlugin(options.developmentReadiness),
@@ -481,28 +467,50 @@ export async function prepareProjectBootstrap(projectRoot: string): Promise<Proj
   const productBomId = await loadProductBomId(projectRoot)
   const generatedRoot = path.join(projectRoot, ".voyant/app")
   const authoredServerEntry = path.join(projectRoot, "src/server.ts")
-  const frontendDependencies = await resolveProductFrontendDependencies(projectRoot, productBomId)
+  await validateProjectFrontendDependencies(projectRoot)
   const bootstrap: ProjectBootstrap = {
-    ...(frontendDependencies
-      ? {
-          frontendDependencyAliases: frontendDependencies.aliases,
-          frontendDependencyFacades: frontendDependencies.facades,
-        }
-      : {}),
     serverEntry: (await pathExists(authoredServerEntry))
       ? authoredServerEntry
       : path.join(generatedRoot, "server.ts"),
   }
+  await writeGeneratedFile(
+    path.join(generatedRoot, "project-runtime.ts"),
+    `import type { LoadVoyantProjectOptions } from "@voyant-travel/runtime"
+
+type GeneratedProjectRuntime = NonNullable<LoadVoyantProjectOptions["generatedProjectRuntime"]>
+interface GeneratedProjectRuntimeModule {
+  createGeneratedProjectRuntime(): GeneratedProjectRuntime
+}
+
+const generatedRuntime = Object.values(
+  import.meta.glob<GeneratedProjectRuntimeModule>(
+    "../runtime/project-runtime.generated.ts",
+    { eager: true },
+  ),
+).at(0)
+if (!generatedRuntime) {
+  throw new Error("Generated Voyant project runtime module is missing.")
+}
+
+export const createGeneratedProjectRuntime = () =>
+  generatedRuntime.createGeneratedProjectRuntime()
+`,
+  )
   if (!(await pathExists(authoredServerEntry))) {
     await writeGeneratedFile(
       bootstrap.serverEntry,
       `import type { LoadVoyantProjectOptions } from "@voyant-travel/runtime"
 import { createVoyantProjectServerEntry } from "@voyant-travel/runtime"
+import { createGeneratedProjectRuntime } from "./project-runtime.js"
 
-const server = createVoyantProjectServerEntry()
+const withGeneratedRuntime = (options: LoadVoyantProjectOptions = {}): LoadVoyantProjectOptions => ({
+  ...options,
+  generatedProjectRuntime: createGeneratedProjectRuntime(),
+})
+const server = createVoyantProjectServerEntry(withGeneratedRuntime())
 const start = (options: LoadVoyantProjectOptions & { port?: number } = {}) => {
   const { port, ...projectOptions } = options
-  return createVoyantProjectServerEntry(projectOptions).start({ port })
+  return createVoyantProjectServerEntry(withGeneratedRuntime(projectOptions)).start({ port })
 }
 export default { fetch: server.fetch, start }
 `,
@@ -543,16 +551,7 @@ declare module "@tanstack/react-router" {
   return bootstrap
 }
 
-async function resolveProductFrontendDependencies(
-  projectRoot: string,
-  productBomId: string,
-): Promise<
-  | {
-      aliases: Readonly<Record<string, string>>
-      facades: Readonly<Record<string, string>>
-    }
-  | undefined
-> {
+async function validateProjectFrontendDependencies(projectRoot: string): Promise<void> {
   const packageJsonPath = path.join(projectRoot, "package.json")
   let manifest: {
     dependencies?: Record<string, unknown>
@@ -560,8 +559,8 @@ async function resolveProductFrontendDependencies(
   }
   try {
     manifest = JSON.parse(await readFile(packageJsonPath, "utf8")) as typeof manifest
-  } catch {
-    return undefined
+  } catch (error) {
+    throw new Error("Voyant projects must provide a readable package.json.", { cause: error })
   }
   const declared = new Set(
     DEPLOYABLE_DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})),
@@ -570,92 +569,33 @@ async function resolveProductFrontendDependencies(
     declared.has(dependency),
   )
   const resolveFromProject = createRequire(packageJsonPath)
-  if (declaredSingletonRoots.length === FRONTEND_SINGLETON_ROOTS.length) {
-    try {
-      for (const dependency of FRONTEND_SINGLETON_ROOTS) {
-        const directPackageJson = path.join(
-          projectRoot,
-          "node_modules",
-          ...dependency.split("/"),
-          "package.json",
-        )
-        if (!(await pathExists(directPackageJson))) {
-          throw new Error(`${dependency} is not installed directly in the project`)
-        }
-        resolveFromProject.resolve(dependency)
-      }
-    } catch (error) {
-      throw new Error(
-        `Voyant frontend singleton dependencies are app-owned but not all four roots are installed (${FRONTEND_SINGLETON_ROOTS.join(", ")}).`,
-        { cause: error },
-      )
-    }
-    return undefined
-  }
-  if (declaredSingletonRoots.length > 0) {
+  if (declaredSingletonRoots.length !== FRONTEND_SINGLETON_ROOTS.length) {
     const missingSingletonRoots = FRONTEND_SINGLETON_ROOTS.filter(
       (dependency) => !declared.has(dependency),
     )
     throw new Error(
-      `Voyant frontend singleton dependencies must be owned together. This project declares ${declaredSingletonRoots.join(", ")} but is missing ${missingSingletonRoots.join(", ")}. Either add all four singleton dependencies (${FRONTEND_SINGLETON_ROOTS.join(", ")}) or remove all four so ${productBomId} provides them.`,
+      `Voyant frontend singleton dependencies must be owned by the application. This project is missing ${missingSingletonRoots.join(", ")}. Add all four singleton dependencies (${FRONTEND_SINGLETON_ROOTS.join(", ")}) to dependencies or optionalDependencies.`,
     )
   }
-
   try {
-    const productPackageRoot = path.join(projectRoot, "node_modules", ...productBomId.split("/"))
-    const productPackageJson = JSON.parse(
-      await readFile(path.join(productPackageRoot, "package.json"), "utf8"),
-    ) as { exports?: Readonly<Record<string, unknown>> }
-    const facadeEntries = Object.entries(FRONTEND_RUNTIME_FACADES).map(([specifier, facade]) => {
-      const facadeId = `${productBomId}/${facade}`
-      const browserTarget = resolveBrowserPackageExport(
-        productPackageJson.exports?.[`./${facade}`],
-        facadeId,
+    for (const dependency of FRONTEND_SINGLETON_ROOTS) {
+      const directPackageJson = path.join(
+        projectRoot,
+        "node_modules",
+        ...dependency.split("/"),
+        "package.json",
       )
-      return [specifier, facadeId, path.resolve(productPackageRoot, browserTarget)] as const
-    })
-    const resolvedFacadeEntries = await Promise.all(
-      facadeEntries.map(
-        async ([specifier, facadeId, browserEntry]) =>
-          [specifier, facadeId, await realpath(browserEntry)] as const,
-      ),
-    )
-    return {
-      aliases: Object.fromEntries(
-        resolvedFacadeEntries.map(([specifier, , resolvedFacade]) => [specifier, resolvedFacade]),
-      ),
-      facades: Object.fromEntries(
-        resolvedFacadeEntries.map(([specifier, facadeId]) => [specifier, facadeId]),
-      ),
+      if (!(await pathExists(directPackageJson))) {
+        throw new Error(`${dependency} is not installed directly in the project`)
+      }
+      resolveFromProject.resolve(dependency)
     }
   } catch (error) {
     throw new Error(
-      `Voyant product BOM ${productBomId} cannot provide legacy frontend dependency resolution: ${errorMessage(error)}`,
+      `Voyant frontend singleton dependencies are app-owned but not all four roots are installed (${FRONTEND_SINGLETON_ROOTS.join(", ")}).`,
       { cause: error },
     )
   }
-}
-
-function resolveBrowserPackageExport(value: unknown, facadeId: string): string {
-  if (typeof value === "string" && value.startsWith("./")) return value
-  if (Array.isArray(value)) {
-    for (const candidate of value) {
-      try {
-        return resolveBrowserPackageExport(candidate, facadeId)
-      } catch {
-        // Try the next valid export target.
-      }
-    }
-  }
-  if (typeof value === "object" && value !== null) {
-    const conditions = value as Readonly<Record<string, unknown>>
-    for (const condition of ["browser", "import", "default"]) {
-      if (condition in conditions) {
-        return resolveBrowserPackageExport(conditions[condition], facadeId)
-      }
-    }
-  }
-  throw new Error(`Product frontend facade ${facadeId} has no browser ESM export`)
 }
 
 async function generateRouteTree(options: ProjectRouteGenerationOptions): Promise<void> {

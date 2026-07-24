@@ -141,7 +141,6 @@ export const realtimeVoyantModule = defineModule({
     ["promotion.changed", "realtimePromotionChangedInvalidationSubscriber"],
     ["booking.confirmed", "realtimeBookingConfirmedInvalidationSubscriber"],
     ["booking.cancelled", "realtimeBookingCancelledInvalidationSubscriber"],
-    ["booking.fully-paid", "realtimeBookingFullyPaidInvalidationSubscriber"],
     ["booking.refunded", "realtimeBookingRefundedInvalidationSubscriber"],
     ["payment.completed", "realtimePaymentCompletedInvalidationSubscriber"],
     ["availability.slot.changed", "realtimeAvailabilitySlotChangedInvalidationSubscriber"],

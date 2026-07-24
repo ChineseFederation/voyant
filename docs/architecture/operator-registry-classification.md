@@ -35,7 +35,6 @@ make a route family operator-owned.
 | `operator/catalog-content` | Split into package extensions below | Inventory, cruises, and accommodations content | source registry and search runtime |
 | `operator/media` | `@voyant-travel/storage` plus inventory brochure extension | Storage and inventory | R2 storage, video signer, brochure printer |
 | `operator/payment-link` | `@voyant-travel/storefront/payment-link` | Storefront | card-payment seam, bank transfer, trip readers |
-| `operator/contract-document` | `@voyant-travel/legal/contract-document` | Legal | PDF engine, document storage, PII service |
 
 The operator also selects `@voyant-travel/charters`,
 `@voyant-travel/cruises`, `@voyant-travel/realtime`, and

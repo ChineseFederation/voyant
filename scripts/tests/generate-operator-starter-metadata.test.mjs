@@ -33,6 +33,7 @@ test("emits disposable operator config with rebased declaration paths", () => {
       "../../../packages/example/dist/index.d.ts",
     ])
     assert.ok(!client.exclude.includes("../src/custom-fields/**"))
+    assert.ok(client.exclude.includes("./app/project-runtime.d.ts"))
     const server = JSON.parse(
       readFileSync(join(root, "starters/operator/.voyant/tsconfig.server.json"), "utf8"),
     )
@@ -54,6 +55,10 @@ test("emits disposable operator config with rebased declaration paths", () => {
     assert.match(
       readFileSync(join(root, "starters/operator/.voyant/env.d.ts"), "utf8"),
       /VoyantNodeRuntimeEnv/,
+    )
+    assert.match(
+      readFileSync(join(root, "starters/operator/.voyant/app/project-runtime.d.ts"), "utf8"),
+      /LoadVoyantProjectOptions\["generatedProjectRuntime"\]/,
     )
     const routeGenerator = readFileSync(
       join(root, "starters/operator/.voyant/generate-routes.mjs"),

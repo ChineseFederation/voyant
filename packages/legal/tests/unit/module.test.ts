@@ -5,15 +5,12 @@ import { CONTRACTS_ROUTE_RUNTIME_CONTAINER_KEY, createLegalApiModule } from "../
 
 describe("createLegalApiModule", () => {
   it("registers contracts route runtime during bootstrap", () => {
-    const generator = vi.fn()
     const eventBus = createEventBus()
-    const resolveDocumentGenerator = vi.fn(() => generator)
     const resolveEventBus = vi.fn(() => eventBus)
     const container = createContainer()
     const bindings = { PDF_TOKEN: "token" }
 
     const module = createLegalApiModule({
-      resolveDocumentGenerator,
       resolveEventBus,
     }).module
 
@@ -21,9 +18,7 @@ describe("createLegalApiModule", () => {
 
     const runtime = container.resolve(CONTRACTS_ROUTE_RUNTIME_CONTAINER_KEY)
 
-    expect(resolveDocumentGenerator).toHaveBeenCalledTimes(1)
     expect(resolveEventBus).toHaveBeenCalledTimes(1)
-    expect(runtime?.documentGenerator).toBe(generator)
     expect(runtime?.eventBus).toBe(eventBus)
   })
 
@@ -38,23 +33,5 @@ describe("createLegalApiModule", () => {
     const runtime = container.resolve(CONTRACTS_ROUTE_RUNTIME_CONTAINER_KEY)
 
     expect(runtime?.eventBus).toBe(eventBus)
-  })
-
-  it("leaves booking subscriber registration to selected-graph composition", async () => {
-    const eventBus = createEventBus()
-    const subscribe = vi.spyOn(eventBus, "subscribe")
-    const container = createContainer()
-    const module = createLegalApiModule({
-      resolveDb: () => ({}) as never,
-      resolveDocumentGenerator: () => vi.fn(),
-      autoGenerateContractOnConfirmed: {
-        enabled: true,
-        templateSlug: "customer-sales-agreement",
-      },
-    }).module
-
-    await module.bootstrap?.({ bindings: {}, container, eventBus })
-
-    expect(subscribe).not.toHaveBeenCalled()
   })
 })

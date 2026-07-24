@@ -150,6 +150,7 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@voyant-travel/templating": "workspace:^",
     "@voyant-travel/types": "workspace:^",
     "drizzle-orm": "catalog:",

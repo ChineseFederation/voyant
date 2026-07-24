@@ -24,6 +24,11 @@ interface StoredRecord {
   metadata?: Record<string, string>
 }
 
+async function opaqueBackendIdentity(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
 /**
  * Create an in-memory storage provider. Useful for unit tests and for
  * locally running jobs without touching remote storage. Data is
@@ -54,6 +59,7 @@ export function createLocalStorageProvider(options: LocalStorageOptions = {}): S
 
   return {
     name,
+    resolveBackendIdentity: () => opaqueBackendIdentity(`local:${baseUrl}`),
     upload,
     async delete(key) {
       store.delete(key)

@@ -620,26 +620,3 @@ export const bookingActionLedgerListResponse = z.object({
 })
 
 export type BookingActionLedgerListResult = z.infer<typeof bookingActionLedgerListResponse>
-
-// Contract generation — `POST /v1/admin/bookings/:id/generate-contract`.
-// The route renders the booking's contract template; `{ preview: true }`
-// returns the rendered HTML without persisting anything, the default
-// call creates the legal contract row + persists the PDF attachment.
-export const bookingContractPreviewSchema = z.object({
-  html: z.string(),
-  templateName: z.string().optional(),
-  templateLanguage: z.string().optional(),
-})
-
-export type BookingContractPreview = z.infer<typeof bookingContractPreviewSchema>
-
-export const bookingContractPreviewResponse = singleEnvelope(bookingContractPreviewSchema)
-
-export const bookingGenerateContractResultSchema = z.object({
-  contractId: z.string(),
-  attachmentId: z.string(),
-})
-
-export type BookingGenerateContractResult = z.infer<typeof bookingGenerateContractResultSchema>
-
-export const bookingGenerateContractResponse = singleEnvelope(bookingGenerateContractResultSchema)

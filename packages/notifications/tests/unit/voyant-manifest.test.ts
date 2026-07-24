@@ -2,10 +2,7 @@ import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-
 import { quotesNotificationsRuntimePort } from "@voyant-travel/quotes/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
 import { describe, expect, it } from "vitest"
-import {
-  NOTIFICATIONS_BOOKING_CONFIRMATION_AUTO_DISPATCH_SUBSCRIBER_ID,
-  notificationsReminderSubscriberRuntimeDescriptors,
-} from "../../src/subscriber-runtime.js"
+import { notificationsReminderSubscriberRuntimeDescriptors } from "../../src/subscriber-runtime.js"
 import {
   notificationsReminderSubscribersVoyantPlugin,
   notificationsVoyantModule,
@@ -138,26 +135,6 @@ describe("notifications deployment manifest", () => {
       ]),
     )
 
-    expect(events.get("booking.fully-paid")).toEqual({
-      type: "object",
-      required: [
-        "bookingId",
-        "paymentSessionId",
-        "invoiceId",
-        "amountCents",
-        "currency",
-        "provider",
-      ],
-      properties: {
-        bookingId: { type: "string" },
-        paymentSessionId: { type: "string" },
-        invoiceId: { anyOf: [{ type: "string" }, { type: "null" }] },
-        amountCents: { type: "number" },
-        currency: { type: "string" },
-        provider: { type: "string" },
-      },
-      additionalProperties: false,
-    })
     expect(events.get("booking.documents.sent")).toMatchObject({
       required: ["bookingId", "recipient", "deliveryId", "provider", "documentKeys"],
       properties: {
@@ -218,21 +195,17 @@ describe("notifications deployment manifest", () => {
       },
       runtimePorts: [{ id: "notifications.runtime" }],
     })
-    expect(declarations.slice(1).map(({ id, eventType }) => ({ id, eventType }))).toEqual(
+    expect(declarations.map(({ id, eventType }) => ({ id, eventType }))).toEqual(
       notificationsReminderSubscriberRuntimeDescriptors.map(({ id, eventType }) => ({
         id,
         eventType,
       })),
     )
     expect(declarations.map((subscriber) => subscriber.runtime?.export)).toEqual([
-      "notificationsBookingConfirmationAutoDispatchSubscriber",
       "notificationsBookingConfirmedReminderSubscriber",
       "notificationsPaymentCompletedReminderSubscriber",
-      "notificationsBookingFullyPaidDocumentLifecycleSubscriber",
       "notificationsBookingCancelledReminderSubscriber",
       "notificationsBookingExpiredReminderSubscriber",
     ])
-    expect(declarations[0]?.id).toBe(NOTIFICATIONS_BOOKING_CONFIRMATION_AUTO_DISPATCH_SUBSCRIBER_ID)
-    expect(declarations[0]?.eventType).toBe("booking.contract.generated")
   })
 })

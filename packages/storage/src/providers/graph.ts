@@ -14,6 +14,7 @@ const CONFIG = {
   region: "@voyant-travel/storage#config.s3-region",
   endpoint: "@voyant-travel/storage#config.s3-endpoint",
   forcePathStyle: "@voyant-travel/storage#config.s3-force-path-style",
+  backendIdentity: "@voyant-travel/storage#config.s3-backend-identity",
   documentsBucket: "@voyant-travel/storage#config.documents-bucket",
   mediaBucket: "@voyant-travel/storage#config.media-bucket",
   mediaPublicBaseUrl: "@voyant-travel/storage#config.media-public-base-url",
@@ -59,6 +60,10 @@ export function createS3CompatibleGraphStorageProvider(
     context.getConfig(CONFIG.forcePathStyle),
     "S3_FORCE_PATH_STYLE",
   )
+  const backendIdentity = optionalString(
+    context.getConfig(CONFIG.backendIdentity),
+    "STORAGE_S3_BACKEND_IDENTITY",
+  )
   const shared = {
     region: requiredString(context.getConfig(CONFIG.region), "S3_REGION"),
     ...(endpoint ? { endpoint } : {}),
@@ -66,6 +71,7 @@ export function createS3CompatibleGraphStorageProvider(
     ...(secretAccessKey ? { secretAccessKey } : {}),
     ...(sessionToken ? { sessionToken } : {}),
     ...(forcePathStyle === undefined ? {} : { forcePathStyle }),
+    ...(backendIdentity ? { backendIdentity } : {}),
   }
   const mediaPublicBaseUrl =
     optionalString(context.getConfig(CONFIG.mediaPublicBaseUrl), "MEDIA_PUBLIC_BASE_URL") ??

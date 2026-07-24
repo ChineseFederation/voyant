@@ -5,10 +5,8 @@ import { describe, expect, it, vi } from "vitest"
 import type { NotificationService } from "../../src/service.js"
 import {
   createBookingCancelledReminderSubscriberRuntime,
-  createBookingConfirmationAutoDispatchSubscriberRuntime,
   createBookingConfirmedReminderSubscriberRuntime,
   createBookingExpiredReminderSubscriberRuntime,
-  createBookingFullyPaidDocumentLifecycleSubscriberRuntime,
   createPaymentCompletedReminderSubscriberRuntime,
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   type NotificationsSubscriberRuntime,
@@ -51,10 +49,6 @@ describe("Notifications subscriber runtime descriptors", () => {
       {
         id: "@voyant-travel/notifications#subscriber.reminder-payment-completed",
         eventType: "payment.completed",
-      },
-      {
-        id: "@voyant-travel/notifications#subscriber.document-lifecycle-booking-fully-paid",
-        eventType: "booking.fully-paid",
       },
       {
         id: "@voyant-travel/notifications#subscriber.reminder-booking-cancelled",
@@ -116,96 +110,6 @@ describe("Notifications subscriber runtime descriptors", () => {
     )
   })
 
-  it("preserves confirmation and fully-paid document lifecycle handling", async () => {
-    const runDocumentBundleLifecycle = vi.fn().mockResolvedValue({
-      status: "ok",
-      bookingId: "book_1",
-      documents: [],
-      steps: [],
-    })
-    const lifecycle = {
-      enabled: true,
-      notificationPolicy: () => false as const,
-    }
-    const confirmedHarness = createHarness({ documentBundleLifecycle: lifecycle })
-    createBookingConfirmedReminderSubscriberRuntime({
-      dispatchReminderRules: vi.fn().mockResolvedValue(undefined),
-      runDocumentBundleLifecycle,
-    }).register(confirmedHarness)
-
-    await confirmedHarness.eventBus.emit("booking.confirmed", {
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-      actorId: null,
-    })
-
-    const fullyPaidHarness = createHarness({ documentBundleLifecycle: lifecycle })
-    createBookingFullyPaidDocumentLifecycleSubscriberRuntime({
-      runDocumentBundleLifecycle,
-    }).register(fullyPaidHarness)
-    await fullyPaidHarness.eventBus.emit("booking.fully-paid", {
-      bookingId: "book_1",
-      paymentSessionId: "pay_1",
-      invoiceId: null,
-      amountCents: 1000,
-      currency: "EUR",
-      provider: "test",
-    })
-
-    expect(runDocumentBundleLifecycle).toHaveBeenCalledTimes(2)
-    expect(runDocumentBundleLifecycle.mock.calls.map((call) => call[2])).toEqual([
-      {
-        trigger: "booking.confirmed",
-        event: { bookingId: "book_1", bookingNumber: "BK-1", actorId: null },
-      },
-      {
-        trigger: "booking.fully-paid",
-        event: {
-          bookingId: "book_1",
-          paymentSessionId: "pay_1",
-          invoiceId: null,
-          amountCents: 1000,
-          currency: "EUR",
-          provider: "test",
-        },
-      },
-    ])
-  })
-
-  it("emits booking.fully-paid once when a completed payment settles the booking", async () => {
-    const harness = createHarness({
-      documentBundleLifecycle: { enabled: true, notificationPolicy: () => false },
-    })
-    const fullyPaid = vi.fn()
-    harness.eventBus.subscribe("booking.fully-paid", fullyPaid)
-    createPaymentCompletedReminderSubscriberRuntime({
-      dispatchReminderRules: vi.fn().mockResolvedValue(undefined),
-      isPaidInFull: vi.fn().mockResolvedValue(true),
-    }).register(harness)
-
-    await harness.eventBus.emit("payment.completed", {
-      paymentSessionId: "pay_1",
-      bookingId: "book_1",
-      invoiceId: "invoice_1",
-      amountCents: 1000,
-      currency: "EUR",
-      provider: "test",
-    })
-
-    expect(fullyPaid).toHaveBeenCalledOnce()
-    expect(fullyPaid.mock.calls[0]?.[0]).toMatchObject({
-      data: {
-        bookingId: "book_1",
-        paymentSessionId: "pay_1",
-        invoiceId: "invoice_1",
-        amountCents: 1000,
-        currency: "EUR",
-        provider: "test",
-      },
-      metadata: { category: "domain", source: "subscriber" },
-    })
-  })
-
   it("dispatches cancellation rules only for a booking leaving on_hold", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
     const harness = createHarness()
@@ -256,50 +160,6 @@ describe("Notifications subscriber runtime descriptors", () => {
         bookingId: "book_1",
       }),
       { documentAttachmentResolver: attachmentResolver },
-    )
-  })
-
-  it("honors suppression and resolves auto-dispatch attachments from the runtime", async () => {
-    const confirmAndDispatchBooking = vi.fn().mockResolvedValue(undefined)
-    const harness = createHarness({
-      autoConfirmAndDispatch: {
-        enabled: true,
-        templateSlug: "booking-confirmation",
-        documentTypes: ["contract", "invoice"],
-      },
-    })
-    createBookingConfirmationAutoDispatchSubscriberRuntime({
-      confirmAndDispatchBooking,
-    }).register(harness)
-
-    await harness.eventBus.emit("booking.confirmed", {
-      bookingId: "book_early",
-      bookingNumber: "BK-EARLY",
-      actorId: null,
-    })
-    await harness.eventBus.emit("booking.contract.generated", {
-      bookingId: "book_suppressed",
-      bookingNumber: "BK-0",
-      actorId: null,
-      contractId: "contract_0",
-      attachmentId: "attachment_0",
-      suppressNotifications: true,
-    })
-    await harness.eventBus.emit("booking.contract.generated", {
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-      actorId: null,
-      contractId: "contract_1",
-      attachmentId: "attachment_1",
-    })
-
-    expect(confirmAndDispatchBooking).toHaveBeenCalledTimes(1)
-    expect(confirmAndDispatchBooking).toHaveBeenCalledWith(
-      db,
-      dispatcher,
-      "book_1",
-      { templateSlug: "booking-confirmation", documentTypes: ["contract", "invoice"] },
-      { attachmentResolver, eventBus: harness.eventBus },
     )
   })
 

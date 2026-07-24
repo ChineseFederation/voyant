@@ -9,6 +9,42 @@ const catalogCheckoutApiRuntimePortReference = { id: "commerce.checkout-api-opti
 const flightsRuntimePortReference = { id: "flights.runtime" } as const
 const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
 
+const tripRequirementSourcingRequestedPayloadSchema = {
+  type: "object",
+  required: ["operationId", "requirementId", "envelopeId"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    requirementId: { type: "string", minLength: 1 },
+    envelopeId: { type: "string", minLength: 1 },
+  },
+  additionalProperties: false,
+} as const
+
+const tripRequirementSourcingCompletedPayloadSchema = {
+  type: "object",
+  required: ["operationId", "requirementId", "envelopeId", "candidateCount", "status"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    requirementId: { type: "string", minLength: 1 },
+    envelopeId: { type: "string", minLength: 1 },
+    candidateCount: { type: "integer", minimum: 0 },
+    status: { type: "string", enum: ["candidates_ready", "no_availability"] },
+  },
+  additionalProperties: false,
+} as const
+
+const tripRequirementSourcingDeadLetteredPayloadSchema = {
+  type: "object",
+  required: ["operationId", "requirementId", "attempts", "error"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    requirementId: { type: "string", minLength: 1 },
+    attempts: { type: "integer", minimum: 0 },
+    error: { anyOf: [{ type: "string" }, { type: "null" }] },
+  },
+  additionalProperties: false,
+} as const
+
 export {
   type TripsDatabaseRuntime,
   tripsDatabaseRuntimePort,
@@ -329,6 +365,32 @@ export const tripsVoyantModule = defineModule({
       reversible: true,
       allowedActorTypes: ["staff"],
       from: { tools: ["@voyant-travel/trips#tool.select-candidate"] },
+    },
+  ],
+  events: [
+    {
+      id: "@voyant-travel/trips#event.requirement-sourcing-requested",
+      eventType: "trip.requirement-sourcing-requested",
+      version: "1.0.0",
+      payloadSchema: tripRequirementSourcingRequestedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/trips#event.requirement-sourcing-completed",
+      eventType: "trip.requirement-sourcing-completed",
+      version: "1.0.0",
+      payloadSchema: tripRequirementSourcingCompletedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/trips#event.requirement-sourcing-dead-lettered",
+      eventType: "trip.requirement-sourcing-dead-lettered",
+      version: "1.0.0",
+      payloadSchema: tripRequirementSourcingDeadLetteredPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
     },
   ],
   subscribers: [

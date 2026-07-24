@@ -83,7 +83,7 @@ export const contractTemplatesService = {
     return row ?? null
   },
   /**
-   * Slug lookup, used by the auto-generate subscriber. Slug is unique so the
+   * Slug lookup used by booking contract preview. Slug is unique so the
    * result is either the row or null — no disambiguation needed.
    */
   async findTemplateBySlug(db: PostgresJsDatabase, slug: string) {

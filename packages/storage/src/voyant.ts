@@ -63,6 +63,11 @@ export const storageVoyantModule = defineModule({
       required: false,
     },
     {
+      id: "@voyant-travel/storage#config.s3-backend-identity",
+      key: "STORAGE_S3_BACKEND_IDENTITY",
+      required: false,
+    },
+    {
       id: "@voyant-travel/storage#config.documents-bucket",
       key: "STORAGE_DOCUMENTS_BUCKET",
       required: true,
@@ -136,6 +141,7 @@ export const storageVoyantModule = defineModule({
           "@voyant-travel/storage#config.s3-region",
           "@voyant-travel/storage#config.s3-endpoint",
           "@voyant-travel/storage#config.s3-force-path-style",
+          "@voyant-travel/storage#config.s3-backend-identity",
           "@voyant-travel/storage#config.documents-bucket",
           "@voyant-travel/storage#config.media-bucket",
           "@voyant-travel/storage#config.media-public-base-url",

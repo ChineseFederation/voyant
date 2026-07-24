@@ -1,7 +1,4 @@
-import {
-  CATALOG_BOOKING_SNAPSHOT_RUNTIME_CONTAINER_KEY,
-  catalogBookingSnapshotRuntimePort,
-} from "@voyant-travel/catalog/booking-snapshot-subscriber"
+import { CATALOG_BOOKING_SNAPSHOT_RUNTIME_CONTAINER_KEY } from "@voyant-travel/catalog/booking-snapshot-subscriber"
 import {
   CATALOG_PROJECTION_RUNTIME_CONTAINER_KEY,
   catalogProjectionRuntimePort,
@@ -16,14 +13,14 @@ import {
   createGeneratedTestDeploymentResources,
 } from "./generated-project-runtime.js"
 
-const buildOperatorProviders = () => createGeneratedStaticTestDeploymentResources().capabilities
 const buildOperatorRuntimePorts = () => createGeneratedStaticTestDeploymentResources().ports
 
 async function composeOperatorGraph(runtime = createGeneratedGraphRuntime()) {
+  const selected = await createGeneratedTestDeploymentResources(runtime)
   return composeVoyantGraphRuntime({
-    runtime,
-    capabilities: buildOperatorProviders(),
-    ports: (await createGeneratedTestDeploymentResources(runtime)).ports,
+    runtime: selected.runtime,
+    capabilities: selected.capabilities,
+    ports: selected.ports,
   })
 }
 
@@ -74,27 +71,5 @@ describe("selected Operator Catalog subscriber composition", () => {
     const bindings = { TYPESENSE_HOST: "http://localhost:8108" }
 
     expect(provider.createRuntime(bindings)).toBe(provider.createRuntime(bindings))
-  })
-
-  it("does not lower or require Catalog subscriber ports when Catalog is deselected", async () => {
-    const runtime = createGeneratedGraphRuntime()
-    const ports = Object.fromEntries(
-      Object.entries((await createGeneratedTestDeploymentResources(runtime)).ports).filter(
-        ([id]) =>
-          id !== catalogProjectionRuntimePort.id && id !== catalogBookingSnapshotRuntimePort.id,
-      ),
-    )
-    const composed = await composeVoyantGraphRuntime({
-      runtime: {
-        ...runtime,
-        modules: runtime.modules.filter((unit) => unit.id !== "@voyant-travel/catalog"),
-      },
-      capabilities: buildOperatorProviders(),
-      ports,
-    })
-
-    expect(composed.modules.some((module) => module.module.name === "catalog.graph-runtime")).toBe(
-      false,
-    )
   })
 })

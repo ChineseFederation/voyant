@@ -7,10 +7,7 @@ import {
 import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { quotesNotificationsRuntimePort } from "@voyant-travel/quotes/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
-import {
-  bookingDocumentsSentEventPayloadSchema,
-  bookingFullyPaidEventPayloadSchema,
-} from "./event-payload-schemas.js"
+import { bookingDocumentsSentEventPayloadSchema } from "./event-payload-schemas.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
 import { notificationsRuntimePort } from "./runtime-port.js"
 
@@ -194,14 +191,6 @@ export const notificationsVoyantModule = defineModule({
       audit: { sourceModule: "notifications", category: "domain" },
     },
     {
-      id: "@voyant-travel/notifications#event.booking.fully-paid",
-      eventType: "booking.fully-paid",
-      version: "1.0.0",
-      payloadSchema: bookingFullyPaidEventPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "notifications", category: "domain" },
-    },
-    {
       id: "@voyant-travel/notifications#event.booking.documents.sent",
       eventType: "booking.documents.sent",
       version: "1.0.0",
@@ -374,10 +363,7 @@ export const notificationsVoyantModule = defineModule({
   },
 })
 
-/**
- * Selected by Node deployments that activate reminder and confirmation delivery.
- * Contract-backed confirmation dispatch waits for Legal's generated-contract event.
- */
+/** Selected by Node deployments that activate reminder delivery. */
 export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
   id: "@voyant-travel/notifications#reminder-subscribers-extension",
   packageName: "@voyant-travel/notifications",
@@ -388,15 +374,6 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
   },
   runtimePorts: [requirePort(notificationsRuntimePort)],
   subscribers: [
-    {
-      id: "@voyant-travel/notifications#subscriber.booking-confirmation-auto-dispatch",
-      eventType: "booking.contract.generated",
-      source: "@voyant-travel/notifications/subscriber-runtime",
-      runtime: {
-        entry: "@voyant-travel/notifications/subscriber-runtime",
-        export: "notificationsBookingConfirmationAutoDispatchSubscriber",
-      },
-    },
     {
       id: "@voyant-travel/notifications#subscriber.reminder-booking-confirmed",
       eventType: "booking.confirmed",
@@ -413,15 +390,6 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
       runtime: {
         entry: "@voyant-travel/notifications/subscriber-runtime",
         export: "notificationsPaymentCompletedReminderSubscriber",
-      },
-    },
-    {
-      id: "@voyant-travel/notifications#subscriber.document-lifecycle-booking-fully-paid",
-      eventType: "booking.fully-paid",
-      source: "@voyant-travel/notifications/subscriber-runtime",
-      runtime: {
-        entry: "@voyant-travel/notifications/subscriber-runtime",
-        export: "notificationsBookingFullyPaidDocumentLifecycleSubscriber",
       },
     },
     {

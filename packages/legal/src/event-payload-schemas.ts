@@ -144,17 +144,3 @@ export const contractDocumentGeneratedEventPayloadSchema = {
   },
   additionalProperties: false,
 } as const
-
-export const bookingContractGeneratedEventPayloadSchema = {
-  type: "object",
-  required: ["bookingId", "bookingNumber", "actorId", "contractId", "attachmentId"],
-  properties: {
-    bookingId: { type: "string" },
-    bookingNumber: { type: "string" },
-    actorId: nullableStringSchema,
-    suppressNotifications: { type: "boolean" },
-    contractId: { type: "string" },
-    attachmentId: { type: "string" },
-  },
-  additionalProperties: false,
-} as const

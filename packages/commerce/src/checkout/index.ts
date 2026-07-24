@@ -12,7 +12,7 @@
  *   - `resolveBankTransferInstructions` — operator profile / payment rows.
  *
  * The package-owned subscriber is published on a dedicated subpath.
- * Deployments inject database lifecycle, Legal, and contract-PDF ports.
+ * Deployments inject database lifecycle and Legal ports.
  */
 
 export {
@@ -22,11 +22,7 @@ export {
   persistAcceptanceSignature,
 } from "./acceptance-signature.js"
 export { createCatalogCheckoutGraphExtension } from "./api-runtime.js"
-export {
-  type CatalogCheckoutContractPdfGenerator,
-  type FinalizeCheckoutParams,
-  finalizeCheckout,
-} from "./finalize.js"
+export { type FinalizeCheckoutParams, finalizeCheckout } from "./finalize.js"
 export {
   type DraftPayload,
   type MaterializationSnapshot,

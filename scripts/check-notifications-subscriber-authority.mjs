@@ -26,10 +26,10 @@ rejectMatch(
   /eventBus\.subscribe\s*(?:<[^;]+?>)?\s*\(/,
   "Notifications module bootstrap must not hide eventBus subscriptions",
 )
-requireMatch(
-  moduleSource,
-  /documentBundleLifecycle:\s*provider\.documentBundleLifecycle/,
-  "Notifications selected subscriber runtime must receive the document lifecycle policy",
+rejectMatch(
+  moduleSource + subscriberRuntime,
+  /documentBundleLifecycle|BookingDocumentBundleLifecycle|bookingDocumentBundleLifecycle|BOOKING_FULLY_PAID_EVENT/,
+  "Notifications must not expose legacy document lifecycle orchestration",
 )
 
 const exportedSubscribers = [
@@ -47,7 +47,6 @@ for (const exportName of exportedSubscribers) {
 const requiredOwnership = [
   ["booking.confirmed", "notificationsBookingConfirmedReminderSubscriber"],
   ["payment.completed", "notificationsPaymentCompletedReminderSubscriber"],
-  ["booking.fully-paid", "notificationsBookingFullyPaidDocumentLifecycleSubscriber"],
 ]
 for (const [eventType, exportName] of requiredOwnership) {
   requireMatch(
@@ -62,10 +61,6 @@ for (const [eventType, exportName] of requiredOwnership) {
 const subscriptionPatterns = new Map([
   ["booking.confirmed", /eventBus\.subscribe(?:<[^>]+>)?\(\s*["']booking\.confirmed["']/g],
   ["payment.completed", /eventBus\.subscribe(?:<[^>]+>)?\(\s*["']payment\.completed["']/g],
-  [
-    "booking.fully-paid",
-    /eventBus\.subscribe(?:<[^>]+>)?\(\s*(?:BOOKING_FULLY_PAID_EVENT|["']booking\.fully-paid["'])/g,
-  ],
 ])
 for (const [eventType, pattern] of subscriptionPatterns) {
   const subscriptions = subscriberRuntime.match(pattern) ?? []
@@ -76,22 +71,6 @@ for (const [eventType, pattern] of subscriptionPatterns) {
   }
 }
 
-requireMatch(
-  subscriberRuntime,
-  /eventBus\.emit\(\s*BOOKING_FULLY_PAID_EVENT[\s\S]{0,500}category:\s*["']domain["'][\s\S]{0,80}source:\s*["']subscriber["']/,
-  "Notifications payment subscriber must preserve booking.fully-paid domain emission metadata",
-)
-requireMatch(
-  subscriberRuntime,
-  /runDocumentBundleLifecycle\([\s\S]{0,220}trigger:\s*["']booking\.confirmed["']/,
-  "Notifications booking.confirmed subscriber must preserve document lifecycle handling",
-)
-requireMatch(
-  subscriberRuntime,
-  /trigger:\s*BOOKING_FULLY_PAID_EVENT/,
-  "Notifications booking.fully-paid subscriber must preserve document lifecycle handling",
-)
-
 if (failures.length > 0) {
   console.error("Notifications subscriber authority check failed:\n")
   for (const failure of failures) console.error(`- ${failure}`)
@@ -99,5 +78,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Notifications subscriber authority: OK (${exportedSubscribers.length} activated descriptors, 0 hidden bootstrap subscriptions, 0 duplicate lifecycle subscriptions)`,
+  `Notifications subscriber authority: OK (${exportedSubscribers.length} activated descriptors, 0 hidden bootstrap subscriptions, 0 legacy document lifecycle orchestration)`,
 )

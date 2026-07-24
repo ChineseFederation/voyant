@@ -28,9 +28,8 @@
  *   - The booking row has not been created yet — `booking.bookingId`,
  *     `booking.bookingNumber`, the persisted status, and
  *     `contract.contractNumber` / `contract.signedAt` are empty. The
- *     server-side auto-generate-contract subscriber re-renders the
- *     same template on `booking.confirmed` with the persisted values
- *     filled in.
+ *     a later Legal-owned document command uses the contract's persisted,
+ *     immutable rendered body.
  *   - `acceptance.ipAddress` / `userAgent` are captured server-side
  *     at `/checkout/start` from request headers. Empty during preview.
  *   - `operator.*` reads from the `operatorInfo` block injected by the
@@ -117,8 +116,8 @@ export interface ResolveContractVariablesContext {
   /** Operator profile — fetched from `/v1/public/operator-profile` by
    *  the storefront wrapper. Anything missing renders as empty. */
   operatorInfo?: OperatorInfoVariables
-  /** Acceptance fingerprint — populated only on server-side renders
-   *  (post-confirm contract auto-generation). At preview time the
+  /** Acceptance fingerprint — populated only on server-side persistence.
+   *  At preview time the
    *  storefront leaves this undefined and the variables render
    *  empty. */
   acceptance?: AcceptanceContextVariables

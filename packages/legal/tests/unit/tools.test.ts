@@ -1,6 +1,6 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
-
+import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "../../src/contract-document-policy.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "../../src/existing-target-policy.js"
 import { createLegalContractDocumentToolServices } from "../../src/mcp-runtime.js"
 import {
@@ -9,8 +9,7 @@ import {
   issueLegalContractTool,
   legalContractDocumentTools,
   legalTools,
-  previewBookingContractDocumentTool,
-  regenerateBookingContractDocumentTool,
+  resolveContractDocumentDeliveryTool,
   sendLegalContractTool,
 } from "../../src/tools.js"
 
@@ -32,7 +31,7 @@ function baseContext(): ToolContext {
 describe("legal Tools", () => {
   it("publishes unique typed capabilities for both selected legal units", () => {
     expect(legalTools).toHaveLength(18)
-    expect(legalContractDocumentTools).toHaveLength(4)
+    expect(legalContractDocumentTools).toHaveLength(3)
     const tools = [...legalTools, ...legalContractDocumentTools]
     expect(new Set(tools.map((tool) => tool.capabilityId)).size).toBe(tools.length)
     expect(tools.every((tool) => tool.audience?.allowed?.includes("staff"))).toBe(true)
@@ -53,14 +52,9 @@ describe("legal Tools", () => {
       confirmationRequired: true,
       sideEffects: ["data-write", "email"],
     })
-    expect(regenerateBookingContractDocumentTool.riskPolicy).toMatchObject({
-      destructive: true,
-      reversible: false,
-      confirmationRequired: true,
-    })
   })
 
-  it("keeps legacy service signatures while lifecycle Tools use admitted command methods", async () => {
+  it("uses admitted lifecycle command methods", async () => {
     const issueContract = vi.fn()
     const issueContractCommand = vi.fn(async () => ({ id: "contract_1" }) as never)
     const legal = {
@@ -116,14 +110,14 @@ describe("legal Tools", () => {
 
   it("rejects contract-document access outside an exact staff audience", async () => {
     await expect(
-      previewBookingContractDocumentTool.handler(
-        { bookingId: "booking_1" },
+      resolveContractDocumentDeliveryTool.handler(
+        { attachmentId: "attachment_1" },
         {
           ...baseContext(),
           audience: "customer",
           legalContractDocument: {
-            previewBookingContract: vi.fn(),
-            generateBookingContract: vi.fn(),
+            generate: vi.fn(),
+            regenerate: vi.fn(),
             resolveDelivery: vi.fn(),
           },
         },
@@ -131,67 +125,83 @@ describe("legal Tools", () => {
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
   })
 
-  it("preflights authorized delivery support before generating a document", async () => {
-    const generateContract = vi.fn(async () => ({
+  it("invokes the durable generate service through admitted Tool action wiring", async () => {
+    const generate = vi.fn(async () => ({
+      operationId: "lcdo_1",
+      bookingId: "booking_1",
       contractId: "contract_1",
       attachmentId: "attachment_1",
+      mode: "generate" as const,
+      checksumSha256: "checksum",
+    }))
+    const expected = LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS.generate
+
+    await generateBookingContractDocumentTool.handler(
+      { bookingId: "booking_1", contractId: "contract_1" },
+      {
+        ...baseContext(),
+        legalContractDocument: {
+          generate,
+          regenerate: vi.fn(),
+          resolveDelivery: vi.fn(),
+        },
+        handlerActionPolicy: {
+          capabilityId: expected.capabilityId,
+          capabilityVersion: expected.capabilityVersion,
+          canonicalName: expected.canonicalName,
+          actionPolicy: {
+            ...expected.actionPolicy,
+            enforcement: "handler",
+            invocation: {
+              controlField: "_voyant",
+              requiredFields: [
+                "confirmed",
+                "targetId",
+                "idempotencyKey",
+                "approvalId",
+                "idempotencyFingerprint",
+              ],
+              optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+              fingerprintAlgorithm: "action-ledger-command-v1",
+            },
+          },
+          invocation: {
+            confirmed: true,
+            targetId: "booking_1",
+            idempotencyKey: "generate_1",
+            approvalId: "approval_1",
+            idempotencyFingerprint: "fingerprint_1",
+          },
+        },
+      },
+    )
+
+    expect(generate).toHaveBeenCalledWith(
+      { bookingId: "booking_1", contractId: "contract_1" },
+      expect.objectContaining({ capabilityId: expected.capabilityId }),
+    )
+  })
+
+  it("exposes only authorized document delivery resolution", async () => {
+    const resolveGeneratedDocument = vi.fn(async () => ({
+      url: "https://documents.example.test/signed",
+      filename: "contract.pdf",
+      contentType: "application/pdf",
     }))
     const service = createLegalContractDocumentToolServices({
       runtime: {
-        generateContract,
-        previewContract: vi.fn(),
+        resolveGeneratedDocument,
         resolveStorage: vi.fn(),
         guessMimeType: vi.fn(),
       },
       env: {},
-      db: {},
-      eventBus: {},
+      db: {} as never,
+      provider: {} as never,
+      requestContext: {},
     })
 
-    await expect(
-      service.generateBookingContract({
-        bookingId: "booking_1",
-        force: false,
-        includeDelivery: true,
-      }),
-    ).rejects.toThrow("does not support authorized delivery resolution")
-    expect(generateContract).not.toHaveBeenCalled()
-  })
-
-  it("composes generation with provider-authorized delivery and hides storage details", async () => {
-    const service = createLegalContractDocumentToolServices({
-      runtime: {
-        generateContract: vi.fn(async () => ({
-          contractId: "contract_1",
-          attachmentId: "attachment_1",
-        })),
-        previewContract: vi.fn(),
-        resolveGeneratedDocument: vi.fn(async () => ({
-          url: "https://documents.example.test/signed/attachment_1",
-          filename: "contract.pdf",
-          contentType: "application/pdf",
-        })),
-        resolveStorage: vi.fn(),
-        guessMimeType: vi.fn(),
-      },
-      env: {},
-      db: {},
-      eventBus: {},
-    })
-
-    await expect(
-      generateBookingContractDocumentTool.handler(
-        { bookingId: "booking_1", includeDelivery: true },
-        { ...baseContext(), legalContractDocument: service },
-      ),
-    ).resolves.toEqual({
-      contractId: "contract_1",
-      attachmentId: "attachment_1",
-      delivery: {
-        url: "https://documents.example.test/signed/attachment_1",
-        filename: "contract.pdf",
-        contentType: "application/pdf",
-      },
+    await expect(service.resolveDelivery({ attachmentId: "attachment_1" })).resolves.toMatchObject({
+      filename: "contract.pdf",
     })
   })
 })

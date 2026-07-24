@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises"
+import { createRequire } from "node:module"
 import path from "node:path"
 
 import { serveAdminHost } from "@voyant-travel/admin-host/serve"
@@ -17,7 +19,7 @@ import {
   type OperatorAuthEmailSender,
   type OperatorAuthNodeEnv,
 } from "@voyant-travel/auth/node-runtime"
-import type { EventEnvelope } from "@voyant-travel/core"
+import { createHttpDocumentRendererFromEnv, type EventEnvelope } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { resolveNodeDatabase } from "@voyant-travel/db/runtime"
 import type { VoyantGraphRuntimePorts } from "@voyant-travel/framework"
@@ -33,6 +35,7 @@ import {
 import { consoleReporter } from "@voyant-travel/hono/observability/reporter"
 import { createNodeServer, type NodeServerHandle } from "@voyant-travel/runtime-core"
 import type { StorageProviderResolver } from "@voyant-travel/storage/types"
+import { renderPdfDocument } from "@voyant-travel/utils/pdf-renderer"
 import {
   createWebhookDeliveryWorker,
   resolveOutboundWebhookDeliveryEnqueuer,
@@ -51,9 +54,14 @@ import {
   resolveAdmittedHostRuntimePorts as admitHostPorts,
   createVoyantDeploymentResources,
   resolveSelectedGraphProviderPorts,
+  resolveSelectedGraphRuntimeProviders,
 } from "./deployment-resources.js"
-import { resolveLocalStorageDir, withFilesystemPersistence } from "./filesystem-storage.js"
 import {
+  resolveLocalStorageDir,
+  withRequiredDocumentFilesystemPersistence,
+} from "./filesystem-storage.js"
+import {
+  type GeneratedProjectRuntime,
   loadGeneratedProjectLinks,
   loadGeneratedProjectRuntime,
   readGeneratedDeploymentGraph,
@@ -67,6 +75,7 @@ export {
   type CreateVoyantDeploymentResourcesOptions,
   createVoyantDeploymentResources,
   resolveSelectedGraphProviderPorts,
+  resolveSelectedGraphRuntimeProviders,
   type VoyantDeploymentResources,
 } from "./deployment-resources.js"
 export { resolveVoyantCloudAuthEmailSender }
@@ -76,6 +85,11 @@ export interface LoadVoyantProjectOptions {
   env?: Record<string, string | undefined>
   adminAssetsDir?: string
   preferBuiltAdminAssets?: boolean
+  /**
+   * Generated server entries inject the statically imported runtime so graph
+   * lowering and activation share the bundled framework's private identity.
+   */
+  generatedProjectRuntime?: GeneratedProjectRuntime
   host?: {
     config?: Readonly<Record<string, unknown>>
     deliverEvent?: (event: unknown, bindings: unknown) => Promise<unknown>
@@ -121,7 +135,8 @@ export async function loadVoyantProject(
 ): Promise<VoyantProjectHost> {
   const projectRoot = path.resolve(options.projectRoot ?? process.cwd())
   const artifactRoot = await resolveGeneratedArtifactRoot(projectRoot)
-  const generated = await loadGeneratedProjectRuntime(artifactRoot)
+  const generated =
+    options.generatedProjectRuntime ?? (await loadGeneratedProjectRuntime(artifactRoot))
   const graph = await readGeneratedDeploymentGraph(artifactRoot, generated)
   const adminAuthProvider = generated.deployment.providers.adminAuth
   const customerAuthProvider = selectedCustomerAuthProvider(
@@ -140,10 +155,11 @@ export async function loadVoyantProject(
   const env = createVoyantNodeEnv(rawEnv, providerPlan)
   const authEnv = requireVoyantAuthEnv(env, authMode, customerAuthProvider)
   const explicitRuntimePorts = admitHostPorts(options.host?.runtimePorts ?? {}, generated)
-  const selectedProviderPorts = await resolveSelectedGraphProviderPorts(
+  const selectedStoragePorts = await resolveSelectedGraphProviderPorts(
     generated.graphRuntime,
     rawEnv,
     {
+      includedPorts: ["storage.object"],
       excludedPorts: [
         ...Object.keys(explicitRuntimePorts),
         ...(providerPlan.storage === "custom" && options.host?.storage ? ["storage.object"] : []),
@@ -153,18 +169,49 @@ export async function loadVoyantProject(
         resource.kind === "database" ? resolveOptionalNodeDatabase(rawEnv) : undefined,
     },
   )
-  const providerPorts = { ...selectedProviderPorts, ...explicitRuntimePorts }
   let storage = resolveCustomStorageResolver(
     providerPlan.storage === "custom"
-      ? (options.host?.storage ?? providerPorts["storage.object"])
-      : providerPorts["storage.object"],
+      ? (options.host?.storage ?? selectedStoragePorts["storage.object"])
+      : selectedStoragePorts["storage.object"],
   )
   // The local `memory` storage plan keeps bytes in a per-process Map, so uploads
   // vanish on restart while their Postgres rows persist. Mirror them to disk so a
   // self-hosted operator without a configured bucket keeps its media across
   // restarts. (Node-only; the isomorphic storage package must not touch node:fs.)
   if (providerPlan.storage === "memory") {
-    storage = withFilesystemPersistence(storage, resolveLocalStorageDir(rawEnv))
+    storage = await withRequiredDocumentFilesystemPersistence(
+      storage,
+      resolveLocalStorageDir(rawEnv),
+    )
+  }
+  const selectedProviders = await resolveSelectedGraphRuntimeProviders(
+    generated.graphRuntime,
+    rawEnv,
+    {
+      excludedPorts: [...Object.keys(explicitRuntimePorts), "storage.object"],
+      deploymentValueAliases: { DATABASE_URL: ["DATABASE_URL_DIRECT"] },
+      resolveResource: (resource) => {
+        if (resource.kind === "database") return resolveOptionalNodeDatabase(rawEnv)
+        if (resource.kind === "document-storage") return storage.resolve("documents")
+        if (resource.kind === "document-renderer")
+          return createHttpDocumentRendererFromEnv(rawEnv) ?? createBundledDocumentRenderer()
+        return undefined
+      },
+    },
+  )
+  const selectedProviderPorts = Object.fromEntries(
+    await Promise.all(
+      selectedProviders.selectedProviders.map(async ({ port }) => [
+        port,
+        await selectedProviders.getProvider(port),
+      ]),
+    ),
+  )
+  const activatedGraphRuntime = await selectedProviders.activateRuntime()
+  const providerPorts = {
+    ...selectedStoragePorts,
+    ...selectedProviderPorts,
+    ...explicitRuntimePorts,
   }
   const runtimeProviderPorts = { ...providerPorts, "storage.object": storage }
   const hostDeliverEvent = options.host?.deliverEvent
@@ -258,7 +305,7 @@ export async function loadVoyantProject(
   })
   const runtime = await loadVoyantNodeRuntime({
     applicationId: path.basename(projectRoot),
-    graphRuntime: generated.graphRuntime,
+    graphRuntime: activatedGraphRuntime,
     jobs: graph.jobs,
     deployment: {
       mode: generated.deployment.mode ?? "self-hosted",
@@ -438,6 +485,42 @@ function resolveOptionalNodeDatabase(
     ...(env.DATABASE_URL_DIRECT ? { DATABASE_URL_DIRECT: env.DATABASE_URL_DIRECT } : {}),
     ...(env.DATABASE_URL_REPLICAS ? { DATABASE_URL_REPLICAS: env.DATABASE_URL_REPLICAS } : {}),
   })
+}
+
+function createBundledDocumentRenderer() {
+  const backendVersion = "voyant.basic-html-pdf.inter-tight-latin-ext.v1"
+  const hostRequire = createRequire(import.meta.url)
+  const runtimeRequire = createRequire(hostRequire.resolve("@voyant-travel/runtime"))
+  const utilsRequire = createRequire(runtimeRequire.resolve("@voyant-travel/utils/pdf-renderer"))
+  const fontkitModule = utilsRequire("@pdf-lib/fontkit") as { default?: unknown }
+  const fontkit = (fontkitModule.default ?? fontkitModule) as NonNullable<
+    Parameters<typeof renderPdfDocument>[0]["fontkit"]
+  >
+  const fontPath = runtimeRequire.resolve(
+    "@fontsource-variable/inter-tight/files/inter-tight-latin-ext-wght-normal.woff2",
+  )
+  let fontBytes: Promise<Uint8Array> | undefined
+  const loadFontBytes = () => {
+    fontBytes ??= readFile(fontPath).then((bytes) => new Uint8Array(bytes))
+    return fontBytes
+  }
+  return {
+    name: "voyant-basic-document-renderer",
+    async resolveBackendIdentity() {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(backendVersion))
+      return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+        "",
+      )
+    },
+    async renderPdf(request: { html: string }) {
+      return renderPdfDocument({
+        content: request.html,
+        fontBytes: await loadFontBytes(),
+        fontkit,
+        format: "html",
+      })
+    },
+  }
 }
 
 let defaultProject: Promise<VoyantProjectHost> | undefined

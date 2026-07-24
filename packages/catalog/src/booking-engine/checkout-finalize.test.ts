@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { type CheckoutFinalizeDeps, runCheckoutFinalize } from "./checkout-finalize.js"
 
 describe("runCheckoutFinalize", () => {
-  it("requests a final-payment contract refresh after invoice payment linkage", async () => {
+  it("links payment after issuing the final invoice", async () => {
     const calls: string[] = []
     const deps: CheckoutFinalizeDeps = {
       db: {} as CheckoutFinalizeDeps["db"],
@@ -18,15 +18,11 @@ describe("runCheckoutFinalize", () => {
         calls.push("link")
         return { paymentId: "pay_1", sessionsLinked: 1 }
       },
-      generateContractPdf: async ({ force }) => {
-        calls.push(`contract:${force === true ? "force" : "cached"}`)
-        return { contractId: "ctr_1", attachmentId: "atta_1" }
-      },
     }
 
     await runCheckoutFinalize({ bookingId: "bk_1", paymentSessionId: "ps_1" }, deps)
 
-    expect(calls).toEqual(["confirm", "invoice", "link", "contract:force"])
+    expect(calls).toEqual(["confirm", "invoice", "link"])
   })
 
   it("can be redelivered after a post-confirmation failure without duplicating domain effects", async () => {
@@ -34,10 +30,9 @@ describe("runCheckoutFinalize", () => {
       confirmed: false,
       invoiceId: null as string | null,
       paymentId: null as string | null,
-      attachmentId: null as string | null,
     }
     let failFirstInvoiceAttempt = true
-    const calls = { confirm: 0, invoice: 0, link: 0, pdf: 0 }
+    const calls = { confirm: 0, invoice: 0, link: 0 }
     const deps: CheckoutFinalizeDeps = {
       db: {} as CheckoutFinalizeDeps["db"],
       confirmBooking: async () => {
@@ -63,13 +58,6 @@ describe("runCheckoutFinalize", () => {
         }
         return { paymentId: effects.paymentId, sessionsLinked: effects.paymentId ? 1 : 0 }
       },
-      generateContractPdf: async () => {
-        if (!effects.attachmentId) {
-          calls.pdf++
-          effects.attachmentId = "atta_1"
-        }
-        return { contractId: "ctr_1", attachmentId: effects.attachmentId }
-      },
     }
 
     await expect(runCheckoutFinalize({ bookingId: "bk_1" }, deps)).rejects.toThrow(
@@ -78,6 +66,6 @@ describe("runCheckoutFinalize", () => {
     await runCheckoutFinalize({ bookingId: "bk_1" }, deps)
     await runCheckoutFinalize({ bookingId: "bk_1" }, deps)
 
-    expect(calls).toEqual({ confirm: 1, invoice: 1, link: 1, pdf: 1 })
+    expect(calls).toEqual({ confirm: 1, invoice: 1, link: 1 })
   })
 })

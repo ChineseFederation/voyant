@@ -1,7 +1,7 @@
 import { suppliers } from "@voyant-travel/distribution"
 import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
-import { and, desc, eq, getTableColumns, ilike, or, sql } from "drizzle-orm"
+import { and, desc, eq, getTableColumns, ilike, notInArray, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { normalizeLegalTargetFields, normalizeLegalTargetUpdateFields } from "../targets/service.js"
 import {
@@ -31,6 +31,28 @@ import {
   type UpdateContractAttachmentInput,
   type UpdateContractInput,
 } from "./service-shared.js"
+
+export const DURABLE_CONTRACT_DOCUMENT_ATTACHMENT_KINDS = ["document", "document-history"] as const
+
+export class DurableContractDocumentAttachmentMutationError extends Error {
+  constructor() {
+    super(
+      "Canonical and historical contract documents are owned by the durable document operation.",
+    )
+    this.name = "DurableContractDocumentAttachmentMutationError"
+  }
+}
+
+function assertGenericAttachmentKind(kind: string | null | undefined) {
+  if (
+    kind &&
+    DURABLE_CONTRACT_DOCUMENT_ATTACHMENT_KINDS.includes(
+      kind as (typeof DURABLE_CONTRACT_DOCUMENT_ATTACHMENT_KINDS)[number],
+    )
+  ) {
+    throw new DurableContractDocumentAttachmentMutationError()
+  }
+}
 
 /**
  * Existence check for the cross-module party references on a contract. With the
@@ -489,6 +511,7 @@ export const contractRecordsService = {
     contractId: string,
     data: CreateContractAttachmentInput,
   ) {
+    assertGenericAttachmentKind(data.kind)
     const [contract] = await db
       .select({
         id: contracts.id,
@@ -522,17 +545,42 @@ export const contractRecordsService = {
     attachmentId: string,
     data: UpdateContractAttachmentInput,
   ) {
+    assertGenericAttachmentKind(data.kind)
+    const [existing] = await db
+      .select({ kind: contractAttachments.kind })
+      .from(contractAttachments)
+      .where(eq(contractAttachments.id, attachmentId))
+      .limit(1)
+    if (!existing) return null
+    assertGenericAttachmentKind(existing.kind)
     const [row] = await db
       .update(contractAttachments)
       .set(data)
-      .where(eq(contractAttachments.id, attachmentId))
+      .where(
+        and(
+          eq(contractAttachments.id, attachmentId),
+          notInArray(contractAttachments.kind, [...DURABLE_CONTRACT_DOCUMENT_ATTACHMENT_KINDS]),
+        ),
+      )
       .returning()
     return row ?? null
   },
   async deleteAttachment(db: PostgresJsDatabase, attachmentId: string) {
+    const [existing] = await db
+      .select({ kind: contractAttachments.kind })
+      .from(contractAttachments)
+      .where(eq(contractAttachments.id, attachmentId))
+      .limit(1)
+    if (!existing) return null
+    assertGenericAttachmentKind(existing.kind)
     const [row] = await db
       .delete(contractAttachments)
-      .where(eq(contractAttachments.id, attachmentId))
+      .where(
+        and(
+          eq(contractAttachments.id, attachmentId),
+          notInArray(contractAttachments.kind, [...DURABLE_CONTRACT_DOCUMENT_ATTACHMENT_KINDS]),
+        ),
+      )
       .returning()
     return row ?? null
   },

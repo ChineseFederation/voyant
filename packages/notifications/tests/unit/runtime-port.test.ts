@@ -25,7 +25,6 @@ function provider(): NotificationsRuntimeProvider {
     resolveDb: () => ({}) as PostgresJsDatabase,
     resolveProviders: () => [],
     resolveReminderJobRuntime: () => jobRuntime,
-    autoConfirmAndDispatch: { enabled: true, templateSlug: "booking-confirmation" },
   }
 }
 

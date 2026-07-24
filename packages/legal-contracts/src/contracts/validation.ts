@@ -191,37 +191,6 @@ export const publicRenderTemplatePreviewInputSchema = z.object({
   variables: z.record(z.string(), z.unknown()),
 })
 
-export const generateContractDocumentInputSchema = z.object({
-  kind: z.string().min(1).max(50).default("document"),
-  replaceExisting: z.boolean().default(true),
-  issueIfDraft: z.boolean().default(true),
-  publicDelivery: z.boolean().default(false),
-  publicDeliveryTtlSeconds: z
-    .number()
-    .int()
-    .min(1)
-    .max(30 * 24 * 60 * 60)
-    .optional(),
-})
-
-export const generateContractForBookingInputSchema = z.object({
-  scope: contractScopeSchema.default("customer"),
-  language: z.string().min(2).max(10).optional(),
-  channelId: z.string().optional().nullable(),
-  fallbackLanguages: z.array(z.string().min(2).max(10)).optional().default([]),
-  requireNumberSeries: z.boolean().default(true),
-  forceRecompute: z.boolean().default(false),
-  publicDelivery: z.boolean().default(false),
-  publicDeliveryTtlSeconds: z
-    .number()
-    .int()
-    .min(1)
-    .max(30 * 24 * 60 * 60)
-    .optional(),
-})
-
-export type GenerateContractForBookingInput = z.infer<typeof generateContractForBookingInputSchema>
-
 /**
  * Optional customization the operator typed in the Send-contract dialog.
  * All fields nullable — the route falls through to defaults (recipient
@@ -234,27 +203,6 @@ export const sendContractInputSchema = z.object({
   message: z.string().max(10_000).optional().nullable(),
 })
 export type SendContractInput = z.infer<typeof sendContractInputSchema>
-
-export const generatedContractDocumentAttachmentSchema = z.object({
-  id: z.string(),
-  contractId: z.string(),
-  kind: z.string(),
-  name: z.string(),
-  mimeType: z.string().nullable(),
-  fileSize: z.number().int().nullable(),
-  storageKey: z.string().nullable(),
-  checksum: z.string().nullable(),
-  metadata: z.record(z.string(), z.unknown()).nullable(),
-  createdAt: z.string(),
-})
-
-export const generatedContractDocumentResultSchema = z.object({
-  contractId: z.string(),
-  contractStatus: contractStatusSchema,
-  renderedBodyFormat: contractBodyFormatSchema,
-  renderedBody: z.string(),
-  attachment: generatedContractDocumentAttachmentSchema,
-})
 
 // ---------- contract signatures ----------
 
@@ -290,5 +238,3 @@ const contractAttachmentCoreSchema = z.object({
 
 export const insertContractAttachmentSchema = contractAttachmentCoreSchema
 export const updateContractAttachmentSchema = contractAttachmentCoreSchema.partial()
-
-export type GenerateContractDocumentInput = z.infer<typeof generateContractDocumentInputSchema>

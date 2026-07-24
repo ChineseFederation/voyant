@@ -1215,20 +1215,12 @@
       "@voyant-travel/legal-react/provider": ["../legal-react/dist/provider.d.ts"],
       "@voyant-travel/legal-react/query-keys": ["../legal-react/dist/query-keys.d.ts"],
       "@voyant-travel/legal-react/ui": ["../legal-react/dist/ui.d.ts"],
-      "@voyant-travel/legal/booking-contract-subscriber": [
-        "../legal/dist/contracts/booking-contract-subscriber-runtime.d.ts"
-      ],
-      "@voyant-travel/legal/contract-document": [
-        "../legal/dist/contracts/contract-document-service.d.ts"
-      ],
+      "@voyant-travel/legal/contract-document-job": ["../legal/dist/contract-document-job.d.ts"],
       "@voyant-travel/legal/contract-document-routes": [
         "../legal/dist/contract-document-routes.d.ts"
       ],
       "@voyant-travel/legal/contract-document-runtime-port": [
         "../legal/dist/contract-document-runtime-port.d.ts"
-      ],
-      "@voyant-travel/legal/contract-variables": [
-        "../legal/dist/contracts/contract-variables.d.ts"
       ],
       "@voyant-travel/legal/contracts": ["../legal/dist/contracts/index.d.ts"],
       "@voyant-travel/legal/contracts/linkables": ["../legal/dist/contracts/linkables.d.ts"],
@@ -1244,7 +1236,6 @@
       "@voyant-travel/legal/policies/routes": ["../legal/dist/policies/routes.d.ts"],
       "@voyant-travel/legal/policies/service": ["../legal/dist/policies/service.d.ts"],
       "@voyant-travel/legal/policies/validation": ["../legal/dist/policies/validation.d.ts"],
-      "@voyant-travel/legal/runtime": ["../legal/dist/runtime.d.ts"],
       "@voyant-travel/legal/runtime-contributor": ["../legal/dist/runtime-contributor.d.ts"],
       "@voyant-travel/legal/runtime-port": ["../legal/dist/runtime-port.d.ts"],
       "@voyant-travel/legal/schema": ["../legal/dist/schema.d.ts"],
@@ -1531,30 +1522,6 @@
       "@voyant-travel/operator-settings/tools": ["../operator-settings/dist/mcp-runtime.d.ts"],
       "@voyant-travel/operator-settings/voyant": ["../operator-settings/dist/voyant.d.ts"],
       "@voyant-travel/operator-standard": ["../operator-standard/dist/index.d.ts"],
-      "@voyant-travel/operator-standard/runtime/react": [
-        "../operator-standard/dist/runtime/react.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/react-dom": [
-        "../operator-standard/dist/runtime/react-dom.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/react-dom/client": [
-        "../operator-standard/dist/runtime/react-dom-client.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/react-dom/server": [
-        "../operator-standard/dist/runtime/react-dom-server.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/react/jsx-dev-runtime": [
-        "../operator-standard/dist/runtime/react-jsx-dev-runtime.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/react/jsx-runtime": [
-        "../operator-standard/dist/runtime/react-jsx-runtime.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/tanstack/react-query": [
-        "../operator-standard/dist/runtime/tanstack-react-query.d.ts"
-      ],
-      "@voyant-travel/operator-standard/runtime/tanstack/react-router": [
-        "../operator-standard/dist/runtime/tanstack-react-router.d.ts"
-      ],
       "@voyant-travel/operator-standard/standard-frontend": [
         "../operator-standard/dist/standard-frontend.d.ts"
       ],

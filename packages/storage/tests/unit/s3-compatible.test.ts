@@ -16,6 +16,26 @@ const baseOptions = {
 }
 
 describe("createS3CompatibleStorageProvider", () => {
+  it("binds opaque backend identity to the complete credential-scoped backend", async () => {
+    const create = (accessKeyId: string, secretAccessKey: string) =>
+      createS3CompatibleStorageProvider({
+        bucket: "documents",
+        region: "auto",
+        endpoint: "https://s3.example",
+        accessKeyId,
+        secretAccessKey,
+        backendIdentity: `${accessKeyId}:${secretAccessKey}`,
+        client: { send: vi.fn() } as never,
+      })
+    const first = create("account-a", "secret-a")
+    const second = create("account-b", "secret-b")
+
+    const firstIdentity = await first.resolveBackendIdentity?.()
+    expect(firstIdentity).toMatch(/^[a-f0-9]{64}$/)
+    expect(await second.resolveBackendIdentity?.()).not.toBe(firstIdentity)
+    expect(firstIdentity).not.toContain("secret-a")
+  })
+
   it("uses AWS SDK commands for the common storage contract", async () => {
     const send = vi.fn(async (command: unknown) => {
       if (command instanceof GetObjectCommand) {
@@ -27,6 +47,7 @@ describe("createS3CompatibleStorageProvider", () => {
     })
     const provider = createS3CompatibleStorageProvider({
       ...baseOptions,
+      backendIdentity: "test-client",
       client: { send } as unknown as S3Client,
       generateKey: () => "docs/file.txt",
       publicBaseUrl: "https://cdn.example.com/",
@@ -61,6 +82,7 @@ describe("createS3CompatibleStorageProvider", () => {
     })
     const provider = createS3CompatibleStorageProvider({
       ...baseOptions,
+      backendIdentity: "test-client",
       client: { send } as unknown as S3Client,
     })
     await expect(provider.get("missing")).resolves.toBeNull()
@@ -106,5 +128,39 @@ describe("createS3CompatibleStorageProvider", () => {
         accessKeyId: "only-one-half",
       }),
     ).toThrow(/both accessKeyId and secretAccessKey/)
+  })
+
+  it("rejects opaque clients and ambient credential chains without identity", () => {
+    expect(() =>
+      createS3CompatibleStorageProvider({
+        bucket: "bucket",
+        region: "auto",
+        client: { send: vi.fn() } as never,
+      }),
+    ).toThrow(/backendIdentity/)
+    expect(() =>
+      createS3CompatibleStorageProvider({
+        bucket: "bucket",
+        region: "auto",
+      }),
+    ).toThrow(/backendIdentity/)
+  })
+
+  it("accepts an explicit identity for opaque clients and ambient credentials", async () => {
+    const injected = createS3CompatibleStorageProvider({
+      bucket: "bucket",
+      region: "auto",
+      backendIdentity: "account-a",
+      client: { send: vi.fn() } as never,
+    })
+    const ambient = createS3CompatibleStorageProvider({
+      bucket: "bucket",
+      region: "auto",
+      backendIdentity: "account-a",
+    })
+    await expect(injected.resolveBackendIdentity?.()).resolves.toMatch(/^[a-f0-9]{64}$/)
+    await expect(ambient.resolveBackendIdentity?.()).resolves.toBe(
+      await injected.resolveBackendIdentity?.(),
+    )
   })
 })

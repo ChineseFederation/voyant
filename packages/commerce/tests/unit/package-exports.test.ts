@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 
 import {
-  catalogCheckoutContractPdfRuntimePort,
   catalogCheckoutDatabaseRuntimePort,
   catalogCheckoutLegalRuntimePort,
   createAcceptanceSignatureSubscriberGraphRuntime,
@@ -64,7 +63,6 @@ describe("@voyant-travel/commerce package exports", () => {
     expect(createCheckoutFinalizeSubscriberGraphRuntime).toBeTypeOf("function")
     expect(catalogCheckoutDatabaseRuntimePort.id).toBe("commerce.checkout-database")
     expect(catalogCheckoutLegalRuntimePort.id).toBe("legal.acceptance-signature")
-    expect(catalogCheckoutContractPdfRuntimePort.id).toBe("legal.booking-contract-pdf")
   })
 
   it("publishes the promotion-redemption subscriber runtime subpath", () => {

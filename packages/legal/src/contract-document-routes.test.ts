@@ -12,12 +12,6 @@ function stubOptions(
   over: Partial<ContractDocumentRoutesOptions> = {},
 ): ContractDocumentRoutesOptions {
   return {
-    generateContract: vi.fn(async () => ({ contractId: "ctr_123", attachmentId: "att_123" })),
-    previewContract: vi.fn(async () => ({
-      html: "<p>Preview</p>",
-      templateName: "Customer agreement",
-      templateLanguage: "en",
-    })),
     resolveStorage: vi.fn(() => ({ get: vi.fn(async () => null) })),
     guessMimeType: (key: string) => {
       if (key.endsWith(".pdf")) return "application/pdf"
@@ -42,11 +36,8 @@ describe("contract document routes", () => {
     vi.clearAllMocks()
   })
 
-  it("exposes the two absolute path matchers", () => {
-    expect(CONTRACT_DOCUMENT_ROUTE_PATHS).toEqual([
-      "/v1/admin/bookings/:bookingId/generate-contract",
-      "/v1/admin/documents/files/*",
-    ])
+  it("exposes only the private document stream matcher", () => {
+    expect(CONTRACT_DOCUMENT_ROUTE_PATHS).toEqual(["/v1/admin/documents/files/*"])
   })
 
   it("describes the package-owned lazy route module", () => {
@@ -57,42 +48,15 @@ describe("contract document routes", () => {
     expect(module.lazyRoutes?.load).toBeTypeOf("function")
   })
 
-  it("generate-contract delegates and returns the data", async () => {
-    const options = stubOptions()
-    const app = mount(options)
+  it("does not expose booking document generation or preview", async () => {
+    const app = mount(stubOptions())
 
-    const res = await app.request("/v1/admin/bookings/bk_123/generate-contract", {
-      method: "POST",
-      body: JSON.stringify({ force: true }),
-      headers: { "content-type": "application/json" },
-    })
-
-    expect(res.status).toBe(200)
-    await expect(res.json()).resolves.toEqual({
-      data: { contractId: "ctr_123", attachmentId: "att_123" },
-    })
-    expect(options.generateContract).toHaveBeenCalledOnce()
-    expect((options.generateContract as ReturnType<typeof vi.fn>).mock.calls[0]?.[3]).toBe("bk_123")
-    expect((options.generateContract as ReturnType<typeof vi.fn>).mock.calls[0]?.[4]).toEqual({
-      force: true,
-    })
-  })
-
-  it("generate-contract previews when preview=true", async () => {
-    const options = stubOptions()
-    const app = mount(options)
-
-    const res = await app.request("/v1/admin/bookings/bk_123/generate-contract", {
-      method: "POST",
-      body: JSON.stringify({ preview: true }),
-      headers: { "content-type": "application/json" },
-    })
-
-    expect(res.status).toBe(200)
-    await expect(res.json()).resolves.toEqual({
-      data: { html: "<p>Preview</p>", templateName: "Customer agreement", templateLanguage: "en" },
-    })
-    expect(options.previewContract).toHaveBeenCalledOnce()
+    for (const path of [
+      "/v1/admin/bookings/bk_123/generate-contract",
+      "/v1/admin/bookings/bk_123/contract-preview",
+    ]) {
+      expect((await app.request(path, { method: "POST" })).status).toBe(404)
+    }
   })
 
   it("documents/files returns 503 when storage is not configured", async () => {
