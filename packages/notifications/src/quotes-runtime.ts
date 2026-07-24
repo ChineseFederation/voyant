@@ -1,7 +1,8 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { QuotesNotificationsRuntime } from "@voyant-travel/quotes/runtime-port"
 
-import { createNotificationService, notificationsService } from "./service.js"
+import { createNotificationService } from "./service.js"
+import { enqueueNotification } from "./service-durable-send.js"
 
 /** Adapt Notifications delivery to Quotes' narrow, template-only proposal contract. */
 export function createQuotesNotificationsRuntime(
@@ -11,10 +12,10 @@ export function createQuotesNotificationsRuntime(
     async sendQuoteProposal(db, bindings, input) {
       const resolver = primitives.config.read(bindings, "notificationProviders")
       const providers = typeof resolver === "function" ? resolver(primitives.env(bindings)) : []
-      const delivery = await notificationsService.sendNotification(
+      const delivery = await enqueueNotification({
         db,
-        createNotificationService(providers),
-        {
+        registry: createNotificationService(providers),
+        input: {
           idempotencyKey: input.idempotencyKey,
           templateSlug: input.templateSlug,
           to: input.to,
@@ -28,7 +29,7 @@ export function createQuotesNotificationsRuntime(
             quoteVersionId: input.quoteVersionId,
           },
         },
-      )
+      })
       if (!delivery) throw new Error("Notifications returned no quote proposal delivery")
       return {
         id: delivery.id,

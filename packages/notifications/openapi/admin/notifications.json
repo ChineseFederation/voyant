@@ -5168,88 +5168,26 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 255
+                  },
                   "templateId": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
                   },
                   "templateSlug": {
-                    "type": ["string", "null"]
-                  },
-                  "channel": {
                     "type": "string",
-                    "enum": ["email", "sms"],
-                    "default": "email"
-                  },
-                  "provider": {
-                    "type": ["string", "null"]
-                  },
-                  "to": {
-                    "type": ["string", "null"],
-                    "minLength": 1
-                  },
-                  "from": {
-                    "type": ["string", "null"],
-                    "maxLength": 500
-                  },
-                  "subject": {
-                    "type": ["string", "null"],
-                    "maxLength": 2000
-                  },
-                  "html": {
-                    "type": ["string", "null"]
-                  },
-                  "text": {
-                    "type": ["string", "null"]
-                  },
-                  "attachments": {
-                    "type": ["array", "null"],
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
-                        "contentBase64": {
-                          "type": ["string", "null"],
-                          "minLength": 1
-                        },
-                        "path": {
-                          "type": ["string", "null"],
-                          "minLength": 1,
-                          "maxLength": 4000
-                        },
-                        "contentType": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        },
-                        "disposition": {
-                          "type": ["string", "null"],
-                          "enum": ["attachment", "inline", null]
-                        },
-                        "contentId": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        }
-                      },
-                      "required": ["filename"]
-                    }
-                  },
-                  "data": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
-                  },
-                  "metadata": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
+                    "nullable": true
                   },
                   "scheduledFor": {
-                    "type": ["string", "null"]
-                  },
-                  "paymentLinkBaseUrl": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
                   }
-                }
+                },
+                "required": ["idempotencyKey"],
+                "additionalProperties": false
               }
             }
           }
@@ -5459,88 +5397,26 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 255
+                  },
                   "templateId": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
                   },
                   "templateSlug": {
-                    "type": ["string", "null"]
-                  },
-                  "channel": {
                     "type": "string",
-                    "enum": ["email", "sms"],
-                    "default": "email"
-                  },
-                  "provider": {
-                    "type": ["string", "null"]
-                  },
-                  "to": {
-                    "type": ["string", "null"],
-                    "minLength": 1
-                  },
-                  "from": {
-                    "type": ["string", "null"],
-                    "maxLength": 500
-                  },
-                  "subject": {
-                    "type": ["string", "null"],
-                    "maxLength": 2000
-                  },
-                  "html": {
-                    "type": ["string", "null"]
-                  },
-                  "text": {
-                    "type": ["string", "null"]
-                  },
-                  "attachments": {
-                    "type": ["array", "null"],
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
-                        "contentBase64": {
-                          "type": ["string", "null"],
-                          "minLength": 1
-                        },
-                        "path": {
-                          "type": ["string", "null"],
-                          "minLength": 1,
-                          "maxLength": 4000
-                        },
-                        "contentType": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        },
-                        "disposition": {
-                          "type": ["string", "null"],
-                          "enum": ["attachment", "inline", null]
-                        },
-                        "contentId": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        }
-                      },
-                      "required": ["filename"]
-                    }
-                  },
-                  "data": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
-                  },
-                  "metadata": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
+                    "nullable": true
                   },
                   "scheduledFor": {
-                    "type": ["string", "null"]
-                  },
-                  "paymentLinkBaseUrl": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
                   }
-                }
+                },
+                "required": ["idempotencyKey"],
+                "additionalProperties": false
               }
             }
           }
@@ -6191,7 +6067,83 @@
         "x-voyant-surface": "admin",
         "x-voyant-api-id": "@voyant-travel/notifications#api.admin",
         "x-voyant-unit-id": "@voyant-travel/notifications",
-        "x-voyant-package-name": "@voyant-travel/notifications"
+        "x-voyant-package-name": "@voyant-travel/notifications",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "sendNotification": {
+                        "type": "boolean",
+                        "enum": [false]
+                      },
+                      "documentTypes": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                          "type": "string",
+                          "enum": ["contract", "invoice", "proforma", "brochure"]
+                        }
+                      }
+                    },
+                    "required": ["sendNotification"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "allOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "idempotencyKey": {
+                            "type": "string",
+                            "minLength": 8,
+                            "maxLength": 255
+                          },
+                          "templateId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "templateSlug": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "scheduledFor": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "documentTypes": {
+                            "type": "array",
+                            "nullable": true,
+                            "items": {
+                              "type": "string",
+                              "enum": ["contract", "invoice", "proforma", "brochure"]
+                            }
+                          }
+                        },
+                        "required": ["idempotencyKey"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "sendNotification": {
+                            "type": "boolean",
+                            "enum": [true],
+                            "default": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/v1/admin/notifications/bookings/{id}/send-documents": {
@@ -6363,11 +6315,7 @@
         "x-voyant-surface": "admin",
         "x-voyant-api-id": "@voyant-travel/notifications#api.admin",
         "x-voyant-unit-id": "@voyant-travel/notifications",
-        "x-voyant-package-name": "@voyant-travel/notifications"
-      }
-    },
-    "/v1/admin/notifications/send": {
-      "post": {
+        "x-voyant-package-name": "@voyant-travel/notifications",
         "requestBody": {
           "required": true,
           "content": {
@@ -6375,289 +6323,38 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 255
+                  },
                   "templateId": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
                   },
                   "templateSlug": {
-                    "type": ["string", "null"]
-                  },
-                  "channel": {
                     "type": "string",
-                    "enum": ["email", "sms"]
-                  },
-                  "provider": {
-                    "type": ["string", "null"]
-                  },
-                  "to": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "from": {
-                    "type": ["string", "null"],
-                    "maxLength": 500
-                  },
-                  "subject": {
-                    "type": ["string", "null"],
-                    "maxLength": 2000
-                  },
-                  "html": {
-                    "type": ["string", "null"]
-                  },
-                  "text": {
-                    "type": ["string", "null"]
-                  },
-                  "attachments": {
-                    "type": ["array", "null"],
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
-                        "contentBase64": {
-                          "type": ["string", "null"],
-                          "minLength": 1
-                        },
-                        "path": {
-                          "type": ["string", "null"],
-                          "minLength": 1,
-                          "maxLength": 4000
-                        },
-                        "contentType": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        },
-                        "disposition": {
-                          "type": ["string", "null"],
-                          "enum": ["attachment", "inline", null]
-                        },
-                        "contentId": {
-                          "type": ["string", "null"],
-                          "maxLength": 255
-                        }
-                      },
-                      "required": ["filename"]
-                    }
-                  },
-                  "data": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
-                  },
-                  "targetType": {
-                    "type": "string",
-                    "enum": [
-                      "booking",
-                      "booking_payment_schedule",
-                      "booking_guarantee",
-                      "invoice",
-                      "payment_session",
-                      "person",
-                      "organization",
-                      "other"
-                    ],
-                    "default": "other"
-                  },
-                  "targetId": {
-                    "type": ["string", "null"]
-                  },
-                  "bookingId": {
-                    "type": ["string", "null"]
-                  },
-                  "invoiceId": {
-                    "type": ["string", "null"]
-                  },
-                  "paymentSessionId": {
-                    "type": ["string", "null"]
-                  },
-                  "personId": {
-                    "type": ["string", "null"]
-                  },
-                  "organizationId": {
-                    "type": ["string", "null"]
-                  },
-                  "metadata": {
-                    "type": ["object", "null"],
-                    "additionalProperties": {}
+                    "nullable": true
                   },
                   "scheduledFor": {
-                    "type": ["string", "null"]
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "documentTypes": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {
+                      "type": "string",
+                      "enum": ["contract", "invoice", "proforma", "brochure"]
+                    }
                   }
                 },
-                "required": ["to"]
+                "required": ["idempotencyKey"],
+                "additionalProperties": false
               }
             }
           }
-        },
-        "responses": {
-          "201": {
-            "description": "The dispatched notification delivery",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        },
-                        "templateId": {
-                          "type": ["string", "null"]
-                        },
-                        "templateSlug": {
-                          "type": ["string", "null"]
-                        },
-                        "targetType": {
-                          "type": "string",
-                          "enum": [
-                            "booking",
-                            "booking_payment_schedule",
-                            "booking_guarantee",
-                            "invoice",
-                            "payment_session",
-                            "person",
-                            "organization",
-                            "other"
-                          ]
-                        },
-                        "targetId": {
-                          "type": ["string", "null"]
-                        },
-                        "personId": {
-                          "type": ["string", "null"]
-                        },
-                        "organizationId": {
-                          "type": ["string", "null"]
-                        },
-                        "bookingId": {
-                          "type": ["string", "null"]
-                        },
-                        "invoiceId": {
-                          "type": ["string", "null"]
-                        },
-                        "paymentSessionId": {
-                          "type": ["string", "null"]
-                        },
-                        "channel": {
-                          "type": "string",
-                          "enum": ["email", "sms"]
-                        },
-                        "provider": {
-                          "type": "string"
-                        },
-                        "providerMessageId": {
-                          "type": ["string", "null"]
-                        },
-                        "status": {
-                          "type": "string",
-                          "enum": ["pending", "sent", "failed", "cancelled"]
-                        },
-                        "toAddress": {
-                          "type": "string"
-                        },
-                        "fromAddress": {
-                          "type": ["string", "null"]
-                        },
-                        "subject": {
-                          "type": ["string", "null"]
-                        },
-                        "htmlBody": {
-                          "type": ["string", "null"]
-                        },
-                        "textBody": {
-                          "type": ["string", "null"]
-                        },
-                        "payloadData": {
-                          "type": ["object", "null"],
-                          "additionalProperties": {}
-                        },
-                        "metadata": {
-                          "type": ["object", "null"],
-                          "additionalProperties": {}
-                        },
-                        "errorMessage": {
-                          "type": ["string", "null"]
-                        },
-                        "scheduledFor": {
-                          "type": ["string", "null"]
-                        },
-                        "sentAt": {
-                          "type": ["string", "null"]
-                        },
-                        "failedAt": {
-                          "type": ["string", "null"]
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "updatedAt": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "templateId",
-                        "templateSlug",
-                        "targetType",
-                        "targetId",
-                        "personId",
-                        "organizationId",
-                        "bookingId",
-                        "invoiceId",
-                        "paymentSessionId",
-                        "channel",
-                        "provider",
-                        "providerMessageId",
-                        "status",
-                        "toAddress",
-                        "fromAddress",
-                        "subject",
-                        "htmlBody",
-                        "textBody",
-                        "payloadData",
-                        "metadata",
-                        "errorMessage",
-                        "scheduledFor",
-                        "sentAt",
-                        "failedAt",
-                        "createdAt",
-                        "updatedAt"
-                      ]
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "invalid_request: request body failed validation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postAdminNotificationsSend",
-        "summary": "POST /v1/admin/notifications/send",
-        "tags": ["notifications"],
-        "x-voyant-module": "notifications",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/notifications#api.admin",
-        "x-voyant-unit-id": "@voyant-travel/notifications",
-        "x-voyant-package-name": "@voyant-travel/notifications"
+        }
       }
     }
   },

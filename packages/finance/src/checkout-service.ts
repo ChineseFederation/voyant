@@ -334,21 +334,12 @@ export async function initiateCheckoutCollection(
     }
 
     // Resolve deployment-owned processor readiness before any checkout read
-    // that may materialize a default payment plan. The selected PaymentAdapter
-    // wins over legacy provider hints; keyed starters remain only for explicit
-    // self-hosted provider requests. A missing adapter is a zero-mutation
+    // that may materialize a default payment plan. Processor selection is
+    // exclusively deployment-owned. A missing adapter is a zero-mutation
     // failure.
-    const requestedProvider = input.startProvider.provider
-    providerStarter =
-      runtime.selectedPaymentStarter ??
-      (requestedProvider ? runtime.paymentStarters?.[requestedProvider] : undefined) ??
-      null
+    providerStarter = runtime.selectedPaymentStarter ?? null
     if (!providerStarter) {
-      throw new Error(
-        requestedProvider
-          ? `Payment provider "${requestedProvider}" is not configured`
-          : "No payment adapter is selected for card collection",
-      )
+      throw new Error("No payment adapter is selected for card collection")
     }
   }
 
@@ -380,7 +371,8 @@ export async function initiateCheckoutCollection(
       invoiceNotification = await runtime.notificationDispatcher.sendInvoiceNotification(
         db,
         invoice.id,
-        withPaymentLinkBaseUrl(input.invoiceNotification, runtime.publicCheckoutBaseUrl),
+        input.invoiceNotification,
+        { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
       )
     }
   } else if (plan.paymentSessionTarget === "invoice") {
@@ -401,7 +393,8 @@ export async function initiateCheckoutCollection(
       invoiceNotification = await runtime.notificationDispatcher.sendInvoiceNotification(
         db,
         invoice.id,
-        withPaymentLinkBaseUrl(input.invoiceNotification, runtime.publicCheckoutBaseUrl),
+        input.invoiceNotification,
+        { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
       )
     }
 
@@ -413,7 +406,8 @@ export async function initiateCheckoutCollection(
         await runtime.notificationDispatcher.sendPaymentSessionNotification(
           db,
           paymentSession.id,
-          withPaymentLinkBaseUrl(input.paymentSessionNotification, runtime.publicCheckoutBaseUrl),
+          input.paymentSessionNotification,
+          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
         )
     }
   } else {
@@ -442,7 +436,8 @@ export async function initiateCheckoutCollection(
         await runtime.notificationDispatcher.sendPaymentSessionNotification(
           db,
           paymentSession.id,
-          withPaymentLinkBaseUrl(input.paymentSessionNotification, runtime.publicCheckoutBaseUrl),
+          input.paymentSessionNotification,
+          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
         )
     }
   }
@@ -488,14 +483,6 @@ export async function initiateCheckoutCollection(
     bankTransferInstructions,
     providerStart,
   }
-}
-
-function withPaymentLinkBaseUrl<T extends { paymentLinkBaseUrl?: string | null }>(
-  input: T,
-  publicCheckoutBaseUrl: string | null | undefined,
-): T {
-  if (input.paymentLinkBaseUrl || !publicCheckoutBaseUrl) return input
-  return { ...input, paymentLinkBaseUrl: publicCheckoutBaseUrl }
 }
 
 export async function bootstrapCheckoutCollection(

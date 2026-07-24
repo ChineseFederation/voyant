@@ -2,6 +2,7 @@ import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-
 import { quotesNotificationsRuntimePort } from "@voyant-travel/quotes/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
 import { describe, expect, it } from "vitest"
+import { durableNotificationProviderPort } from "../../src/durable-provider-port.js"
 import { notificationsReminderSubscriberRuntimeDescriptors } from "../../src/subscriber-runtime.js"
 import {
   notificationsReminderSubscribersVoyantPlugin,
@@ -24,7 +25,15 @@ describe("notifications deployment manifest", () => {
           { id: quotesNotificationsRuntimePort.id },
         ],
       },
-      runtimePorts: [{ id: "notifications.runtime" }, { id: "notifications.reminder-job" }],
+      runtimePorts: [
+        { id: "notifications.runtime" },
+        { id: "notifications.reminder-job" },
+        {
+          id: durableNotificationProviderPort.id,
+          optional: true,
+          conformance: expect.any(Object),
+        },
+      ],
       api: [
         {
           id: "@voyant-travel/notifications#api.admin",
@@ -99,30 +108,16 @@ describe("notifications deployment manifest", () => {
       expect.objectContaining({
         id: "@voyant-travel/notifications#action.send-notification",
         version: "v2",
-        resource: "notifications",
-        action: "send",
-        targetType: "notification-template",
-        commandTargetField: "templateSlug",
-        targetLifecycle: "existing",
-        existingTarget: {
-          durability: "handler-command-result-v1",
-        },
         availability: {
           status: "unavailable",
           reasonCode: "provider-idempotency-unavailable",
+          enableWhen: {
+            selectedProviderPorts: {
+              mode: "all",
+              ports: [durableNotificationProviderPort.id],
+            },
+          },
         },
-        effectBoundary: "multistage",
-        durability: {
-          strategy: "saga",
-          testReference: "tests/integration/durable-send.test.ts",
-        },
-        requiredScopes: ["notifications:send"],
-        risk: "high",
-        ledger: "required",
-        approval: "required",
-        policy: "notifications-agent-send",
-        reversible: false,
-        from: { tools: ["@voyant-travel/notifications#tool.send-notification"] },
       }),
     )
   })

@@ -7,6 +7,7 @@ import {
 import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { quotesNotificationsRuntimePort } from "@voyant-travel/quotes/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
+import { durableNotificationProviderPort } from "./durable-provider-port.js"
 import { bookingDocumentsSentEventPayloadSchema } from "./event-payload-schemas.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
 import { notificationsRuntimePort } from "./runtime-port.js"
@@ -21,6 +22,7 @@ export const notificationsVoyantModule = defineModule({
   runtimePorts: [
     requirePort(notificationsRuntimePort),
     requirePort(notificationsReminderJobRuntimePort),
+    requirePort(durableNotificationProviderPort, { optional: true }),
   ],
   provides: {
     capabilities: ["notifications.delivery"],
@@ -267,6 +269,12 @@ export const notificationsVoyantModule = defineModule({
       availability: {
         status: "unavailable",
         reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableNotificationProviderPort.id],
+          },
+        },
       },
       effectBoundary: "multistage",
       durability: {

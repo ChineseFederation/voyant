@@ -2,7 +2,7 @@ import { createContainer, createEventBus } from "@voyant-travel/core"
 import { assertPortConforms } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { describe, expect, it, vi } from "vitest"
-
+import { durableNotificationProviderPort } from "../../src/durable-provider-port.js"
 import {
   createNotificationsSubscribersVoyantRuntime,
   createNotificationsVoyantRuntime,
@@ -46,6 +46,120 @@ describe("Notifications runtime port", () => {
         resolveProviders: vi.fn(),
       } as never),
     ).rejects.toThrow(/resolveReminderJobRuntime/)
+  })
+
+  it("attests only a selected provider with behavioral restart evidence", async () => {
+    const accepted = new Map<
+      string,
+      { fingerprint: string; result: { provider: string; id: string } }
+    >()
+    const providerForProcess = () => ({
+      name: "durable-test",
+      channels: ["email"],
+      durableDelivery: {
+        protocol: "notification-provider-idempotency-v1" as const,
+        async send(payload: unknown, { idempotencyKey }: { idempotencyKey: string }) {
+          const fingerprint = JSON.stringify(payload)
+          const previous = accepted.get(idempotencyKey)
+          if (previous) {
+            if (previous.fingerprint !== fingerprint) throw new Error("payload drift")
+            return previous.result
+          }
+          const result = { provider: "durable-test", id: `accepted_${accepted.size + 1}` }
+          accepted.set(idempotencyKey, { fingerprint, result })
+          return result
+        },
+      },
+    })
+    const selected = providerForProcess()
+    await expect(
+      assertPortConforms(durableNotificationProviderPort, {
+        providers: [selected],
+        createIsolatedProbe: async () => ({
+          providers: [providerForProcess()],
+          restart: async () => [providerForProcess()],
+          acceptedCount: (_providerName: string, key: string) => (accepted.has(key) ? 1 : 0),
+        }),
+      }),
+    ).resolves.toBeUndefined()
+
+    let lieCount = 0
+    const liar = () => ({
+      ...selected,
+      durableDelivery: {
+        ...selected.durableDelivery,
+        async send() {
+          lieCount += 1
+          return { provider: "durable-test", id: `new_${lieCount}` }
+        },
+      },
+    })
+    await expect(
+      assertPortConforms(durableNotificationProviderPort, {
+        providers: [selected],
+        createIsolatedProbe: async () => ({
+          providers: [liar()],
+          restart: async () => [liar()],
+          acceptedCount: () => 1,
+        }),
+      }),
+    ).rejects.toThrow(/failed replay conformance/)
+
+    const swappedRuntime = {
+      providers: [selected],
+      async createIsolatedProbe() {
+        this.providers = [providerForProcess()]
+        return {
+          providers: [providerForProcess()],
+          restart: async () => [providerForProcess()],
+          acceptedCount: (_providerName: string, key: string) => (accepted.has(key) ? 1 : 0),
+        }
+      },
+    }
+    await expect(
+      assertPortConforms(durableNotificationProviderPort, swappedRuntime),
+    ).rejects.toThrow(/backend changed during conformance/)
+
+    await expect(
+      assertPortConforms(durableNotificationProviderPort, {
+        providers: [
+          {
+            name: "malformed-provider",
+            channels: ["email"],
+            durableDelivery: {
+              supported: false,
+              reason: "not durable",
+            },
+          },
+        ],
+        createIsolatedProbe: async () => {
+          throw new Error("malformed probe must not run")
+        },
+      } as never),
+    ).rejects.toThrow(/crash-safe idempotent send/)
+  })
+
+  it("rejects a probe that does not exercise the exact selected provider set", async () => {
+    const selected = {
+      name: "selected-email",
+      channels: ["email"],
+      durableDelivery: {
+        protocol: "notification-provider-idempotency-v1" as const,
+        async send() {
+          return { provider: "selected-email", id: "selected_1" }
+        },
+      },
+    }
+    await expect(
+      assertPortConforms(durableNotificationProviderPort, {
+        providers: [selected],
+        createIsolatedProbe: async () => ({
+          providers: [{ ...selected, name: "different-email" }],
+          restart: async () => [{ ...selected, name: "different-email" }],
+          acceptedCount: () => 1,
+        }),
+      }),
+    ).rejects.toThrow(/does not match the exact selected provider set/)
   })
 
   it("keeps module and selected subscriber services in their owning factories", async () => {

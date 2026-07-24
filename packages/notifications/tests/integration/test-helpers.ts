@@ -4,9 +4,14 @@ import { sql } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, vi } from "vitest"
 
-import { createLocalProvider } from "../../src/providers/local.js"
 import { createNotificationsRoutes } from "../../src/routes.js"
-import type { NotificationProvider } from "../../src/types.js"
+import { drainDurableNotificationSends } from "../../src/service-durable-send.js"
+import type {
+  DurableNotificationDeliveryContext,
+  NotificationPayload,
+  NotificationProvider,
+  NotificationResult,
+} from "../../src/types.js"
 
 export const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -15,18 +20,44 @@ export const json = (body: Record<string, unknown>) => ({
   body: JSON.stringify(body),
 })
 
+export function createTestDurableProvider(options: {
+  sink: (payload: NotificationPayload) => void
+  name?: string
+}): NotificationProvider {
+  const name = options.name ?? "local"
+  const accepted = new Map<string, NotificationResult>()
+  return {
+    name,
+    channels: ["email"],
+    defaultFromAddress: "local@example.test",
+    durableDelivery: {
+      protocol: "notification-provider-idempotency-v1",
+      async send(payload: NotificationPayload, context: DurableNotificationDeliveryContext) {
+        const previous = accepted.get(context.idempotencyKey)
+        if (previous) return previous
+        const result = { id: `${name}_${accepted.size + 1}`, provider: name }
+        options.sink(payload)
+        accepted.set(context.idempotencyKey, result)
+        return result
+      },
+    },
+  }
+}
+
 async function cleanupNotificationsTestData(
   // biome-ignore lint/suspicious/noExplicitAny: test db typing -- owner: notifications; existing suppression is intentional pending typed cleanup.
   db: any,
 ) {
   await db.execute(sql`
     TRUNCATE
+      event_outbox,
       notification_reminder_runs,
       notification_reminder_rule_authoring_requests,
       notification_reminder_stage_channels,
       notification_reminder_rule_stages,
       notification_reminder_rules,
       notification_settings,
+      notification_send_operations,
       notification_deliveries,
       notification_templates,
       payment_sessions,
@@ -48,6 +79,7 @@ export function createNotificationsTestContext(options?: {
   let app!: Hono
   let db!: ReturnType<typeof import("@voyant-travel/db/test-utils").createTestDb>
   const sink = vi.fn()
+  let providers: ReadonlyArray<NotificationProvider>
 
   beforeAll(async () => {
     const { createTestDb } = await import("@voyant-travel/db/test-utils")
@@ -57,6 +89,20 @@ export function createNotificationsTestContext(options?: {
       DO $$
       BEGIN
         CREATE TYPE notification_channel AS ENUM ('email', 'sms');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        CREATE TYPE notification_send_operation_status AS ENUM (
+          'pending',
+          'processing',
+          'retry',
+          'sent',
+          'dead_letter'
+        );
       EXCEPTION
         WHEN duplicate_object THEN NULL;
       END $$;
@@ -377,6 +423,41 @@ export function createNotificationsTestContext(options?: {
       )
     `)
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS notification_send_operations (
+        id text PRIMARY KEY NOT NULL,
+        command_scope text NOT NULL,
+        idempotency_key text NOT NULL,
+        request_fingerprint text NOT NULL,
+        claim_action_id text NOT NULL UNIQUE,
+        organization_id text,
+        target_type text NOT NULL,
+        target_id text NOT NULL,
+        delivery_id text NOT NULL,
+        provider text NOT NULL,
+        provider_idempotency_key text NOT NULL,
+        request_payload jsonb NOT NULL,
+        result_snapshot jsonb NOT NULL,
+        terminal_event jsonb,
+        status notification_send_operation_status NOT NULL DEFAULT 'pending',
+        attempts integer NOT NULL DEFAULT 0,
+        max_attempts integer NOT NULL DEFAULT 8,
+        next_attempt_at timestamp with time zone NOT NULL DEFAULT now(),
+        lease_expires_at timestamp with time zone,
+        last_error text,
+        completed_at timestamp with time zone,
+        created_at timestamp with time zone NOT NULL DEFAULT now(),
+        updated_at timestamp with time zone NOT NULL DEFAULT now()
+      )
+    `)
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS uidx_notification_send_operations_command
+        ON notification_send_operations (command_scope, idempotency_key)
+    `)
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS uidx_notification_send_operations_provider_key
+        ON notification_send_operations (provider, provider_idempotency_key)
+    `)
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS notification_reminder_rules (
         id text PRIMARY KEY NOT NULL,
         slug text NOT NULL UNIQUE,
@@ -493,6 +574,7 @@ export function createNotificationsTestContext(options?: {
     `)
     await cleanupNotificationsTestData(db)
 
+    providers = options?.providers ?? [createTestDurableProvider({ sink })]
     app = new Hono()
     app.use("*", async (c, next) => {
       c.set("db" as never, db)
@@ -501,7 +583,7 @@ export function createNotificationsTestContext(options?: {
     app.route(
       "/",
       createNotificationsRoutes({
-        providers: options?.providers ?? [createLocalProvider({ sink, channels: ["email"] })],
+        providers,
         eventBus: options?.eventBus,
       }),
     )
@@ -522,6 +604,7 @@ export function createNotificationsTestContext(options?: {
       return db
     },
     request: (path: string, init?: RequestInit) => app.request(path, init),
+    drain: () => drainDurableNotificationSends(db, providers),
     sink,
   }
 }

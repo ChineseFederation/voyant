@@ -116,11 +116,13 @@ export interface CheckoutNotificationDispatcher {
     db: PostgresJsDatabase,
     invoiceId: string,
     input: CheckoutInvoiceNotificationInput,
+    options?: { paymentLinkBaseUrl?: string | null },
   ) => Promise<CheckoutNotificationDelivery | null>
   sendPaymentSessionNotification?: (
     db: PostgresJsDatabase,
     paymentSessionId: string,
     input: CheckoutPaymentSessionNotificationInput,
+    options?: { paymentLinkBaseUrl?: string | null },
   ) => Promise<CheckoutNotificationDelivery | null>
 }
 

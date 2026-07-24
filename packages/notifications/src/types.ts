@@ -71,40 +71,25 @@ export interface DurableNotificationDeliveryContext {
   idempotencyKey: string
 }
 
-export type DurableNotificationDeliveryCapability =
-  | {
-      supported: false
-      reason: string
-    }
-  | {
-      supported: true
-      protocol: "notification-provider-idempotency-v1"
-      /**
-       * Deliver once for this key. Repeating the same key and payload must
-       * return the original provider result; key reuse with drift must reject.
-       */
-      send(
-        payload: NotificationPayload,
-        context: DurableNotificationDeliveryContext,
-      ): Promise<NotificationResult>
-      /**
-       * Resolve an already accepted send after an ambiguous worker crash.
-       * Returns null only when the provider can prove the key was not accepted.
-       */
-      reconcile(context: DurableNotificationDeliveryContext): Promise<NotificationResult | null>
-    }
+export interface DurableNotificationDeliveryCapability {
+  readonly protocol: "notification-provider-idempotency-v1"
+  /**
+   * Deliver once for this key. Repeating the same key and payload must return
+   * the original provider result; key reuse with drift must reject.
+   */
+  send(
+    payload: NotificationPayload,
+    context: DurableNotificationDeliveryContext,
+  ): Promise<NotificationResult>
+}
 
 /**
  * A pluggable notification provider. Implementations target one or more
  * channels and handle the actual delivery (HTTP call, SMTP, etc.).
  *
- * Built-in implementations:
- * - `createLocalProvider` — logs to console (dev/tests)
- * - `createVoyantCloudEmailProvider` — Voyant Cloud email API
- * - `createVoyantCloudSmsProvider` — Voyant Cloud SMS API
- *
- * Self-hosters who want to deliver via a different provider (raw Resend,
- * Twilio, SES, …) can implement this interface in their template.
+ * Provider packages implement this contract and expose it through the selected
+ * `notifications.durable-provider` graph port. Notifications ships no
+ * request-scoped or transport-specific provider implementation.
  */
 export interface NotificationProvider {
   /** Unique provider name (e.g. "resend", "local", "twilio"). */
@@ -117,13 +102,6 @@ export interface NotificationProvider {
    * sender before dispatch.
    */
   readonly defaultFromAddress?: string | null
-  /**
-   * Explicit durable-send capability. Providers that omit it, or declare
-   * `supported: false`, remain valid for request-scoped application sends but
-   * are rejected by the agent send command before any durable intent is
-   * admitted.
-   */
-  readonly durableDelivery?: DurableNotificationDeliveryCapability
-  /** Deliver the notification. Throws on failure. */
-  send(payload: NotificationPayload): Promise<NotificationResult>
+  /** The only delivery mutation. Missing or malformed implementations fail closed. */
+  readonly durableDelivery: DurableNotificationDeliveryCapability
 }

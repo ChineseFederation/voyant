@@ -18,7 +18,6 @@ import {
   listDeliveries,
   resendDelivery,
   sendInvoiceNotification,
-  sendNotification,
   sendPaymentSessionNotification,
 } from "./service-deliveries.js"
 import { composeNotificationReminderRule } from "./service-reminder-authoring.js"
@@ -66,7 +65,6 @@ export const notificationsService = {
   listDeliveries,
   getDeliveryById,
   resendDelivery,
-  sendNotification,
   listReminderRules,
   getReminderRuleById,
   getReminderRunById,

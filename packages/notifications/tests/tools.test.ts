@@ -3,13 +3,12 @@ import {
   type ToolContext,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   type NotificationsToolServices,
   notificationsTools,
   SEND_NOTIFICATION_HANDLER_POLICY,
-  sendNotificationTool,
 } from "../src/tools.js"
 
 const occurredAt = new Date("2026-07-15T10:00:00.000Z")
@@ -93,62 +92,51 @@ function sendActionPolicy(): ToolHandlerActionPolicyContext {
 }
 
 describe("notifications tools", () => {
-  it("registers read tools (notifications:read) + a constrained send (notifications:send)", () => {
+  it("registers the template-only v2 send Tool without raw content fields", () => {
     const registry = createToolRegistry()
     registry.registerAll(notificationsTools)
     const list = registry.list()
-    expect(list.map((t) => t.name).sort()).toEqual([
+    expect(list.map((tool) => tool.name).sort()).toEqual([
       "get_notification_delivery",
       "list_notification_deliveries",
       "send_notification",
     ])
-    const send = list.find((t) => t.name === "send_notification")
-    expect(send?.tier).toBe("destructive")
-    expect(send?.capabilityVersion).toBe("v2")
-    expect(send?.requiredScopes).toEqual(["notifications:send"])
-    expect(send?.riskPolicy).toMatchObject({ destructive: true, confirmationRequired: true })
-    expect(sendNotificationTool.actionPolicyEnforcement).toBe("handler")
-    // The send tool must NOT accept arbitrary content — only a vetted template slug.
-    const props = (send?.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}
-    expect(props).toHaveProperty("templateSlug")
-    expect(props).not.toHaveProperty("html")
-    expect(props).not.toHaveProperty("subject")
-    for (const t of list.filter((x) => x.name !== "send_notification")) {
+    const send = list.find(({ name }) => name === "send_notification")
+    expect(send).toMatchObject({
+      capabilityVersion: "v2",
+      tier: "destructive",
+      requiredScopes: ["notifications:send"],
+    })
+    const properties =
+      (send?.inputSchema as { properties?: Record<string, unknown> }).properties ?? {}
+    expect(properties).toHaveProperty("templateSlug")
+    expect(properties).not.toHaveProperty("subject")
+    expect(properties).not.toHaveProperty("html")
+    expect(properties).not.toHaveProperty("text")
+    for (const t of list.filter(({ name }) => name !== "send_notification")) {
       expect(t.tier).toBe("read")
       expect(t.requiredScopes).toEqual(["notifications:read"])
     }
   })
 
-  it("sends only through the injected template dispatcher", async () => {
+  it("dispatches sends only through the admitted template service", async () => {
     const registry = createToolRegistry()
     registry.registerAll(notificationsTools)
-    let sent: unknown
+    const sendTemplated = vi.fn(async () => delivery({ id: "ndl_9", status: "pending" }))
     const result = await registry.dispatch(
       "send_notification",
-      {
-        templateSlug: "booking-confirmed",
-        to: "guest@example.com",
-        bookingId: "bk_1",
-      },
+      { templateSlug: "booking-confirmed", to: "guest@example.com" },
       ctx({
-        async listDeliveries() {
-          return { data: [], total: 0, limit: 50, offset: 0 }
-        },
-        async getDeliveryById() {
-          return null
-        },
-        async sendTemplated(input, admitted) {
-          sent = input
-          expect(admitted.actionPolicy).toMatchObject(SEND_NOTIFICATION_HANDLER_POLICY.actionPolicy)
-          return delivery({ id: "ndl_9" })
-        },
+        listDeliveries: async () => ({ data: [], total: 0, limit: 50, offset: 0 }),
+        getDeliveryById: async () => null,
+        sendTemplated,
       }),
     )
-    expect(result).toMatchObject({ id: "ndl_9", status: "sent" })
-    expect(sent).toMatchObject({
-      templateSlug: "booking-confirmed",
-      to: "guest@example.com",
-    })
+    expect(result).toMatchObject({ id: "ndl_9", status: "pending" })
+    expect(sendTemplated).toHaveBeenCalledWith(
+      { templateSlug: "booking-confirmed", to: "guest@example.com" },
+      expect.objectContaining({ capabilityVersion: "v2" }),
+    )
   })
 
   it("dispatches delivery reads through the injected service", async () => {

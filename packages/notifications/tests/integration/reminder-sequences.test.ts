@@ -26,8 +26,8 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
 
     // Seed a booking + traveler + open payment schedule due 2026-04-10.
     await ctx.db.execute(sql`
-      INSERT INTO bookings (id, booking_number, person_id, sell_currency, sell_amount_cents, start_date)
-      VALUES ('book_seq_1', 'BK-SEQ-1', 'person_seq_1', 'EUR', 45000, DATE '2026-05-01')
+      INSERT INTO bookings (id, booking_number, person_id, status, sell_currency, sell_amount_cents, start_date)
+      VALUES ('book_seq_1', 'BK-SEQ-1', 'person_seq_1', 'awaiting_payment', 'EUR', 45000, DATE '2026-05-01')
     `)
     await ctx.db.execute(sql`
       INSERT INTO booking_travelers (id, booking_id, first_name, last_name, email, participant_type, is_primary)
@@ -92,7 +92,9 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
     expect(firstRes.status).toBe(200)
     const firstBody = await firstRes.json()
     expect(firstBody.data.processed).toBe(1)
-    expect(firstBody.data.sent).toBe(1)
+    expect(firstBody.data.sent).toBe(0)
+    expect(ctx.sink).not.toHaveBeenCalled()
+    await expect(ctx.drain()).resolves.toMatchObject({ sent: 1 })
     expect(ctx.sink).toHaveBeenCalledOnce()
     const sinkPayload = ctx.sink.mock.calls[0]?.[0] as { to?: string } | undefined
     expect(sinkPayload?.to).toBe("ana@example.com")
@@ -159,6 +161,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
         booking_number,
         person_id,
         organization_id,
+        status,
         sell_currency,
         sell_amount_cents,
         start_date,
@@ -169,6 +172,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
         'BK-CTX-1',
         'person_seq_context_1',
         'org_seq_context_1',
+        'awaiting_payment',
         'EUR',
         45000,
         DATE '2026-05-01',
@@ -234,7 +238,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
         'book_seq_context_1',
         'person_seq_context_1',
         'org_seq_context_1',
-        'sent',
+        'issued',
         'EUR',
         45000,
         0,
@@ -272,7 +276,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
         'netopia',
         'EUR',
         18000,
-        'card',
+        'credit_card',
         'https://pay.example.com/session/pmss_seq_context_1',
         'PAY-CTX-1'
       )
@@ -325,8 +329,10 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
     expect(sweepRes.status).toBe(200)
     const body = await sweepRes.json()
     expect(body.data.processed).toBe(1)
-    expect(body.data.sent).toBe(1)
+    expect(body.data.sent).toBe(0)
+    expect(ctx.sink).not.toHaveBeenCalled()
 
+    await ctx.drain()
     expect(ctx.sink).toHaveBeenCalledOnce()
     const sinkPayload = ctx.sink.mock.calls[0]?.[0] as
       | { subject?: string; text?: string; data?: Record<string, unknown> }

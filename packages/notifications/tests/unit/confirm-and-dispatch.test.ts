@@ -3,11 +3,16 @@ import { describe, expect, it } from "vitest"
 import {
   confirmAndDispatchBookingResultSchema,
   confirmAndDispatchBookingSchema,
+  sendInvoiceNotificationSchema,
+  sendPaymentSessionNotificationSchema,
 } from "../../src/validation.js"
 
 describe("confirmAndDispatchBookingSchema", () => {
   it("defaults sendNotification to true so the happy path is one-shot", () => {
-    const result = confirmAndDispatchBookingSchema.parse({})
+    const result = confirmAndDispatchBookingSchema.parse({
+      idempotencyKey: "booking-confirm-1",
+      templateSlug: "booking-confirmation",
+    })
     expect(result.sendNotification).toBe(true)
   })
 
@@ -18,14 +23,49 @@ describe("confirmAndDispatchBookingSchema", () => {
 
   it("forwards the underlying send-documents fields", () => {
     const result = confirmAndDispatchBookingSchema.parse({
+      idempotencyKey: "booking-confirm-2",
       templateSlug: "booking-confirmation",
       documentTypes: ["invoice", "contract"],
-      subject: "Your booking is confirmed",
-      to: "traveler@example.com",
     })
     expect(result.templateSlug).toBe("booking-confirmation")
     expect(result.documentTypes).toEqual(["invoice", "contract"])
-    expect(result.subject).toBe("Your booking is confirmed")
+    expect(result).not.toHaveProperty("subject")
+    expect(result).not.toHaveProperty("to")
+  })
+})
+
+describe("domain notification mutation schemas", () => {
+  it.each([
+    sendPaymentSessionNotificationSchema,
+    sendInvoiceNotificationSchema,
+  ])("accepts only a template-backed durable command", (schema) => {
+    const parsed = schema.parse({
+      idempotencyKey: "domain-notification-1",
+      templateSlug: "payment-reminder",
+    })
+    expect(parsed).toEqual({
+      idempotencyKey: "domain-notification-1",
+      templateSlug: "payment-reminder",
+    })
+    expect(() =>
+      schema.parse({
+        idempotencyKey: "domain-notification-1",
+        templateSlug: "payment-reminder",
+        provider: "caller-provider",
+        to: "arbitrary@example.test",
+        subject: "caller-controlled subject",
+        html: "<p>caller-controlled content</p>",
+        text: "caller-controlled content",
+      }),
+    ).toThrow()
+  })
+
+  it("requires a template selector", () => {
+    expect(() =>
+      sendPaymentSessionNotificationSchema.parse({
+        idempotencyKey: "domain-notification-2",
+      }),
+    ).toThrow("templateId or templateSlug is required")
   })
 })
 

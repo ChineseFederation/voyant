@@ -128,25 +128,6 @@ const echoTool = defineTool({
   },
 })
 
-const sendNotificationTool = defineTool({
-  name: "send_notification",
-  description: "Send a templated notification.",
-  inputSchema: z.object({ templateSlug: z.string(), to: z.string() }),
-  outputSchema: z.custom<{ ok: boolean }>(),
-  requiredScopes: ["notifications:send"],
-  tier: "destructive",
-  riskPolicy: {
-    destructive: true,
-    reversible: false,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["email"],
-  },
-  async handler() {
-    return { ok: true }
-  },
-})
-
 const updateRecordTool = defineTool({
   name: "update_record",
   description: "Update a record through a composed input contract.",
@@ -407,7 +388,6 @@ function conditionalFrameworkRuntime() {
 function appWithScopes(scopes: string[], audience: ToolContext["audience"] = "staff"): Hono {
   const registry = createToolRegistry()
   registry.register(echoTool)
-  registry.register(sendNotificationTool)
   registry.register(updateRecordTool)
   registry.register(getSensitiveRecordTool)
   const mcp = createMcpApiRoutes({
@@ -1058,41 +1038,22 @@ describe("createMcpApiRoutes", () => {
     expect(deniedBody.tools.map((t) => t.name)).not.toContain("echo")
   })
 
-  it("requires an exact notifications:send grant for destructive notification tools", async () => {
-    for (const scopes of [["*"], ["notifications:*"], ["*:send"]]) {
+  it("does not expose the removed raw notification mutation through MCP", async () => {
+    for (const scopes of [["*"], ["notifications:*"], ["*:send"], ["notifications:send"]]) {
       const listed = await readRpc(await appWithScopes(scopes).request("/", rpc("tools/list", {})))
       const tools = (listed.result as { tools?: Array<{ name: string }> } | undefined)?.tools ?? []
       expect(tools.map((t) => t.name)).not.toContain("send_notification")
+      const called = await readRpc(
+        await appWithScopes(scopes).request(
+          "/",
+          rpc("tools/call", {
+            name: "send_notification",
+            arguments: { templateSlug: "booking-confirmed", to: "customer@example.test" },
+          }),
+        ),
+      )
+      expect(called.error ?? (called.result as { isError?: boolean })?.isError).toBeTruthy()
     }
-
-    const authorized = await readRpc(
-      await appWithScopes(["notifications:send"]).request("/", rpc("tools/list", {})),
-    )
-    const tools =
-      (
-        authorized.result as
-          | {
-              tools?: Array<{ name: string; outputSchema?: Record<string, unknown> }>
-            }
-          | undefined
-      )?.tools ?? []
-    expect(tools.map((t) => t.name)).toContain("send_notification")
-    expect(tools.find((tool) => tool.name === "send_notification")?.outputSchema).toMatchObject({
-      type: "object",
-      properties: { result: {} },
-      required: ["result"],
-    })
-
-    const called = await readRpc(
-      await appWithScopes(["notifications:send"]).request(
-        "/",
-        rpc("tools/call", {
-          name: "send_notification",
-          arguments: { templateSlug: "booking-confirmed", to: "customer@example.test" },
-        }),
-      ),
-    )
-    expect(called.result).toMatchObject({ structuredContent: { result: { ok: true } } })
   })
 
   it("preserves composed object inputs and applies the same nullable output envelope to schema and data", async () => {

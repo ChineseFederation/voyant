@@ -27,6 +27,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder payment template context", () => {
         id,
         booking_number,
         person_id,
+        status,
         sell_currency,
         sell_amount_cents,
         start_date
@@ -35,6 +36,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder payment template context", () => {
         'book_payment_context_fallback_1',
         'BK-FALLBACK-1',
         'person_payment_context_fallback_1',
+        'awaiting_payment',
         'EUR',
         50000,
         DATE '2026-05-01'
@@ -110,7 +112,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder payment template context", () => {
           'netopia',
           'EUR',
           50000,
-          'card',
+          'credit_card',
           'https://pay.example.com/session/booking-level',
           'PAY-FALLBACK-BOOKING'
         ),
@@ -124,7 +126,7 @@ describe.skipIf(!DB_AVAILABLE)("Reminder payment template context", () => {
           'netopia',
           'EUR',
           32000,
-          'card',
+          'credit_card',
           'https://pay.example.com/session/wrong-schedule',
           'PAY-FALLBACK-WRONG'
         )
@@ -177,7 +179,10 @@ describe.skipIf(!DB_AVAILABLE)("Reminder payment template context", () => {
     expect(sweepRes.status).toBe(200)
     const body = await sweepRes.json()
     expect(body.data.processed).toBe(1)
-    expect(body.data.sent).toBe(1)
+    expect(body.data.sent).toBe(0)
+    expect(ctx.sink).not.toHaveBeenCalled()
+
+    await ctx.drain()
 
     const sinkPayload = ctx.sink.mock.calls[0]?.[0] as
       | { text?: string; data?: Record<string, unknown> }

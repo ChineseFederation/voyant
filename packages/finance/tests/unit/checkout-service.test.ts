@@ -80,7 +80,7 @@ describe("finance checkout service", () => {
     )
   })
 
-  it("prefers the deployment-selected payment adapter over a legacy provider hint", async () => {
+  it("uses only the deployment-selected payment adapter", async () => {
     const db = createCheckoutDb({ insertedInvoices: [] })
     const paymentSession = {
       id: "ps_selected",
@@ -110,7 +110,6 @@ describe("finance checkout service", () => {
         method: "card",
         stage: "initial",
         startProvider: {
-          provider: "netopia",
           payload: {
             billing: {
               email: "traveler@example.com",
@@ -197,7 +196,7 @@ describe("finance checkout service", () => {
     expect(select).not.toHaveBeenCalled()
   })
 
-  it("allows provider-qualified card starts to use legacy keyed starters", async () => {
+  it("does not use keyed starters without a selected adapter", async () => {
     const db = createCheckoutDb({ insertedInvoices: [] })
     const paymentSession = {
       id: "ps_legacy",
@@ -219,29 +218,30 @@ describe("finance checkout service", () => {
     )
     vi.spyOn(financeService, "getPaymentSessionById").mockResolvedValue(paymentSession as never)
 
-    await initiateCheckoutCollection(
-      db as never,
-      "booking_123",
-      {
-        method: "card",
-        stage: "initial",
-        startProvider: {
-          provider: "netopia",
-          payload: {
-            billing: {
-              email: "traveler@example.com",
-              firstName: "Ana",
+    await expect(
+      initiateCheckoutCollection(
+        db as never,
+        "booking_123",
+        {
+          method: "card",
+          stage: "initial",
+          startProvider: {
+            payload: {
+              billing: {
+                email: "traveler@example.com",
+                firstName: "Ana",
+              },
             },
           },
         },
-      },
-      {},
-      {
-        paymentStarters: { netopia: legacyPaymentStarter },
-      },
-    )
+        {},
+        {
+          paymentStarters: { netopia: legacyPaymentStarter },
+        },
+      ),
+    ).rejects.toThrow("No payment adapter is selected for card collection")
 
-    expect(legacyPaymentStarter).toHaveBeenCalledOnce()
+    expect(legacyPaymentStarter).not.toHaveBeenCalled()
   })
 
   it("keeps base paid cents null when creating a collection invoice without base currency", async () => {

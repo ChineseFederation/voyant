@@ -1,11 +1,10 @@
 import { bookings } from "@voyant-travel/bookings/schema"
-import type { EventBus } from "@voyant-travel/core"
 import { invoiceRenditions, invoices } from "@voyant-travel/finance/schema"
 import { contractAttachments, contracts } from "@voyant-travel/legal/schema"
 import { and, desc, eq, ne, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { sendNotification } from "./service-deliveries.js"
+import { enqueueNotification } from "./service-durable-send.js"
 import type {
   BookingDocumentBundleItem,
   NotificationService,
@@ -14,6 +13,7 @@ import type {
 import {
   listBookingNotificationItems,
   listBookingNotificationParticipants,
+  NotificationError,
   resolveReminderRecipient,
 } from "./service-shared.js"
 import type { NotificationAttachment } from "./types.js"
@@ -24,7 +24,6 @@ export type BookingDocumentAttachmentResolver = (
 
 export interface SendBookingDocumentsRuntimeOptions {
   attachmentResolver?: BookingDocumentAttachmentResolver
-  eventBus?: EventBus
 }
 
 export interface BookingDocumentsSentEvent {
@@ -71,21 +70,6 @@ function createDefaultAttachmentFromDocument(
     filename: document.name,
     path: document.downloadUrl,
     contentType: document.mimeType ?? undefined,
-  }
-}
-
-function buildDefaultDocumentMessage(
-  booking: typeof bookings.$inferSelect,
-  documents: ReadonlyArray<BookingDocumentBundleItem>,
-) {
-  const label = booking.bookingNumber || booking.id
-  const listText = documents.map((document) => `- ${document.name}`).join("\n")
-  const listHtml = documents.map((document) => `<li>${document.name}</li>`).join("")
-
-  return {
-    subject: `Booking ${label} documents`,
-    text: `Your booking documents are attached.\n\nBooking: ${label}\n\n${listText}`,
-    html: `<p>Your booking documents are attached.</p><p><strong>Booking:</strong> ${label}</p><ul>${listHtml}</ul>`,
   }
 }
 
@@ -285,6 +269,9 @@ export const bookingDocumentNotificationsService = {
     if (!booking) {
       return { status: "not_found" as const }
     }
+    if (!input.templateId && !input.templateSlug) {
+      throw new NotificationError("A vetted notification template is required")
+    }
 
     const bundle = await this.listBookingDocumentBundle(db, bookingId)
     const requestedTypes = new Set(input.documentTypes ?? ["contract", "invoice", "proforma"])
@@ -301,7 +288,7 @@ export const bookingDocumentNotificationsService = {
       listBookingNotificationItems(db, bookingId),
     ])
     const recipient = resolveReminderRecipient(booking, participants)
-    const to = input.to ?? recipient?.email ?? null
+    const to = recipient?.email ?? null
     if (!to) {
       return { status: "no_recipient" as const }
     }
@@ -318,76 +305,65 @@ export const bookingDocumentNotificationsService = {
       return { status: "no_attachments" as const }
     }
 
-    const defaults = buildDefaultDocumentMessage(booking, documents)
-
-    const delivery = await sendNotification(db, dispatcher, {
-      templateId: input.templateId ?? null,
-      templateSlug: input.templateSlug ?? null,
-      channel: "email",
-      provider: input.provider ?? null,
-      to,
-      from: input.from ?? null,
-      subject: input.subject ?? defaults.subject,
-      html: input.html ?? defaults.html,
-      text: input.text ?? defaults.text,
-      attachments,
-      data: {
-        booking: {
-          id: booking.id,
-          bookingNumber: booking.bookingNumber,
-          status: booking.status,
-          sellCurrency: booking.sellCurrency,
-          sellAmountCents: booking.sellAmountCents,
-          startDate: booking.startDate,
-          endDate: booking.endDate,
+    const delivery = await enqueueNotification({
+      db,
+      registry: dispatcher,
+      input: {
+        idempotencyKey: input.idempotencyKey,
+        templateId: input.templateId ?? null,
+        templateSlug: input.templateSlug ?? null,
+        channel: "email",
+        to,
+        attachments,
+        data: {
+          booking: {
+            id: booking.id,
+            bookingNumber: booking.bookingNumber,
+            status: booking.status,
+            sellCurrency: booking.sellCurrency,
+            sellAmountCents: booking.sellAmountCents,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+          },
+          traveler: recipient
+            ? {
+                firstName: recipient.firstName,
+                lastName: recipient.lastName,
+                email: recipient.email,
+                participantType: recipient.participantType,
+                isPrimary: recipient.isPrimary,
+              }
+            : null,
+          travelers: participants,
+          documents,
+          items,
         },
-        traveler: recipient
-          ? {
-              firstName: recipient.firstName,
-              lastName: recipient.lastName,
-              email: recipient.email,
-              participantType: recipient.participantType,
-              isPrimary: recipient.isPrimary,
-            }
-          : null,
-        travelers: participants,
-        documents,
-        items,
-        ...(input.data ?? {}),
+        targetType: "booking",
+        targetId: booking.id,
+        bookingId: booking.id,
+        personId: booking.personId ?? null,
+        organizationId: booking.organizationId ?? null,
+        metadata: {
+          bookingDocumentKeys: documents.map((document) => document.key),
+        },
+        scheduledFor: input.scheduledFor ?? null,
+        terminalEvent: {
+          name: "booking.documents.sent",
+          data: {
+            bookingId: booking.id,
+            recipient: to,
+            documentKeys: documents.map((document) => document.key),
+          },
+        },
       },
-      targetType: "booking",
-      targetId: booking.id,
-      bookingId: booking.id,
-      personId: booking.personId ?? null,
-      organizationId: booking.organizationId ?? null,
-      metadata: {
-        bookingDocumentKeys: documents.map((document) => document.key),
-        ...(input.metadata ?? {}),
-      },
-      scheduledFor: input.scheduledFor ?? null,
     })
 
     if (!delivery) {
       return { status: "send_failed" as const }
     }
 
-    await runtime.eventBus?.emit(
-      "booking.documents.sent",
-      {
-        bookingId: booking.id,
-        recipient: to,
-        deliveryId: delivery.id,
-        provider: delivery.provider ?? null,
-        documentKeys: documents.map((document) => document.key),
-      } satisfies BookingDocumentsSentEvent,
-      {
-        category: "domain",
-        source: "service",
-      },
-    )
-
     return {
-      status: "sent" as const,
+      status: "pending" as const,
       bookingId: booking.id,
       recipient: to,
       documents,
@@ -411,7 +387,12 @@ export const bookingDocumentNotificationsService = {
     db: PostgresJsDatabase,
     dispatcher: NotificationService,
     bookingId: string,
-    input: { sendNotification?: boolean } & SendBookingDocumentsNotificationInput,
+    input:
+      | {
+          sendNotification: false
+          documentTypes?: SendBookingDocumentsNotificationInput["documentTypes"]
+        }
+      | ({ sendNotification?: true } & SendBookingDocumentsNotificationInput),
     runtime: SendBookingDocumentsRuntimeOptions = {},
   ) {
     const bundle = await this.listBookingDocumentBundle(db, bookingId)
@@ -431,7 +412,7 @@ export const bookingDocumentNotificationsService = {
       db,
       dispatcher,
       bookingId,
-      input,
+      input as SendBookingDocumentsNotificationInput,
       runtime,
     )
 
@@ -439,7 +420,7 @@ export const bookingDocumentNotificationsService = {
       return { status: "not_found" as const }
     }
 
-    if (result.status !== "sent") {
+    if (result.status !== "pending") {
       return {
         status: "skipped" as const,
         bookingId,

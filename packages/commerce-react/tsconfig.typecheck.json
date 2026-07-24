@@ -1336,16 +1336,10 @@
         "../notifications-react/dist/query-keys.d.ts"
       ],
       "@voyant-travel/notifications-react/ui": ["../notifications-react/dist/ui.d.ts"],
+      "@voyant-travel/notifications/durable-provider-port": [
+        "../notifications/dist/durable-provider-port.d.ts"
+      ],
       "@voyant-travel/notifications/job-runtime": ["../notifications/dist/job-runtime.d.ts"],
-      "@voyant-travel/notifications/providers/local": [
-        "../notifications/dist/providers/local.d.ts"
-      ],
-      "@voyant-travel/notifications/providers/voyant-cloud-email": [
-        "../notifications/dist/providers/voyant-cloud-email.d.ts"
-      ],
-      "@voyant-travel/notifications/providers/voyant-cloud-sms": [
-        "../notifications/dist/providers/voyant-cloud-sms.d.ts"
-      ],
       "@voyant-travel/notifications/reminder-job": ["../notifications/dist/reminder-job.d.ts"],
       "@voyant-travel/notifications/routes": ["../notifications/dist/routes.d.ts"],
       "@voyant-travel/notifications/runtime-contributor": [
@@ -1353,7 +1347,6 @@
       ],
       "@voyant-travel/notifications/runtime-port": ["../notifications/dist/runtime-port.d.ts"],
       "@voyant-travel/notifications/schema": ["../notifications/dist/schema.d.ts"],
-      "@voyant-travel/notifications/service": ["../notifications/dist/service.d.ts"],
       "@voyant-travel/notifications/subscriber-runtime": [
         "../notifications/dist/subscriber-runtime.d.ts"
       ],

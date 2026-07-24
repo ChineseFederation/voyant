@@ -2,7 +2,12 @@ import { sql } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
 
 import { queryRows } from "./reminder-test-helpers"
-import { createNotificationsTestContext, DB_AVAILABLE, json } from "./test-helpers"
+import {
+  createNotificationsTestContext,
+  createTestDurableProvider,
+  DB_AVAILABLE,
+  json,
+} from "./test-helpers"
 
 describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
   const ctx = createNotificationsTestContext()
@@ -40,8 +45,8 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     const { data: stageChannelTpl } = await stageChannelTplRes.json()
 
     await ctx.db.execute(sql`
-      INSERT INTO bookings (id, booking_number, person_id, sell_currency, sell_amount_cents)
-      VALUES ('book_q_1', 'BK-Q-1', 'person_q_1', 'EUR', 30000)
+      INSERT INTO bookings (id, booking_number, person_id, status, sell_currency, sell_amount_cents)
+      VALUES ('book_q_1', 'BK-Q-1', 'person_q_1', 'awaiting_payment', 'EUR', 30000)
     `)
     await ctx.db.execute(sql`
       INSERT INTO booking_travelers (id, booking_id, first_name, last_name, email, participant_type, is_primary)
@@ -94,7 +99,6 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
 
     const { queueDueReminders, deliverReminderRun } = await import("../../src/service-reminders.js")
     const { createNotificationService } = await import("../../src/service.js")
-    const { createLocalProvider } = await import("../../src/providers/local.js")
 
     const enqueued: { reminderRunId: string }[] = []
     const queueResult = await queueDueReminders(
@@ -118,16 +122,19 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     expect(queuedMeta.stageChannelId).toBeTruthy()
 
     const recordedSends: Array<Record<string, unknown>> = []
-    const localDispatcher = createNotificationService([
-      createLocalProvider({
-        sink: (payload) => recordedSends.push(payload as Record<string, unknown>),
-        channels: ["email"],
-      }),
-    ])
+    const { drainDurableNotificationSends } = await import("../../src/service-durable-send.js")
+    const localProvider = createTestDurableProvider({
+      sink: (payload) => recordedSends.push(payload as Record<string, unknown>),
+    })
+    const localDispatcher = createNotificationService([localProvider])
     const delivered = await deliverReminderRun(ctx.db as never, localDispatcher, {
       reminderRunId: enqueued[0]!.reminderRunId,
     })
-    expect(delivered?.status).toBe("sent")
+    expect(delivered?.status).toBe("queued")
+    expect(recordedSends).toHaveLength(0)
+
+    await drainDurableNotificationSends(ctx.db, [localProvider])
+
     expect(recordedSends).toHaveLength(1)
     const sent = recordedSends[0]!
     expect(sent.subject).toContain("Stage payment due")
@@ -197,12 +204,10 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
 
     const { deliverReminderRun } = await import("../../src/service-reminders.js")
     const { createNotificationService } = await import("../../src/service.js")
-    const { createLocalProvider } = await import("../../src/providers/local.js")
     const recordedSends: Array<Record<string, unknown>> = []
     const localDispatcher = createNotificationService([
-      createLocalProvider({
+      createTestDurableProvider({
         sink: (payload) => recordedSends.push(payload as Record<string, unknown>),
-        channels: ["email"],
       }),
     ])
 
@@ -231,8 +236,8 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     const { data: template } = await tmplRes.json()
 
     await ctx.db.execute(sql`
-      INSERT INTO bookings (id, booking_number, person_id, sell_currency, sell_amount_cents, start_date)
-      VALUES ('book_failed_retry_1', 'BK-FAILED-RETRY-1', 'person_failed_retry_1', 'EUR', 45000, DATE '2026-05-01')
+      INSERT INTO bookings (id, booking_number, person_id, status, sell_currency, sell_amount_cents, start_date)
+      VALUES ('book_failed_retry_1', 'BK-FAILED-RETRY-1', 'person_failed_retry_1', 'awaiting_payment', 'EUR', 45000, DATE '2026-05-01')
     `)
     await ctx.db.execute(sql`
       INSERT INTO booking_travelers (id, booking_id, first_name, last_name, email, participant_type, is_primary)
@@ -279,7 +284,7 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
       ...json({
         orderIndex: 0,
         channel: "email",
-        provider: "voyant-cloud-email",
+        provider: "unselected-external-email",
         templateId: template.id,
         recipientKind: "primary",
       }),
@@ -287,7 +292,6 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
 
     const { queueDueReminders, deliverReminderRun } = await import("../../src/service-reminders.js")
     const { createNotificationService } = await import("../../src/service.js")
-    const { createLocalProvider } = await import("../../src/providers/local.js")
 
     const enqueued: { reminderRunId: string }[] = []
     const firstQueue = await queueDueReminders(
@@ -302,14 +306,14 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     expect(enqueued).toHaveLength(1)
 
     const localDispatcher = createNotificationService([
-      createLocalProvider({ sink: () => undefined, channels: ["email"] }),
+      createTestDurableProvider({ sink: () => undefined }),
     ])
     const failed = await deliverReminderRun(ctx.db as never, localDispatcher, {
       reminderRunId: enqueued[0]!.reminderRunId,
     })
     expect(failed?.status).toBe("failed")
     expect(failed?.errorMessage).toContain(
-      'No notification provider registered with name "voyant-cloud-email"',
+      'No notification provider registered with name "unselected-external-email"',
     )
 
     const sameDayQueue = await queueDueReminders(

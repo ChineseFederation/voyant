@@ -10,15 +10,12 @@
     "./template-authoring": "./src/template-authoring.ts",
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
-    "./service": "./src/service.ts",
     "./tasks": "./src/tasks/index.ts",
     "./reminder-job": "./src/reminder-job.ts",
     "./job-runtime": "./src/job-runtime.ts",
     "./runtime-port": "./src/runtime-port.ts",
+    "./durable-provider-port": "./src/durable-provider-port.ts",
     "./subscriber-runtime": "./src/subscriber-runtime.ts",
-    "./providers/local": "./src/providers/local.ts",
-    "./providers/voyant-cloud-email": "./src/providers/voyant-cloud-email.ts",
-    "./providers/voyant-cloud-sms": "./src/providers/voyant-cloud-sms.ts",
     "./tools": "./src/mcp-runtime.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./voyant": "./src/voyant.ts",
@@ -37,7 +34,6 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
-    "@voyant-travel/cloud-sdk": "^0.11.0",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/types": "workspace:^",
@@ -97,11 +93,6 @@
         "import": "./dist/routes.js",
         "default": "./dist/routes.js"
       },
-      "./service": {
-        "types": "./dist/service.d.ts",
-        "import": "./dist/service.js",
-        "default": "./dist/service.js"
-      },
       "./tasks": {
         "types": "./dist/tasks/index.d.ts",
         "import": "./dist/tasks/index.js",
@@ -122,25 +113,15 @@
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
       },
+      "./durable-provider-port": {
+        "types": "./dist/durable-provider-port.d.ts",
+        "import": "./dist/durable-provider-port.js",
+        "default": "./dist/durable-provider-port.js"
+      },
       "./subscriber-runtime": {
         "types": "./dist/subscriber-runtime.d.ts",
         "import": "./dist/subscriber-runtime.js",
         "default": "./dist/subscriber-runtime.js"
-      },
-      "./providers/local": {
-        "types": "./dist/providers/local.d.ts",
-        "import": "./dist/providers/local.js",
-        "default": "./dist/providers/local.js"
-      },
-      "./providers/voyant-cloud-email": {
-        "types": "./dist/providers/voyant-cloud-email.d.ts",
-        "import": "./dist/providers/voyant-cloud-email.js",
-        "default": "./dist/providers/voyant-cloud-email.js"
-      },
-      "./providers/voyant-cloud-sms": {
-        "types": "./dist/providers/voyant-cloud-sms.d.ts",
-        "import": "./dist/providers/voyant-cloud-sms.js",
-        "default": "./dist/providers/voyant-cloud-sms.js"
       },
       "./tools": {
         "types": "./dist/mcp-runtime.d.ts",

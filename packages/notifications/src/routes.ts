@@ -54,7 +54,6 @@ import {
   sendBookingDocumentsNotificationResultSchema,
   sendBookingDocumentsNotificationSchema,
   sendInvoiceNotificationSchema,
-  sendNotificationSchema,
   sendPaymentSessionNotificationSchema,
   updateNotificationReminderRuleSchema,
   updateNotificationReminderRuleStageSchema,
@@ -125,14 +124,6 @@ function idempotencyKey(
   bodyKey?: string,
 ) {
   return c.req.header("Idempotency-Key") ?? bodyKey
-}
-
-function withPaymentLinkBaseUrl<T extends { paymentLinkBaseUrl?: string | null }>(
-  input: T,
-  publicCheckoutBaseUrl: string | null | undefined,
-): T {
-  if (input.paymentLinkBaseUrl || !publicCheckoutBaseUrl) return input
-  return { ...input, paymentLinkBaseUrl: publicCheckoutBaseUrl }
 }
 
 // --- shared response schemas ------------------------------------------------
@@ -452,7 +443,17 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
   const resendDeliveryRoute = createRoute({
     method: "post",
     path: "/deliveries/{id}/resend",
-    request: { params: idParamSchema },
+    request: {
+      params: idParamSchema,
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: z.object({ idempotencyKey: z.string().trim().min(8).max(255) }),
+          },
+        },
+      },
+    },
     responses: {
       201: {
         description: "The resent notification delivery",
@@ -481,6 +482,7 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.get("db"),
           dispatcher,
           c.req.valid("param").id,
+          c.req.valid("json").idempotencyKey,
         )
         if (!row) return c.json({ error: "Notification delivery not found" }, 404)
         return c.json({ data: row }, 201)
@@ -1075,7 +1077,13 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
   const confirmAndDispatchRoute = createRoute({
     method: "post",
     path: "/bookings/{id}/confirm-and-dispatch",
-    request: { params: idParamSchema },
+    request: {
+      params: idParamSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: confirmAndDispatchBookingSchema } },
+      },
+    },
     responses: {
       200: {
         description: "Preview / skipped outcome (no delivery attempted)",
@@ -1097,7 +1105,13 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
   const sendDocumentsRoute = createRoute({
     method: "post",
     path: "/bookings/{id}/send-documents",
-    request: { params: idParamSchema },
+    request: {
+      params: idParamSchema,
+      body: {
+        required: true,
+        content: { "application/json": { schema: sendBookingDocumentsNotificationSchema } },
+      },
+    },
     responses: {
       201: {
         description: "The dispatched booking-documents notification result",
@@ -1112,24 +1126,6 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
     },
   })
 
-  const sendRoute = createRoute({
-    method: "post",
-    path: "/send",
-    request: {
-      body: {
-        required: true,
-        content: { "application/json": { schema: sendNotificationSchema } },
-      },
-    },
-    responses: {
-      201: {
-        description: "The dispatched notification delivery",
-        content: { "application/json": { schema: dataEnvelope(notificationDeliverySchema) } },
-      },
-      400: invalidRequestResponse,
-    },
-  })
-
   const dispatchRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     .openapi(sendPaymentSessionRoute, async (c) => {
       try {
@@ -1139,7 +1135,8 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.get("db"),
           dispatcher,
           c.req.valid("param").id,
-          withPaymentLinkBaseUrl(c.req.valid("json"), runtime.publicCheckoutBaseUrl),
+          c.req.valid("json"),
+          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
         )
         if (!row) return c.json({ error: "Payment session not found" }, 404)
         return c.json({ data: row }, 201)
@@ -1157,7 +1154,8 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.get("db"),
           dispatcher,
           c.req.valid("param").id,
-          withPaymentLinkBaseUrl(c.req.valid("json"), runtime.publicCheckoutBaseUrl),
+          c.req.valid("json"),
+          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
         )
         if (!row) return c.json({ error: "Invoice not found" }, 404)
         return c.json({ data: row }, 201)
@@ -1182,10 +1180,9 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.get("db"),
           dispatcher,
           c.req.valid("param").id,
-          await parseOptionalJsonBody(c, confirmAndDispatchBookingSchema),
+          c.req.valid("json"),
           {
             attachmentResolver: runtime.documentAttachmentResolver,
-            eventBus: runtime.eventBus,
           },
         )
         if (result.status === "not_found") return c.json({ error: "Booking not found" }, 404)
@@ -1244,10 +1241,9 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.get("db"),
           dispatcher,
           c.req.valid("param").id,
-          await parseOptionalJsonBody(c, sendBookingDocumentsNotificationSchema),
+          c.req.valid("json"),
           {
             attachmentResolver: runtime.documentAttachmentResolver,
-            eventBus: runtime.eventBus,
           },
         )
         if (result.status === "not_found") return c.json({ error: "Booking not found" }, 404)
@@ -1276,21 +1272,6 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Booking document notification failed"
-        return c.json({ error: message }, 400)
-      }
-    })
-    .openapi(sendRoute, async (c) => {
-      try {
-        const runtime = getRuntime(c.env, options, (key) => c.var.container.resolve(key))
-        const dispatcher = createNotificationService(runtime.providers)
-        const row = await notificationsService.sendNotification(
-          c.get("db"),
-          dispatcher,
-          c.req.valid("json"),
-        )
-        return c.json({ data: row! }, 201)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Notification send failed"
         return c.json({ error: message }, 400)
       }
     })

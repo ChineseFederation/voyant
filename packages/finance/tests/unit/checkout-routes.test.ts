@@ -75,6 +75,7 @@ describe("createFinanceCheckoutRoutes", () => {
     const paymentStarter = vi.fn()
     const routes = createFinanceCheckoutRoutes({
       resolveNotificationDispatcher: () => notificationDispatcher,
+      resolveSelectedPaymentStarter: () => paymentStarter,
       resolvePaymentStarters: () => ({ netopia: paymentStarter }),
       resolvePublicCheckoutBaseUrl: () => "https://brand.example.com",
       resolveBankTransferDetails: () => ({
@@ -100,7 +101,6 @@ describe("createFinanceCheckoutRoutes", () => {
         body: JSON.stringify({
           method: "card",
           startProvider: {
-            provider: "netopia",
             payload: {
               billing: {
                 email: "traveler@example.com",
@@ -228,7 +228,7 @@ describe("createFinanceCheckoutRoutes", () => {
     expect(legacyPaymentStarter).not.toHaveBeenCalled()
   })
 
-  it("allows a provider-qualified legacy card start to use keyed starters", async () => {
+  it("rejects caller-selected payment providers", async () => {
     serviceMocks.initiateCheckoutCollection.mockResolvedValue({
       plan: { bookingId: "book_123", method: "card" },
       invoice: null,
@@ -275,11 +275,9 @@ describe("createFinanceCheckoutRoutes", () => {
       TEST_CAPABILITY_ENV,
     )
 
-    expect(res.status).toBe(201)
-    expect(serviceMocks.initiateCheckoutCollection).toHaveBeenCalledOnce()
-    expect(serviceMocks.initiateCheckoutCollection.mock.calls[0]?.[4]).toMatchObject({
-      paymentStarters: { netopia: legacyPaymentStarter },
-    })
+    expect(res.status).toBe(409)
+    expect(serviceMocks.initiateCheckoutCollection).not.toHaveBeenCalled()
+    expect(legacyPaymentStarter).not.toHaveBeenCalled()
   })
 
   it("returns setup guidance when the checkout runtime provider is not registered", async () => {

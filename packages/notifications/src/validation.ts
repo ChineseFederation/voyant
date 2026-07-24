@@ -340,70 +340,23 @@ export const runDueRemindersSchema = z.object({
   now: z.string().datetime().optional().nullable(),
 })
 
-const transportNotificationCoreSchema = z.object({
+const durableDomainNotificationFields = {
+  idempotencyKey: z.string().trim().min(8).max(255),
   templateId: z.string().optional().nullable(),
   templateSlug: z.string().optional().nullable(),
-  channel: notificationChannelSchema.default("email"),
-  provider: z.string().optional().nullable(),
-  to: z.string().min(1).optional().nullable(),
-  from: z.string().max(500).optional().nullable(),
-  subject: z.string().max(2000).optional().nullable(),
-  html: z.string().optional().nullable(),
-  text: z.string().optional().nullable(),
-  attachments: z.array(notificationAttachmentSchema).optional().nullable(),
-  data: z.record(z.string(), z.unknown()).optional().nullable(),
-  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
   scheduledFor: z.string().optional().nullable(),
-  paymentLinkBaseUrl: z.string().optional().nullable(),
-})
+}
 
-export const sendPaymentSessionNotificationSchema = transportNotificationCoreSchema.refine(
-  (value) =>
-    Boolean(value.templateId || value.templateSlug || value.subject || value.html || value.text),
-  {
-    message: "templateId, templateSlug, or direct content is required",
-  },
-)
-
-export const sendInvoiceNotificationSchema = transportNotificationCoreSchema.refine(
-  (value) =>
-    Boolean(value.templateId || value.templateSlug || value.subject || value.html || value.text),
-  {
-    message: "templateId, templateSlug, or direct content is required",
-  },
-)
-
-export const sendNotificationSchema = z
-  .object({
-    idempotencyKey: z.string().trim().min(8).max(255).optional(),
-    templateId: z.string().optional().nullable(),
-    templateSlug: z.string().optional().nullable(),
-    channel: notificationChannelSchema.optional(),
-    provider: z.string().optional().nullable(),
-    to: z.string().min(1),
-    from: z.string().max(500).optional().nullable(),
-    subject: z.string().max(2000).optional().nullable(),
-    html: z.string().optional().nullable(),
-    text: z.string().optional().nullable(),
-    attachments: z.array(notificationAttachmentSchema).optional().nullable(),
-    data: z.record(z.string(), z.unknown()).optional().nullable(),
-    targetType: notificationTargetTypeSchema.default("other"),
-    targetId: z.string().optional().nullable(),
-    bookingId: z.string().optional().nullable(),
-    invoiceId: z.string().optional().nullable(),
-    paymentSessionId: z.string().optional().nullable(),
-    personId: z.string().optional().nullable(),
-    organizationId: z.string().optional().nullable(),
-    metadata: z.record(z.string(), z.unknown()).optional().nullable(),
-    scheduledFor: z.string().optional().nullable(),
+const durableDomainNotificationSchema = z
+  .object(durableDomainNotificationFields)
+  .strict()
+  .refine((value) => Boolean(value.templateId || value.templateSlug), {
+    message: "templateId or templateSlug is required",
   })
-  .refine(
-    (value) =>
-      Boolean(value.templateId || value.templateSlug || value.subject || value.html || value.text),
-    {
-      message: "templateId, templateSlug, or direct content is required",
-    },
-  )
+
+export const sendPaymentSessionNotificationSchema = durableDomainNotificationSchema
+
+export const sendInvoiceNotificationSchema = durableDomainNotificationSchema
 
 export const previewNotificationTemplateSchema = z
   .object({
@@ -454,20 +407,15 @@ export const bookingDocumentBundleSchema = z.object({
   documents: z.array(bookingDocumentBundleItemSchema),
 })
 
-export const sendBookingDocumentsNotificationSchema = z.object({
-  templateId: z.string().optional().nullable(),
-  templateSlug: z.string().optional().nullable(),
-  provider: z.string().optional().nullable(),
-  to: z.string().min(1).optional().nullable(),
-  from: z.string().max(500).optional().nullable(),
-  subject: z.string().max(2000).optional().nullable(),
-  html: z.string().optional().nullable(),
-  text: z.string().optional().nullable(),
-  data: z.record(z.string(), z.unknown()).optional().nullable(),
-  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
-  scheduledFor: z.string().optional().nullable(),
-  documentTypes: z.array(notificationDocumentTypeSchema).optional().nullable(),
-})
+export const sendBookingDocumentsNotificationSchema = z
+  .object({
+    ...durableDomainNotificationFields,
+    documentTypes: z.array(notificationDocumentTypeSchema).optional().nullable(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.templateId || value.templateSlug), {
+    message: "templateId or templateSlug is required",
+  })
 
 export const sendBookingDocumentsNotificationResultSchema = z.object({
   bookingId: z.string().min(1),
@@ -486,9 +434,19 @@ export const sendBookingDocumentsNotificationResultSchema = z.object({
  * back but no delivery is attempted. Templates use the preview to render the
  * "here's what's ready" checkbox list before the operator confirms.
  */
-export const confirmAndDispatchBookingSchema = sendBookingDocumentsNotificationSchema.extend({
-  sendNotification: z.boolean().default(true),
-})
+export const confirmAndDispatchBookingSchema = z.union([
+  z
+    .object({
+      sendNotification: z.literal(false),
+      documentTypes: z.array(notificationDocumentTypeSchema).optional().nullable(),
+    })
+    .strict(),
+  sendBookingDocumentsNotificationSchema.and(
+    z.object({
+      sendNotification: z.literal(true).default(true),
+    }),
+  ),
+])
 
 export const confirmAndDispatchBookingResultSchema = z.object({
   bookingId: z.string().min(1),

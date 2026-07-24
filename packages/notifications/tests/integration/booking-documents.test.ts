@@ -1,24 +1,14 @@
 import { bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
-import { createEventBus } from "@voyant-travel/core"
+import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { invoiceRenditions, invoices } from "@voyant-travel/finance/schema"
 import { contractAttachments, contracts } from "@voyant-travel/legal/schema"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it } from "vitest"
-import { notificationDeliveries } from "../../src/schema.js"
+import { describe, expect, it } from "vitest"
+import { notificationDeliveries, notificationTemplates } from "../../src/schema.js"
 import { createNotificationsTestContext, DB_AVAILABLE, json } from "./test-helpers"
 
 describe.skipIf(!DB_AVAILABLE)("Booking document notification routes", () => {
-  const eventBus = createEventBus()
-  const ctx = createNotificationsTestContext({ eventBus })
-  const sentEvents: Array<Record<string, unknown>> = []
-
-  eventBus.subscribe("booking.documents.sent", (event) => {
-    sentEvents.push(event as Record<string, unknown>)
-  })
-
-  beforeEach(() => {
-    sentEvents.length = 0
-  })
+  const ctx = createNotificationsTestContext()
 
   it("lists and sends a booking document bundle using default attachment URLs", async () => {
     await ctx.db.insert(bookings).values({
@@ -68,7 +58,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking document notification routes", () => {
       invoiceNumber: "PRO-1001",
       invoiceType: "proforma",
       bookingId: "book_docs_1",
-      status: "sent",
+      status: "issued",
       currency: "EUR",
       subtotalCents: 120000,
       taxCents: 0,
@@ -90,6 +80,18 @@ describe.skipIf(!DB_AVAILABLE)("Booking document notification routes", () => {
         url: "https://cdn.example.com/invoices/inv_docs_1/proforma.pdf",
       },
     })
+    const [template] = await ctx.db
+      .insert(notificationTemplates)
+      .values({
+        slug: "booking-documents",
+        name: "Booking documents",
+        channel: "email",
+        provider: "local",
+        status: "active",
+        subjectTemplate: "Documents for {{ booking.bookingNumber }}",
+        textTemplate: "Your documents are attached.",
+      })
+      .returning()
 
     const bundleRes = await ctx.request("/bookings/book_docs_1/document-bundle")
     expect(bundleRes.status).toBe(200)
@@ -102,14 +104,25 @@ describe.skipIf(!DB_AVAILABLE)("Booking document notification routes", () => {
 
     const sendRes = await ctx.request("/bookings/book_docs_1/send-documents", {
       method: "POST",
-      ...json({}),
+      ...json({
+        idempotencyKey: "booking-documents-1",
+        templateId: template!.id,
+      }),
     })
     expect(sendRes.status).toBe(201)
 
     const sendBody = await sendRes.json()
     expect(sendBody.data.recipient).toBe("ana@example.com")
     expect(sendBody.data.documents).toHaveLength(2)
+    expect(sendBody.data.status).toBe("pending")
+    expect(ctx.sink).not.toHaveBeenCalled()
+    expect(
+      (await ctx.db.select().from(eventOutboxTable)).filter(
+        ({ name }) => name === "booking.documents.sent",
+      ),
+    ).toHaveLength(0)
 
+    await expect(ctx.drain()).resolves.toMatchObject({ sent: 1 })
     expect(ctx.sink).toHaveBeenCalledOnce()
     expect(ctx.sink.mock.calls[0]?.[0]).toMatchObject({
       to: "ana@example.com",
@@ -147,14 +160,18 @@ describe.skipIf(!DB_AVAILABLE)("Booking document notification routes", () => {
         },
       ],
     })
-    expect(sentEvents).toEqual([
+    expect(
+      (await ctx.db.select().from(eventOutboxTable)).filter(
+        ({ name }) => name === "booking.documents.sent",
+      ),
+    ).toEqual([
       expect.objectContaining({
         name: "booking.documents.sent",
-        metadata: {
+        metadata: expect.objectContaining({
           category: "domain",
           source: "service",
-        },
-        data: expect.objectContaining({
+        }),
+        payload: expect.objectContaining({
           bookingId: "book_docs_1",
           recipient: "ana@example.com",
           provider: "local",

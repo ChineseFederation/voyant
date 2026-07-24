@@ -23,7 +23,7 @@ import {
   useNotificationDeliveries,
   useNotificationTemplate,
   useNotificationTemplateAuthoring,
-  useNotificationTemplateTools,
+  useNotificationTemplatePreview,
 } from "../index.js"
 import { NotificationDeliveryDetailDialog } from "./notification-delivery-detail-dialog.js"
 import {
@@ -78,7 +78,7 @@ export function NotificationTemplateDetailHost({ id }: NotificationTemplateDetai
     () => JSON.stringify(buildSamplePayload(variableGroups), null, 2),
     [variableGroups],
   )
-  const { preview } = useNotificationTemplateTools()
+  const preview = useNotificationTemplatePreview()
   const deliveries = useNotificationDeliveries({
     templateSlug: template?.slug,
     limit: 20,

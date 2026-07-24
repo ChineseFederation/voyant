@@ -9,7 +9,8 @@ import {
   type NotificationSettings,
   notificationReminderRuns,
 } from "./schema.js"
-import { sendInvoiceNotification, sendNotification } from "./service-deliveries.js"
+import { sendInvoiceReminderNotification } from "./service-deliveries.js"
+import { enqueueNotification } from "./service-durable-send.js"
 import {
   bookingStatusSkipReason,
   buildBookingPaymentReminderTemplateData,
@@ -21,7 +22,6 @@ import {
   buildReminderQueueSummary,
   buildReminderSweepSummary,
   markReminderRunFailed,
-  markReminderRunSent,
   markReminderRunSkipped,
   type ReminderDeliveryEnqueuer,
 } from "./service-reminder-run-state.js"
@@ -161,7 +161,7 @@ async function emitStageChannelRun(
 
   const [processingRun] = await db
     .insert(notificationReminderRuns)
-    .values({ ...baseValues, status: "processing" })
+    .values({ ...baseValues, status: "queued" })
     .onConflictDoNothing({ target: notificationReminderRuns.dedupeKey })
     .returning()
 
@@ -177,7 +177,6 @@ async function emitStageChannelRun(
       stageOrderIndex: stage.orderIndex,
       sendCountAtFire,
     }
-    let delivery: { id: string } | null = null
     if (rule.targetType === "invoice") {
       const invoice = await fetchInvoiceRow(db, target.id)
       if (!invoice) {
@@ -188,7 +187,8 @@ async function emitStageChannelRun(
               ?.id ?? null,
         }
       }
-      delivery = await sendInvoiceNotification(db, dispatcher, invoice.id, {
+      await sendInvoiceReminderNotification(db, dispatcher, invoice.id, {
+        idempotencyKey: `reminder:${processingRun.dedupeKey}`,
         templateId: channelRow.templateId ?? null,
         templateSlug: channelRow.templateSlug ?? null,
         channel: channelRow.channel,
@@ -196,6 +196,7 @@ async function emitStageChannelRun(
         to: recipient.email,
         data,
         metadata: { reminderRuleId: rule.id, reminderRunId: processingRun.id, stageId: stage.id },
+        reminderRunId: processingRun.id,
         scheduledFor: scheduledAt.toISOString(),
       })
     } else if (rule.targetType === "booking_payment_schedule") {
@@ -250,20 +251,26 @@ async function emitStageChannelRun(
             )?.id ?? null,
         }
       }
-      delivery = await sendNotification(db, dispatcher, {
-        templateId: channelRow.templateId ?? null,
-        templateSlug: channelRow.templateSlug ?? null,
-        channel: channelRow.channel,
-        provider: channelRow.provider ?? null,
-        to: recipient.email,
-        data: context.data,
-        targetType: "booking_payment_schedule",
-        targetId: schedule.id,
-        bookingId: context.booking.id,
-        personId: context.booking.personId ?? null,
-        organizationId: context.booking.organizationId ?? null,
-        metadata: { reminderRuleId: rule.id, reminderRunId: processingRun.id, stageId: stage.id },
-        scheduledFor: scheduledAt.toISOString(),
+      await enqueueNotification({
+        db,
+        registry: dispatcher,
+        input: {
+          idempotencyKey: `reminder:${processingRun.dedupeKey}`,
+          templateId: channelRow.templateId ?? null,
+          templateSlug: channelRow.templateSlug ?? null,
+          channel: channelRow.channel,
+          provider: channelRow.provider ?? null,
+          to: recipient.email,
+          data: context.data,
+          targetType: "booking_payment_schedule",
+          targetId: schedule.id,
+          bookingId: context.booking.id,
+          personId: context.booking.personId ?? null,
+          organizationId: context.booking.organizationId ?? null,
+          metadata: { reminderRuleId: rule.id, reminderRunId: processingRun.id, stageId: stage.id },
+          reminderRunId: processingRun.id,
+          scheduledFor: scheduledAt.toISOString(),
+        },
       })
     } else {
       return {
@@ -280,8 +287,7 @@ async function emitStageChannelRun(
       }
     }
 
-    const sent = await markReminderRunSent(db, processingRun.id, new Date(), delivery?.id ?? null)
-    return { status: "sent", runId: sent?.id ?? null }
+    return { status: "queued", runId: processingRun.id }
   } catch (error) {
     const message = error instanceof Error ? error.message : "delivery_failed"
     const failed = await markReminderRunFailed(db, processingRun.id, new Date(), message)

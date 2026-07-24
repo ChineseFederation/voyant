@@ -1381,7 +1381,7 @@ describe("deployment graph v1", () => {
     expect(disabledAny.contentHash).not.toBe(disabledAll.contentHash)
   })
 
-  it("rejects malformed, unknown, and ambiguous conditional action providers", async () => {
+  it("rejects malformed and ambiguous conditional action providers while allowing absent external providers", async () => {
     const baseAction = {
       id: "@acme/voyant-actions#action.send",
       version: "v1",
@@ -1451,13 +1451,12 @@ describe("deployment graph v1", () => {
     const unknown = await resolveDeploymentGraph({
       project: defineProject({ modules: [actionModule] }),
     })
-    expect(unknown.diagnostics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          code: "VOYANT_GRAPH_UNKNOWN_REFERENCE",
-          facet: "actions[0].availability.enableWhen.selectedProviderPorts.ports",
-        }),
-      ]),
+    expect(unknown.diagnostics).toEqual([])
+    expect(unknown.modules[0]?.actions?.[0]?.availability).toEqual(
+      expect.objectContaining({
+        status: "unavailable",
+        reasonCode: "provider-not-durable",
+      }),
     )
 
     const selectedProvider = (id: string) =>

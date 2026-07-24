@@ -179,26 +179,11 @@ export const notificationDeliveries = pgTable(
 export type NotificationDelivery = typeof notificationDeliveries.$inferSelect
 export type NewNotificationDelivery = typeof notificationDeliveries.$inferInsert
 
-/** Internal exact-replay record; request fingerprints never leave Notifications. */
-export const notificationDeliveryRequests = pgTable(
-  "notification_delivery_requests",
-  {
-    idempotencyKey: text("idempotency_key").primaryKey(),
-    requestFingerprint: text("request_fingerprint").notNull(),
-    deliveryId: typeIdRef("delivery_id")
-      .notNull()
-      .references(() => notificationDeliveries.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex("uidx_notification_delivery_requests_delivery").on(table.deliveryId)],
-)
-
 /**
- * Package-owned durable state for agent-initiated notification sends.
+ * Package-owned durable state for every notification enqueue.
  *
- * The action ledger owns immutable command admission. This row owns the exact
- * rendered provider request, the stable provider idempotency key, retry lease,
- * and canonical delivery result.
+ * This row owns canonical drift detection, the exact rendered provider request,
+ * the stable provider idempotency key, retry lease, and delivery result.
  */
 export const notificationSendOperations = pgTable(
   "notification_send_operations",
@@ -218,6 +203,10 @@ export const notificationSendOperations = pgTable(
     providerIdempotencyKey: text("provider_idempotency_key").notNull(),
     requestPayload: jsonb("request_payload").$type<Record<string, unknown>>().notNull(),
     resultSnapshot: jsonb("result_snapshot").$type<Record<string, unknown>>().notNull(),
+    terminalEvent: jsonb("terminal_event").$type<{
+      name: string
+      data: Record<string, unknown>
+    } | null>(),
     status: notificationSendOperationStatusEnum("status").notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(8),

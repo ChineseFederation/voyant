@@ -27,7 +27,12 @@ describe("createNotificationsApiModule.bootstrap", () => {
       {
         name: "email-provider",
         channels: ["email"],
-        send: vi.fn(async () => ({ id: "ntf_123", provider: "email-provider" })),
+        durableDelivery: {
+          protocol: "notification-provider-idempotency-v1" as const,
+          async send() {
+            return { provider: "email-provider" }
+          },
+        },
       },
     ])
     const documentAttachmentResolver = vi.fn(async () => null)

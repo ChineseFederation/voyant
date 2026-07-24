@@ -8,13 +8,7 @@ import type { z } from "zod"
 import { renderLiquidTemplate } from "./liquid.js"
 import type { notificationReminderRules } from "./schema.js"
 import { enrichBookingItem, normalizeNotificationTemplateData } from "./service-template-data.js"
-import type {
-  NotificationAttachment,
-  NotificationChannel,
-  NotificationPayload,
-  NotificationProvider,
-  NotificationResult,
-} from "./types.js"
+import type { NotificationAttachment, NotificationChannel, NotificationProvider } from "./types.js"
 import type {
   bookingDocumentBundleItemSchema,
   insertNotificationReminderRuleSchema,
@@ -26,10 +20,6 @@ import type {
   notificationTemplateListQuerySchema,
   previewNotificationTemplateSchema,
   runDueRemindersSchema,
-  sendBookingDocumentsNotificationSchema,
-  sendInvoiceNotificationSchema,
-  sendNotificationSchema,
-  sendPaymentSessionNotificationSchema,
   updateNotificationReminderRuleSchema,
   updateNotificationTemplateSchema,
 } from "./validation.js"
@@ -38,7 +28,6 @@ export type NotificationTemplateListQuery = z.infer<typeof notificationTemplateL
 export type NotificationDeliveryListQuery = z.infer<typeof notificationDeliveryListQuerySchema>
 export type CreateNotificationTemplateInput = z.infer<typeof insertNotificationTemplateSchema>
 export type UpdateNotificationTemplateInput = z.infer<typeof updateNotificationTemplateSchema>
-export type SendNotificationInput = z.infer<typeof sendNotificationSchema>
 export type NotificationReminderRuleListQuery = z.infer<
   typeof notificationReminderRuleListQuerySchema
 >
@@ -54,13 +43,22 @@ export type UpdateNotificationReminderRuleInput = z.infer<
 >
 export type RunDueRemindersInput = z.infer<typeof runDueRemindersSchema>
 export type PreviewNotificationTemplateInput = z.infer<typeof previewNotificationTemplateSchema>
-export type SendPaymentSessionNotificationInput = z.infer<
-  typeof sendPaymentSessionNotificationSchema
->
-export type SendInvoiceNotificationInput = z.infer<typeof sendInvoiceNotificationSchema>
-export type SendBookingDocumentsNotificationInput = z.infer<
-  typeof sendBookingDocumentsNotificationSchema
->
+export interface SendPaymentSessionNotificationInput {
+  idempotencyKey: string
+  templateId?: string | null
+  templateSlug?: string | null
+  scheduledFor?: string | null
+}
+
+export type SendInvoiceNotificationInput = SendPaymentSessionNotificationInput
+
+export interface SendBookingDocumentsNotificationInput {
+  idempotencyKey: string
+  templateId?: string | null
+  templateSlug?: string | null
+  scheduledFor?: string | null
+  documentTypes?: Array<z.infer<typeof bookingDocumentBundleItemSchema>["documentType"]> | null
+}
 export type BookingDocumentBundleItem = z.infer<typeof bookingDocumentBundleItemSchema>
 
 export type ReminderSweepResult = {
@@ -95,10 +93,8 @@ export class NotificationIdempotencyConflictError extends NotificationError {
 }
 
 export interface NotificationService {
-  send(payload: NotificationPayload): Promise<NotificationResult>
-  sendWith(providerName: string, payload: NotificationPayload): Promise<NotificationResult>
   getProvider(channel: NotificationChannel): NotificationProvider | undefined
-  getProviderByName?(providerName: string): NotificationProvider | undefined
+  getProviderByName(providerName: string): NotificationProvider | undefined
 }
 
 export function createNotificationService(
@@ -114,25 +110,6 @@ export function createNotificationService(
   }
 
   return {
-    async send(payload) {
-      const hintedProvider = payload.provider ? byName.get(payload.provider) : null
-      const provider = hintedProvider ?? byChannel.get(payload.channel)
-      if (!provider) {
-        throw new NotificationError(
-          `No notification provider registered for channel "${payload.channel}"`,
-        )
-      }
-      return provider.send(payload)
-    },
-    async sendWith(providerName, payload) {
-      const provider = byName.get(providerName)
-      if (!provider) {
-        throw new NotificationError(
-          `No notification provider registered with name "${providerName}"`,
-        )
-      }
-      return provider.send(payload)
-    },
     getProvider(channel) {
       return byChannel.get(channel)
     },
@@ -140,6 +117,31 @@ export function createNotificationService(
       return byName.get(providerName)
     },
   }
+}
+
+function normalizeSenderAddress(value: string | null | undefined) {
+  const normalized = value?.trim()
+  return normalized ? normalized : null
+}
+
+export function resolveDeliverySender(input: {
+  channel: string
+  provider: NotificationProvider
+  inputFrom?: string | null
+  templateFrom?: string | null
+}) {
+  const explicitFrom =
+    normalizeSenderAddress(input.inputFrom) ?? normalizeSenderAddress(input.templateFrom)
+  if (explicitFrom) return explicitFrom
+  if (input.channel !== "email") return null
+
+  const from = normalizeSenderAddress(input.provider.defaultFromAddress)
+  if (!from) {
+    throw new NotificationError(
+      `No email sender configured for notification provider "${input.provider.name}". Configure a verified sending domain/sender or pass \`from\`.`,
+    )
+  }
+  return from
 }
 
 export function summarizeNotificationAttachments(
@@ -177,8 +179,8 @@ export function previewNotificationTemplate(input: PreviewNotificationTemplateIn
   }
 }
 
-export function toTimestamp(value?: string | null) {
-  return value ? new Date(value) : null
+export function toTimestamp(value?: string | Date | null) {
+  return value instanceof Date ? value : value ? new Date(value) : null
 }
 
 export function startOfUtcDay(value: Date) {

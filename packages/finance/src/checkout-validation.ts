@@ -32,61 +32,33 @@ export const checkoutReminderTargetTypeSchema = z.enum([
   "booking_cancelled_non_payment",
   "invoice",
 ])
-export const checkoutProviderStartInputSchema = z.object({
-  /**
-   * Legacy provider hint. Deployments with a selected PaymentAdapter ignore
-   * this value and always use their selected adapter. New clients should omit
-   * it so processor selection remains deployment-owned.
-   */
-  provider: z.string().min(1).max(255).optional(),
-  payload: z.record(z.string(), z.unknown()).optional().nullable(),
-})
-
-export const checkoutNotificationAttachmentSchema = z
+export const checkoutProviderStartInputSchema = z
   .object({
-    filename: z.string().min(1).max(500),
-    contentBase64: z.string().min(1).optional().nullable(),
-    path: z.string().min(1).max(4000).optional().nullable(),
-    contentType: z.string().max(255).optional().nullable(),
-    disposition: z.enum(["attachment", "inline"]).optional().nullable(),
-    contentId: z.string().max(255).optional().nullable(),
+    payload: z.record(z.string(), z.unknown()).optional().nullable(),
   })
-  .refine((value) => Boolean(value.contentBase64 || value.path), {
-    message: "contentBase64 or path is required",
-    path: ["contentBase64"],
-  })
+  .strict()
 
-const checkoutNotificationRequestCoreSchema = z.object({
-  templateId: z.string().optional().nullable(),
-  templateSlug: z.string().optional().nullable(),
-  channel: checkoutNotificationChannelSchema.default("email"),
-  provider: z.string().optional().nullable(),
-  to: z.string().min(1).optional().nullable(),
-  from: z.string().max(500).optional().nullable(),
-  subject: z.string().max(2000).optional().nullable(),
-  html: z.string().optional().nullable(),
-  text: z.string().optional().nullable(),
-  attachments: z.array(checkoutNotificationAttachmentSchema).optional().nullable(),
-  data: z.record(z.string(), z.unknown()).optional().nullable(),
-  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
-  scheduledFor: z.string().optional().nullable(),
-  paymentLinkBaseUrl: z.string().optional().nullable(),
-})
+const checkoutNotificationRequestCoreSchema = z
+  .object({
+    idempotencyKey: z.string().trim().min(8).max(255),
+    templateId: z.string().optional().nullable(),
+    templateSlug: z.string().optional().nullable(),
+    scheduledFor: z.string().optional().nullable(),
+  })
+  .strict()
 
 export const checkoutPaymentSessionNotificationSchema =
   checkoutNotificationRequestCoreSchema.refine(
-    (value) =>
-      Boolean(value.templateId || value.templateSlug || value.subject || value.html || value.text),
+    (value) => Boolean(value.templateId || value.templateSlug),
     {
-      message: "templateId, templateSlug, or direct content is required",
+      message: "templateId or templateSlug is required",
     },
   )
 
 export const checkoutInvoiceNotificationSchema = checkoutNotificationRequestCoreSchema.refine(
-  (value) =>
-    Boolean(value.templateId || value.templateSlug || value.subject || value.html || value.text),
+  (value) => Boolean(value.templateId || value.templateSlug),
   {
-    message: "templateId, templateSlug, or direct content is required",
+    message: "templateId or templateSlug is required",
   },
 )
 

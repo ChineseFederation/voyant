@@ -5,6 +5,7 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { durableNotificationProviderPort } from "./durable-provider-port.js"
 import {
   buildNotificationsRouteRuntime,
   createNotificationsRoutes,
@@ -20,6 +21,11 @@ import {
 } from "./subscriber-runtime.js"
 
 export {
+  type DurableNotificationProviderProbe,
+  type DurableNotificationProviderRuntime,
+  durableNotificationProviderPort,
+} from "./durable-provider-port.js"
+export {
   type DeliverReminderJobInput,
   type DeliverReminderJobOutput,
   NOTIFICATION_REMINDER_JOB_RUNTIME_KEY,
@@ -30,18 +36,6 @@ export {
   notificationLiquidEngine,
   renderLiquidTemplate,
 } from "./liquid.js"
-export type { LocalProviderOptions } from "./providers/local.js"
-export { createLocalProvider } from "./providers/local.js"
-export type {
-  VoyantCloudEmailProviderOptions,
-  VoyantCloudEmailRendered,
-} from "./providers/voyant-cloud-email.js"
-export { createVoyantCloudEmailProvider } from "./providers/voyant-cloud-email.js"
-export type {
-  VoyantCloudSmsProviderOptions,
-  VoyantCloudSmsRendered,
-} from "./providers/voyant-cloud-sms.js"
-export { createVoyantCloudSmsProvider } from "./providers/voyant-cloud-sms.js"
 export type { NotificationsRouteRuntime, NotificationsRoutesOptions } from "./routes.js"
 export {
   buildNotificationsRouteRuntime,
@@ -79,13 +73,10 @@ export {
   notificationTemplateStatusEnum,
   notificationTemplates,
 } from "./schema.js"
-export type { NotificationService } from "./service.js"
 export {
   createDefaultBookingDocumentAttachment,
-  createNotificationService,
   NotificationError,
   NotificationIdempotencyConflictError,
-  notificationsService,
   previewNotificationTemplate,
   renderNotificationTemplate,
 } from "./service.js"
@@ -94,11 +85,6 @@ export type {
   BookingDocumentsSentEvent,
   SendBookingDocumentsRuntimeOptions,
 } from "./service-booking-documents.js"
-export { bookingDocumentNotificationsService } from "./service-booking-documents.js"
-export {
-  bookingIsPaidInFullForNotification,
-  dispatchReminderEventRules,
-} from "./service-reminders.js"
 /**
  * Auto-dispatch policy for the `booking.confirmed` subscriber. Set `enabled:
  * false` (or leave the option off entirely) to opt out.
@@ -185,11 +171,6 @@ export {
   previewRemindersQuerySchema,
   reorderReminderRuleStagesSchema,
   runDueRemindersSchema,
-  sendBookingDocumentsNotificationResultSchema,
-  sendBookingDocumentsNotificationSchema,
-  sendInvoiceNotificationSchema,
-  sendNotificationSchema,
-  sendPaymentSessionNotificationSchema,
   updateNotificationReminderRuleSchema,
   updateNotificationReminderRuleStageSchema,
   updateNotificationReminderStageChannelSchema,
@@ -224,21 +205,43 @@ export function createNotificationsApiModule(
 }
 
 /** Package-owned adapter from the selected graph's typed Node host port. */
-export const createNotificationsVoyantRuntime = defineGraphRuntimeFactory(async ({ getPort }) => {
-  const provider = await getPort(notificationsRuntimePort)
-  const configured = createNotificationsApiModule(provider)
-  const bootstrap = configured.module.bootstrap
+export const createNotificationsVoyantRuntime = defineGraphRuntimeFactory(
+  async ({ getPort, hasPort }) => {
+    const hostProvider = await getPort(notificationsRuntimePort)
+    const durableRuntime = hasPort(durableNotificationProviderPort)
+      ? await getPort(durableNotificationProviderPort)
+      : null
+    const provider = durableRuntime
+      ? {
+          ...hostProvider,
+          resolveProviders: () => durableRuntime.providers,
+          resolveReminderJobRuntime: (bindings?: Record<string, unknown>) => {
+            const jobs = hostProvider.resolveReminderJobRuntime(bindings)
+            return {
+              ...jobs,
+              resolveRuntimeOptions: async (env: Record<string, unknown>) => ({
+                ...(await jobs.resolveRuntimeOptions(env)),
+                providers: durableRuntime.providers,
+                resolveProviders: undefined,
+              }),
+            }
+          },
+        }
+      : hostProvider
+    const configured = createNotificationsApiModule(provider)
+    const bootstrap = configured.module.bootstrap
 
-  return {
-    ...configured,
-    module: {
-      ...configured.module,
-      bootstrap: async (context: BootstrapContext) => {
-        await bootstrap?.(context)
+    return {
+      ...configured,
+      module: {
+        ...configured.module,
+        bootstrap: async (context: BootstrapContext) => {
+          await bootstrap?.(context)
+        },
       },
-    },
-  }
-})
+    }
+  },
+)
 
 /** Selected-extension adapter that gates subscriber services with subscriber selection. */
 export const createNotificationsSubscribersVoyantRuntime = defineGraphRuntimeFactory(

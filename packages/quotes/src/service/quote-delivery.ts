@@ -117,7 +117,9 @@ export async function snapshotAndSendQuote(
       proposalUrl: prepared.proposalUrl,
     },
   })
-  if (delivery.status !== "sent") throw new QuoteDeliveryFailedError(delivery)
+  if (delivery.status === "failed" || delivery.status === "cancelled") {
+    throw new QuoteDeliveryFailedError(delivery)
+  }
 
   if (prepared.completed) {
     return {

@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
 
+import { notificationDeliveries } from "../../src/schema.js"
 import { createNotificationsTestContext, DB_AVAILABLE, json } from "./test-helpers"
 
 describe.skipIf(!DB_AVAILABLE)("Notification payment context routes", () => {
@@ -61,15 +62,25 @@ describe.skipIf(!DB_AVAILABLE)("Notification payment context routes", () => {
     const sendRes = await ctx.request("/payment-sessions/pmss_collect/send", {
       method: "POST",
       ...json({
+        idempotencyKey: "payment-session-collect-1",
         templateId: template.id,
       }),
     })
     expect(sendRes.status).toBe(201)
     const { data } = await sendRes.json()
-    expect(data.status).toBe("sent")
+    expect(data.status).toBe("pending")
     expect(data.paymentSessionId).toBe("pmss_collect")
     expect(data.toAddress).toBe("mara@example.com")
     expect(data.textBody).toContain("https://pay.example.com/session/pmss_collect")
+    await expect(ctx.drain()).resolves.toMatchObject({ sent: 1 })
+    expect(
+      (
+        await ctx.db
+          .select()
+          .from(notificationDeliveries)
+          .where(eq(notificationDeliveries.id, data.id))
+      )[0]?.status,
+    ).toBe("sent")
   })
 
   it("sends an invoice notification and includes linked payment session context", async () => {
@@ -137,7 +148,7 @@ describe.skipIf(!DB_AVAILABLE)("Notification payment context routes", () => {
         'invoice',
         'book_invoice',
         'person_3',
-        'sent',
+        'issued',
         'EUR',
         70000,
         10000,
@@ -180,16 +191,18 @@ describe.skipIf(!DB_AVAILABLE)("Notification payment context routes", () => {
     const sendRes = await ctx.request("/invoices/inv_test/send", {
       method: "POST",
       ...json({
+        idempotencyKey: "invoice-notification-1",
         templateId: template.id,
       }),
     })
     expect(sendRes.status).toBe(201)
     const { data } = await sendRes.json()
-    expect(data.status).toBe("sent")
+    expect(data.status).toBe("pending")
     expect(data.invoiceId).toBe("inv_test")
     expect(data.paymentSessionId).toBe("pmss_invoice")
     expect(data.toAddress).toBe("ioana@example.com")
     expect(data.textBody).toContain("INV-1001")
     expect(data.textBody).toContain("https://pay.example.com/session/pmss_invoice")
+    await expect(ctx.drain()).resolves.toMatchObject({ sent: 1 })
   })
 })

@@ -1,11 +1,14 @@
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
 import { defineToolContextContribution, requireService } from "@voyant-travel/tools"
 import type { Context } from "hono"
-import { notificationsRuntimePort } from "./runtime-port.js"
-import { createNotificationService, notificationsService } from "./service.js"
+import {
+  type DurableNotificationProviderRuntime,
+  durableNotificationProviderPort,
+} from "./durable-provider-port.js"
+import { notificationsService } from "./service.js"
 import { executeDurableNotificationSendCommand } from "./service-durable-send.js"
+import { createNotificationService } from "./service-shared.js"
 import type { NotificationsToolServices } from "./tools.js"
-import type { NotificationProvider } from "./types.js"
 
 export * from "./tools.js"
 
@@ -13,26 +16,19 @@ export const voyantToolContextContribution = defineToolContextContribution({
   context: ["notifications"],
   async contribute({ request, resources }) {
     const c = request as Context
-    const runtime = await Promise.resolve(
-      requireService(
-        resources[notificationsRuntimePort.id] as
-          | {
-              resolveProviders(bindings: Record<string, unknown>): readonly NotificationProvider[]
-            }
-          | undefined,
-        notificationsRuntimePort.id,
-      ),
-    )
-    const providers = runtime.resolveProviders(c.env as Record<string, unknown>)
+    const durableRuntime = resources[durableNotificationProviderPort.id] as
+      | DurableNotificationProviderRuntime
+      | undefined
     const notifications: NotificationsToolServices = {
       listDeliveries: (query) => notificationsService.listDeliveries(c.var.db, query),
       getDeliveryById: (id) => notificationsService.getDeliveryById(c.var.db, id),
       async sendTemplated(input, admitted) {
+        const selectedRuntime = requireService(durableRuntime, durableNotificationProviderPort.id)
         const result = await executeDurableNotificationSendCommand({
           db: c.var.db,
           context: actionLedgerContext(c),
           admitted,
-          dispatcher: createNotificationService(providers),
+          dispatcher: createNotificationService(selectedRuntime.providers),
           input,
         })
         return result.value

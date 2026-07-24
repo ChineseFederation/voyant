@@ -1,16 +1,3 @@
-/**
- * Notifications agent tools on the framework tool contract. Read-only over the
- * existing notification-delivery service; the service is injected on the tool
- * context by intersection so this module stays deployment-agnostic.
- *
- * `send_notification` is exposed but deliberately **constrained**: an agent may
- * only trigger a **vetted template** (`templateSlug` required; raw subject/html/
- * text are rejected at the tool boundary), so it cannot compose arbitrary
- * content. It is gated on `notifications:send`, marked destructive +
- * `confirmationRequired`, and dispatches through the deployment's real provider
- * runtime. Sending is externally-committing (an email/SMS cannot be unsent) and
- * `notifications:send` is never granted by a wildcard — see the api-key taxonomy.
- */
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -26,7 +13,6 @@ import { z } from "zod"
 import { notificationDeliverySchema } from "./response-schemas.js"
 import { notificationChannelSchema, notificationDeliveryListQuerySchema } from "./validation.js"
 
-/** Template-only send payload — no arbitrary subject/html/text is accepted from an agent. */
 export interface SendTemplatedNotificationInput {
   templateSlug: string
   to: string
@@ -97,26 +83,18 @@ export const getDeliveryTool = defineTool<
   },
 })
 
-const sendNotificationArgs = z.object({
-  templateSlug: z
-    .string()
-    .min(1)
-    .describe(
-      "Slug of a vetted notification template to render. Required — agents may not send arbitrary content.",
-    ),
-  to: z.string().min(1).describe("Recipient address (email or phone, per the template channel)."),
-  channel: notificationChannelSchema
-    .optional()
-    .describe("Override the template's default channel."),
-  data: z
-    .record(z.string(), z.unknown())
-    .optional()
-    .describe("Template variables merged into the rendered content."),
-  bookingId: z.string().optional().describe("Associate the delivery with a booking."),
-  invoiceId: z.string().optional().describe("Associate the delivery with an invoice."),
-  personId: z.string().optional().describe("Associate the delivery with a CRM person."),
-  organizationId: z.string().optional().describe("Associate the delivery with a CRM organization."),
-})
+const sendNotificationArgs = z
+  .object({
+    templateSlug: z.string().min(1),
+    to: z.string().min(1),
+    channel: notificationChannelSchema.optional(),
+    data: z.record(z.string(), z.unknown()).optional(),
+    bookingId: z.string().optional(),
+    invoiceId: z.string().optional(),
+    personId: z.string().optional(),
+    organizationId: z.string().optional(),
+  })
+  .strict()
 
 export const SEND_NOTIFICATION_HANDLER_POLICY = {
   capabilityId: "@voyant-travel/notifications#tool.send-notification",
@@ -149,10 +127,7 @@ export const sendNotificationTool = defineTool<
   capabilityVersion: "v2",
   name: "send_notification",
   description:
-    "Accept a notification for durable asynchronous delivery by rendering a vetted template to a " +
-    "recipient (externally-committing: an email/SMS cannot be unsent). Returns an immutable pending " +
-    "delivery snapshot; poll get_notification_delivery for mutable status. Only template sends are " +
-    "allowed. Requires the notifications:send grant and explicit confirmation.",
+    "Accept a vetted template for durable asynchronous notification delivery. Returns an immutable pending delivery snapshot.",
   inputSchema: sendNotificationArgs,
   outputSchema: notificationDeliverySchema,
   requiredScopes: ["notifications:send"],

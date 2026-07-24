@@ -4,7 +4,7 @@ import type { NotificationAttachment } from "./types.js"
 
 export function normalizeDeliveryAttachments(
   attachments:
-    | Array<{
+    | ReadonlyArray<{
         filename: string
         contentBase64?: string | null
         path?: string | null

@@ -4262,15 +4262,12 @@ function validateConditionalActionAvailability(
 
         const candidates = closedProviderDeclarationsForPort(units, port)
         if (candidates.length === 0) {
-          diagnostics.push(
-            diagnostic({
-              code: "VOYANT_GRAPH_UNKNOWN_REFERENCE",
-              source: unit.id,
-              facet,
-              message: `Conditional action "${action.id}" references provider port "${port}", but no selected graph unit closes that port with an explicitly selectable provider declaration.`,
-              hint: "Select a provider package that both provides the typed port and declares its deployment provider role/value.",
-            }),
-          )
+          // Provider packages can be project-local or supplied by a managed
+          // deployment. Their absence from a distributable OSS graph is a
+          // valid disabled state: the action remains unavailable until one
+          // exact provider declaration is selected and passes runtime
+          // conformance. The owning module's typed, one-valued consumer port
+          // above still catches misspelled or untyped conditions.
           continue
         }
 

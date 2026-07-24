@@ -22,6 +22,13 @@
       "when": 1784898000000,
       "tag": "0002_durable_send_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784901600000,
+      "tag": "0003_strict_durable_notification_admission",
+      "breakpoints": true
     }
   ]
 }

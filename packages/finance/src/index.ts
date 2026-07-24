@@ -94,7 +94,6 @@ export {
   checkoutCollectionStageSchema,
   checkoutInvoiceDocumentTypeSchema,
   checkoutInvoiceNotificationSchema,
-  checkoutNotificationAttachmentSchema,
   checkoutNotificationChannelSchema,
   checkoutNotificationDeliverySchema,
   checkoutNotificationDeliveryStatusSchema,

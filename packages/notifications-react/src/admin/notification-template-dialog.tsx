@@ -28,7 +28,7 @@ import {
   type NotificationTemplateRecord,
   useNotificationTemplateAuthoring,
   useNotificationTemplateMutation,
-  useNotificationTemplateTools,
+  useNotificationTemplatePreview,
 } from "../index.js"
 import { NotificationTemplateAttachmentsField } from "./notification-template-attachments-field.js"
 import { NotificationTemplateAuthoringHelp } from "./notification-template-authoring-help.js"
@@ -73,16 +73,14 @@ function NotificationTemplateDialogInner({
   onSuccess,
 }: NotificationTemplateDialogProps) {
   const isEditing = Boolean(template)
-  const { formatMessage, messages } = useNotificationsUiI18nOrDefault()
+  const { messages } = useNotificationsUiI18nOrDefault()
   const t = messages.admin.templateDialog
   const common = messages.admin.common
   const { create, update } = useNotificationTemplateMutation()
-  const { preview, testSend } = useNotificationTemplateTools()
+  const preview = useNotificationTemplatePreview()
   const previewResetRef = useRef(preview.reset)
-  const testSendResetRef = useRef(testSend.reset)
   const { variableCatalog, liquidSnippets } = useNotificationTemplateAuthoring()
   const [previewDataInput, setPreviewDataInput] = useState("{}")
-  const [testRecipient, setTestRecipient] = useState("")
   const variableGroups = useMemo(
     () =>
       variableCatalog.map((group) => ({
@@ -118,7 +116,6 @@ function NotificationTemplateDialogInner({
   const channel = form.watch("channel")
   const attachments = form.watch("attachments") ?? []
   previewResetRef.current = preview.reset
-  testSendResetRef.current = testSend.reset
 
   useEffect(() => {
     if (open && template) {
@@ -154,9 +151,7 @@ function NotificationTemplateDialogInner({
   useEffect(() => {
     if (!open) return
     setPreviewDataInput(defaultPreviewData)
-    setTestRecipient("")
     previewResetRef.current()
-    testSendResetRef.current()
   }, [defaultPreviewData, open])
 
   const onSubmit = async (values: FormOutput) => {
@@ -214,31 +209,6 @@ function NotificationTemplateDialogInner({
       })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : common.previewFailed)
-    }
-  }
-
-  const handleTestSend = async () => {
-    if (!testRecipient.trim()) {
-      toast.error(channel === "email" ? t.recipientEmailRequired : t.recipientPhoneRequired)
-      return
-    }
-
-    try {
-      const data = parsePreviewData()
-      await testSend.mutateAsync({
-        to: testRecipient.trim(),
-        channel,
-        provider: null,
-        from: channel === "email" ? form.getValues("fromAddress") || null : null,
-        subject: channel === "email" ? form.getValues("subjectTemplate") || null : null,
-        html: channel === "email" ? form.getValues("htmlTemplate") || null : null,
-        text: channel === "sms" ? form.getValues("textTemplate") || null : null,
-        data,
-        targetType: "other",
-      })
-      toast.success(channel === "email" ? t.testQueuedEmail : t.testQueuedSms)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t.testSendFailed)
     }
   }
 
@@ -397,7 +367,7 @@ function NotificationTemplateDialogInner({
                 </TabsContent>
 
                 <TabsContent value="preview" className="mt-4 space-y-4">
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="grid gap-4">
                     <div className="space-y-4">
                       <div className="flex flex-col gap-2">
                         <Label>{t.previewDataLabel}</Label>
@@ -430,60 +400,6 @@ function NotificationTemplateDialogInner({
                         data={preview.data}
                         t={t}
                       />
-                    </div>
-
-                    <div className="space-y-4 rounded-md border p-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium">{t.testSendTitle}</div>
-                        <p className="text-xs text-muted-foreground">{t.testSendDescription}</p>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <Label>
-                          {channel === "email" ? t.recipientEmailLabel : t.recipientPhoneLabel}
-                        </Label>
-                        <Input
-                          value={testRecipient}
-                          onChange={(event) => setTestRecipient(event.target.value)}
-                          placeholder={
-                            channel === "email"
-                              ? t.recipientEmailPlaceholder
-                              : t.recipientPhonePlaceholder
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1 text-xs text-muted-foreground">
-                        <div>{t.providerAutoNote}</div>
-                        {channel === "email" ? (
-                          <div>
-                            {formatMessage(t.fromNote, {
-                              sender: form.watch("fromAddress") || common.defaultSender,
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <Button
-                        type="button"
-                        className="w-full"
-                        onClick={handleTestSend}
-                        disabled={testSend.isPending}
-                      >
-                        {testSend.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : null}
-                        {channel === "email" ? t.sendTestEmail : t.sendTestSms}
-                      </Button>
-
-                      {testSend.data ? (
-                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
-                          {formatMessage(common.deliveryQueuedStatus, {
-                            status: testSend.data.status,
-                            provider: testSend.data.provider ?? "none",
-                          })}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 </TabsContent>

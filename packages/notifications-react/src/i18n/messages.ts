@@ -242,21 +242,6 @@ export type NotificationsUiMessages = {
       noSubjectRendered: string
       noHtmlRendered: string
       noSmsRendered: string
-      testSendTitle: string
-      testSendDescription: string
-      recipientEmailLabel: string
-      recipientPhoneLabel: string
-      recipientEmailPlaceholder: string
-      recipientPhonePlaceholder: string
-      providerAutoNote: string
-      fromNote: string
-      sendTestEmail: string
-      sendTestSms: string
-      testQueuedEmail: string
-      testQueuedSms: string
-      testSendFailed: string
-      recipientEmailRequired: string
-      recipientPhoneRequired: string
       markActiveLabel: string
       createTemplate: string
     }

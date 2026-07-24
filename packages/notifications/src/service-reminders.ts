@@ -1,9 +1,9 @@
 import { bookingPaymentSchedules } from "@voyant-travel/finance/schema"
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { notificationReminderRuns } from "./schema.js"
-import { sendInvoiceNotification, sendNotification } from "./service-deliveries.js"
+import { sendInvoiceReminderNotification } from "./service-deliveries.js"
+import { enqueueNotification } from "./service-durable-send.js"
 import {
   bookingStatusSkipReason,
   buildBookingPaymentReminderTemplateData,
@@ -16,7 +16,6 @@ import {
   getReminderRuleById,
   getReminderRunById,
   markReminderRunFailed,
-  markReminderRunSent,
   markReminderRunSkipped,
   type NotificationReminderRunRow,
   type ReminderDeliveryEnqueuer,
@@ -84,26 +83,32 @@ async function sendQueuedBookingPaymentScheduleReminder(
   }
 
   try {
-    const delivery = await sendNotification(db, dispatcher, {
-      templateId: channelOverride.templateId,
-      templateSlug: channelOverride.templateSlug,
-      channel: channelOverride.channel,
-      provider: channelOverride.provider,
-      to: recipientEmail,
-      data: context.data,
-      targetType: "booking_payment_schedule",
-      targetId: schedule.id,
-      bookingId: context.booking.id,
-      personId: context.booking.personId ?? null,
-      organizationId: context.booking.organizationId ?? null,
-      metadata: {
-        reminderRuleId: rule.id,
+    await enqueueNotification({
+      db,
+      registry: dispatcher,
+      input: {
+        idempotencyKey: `reminder:${run.dedupeKey}`,
+        templateId: channelOverride.templateId,
+        templateSlug: channelOverride.templateSlug,
+        channel: channelOverride.channel,
+        provider: channelOverride.provider,
+        to: recipientEmail,
+        data: context.data,
+        targetType: "booking_payment_schedule",
+        targetId: schedule.id,
+        bookingId: context.booking.id,
+        personId: context.booking.personId ?? null,
+        organizationId: context.booking.organizationId ?? null,
+        metadata: {
+          reminderRuleId: rule.id,
+          reminderRunId: run.id,
+        },
         reminderRunId: run.id,
+        scheduledFor: run.scheduledFor.toISOString(),
       },
-      scheduledFor: run.scheduledFor.toISOString(),
     })
 
-    return markReminderRunSent(db, run.id, new Date(), delivery?.id ?? null)
+    return run
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notification reminder failed"
     return markReminderRunFailed(db, run.id, new Date(), message)
@@ -118,12 +123,16 @@ async function sendQueuedInvoiceReminder(
   now: Date,
   channelOverride: ChannelOverride,
 ) {
-  const delivery = await sendInvoiceNotification(db, dispatcher, run.targetId, {
+  if (!run.recipient) {
+    return markReminderRunSkipped(db, run.id, now, "No recipient available for invoice reminder")
+  }
+  const delivery = await sendInvoiceReminderNotification(db, dispatcher, run.targetId, {
+    idempotencyKey: `reminder:${run.dedupeKey}`,
     templateId: channelOverride.templateId,
     templateSlug: channelOverride.templateSlug,
     channel: channelOverride.channel,
     provider: channelOverride.provider,
-    to: run.recipient ?? undefined,
+    to: run.recipient,
     data: {
       reminderRunId: run.id,
     },
@@ -131,6 +140,7 @@ async function sendQueuedInvoiceReminder(
       reminderRuleId: rule.id,
       reminderRunId: run.id,
     },
+    reminderRunId: run.id,
     scheduledFor: run.scheduledFor.toISOString(),
   })
 
@@ -138,7 +148,7 @@ async function sendQueuedInvoiceReminder(
     return markReminderRunSkipped(db, run.id, now, "Invoice not found for reminder run")
   }
 
-  return markReminderRunSent(db, run.id, new Date(), delivery.id ?? null)
+  return run
 }
 
 export async function queueDueReminders(
@@ -155,28 +165,12 @@ export async function deliverReminderRun(
   input: { reminderRunId: string },
 ) {
   const now = new Date()
-  const [claimedRun] = await db
-    .update(notificationReminderRuns)
-    .set({
-      status: "processing",
-      errorMessage: null,
-      processedAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(notificationReminderRuns.id, input.reminderRunId),
-        eq(notificationReminderRuns.status, "queued"),
-      ),
-    )
-    .returning()
-
-  const run = claimedRun ?? (await getReminderRunById(db, input.reminderRunId))
+  const run = await getReminderRunById(db, input.reminderRunId)
   if (!run) {
     return null
   }
 
-  if (!claimedRun) {
+  if (run.status !== "queued" || run.notificationDeliveryId) {
     return run
   }
 

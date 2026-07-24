@@ -16,17 +16,24 @@ export function createFinanceNotificationsRuntime(
       if (providers.length === 0) return null
       const dispatcher = createNotificationService(providers)
       return {
-        sendInvoiceNotification: async (db, invoiceId, input) =>
+        sendInvoiceNotification: async (db, invoiceId, input, options) =>
           toCheckoutNotificationDelivery(
-            await notificationsService.sendInvoiceNotification(db, dispatcher, invoiceId, input),
+            await notificationsService.sendInvoiceNotification(
+              db,
+              dispatcher,
+              invoiceId,
+              input,
+              options,
+            ),
           ),
-        sendPaymentSessionNotification: async (db, paymentSessionId, input) =>
+        sendPaymentSessionNotification: async (db, paymentSessionId, input, options) =>
           toCheckoutNotificationDelivery(
             await notificationsService.sendPaymentSessionNotification(
               db,
               dispatcher,
               paymentSessionId,
               input,
+              options,
             ),
           ),
       }

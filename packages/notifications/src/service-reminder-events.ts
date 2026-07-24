@@ -3,7 +3,7 @@ import { and, desc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { notificationReminderRules, notificationReminderRuns } from "./schema.js"
-import { sendNotification } from "./service-deliveries.js"
+import { enqueueNotification } from "./service-durable-send.js"
 import {
   type BookingEventReminderRuntimeOptions,
   getBookingEventDocumentContext,
@@ -11,11 +11,7 @@ import {
   hasOutstandingBookingBalance,
   serializeBookingPaymentContext,
 } from "./service-reminder-booking-context.js"
-import {
-  markReminderRunFailed,
-  markReminderRunSent,
-  markReminderRunSkipped,
-} from "./service-reminder-run-state.js"
+import { markReminderRunFailed, markReminderRunSkipped } from "./service-reminder-run-state.js"
 import type { NotificationReminderRuleRow, NotificationService } from "./service-shared.js"
 import {
   buildReminderDedupeKey,
@@ -118,7 +114,7 @@ async function sendBookingEventReminder(
       organizationId: booking.organizationId ?? null,
       paymentSessionId: input.paymentSessionId ?? null,
       notificationDeliveryId: null,
-      status: "processing",
+      status: "queued",
       recipient: recipient?.email ?? null,
       scheduledFor: now,
       processedAt: now,
@@ -146,65 +142,71 @@ async function sendBookingEventReminder(
   }
 
   try {
-    const delivery = await sendNotification(db, dispatcher, {
-      templateId: rule.templateId ?? null,
-      templateSlug: rule.templateSlug ?? null,
-      channel: rule.channel,
-      provider: rule.provider ?? null,
-      to: recipient.email,
-      data: {
-        bookingId: booking.id,
-        bookingNumber: booking.bookingNumber,
-        trigger: input.targetType,
-        event: input.eventData ?? {},
-        traveler: {
-          firstName: recipient.firstName,
-          lastName: recipient.lastName,
-          email: recipient.email,
-          participantType: recipient.participantType,
-          isPrimary: recipient.isPrimary,
-        },
-        travelers: participants,
-        booking: {
-          id: booking.id,
+    await enqueueNotification({
+      db,
+      registry: dispatcher,
+      input: {
+        idempotencyKey: `reminder:${processingRun.dedupeKey}`,
+        templateId: rule.templateId ?? null,
+        templateSlug: rule.templateSlug ?? null,
+        channel: rule.channel,
+        provider: rule.provider ?? null,
+        to: recipient.email,
+        data: {
+          bookingId: booking.id,
           bookingNumber: booking.bookingNumber,
-          status: booking.status,
-          startDate: booking.startDate,
-          endDate: booking.endDate,
-          sellCurrency: booking.sellCurrency,
-          sellAmountCents: booking.sellAmountCents,
+          trigger: input.targetType,
+          event: input.eventData ?? {},
+          traveler: {
+            firstName: recipient.firstName,
+            lastName: recipient.lastName,
+            email: recipient.email,
+            participantType: recipient.participantType,
+            isPrimary: recipient.isPrimary,
+          },
+          travelers: participants,
+          booking: {
+            id: booking.id,
+            bookingNumber: booking.bookingNumber,
+            status: booking.status,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            sellCurrency: booking.sellCurrency,
+            sellAmountCents: booking.sellAmountCents,
+          },
+          ...serializeBookingPaymentContext(paymentContext),
+          payment:
+            input.targetType === "payment_complete"
+              ? {
+                  isPaidInFull: true,
+                  paymentSessionId: input.paymentSessionId ?? null,
+                }
+              : null,
+          documents: documentContext.documents,
+          items,
         },
-        ...serializeBookingPaymentContext(paymentContext),
-        payment:
+        attachments: documentContext.attachments.length > 0 ? documentContext.attachments : null,
+        targetType: input.targetType === "payment_complete" ? "payment_session" : "booking",
+        targetId:
           input.targetType === "payment_complete"
-            ? {
-                isPaidInFull: true,
-                paymentSessionId: input.paymentSessionId ?? null,
-              }
-            : null,
-        documents: documentContext.documents,
-        items,
-      },
-      attachments: documentContext.attachments.length > 0 ? documentContext.attachments : null,
-      targetType: input.targetType === "payment_complete" ? "payment_session" : "booking",
-      targetId:
-        input.targetType === "payment_complete"
-          ? (input.paymentSessionId ?? booking.id)
-          : booking.id,
-      bookingId: booking.id,
-      paymentSessionId: input.paymentSessionId ?? null,
-      personId: booking.personId ?? null,
-      organizationId: booking.organizationId ?? null,
-      metadata: {
-        reminderRuleId: rule.id,
+            ? (input.paymentSessionId ?? booking.id)
+            : booking.id,
+        bookingId: booking.id,
+        paymentSessionId: input.paymentSessionId ?? null,
+        personId: booking.personId ?? null,
+        organizationId: booking.organizationId ?? null,
+        metadata: {
+          reminderRuleId: rule.id,
+          reminderRunId: processingRun.id,
+          eventTargetType: input.targetType,
+          bookingDocumentKeys: documentContext.documents.map((document) => document.key),
+        },
         reminderRunId: processingRun.id,
-        eventTargetType: input.targetType,
-        bookingDocumentKeys: documentContext.documents.map((document) => document.key),
+        scheduledFor: now.toISOString(),
       },
-      scheduledFor: now.toISOString(),
     })
 
-    return markReminderRunSent(db, processingRun.id, new Date(), delivery?.id ?? null)
+    return processingRun
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notification event delivery failed"
     return markReminderRunFailed(db, processingRun.id, new Date(), message)
