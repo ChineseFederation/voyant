@@ -13,7 +13,6 @@
  * surfaces and adds the admin-only order-management endpoints:
  *
  *   POST   /v1/{admin,public}/catalog/quote          → quoteEntity
- *   POST   /v1/{admin,public}/catalog/book           → bookEntity
  *   PUT    /v1/{admin,public}/catalog/drafts/:id      → upsert booking draft
  *   GET    /v1/{admin,public}/catalog/drafts/:id      → read booking draft
  *   DELETE /v1/{admin,public}/catalog/drafts/:id      → delete booking draft
@@ -55,9 +54,7 @@ import {
   ORDER_ALREADY_CANCELLED,
   ORDER_NOT_FOUND,
   QUOTE_EXPIRED,
-  QUOTE_MISMATCH,
   QUOTE_NOT_FOUND,
-  RESERVE_FAILED,
 } from "./errors.js"
 import { getOrderById, listOrders } from "./orders.js"
 import type { SourceAdapterRegistry } from "./registry.js"
@@ -402,7 +399,6 @@ export interface CatalogBookingMountTarget {
 export const catalogBookingRoutePaths = [
   "/v1/admin/catalog/quote",
   "/v1/admin/catalog/quotes/batch",
-  "/v1/admin/catalog/book",
   "/v1/admin/catalog/drafts/:id",
   "/v1/admin/catalog/holds/place",
   "/v1/admin/catalog/holds/release",
@@ -413,7 +409,6 @@ export const catalogBookingRoutePaths = [
   "/v1/admin/bookings/:id/catalog-snapshot",
   "/v1/public/catalog/quote",
   "/v1/public/catalog/quotes/batch",
-  "/v1/public/catalog/book",
   "/v1/public/catalog/drafts/:id",
   "/v1/public/catalog/holds/place",
   "/v1/public/catalog/holds/release",
@@ -423,12 +418,10 @@ export const catalogBookingRoutePaths = [
 export const catalogBookingTransactionalPaths = [
   "/v1/admin/catalog/quote",
   "/v1/admin/catalog/quotes/batch",
-  "/v1/admin/catalog/book",
   "/v1/admin/catalog/holds",
   "/v1/admin/catalog/orders",
   "/v1/public/catalog/quote",
   "/v1/public/catalog/quotes/batch",
-  "/v1/public/catalog/book",
   "/v1/public/catalog/holds",
 ] as const
 
@@ -892,11 +885,8 @@ function statusForCode(code: string): number {
     case ORDER_NOT_FOUND:
       return 404
     case QUOTE_EXPIRED:
-    case QUOTE_MISMATCH:
     case ORDER_ALREADY_CANCELLED:
       return 409
-    case RESERVE_FAILED:
-      return 502
     default:
       return 500
   }

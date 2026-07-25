@@ -206,12 +206,6 @@ const storefrontRouteFiles: readonly VoyantGeneratedRouteFile[] = [
     "accountVerifyEmail",
   ),
   contributionRoute(
-    "(storefront)/shop_.book.$entityModule.$entityId.tsx",
-    "/(storefront)/shop_/book/$entityModule/$entityId",
-    "storefront",
-    "booking",
-  ),
-  contributionRoute(
     "(storefront)/shop_.composer.tsx",
     "/(storefront)/shop_/composer",
     "storefront",

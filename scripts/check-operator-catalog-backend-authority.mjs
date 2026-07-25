@@ -24,8 +24,6 @@ for (const authority of [
   "buildCatalogSlices",
   "createCatalogOffersSearchResolvers",
   "createProductQuoteShapeEnricher",
-  "buildSourcedBookingRowValues",
-  "createCatalogPackageHoldPreparer",
   "resolveCatalogHoldTtlMs",
   "applyCatalogTaxToQuoteResult",
   "createCatalogProjectionRuntimeAdapter",
@@ -36,6 +34,15 @@ for (const authority of [
     !packageRuntime.includes(`export async function ${authority}`)
   ) {
     throw new Error(`${packageRuntimePath} must own ${authority}`)
+  }
+}
+
+for (const retiredAuthority of [
+  "buildSourcedBookingRowValues",
+  "createCatalogPackageHoldPreparer",
+]) {
+  if (packageRuntime.includes(retiredAuthority)) {
+    throw new Error(`${packageRuntimePath} must not restore ${retiredAuthority}`)
   }
 }
 

@@ -1,11 +1,8 @@
 import { type OpenAPIHono, z } from "@hono/zod-openapi"
-import { parseJsonBody } from "@voyant-travel/hono"
 import { listResponseSchema } from "@voyant-travel/types"
 
 import { parseUnifiedKey } from "./lib/key.js"
 import {
-  createBookingPayloadSchema,
-  createPartyBookingPayloadSchema,
   passengerCompositionMatches,
   passengerCountFromComposition,
   quotePayloadSchema,
@@ -23,7 +20,6 @@ import {
   errorResponseSchema,
 } from "./routes-openapi-schemas.js"
 import { cruisesService } from "./service.js"
-import { cruisesBookingService } from "./service-bookings.js"
 import { pricingService } from "./service-pricing.js"
 import {
   insertSailingSchema,
@@ -73,7 +69,6 @@ const itineraryForSailingSchema = z.object({ data: z.array(z.unknown()) })
 const quoteResultSchema = z.object({ data: z.unknown() })
 
 /** Booking result payload (composed across bookings/identity services). */
-const bookingResultSchema = z.object({ data: z.unknown() })
 
 const replaceSailingPricingBodySchema = z.object({
   prices: z.array(
@@ -224,37 +219,6 @@ const quoteSailingRoute = createRoute({
       errorResponseSchema,
     ),
     501: jsonContent("Referenced adapter is not registered", errorResponseSchema),
-  },
-})
-
-const createSailingBookingRoute = createRoute({
-  method: "post",
-  path: "/sailings/{key}/bookings",
-  request: {
-    params: keyParamSchema,
-    body: {
-      required: true,
-      content: { "application/json": { schema: createBookingPayloadSchema } },
-    },
-  },
-  responses: {
-    201: jsonContent("The created cruise booking", bookingResultSchema),
-    400: jsonContent("Invalid key, or URL key and payload sailingId mismatch", errorResponseSchema),
-    501: jsonContent("Referenced adapter is not registered", errorResponseSchema),
-  },
-})
-
-// Body is parsed in-handler (not declared on the route) so an external key
-// short-circuits to 501 before any body validation — external party bookings
-// are unsupported regardless of payload shape.
-const createSailingPartyBookingRoute = createRoute({
-  method: "post",
-  path: "/sailings/{key}/party-bookings",
-  request: { params: keyParamSchema },
-  responses: {
-    201: jsonContent("The created multi-cabin party booking", bookingResultSchema),
-    400: jsonContent("Invalid key, or URL key and payload sailingId mismatch", errorResponseSchema),
-    501: jsonContent("External party bookings are not supported", errorResponseSchema),
   },
 })
 
@@ -475,79 +439,6 @@ export function registerCruiseSailingAndPriceRoutes(app: OpenAPIHono<Env>) {
       fareVariant: payload.fareVariant ?? null,
     })
     return c.json({ data: quote }, 200)
-  })
-  // --- bookings (single + party) ---
-  app.openapi(createSailingBookingRoute, async (c) => {
-    const parsed = parseUnifiedKey(c.req.valid("param").key)
-    if (parsed.kind === "invalid") return c.json(invalidKey(parsed.raw), 400)
-    const payload = c.req.valid("json")
-    if (parsed.kind === "external") {
-      const ext = resolveExternal(parsed)
-      if (!ext) return c.json(adapterNotRegistered(parsed.provider), 501)
-      const result = await cruisesBookingService.createExternalCruiseBooking(
-        c.get("db"),
-        {
-          adapter: ext.adapter,
-          sailingRef: ext.sourceRef,
-          cabinCategoryRef: sourceRefFromPayload(payload.cabinCategoryRef, payload.cabinCategoryId),
-          cabinId: payload.cabinId ?? null,
-          occupancy: payload.occupancy,
-          passengerComposition: payload.passengerComposition ?? null,
-          fareCode: payload.fareCode ?? null,
-          fareVariant: payload.fareVariant ?? null,
-          mode: payload.mode,
-          personId: payload.personId ?? null,
-          organizationId: payload.organizationId ?? null,
-          contact: payload.contact,
-          passengers: payload.passengers,
-          notes: payload.notes ?? null,
-        },
-        c.get("userId"),
-      )
-      return c.json({ data: result }, 201)
-    }
-    if (payload.sailingId !== parsed.id) {
-      return c.json(
-        { error: "sailing_id_mismatch", detail: "URL key and payload sailingId must match" },
-        400,
-      )
-    }
-    const result = await cruisesBookingService.createCruiseBooking(
-      c.get("db"),
-      payload,
-      c.get("userId"),
-    )
-    return c.json({ data: result }, 201)
-  })
-  app.openapi(createSailingPartyBookingRoute, async (c) => {
-    const parsed = parseUnifiedKey(c.req.valid("param").key)
-    if (parsed.kind === "invalid") return c.json(invalidKey(parsed.raw), 400)
-    if (parsed.kind === "external") {
-      // External party bookings deferred — most cruise lines don't expose a
-      // multi-cabin atomic upstream commit; we'd have to implement the group
-      // semantics by serial bookings + rollback. Out of v1 scope.
-      return c.json(
-        {
-          error: "external_party_booking_not_supported",
-          detail:
-            "Multi-cabin party bookings against external adapters are not yet supported. Submit each cabin individually via POST /sailings/:key/bookings.",
-        },
-        501,
-      )
-    }
-    const payload = await parseJsonBody(c, createPartyBookingPayloadSchema)
-    if (payload.sailingId !== parsed.id) {
-      return c.json(
-        { error: "sailing_id_mismatch", detail: "URL key and payload sailingId must match" },
-        400,
-      )
-    }
-    const result = await cruisesBookingService.createCruisePartyBooking(
-      c.get("db"),
-      payload,
-      c.get("userId"),
-    )
-    return c.json({ data: result }, 201)
   })
   // --- prices (read endpoints; mutations go through bulk replace on the sailing) ---
   app.openapi(listPricesRoute, async (c) => {

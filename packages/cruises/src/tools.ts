@@ -14,7 +14,7 @@ import {
   CRUISE_HANDLER_ACTION_POLICY,
   CRUISE_SHIP_HANDLER_ACTION_POLICY,
 } from "./created-target-policy.js"
-import { createBookingPayloadSchema, quotePayloadSchema } from "./routes-booking-payloads.js"
+import { quotePayloadSchema } from "./routes-booking-payloads.js"
 import {
   cruiseRowSchema,
   cruiseSailingRowSchema,
@@ -42,7 +42,6 @@ import {
 const OWNER = "@voyant-travel/cruises"
 const READ_SCOPES = ["cruises:read"] as const
 const WRITE_SCOPES = ["cruises:write"] as const
-const BOOKING_SCOPES = ["cruises:write", "bookings:write"] as const
 const PUBLIC_AUDIENCE = { source: "grant", allowed: ["staff", "customer"] } as const
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const WRITE_RISK = {
@@ -54,13 +53,6 @@ const WRITE_RISK = {
 const CREATED_WRITE_RISK = {
   ...WRITE_RISK,
   reversible: false,
-} as const
-const COMMIT_RISK = {
-  destructive: false,
-  reversible: false,
-  confirmationRequired: true,
-  dryRunSupported: false,
-  sideEffects: ["data-write", "external-booking"],
 } as const
 const sourceRefSchema = z
   .object({ externalId: z.string().min(1), connectionId: z.string().optional() })
@@ -153,19 +145,9 @@ const quoteSchema = z.object({
   totalForCabin: z.string(),
   bookingTerms: z.record(z.string(), z.unknown()).nullable().optional(),
 })
-const bookingResultSchema = z.object({
-  bookingId: z.string(),
-  bookingNumber: z.string(),
-  sourceProvider: z.string().nullable(),
-  connectorBookingRef: z.string().nullable(),
-  quote: quoteSchema,
-})
 const keyInputSchema = z.object({ key: z.string().min(1) })
 const slugInputSchema = z.object({ slug: z.string().min(1) })
 const quoteInputSchema = z.object({ key: z.string().min(1) }).and(quotePayloadSchema)
-const bookingInputSchema = z
-  .object({ key: z.string().min(1) })
-  .and(createBookingPayloadSchema.omit({ sailingId: true }))
 const idInput = z.object({ id: z.string().min(1) })
 const createCruiseToolInputSchema = insertCruiseSchema.extend({
   idempotencyKey: z
@@ -208,7 +190,6 @@ export type CruisesToolOperation =
   | "updateSailing"
   | "createShip"
   | "updateShip"
-  | "createBooking"
 export interface CruisesToolServices {
   execute(
     operation: CruisesToolOperation,
@@ -383,24 +364,6 @@ export const updateCruiseShipTool = defineTool({
     return parse(cruiseShipRowSchema.nullable(), await service(ctx).execute("updateShip", input))
   },
 })
-export const createCruiseBookingTool = defineTool({
-  owner: OWNER,
-  capabilityVersion: "v1",
-  capabilityId: `${OWNER}#tool.create-cruise-booking`,
-  name: "create_cruise_booking",
-  description:
-    "Commit one cruise cabin booking locally or through the selected provider. Requires approval and confirmation.",
-  inputSchema: bookingInputSchema,
-  outputSchema: bookingResultSchema,
-  requiredScopes: BOOKING_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "write",
-  riskPolicy: COMMIT_RISK,
-  async handler(input, ctx: CruisesToolContext) {
-    return parse(bookingResultSchema, await service(ctx).execute("createBooking", input))
-  },
-})
-
 export const cruisesTools = [
   searchCruisesTool,
   getCruiseTool,
@@ -413,7 +376,6 @@ export const cruisesTools = [
   updateCruiseSailingTool,
   createCruiseShipTool,
   updateCruiseShipTool,
-  createCruiseBookingTool,
 ] as const
 
 function toJsonValue(value: unknown): unknown {

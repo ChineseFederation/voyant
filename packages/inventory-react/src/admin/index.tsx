@@ -27,15 +27,14 @@ import { ProductsListSkeleton } from "./products-list-skeleton.js"
 /**
  * Semantic destinations the products admin surfaces navigate to
  * (packaged-admin RFC §4.7). The products list opens the owned-product
- * editor, and the editor links back to the list, into the unified booking
- * journey, and into the availability slot pages — instead of importing a
+ * editor, and the editor links back to the list and into the availability
+ * slot pages — instead of importing a
  * host route tree they resolve these keys through `useAdminHref`/
  * `useAdminNavigate` from `@voyant-travel/admin`. Hosts register one resolver
  * per key (`satisfies AdminDestinationResolvers`).
  *
  * `product.detail` is also declared by `@voyant-travel/bookings-react/admin` and
- * `@voyant-travel/catalog-react/admin`; `booking.create` by
- * `@voyant-travel/bookings-react/admin`; `availabilitySlot.detail` by
+ * `@voyant-travel/catalog-react/admin`; `availabilitySlot.detail` by
  * `@voyant-travel/operations-react/availability/admin` and others — interface merging
  * requires the member shapes to stay identical across packages.
  */
@@ -47,8 +46,6 @@ declare module "@voyant-travel/admin" {
     "product.detail": { productId: string }
     /** The product categories settings page. */
     "productCategory.list": Record<string, never>
-    /** The "New booking" entry point (product picker → unified journey). */
-    "booking.create": Record<string, never>
     /** An availability slot's detail page. */
     "availabilitySlot.detail": { slotId: string }
   }

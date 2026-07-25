@@ -3,8 +3,7 @@
  *
  * Asks the registered adapter "is this row still bookable, and at what
  * price right now?", persists the answer in `catalog_quotes` with an
- * expiry, and returns a stable `quoteId` the subsequent `bookEntity`
- * call can validate against.
+ * expiry, and returns a stable `quoteId` for an admitted vertical command.
  *
  * Quotes are short-lived (default TTL: 10 minutes) and not de-duped.
  * Re-quoting the same row produces a new quote row so the audit trail

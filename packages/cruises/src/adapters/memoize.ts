@@ -2,10 +2,10 @@
  * In-memory TTL cache decorator for cruise adapters.
  *
  * Wraps a `CruiseAdapter` so that `fetch*` reads (cruise/sailing/ship/itinerary/
- * pricing detail) are cached for a short window keyed on the source ref. Mutations
- * (`createBooking`) and listings (`listEntries`, `listSailingsForCruise`,
- * `searchProjection`) always go live — caching them risks staleness against
- * upstream changes.
+ * pricing detail) are cached for a short window keyed on the source ref.
+ * Listings always go live. The low-level `createBooking` provider SPI also
+ * passes through uncached, but has no route, Tool, service, or application
+ * caller; a future durable admitted command must own any use of it.
  *
  * Templates opt in by wrapping their adapter at registration time:
  *

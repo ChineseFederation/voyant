@@ -5,22 +5,22 @@
  * Refunds are issued through the credit-note service after action approval.
  */
 import {
+  admitHandlerActionPolicy,
   defineTool,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
-  ToolError,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
-
+import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "./booking-create-policy.js"
 import {
   creditNoteSchema,
   invoiceDetailSchema,
   invoiceListItemSchema,
   invoiceSchema,
 } from "./routes-invoice-schemas.js"
-import { type BookingCreateOutcome, bookingCreateSchema } from "./service-booking-create.js"
+import { bookingCreateSchema } from "./service-booking-create.js"
 import {
   insertCreditNoteSchema,
   invoiceFromBookingSchema,
@@ -60,7 +60,10 @@ export interface FinanceToolServices {
     idempotencyKey: string
     approvalId?: string
   }): Promise<unknown>
-  createBooking(input: z.infer<typeof bookingCreateSchema>): Promise<BookingCreateOutcome>
+  createBooking(
+    input: z.infer<typeof bookingCreateSchema>,
+    admitted: ReturnType<typeof admitHandlerActionPolicy>,
+  ): Promise<{ bookingId: string; replayed: boolean }>
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
@@ -212,117 +215,45 @@ export const issueInvoiceRefundTool = defineTool<
   },
 })
 
-const bookingCreateSummarySchema = z.object({
-  status: z.literal("created"),
-  booking: z.object({
-    id: z.string(),
-    bookingNumber: z.string(),
-    status: z.string(),
-    currency: z.string(),
-    amountCents: z.number().int().nullable(),
-    pax: z.number().int().nullable(),
-  }),
-  travelerIds: z.array(z.string()),
-  paymentSchedules: z.array(
-    z.object({
-      id: z.string(),
-      scheduleType: z.string(),
-      status: z.string(),
-      dueDate: z.string(),
-      currency: z.string(),
-      amountCents: z.number().int(),
-    }),
-  ),
-  invoice: z
-    .object({
-      id: z.string(),
-      invoiceNumber: z.string(),
-      invoiceType: z.string(),
-      status: z.string(),
-    })
-    .nullable(),
-  invoiceDocument: z.discriminatedUnion("status", [
-    z.object({ status: z.literal("requested"), renditionId: z.string().nullable() }),
-    z.object({ status: z.literal("generated"), renditionId: z.string() }),
-    z.object({ status: z.enum(["not_requested", "not_available", "failed"]) }),
-  ]),
-  paymentIds: z.array(z.string()),
-  groupId: z.string().nullable(),
-  travelCreditRedemptionId: z.string().nullable(),
-})
-
 export const createBookingToolInputSchema = z.object({
   booking: bookingCreateSchema.describe(
     "The atomic product/slot booking command, including travelers, room/item lines, and schedules.",
   ),
 })
 
-export const createBookingTool = defineTool<
-  z.infer<typeof createBookingToolInputSchema>,
-  z.infer<typeof bookingCreateSummarySchema>,
-  FinanceToolContext
->({
+const durableBookingCreateResultSchema = z.object({
+  status: z.literal("created"),
+  bookingId: z.string().min(1),
+  replayed: z.boolean(),
+})
+
+export const createBookingTool = defineTool({
   owner: "@voyant-travel/finance#bookings-create-extension",
   capabilityId: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
   capabilityVersion: "v1",
   name: "create_booking",
-  aliases: ["bookings_create"],
   description:
-    "Create a booking from a product or slot with travelers, room/item lines, payment schedules, optional credit, group membership, and invoice documents.",
+    "Durably create one booking from a product or slot. Exact retries resolve the original immutable booking reference.",
   inputSchema: createBookingToolInputSchema,
-  outputSchema: bookingCreateSummarySchema,
+  outputSchema: durableBookingCreateResultSchema,
   requiredScopes: ["bookings:write", "finance:write"],
   audience: { source: "grant", allowed: ["staff"] },
   tier: "destructive",
   riskPolicy: {
-    destructive: false,
-    reversible: true,
+    destructive: true,
+    reversible: false,
     dryRunSupported: false,
     confirmationRequired: true,
     sideEffects: ["data-write", "external-booking", "payment"],
   },
-  // Finance records the authoritative booking.create action with the generated
-  // booking id inside the booking transaction. The generic gate cannot know
-  // that id before dispatch and would create a second, caller-invented ledger
-  // timeline.
   actionPolicyEnforcement: "handler",
   async handler({ booking }, ctx) {
-    const outcome = await finance(ctx).createBooking(booking)
-    if (outcome.status !== "ok") {
-      throw bookingCreateToolError(outcome)
-    }
-    const result = outcome.result
+    const admitted = admitHandlerActionPolicy(ctx, FINANCE_BOOKING_CREATE_HANDLER_POLICY)
+    const result = await finance(ctx).createBooking(booking, admitted)
     return {
       status: "created",
-      booking: {
-        id: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        status: result.booking.status,
-        currency: result.booking.sellCurrency,
-        amountCents: result.booking.sellAmountCents,
-        pax: result.booking.pax,
-      },
-      travelerIds: result.travelers.map((traveler) => traveler.id),
-      paymentSchedules: result.paymentSchedules.map((schedule) => ({
-        id: schedule.id,
-        scheduleType: schedule.scheduleType,
-        status: schedule.status,
-        dueDate: schedule.dueDate,
-        currency: schedule.currency,
-        amountCents: schedule.amountCents,
-      })),
-      invoice: result.invoice
-        ? {
-            id: result.invoice.id,
-            invoiceNumber: result.invoice.invoiceNumber,
-            invoiceType: result.invoice.invoiceType,
-            status: result.invoice.status,
-          }
-        : null,
-      invoiceDocument: result.invoiceDocument,
-      paymentIds: result.payments.map((payment) => payment.id),
-      groupId: result.groupMembership?.groupId ?? null,
-      travelCreditRedemptionId: result.travelCreditRedemption?.redemption.id ?? null,
+      bookingId: result.bookingId,
+      replayed: result.replayed,
     }
   },
 })
@@ -392,19 +323,6 @@ export const financeTools = [
 
 function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {
   return schema.parse(toJsonValue(value))
-}
-
-function bookingCreateToolError(outcome: Exclude<BookingCreateOutcome, { status: "ok" }>) {
-  switch (outcome.status) {
-    case "product_not_found":
-    case "travel_credit_not_found":
-    case "group_not_found":
-      return new ToolError(`Booking create failed: ${outcome.status}`, "NOT_FOUND", { outcome })
-    default:
-      return new ToolError(`Booking create rejected: ${outcome.status}`, "INVALID_INPUT", {
-        outcome,
-      })
-  }
 }
 
 function toJsonValue(value: unknown): unknown {

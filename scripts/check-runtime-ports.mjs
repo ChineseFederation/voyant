@@ -41,7 +41,6 @@ const migratedPorts = [
   "quotesSnapshotRuntimePort",
   "smartbillRuntimeHostPort",
   "storefrontCustomerPortalRuntimePort",
-  "storefrontBookingIntentsRuntimePort",
   "storefrontIntakeRuntimePort",
   "storefrontOffersRuntimePort",
   "storefrontPaymentLinkRuntimePort",

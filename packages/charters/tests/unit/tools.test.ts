@@ -1,11 +1,7 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
-import {
-  type ChartersToolServices,
-  chartersTools,
-  createCharterBookingTool,
-} from "../../src/tools.js"
+import { type ChartersToolServices, chartersTools } from "../../src/tools.js"
 
 function context(
   services?: ChartersToolServices,
@@ -31,23 +27,15 @@ describe("charter tools", () => {
     expect(() => registry.registerAll(chartersTools)).not.toThrow()
     const manifest = registry.list()
 
-    expect(manifest).toHaveLength(13)
-    expect(new Set(manifest.map(({ capabilityId }) => capabilityId)).size).toBe(13)
+    expect(manifest).toHaveLength(12)
+    expect(new Set(manifest.map(({ capabilityId }) => capabilityId)).size).toBe(12)
     expect(manifest.every(({ owner }) => owner === "@voyant-travel/charters")).toBe(true)
     expect(manifest.some(({ name }) => name.includes("archive") || name.includes("delete"))).toBe(
       false,
     )
   })
 
-  it("guards supplier-committing booking separately from reversible lifecycle writes", () => {
-    expect(createCharterBookingTool.requiredScopes).toEqual(["charters:write", "bookings:write"])
-    expect(createCharterBookingTool.audience).toEqual({ source: "grant", allowed: ["staff"] })
-    expect(createCharterBookingTool.riskPolicy).toMatchObject({
-      destructive: false,
-      reversible: false,
-      confirmationRequired: true,
-      sideEffects: ["data-write", "external-booking"],
-    })
+  it("guards created targets separately from reversible lifecycle writes", () => {
     for (const tool of chartersTools.filter(
       ({ requiredScopes }) => requiredScopes[0] === "charters:write" && requiredScopes.length === 1,
     )) {

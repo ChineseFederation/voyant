@@ -26,10 +26,7 @@ let _connectWarm: Promise<void> | undefined
 /**
  * Build (once per isolate) the registry with everything resolvable
  * synchronously: the un-scoped Voyant Connect default adapter pair. The
- * default pair is the cold-window fallback — `bookEntity`
- * resolves by `source_connection_id` first and falls back to this by-kind
- * adapter, so sourced bookings still dispatch before the per-connection warm
- * (see `warmBookingEngineConnectSources`) completes.
+ * default pair is the cold-window fallback for sourced reads and quoting.
  */
 function ensureRegistry(env: BookingEngineEnv): SourceAdapterRegistry {
   if (!_registry) {

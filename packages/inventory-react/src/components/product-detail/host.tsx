@@ -32,7 +32,6 @@ export interface ProductDetailApi {
 export interface ProductDetailNavigation {
   toProducts: () => void
   toProduct: (productId: string) => void
-  toNewBooking: (productId: string) => void
   toAvailability: (slotId: string) => void
 }
 

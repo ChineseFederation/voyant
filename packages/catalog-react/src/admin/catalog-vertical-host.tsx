@@ -24,7 +24,6 @@ import {
   useVoyantCatalogContext,
   type VoyantFetcher,
 } from "../index.js"
-import { bookingJourneyProvenanceSearchParams } from "./booking-journey-provenance.js"
 
 type CatalogBrowserMessages = ReturnType<
   typeof useOperatorAdminMessages
@@ -382,15 +381,6 @@ export function CatalogVerticalHost({
           true,
         )
       }}
-      onBookHit={(hit, entityModule) =>
-        goToBookingPage(hit, entityModule, navigateTo, browserMessages)
-      }
-      onBookDeparture={(hit, entityModule, departure) =>
-        goToBookingPage(hit, entityModule, navigateTo, browserMessages, departure)
-      }
-      onBookOption={(hit, entityModule, departure, option) =>
-        goToBookingPage(hit, entityModule, navigateTo, browserMessages, departure, option)
-      }
       onOpenProductEditor={(hit) => navigateTo("product.detail", { productId: hit.id })}
       // When the surface provides a detail-page opener, results open it (new
       // tab) instead of the in-page sheet. Surface-specific so each vertical
@@ -505,50 +495,6 @@ function CatalogScopeControls({
       </Select>
     </>
   )
-}
-
-type DestinationNavigator = ReturnType<typeof useAdminNavigate>
-
-interface BookingDeparture {
-  id: string
-  startsAt: string
-}
-
-function goToBookingPage(
-  hit: CatalogSearchHit,
-  entityModule: string,
-  navigateTo: DestinationNavigator,
-  messages: CatalogBrowserMessages,
-  departure?: BookingDeparture,
-  option?: { id: string; name: string },
-): void {
-  const sourceKind = stringField(hit, "source.kind", null) ?? "owned"
-  if (!sourceKind) {
-    toast.info(messages.cannotBookYet, {
-      description: messages.missingSourceInfo,
-    })
-    return
-  }
-
-  const sourceRef = stringField(hit, "source.ref", null) ?? undefined
-  const sourceConnectionId = stringField(hit, "source.connectionId", null) ?? undefined
-  const isSourced = sourceKind !== "owned"
-  const entityName = stringField(hit, "name", null) ?? undefined
-  const entityImageUrl =
-    stringField(hit, "thumbnailUrl", null) ?? stringField(hit, "heroImageUrl", null) ?? undefined
-  navigateTo("bookingJourney.start", {
-    entityModule,
-    entityId: hit.id,
-    ...bookingJourneyProvenanceSearchParams({ sourceKind, sourceConnectionId, sourceRef }),
-    ...(departure
-      ? isSourced
-        ? { departureDate: departure.startsAt.slice(0, 10) }
-        : { departureId: departure.id }
-      : {}),
-    ...(option ? { optionId: option.id } : {}),
-    ...(entityName ? { entityName } : {}),
-    ...(entityImageUrl ? { entityImageUrl } : {}),
-  })
 }
 
 async function loadProductSlotAvailability(

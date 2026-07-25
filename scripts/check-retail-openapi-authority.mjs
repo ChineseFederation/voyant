@@ -35,7 +35,6 @@ const claims = new Map([
   ["@voyant-travel/bookings#requirements.api", "booking-requirements"],
   ["@voyant-travel/bookings#requirements.api.public", "booking-requirements"],
   ["@voyant-travel/bookings#booking-supplier-extension.api", "bookings"],
-  ["@voyant-travel/finance#bookings-create-extension.api", "bookings"],
   ["@voyant-travel/finance#booking-schedule-extension.api.admin", "bookings"],
   ["@voyant-travel/legal#api.contract-document", "contract-document"],
   ["@voyant-travel/quotes#api", "quotes"],
@@ -73,10 +72,6 @@ const exactOperationOwners = new Map([
     ["@voyant-travel/bookings#booking-supplier-extension.api", 3],
   ],
   [
-    "packages/finance/src/routes-booking-create.ts",
-    ["@voyant-travel/finance#bookings-create-extension.api", 2],
-  ],
-  [
     "packages/finance/src/payment-schedule/routes.ts",
     ["@voyant-travel/finance#booking-schedule-extension.api.admin", 1],
   ],
@@ -97,6 +92,6 @@ for (const [file, [apiId, expectedCount]] of exactOperationOwners) {
 }
 
 const coverageChecker = readFileSync("scripts/check-deployment-graph-openapi-coverage.mjs", "utf8")
-assert.match(coverageChecker, /MIN_PACKAGE_OWNED_API_BUNDLES = 73/)
+assert.match(coverageChecker, /MIN_PACKAGE_OWNED_API_BUNDLES = 72/)
 
 console.log(`check-retail-openapi-authority: OK (${claims.size} package-owned API bundles)`)

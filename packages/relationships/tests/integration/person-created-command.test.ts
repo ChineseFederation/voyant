@@ -3,6 +3,7 @@ import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import { identityContactPoints } from "@voyant-travel/identity"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -16,6 +17,7 @@ import {
   personCreatedEventId,
 } from "../../src/person-created-command.js"
 import { people } from "../../src/schema.js"
+import { createPersonTool, type RelationshipsToolServices } from "../../src/tools.js"
 import { insertPersonSchema } from "../../src/validation.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -50,7 +52,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
       domainInserted = resolve
     })
 
-    const firstPromise = executePersonCreateCommand({
+    const firstPromise = executeCommand({
       ...command,
       testHooks: {
         async afterDomainCreate() {
@@ -61,7 +63,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
     })
     await inserted
     let secondSettled = false
-    const secondPromise = executePersonCreateCommand(command).finally(() => {
+    const secondPromise = executeCommand(command).finally(() => {
       secondSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -74,7 +76,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
 
     const canonicalPersonId = first.value.id
     first.value.id = "mutated_response"
-    const exactReplay = await executePersonCreateCommand(command)
+    const exactReplay = await executeCommand(command)
     expect(exactReplay).toEqual(
       expect.objectContaining({
         replayed: true,
@@ -82,13 +84,22 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
       }),
     )
     await expect(
-      executePersonCreateCommand({
+      executeCommand({
         ...command,
         commandInput: {
           person: { ...command.commandInput.person, lastName: "Drifted" },
         },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      message: expect.stringContaining(
+        "Action ledger idempotency key was reused with a different fingerprint",
+      ),
+      cause: {
+        name: "ActionLedgerIdempotencyConflictError",
+        existingActionId: expect.any(String),
+      },
+    })
 
     const personRows = await db.select().from(people)
     expect(personRows).toHaveLength(1)
@@ -162,8 +173,8 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
     secondScope,
   }) => {
     const idempotencyKey = `person-create-cross-${dimension}`
-    const first = await executePersonCreateCommand(personCommand(idempotencyKey, firstScope))
-    const second = await executePersonCreateCommand(personCommand(idempotencyKey, secondScope))
+    const first = await executeCommand(personCommand(idempotencyKey, firstScope))
+    const second = await executeCommand(personCommand(idempotencyKey, secondScope))
 
     expect(first.replayed).toBe(false)
     expect(second.replayed).toBe(false)
@@ -177,8 +188,8 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
   })
 
   it("always creates a distinct person for exact-name commands with distinct keys", async () => {
-    const first = await executePersonCreateCommand(personCommand("person-create-exact-name-1"))
-    const second = await executePersonCreateCommand(personCommand("person-create-exact-name-2"))
+    const first = await executeCommand(personCommand("person-create-exact-name-1"))
+    const second = await executeCommand(personCommand("person-create-exact-name-2"))
 
     expect(first.replayed).toBe(false)
     expect(second.replayed).toBe(false)
@@ -195,7 +206,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
     const idempotencyKey = "person-create-crash"
     const command = personCommand(idempotencyKey, { lastName: "Rollback" })
     await expect(
-      executePersonCreateCommand({
+      executeCommand({
         ...command,
         testHooks: {
           async afterDomainCreate() {
@@ -203,7 +214,11 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
           },
         },
       }),
-    ).rejects.toThrow("injected post-insert crash")
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      message: expect.stringContaining("injected post-insert crash"),
+      cause: expect.objectContaining({ message: "injected post-insert crash" }),
+    })
 
     expect(await db.select().from(people).where(eq(people.lastName, "Rollback"))).toHaveLength(0)
     expect(await db.select().from(identityContactPoints)).toHaveLength(0)
@@ -219,13 +234,16 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
   it("accepts the legacy key only when it matches the admitted command key", async () => {
     const command = personCommand("person-create-admitted-key")
     await expect(
-      executePersonCreateCommand({
+      executeCommand({
         ...command,
         legacyIdempotencyKey: "different-top-level-key",
       }),
     ).rejects.toMatchObject({
-      name: "ActionLedgerCreatedCommandProtocolError",
-      reason: "admitted_policy_mismatch",
+      code: "PROVIDER_ERROR",
+      cause: {
+        name: "ActionLedgerCreatedCommandProtocolError",
+        reason: "admitted_policy_mismatch",
+      },
     })
     expect(await db.select().from(people)).toHaveLength(0)
     expect(await db.select().from(identityContactPoints)).toHaveLength(0)
@@ -272,5 +290,44 @@ describe.skipIf(!DB_AVAILABLE)("Relationships person created-target command", ()
         invocation: { idempotencyKey },
       },
     }
+  }
+
+  async function executeCommand(command: Parameters<typeof executePersonCreateCommand>[0]) {
+    const registry = createToolRegistry()
+    registry.register(createPersonTool, {
+      actionPolicy: RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
+    })
+    const result = await registry.dispatch<{
+      status: "created"
+      person: { id: string }
+      replayed: boolean
+    }>(createPersonTool.name, command.commandInput.person, {
+      db: command.db,
+      actor: command.context.actor,
+      audience: command.context.actor,
+      tenantId: command.context.organizationId,
+      organizationId: command.context.organizationId,
+      resolverScope: {
+        locale: "en-GB",
+        audience: command.context.actor,
+        market: "default",
+        actor: command.context.actor,
+      },
+      handlerActionPolicy: command.admitted,
+      relationships: {
+        async createPerson(_input, admitted) {
+          const execution = await executePersonCreateCommand({
+            ...command,
+            admitted,
+          })
+          return {
+            status: "created",
+            person: execution.value,
+            replayed: execution.replayed,
+          }
+        },
+      } as RelationshipsToolServices,
+    } satisfies ToolContext & { relationships: RelationshipsToolServices })
+    return { value: result.person, replayed: result.replayed }
   }
 })

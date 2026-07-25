@@ -38,7 +38,7 @@ import type { PersonBookingsWidgetProps } from "./person-bookings-widget.js"
  * `@voyant-travel/admin`. Hosts register one resolver per key
  * (`satisfies AdminDestinationResolvers`).
  *
- * `booking.detail`/`booking.list`/`booking.create` are declared here even
+ * `booking.detail`/`booking.list` are declared here even
  * though bookings pages are their first consumers: other domains' packaged
  * pages navigate TO bookings through the same keys.
  */
@@ -48,8 +48,6 @@ declare module "@voyant-travel/admin" {
     "booking.list": Record<string, never>
     /** A booking's detail page; `tab` deep-links a specific tab. */
     "booking.detail": { bookingId: string; tab?: BookingDetailTabValue }
-    /** The "New booking" entry point (product picker → unified journey). */
-    "booking.create": Record<string, never>
     /** A CRM person's detail page. */
     "person.detail": { personId: string }
     /** A CRM organization's detail page. */
@@ -105,7 +103,6 @@ export type {
 export { BookingDetailSkeleton } from "./booking-detail-skeleton.js"
 export type { BookingDocumentsTableProps } from "./booking-documents-table.js"
 export type { BookingInvoiceSheetProps } from "./booking-invoice-sheet.js"
-export type { BookingJourneyHostProps } from "./booking-journey-host.js"
 export type { BookingsHostProps } from "./bookings-host.js"
 export { BookingsListSkeleton } from "./bookings-list-skeleton.js"
 export type { PersonBookingsWidgetProps } from "./person-bookings-widget.js"
@@ -224,54 +221,13 @@ export const bookingDetailTabSchema = z.enum([
 ]) satisfies z.ZodType<BookingDetailTabValue>
 
 /**
- * Search contract for the booking detail page. `productId`/`slotId` only
- * matter for the `"new"` pseudo-id: a deep link with a product pre-chosen
- * redirects into the unified booking journey (host route concern).
+ * Search contract for the booking detail page.
  */
 export const bookingDetailSearchSchema = z.object({
-  productId: z.string().optional(),
-  slotId: z.string().optional(),
   tab: bookingDetailTabSchema.optional(),
 })
 
 export type BookingDetailSearchParams = z.infer<typeof bookingDetailSearchSchema>
-
-/**
- * Search contract for the packaged "New booking" entry page. A deep link
- * with `productId` pre-chosen (e.g. launched from a product page) forwards
- * straight into the unified booking journey; `slotId` pins the departure.
- */
-export const bookingNewSearchSchema = z.object({
-  productId: z.string().optional(),
-  slotId: z.string().optional(),
-})
-
-export type BookingNewSearchParams = z.infer<typeof bookingNewSearchSchema>
-
-/**
- * Search contract for the unified booking journey page — the URL projection
- * of the journey's entry state (provenance, pre-pinned departure/option/
- * rate, side-panel preview hints). Key PRESENCE is meaningful: callers pass
- * only the fields their selection actually carries.
- */
-export const bookingJourneySearchSchema = z.object({
-  sourceKind: z.string().min(1).optional(),
-  sourceConnectionId: z.string().optional(),
-  sourceRef: z.string().optional(),
-  departureId: z.string().optional(),
-  departureDate: z.string().optional(),
-  optionId: z.string().optional(),
-  roomTypeId: z.string().optional(),
-  ratePlanId: z.string().optional(),
-  board: z.string().optional(),
-  entityName: z.string().optional(),
-  entityImageUrl: z.string().optional(),
-  /** Stable draft id — refresh-safe. When absent, the journey page
-   *  generates a fresh id on mount. */
-  draftId: z.string().optional(),
-})
-
-export type BookingJourneySearchParams = z.infer<typeof bookingJourneySearchSchema>
 
 /**
  * Props contract of the booking detail PAGE component the "bookings-detail"
@@ -393,12 +349,9 @@ export function createBookingsAdminExtension(
         ssr: "data-only",
         validateSearch: (search) => bookingDetailSearchSchema.parse(search),
         pendingComponent: BookingDetailSkeleton,
-        // The static `/bookings/new` route (the "bookings-new" contribution
-        // below) outranks this param route for the `"new"` segment, but the
-        // loader stays defensive — nothing to prefetch for a pseudo-id.
         loader: async ({ queryClient, runtime, params }: AdminRouteLoaderContext) => {
           const id = params.id
-          if (!id || id === "new") return
+          if (!id) return
 
           // Dynamic import on purpose — see the index loader above.
           const {
@@ -435,37 +388,12 @@ export function createBookingsAdminExtension(
         },
       },
       {
-        id: "bookings-new",
-        path: `${basePath}/new`,
-        title: bookings,
-        // Route-backed destination (RFC §4.7 endgame): the key resolves by
-        // pure path interpolation of this route (no params), so the host's
-        // resolver is generated.
-        destination: "booking.create",
-        validateSearch: (search) => bookingNewSearchSchema.parse(search),
-        page: () => import("./pages/booking-new-page.js"),
-      },
-      {
         id: "bookings-compose",
         path: `${basePath}/compose`,
         title: bookings,
         // Alias route: forwards to the host's trips via the
         // `trip.create` destination (see the page module).
         page: () => import("./pages/booking-compose-page.js"),
-      },
-      {
-        id: "bookings-journey",
-        // Deliberately OUTSIDE `basePath`: the journey mounts on the catalog
-        // plane (`bookingJourney.start` hrefs point here), flat under the
-        // workspace layout so it renders without catalog section nesting —
-        // the same semantics the old escaped `catalog_.journey` route file
-        // had. NOT destination-annotated: `bookingJourney.start` constructs
-        // search params, which is beyond path interpolation — its resolver
-        // stays hand-written in the host map.
-        path: "/catalog/journey/$entityModule/$entityId",
-        title: bookings,
-        validateSearch: (search) => bookingJourneySearchSchema.parse(search),
-        page: () => import("./pages/booking-journey-page.js"),
       },
     ],
     widgets: [

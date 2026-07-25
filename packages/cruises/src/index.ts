@@ -117,18 +117,6 @@ export { cruisePublicRoutes } from "./routes-public.js"
 export type { CruiseMutationRuntime, EffectiveItineraryDay } from "./service.js"
 export { cruisesService } from "./service.js"
 export {
-  type CreateCruiseBookingInput,
-  type CreateCruiseBookingResult,
-  type CreateCruisePartyBookingInput,
-  type CreateCruisePartyBookingResult,
-  type CreateExternalCruiseBookingInput,
-  type CruiseBookingContact,
-  type CruiseBookingMode,
-  type CruiseBookingPassenger,
-  type CruisePartyCabinEntry,
-  cruisesBookingService,
-} from "./service-bookings.js"
-export {
   type CruiseCabinFacetJoinRow,
   createCruiseCabinFacetProjectionExtension,
   projectCruiseCabinFacetRows,

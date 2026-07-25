@@ -28,8 +28,6 @@ import { z } from "zod/v4"
 import { useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
 import { type BookingRecord, useBookingMutation } from "../index.js"
 
-import { BookingCreateSheet } from "./booking-create-sheet.js"
-
 function createBookingFormSchema(messages: ReturnType<typeof useBookingsUiMessagesOrDefault>) {
   return z.object({
     bookingNumber: z.string().min(1, messages.bookingDialog.validation.bookingNumberRequired),
@@ -57,18 +55,8 @@ type BookingFormOutput = z.output<ReturnType<typeof createBookingFormSchema>>
 export interface BookingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  booking?: BookingRecord
+  booking: BookingRecord
   onSuccess?: (booking: BookingRecord) => void
-  /**
-   * Pre-seeds the product picker in create mode. Useful when opened from
-   * a product detail page. Ignored when editing an existing booking.
-   */
-  defaultProductId?: string
-  /**
-   * Pre-seeds and locks the departure picker in create mode. Useful when opened from
-   * a slot allocation page. Ignored when editing an existing booking.
-   */
-  defaultSlotId?: string
 }
 
 const BOOKING_STATUS_VALUES = [
@@ -82,34 +70,10 @@ const DEFAULT_CURRENCY = "EUR" // i18n-literal-ok ISO default currency
 const noopCurrencyChange = (_value: number | null) => {}
 
 /**
- * Single booking dialog that handles both create and edit:
- * - Create (no `booking` prop): renders the rich product → option → person
- *   picker flow via `BookingCreateSheet`, so the draft booking inherits
- *   pricing, dates, and currency from the catalogue instead of being
- *   hand-entered.
- * - Edit (with `booking` prop): renders the flat form below that patches
- *   the existing row's metadata (status, amounts, dates, notes).
+ * Existing-booking editor. Booking creation is admitted only through the
+ * durable Finance Tool command.
  */
-export function BookingDialog({
-  open,
-  onOpenChange,
-  booking,
-  onSuccess,
-  defaultProductId,
-  defaultSlotId,
-}: BookingDialogProps) {
-  if (!booking) {
-    return (
-      <BookingCreateSheet
-        open={open}
-        onOpenChange={onOpenChange}
-        defaultProductId={defaultProductId}
-        defaultSlotId={defaultSlotId}
-        onCreated={onSuccess}
-      />
-    )
-  }
-
+export function BookingDialog({ open, onOpenChange, booking, onSuccess }: BookingDialogProps) {
   return (
     <BookingEditDialog
       open={open}

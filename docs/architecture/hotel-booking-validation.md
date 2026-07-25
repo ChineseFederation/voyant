@@ -77,7 +77,10 @@ We seeded `stay_daily_rates` rows by hand at known per-night amounts. In a produ
 
 ### Inventory consumption isn't wired
 
-Tour bookings decrement `availability_slots.remaining_pax` at reserve. Hotel bookings should decrement room inventory the same way — either at the `room_inventory` (per-day per-room-type capacity) or `room_units` (assigned room) level. Today, creating a `stay_booking_items` row does NOT automatically update inventory. **Follow-up:** an "atomic reserve" path for stays that mirrors `bookingsService.reserveBooking`.
+Hotel holds should decrement room inventory at either the `room_inventory`
+(per-day per-room-type capacity) or `room_units` (assigned room) level. Today,
+creating a `stay_booking_items` row does not automatically update inventory.
+**Follow-up:** add a pre-booking hold path that cannot create a booking row.
 
 ### Cancellation policies don't compose for multi-segment stays
 

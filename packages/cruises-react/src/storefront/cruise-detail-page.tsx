@@ -24,7 +24,7 @@ import { Label } from "@voyant-travel/ui/components/label"
 import { useEffect, useMemo, useState } from "react"
 
 export function CruiseDetailPage({ entityId }: { entityId: string }): React.ReactElement {
-  const { apiUrl, messages, navigate, scope } = useStorefrontUi()
+  const { apiUrl, messages, scope } = useStorefrontUi()
   const t = messages.shopDetailCruises
 
   const content = useQuery({
@@ -102,18 +102,6 @@ export function CruiseDetailPage({ entityId }: { entityId: string }): React.Reac
             disabled={
               !selectedSailingId || !selectedCabinCategoryId || quote.data?.available === false
             }
-            onBook={() => {
-              if (!selectedSailingId || !selectedCabinCategoryId) return
-              navigate({
-                to: "/shop/book/$entityModule/$entityId",
-                params: { entityModule: "cruises", entityId },
-                search: {
-                  departureSlotId: selectedSailingId,
-                  cabinCategoryId: selectedCabinCategoryId,
-                  adult: occupancy,
-                } as never,
-              })
-            }}
           >
             <div className="space-y-3">
               <Label>{t.occupancy}</Label>

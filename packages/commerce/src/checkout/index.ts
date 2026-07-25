@@ -1,8 +1,8 @@
 /**
  * Catalog-checkout business-logic cluster, owned by `@voyant-travel/commerce`.
  *
- * The reusable orchestration (snapshot→booking materialization, tax-line
- * derivation, acceptance signature promotion, checkout-start service, the
+ * The reusable orchestration (tax-line derivation, acceptance signature
+ * promotion, checkout-start service, the
  * checkout-finalize saga driver, and the public checkout route) lives here.
  * Deployment-specific dependencies are injected via the options interfaces in
  * `./options.js`:
@@ -26,7 +26,6 @@ export { type FinalizeCheckoutParams, finalizeCheckout } from "./finalize.js"
 export {
   type DraftPayload,
   type MaterializationSnapshot,
-  materializeBookingFromSnapshot,
   rebuildBookingItemTaxLines,
 } from "./materialization.js"
 

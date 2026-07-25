@@ -1,26 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// The catalog component adapter imports the catalog booking-engine + bookings
-// origin upsert directly (acyclic deps). We mock them so we can assert the
-// orchestration (origin tracking, tax-transform hand-off, cancel mapping)
-// without a live booking engine.
+// Mock the catalog read/cancel boundary so this suite can assert quote,
+// fail-closed reserve, and cancellation mapping without a live booking engine.
 const quoteEntity = vi.fn()
-const bookEntity = vi.fn()
 const cancelEntity = vi.fn()
-const upsertBookingOrigin = vi.fn(async () => undefined)
-const toCatalogReservationBookingOriginInput = vi.fn((x: unknown) => ({ origin: x }))
 
 vi.mock("@voyant-travel/catalog/booking-engine", () => ({
   quoteEntity: (...args: unknown[]) => quoteEntity(...args),
-  bookEntity: (...args: unknown[]) => bookEntity(...args),
   cancelEntity: (...args: unknown[]) => cancelEntity(...args),
   bookingDraftV1: { parse: (x: unknown) => x },
   quoteResponseV1: { parse: (x: unknown) => x },
-}))
-
-vi.mock("@voyant-travel/bookings", () => ({
-  upsertBookingOrigin: (...args: unknown[]) => upsertBookingOrigin(...args),
-  toCatalogReservationBookingOriginInput: (x: unknown) => toCatalogReservationBookingOriginInput(x),
 }))
 
 const { createCatalogComponentAdapter } = await import("../src/catalog-component.js")
@@ -105,65 +94,15 @@ describe("catalog component adapter — quote + tax recompute", () => {
   })
 })
 
-describe("catalog component adapter — reserve with origin tracking", () => {
-  it("stamps the catalog reservation origin onto the reserved booking", async () => {
-    bookEntity.mockResolvedValue({
-      status: "held",
-      bookingId: "bk_1",
-      orderRef: "ord_1",
-      snapshotId: "snap_1",
-    })
+describe("catalog component adapter — reserve", () => {
+  it("fails closed while Catalog booking creation is unavailable", async () => {
     const api = adapterFor()
     const input: ReserveComponentInput = {
       envelope: envelope({ createAsDraft: false }),
       component: component(),
       reservationPlanId: "rp_1",
     }
-    const result = await api.reserve(input)
-
-    expect(result).toMatchObject({ status: "held", bookingId: "bk_1", orderId: "ord_1" })
-    expect(toCatalogReservationBookingOriginInput).toHaveBeenCalledTimes(1)
-    const originArg = toCatalogReservationBookingOriginInput.mock.calls[0]?.[0] as Record<
-      string,
-      unknown
-    >
-    expect(originArg).toMatchObject({
-      bookingId: "bk_1",
-      tripEnvelopeId: "trip_1",
-      tripComponentId: "trcp_1",
-      reservationPlanId: "rp_1",
-      catalogPriceResponseId: "cq_1",
-      catalogSnapshotId: "snap_1",
-      providerOrderRef: "ord_1",
-    })
-    expect((originArg.metadata as Record<string, unknown>).createAsDraft).toBe(false)
-    expect(upsertBookingOrigin).toHaveBeenCalledTimes(1)
-  })
-
-  it("forwards initialStatus=draft when createAsDraft is set", async () => {
-    bookEntity.mockResolvedValue({ status: "held", bookingId: "bk_2", snapshotId: "snap_2" })
-    const api = adapterFor()
-    await api.reserve({
-      envelope: envelope({ createAsDraft: true }),
-      component: component(),
-    })
-    const params = bookEntity.mock.calls[0]?.[2] as { parameters: { initialStatus: string } }
-    expect(params.parameters.initialStatus).toBe("draft")
-  })
-
-  it("does not upsert an origin when no booking was created", async () => {
-    bookEntity.mockResolvedValue({ status: "held", bookingId: undefined, snapshotId: "snap_3" })
-    const api = adapterFor()
-    await api.reserve({ envelope: envelope(), component: component() })
-    expect(upsertBookingOrigin).not.toHaveBeenCalled()
-  })
-
-  it("throws when the booking engine reports failure", async () => {
-    bookEntity.mockResolvedValue({ status: "failed" })
-    const api = adapterFor()
-    await expect(api.reserve({ envelope: envelope(), component: component() })).rejects.toThrow(
-      "component_reservation_failed",
-    )
+    await expect(api.reserve(input)).rejects.toThrow("catalog_booking_commit_not_available")
   })
 })
 

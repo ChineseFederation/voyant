@@ -26,7 +26,6 @@ import {
   sourceRefMatches,
 } from "./routes-booking-payloads.js"
 import { cruisesService } from "./service.js"
-import { cruisesBookingService } from "./service-bookings.js"
 import { composeQuote, pricingService } from "./service-pricing.js"
 import { cruisesSearchService } from "./service-search.js"
 import type { CruisesToolServices } from "./tools.js"
@@ -44,7 +43,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const c = request as Context<CruisesToolRequestEnv>
     const db = context.db as PostgresJsDatabase
     const eventBus = c.get("eventBus")
-    const userId = c.get("userId") ?? undefined
     const requestContext = cruisesActionLedgerContext(c)
     const publicOnly = context.actor !== "staff"
     const execute: CruisesToolServices["execute"] = async (operation, input, admitted) => {
@@ -112,8 +110,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
           const { id, ...data } = args
           return cruisesService.updateShip(db, String(id), data as never)
         }
-        case "createBooking":
-          return createBooking(db, args, userId)
       }
     }
     return { cruises: { execute } }
@@ -457,49 +453,6 @@ async function quoteSailing(
     guestCount,
     bookingTerms: matching.bookingTerms ?? null,
   })
-}
-
-async function createBooking(
-  db: PostgresJsDatabase,
-  args: Record<string, unknown>,
-  userId?: string,
-) {
-  const parsed = parseUnifiedKey(String(args.key))
-  if (parsed.kind === "invalid") throw new ToolError("Invalid cruise sailing key", "INVALID_INPUT")
-  const {
-    key: _key,
-    cabinCategoryRef: rawCabinCategoryRef,
-    passengerComposition,
-    ...payload
-  } = args
-  const result =
-    parsed.kind === "external"
-      ? await cruisesBookingService.createExternalCruiseBooking(
-          db,
-          {
-            ...payload,
-            adapter: requiredAdapter(parsed.provider),
-            sailingRef: sourceRefFromExternalKeyRef(parsed.ref),
-            cabinCategoryRef: sourceRefFromPayload(
-              rawCabinCategoryRef as Record<string, unknown> | null | undefined,
-              String(args.cabinCategoryId),
-            ),
-            passengerComposition,
-          } as never,
-          userId,
-        )
-      : await cruisesBookingService.createCruiseBooking(
-          db,
-          { ...payload, sailingId: parsed.id } as never,
-          userId,
-        )
-  return {
-    bookingId: result.bookingId,
-    bookingNumber: result.bookingNumber,
-    sourceProvider: "sourceProvider" in result ? result.sourceProvider : null,
-    connectorBookingRef: result.cruiseDetails.connectorBookingRef ?? null,
-    quote: result.quote,
-  }
 }
 
 function requiredAdapter(name: string): CruiseAdapter {

@@ -1,6 +1,6 @@
 "use client"
 
-import { Outlet, redirect, useNavigate, useParams, useSearch } from "@tanstack/react-router"
+import { Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
 import type { ComponentType, ReactNode } from "react"
 import { z } from "zod"
@@ -52,13 +52,6 @@ export interface StorefrontPresentationSession {
   readonly isPending: boolean
 }
 
-export interface StorefrontBookingRouteProps {
-  entityModule: string
-  entityId: string
-  messages: StorefrontMessages["bookingJourney"]
-  search: unknown
-}
-
 export interface StorefrontComposerRouteProps {
   apiUrl: string
   gateMessages: StorefrontMessages["composer"]
@@ -66,7 +59,6 @@ export interface StorefrontComposerRouteProps {
 }
 
 export interface StorefrontPresentationRuntime {
-  readonly BookingPage: ComponentType<StorefrontBookingRouteProps>
   readonly ComposerPage: ComponentType<StorefrontComposerRouteProps>
   getApiUrl(): string
   projectFetcher: VoyantFetcher
@@ -78,7 +70,6 @@ export interface StorefrontPresentationRuntime {
   signOut(): Promise<unknown>
   useLocale(): string
   useSession(): StorefrontPresentationSession
-  bookingSearchSchema: z.ZodType
 }
 
 export interface StorefrontPresentationRouteOptions {
@@ -96,7 +87,6 @@ export interface StorefrontPresentationContribution {
     readonly accountSignIn: StorefrontPresentationRouteOptions
     readonly accountSignUp: StorefrontPresentationRouteOptions
     readonly accountVerifyEmail: StorefrontPresentationRouteOptions
-    readonly booking: StorefrontPresentationRouteOptions
     readonly composer: StorefrontPresentationRouteOptions
     readonly confirmation: StorefrontPresentationRouteOptions
     readonly productDetail: StorefrontPresentationRouteOptions
@@ -264,34 +254,6 @@ export function createStorefrontPresentationContribution(
     )
   }
 
-  function BookingRoute(): React.ReactElement {
-    const { entityModule, entityId } = useParams({ strict: false }) as {
-      entityModule: string
-      entityId: string
-    }
-    const search = useSearch({ strict: false })
-    const messages = useStorefrontMessagesOrDefault()
-    const scope = useStorefrontScope()
-    const navigate = useNavigate()
-    return (
-      <StorefrontUiProvider
-        value={{
-          apiUrl: runtime.getApiUrl(),
-          messages,
-          scope,
-          navigate: (navigation: StorefrontUiNavigation) => void navigate(navigation as never),
-        }}
-      >
-        <runtime.BookingPage
-          entityModule={entityModule}
-          entityId={entityId}
-          messages={messages.bookingJourney}
-          search={search}
-        />
-      </StorefrontUiProvider>
-    )
-  }
-
   function ComposerRoute(): React.ReactElement | null {
     const { data: session, isPending } = runtime.useSession()
     const messages = useStorefrontMessagesOrDefault()
@@ -370,15 +332,6 @@ export function createStorefrontPresentationContribution(
       accountVerifyEmail: {
         component: AccountVerifyEmailRoute,
         validateSearch: accountVerifyEmailSearchSchema,
-      },
-      booking: {
-        beforeLoad: ({ params }) => {
-          if (!getStorefrontCustomerProductDetailRoute(params.entityModule, params.entityId)) {
-            throw redirect({ to: "/shop" })
-          }
-        },
-        component: BookingRoute,
-        validateSearch: runtime.bookingSearchSchema,
       },
       composer: { component: ComposerRoute },
       confirmation: {

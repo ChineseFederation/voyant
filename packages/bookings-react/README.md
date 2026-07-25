@@ -12,7 +12,7 @@ packages) are optional and only needed when you import those subpaths.
 
 `@voyant-travel/bookings-react` provides React Query hooks and provider utilities for Voyant bookings.
 
-It now includes public storefront flow helpers alongside the admin hooks:
+It includes public booking-session helpers alongside the admin hooks:
 
 - `usePublicBookingSession`
 - `usePublicBookingSessionState`
@@ -20,13 +20,13 @@ It now includes public storefront flow helpers alongside the admin hooks:
 - `getPublicBookingSessionQueryOptions`
 - `getPublicBookingSessionStateQueryOptions`
 
-Those helpers target the public booking session contract for wizard-state
-storage and room-selection repricing.
+Those helpers target existing public booking sessions for customer-portal
+state and room-selection repricing. They do not create bookings.
 
-The `./storefront` subpath owns the reusable customer booking journey. Apps
-provide route navigation, localized customer copy, and selected market scope;
-the package owns public booking and checkout, contract preview, payment-policy
-resolution, and contract-variable mapping.
+The `./journey` subpath retains composable booking-draft sections for trip and
+staff-tool composition. The retired routed admin/storefront creation shell is
+not part of the public API. The `./storefront` subpath retains only
+contract-variable mapping for customer documents.
 
 ## UI components
 
@@ -50,7 +50,7 @@ that spacing when a shell owns the page chrome.
 ### Components
 
 - `BookingsPage`, `BookingDetailPage`
-- `BookingList`, `BookingDialog`, `BookingCreateSheet`, `BookingCancellationDialog`, `StatusChangeDialog`
+- `BookingList`, `BookingDialog`, `BookingCancellationDialog`, `StatusChangeDialog`
 - `TravelerList`, `TravelerDialog`, `BookingItemList`, `BookingGroupSection`
 - `BookingPaymentsSummary`, `BookingPaymentScheduleList`, `BookingGuaranteeList`
 - `SupplierStatusList`, `BookingActivityTimeline`, `BookingNotes`

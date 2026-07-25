@@ -162,7 +162,7 @@ export function RoomRateCard({
 }: {
   group: OfferGroup
   showImage: boolean
-  onBook: (offer: Offer) => void
+  onBook?: (offer: Offer) => void
   t: DetailMessages
   locale: string
 }) {
@@ -290,9 +290,11 @@ export function RoomRateCard({
               </div>
             )}
           </div>
-          <Button size="sm" onClick={() => onBook(selected)}>
-            {t.book}
-          </Button>
+          {onBook ? (
+            <Button size="sm" onClick={() => onBook(selected)}>
+              {t.book}
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>

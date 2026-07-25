@@ -2,6 +2,7 @@ import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -11,6 +12,11 @@ import { cruiseCreatedEventId, executeCruiseCreate } from "../../src/mcp-runtime
 import { cruises } from "../../src/schema-core.js"
 import { cruiseSearchIndex } from "../../src/schema-search.js"
 import { cruisesService } from "../../src/service.js"
+import {
+  type CruisesToolOperation,
+  type CruisesToolServices,
+  createCruiseTool,
+} from "../../src/tools.js"
 import { insertCruiseSchema } from "../../src/validation-core.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -74,8 +80,7 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
     const projected = new Promise<void>((resolve) => {
       projectionReady = resolve
     })
-    const command = [db, context, undefined, input, admitted(idempotencyKey)] as const
-    const firstPromise = executeCruiseCreate(...command, {
+    const firstPromise = executeCommand(input, idempotencyKey, context, {
       async afterRequiredProjection() {
         projectionReady()
         await holdFirst
@@ -83,7 +88,7 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
     })
     await projected
     let secondSettled = false
-    const secondPromise = executeCruiseCreate(...command).finally(() => {
+    const secondPromise = executeCommand(input, idempotencyKey, context).finally(() => {
       secondSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -95,14 +100,11 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
     expect(replay).toMatchObject({ replayed: true, value: first.value })
 
     await expect(
-      executeCruiseCreate(
-        db,
-        context,
-        undefined,
-        { ...input, name: "Drifted cruise" },
-        admitted(idempotencyKey),
-      ),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+      executeCommand({ ...input, name: "Drifted cruise" }, idempotencyKey, context),
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
 
     expect(await db.select().from(cruises).where(eq(cruises.slug, input.slug))).toHaveLength(1)
     expect(
@@ -135,12 +137,15 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
       nights: 4,
     })
     await expect(
-      executeCruiseCreate(db, context, undefined, input, admitted(idempotencyKey), {
+      executeCommand(input, idempotencyKey, context, {
         async afterRequiredProjection() {
           throw new Error("injected post-projection failure")
         },
       }),
-    ).rejects.toThrow("injected post-projection failure")
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { message: "injected post-projection failure" },
+    })
 
     expect(await db.select().from(cruises).where(eq(cruises.slug, input.slug))).toHaveLength(0)
     expect(
@@ -163,18 +168,12 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
       cruiseType: "ocean",
       nights: 8,
     })
-    const first = await executeCruiseCreate(
-      db,
-      {
-        userId: "user_cruise_create_a",
-        callerType: "session",
-        actor: "staff",
-        organizationId: "org_cruise_create_a",
-      },
-      undefined,
-      input,
-      admitted(idempotencyKey),
-    )
+    const first = await executeCommand(input, idempotencyKey, {
+      userId: "user_cruise_create_a",
+      callerType: "session",
+      actor: "staff",
+      organizationId: "org_cruise_create_a",
+    })
 
     // The cruise slug and its required projection are globally unique. Move
     // the first product to a new slug so a second principal can execute the
@@ -183,18 +182,12 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
       slug: "shared-cross-principal-cruise-a",
     })
 
-    const second = await executeCruiseCreate(
-      db,
-      {
-        userId: "user_cruise_create_b",
-        callerType: "session",
-        actor: "staff",
-        organizationId: "org_cruise_create_b",
-      },
-      undefined,
-      input,
-      admitted(idempotencyKey),
-    )
+    const second = await executeCommand(input, idempotencyKey, {
+      userId: "user_cruise_create_b",
+      callerType: "session",
+      actor: "staff",
+      organizationId: "org_cruise_create_b",
+    })
 
     expect(second.value.id).not.toBe(first.value.id)
     expect(await db.select().from(cruises)).toHaveLength(2)
@@ -202,4 +195,61 @@ describe.skipIf(!DB_AVAILABLE)("Cruises created-target Tool wiring", () => {
       [cruiseCreatedEventId(first.value.id), cruiseCreatedEventId(second.value.id)].sort(),
     )
   })
+
+  async function executeCommand(
+    input: Parameters<typeof executeCruiseCreate>[3],
+    idempotencyKey: string,
+    requestContext: Parameters<typeof executeCruiseCreate>[1],
+    testHooks?: Parameters<typeof executeCruiseCreate>[5],
+  ) {
+    const registry = createToolRegistry()
+    registry.register(createCruiseTool, {
+      actionPolicy: CRUISE_HANDLER_ACTION_POLICY.actionPolicy,
+    })
+    const result = await registry.dispatch<{
+      status: "created"
+      cruise: { id: string }
+      replayed: boolean
+    }>(createCruiseTool.name, { ...input, idempotencyKey }, {
+      db,
+      actor: requestContext.actor,
+      audience: requestContext.actor,
+      tenantId: requestContext.organizationId,
+      organizationId: requestContext.organizationId,
+      resolverScope: {
+        locale: "en-GB",
+        audience: requestContext.actor,
+        market: "default",
+        actor: requestContext.actor,
+      },
+      handlerActionPolicy: admitted(idempotencyKey),
+      cruises: {
+        async execute(
+          operation: CruisesToolOperation,
+          toolInput: unknown,
+          mintedAdmission,
+        ): Promise<unknown> {
+          expect(operation).toBe("createCruise")
+          const { idempotencyKey: legacyIdempotencyKey, ...commandInput } = toolInput as Record<
+            string,
+            unknown
+          >
+          const execution = await executeCruiseCreate(
+            db,
+            requestContext,
+            typeof legacyIdempotencyKey === "string" ? legacyIdempotencyKey : undefined,
+            commandInput as Parameters<typeof executeCruiseCreate>[3],
+            mintedAdmission!,
+            testHooks,
+          )
+          return {
+            status: "created",
+            cruise: execution.value,
+            replayed: execution.replayed,
+          }
+        },
+      } satisfies CruisesToolServices,
+    } satisfies ToolContext & { cruises: CruisesToolServices })
+    return { value: result.cruise, replayed: result.replayed }
+  }
 })

@@ -55,20 +55,6 @@ export { chartersAdminRoutes } from "./routes.js"
 export type { ChartersPublicRoutes } from "./routes-public.js"
 export { chartersPublicRoutes } from "./routes-public.js"
 export { chartersService } from "./service.js"
-// Booking creation entry points + supporting types.
-export {
-  type CharterContact,
-  type CharterGuest,
-  type CreateExternalPerSuiteBookingInput,
-  type CreateExternalPerSuiteBookingResult,
-  type CreateExternalWholeYachtBookingInput,
-  type CreateExternalWholeYachtBookingResult,
-  type CreatePerSuiteBookingInput,
-  type CreatePerSuiteBookingResult,
-  type CreateWholeYachtBookingInput,
-  type CreateWholeYachtBookingResult,
-  chartersBookingService,
-} from "./service-bookings.js"
 // MYBA contract wrapper (DI-shaped, no hard dep on @voyant-travel/legal).
 export {
   type CharterContractsService,

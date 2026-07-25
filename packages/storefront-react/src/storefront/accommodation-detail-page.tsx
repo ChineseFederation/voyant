@@ -24,7 +24,7 @@ import {
 } from "./detail-shared.js"
 
 export function AccommodationDetailPage({ entityId }: { entityId: string }): React.ReactElement {
-  const { apiUrl, messages, navigate, scope } = useStorefrontUi()
+  const { apiUrl, messages, scope } = useStorefrontUi()
   const t = messages.shopDetailAccommodations
 
   const content = useQuery({
@@ -152,21 +152,6 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
           !quote.data ||
           quote.data.available === false
         }
-        onBook={() => {
-          if (!selectedRoomId || !selectedRatePlanId || !datesValid || !quote.data) return
-          navigate({
-            to: "/shop/book/$entityModule/$entityId",
-            params: { entityModule: "accommodations", entityId },
-            search: {
-              checkIn,
-              checkOut,
-              roomTypeId: selectedRoomId,
-              ratePlanId: selectedRatePlanId,
-              adult: adultCount,
-              ...(childCount > 0 ? { child: childCount } : {}),
-            } as never,
-          })
-        }}
       >
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">

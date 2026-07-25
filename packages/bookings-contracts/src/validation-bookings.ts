@@ -1,12 +1,7 @@
 import { typeIdSchemas } from "@voyant-travel/schema-kit/typeid"
 import { z } from "zod"
 
-import {
-  bookingAllocationTypeSchema,
-  bookingItemTypeSchema,
-  bookingSourceTypeSchema,
-  bookingStatusSchema,
-} from "./validation-shared.js"
+import { bookingSourceTypeSchema, bookingStatusSchema } from "./validation-shared.js"
 
 // ---------- bookings ----------
 
@@ -293,55 +288,6 @@ export const pricingPreviewSchema = z.object({
   optionId: z.string().optional().nullable(),
   catalogId: z.string().optional().nullable(),
 })
-
-export const reserveBookingItemSchema = z.object({
-  title: z.string().min(1).max(255),
-  description: z.string().optional().nullable(),
-  itemType: bookingItemTypeSchema.default("unit"),
-  quantity: z.number().int().positive().default(1),
-  sellCurrency: z.string().min(3).max(3).optional().nullable(),
-  unitSellAmountCents: z.number().int().min(0).optional().nullable(),
-  totalSellAmountCents: z.number().int().min(0).optional().nullable(),
-  costCurrency: z.string().min(3).max(3).optional().nullable(),
-  unitCostAmountCents: z.number().int().min(0).optional().nullable(),
-  totalCostAmountCents: z.number().int().min(0).optional().nullable(),
-  notes: z.string().optional().nullable(),
-  productId: z.string().optional().nullable(),
-  optionId: z.string().optional().nullable(),
-  optionUnitId: z.string().optional().nullable(),
-  pricingCategoryId: z.string().optional().nullable(),
-  productNameSnapshot: z.string().optional().nullable(),
-  optionNameSnapshot: z.string().optional().nullable(),
-  unitNameSnapshot: z.string().optional().nullable(),
-  departureLabelSnapshot: z.string().optional().nullable(),
-  sourceSnapshotId: z.string().optional().nullable(),
-  sourceOfferId: z.string().optional().nullable(),
-  availabilitySlotId: z.string().min(1),
-  allocationType: bookingAllocationTypeSchema.default("unit"),
-  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
-})
-
-export const reserveBookingSchema = bookingCoreSchema
-  .omit({
-    status: true,
-    holdExpiresAt: true,
-    confirmedAt: true,
-    expiredAt: true,
-    cancelledAt: true,
-    completedAt: true,
-    redeemedAt: true,
-  })
-  .extend({
-    holdMinutes: z
-      .number()
-      .int()
-      .positive()
-      .max(24 * 60)
-      .optional(),
-    holdExpiresAt: z.string().datetime().optional().nullable(),
-    items: z.array(reserveBookingItemSchema).min(1),
-  })
-  .superRefine(validateExclusiveBillingParty)
 
 export const extendBookingHoldSchema = z
   .object({

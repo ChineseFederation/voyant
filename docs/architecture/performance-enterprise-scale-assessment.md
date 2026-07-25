@@ -146,16 +146,11 @@ recomputed per request, against the 128 MB ceiling. **This is also the path that
   still **live, uncached, recomputed per dashboard load**, and finance's outstanding/overdue
   scans lack covering indexes.
 
-### T7 — MEDIUM: booking write critical section is long and serial
+### T7 — RESOLVED: raw booking reservation write retired
 
-`reserveBooking` wraps a serial per-item loop inside one transaction holding `FOR UPDATE` slot
-locks (`packages/bookings/src/service.ts:3354-3503`, lock at `:1426-1432`): per item it adjusts
-capacity, resolves a cross-package snapshot, and does 2 inserts — 3 items ≈ 9+ statements while
-locks are held, each statement paying Neon RTT. Resource capacity checks add a `COUNT` per
-resource in a loop (`service.ts:1569-1630`). Correct (no double-booking), but lock hold time ×
-spike concurrency = contention collapse, with no queue/backpressure in front and idempotency
-only partially systematic (action ledger covers status mutations; checkout/payment-webhook
-paths need uniform coverage).
+The former raw reservation path and its serial per-item critical section were
+removed. Booking creation now has one admitted Finance command and a
+lease-gated Bookings settlement; holds are separate pre-booking operations.
 
 ### T8 — MEDIUM: no observability, no limits, no load proof
 
@@ -220,11 +215,10 @@ package-delivered (per #1641: fixes must arrive via version bumps, not template 
 > (@voyant-travel/utils/resilience: resilientFetch — 10s timeout, jittered idempotent-safe retries,
 > per-isolate circuit breaker; adopted in plugin HTTP clients), 3.4 in-worker metrics middleware
 > (env.METRICS AE dataset: method/route/surface/cache-status blobs, duration/status/db-query-count
-> doubles — complements DISPATCH_METRICS), 3.5 k6 suite (storefront-firehose, payday-spike,
-> mixed + workflow_dispatch runner). **3.2 SHIPPED (perf/phase-32-queued-writes):** async
-> booking-bootstrap intents — 202 + status polling over the transactional outbox (write_intents
-> mailbox, idempotency-key dedup, business-conflict-vs-infra-error retry semantics, checkout
-> capability issued at poll time, stale-intent sweep on the drain cron; migration 0063).
+> doubles — complements DISPATCH_METRICS), 3.5 read-only k6 suite
+> (storefront-firehose, mixed + workflow_dispatch runner). The former
+> booking-bootstrap write scenario was retired with the raw booking-create
+> surface.
 > **3.1 is DEFERRED to last resort** (see its row above). Remaining: namespace logpush + SLO
 > alerts on the AE datasets, k6 staging baselines, CI load-test cadence — ops-side. Note: drizzle
 > snapshot-chain poisoning by timestamp-named migration files was diagnosed and fixed (stale

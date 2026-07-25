@@ -106,12 +106,10 @@ delegates to the Trips invariant service that pins a draft component. Tool outpu
 omit provider replay/economics payloads even though Trips retains them internally for
 later reservation.
 
-Bookings owns `reserve_booking`, the bookings-only capacity hold command. It requires
-`bookings:write` but not `finance:write`, creates an `on_hold` booking, and decrements
-slot capacity in one booking transaction. Because the canonical booking id is generated
-inside that transaction, its handler claims a fingerprinted command under a stable
-idempotency key, writes the requested and canonical `booking.reserve` ledger entries in
-the same transaction, and returns the immutable booking reference on exact replay.
+Booking creation is exposed only through Finance's admitted create command. Finance
+owns the public command and its policy admission; Bookings owns the lease-gated domain
+settlement that inserts the canonical row. Capacity holds remain separate pre-booking
+operations and cannot create a booking.
 
 Graph actions distinguish existing targets from handler-generated targets explicitly.
 Generic action preflight resolves targets through a deterministic server-owned ladder: a

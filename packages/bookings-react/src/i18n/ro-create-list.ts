@@ -174,7 +174,6 @@ export const bookingsUiRoCreateList = {
   },
   bookingList: {
     searchPlaceholder: "Cauta rezervari…",
-    newBooking: "Rezervare noua",
     columns: {
       bookingNumber: "Rezervare #",
       whatBooked: "Articole",

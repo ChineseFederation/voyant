@@ -1,8 +1,8 @@
 /**
  * `booking_drafts` — server-side draft state for the unified booking
- * journey. Survives refresh, tab loss, and short walk-aways. On
- * commit, `consumed_booking_id` points at the materialized booking;
- * abandoned drafts never produce a `bookings` row.
+ * journey. Survives refresh, tab loss, and short walk-aways.
+ * `consumed_booking_id` records the booking created later through the
+ * admitted Finance command; abandoned drafts never produce a booking.
  *
  * Per `docs/architecture/booking-journey-architecture.md` §5.7 +
  * §12.10 (settled on the sibling-table option B — ships alongside
@@ -11,7 +11,7 @@
  * Lifecycle:
  *   1. Wizard PUTs the draft on every step transition.
  *   2. Quote requests resolve draft → engine → catalog_quotes.
- *   3. On commit, the engine writes the bookings row and stamps
+ *   3. After authorized booking creation, the caller stamps
  *      `consumed_booking_id` here.
  *   4. Abandoned drafts (`expires_at` passed) are reaped by a daily
  *      job, releasing any associated soft holds first.

@@ -307,19 +307,6 @@ describe("admin routes — write rejection on external rows", () => {
     })
     expect(res.status).toBe(409)
   })
-
-  it("returns 501 on POST /sailings/:key/party-bookings with external key (party not yet supported)", async () => {
-    const adapter = new MockCruiseAdapter({ name: "voyant-connect" })
-    registerCruiseAdapter(adapter)
-    const res = await app.request("/sailings/voyant-connect:cnx_abc/party-bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    })
-    expect(res.status).toBe(501)
-    const body = (await res.json()) as { error: string }
-    expect(body.error).toBe("external_party_booking_not_supported")
-  })
 })
 
 describe("admin routes — invalid keys + local detach guards", () => {

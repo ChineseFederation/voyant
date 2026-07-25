@@ -14,18 +14,10 @@
  *     looks up the per-occupancy `cruise_prices` row and returns
  *     pricing as `pricePerPerson × paxCount`.
  *
- * commit scope:
- *   - Returns `failed:not_yet_implemented`. Cruises need a
- *     vertical-specific commit primitive (cabin allocation +
- *     supplier hold + air-add-on routing) that doesn't exist
- *     today. The shell renders the descriptor cleanly; commit
- *     lands separately.
  */
 
 import type {
   BookingDraftShape,
-  CommitOwnedRequest,
-  CommitOwnedResult,
   ComputeQuoteRequest,
   ComputeQuoteResult,
   OwnedBookingHandler,
@@ -95,64 +87,12 @@ export interface CruiseHandlerLoaders {
   ) => Promise<ResolvedCruisePrice | null>
 }
 
-/**
- * Subset of `cruisesBookingService.createCruiseBooking`'s input —
- * structural so the handler stays free of an
- * `@voyant-travel/cruises/service-bookings` import (no workspace cycle).
- */
-export interface CruiseCommitBridgeInput {
-  sailingId: string
-  cabinCategoryId: string
-  cabinId?: string | null
-  occupancy: number
-  fareCode?: string | null
-  personId?: string | null
-  organizationId?: string | null
-  contact: {
-    firstName: string
-    lastName: string
-    email?: string | null
-    phone?: string | null
-  }
-  passengers: Array<{
-    firstName: string
-    lastName: string
-    dateOfBirth?: string | null
-    travelerCategory?: "adult" | "child" | "infant" | null
-  }>
-  /** Air-arrangement intent — see CreateCruiseBookingInput. */
-  airArrangement?: "cruise_line" | "independent" | "none" | null
-  notes?: string | null
-}
-
-export interface CruiseCommitBridgeResult {
-  status: "ok" | "failed"
-  bookingId?: string
-  bookingNumber?: string
-  reason?: string
-}
-
-export type CruiseCommitBridge = (
-  input: CruiseCommitBridgeInput,
-  options?: { userId?: string },
-) => Promise<CruiseCommitBridgeResult>
-
 export interface CreateCruiseBookingHandlerOptions extends CruiseHandlerLoaders {
   /** Force the wizard to render a cabin-number sub-step even when
    *  the supplier doesn't surface a cabin map. Defaults to false. */
   forceCabinNumberSubStep?: boolean
   /** Pass `true` when the deployment ships an insurance offer. */
   includeInsurance?: boolean
-  /**
-   * Caller-supplied bridge to `cruisesBookingService.createCruiseBooking`.
-   * When provided, `commit` calls into the cruise vertical's
-   * transactional booking path; when omitted, `commit` returns
-   * `failed:cruise_commit_not_yet_implemented`.
-   *
-   * Templates wire this with a small adapter:
-   *   `(input, opts) => cruisesBookingService.createCruiseBooking(db, input, opts.userId)`
-   */
-  commitBridge?: CruiseCommitBridge
 }
 
 export function createCruiseBookingHandler(
@@ -242,97 +182,6 @@ export function createCruiseBookingHandler(
       }
     },
 
-    async commit(
-      _ctx: OwnedHandlerContext,
-      request: CommitOwnedRequest,
-    ): Promise<CommitOwnedResult> {
-      if (!options.commitBridge) {
-        return {
-          status: "failed",
-          orderRef: "",
-          upstreamPayload: { reason: "cruise_commit_bridge_not_wired" },
-        }
-      }
-
-      const draft = (request.draft ?? {}) as DraftLike
-      const sailingId = draft.configure?.departureSlotId
-      const cabinCategoryId = draft.configure?.cabinCategoryId
-      const cabinId = draft.configure?.cabinNumberId
-      const occupancy = sumPax(draft.configure?.pax)
-
-      if (!sailingId || !cabinCategoryId || occupancy <= 0) {
-        return {
-          status: "failed",
-          orderRef: "",
-          upstreamPayload: {
-            reason: "cruise_commit_missing_inputs",
-            need: ["sailingId", "cabinCategoryId", "occupancy"],
-          },
-        }
-      }
-
-      const contact = {
-        firstName: draft.billing?.contact?.firstName ?? "",
-        lastName: draft.billing?.contact?.lastName ?? "",
-        email: draft.billing?.contact?.email ?? null,
-        phone: draft.billing?.contact?.phone ?? null,
-      }
-
-      const passengers = (draft.travelers ?? []).map((t) => ({
-        firstName: t.firstName,
-        lastName: t.lastName,
-        dateOfBirth: t.dateOfBirth ?? null,
-        travelerCategory:
-          t.band === "child" || t.band === "infant"
-            ? (t.band as "child" | "infant")
-            : ("adult" as const),
-      }))
-
-      // The cruise commit primitive demands at least one passenger;
-      // if the journey didn't collect them, fall back to the lead
-      // contact as a single passenger so the commit doesn't reject
-      // outright. Operators using the journey for inquiry-style
-      // bookings can fill traveler details from the booking detail
-      // page later.
-      if (passengers.length === 0) {
-        passengers.push({
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          dateOfBirth: null,
-          travelerCategory: "adult",
-        })
-      }
-
-      const bridge = await options.commitBridge({
-        sailingId,
-        cabinCategoryId,
-        cabinId: cabinId ?? null,
-        occupancy,
-        fareCode: draft.configure?.variantId ?? null,
-        personId: extractPersonId(request.party),
-        organizationId: extractOrganizationId(request.party),
-        contact,
-        passengers,
-        airArrangement: draft.configure?.airArrangement ?? null,
-        notes: draft.internalNotes ?? null,
-      })
-
-      if (bridge.status !== "ok" || !bridge.bookingId) {
-        return {
-          status: "failed",
-          orderRef: "",
-          upstreamPayload: { reason: bridge.reason ?? "cruise_commit_failed" },
-        }
-      }
-
-      return {
-        status: "held",
-        orderRef: bridge.bookingNumber ?? bridge.bookingId,
-        pricing: request.pricing,
-        upstreamPayload: { bridgeBookingId: bridge.bookingId },
-      }
-    },
-
     async placeHold(_ctx, request) {
       const token = request.draftId ?? `cruise_${Date.now().toString(36)}`
       return {
@@ -358,18 +207,6 @@ function sumPax(pax: Partial<Record<string, number>> | undefined): number {
     if (typeof v === "number" && Number.isFinite(v) && v > 0) total += v
   }
   return total
-}
-
-function extractPersonId(party: Record<string, unknown> | undefined): string | undefined {
-  if (!party) return undefined
-  const v = party.personId
-  return typeof v === "string" && v.length > 0 ? v : undefined
-}
-
-function extractOrganizationId(party: Record<string, unknown> | undefined): string | undefined {
-  if (!party) return undefined
-  const v = party.organizationId
-  return typeof v === "string" && v.length > 0 ? v : undefined
 }
 
 function priceStringToCents(price: string): number {

@@ -12,8 +12,8 @@
  *   - The `getCruiseContent` SWR machinery (sourced-content §3.4) —
  *     the shim's `getContent` composes the cruise adapter's per-aspect
  *     fetches into one `CruiseContent` payload.
- *   - The catalog plane's snapshot content capture (sourced-content
- *     §5.1) — `bookEntity` calls this `getContent` at commit time.
+ *   - Catalog read-side content composition for projection and snapshot
+ *     subscribers. Booking creation has no application caller here.
  *
  * Per the doc's Phase E note: the cruise adapter retains its internal
  * multi-call composition; only the public catalog surface narrows.

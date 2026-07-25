@@ -1,5 +1,5 @@
 /**
- * Catalog booking-engine routes (quote / book / drafts / holds). The factory is
+ * Catalog booking-engine routes (quote / drafts / holds). The factory is
  * mounted on BOTH adminRoutes AND publicRoutes, so each leg appears under
  * `/v1/admin/catalog/*` and `/v1/public/catalog/*`.
  *
@@ -20,17 +20,13 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { handleApiError, openApiValidationHook, RequestValidationError } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
-import { eq } from "drizzle-orm"
 import type { Context } from "hono"
 
 import type { SourceAdapterContext } from "../adapter/contract.js"
 import { readSourcedEntry } from "../services/sourced-entry-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
 
-import { type BookEntityResult, bookEntity } from "./book.js"
 import {
-  type BookResponseV1,
-  bookResponseV1,
   type PricingBreakdownV1,
   type QuoteBatchResponseV1,
   type QuoteResponseV1,
@@ -42,7 +38,6 @@ import {
   DEFAULT_DRAFT_TTL_MS,
   deleteBookingDraft,
   getBookingDraft,
-  markDraftConsumed,
   updateBookingDraft,
 } from "./drafts-service.js"
 import {
@@ -52,20 +47,16 @@ import {
   ORDER_ALREADY_CANCELLED,
   ORDER_NOT_FOUND,
   QUOTE_EXPIRED,
-  QUOTE_MISMATCH,
   QUOTE_NOT_FOUND,
-  RESERVE_FAILED,
 } from "./errors.js"
 import { OWNED_SOURCE_KIND } from "./owned-handler.js"
 import { type QuoteEntityResult, quoteEntitiesBatch, quoteEntity } from "./quote.js"
 import {
   batchQuoteBodySchema,
-  bookBodySchema,
   type CatalogBookingAdapterContextInput,
   type CatalogBookingBatchQuoteBody,
   type CatalogBookingBatchQuoteSelection,
   type CatalogBookingBatchQuoteTransformInput,
-  type CatalogBookingBookBody,
   type CatalogBookingDraftBody,
   type CatalogBookingHoldPlaceBody,
   type CatalogBookingHoldReleaseBody,
@@ -77,7 +68,6 @@ import {
   holdReleaseBodySchema,
   quoteBodySchema,
 } from "./routes-contracts.js"
-import { catalogQuotesTable, type SelectCatalogQuote } from "./schema.js"
 
 const DEFAULT_HOLD_TTL_MS = 30 * 60 * 1000
 
@@ -215,45 +205,6 @@ const batchQuoteRoute = createRoute({
   },
 })
 
-const bookRoute = createRoute({
-  method: "post",
-  path: "/book",
-  request: {
-    body: {
-      required: true,
-      description:
-        "Either `quoteId` or `draftId` is required (cross-field rule enforced server-side; the schema is a permissive superset).",
-      content: { "application/json": { schema: bookBodySchema } },
-    },
-  },
-  responses: {
-    200: {
-      description: "Booking committed for the resolved quote",
-      content: { "application/json": { schema: bookResponseV1 } },
-    },
-    400: {
-      description: "invalid_request — body failed validation, or quoteId could not be resolved",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    404: {
-      description: "Draft not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    409: {
-      description: "Draft has no current quote, quote expired/mismatched, or order conflict",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    502: {
-      description: "Upstream reservation failed",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    503: {
-      description: "No adapter/handler registered for this vertical",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-  },
-})
-
 const draftPutRoute = createRoute({
   method: "put",
   path: "/drafts/{id}",
@@ -378,16 +329,10 @@ export type {
   CatalogBookingBatchQuoteBody,
   CatalogBookingBatchQuoteSelection,
   CatalogBookingBatchQuoteTransformInput,
-  CatalogBookingBookBody,
-  CatalogBookingBookTransformInput,
-  CatalogBookingCommittedEvent,
-  CatalogBookingContentScopeInput,
   CatalogBookingDraftBody,
-  CatalogBookingDraftConsumedError,
   CatalogBookingHoldPlaceBody,
   CatalogBookingHoldReleaseBody,
   CatalogBookingHoldTtlInput,
-  CatalogBookingPrepareBookParametersInput,
   CatalogBookingProvenance,
   CatalogBookingProvenanceInput,
   CatalogBookingQuoteBody,
@@ -406,7 +351,6 @@ export function createCatalogBookingRoutes(options: CatalogBookingRoutesOptions)
     .openapi(batchQuoteRoute, async (c) =>
       asRouteResponse(handleBatchQuote(c, options, c.req.valid("json"))),
     )
-    .openapi(bookRoute, async (c) => asRouteResponse(handleBook(c, options, c.req.valid("json"))))
     .openapi(draftPutRoute, async (c) =>
       asRouteResponse(handleDraftPut(c, options, c.req.valid("param").id, c.req.valid("json"))),
     )
@@ -609,178 +553,6 @@ async function handleBatchQuote(
     return c.json(serializeBatchQuoteResult(transformed))
   } catch (err) {
     return bookingEngineErrorResponse(c, err)
-  }
-}
-
-async function handleBook(
-  c: Context,
-  options: CatalogBookingRoutesOptions,
-  body: CatalogBookingBookBody,
-): Promise<Response> {
-  const db = options.resolveDb(c)
-  const correlationId = resolveCorrelationId(c, options)
-
-  let quoteId = body.quoteId
-  let draftPayload: Record<string, unknown> | undefined
-  let draftProvenance: CatalogBookingProvenance | undefined
-  // Load the draft whenever a draftId is present — even when the caller pins an
-  // explicit `quoteId` — so its payload (selected departure/room/pax/travelers)
-  // still feeds `engineParametersFromDraft`. An explicit `quoteId` only overrides
-  // WHICH quote is booked (e.g. a live re-scoped quote); it must not drop the
-  // draft parameters the reserve/commit derives from.
-  if (body.draftId) {
-    const draft = await getBookingDraft(db, body.draftId)
-    if (draft) {
-      draftPayload = draft.draft_payload
-      draftProvenance = {
-        sourceKind: draft.source_kind,
-        sourceConnectionId: draft.source_connection_id ?? undefined,
-        sourceRef: draft.source_ref ?? undefined,
-      }
-      if (!quoteId) {
-        if (!draft.current_quote_id) {
-          return c.json({ error: "draft has no current quote - call /quote first" }, 409)
-        }
-        quoteId = draft.current_quote_id
-      }
-    } else if (!quoteId) {
-      // No draft and no explicit quote to fall back to.
-      return c.json({ error: "draft not found" }, 404)
-    }
-  }
-  if (!quoteId) {
-    return c.json({ error: "quoteId could not be resolved" }, 400)
-  }
-
-  try {
-    const quoteForBook =
-      options.prepareBookParameters || !draftProvenance
-        ? await loadQuoteForBook(db, quoteId)
-        : undefined
-    const provenance = draftProvenance ??
-      quoteToBookProvenance(quoteForBook) ?? { sourceKind: "engine" }
-    const adapterContext = resolveAdapterContext(c, options, {
-      db,
-      operation: "book",
-      sourceKind: provenance.sourceKind,
-      sourceConnectionId: provenance.sourceConnectionId,
-      correlationId,
-    })
-    const result = await bookEntity(
-      db,
-      {
-        registry: options.resolveSourceRegistry(c),
-        ownedHandlers: options.resolveOwnedHandlers?.(c),
-        captureSnapshotContent: options.captureSnapshotContent,
-      },
-      {
-        quoteId,
-        bookingId: body.bookingId,
-        party: body.party,
-        paymentIntent: body.paymentIntent,
-        parameters: await prepareBookParameters(c, options, {
-          db,
-          body,
-          quoteId,
-          quote: quoteForBook,
-          draftPayload,
-          provenance,
-        }),
-        idempotencyKey: body.idempotencyKey,
-        adapterContext,
-        contentScope: options.resolveContentScope?.({ c, db, body, draftPayload }),
-      },
-    )
-
-    if (body.draftId) {
-      try {
-        await markDraftConsumed(db, body.draftId, result.bookingId)
-      } catch (error) {
-        options.onDraftConsumedError?.({
-          c,
-          db,
-          draftId: body.draftId,
-          bookingId: result.bookingId,
-          error,
-        })
-      }
-    }
-
-    await options.onCommitted?.({ c, db, request: body, result })
-    const transformed =
-      (await options.transformBookResult?.({ c, db, request: body, result })) ?? result
-    return c.json(serializeBookResult(transformed))
-  } catch (err) {
-    return bookingEngineErrorResponse(c, err)
-  }
-}
-
-async function prepareBookParameters(
-  c: Context,
-  options: CatalogBookingRoutesOptions,
-  input: {
-    db: AnyDrizzleDb
-    body: CatalogBookingBookBody
-    quoteId: string
-    quote?: SelectCatalogQuote
-    draftPayload?: Record<string, unknown>
-    provenance: CatalogBookingProvenance
-  },
-): Promise<Record<string, unknown>> {
-  // The commit request is the user's latest booking state. A persisted draft
-  // may lag behind it (for example, before newly selected travelers have been
-  // autosaved), so only use the stored payload when the caller does not send
-  // an explicit live draft.
-  const effectiveDraftPayload = input.body.parameters?.draft ?? input.draftPayload
-  const parameters = engineParametersFromDraft(input.body.parameters, effectiveDraftPayload, {
-    entityModule: effectiveDraftPayload
-      ? (stringValue(asRecord(effectiveDraftPayload)?.entity_module) ??
-        stringValue(asRecord(asRecord(effectiveDraftPayload)?.entity)?.module) ??
-        undefined)
-      : undefined,
-    sourceKind: input.provenance.sourceKind,
-    sourceProvider: input.provenance.sourceProvider,
-  })
-
-  if (input.body.draftId) {
-    parameters.availabilityHoldToken = input.body.draftId
-  }
-
-  return (
-    (await options.prepareBookParameters?.({
-      c,
-      db: input.db,
-      request: input.body,
-      quoteId: input.quoteId,
-      quote: input.quote,
-      draftPayload: input.draftPayload,
-      provenance: input.provenance,
-      parameters,
-    })) ?? parameters
-  )
-}
-
-async function loadQuoteForBook(
-  db: AnyDrizzleDb,
-  quoteId: string,
-): Promise<SelectCatalogQuote | undefined> {
-  const rows = (await db
-    .select()
-    .from(catalogQuotesTable)
-    .where(eq(catalogQuotesTable.id, quoteId))
-    .limit(1)) as SelectCatalogQuote[]
-  return rows[0]
-}
-
-function quoteToBookProvenance(
-  quote: SelectCatalogQuote | undefined,
-): CatalogBookingProvenance | undefined {
-  if (!quote) return undefined
-  return {
-    sourceKind: quote.source_kind,
-    sourceProvider: quote.source_provider ?? undefined,
-    sourceConnectionId: quote.source_connection_id ?? undefined,
-    sourceRef: quote.source_ref ?? undefined,
   }
 }
 
@@ -1272,11 +1044,8 @@ function statusForCode(code: string): number {
     case ORDER_NOT_FOUND:
       return 404
     case QUOTE_EXPIRED:
-    case QUOTE_MISMATCH:
     case ORDER_ALREADY_CANCELLED:
       return 409
-    case RESERVE_FAILED:
-      return 502
     default:
       return 500
   }
@@ -1306,13 +1075,6 @@ function serializeBatchQuoteResult(
       selection: item.selection,
       ...serializeQuoteResult(item.result),
     })),
-  })
-}
-
-export function serializeBookResult(result: BookEntityResult): BookResponseV1 {
-  return bookResponseV1.parse({
-    ...result,
-    pricing: toPricingBreakdownV1(result.pricing),
   })
 }
 

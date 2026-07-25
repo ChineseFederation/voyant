@@ -2,6 +2,8 @@ import type { ToolActionPolicyBinding, ToolActionPolicyManifest } from "./bindin
 import type { ToolContext, ToolHandlerActionPolicyContext } from "./context.js"
 import { ToolError } from "./errors.js"
 
+const authenticHandlerAdmissions = new WeakSet<object>()
+
 export interface HandlerActionPolicyExpectation {
   capabilityId: string
   capabilityVersion: string
@@ -21,6 +23,7 @@ export function admitHandlerActionPolicy(
   expected: HandlerActionPolicyExpectation,
 ): ToolHandlerActionPolicyContext {
   const admitted = context.handlerActionPolicy
+  assertAuthenticHandlerActionPolicyContext(admitted)
   if (admitted?.actionPolicy.enforcement !== "handler") {
     throw new ToolError(
       "Handler-owned action policy context is required for this Tool.",
@@ -29,7 +32,7 @@ export function admitHandlerActionPolicy(
     )
   }
 
-  const mismatch = firstIdentityMismatch(admitted, expected)
+  const mismatch = firstHandlerActionPolicyIdentityMismatch(admitted, expected)
   if (mismatch) {
     throw new ToolError(
       "Handler-owned action policy context does not match this Tool contract.",
@@ -52,7 +55,89 @@ export function admitHandlerActionPolicy(
   return admitted
 }
 
-function firstIdentityMismatch(
+/**
+ * Assert that a handler admission was minted by the Tool registry while
+ * dispatching a selected handler-owned action.
+ *
+ * Structural lookalikes are deliberately rejected: action-ledger command
+ * entrypoints use this assertion before any claim or mutation lease is minted.
+ */
+export function assertAuthenticHandlerActionPolicyContext(
+  admitted: unknown,
+): asserts admitted is ToolHandlerActionPolicyContext {
+  if (
+    typeof admitted !== "object" ||
+    admitted === null ||
+    !authenticHandlerAdmissions.has(admitted)
+  ) {
+    throw new ToolError(
+      "Authentic handler-owned action admission is required.",
+      "ACTION_POLICY_REQUIRED",
+    )
+  }
+}
+
+/**
+ * Package-private runtime primitive used only by the Tool registry.
+ *
+ * This module is not a package export; consumers can assert admissions but
+ * cannot mint them.
+ */
+export function mintHandlerActionPolicyContext(
+  admitted: ToolHandlerActionPolicyContext,
+): ToolHandlerActionPolicyContext {
+  const minted = deepFreezeAdmission({
+    ...admitted,
+    actionPolicy: {
+      ...admitted.actionPolicy,
+      ...(admitted.actionPolicy.existingTarget
+        ? { existingTarget: { ...admitted.actionPolicy.existingTarget } }
+        : {}),
+      ...(admitted.actionPolicy.createdTarget
+        ? {
+            createdTarget: {
+              ...admitted.actionPolicy.createdTarget,
+              ...(admitted.actionPolicy.createdTarget.parentAnchor
+                ? { parentAnchor: { ...admitted.actionPolicy.createdTarget.parentAnchor } }
+                : {}),
+            },
+          }
+        : {}),
+      ...(admitted.actionPolicy.allowedActorTypes
+        ? { allowedActorTypes: [...admitted.actionPolicy.allowedActorTypes] }
+        : {}),
+      invocation: {
+        ...admitted.actionPolicy.invocation,
+        requiredFields: [...admitted.actionPolicy.invocation.requiredFields],
+        optionalFields: [...admitted.actionPolicy.invocation.optionalFields],
+      },
+    },
+    invocation: { ...admitted.invocation },
+  })
+  authenticHandlerAdmissions.add(minted)
+  return minted
+}
+
+function deepFreezeAdmission(
+  admitted: ToolHandlerActionPolicyContext,
+): ToolHandlerActionPolicyContext {
+  if (admitted.actionPolicy.createdTarget?.parentAnchor) {
+    Object.freeze(admitted.actionPolicy.createdTarget.parentAnchor)
+  }
+  if (admitted.actionPolicy.createdTarget) Object.freeze(admitted.actionPolicy.createdTarget)
+  if (admitted.actionPolicy.existingTarget) Object.freeze(admitted.actionPolicy.existingTarget)
+  if (admitted.actionPolicy.allowedActorTypes) {
+    Object.freeze(admitted.actionPolicy.allowedActorTypes)
+  }
+  Object.freeze(admitted.actionPolicy.invocation.requiredFields)
+  Object.freeze(admitted.actionPolicy.invocation.optionalFields)
+  Object.freeze(admitted.actionPolicy.invocation)
+  Object.freeze(admitted.actionPolicy)
+  Object.freeze(admitted.invocation)
+  return Object.freeze(admitted)
+}
+
+export function firstHandlerActionPolicyIdentityMismatch(
   admitted: ToolHandlerActionPolicyContext,
   expected: HandlerActionPolicyExpectation,
 ): string | null {

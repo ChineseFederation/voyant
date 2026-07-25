@@ -17,7 +17,6 @@ import {
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
-import { materializeBookingFromSnapshot } from "./materialization.js"
 import type { CheckoutStartOptions } from "./options.js"
 
 export const checkoutStartSchema = z.object({
@@ -116,29 +115,8 @@ export async function startCatalogCheckout(
   body: CheckoutStartInput,
 ): Promise<CatalogCheckoutStartResult> {
   const db = context.db
-  let booking: typeof bookings.$inferSelect | null =
+  const booking: typeof bookings.$inferSelect | null =
     (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ?? null
-
-  // Sourced products go through the catalog-snapshot path on
-  // /book — they never write to the `bookings` table directly.
-  // Materialize a minimal row from the snapshot so the rest of the
-  // checkout-start flow (state transitions, payment session, etc)
-  // can operate on a normal booking. Owned products already have
-  // the row written by their OwnedBookingHandler.commit.
-  if (!booking) {
-    booking = await materializeBookingFromSnapshot(
-      db,
-      body.bookingId,
-      context.env,
-      context.options,
-      {
-        beforeMaterialize:
-          body.paymentIntent === "bank_transfer"
-            ? () => ensureBankTransferInvoicingPrerequisites(context)
-            : undefined,
-      },
-    )
-  }
   if (!booking) throw new CatalogCheckoutStartError("booking_not_found", 404)
   if (
     (body.paymentIntent === "card" || body.paymentIntent === "bank_transfer") &&

@@ -2,7 +2,10 @@ import { z } from "zod"
 
 import type { ExternalPassengerComposition, SourceRef } from "./adapters/index.js"
 import { encodeSourceRef } from "./lib/key.js"
-import type { CreateCruiseBookingInput, CreateCruisePartyBookingInput } from "./service-bookings.js"
+import type {
+  CreateCruiseBookingInput,
+  CreateCruisePartyBookingInput,
+} from "./service-booking-types.js"
 
 export const createBookingPayloadSchema = z.object({
   sailingId: z.string(),

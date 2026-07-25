@@ -172,24 +172,8 @@ describe("cruises deployment manifest", () => {
   })
 
   it("declares exact ledger and approval policy for Tool actions", () => {
-    expect(cruisesVoyantModule.tools).toHaveLength(12)
-    expect(cruisesVoyantModule.actions).toHaveLength(12)
-    const booking = cruisesVoyantModule.actions?.find((action) =>
-      action.from?.tools?.includes("@voyant-travel/cruises#tool.create-cruise-booking"),
-    )
-    expect(booking).toMatchObject({
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      requiredScopes: ["cruises:write", "bookings:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      reversible: false,
-      allowedActorTypes: ["staff"],
-    })
+    expect(cruisesVoyantModule.tools).toHaveLength(11)
+    expect(cruisesVoyantModule.actions).toHaveLength(11)
     expect(
       cruisesVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/cruises#action.create-cruise",

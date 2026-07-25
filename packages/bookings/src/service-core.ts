@@ -1,20 +1,14 @@
 // agent-quality: file-size exception -- Bookings service keeps legacy booking lifecycle, traveler, allocation, and accounting workflows together until service modules are split by domain operation.
 import {
-  ActionLedgerCreatedCommandReplayCorruptError,
-  ActionLedgerCreatedCommandReplayIncompleteError,
-  ActionLedgerIdempotencyConflictError,
   type ActionLedgerRequestContextValues,
   appendActionLedgerMutation,
-  buildCreatedTargetCommandFingerprint,
-  buildIdempotencyFingerprint,
-  executeAdmittedCreatedTargetCommand,
+  type CreatedTargetMutationLease,
+  consumeCreatedTargetMutationLease,
 } from "@voyant-travel/action-ledger"
-import { actionLedgerEntries, actionMutationDetails } from "@voyant-travel/action-ledger/schema"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { authUser } from "@voyant-travel/db/schema/iam"
-import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import {
   and,
   asc,
@@ -61,7 +55,6 @@ import {
 } from "./products-ref.js"
 import { bookingTravelerTravelDetails } from "./schema/travel-details.js"
 import {
-  type Booking,
   bookingActivityLog,
   bookingAllocations,
   bookingDocuments,
@@ -92,12 +85,10 @@ import type {
   insertBookingItemParticipantSchema,
   insertBookingItemSchema,
   insertBookingNoteSchema,
-  insertBookingSchema,
   insertTravelerRecordSchema,
   insertTravelerSchema,
   overrideBookingStatusSchema,
   recordBookingRedemptionSchema,
-  reserveBookingSchema,
   startBookingSchema,
   updateBookingFulfillmentSchema,
   updateBookingItemSchema,
@@ -182,9 +173,7 @@ function buildBookingSearchCondition(search: string): SQL | undefined {
 
 type BookingListQuery = z.infer<typeof bookingListQuerySchema>
 type ConvertProductInput = z.infer<typeof convertProductSchema>
-type CreateBookingInput = z.infer<typeof insertBookingSchema>
 type UpdateBookingInput = z.infer<typeof updateBookingSchema>
-type ReserveBookingInput = z.infer<typeof reserveBookingSchema>
 type ExtendBookingHoldInput = z.infer<typeof extendBookingHoldSchema>
 type ConfirmBookingInput = z.infer<typeof confirmBookingSchema>
 type CancelBookingInput = z.infer<typeof cancelBookingSchema>
@@ -337,20 +326,13 @@ type OptionUnitReference = typeof optionUnitsRef.$inferSelect
 export interface BookingServiceRuntime {
   eventBus?: EventBus
   actionLedgerContext?: ActionLedgerRequestContextValues
-  actionLedgerAdmitted?: ToolHandlerActionPolicyContext
   actionLedgerAuthorizationSource?: string | null
   actionLedgerCausationActionId?: string | null
   actionLedgerApprovalId?: string | null
   actionLedgerIdempotencyScope?: string | null
   actionLedgerIdempotencyKey?: string | null
   actionLedgerIdempotencyFingerprint?: string | null
-  actionLedgerLegacyIdempotencyScope?: string | null
-  actionLedgerLegacyIdempotencyFingerprint?: string | null
   actionLedgerRouteOrToolName?: string | null
-  actionLedgerActionName?: string | null
-  actionLedgerActionVersion?: string | null
-  actionLedgerCapabilityId?: string | null
-  actionLedgerCapabilityVersion?: string | null
   expirePaymentSessionsForBooking?: (
     db: PostgresJsDatabase,
     bookingId: string,
@@ -383,211 +365,6 @@ type BookingStatusActionName =
   | "booking.status.start"
   | "booking.status.complete"
   | "booking.status.override"
-
-const BOOKING_RESERVATION_ACTION_NAME = "booking.reserve"
-const BOOKING_RESERVATION_ACTION_VERSION = "v1"
-const BOOKING_RESERVATION_COMMAND_TARGET_TYPE = "booking_reservation_command"
-const BOOKING_RESERVATION_CANONICAL_TARGET_TYPE = "booking"
-const BOOKING_RESERVATION_RESULT_REFERENCE_TYPE = "booking"
-const BOOKING_RESERVATION_CAPABILITY_ID = "bookings:reserve"
-const BOOKING_RESERVATION_CAPABILITY_VERSION = "v1"
-const BOOKING_RESERVATION_EVALUATED_RISK = "high"
-const BOOKING_RESERVATION_LEGACY_RESULT_REF_PREFIX = "booking:"
-
-export interface BookingReservationActionIdentity {
-  actionName: string
-  actionVersion: string
-  capabilityId: string
-  capabilityVersion: string
-}
-
-const DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY = {
-  actionName: BOOKING_RESERVATION_ACTION_NAME,
-  actionVersion: BOOKING_RESERVATION_ACTION_VERSION,
-  capabilityId: BOOKING_RESERVATION_CAPABILITY_ID,
-  capabilityVersion: BOOKING_RESERVATION_CAPABILITY_VERSION,
-} as const satisfies BookingReservationActionIdentity
-
-function bookingReservationCommand(
-  data: ReserveBookingInput,
-  identity: BookingReservationActionIdentity = DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY,
-) {
-  return {
-    actionName: identity.actionName,
-    actionVersion: identity.actionVersion,
-    commandTarget: {
-      type: BOOKING_RESERVATION_COMMAND_TARGET_TYPE,
-      id: data.bookingNumber,
-    },
-    canonicalTargetType: BOOKING_RESERVATION_CANONICAL_TARGET_TYPE,
-    resultReferenceType: BOOKING_RESERVATION_RESULT_REFERENCE_TYPE,
-    commandInput: data,
-    capabilityId: identity.capabilityId,
-    capabilityVersion: identity.capabilityVersion,
-    evaluatedRisk: BOOKING_RESERVATION_EVALUATED_RISK,
-    approvalPolicy: "none" as const,
-    approvalReasonCode: null,
-  } as const
-}
-
-export function buildBookingReservationCommandFingerprint(
-  data: ReserveBookingInput,
-  identity: BookingReservationActionIdentity = DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY,
-): Promise<string> {
-  return buildCreatedTargetCommandFingerprint(bookingReservationCommand(data, identity))
-}
-
-export function buildLegacyBookingReservationCommandFingerprint(
-  data: ReserveBookingInput,
-): Promise<string> {
-  return buildIdempotencyFingerprint({
-    actionName: BOOKING_RESERVATION_ACTION_NAME,
-    actionVersion: BOOKING_RESERVATION_ACTION_VERSION,
-    targetType: BOOKING_RESERVATION_COMMAND_TARGET_TYPE,
-    targetId: data.bookingNumber,
-    commandInput: data,
-  })
-}
-
-interface BookingReservationLedgerRuntime {
-  context: ActionLedgerRequestContextValues
-  admitted: ToolHandlerActionPolicyContext
-  idempotencyKey: string
-  legacyIdempotencyScope: string | null
-  legacyIdempotencyFingerprint: string | null
-}
-
-function bookingReservationLedgerRuntime(
-  runtime: BookingServiceRuntime,
-): BookingReservationLedgerRuntime | null {
-  if (!runtime.actionLedgerContext && !runtime.actionLedgerAdmitted) return null
-  const idempotencyKey = runtime.actionLedgerAdmitted?.invocation.idempotencyKey?.trim()
-  if (!runtime.actionLedgerContext || !runtime.actionLedgerAdmitted || !idempotencyKey) {
-    throw new BookingServiceError(
-      "missing_idempotency_key",
-      "Audited booking reservation requires an admitted Tool invocation",
-    )
-  }
-  const hasLegacyScope = !!runtime.actionLedgerLegacyIdempotencyScope
-  const hasLegacyFingerprint = !!runtime.actionLedgerLegacyIdempotencyFingerprint
-  if (hasLegacyScope !== hasLegacyFingerprint) {
-    throw new BookingServiceError(
-      "missing_idempotency_key",
-      "Legacy reservation replay requires complete idempotency metadata",
-    )
-  }
-  return {
-    context: runtime.actionLedgerContext,
-    admitted: runtime.actionLedgerAdmitted,
-    idempotencyKey,
-    legacyIdempotencyScope: runtime.actionLedgerLegacyIdempotencyScope ?? null,
-    legacyIdempotencyFingerprint: runtime.actionLedgerLegacyIdempotencyFingerprint ?? null,
-  }
-}
-
-async function getReplayedBookingReservation(db: PostgresJsDatabase, bookingId: string) {
-  const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1)
-  if (!booking) {
-    throw new BookingServiceError(
-      "reservation_replay_incomplete",
-      `The reservation result references missing booking ${bookingId}`,
-    )
-  }
-  return booking
-}
-
-interface LegacyBookingReservationReplay {
-  booking: Booking
-}
-
-async function readLegacyBookingReservation(
-  tx: PostgresJsDatabase,
-  ledger: BookingReservationLedgerRuntime,
-  bookingNumber: string,
-): Promise<LegacyBookingReservationReplay | null> {
-  if (!ledger.legacyIdempotencyScope || !ledger.legacyIdempotencyFingerprint) return null
-
-  await tx.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${ledger.legacyIdempotencyScope}:${ledger.idempotencyKey}`}, 0))`,
-  )
-  const [claim] = await tx
-    .select()
-    .from(actionLedgerEntries)
-    .where(
-      and(
-        eq(actionLedgerEntries.idempotencyScope, `${ledger.legacyIdempotencyScope}:claim`),
-        eq(actionLedgerEntries.idempotencyKey, ledger.idempotencyKey),
-      ),
-    )
-    .limit(1)
-  if (!claim) return null
-  if (
-    claim.actionName !== BOOKING_RESERVATION_ACTION_NAME ||
-    claim.actionVersion !== BOOKING_RESERVATION_ACTION_VERSION ||
-    claim.actionKind !== "create" ||
-    claim.status !== "requested" ||
-    claim.evaluatedRisk !== BOOKING_RESERVATION_EVALUATED_RISK ||
-    claim.targetType !== BOOKING_RESERVATION_COMMAND_TARGET_TYPE ||
-    claim.targetId !== bookingNumber ||
-    claim.routeOrToolName !== "bookings.reserve_booking" ||
-    claim.capabilityId !== BOOKING_RESERVATION_CAPABILITY_ID ||
-    claim.capabilityVersion !== BOOKING_RESERVATION_CAPABILITY_VERSION ||
-    claim.idempotencyFingerprint !== ledger.legacyIdempotencyFingerprint
-  ) {
-    throw new ActionLedgerIdempotencyConflictError(claim.id)
-  }
-
-  const [completed] = await tx
-    .select({
-      entry: actionLedgerEntries,
-      commandResultRef: actionMutationDetails.commandResultRef,
-    })
-    .from(actionLedgerEntries)
-    .leftJoin(actionMutationDetails, eq(actionMutationDetails.actionId, actionLedgerEntries.id))
-    .where(
-      and(
-        eq(actionLedgerEntries.idempotencyScope, `${ledger.legacyIdempotencyScope}:result`),
-        eq(actionLedgerEntries.idempotencyKey, ledger.idempotencyKey),
-      ),
-    )
-    .limit(1)
-  const resultRef = completed?.commandResultRef
-  if (
-    !completed ||
-    completed.entry.actionName !== claim.actionName ||
-    completed.entry.actionVersion !== claim.actionVersion ||
-    completed.entry.actionKind !== claim.actionKind ||
-    completed.entry.status !== "succeeded" ||
-    completed.entry.targetType !== BOOKING_RESERVATION_CANONICAL_TARGET_TYPE ||
-    completed.entry.causationActionId !== claim.id ||
-    completed.entry.idempotencyFingerprint !== ledger.legacyIdempotencyFingerprint ||
-    completed.entry.actorType !== claim.actorType ||
-    completed.entry.principalType !== claim.principalType ||
-    completed.entry.principalId !== claim.principalId ||
-    completed.entry.callerType !== claim.callerType ||
-    completed.entry.organizationId !== claim.organizationId ||
-    completed.entry.routeOrToolName !== claim.routeOrToolName ||
-    completed.entry.capabilityId !== claim.capabilityId ||
-    completed.entry.capabilityVersion !== claim.capabilityVersion ||
-    completed.entry.authorizationSource !== claim.authorizationSource ||
-    !resultRef?.startsWith(BOOKING_RESERVATION_LEGACY_RESULT_REF_PREFIX)
-  ) {
-    throw new BookingServiceError(
-      "reservation_replay_incomplete",
-      "The legacy reservation claim exists without a canonical booking result",
-    )
-  }
-  const bookingId = resultRef.slice(BOOKING_RESERVATION_LEGACY_RESULT_REF_PREFIX.length).trim()
-  if (!bookingId || completed.entry.targetId !== bookingId) {
-    throw new BookingServiceError(
-      "reservation_replay_incomplete",
-      "The legacy reservation result has an invalid booking reference",
-    )
-  }
-  return {
-    booking: await getReplayedBookingReservation(tx, bookingId),
-  }
-}
 
 async function appendBookingStatusMutationLedger(
   db: PostgresJsDatabase,
@@ -2264,7 +2041,7 @@ function toRows<T>(result: unknown): T[] {
   return []
 }
 
-export const bookingsService = {
+const bookingsServiceInternal = {
   /**
    * Pre-aggregated dashboard numbers for the admin bookings surface. Replaces
    * the pattern of fetching a large `listBookings` page and deriving KPIs
@@ -3053,426 +2830,12 @@ export const bookingsService = {
     return row ?? null
   },
 
-  async createBookingFromProduct(
-    db: PostgresJsDatabase,
-    data: ConvertProductInput,
-    userId?: string,
-    options: { availabilityHoldToken?: string } = {},
-  ) {
-    const productData = await getConvertProductData(db, data)
-    if (!productData) {
-      return null
-    }
-
-    return this.convertProductToBooking(db, data, productData, userId, options)
-  },
-
   listAllocations(db: PostgresJsDatabase, bookingId: string) {
     return db
       .select()
       .from(bookingAllocations)
       .where(eq(bookingAllocations.bookingId, bookingId))
       .orderBy(asc(bookingAllocations.createdAt))
-  },
-
-  async reserveBooking(
-    db: PostgresJsDatabase,
-    data: ReserveBookingInput,
-    userId?: string,
-    runtime: BookingServiceRuntime = {},
-  ) {
-    const slotChanges: AvailabilitySlotChangedEventPayload[] = []
-    try {
-      // Everything that doesn't need the slot locks runs BEFORE the
-      // transaction opens so the `FOR UPDATE` critical section stays as
-      // short as possible (T7, perf RFC): hold-policy resolution and the
-      // catalog name snapshots are plain reads of catalog/policy data
-      // that the slot lock doesn't protect anyway (a product rename
-      // could land mid-transaction either way).
-      const holdExpiresAt = await computeHoldExpiresAt(db, data, data.items)
-
-      // Unlocked pre-read of slot -> product/option so items that omit
-      // productId/optionId can still resolve their catalog snapshot
-      // pre-transaction. `product_id`/`option_id` are immutable on a
-      // slot, so this read cannot diverge from the locked read inside
-      // the transaction. Missing table (catalog-less deployment) or a
-      // missing slot just degrades the snapshot to nulls — the locked
-      // read inside the transaction stays authoritative for existence
-      // and mismatch checks.
-      const slotIds = [...new Set(data.items.map((item) => item.availabilitySlotId))]
-      const slotInfo = new Map<string, { productId: string; optionId: string | null }>()
-      try {
-        const slotRows = await db
-          .select({
-            id: availabilitySlotsRef.id,
-            productId: availabilitySlotsRef.productId,
-            optionId: availabilitySlotsRef.optionId,
-          })
-          .from(availabilitySlotsRef)
-          .where(inArray(availabilitySlotsRef.id, slotIds))
-        for (const row of slotRows) {
-          slotInfo.set(row.id, { productId: row.productId, optionId: row.optionId })
-        }
-      } catch (error) {
-        if (!isUndefinedTableError(error)) throw error
-      }
-
-      // Unlocked pre-read of caller-supplied option -> product ownership. An
-      // option-less slot (`option_id = NULL`) is not option-scoped and accepts
-      // any option *of its own product*, but must still reject an option that
-      // belongs to a different product (#2833 review). `product_options.product_id`
-      // is immutable for this operation, so reading it outside the slot lock is
-      // safe. `optionCatalogAvailable` stays false for catalog-less deployments
-      // (missing table), where options are not a concept and the check is skipped.
-      const requestedOptionIds = [
-        ...new Set(
-          data.items
-            .map((item) => item.optionId)
-            .filter((optionId): optionId is string => Boolean(optionId)),
-        ),
-      ]
-      const optionProduct = new Map<string, string>()
-      let optionCatalogAvailable = false
-      if (requestedOptionIds.length) {
-        try {
-          const optionRows = await db
-            .select({ id: productOptionsRef.id, productId: productOptionsRef.productId })
-            .from(productOptionsRef)
-            .where(inArray(productOptionsRef.id, requestedOptionIds))
-          optionCatalogAvailable = true
-          for (const row of optionRows) {
-            optionProduct.set(row.id, row.productId)
-          }
-        } catch (error) {
-          if (!isUndefinedTableError(error)) throw error
-        }
-      }
-
-      const itemSnapshots = await Promise.all(
-        data.items.map((item) => {
-          const preSlot = slotInfo.get(item.availabilitySlotId)
-          return resolveBookingItemSnapshot(db, {
-            productId: item.productId ?? preSlot?.productId ?? null,
-            optionId: item.optionId ?? preSlot?.optionId ?? null,
-            optionUnitId: item.optionUnitId ?? null,
-            availabilitySlotId: item.availabilitySlotId,
-          })
-        }),
-      )
-
-      const reserveInTransaction = async (tx: PostgresJsDatabase) => {
-        const [booking] = await tx
-          .insert(bookings)
-          .values({
-            bookingNumber: data.bookingNumber,
-            status: "on_hold",
-            personId: data.personId ?? null,
-            organizationId: data.organizationId ?? null,
-            sourceType: data.sourceType,
-            externalBookingRef: data.externalBookingRef ?? null,
-            communicationLanguage: data.communicationLanguage ?? null,
-            contactFirstName: data.contactFirstName ?? null,
-            contactLastName: data.contactLastName ?? null,
-            contactPartyType: data.contactPartyType ?? null,
-            contactTaxId: data.contactTaxId ?? null,
-            contactEmail: data.contactEmail ?? null,
-            contactPhone: data.contactPhone ?? null,
-            contactPreferredLanguage: data.contactPreferredLanguage ?? null,
-            contactCountry: data.contactCountry ?? null,
-            contactRegion: data.contactRegion ?? null,
-            contactCity: data.contactCity ?? null,
-            contactAddressLine1: data.contactAddressLine1 ?? null,
-            contactAddressLine2: data.contactAddressLine2 ?? null,
-            contactPostalCode: data.contactPostalCode ?? null,
-            sellCurrency: data.sellCurrency,
-            baseCurrency: data.baseCurrency ?? null,
-            sellAmountCents: data.sellAmountCents ?? null,
-            baseSellAmountCents: data.baseSellAmountCents ?? null,
-            costAmountCents: data.costAmountCents ?? null,
-            baseCostAmountCents: data.baseCostAmountCents ?? null,
-            marginPercent: data.marginPercent ?? null,
-            startDate: data.startDate ?? null,
-            endDate: data.endDate ?? null,
-            pax: data.pax ?? null,
-            internalNotes: data.internalNotes ?? null,
-            holdExpiresAt,
-          })
-          .returning()
-
-        if (!booking) {
-          throw new BookingServiceError("booking_create_failed")
-        }
-
-        // The locked critical section: per item, only the slot lock +
-        // capacity adjustment runs serially (correctness — that's the
-        // row the `FOR UPDATE` protects). Row payloads are accumulated
-        // and written with ONE batched insert per table afterwards,
-        // instead of two inserts per item while holding the locks.
-        const itemRows: Array<typeof bookingItems.$inferInsert> = []
-        const allocationRows: Array<typeof bookingAllocations.$inferInsert> = []
-
-        for (const [index, item] of data.items.entries()) {
-          const capacity = await adjustSlotCapacity(
-            tx as PostgresJsDatabase,
-            item.availabilitySlotId,
-            -item.quantity,
-            "booking",
-          )
-
-          if (capacity.status === "slot_not_found") {
-            throw new BookingServiceError("slot_not_found")
-          }
-          if (capacity.status === "slot_unavailable") {
-            throw new BookingServiceError("slot_unavailable")
-          }
-          if (capacity.status === "insufficient_capacity") {
-            throw new BookingServiceError("insufficient_capacity")
-          }
-
-          const slot = capacity.slot
-          if (item.productId && item.productId !== slot.product_id) {
-            throw new BookingServiceError("slot_product_mismatch")
-          }
-          // A slot with `option_id = NULL` is not option-scoped — it applies
-          // to any option of its product, so an item carrying an option id is
-          // still valid against it. Only reject when the slot pins a *specific*
-          // option and the item names a different one. Without the NULL guard,
-          // option-less slots are permanently unbookable through paths (e.g.
-          // storefront compat bootstrap) that derive and stamp an option id
-          // onto the item (#2833).
-          if (item.optionId && slot.option_id !== null && item.optionId !== slot.option_id) {
-            throw new BookingServiceError("slot_option_mismatch")
-          }
-          // For a product-level slot the pinned-option check above can't run,
-          // so guard product integrity here: a derived/supplied option must
-          // still belong to the slot's product. When the catalog is present,
-          // an option that names a different product (or does not exist) is
-          // rejected rather than silently recorded (#2833 review).
-          if (
-            item.optionId &&
-            slot.option_id === null &&
-            optionCatalogAvailable &&
-            optionProduct.get(item.optionId) !== slot.product_id
-          ) {
-            throw new BookingServiceError("slot_option_mismatch")
-          }
-          if (capacity.slotChange) slotChanges.push(capacity.slotChange)
-
-          const productId = item.productId ?? slot.product_id
-          const optionId = item.optionId ?? slot.option_id
-          const optionUnitId = item.optionUnitId ?? null
-          const snapshot = itemSnapshots[index]
-
-          // Ids are generated app-side (same `newId` the column default
-          // uses) so allocations can reference their item without
-          // depending on RETURNING order of the batched insert.
-          const bookingItemId = newId("booking_items")
-          itemRows.push({
-            id: bookingItemId,
-            bookingId: booking.id,
-            title: item.title,
-            description: item.description ?? null,
-            itemType: item.itemType,
-            status: "on_hold",
-            serviceDate: slot.date_local,
-            startsAt: slot.starts_at,
-            endsAt: slot.ends_at,
-            quantity: item.quantity,
-            sellCurrency: item.sellCurrency ?? booking.sellCurrency,
-            unitSellAmountCents: item.unitSellAmountCents ?? null,
-            totalSellAmountCents: item.totalSellAmountCents ?? null,
-            costCurrency: item.costCurrency ?? null,
-            unitCostAmountCents: item.unitCostAmountCents ?? null,
-            totalCostAmountCents: item.totalCostAmountCents ?? null,
-            notes: item.notes ?? null,
-            productId,
-            optionId,
-            optionUnitId,
-            pricingCategoryId: item.pricingCategoryId ?? null,
-            availabilitySlotId: item.availabilitySlotId,
-            productNameSnapshot: item.productNameSnapshot ?? snapshot?.productName ?? null,
-            optionNameSnapshot: item.optionNameSnapshot ?? snapshot?.optionName ?? null,
-            unitNameSnapshot: item.unitNameSnapshot ?? snapshot?.unitName ?? null,
-            departureLabelSnapshot: item.departureLabelSnapshot ?? snapshot?.departureLabel ?? null,
-            sourceSnapshotId: item.sourceSnapshotId ?? null,
-            sourceOfferId: item.sourceOfferId ?? null,
-            metadata: item.metadata ?? null,
-          })
-
-          allocationRows.push({
-            bookingId: booking.id,
-            bookingItemId,
-            productId,
-            optionId,
-            optionUnitId,
-            pricingCategoryId: item.pricingCategoryId ?? null,
-            availabilitySlotId: item.availabilitySlotId,
-            quantity: item.quantity,
-            allocationType: item.allocationType,
-            status: "held",
-            holdExpiresAt,
-            metadata: item.metadata ?? null,
-          })
-        }
-
-        const insertedItems = await tx
-          .insert(bookingItems)
-          .values(itemRows)
-          .returning({ id: bookingItems.id })
-        if (insertedItems.length !== itemRows.length) {
-          throw new BookingServiceError("booking_item_create_failed")
-        }
-
-        const insertedAllocations = await tx
-          .insert(bookingAllocations)
-          .values(allocationRows)
-          .returning({ id: bookingAllocations.id })
-        if (insertedAllocations.length !== allocationRows.length) {
-          throw new BookingServiceError("allocation_create_failed")
-        }
-
-        await tx.insert(bookingActivityLog).values({
-          bookingId: booking.id,
-          actorId: userId ?? "system",
-          activityType: "booking_reserved",
-          description: `Booking ${booking.bookingNumber} reserved and placed on hold`,
-          metadata: { holdExpiresAt: holdExpiresAt.toISOString(), itemCount: data.items.length },
-        })
-
-        return booking
-      }
-
-      const reservationLedger = bookingReservationLedgerRuntime(runtime)
-      const reserveAudited = async (ledger: BookingReservationLedgerRuntime) => {
-        return db.transaction(async (tx) => {
-          const legacy = await readLegacyBookingReservation(
-            tx as PostgresJsDatabase,
-            ledger,
-            data.bookingNumber,
-          )
-          const execution = await executeAdmittedCreatedTargetCommand<
-            Booking,
-            typeof BOOKING_RESERVATION_RESULT_REFERENCE_TYPE
-          >(
-            {
-              db: tx,
-              context: ledger.context,
-              admitted: ledger.admitted,
-              commandTargetType: BOOKING_RESERVATION_COMMAND_TARGET_TYPE,
-              commandTargetId: data.bookingNumber,
-              routeOrToolName: "bookings.reserve_booking",
-              canonicalTargetType: BOOKING_RESERVATION_CANONICAL_TARGET_TYPE,
-              resultReferenceType: BOOKING_RESERVATION_RESULT_REFERENCE_TYPE,
-              commandInput: data,
-              evaluatedRisk: BOOKING_RESERVATION_EVALUATED_RISK,
-            },
-            {
-              async create(commandTx) {
-                const booking =
-                  legacy?.booking ?? (await reserveInTransaction(commandTx as PostgresJsDatabase))
-                return {
-                  value: booking,
-                  targetId: booking.id,
-                  mutationDetail: {
-                    summary: legacy
-                      ? `Booking ${booking.bookingNumber} migrated from legacy reservation replay`
-                      : `Booking ${booking.bookingNumber} reserved`,
-                    reversalKind: "domain_command",
-                    reversalCommandId: "booking.status.cancel",
-                    reversalCommandVersion: "v1",
-                  },
-                }
-              },
-              async replay(commandTx, completed) {
-                return getReplayedBookingReservation(
-                  commandTx as PostgresJsDatabase,
-                  completed.reference.id,
-                )
-              },
-            },
-          )
-          return {
-            status: "ok" as const,
-            booking: execution.value,
-            replayed: legacy !== null || execution.replayed,
-          }
-        })
-      }
-
-      const result = reservationLedger
-        ? await reserveAudited(reservationLedger)
-        : {
-            status: "ok" as const,
-            booking: await db.transaction((tx) => reserveInTransaction(tx as PostgresJsDatabase)),
-            replayed: false,
-          }
-      if (result.status === "ok") {
-        await emitSlotChanges(runtime, slotChanges)
-      }
-      return result
-    } catch (error) {
-      if (error instanceof ActionLedgerIdempotencyConflictError) {
-        return {
-          status: "idempotency_conflict" as const,
-          existingActionId: error.existingActionId,
-        }
-      }
-      if (
-        error instanceof ActionLedgerCreatedCommandReplayIncompleteError ||
-        error instanceof ActionLedgerCreatedCommandReplayCorruptError
-      ) {
-        return { status: "reservation_replay_incomplete" as const }
-      }
-      if (error instanceof BookingServiceError) {
-        return { status: error.code as Exclude<string, "ok"> }
-      }
-      throw error
-    }
-  },
-
-  async createBooking(db: PostgresJsDatabase, data: CreateBookingInput, userId?: string) {
-    return db.transaction(async (tx) => {
-      const status = data.status ?? "draft"
-      const [row] = await tx
-        .insert(bookings)
-        .values({
-          ...data,
-          status,
-          contactFirstName: data.contactFirstName ?? null,
-          contactLastName: data.contactLastName ?? null,
-          contactPartyType: data.contactPartyType ?? null,
-          contactTaxId: data.contactTaxId ?? null,
-          contactEmail: data.contactEmail ?? null,
-          contactPhone: data.contactPhone ?? null,
-          contactPreferredLanguage: data.contactPreferredLanguage ?? null,
-          contactCountry: data.contactCountry ?? null,
-          contactRegion: data.contactRegion ?? null,
-          contactCity: data.contactCity ?? null,
-          contactAddressLine1: data.contactAddressLine1 ?? null,
-          contactAddressLine2: data.contactAddressLine2 ?? null,
-          contactPostalCode: data.contactPostalCode ?? null,
-          holdExpiresAt: toTimestamp(data.holdExpiresAt),
-          confirmedAt: confirmedAtForStatus(status, toTimestamp(data.confirmedAt)),
-          expiredAt: toTimestamp(data.expiredAt),
-          cancelledAt: toTimestamp(data.cancelledAt),
-          completedAt: toTimestamp(data.completedAt),
-          redeemedAt: toTimestamp(data.redeemedAt),
-        })
-        .returning()
-
-      if (!row) {
-        return null
-      }
-
-      await tx.insert(bookingActivityLog).values({
-        bookingId: row.id,
-        actorId: userId ?? "system",
-        activityType: "booking_created",
-        description: `Booking ${data.bookingNumber} created`,
-      })
-
-      return row
-    })
   },
 
   async updateBooking(db: PostgresJsDatabase, id: string, data: UpdateBookingInput) {
@@ -6021,4 +5384,37 @@ export const bookingsService = {
 
     return row ?? null
   },
+}
+
+const { convertProductToBooking: _commandOnlyCreate, ...bookingsService } = bookingsServiceInternal
+
+export { bookingsService }
+
+/**
+ * Command-only booking-domain settlement. The runtime lease is minted by the
+ * action-ledger created-target state machine and is bound to this exact
+ * transaction, so callers cannot invoke the mutation outside the admitted
+ * Finance command.
+ */
+export async function settleBookingCreateDomain(
+  lease: CreatedTargetMutationLease,
+  tx: PostgresJsDatabase,
+  commandIdempotencyKey: string,
+  data: ConvertProductInput,
+  userId?: string,
+  options: { availabilityHoldToken?: string } = {},
+) {
+  consumeCreatedTargetMutationLease(lease, tx, {
+    actionName: "@voyant-travel/finance#bookings-create-extension.action.create-booking",
+    actionVersion: "v1",
+    commandTarget: {
+      type: "finance_booking_create_command",
+      id: commandIdempotencyKey,
+    },
+    canonicalTargetType: "booking",
+    resultReferenceType: "booking",
+  })
+  const productData = await getConvertProductData(tx, data)
+  if (!productData) return null
+  return bookingsServiceInternal.convertProductToBooking(tx, data, productData, userId, options)
 }

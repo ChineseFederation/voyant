@@ -23,7 +23,7 @@ const CHECKED_SURFACES = new Set(["admin", "storefront"])
 // Ratchet only. The document names and owners remain authoritative in package
 // manifests; this prevents migrated bundles from silently falling back to the
 // Operator compatibility partition.
-const MIN_PACKAGE_OWNED_API_BUNDLES = 73
+const MIN_PACKAGE_OWNED_API_BUNDLES = 72
 const HTTP_METHODS = new Set([
   "connect",
   "delete",

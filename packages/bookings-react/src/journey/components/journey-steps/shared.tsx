@@ -25,9 +25,9 @@ import {
 import type { Draft } from "../../lib/draft-state.js"
 import type { DeparturePickerProps, UnitsPickerProps } from "../../types.js"
 
-/** Injectable departure-picker render slot, threaded from BookingJourneyProps. */
+/** Injectable departure-picker render slot for composed draft surfaces. */
 export type RenderDeparturePicker = (props: DeparturePickerProps) => React.ReactNode
-/** Injectable units (rooms) render slot, threaded from BookingJourneyProps. */
+/** Injectable units (rooms) render slot for composed draft surfaces. */
 export type RenderUnitsPicker = (props: UnitsPickerProps) => React.ReactNode
 
 export interface StepCommonProps {
@@ -39,7 +39,7 @@ export interface StepCommonProps {
   shape: BookingDraftShape
   /**
    * Default country (ISO 3166-1 alpha-2) for the step's phone inputs, already
-   * resolved by `BookingJourney` from its `defaultPhoneCountry` prop or the
+   * resolved by the draft surface from its configured default or the
    * scope locale. When omitted the `PhoneField` derives one from the active
    * i18n locale before falling back to GB.
    */

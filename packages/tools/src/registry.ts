@@ -12,6 +12,10 @@ import {
 import type { ToolContext } from "./context.js"
 import type { ToolDefinition } from "./define-tool.js"
 import { ToolError } from "./errors.js"
+import {
+  firstHandlerActionPolicyIdentityMismatch,
+  mintHandlerActionPolicyContext,
+} from "./handler-action-policy.js"
 import { isToolDeploymentRiskCompatible } from "./risk.js"
 
 // biome-ignore lint/suspicious/noExplicitAny: the registry is a heterogeneous container over each tool's distinct input/output/context types.
@@ -133,7 +137,12 @@ export function createToolRegistry(): ToolRegistry {
       if (!registered) {
         throw unknownToolError(prepared.invocationName, tools.keys())
       }
-      return executeTool(registered.definition, prepared.invocationName, prepared.commandInput, ctx)
+      return executeTool(
+        registered.definition,
+        prepared.invocationName,
+        prepared.commandInput,
+        admittedDispatchContext(ctx, registered.manifest),
+      )
     },
     async dispatch(name, args, ctx) {
       const registered = invocationNames.get(name)
@@ -143,7 +152,7 @@ export function createToolRegistry(): ToolRegistry {
       const tool = registered.definition
       const input = parseToolInput(tool, name, args)
 
-      return executeTool(tool, name, input, ctx)
+      return executeTool(tool, name, input, admittedDispatchContext(ctx, registered.manifest))
     },
   }
 }
@@ -152,6 +161,51 @@ export interface PreparedToolAction {
   readonly invocationName: string
   readonly commandInput: unknown
   readonly resolvedTargetId?: string
+}
+
+function admittedDispatchContext(context: ToolContext, manifest: ToolManifestEntry): ToolContext {
+  const policy = manifest.actionPolicy
+  if (policy?.enforcement !== "handler") {
+    if (!("handlerActionPolicy" in context)) return context
+    const { handlerActionPolicy: _handlerActionPolicy, ...base } = context
+    return base
+  }
+  const candidate = context.handlerActionPolicy
+  if (!candidate) {
+    throw new ToolError(
+      "Handler-owned action policy context is required for this Tool.",
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: manifest.capabilityId },
+    )
+  }
+  const mismatch = firstHandlerActionPolicyIdentityMismatch(candidate, {
+    capabilityId: manifest.capabilityId,
+    capabilityVersion: manifest.capabilityVersion,
+    canonicalName: manifest.name,
+    actionPolicy: policy,
+  })
+  if (mismatch) {
+    throw new ToolError(
+      "Handler-owned action policy context does not match the registered Tool.",
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: manifest.capabilityId, mismatch },
+    )
+  }
+  const allowedActorTypes = policy.allowedActorTypes
+  if (allowedActorTypes?.length && !allowedActorTypes.includes(context.actor)) {
+    throw new ToolError(
+      "The authenticated actor is not allowed by the selected handler action.",
+      "AUTHORIZATION_DENIED",
+      {
+        actionId: policy.id,
+        actor: context.actor,
+      },
+    )
+  }
+  return {
+    ...context,
+    handlerActionPolicy: mintHandlerActionPolicyContext(candidate),
+  }
 }
 
 interface RegisteredTool {
@@ -426,7 +480,9 @@ async function executeTool(
   } catch (err) {
     if (err instanceof ToolError) throw err
     const message = err instanceof Error ? err.message : String(err)
-    throw new ToolError(`Tool "${name}" failed: ${message}`, "PROVIDER_ERROR")
+    throw new ToolError(`Tool "${name}" failed: ${message}`, "PROVIDER_ERROR", undefined, {
+      cause: err,
+    })
   }
 
   const output = tool.outputSchema.safeParse(result)

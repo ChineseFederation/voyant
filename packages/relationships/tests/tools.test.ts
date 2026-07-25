@@ -8,6 +8,8 @@ import {
   addRelationshipAddressTool,
   addRelationshipContactMethodTool,
   addRelationshipNoteTool,
+  createOrganizationTool,
+  createPersonTool,
   type RelationshipsToolServices,
   relationshipsTools,
 } from "../src/tools.js"
@@ -51,8 +53,37 @@ function ctx(
 
 function registry() {
   const registry = createToolRegistry()
-  registry.registerAll(relationshipsTools)
+  for (const tool of relationshipsTools) {
+    if (tool === createPersonTool) {
+      registry.register(tool, {
+        actionPolicy: RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
+      })
+    } else if (tool === createOrganizationTool) {
+      registry.register(tool, {
+        actionPolicy: RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY.actionPolicy,
+      })
+    } else {
+      registry.register(tool)
+    }
+  }
   return registry
+}
+
+function personHandlerActionPolicy(idempotencyKey: string) {
+  return {
+    ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
+    actionPolicy: {
+      ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
+      enforcement: "handler" as const,
+      invocation: {
+        controlField: "_voyant" as const,
+        requiredFields: ["idempotencyKey"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1" as const,
+      },
+    },
+    invocation: { idempotencyKey },
+  } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
 }
 
 const timestamp = new Date("2026-07-15T08:00:00.000Z")
@@ -245,7 +276,11 @@ describe("relationships (crm) tools", () => {
 
   it("requires a real contact and dispatches handler-owned person creation", async () => {
     await expect(
-      registry().dispatch("create_person", { firstName: "Ana", lastName: "Popescu" }, ctx()),
+      registry().dispatch(
+        "create_person",
+        { firstName: "Ana", lastName: "Popescu" },
+        ctx({}, { handlerActionPolicy: personHandlerActionPolicy("person-invalid-contact") }),
+      ),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" })
 
     let forwarded: unknown
@@ -261,20 +296,7 @@ describe("relationships (crm) tools", () => {
           },
         },
         {
-          handlerActionPolicy: {
-            ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
-            actionPolicy: {
-              ...RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY.actionPolicy,
-              enforcement: "handler",
-              invocation: {
-                controlField: "_voyant",
-                requiredFields: ["idempotencyKey"],
-                optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
-                fingerprintAlgorithm: "action-ledger-command-v1",
-              },
-            },
-            invocation: { idempotencyKey: "person-create-1" },
-          },
+          handlerActionPolicy: personHandlerActionPolicy("person-create-1"),
         },
       ),
     )
@@ -306,7 +328,14 @@ describe("relationships (crm) tools", () => {
           email: "ana@example.com",
           allowDuplicateName,
         },
-        ctx(),
+        ctx(
+          {},
+          {
+            handlerActionPolicy: personHandlerActionPolicy(
+              `person-removed-duplicate-${allowDuplicateName}`,
+            ),
+          },
+        ),
       ),
     ).rejects.toMatchObject({
       code: "INVALID_INPUT",

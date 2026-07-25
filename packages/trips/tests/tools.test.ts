@@ -7,7 +7,10 @@ import {
   createTripTool,
   PRICE_TRIP_HANDLER_POLICY,
   priceTripTool,
+  RESERVE_TRIP_HANDLER_POLICY,
+  reserveTripTool,
   SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY,
+  sourceTripRequirementCandidatesTool,
   type TripsToolServices,
   tripsTools,
 } from "../src/tools.js"
@@ -37,8 +40,64 @@ function ctxWith(
 
 function makeRegistry() {
   const registry = createToolRegistry()
-  registry.registerAll(tripsTools)
+  for (const tool of tripsTools) {
+    if (tool === createTripTool) {
+      registry.register(tool, { actionPolicy: CREATE_TRIP_HANDLER_POLICY.actionPolicy })
+    } else if (tool === priceTripTool) {
+      registry.register(tool, { actionPolicy: PRICE_TRIP_HANDLER_POLICY.actionPolicy })
+    } else if (tool === reserveTripTool) {
+      registry.register(tool, { actionPolicy: RESERVE_TRIP_HANDLER_POLICY.actionPolicy })
+    } else if (tool === sourceTripRequirementCandidatesTool) {
+      registry.register(tool, {
+        actionPolicy: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.actionPolicy,
+      })
+    } else {
+      registry.register(tool)
+    }
+  }
   return registry
+}
+
+function priceHandlerActionPolicy(idempotencyKey: string) {
+  return {
+    ...PRICE_TRIP_HANDLER_POLICY,
+    actionPolicy: {
+      ...PRICE_TRIP_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler" as const,
+      invocation: {
+        controlField: "_voyant" as const,
+        requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1" as const,
+      },
+    },
+    invocation: {
+      idempotencyKey,
+      approvalId: "appr_1",
+      idempotencyFingerprint: "sha256:test",
+    },
+  } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
+}
+
+function reserveHandlerActionPolicy(idempotencyKey: string) {
+  return {
+    ...RESERVE_TRIP_HANDLER_POLICY,
+    actionPolicy: {
+      ...RESERVE_TRIP_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler" as const,
+      invocation: {
+        controlField: "_voyant" as const,
+        requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1" as const,
+      },
+    },
+    invocation: {
+      idempotencyKey,
+      approvalId: "appr_1",
+      idempotencyFingerprint: "sha256:test",
+    },
+  } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
 }
 
 describe("trips tools", () => {
@@ -153,7 +212,7 @@ describe("trips tools", () => {
               invocation: {
                 controlField: "_voyant",
                 requiredFields: ["idempotencyKey"],
-                optionalFields: [],
+                optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
                 fingerprintAlgorithm: "action-ledger-command-v1",
               },
             },
@@ -177,26 +236,7 @@ describe("trips tools", () => {
           scope: { locale: "en-GB", audience: "staff", market: "default", currency: "EUR" },
         },
         ctxWith(undefined, {
-          handlerActionPolicy: {
-            capabilityId: PRICE_TRIP_HANDLER_POLICY.capabilityId,
-            capabilityVersion: PRICE_TRIP_HANDLER_POLICY.capabilityVersion,
-            canonicalName: PRICE_TRIP_HANDLER_POLICY.canonicalName,
-            actionPolicy: {
-              ...PRICE_TRIP_HANDLER_POLICY.actionPolicy,
-              enforcement: "handler",
-              invocation: {
-                controlField: "_voyant",
-                requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
-                optionalFields: ["reasonCode"],
-                fingerprintAlgorithm: "action-ledger-command-v1",
-              },
-            },
-            invocation: {
-              idempotencyKey: "price-1",
-              approvalId: "appr_1",
-              idempotencyFingerprint: "sha256:test",
-            },
-          } as ToolContext["handlerActionPolicy"],
+          handlerActionPolicy: priceHandlerActionPolicy("price-1"),
         }),
       ),
     ).rejects.toMatchObject({ code: "MISSING_SERVICE" })
@@ -220,7 +260,11 @@ describe("trips tools", () => {
               throw new Error("not used")
             },
           },
-          { actor: "customer", audience: "customer" },
+          {
+            actor: "customer",
+            audience: "customer",
+            handlerActionPolicy: priceHandlerActionPolicy("price-customer-1"),
+          },
         ),
       ),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
@@ -244,7 +288,11 @@ describe("trips tools", () => {
               throw new Error("not used")
             },
           },
-          { actor: "customer", audience: "customer" },
+          {
+            actor: "customer",
+            audience: "customer",
+            handlerActionPolicy: reserveHandlerActionPolicy("reserve-customer-1"),
+          },
         ),
       ),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
@@ -351,6 +399,23 @@ describe("trips tools", () => {
   })
 
   it("rejects candidate sourcing across a non-staff grant audience", async () => {
+    const handlerActionPolicy = {
+      capabilityId: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.capabilityId,
+      capabilityVersion: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.capabilityVersion,
+      canonicalName: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.canonicalName,
+      actionPolicy: {
+        ...SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.actionPolicy,
+        enforcement: "handler" as const,
+        invocation: {
+          controlField: "_voyant" as const,
+          requiredFields: ["idempotencyKey"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          fingerprintAlgorithm: "action-ledger-command-v1" as const,
+        },
+      },
+      invocation: { idempotencyKey: "source-customer-1" },
+    } satisfies NonNullable<ToolContext["handlerActionPolicy"]>
+
     await expect(
       makeRegistry().dispatch(
         "source_trip_requirement_candidates",
@@ -369,7 +434,7 @@ describe("trips tools", () => {
               }
             },
           },
-          { actor: "customer", audience: "customer" },
+          { actor: "customer", audience: "customer", handlerActionPolicy },
         ),
       ),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })

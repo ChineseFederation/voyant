@@ -183,7 +183,6 @@ describe("UnitPriceMatrix", () => {
               navigate: {
                 toProducts: () => undefined,
                 toProduct: () => undefined,
-                toNewBooking: () => undefined,
                 toAvailability: () => undefined,
               },
             }}

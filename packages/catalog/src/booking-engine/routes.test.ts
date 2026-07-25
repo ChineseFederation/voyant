@@ -1,16 +1,14 @@
-// agent-quality: file-size exception -- owner: catalog; booking-engine route tests stay co-located to cover the shared quote/book/draft/hold route factory until a dedicated split preserves route setup coverage.
+// agent-quality: file-size exception -- owner: catalog; booking-engine route tests stay co-located to cover the shared quote/draft/hold route factory until a dedicated split preserves route setup coverage.
 import { handleApiError } from "@voyant-travel/hono"
 import { Hono } from "hono"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { PricingBasis } from "../snapshot/schema.js"
 
-import { bookEntity } from "./book.js"
 import {
   createBookingDraft,
   deleteBookingDraft,
   getBookingDraft,
-  markDraftConsumed,
   updateBookingDraft,
 } from "./drafts-service.js"
 import { createOwnedBookingHandlerRegistry, type OwnedBookingHandler } from "./owned-handler.js"
@@ -27,11 +25,6 @@ vi.mock("./quote.js", async (importOriginal) => {
   return { ...actual, quoteEntity: vi.fn(), quoteEntitiesBatch: vi.fn() }
 })
 
-vi.mock("./book.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./book.js")>()
-  return { ...actual, bookEntity: vi.fn() }
-})
-
 vi.mock("./drafts-service.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./drafts-service.js")>()
   return {
@@ -39,7 +32,6 @@ vi.mock("./drafts-service.js", async (importOriginal) => {
     createBookingDraft: vi.fn(),
     deleteBookingDraft: vi.fn(),
     getBookingDraft: vi.fn(),
-    markDraftConsumed: vi.fn(),
     updateBookingDraft: vi.fn(),
   }
 })
@@ -73,11 +65,9 @@ const pricing: PricingBasis = {
 
 describe("createCatalogBookingRoutes", () => {
   beforeEach(() => {
-    vi.mocked(bookEntity).mockReset()
     vi.mocked(createBookingDraft).mockReset()
     vi.mocked(deleteBookingDraft).mockReset()
     vi.mocked(getBookingDraft).mockReset()
-    vi.mocked(markDraftConsumed).mockReset()
     vi.mocked(quoteEntitiesBatch).mockReset()
     vi.mocked(quoteEntity).mockReset()
     vi.mocked(updateBookingDraft).mockReset()
@@ -108,28 +98,6 @@ describe("createCatalogBookingRoutes", () => {
       error: "Malformed JSON in request body",
       code: "invalid_request",
     })
-  })
-
-  it.each([
-    "bank_transfer",
-    "inquiry",
-  ])("rejects checkout-only %s intents from /book with structured JSON", async (type) => {
-    const { app } = createTestApp()
-
-    const response = await app.request("/v1/public/catalog/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        draftId: "draft_1",
-        paymentIntent: { type },
-      }),
-    })
-
-    expect(response.status).toBe(400)
-    await expect(response.json()).resolves.toMatchObject({
-      code: "invalid_request",
-    })
-    expect(bookEntity).not.toHaveBeenCalled()
   })
 
   it("quotes through injected provenance, registries, and adapter context", async () => {
@@ -423,209 +391,6 @@ describe("createCatalogBookingRoutes", () => {
     await expect(response.json()).resolves.toEqual({ error: "draft not found" })
   })
 
-  it("books draft-first, forwards draft parameters, and reports draft consume races", async () => {
-    vi.mocked(getBookingDraft).mockResolvedValue({
-      id: "draft_1",
-      source_kind: "demo",
-      source_connection_id: "conn_demo",
-      source_ref: "upstream_1",
-      current_quote_id: "quote_1",
-      draft_payload: {
-        entity: { module: "products", id: "prod_1" },
-        configure: {
-          departureSlotId: "slot_1",
-          pax: { adult: 2 },
-          roomTypeId: "HOTEL:DZL1",
-          ratePlanId: "HOTEL:DZL1:BB",
-          board: "BB",
-        },
-      },
-    } as never)
-    vi.mocked(bookEntity).mockResolvedValue({
-      bookingId: "booking_1",
-      orderRef: "order_1",
-      status: "held",
-      snapshotId: "snap_1",
-      pricing,
-    })
-    const consumeError = new Error("race")
-    vi.mocked(markDraftConsumed).mockRejectedValue(consumeError)
-    const onDraftConsumedError = vi.fn()
-    const onCommitted = vi.fn()
-    const { app } = createTestApp({
-      resolveCorrelationId: () => "req_2",
-      onDraftConsumedError,
-      onCommitted,
-    })
-
-    const response = await app.request("/v1/public/catalog/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ draftId: "draft_1", idempotencyKey: "idem_12345678" }),
-    })
-
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({
-      bookingId: "booking_1",
-      pricing: { total: 12150 },
-    })
-    expect(bookEntity).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({ registry }),
-      expect.objectContaining({
-        quoteId: "quote_1",
-        idempotencyKey: "idem_12345678",
-        parameters: expect.objectContaining({
-          draft: expect.any(Object),
-          availabilityHoldToken: "draft_1",
-          departureSlotId: "slot_1",
-          departure_id: "slot_1",
-          slotId: "slot_1",
-          paxCount: 2,
-          roomTypeId: "HOTEL:DZL1",
-          ratePlanId: "HOTEL:DZL1:BB",
-          board: "BB",
-        }),
-        adapterContext: { connection_id: "conn_demo", correlation_id: "req_2" },
-      }),
-    )
-    expect(onDraftConsumedError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draftId: "draft_1",
-        bookingId: "booking_1",
-        error: consumeError,
-      }),
-    )
-    expect(onCommitted).toHaveBeenCalledWith(
-      expect.objectContaining({ result: expect.objectContaining({ bookingId: "booking_1" }) }),
-    )
-  })
-
-  it("prefers live commit travelers over a stale persisted draft", async () => {
-    vi.mocked(getBookingDraft).mockResolvedValue({
-      id: "draft_live",
-      source_kind: "voyant-connect",
-      source_connection_id: "conn_live",
-      source_ref: "pkg_live",
-      current_quote_id: "quote_stale",
-      draft_payload: {
-        entity: { module: "products", id: "pkg_live" },
-        configure: { roomTypeId: "ROOM:DOUBLE" },
-        travelers: [],
-      },
-    } as never)
-    vi.mocked(bookEntity).mockResolvedValue({
-      bookingId: "booking_live",
-      orderRef: "package:live",
-      status: "held",
-      snapshotId: "snap_live",
-      pricing,
-    })
-    const { app } = createTestApp()
-
-    const response = await app.request("/v1/public/catalog/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        draftId: "draft_live",
-        quoteId: "quote_live",
-        parameters: {
-          draft: {
-            entity: { module: "products", id: "pkg_live" },
-            configure: { roomTypeId: "ROOM:DOUBLE" },
-            travelers: [
-              {
-                firstName: "Live",
-                lastName: "Traveler",
-                band: "adult",
-                isPrimary: true,
-              },
-            ],
-          },
-        },
-      }),
-    })
-
-    expect(response.status).toBe(200)
-    expect(bookEntity).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({ registry }),
-      expect.objectContaining({
-        quoteId: "quote_live",
-        parameters: expect.objectContaining({
-          draft: expect.objectContaining({
-            travelers: [expect.objectContaining({ firstName: "Live", lastName: "Traveler" })],
-          }),
-          travelers: [expect.objectContaining({ firstName: "Live", lastName: "Traveler" })],
-          leadTraveler: expect.objectContaining({
-            firstName: "Live",
-            lastName: "Traveler",
-          }),
-        }),
-      }),
-    )
-  })
-
-  it("falls back to persisted draft travelers when the commit has no live draft", async () => {
-    vi.mocked(getBookingDraft).mockResolvedValue({
-      id: "draft_persisted",
-      source_kind: "voyant-connect",
-      source_connection_id: "conn_persisted",
-      source_ref: "pkg_persisted",
-      current_quote_id: "quote_persisted",
-      draft_payload: {
-        entity: { module: "products", id: "pkg_persisted" },
-        configure: { roomTypeId: "ROOM:TWIN" },
-        travelers: [
-          {
-            firstName: "Persisted",
-            lastName: "Traveler",
-            band: "adult",
-            isPrimary: true,
-          },
-        ],
-      },
-    } as never)
-    vi.mocked(bookEntity).mockResolvedValue({
-      bookingId: "booking_persisted",
-      orderRef: "package:persisted",
-      status: "held",
-      snapshotId: "snap_persisted",
-      pricing,
-    })
-    const { app } = createTestApp()
-
-    const response = await app.request("/v1/public/catalog/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        draftId: "draft_persisted",
-        quoteId: "quote_explicit",
-      }),
-    })
-
-    expect(response.status).toBe(200)
-    expect(bookEntity).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({ registry }),
-      expect.objectContaining({
-        quoteId: "quote_explicit",
-        parameters: expect.objectContaining({
-          travelers: [
-            expect.objectContaining({
-              firstName: "Persisted",
-              lastName: "Traveler",
-            }),
-          ],
-          leadTraveler: expect.objectContaining({
-            firstName: "Persisted",
-            lastName: "Traveler",
-          }),
-        }),
-      }),
-    )
-  })
-
   it("places and releases holds through the owned handler registry", async () => {
     const placeHold = vi.fn(async () => ({
       holdToken: "hold_1",
@@ -635,7 +400,6 @@ describe("createCatalogBookingRoutes", () => {
     const handler: OwnedBookingHandler = {
       entityModule: "products",
       computeQuote: async () => ({ available: true }),
-      commit: async () => ({ status: "held", orderRef: "order_1" }),
       placeHold,
       releaseHold,
     }
@@ -669,106 +433,6 @@ describe("createCatalogBookingRoutes", () => {
     expect(releaseHold).toHaveBeenCalledWith(
       { db, adapterContext: { connection_id: "engine", correlation_id: "req_3" } },
       "hold_1",
-    )
-  })
-
-  it("maps sourced Connect package drafts to package confirm parameters", async () => {
-    vi.mocked(getBookingDraft).mockResolvedValue({
-      id: "draft_pkg",
-      source_kind: "voyant-connect",
-      source_connection_id: "conn_tui",
-      source_ref: "pkg_1",
-      current_quote_id: "quote_pkg",
-      draft_payload: {
-        entity: { module: "products", id: "pkg_1" },
-        configure: {
-          pax: { adult: 2 },
-          roomTypeId: "LCA20072:DZL1",
-          ratePlanId: "LCA20072:DZL1:AI",
-          board: "AI",
-        },
-        billing: {
-          contact: {
-            firstName: "Ada",
-            lastName: "Lovelace",
-            email: "ada@example.com",
-            phone: "+40 700 000 000",
-          },
-        },
-        travelers: [
-          {
-            firstName: "Ada",
-            lastName: "Lovelace",
-            band: "adult",
-            dateOfBirth: "1980-01-02",
-            email: "ada@example.com",
-            documents: { sex: "female", nationality: "RO" },
-            isPrimary: true,
-          },
-          {
-            firstName: "Grace",
-            lastName: "Hopper",
-            band: "adult",
-            dateOfBirth: "1981-03-04",
-            documents: { gender: "f" },
-          },
-        ],
-      },
-    } as never)
-    vi.mocked(bookEntity).mockResolvedValue({
-      bookingId: "booking_pkg",
-      orderRef: "package:book_1",
-      status: "held",
-      snapshotId: "snap_pkg",
-      pricing,
-    })
-    const { app } = createTestApp({ resolveCorrelationId: () => "req_pkg" })
-
-    const response = await app.request("/v1/public/catalog/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ draftId: "draft_pkg", idempotencyKey: "idem_package_1" }),
-    })
-
-    expect(response.status).toBe(200)
-    expect(bookEntity).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({ registry }),
-      expect.objectContaining({
-        quoteId: "quote_pkg",
-        adapterContext: { connection_id: "conn_tui", correlation_id: "req_pkg" },
-        parameters: expect.objectContaining({
-          connectRoute: "packages",
-          roomTypeId: "LCA20072:DZL1",
-          ratePlanId: "LCA20072:DZL1:AI",
-          board: "AI",
-          contact: {
-            email: "ada@example.com",
-            phone: "+40 700 000 000",
-          },
-          leadTraveler: expect.objectContaining({
-            firstName: "Ada",
-            lastName: "Lovelace",
-            category: "adult",
-            dateOfBirth: "1980-01-02",
-            sex: "female",
-            nationality: "RO",
-            isPrimary: true,
-          }),
-          travelers: [
-            expect.objectContaining({
-              firstName: "Ada",
-              lastName: "Lovelace",
-              sex: "female",
-            }),
-            expect.objectContaining({
-              firstName: "Grace",
-              lastName: "Hopper",
-              sex: "female",
-            }),
-          ],
-        }),
-      }),
     )
   })
 })

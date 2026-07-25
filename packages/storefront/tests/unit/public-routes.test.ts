@@ -1,12 +1,9 @@
 // agent-quality: file-size exception -- owner: storefront; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
-import { createContainer } from "@voyant-travel/core"
 import { handleApiError } from "@voyant-travel/hono"
 import { Hono } from "hono"
 import { describe, expect, it, vi } from "vitest"
 
-import { storefrontBookingBootstrapSubscriber } from "../../src/booking-bootstrap-subscriber-runtime.js"
 import { createStorefrontPublicRoutes } from "../../src/routes-public.js"
-import { storefrontBookingSessionBootstrapInputSchema } from "../../src/validation.js"
 
 describe("createStorefrontPublicRoutes", () => {
   it("rejects malformed composite price-preview selections with public-route errors", async () => {
@@ -231,39 +228,6 @@ describe("createStorefrontPublicRoutes", () => {
         }),
       }),
     )
-  })
-
-  it("requires an idempotency key before accepting async booking bootstrap", async () => {
-    const container = createContainer()
-    storefrontBookingBootstrapSubscriber.register({
-      bindings: {},
-      container,
-      eventBus: { subscribe: vi.fn() },
-    } as never)
-    const app = new Hono()
-      .use("*", async (c, next) => {
-        c.set("container" as never, container)
-        await next()
-      })
-      .route(
-        "/",
-        createStorefrontPublicRoutes({
-          bookingIntents: {
-            withDb: async (_bindings, operation) => operation({} as never),
-          },
-        }),
-      )
-
-    const res = await app.request("/bookings/sessions/bootstrap?async=1", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-    })
-
-    expect(res.status).toBe(428)
-    expect(await res.json()).toEqual({
-      error: "Idempotency-Key header is required for async bootstrap",
-    })
   })
 
   it("resolves storefront settings from request context", async () => {
@@ -609,42 +573,5 @@ describe("createStorefrontPublicRoutes", () => {
     })
 
     expect(res.status).toBe(501)
-  })
-
-  it("rejects booking-session bootstrap requests without a session payload", () => {
-    const result = storefrontBookingSessionBootstrapInputSchema.safeParse({
-      departureId: "slot_123",
-      slotId: "slot_123",
-      quote: {
-        currencyCode: "EUR",
-        totalSellAmountCents: 50000,
-      },
-    })
-
-    expect(result.success).toBe(false)
-  })
-
-  it("rejects booking-session bootstrap requests whose items do not reference the slot", () => {
-    const result = storefrontBookingSessionBootstrapInputSchema.safeParse({
-      departureId: "slot_123",
-      slotId: "slot_123",
-      quote: {
-        currencyCode: "EUR",
-        totalSellAmountCents: 50000,
-      },
-      session: {
-        sellCurrency: "EUR",
-        items: [
-          {
-            title: "Room",
-            availabilitySlotId: "slot_other",
-            quantity: 1,
-            productId: "prod_123",
-          },
-        ],
-      },
-    })
-
-    expect(result.success).toBe(false)
   })
 })

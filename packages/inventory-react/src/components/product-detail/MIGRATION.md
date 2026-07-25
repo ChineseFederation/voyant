@@ -52,7 +52,7 @@ interface ProductDetailHostValue {
   messages: ProductDetailMessages        // = OperatorAdminProductsMessages["products"]  (from @voyant-travel/i18n, type-only)
   api: ProductDetailApi                  // { get,post,patch,delete }<T>(path, body?) => Promise<T>
   locale: string
-  navigate: ProductDetailNavigation      // toProducts / toProduct(id) / toNewBooking(productId) / toAvailability(slotId)
+  navigate: ProductDetailNavigation      // toProducts / toProduct(id) / toAvailability(slotId)
   uploadMedia?: ProductMediaUploadHandler
   setBreadcrumbs?: (items: { label: string; href?: string }[]) => void
 }
@@ -138,7 +138,6 @@ client in from the calling component, or convert to hooks. (This is the fiddlies
 `product-detail-page.tsx` (`useNavigate`) and `product-detail-sections.tsx` (`Link` + navigate):
 - `navigate({ to: "/products" })` → `host.navigate.toProducts()`
 - `navigate({ to: "/products/$id", params: { id } })` → `host.navigate.toProduct(id)`
-- `navigate({ to: "/bookings/$id", params: { id: "new" }, search: { productId } })` → `host.navigate.toNewBooking(productId)`
 - `navigate({ to: "/operations/availability/$id", params: { id: slotId } })` → `host.navigate.toAvailability(slotId)`
 - `<Link to="/settings/channels">` in sections → either a host nav callback or render as a plain anchor/slot.
 
@@ -169,7 +168,7 @@ passes the availability panel. `PricingPanel` (`product-options-pricing.tsx`) is
   - `messages: useAdminMessages().products`
   - `api: <operator api client>`
   - `locale: useLocale().resolvedLocale`
-  - `navigate: { toProducts: () => navigate({to:"/products"}), toProduct: (id)=>navigate({to:"/products/$id",params:{id}}), toNewBooking: (productId)=>navigate({to:"/bookings/$id",params:{id:"new"},search:{productId}}), toAvailability: (id)=>navigate({to:"/operations/availability/$id",params:{id}}) }`
+  - `navigate: { toProducts: () => navigate({to:"/products"}), toProduct: (id)=>navigate({to:"/products/$id",params:{id}}), toAvailability: (id)=>navigate({to:"/operations/availability/$id",params:{id}}) }`
   - `uploadMedia: <operator storage upload handler>` (see operator's `product-detail-itinerary-section` `uploadDayMediaToStorage`)
   - `setBreadcrumbs: <wire to useAdminBreadcrumbs or the admin-shell breadcrumb context>`
   - `renderOptionExtras: (productId, optionId) => <OptionResourceTemplatesPanel .../>`

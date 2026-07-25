@@ -19,8 +19,8 @@ import {
  * support) and renders the shared `CatalogDetailView`. Opened in a new tab from
  * the surface's results. Packages keep their own bespoke detail page.
  *
- * Presentational: navigation (`onBook`), breadcrumbs (`onBreadcrumbs`) and
- * supplier-name resolution (`formatSupplier`) are injected by the host; the
+ * Presentational: breadcrumbs (`onBreadcrumbs`) and supplier-name resolution
+ * (`formatSupplier`) are injected by the host; the
  * content base URL + fetcher come from `VoyantCatalogProvider`.
  */
 
@@ -53,9 +53,8 @@ export interface CatalogVerticalDetailPageProps {
   contentBasePathByVertical?: Record<string, string>
   /** Resolve a supplier id to a display name (host's supplier directory). */
   formatSupplier?: (id: string) => string
-  /** Route to the booking journey for this entity. `departureDate` + name/hero
-   *  let the journey pre-fill the date and preview the panel rather than blank. */
-  onBook: (
+  /** Optional booking handoff supplied only by deployments with an admitted UI command. */
+  onBook?: (
     vertical: string,
     id: string,
     opts: {
@@ -152,10 +151,8 @@ export function CatalogVerticalDetailPage({
     )
   }, [name, surfaceLabel, surfaceHref, onBreadcrumbs])
 
-  // Booking: route to the unified journey. entityModule = the content vertical.
-  // (enrichment is non-null whenever the detail view — the only caller — renders.)
   const book = (departureId?: string, optionId?: string, departureDate?: string | null) => {
-    onBook(vertical, id, {
+    onBook?.(vertical, id, {
       ...(departureId ? { departureId } : {}),
       ...(optionId ? { optionId } : {}),
       departureDate: departureDate ?? null,
@@ -222,12 +219,14 @@ export function CatalogVerticalDetailPage({
           onLoadDeparturePricing={(h, sailingRef) =>
             fetchers.loadDeparturePricing(h, sailingRef, vertical)
           }
-          onBookDeparture={(_h, departure) =>
-            book(departure.sourceRef ?? departure.id, undefined, departure.startsAt)
-          }
-          onBookOption={(_h, departure, option) =>
-            book(departure.sourceRef ?? departure.id, option.id, departure.startsAt)
-          }
+          {...(onBook
+            ? {
+                onBookDeparture: (_h, departure) =>
+                  book(departure.sourceRef ?? departure.id, undefined, departure.startsAt),
+                onBookOption: (_h, departure, option) =>
+                  book(departure.sourceRef ?? departure.id, option.id, departure.startsAt),
+              }
+            : {})}
         />
       </div>
     </div>

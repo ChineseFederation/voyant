@@ -388,7 +388,6 @@ export {
   type FinanceRouteRuntime,
   type FinanceRuntimeOptions,
 } from "./route-runtime.js"
-export { bookingsCreateExtension } from "./routes-booking-create.js"
 export {
   createFinanceAdminDocumentRoutes,
   type FinanceDocumentRouteOptions,
@@ -534,29 +533,12 @@ export type {
   FinanceAggregates,
 } from "./service-aggregates.js"
 export type {
-  BookingCreatedEvent,
   BookingCreateInput,
   BookingCreateOutcome,
-  BookingCreateRejectedEvent,
   BookingCreateResult,
-  BookingCreateRuntime,
   BookingCreateTravelerInput,
 } from "./service-booking-create.js"
-export {
-  bookingCreateSchema,
-  createBooking,
-} from "./service-booking-create.js"
-export type {
-  BookingDualCreatedEvent,
-  DualCreateBookingInput,
-  DualCreateBookingOutcome,
-  DualCreateBookingResult,
-  DualCreateBookingRuntime,
-} from "./service-bookings-dual-create.js"
-export {
-  dualCreateBooking,
-  dualCreateBookingSchema,
-} from "./service-bookings-dual-create.js"
+export { bookingCreateSchema } from "./service-booking-create.js"
 export type {
   GeneratedInvoiceDocumentRecord,
   GeneratedInvoiceRenditionArtifact,

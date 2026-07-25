@@ -23,7 +23,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@voyant-travel/ui/components"
-import { BookOpen, CalendarDays, Package, Pencil, Truck } from "lucide-react"
+import { CalendarDays, Package, Pencil, Truck } from "lucide-react"
 import { type ReactNode, useState } from "react"
 import { useAvailabilityUiI18nOrDefault } from "../i18n/index.js"
 import {
@@ -59,7 +59,6 @@ export interface AvailabilitySlotDetailPageProps {
   onDeleted?: () => void
   onOpenProduct?: (productId: string) => void
   onOpenStartTime?: (startTimeId: string) => void
-  onCreateBooking?: (input: { slotId: string; productId: string }) => void
   /**
    * Opens the host's slot-edit dialog (status / pax / dates / notes …).
    * The detail page only surfaces the button — the host owns the dialog
@@ -184,7 +183,6 @@ export function AvailabilitySlotDetailPage({
   onDeleted,
   onOpenProduct,
   onOpenStartTime,
-  onCreateBooking,
   onEdit,
   breadcrumb,
   headerActions,
@@ -274,15 +272,6 @@ export function AvailabilitySlotDetailPage({
 
   const fallbackActions = headerActions ?? (
     <div className="flex flex-wrap items-center gap-2">
-      {slot.productId && onCreateBooking ? (
-        <Button
-          variant="outline"
-          onClick={() => onCreateBooking({ slotId: id, productId: slot.productId })}
-        >
-          <BookOpen data-icon="inline-start" aria-hidden="true" />
-          {detailMessages.createBooking}
-        </Button>
-      ) : null}
       {onEdit ? (
         <Button variant="outline" onClick={onEdit}>
           <Pencil data-icon="inline-start" aria-hidden="true" />

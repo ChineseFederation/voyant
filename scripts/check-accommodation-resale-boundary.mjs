@@ -52,10 +52,6 @@ const FILE_CHECKS = [
     patterns: [/"hospitality"/],
   },
   {
-    file: "starters/operator/src/routes/(storefront)/shop_.book.$entityModule.$entityId.tsx",
-    patterns: [/@voyant-travel\/hospitality/, /"hospitality"/, /\bHospitalityContent\b/],
-  },
-  {
     file: "starters/operator/src/routes/(storefront)/shop_.products.$entityModule.$entityId.tsx",
     patterns: [/@voyant-travel\/hospitality/, /"hospitality"/, /\bHospitalityContent\b/],
   },

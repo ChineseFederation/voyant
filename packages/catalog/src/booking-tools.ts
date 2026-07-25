@@ -1,10 +1,6 @@
 /** Guarded MCP tools for the provider-neutral catalog booking engine. */
 
-import {
-  bookRequestV1,
-  bookResponseV1,
-  quoteResponseV1,
-} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
+import { quoteResponseV1 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import {
   READ_ONLY_RISK,
   requireService,
@@ -26,18 +22,6 @@ const quoteRisk = {
   dryRunSupported: false,
   sideEffects: ["data-write"],
 } as const
-const commitRisk = {
-  destructive: true,
-  reversible: false,
-  dryRunSupported: false,
-  confirmationRequired: true,
-  sideEffects: ["external-booking", "data-write"],
-} as const
-
-const commitInputSchema = bookRequestV1.refine((value) => Boolean(value.quoteId), {
-  message: "quoteId is required; draft-only commits must first resolve their current quote",
-  path: ["quoteId"],
-})
 const orderListInputSchema = z.object({
   bookingId: z.string().min(1).optional(),
   entityModule: z.string().min(1).optional(),
@@ -70,12 +54,10 @@ const catalogOrderSchema = z.object({
 const orderListOutputSchema = z.object({ rows: z.array(catalogOrderSchema) })
 
 type QuoteInput = z.infer<typeof quoteBodySchema>
-type CommitInput = z.infer<typeof commitInputSchema>
 type OrderListInput = z.infer<typeof orderListInputSchema>
 
 export interface CatalogBookingToolServices {
   quote(input: CatalogBookingQuoteBody): Promise<z.infer<typeof quoteResponseV1>>
-  commit(input: CommitInput): Promise<z.infer<typeof bookResponseV1>>
   listOrders(input: OrderListInput): Promise<{ rows: unknown[] }>
   getOrder(id: string): Promise<unknown | null>
 }
@@ -117,21 +99,6 @@ export const quoteCatalogEntityDefinition = {
         currency: input.scope?.currency,
       },
     })
-  },
-} as const
-
-export const commitCatalogBookingDefinition = {
-  ...metadata(["catalog:read", "bookings:write"]),
-  capabilityId: `${OWNER}#tool.commit-catalog-booking`,
-  name: "commit_catalog_booking",
-  description:
-    "Commit a previously quoted catalog entity through the selected provider or owned handler. This can create an external booking and requires confirmation.",
-  inputSchema: commitInputSchema,
-  outputSchema: bookResponseV1,
-  tier: "destructive",
-  riskPolicy: commitRisk,
-  async handler(input: CommitInput, ctx: CatalogBookingToolContext) {
-    return booking(ctx).commit(input)
   },
 } as const
 

@@ -1,41 +1,22 @@
 // agent-quality: file-size exception -- owner: storefront; existing route module stays co-located until a dedicated split preserves behavior and tests.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import {
-  checkoutCapabilityActions,
-  checkoutCapabilityCookie,
-  issueCheckoutCapability,
-} from "@voyant-travel/bookings/checkout-capability"
-import { enqueueWriteIntent, getWriteIntent } from "@voyant-travel/db/write-intents"
-import {
-  ForbiddenApiError,
-  idempotencyKey,
   openApiValidationHook,
   parseJsonBody,
   parseQuery,
-  requireCustomerBuyerContext,
   type VoyantBindings,
   type VoyantVariables,
 } from "@voyant-travel/hono"
 import type { Context } from "hono"
 
-import { isStorefrontBookingBootstrapSubscriberActive } from "./booking-bootstrap-subscriber-runtime.js"
-import {
-  BOOKING_BOOTSTRAP_INTENT_EVENT,
-  BOOKING_BOOTSTRAP_INTENT_KIND,
-  type BookingBootstrapIntentPayload,
-} from "./booking-intents.js"
-import { resolveActiveCustomerBookingOwner } from "./customer-booking-owner.js"
 import {
   createStorefrontService,
   type StorefrontRequestContext,
   type StorefrontServiceOptions,
 } from "./service.js"
-import { describeStorefrontBootstrapError } from "./service-booking-session-bootstrap.js"
 import {
   type StorefrontLeadIntakeInput,
   type StorefrontNewsletterSubscribeInput,
-  storefrontBookingSessionBootstrapInputSchema,
-  storefrontBookingSessionCompatBootstrapInputSchema,
   storefrontDepartureItineraryQuerySchema,
   storefrontDepartureItinerarySchema,
   storefrontDepartureListQuerySchema,
@@ -126,54 +107,6 @@ type Env = {
   Variables: {
     userId?: string
   } & VoyantVariables
-}
-
-function getRuntimeEnv(c: Context) {
-  const processEnv =
-    (
-      globalThis as typeof globalThis & {
-        process?: { env?: Record<string, string | undefined> }
-      }
-    ).process?.env ?? {}
-
-  return {
-    ...processEnv,
-    ...(c.env ?? {}),
-  }
-}
-
-/**
- * Build the structured, machine-readable rejection envelope shared by both
- * bootstrap routes (issue voyant#1984): a stable `code`, a `retryable` hint,
- * and — for `stale_quote` — the `repricing` snapshot so hosts can re-quote.
- */
-function bootstrapRejectionResponse(result: { status: string } & Record<string, unknown>) {
-  const descriptor = describeStorefrontBootstrapError(result.status)
-  return {
-    httpStatus: descriptor.httpStatus,
-    body: {
-      error: descriptor.message,
-      code: descriptor.code,
-      retryable: descriptor.retryable,
-      ...(result.status === "stale_quote" && "repricing" in result
-        ? { data: { repricing: result.repricing } }
-        : {}),
-    },
-  }
-}
-
-function attachCheckoutCapability<T extends { sessionId: string }>(
-  session: T,
-  issued: Awaited<ReturnType<typeof issueCheckoutCapability>>,
-) {
-  return {
-    ...session,
-    checkoutCapability: {
-      token: issued.token,
-      expiresAt: issued.expiresAt.toISOString(),
-      actions: [...checkoutCapabilityActions],
-    },
-  }
 }
 
 const errorResponseSchema = z.object({ error: z.string() })
@@ -498,27 +431,6 @@ export function createStorefrontPublicRoutes(options?: StorefrontServiceOptions)
     } satisfies StorefrontRequestContext
   }
 
-  async function resolveCheckoutOwner(c: Context<Env>) {
-    if (c.get("isAnonymousRequest") === true) return null
-    const hasAuthContext = Boolean(
-      c.get("actor") || c.get("realm") || c.get("userId") || c.get("callerType"),
-    )
-    if (!hasAuthContext) return null
-    const buyer = requireCustomerBuyerContext(c)
-    const owner = await resolveActiveCustomerBookingOwner(
-      c.get("db" as never) as NonNullable<StorefrontRequestContext["db"]>,
-      buyer,
-    )
-    if (!owner) {
-      throw new ForbiddenApiError(
-        buyer.kind === "personal"
-          ? "An active linked customer record is required to book"
-          : "The business buyer organization is no longer active",
-      )
-    }
-    return owner
-  }
-
   async function runIntakeGuard(
     input:
       | {
@@ -705,219 +617,6 @@ export function createStorefrontPublicRoutes(options?: StorefrontServiceOptions)
       return preview
         ? c.json({ data: preview })
         : c.json({ error: "Storefront departure not found" }, 404)
-    })
-    .post(
-      "/bookings/sessions/bootstrap",
-      idempotencyKey({
-        scope: "POST /v1/public/bookings/sessions/bootstrap",
-        replayResponses: false,
-      }),
-      async (c) => {
-        const owner = await resolveCheckoutOwner(c)
-        // Async mode (RFC voyant#1687 Phase 3.2): `?async=1` or
-        // `Prefer: respond-async` stores a write intent + durably emits
-        // its event (outbox), and answers 202 + a status URL — under a
-        // booking spike, callers get instant 202s and the reserve
-        // transactions drain at the outbox's pace instead of
-        // thundering-herding the slot locks. The handler is
-        // `createBookingBootstrapIntentHandler` (booking-intents.ts),
-        // selected and registered from the package deployment manifest.
-        // Async mode is honored ONLY when the deployment supplied the
-        // database runtime and the selected subscriber are both active.
-        // Otherwise a 202'd intent would never settle. Direct package
-        // consumers that do not lower the graph silently use the sync path.
-        const wantsAsync =
-          Boolean(options?.bookingIntents) &&
-          isStorefrontBookingBootstrapSubscriberActive(c.var.container) &&
-          (c.req.query("async") === "1" ||
-            (c.req.header("prefer") ?? "").toLowerCase().includes("respond-async"))
-        if (wantsAsync) {
-          const idempotencyKey = c.req.header("idempotency-key")?.trim()
-          if (!idempotencyKey) {
-            return c.json({ error: "Idempotency-Key header is required for async bootstrap" }, 428)
-          }
-          const body = await parseJsonBody(c, storefrontBookingSessionBootstrapInputSchema)
-          const db = c.get("db" as never) as NonNullable<StorefrontRequestContext["db"]>
-          const { intent, created } = await enqueueWriteIntent(db, {
-            kind: BOOKING_BOOTSTRAP_INTENT_KIND,
-            payload: {
-              input: body,
-              userId: c.get("userId" as never) as string | undefined,
-              owner,
-            } satisfies BookingBootstrapIntentPayload,
-            idempotencyKey,
-          })
-          if (created) {
-            const eventBus = c.get("eventBus" as never) as
-              | { emit(event: string, data: unknown): Promise<void> }
-              | undefined
-            await eventBus?.emit(BOOKING_BOOTSTRAP_INTENT_EVENT, { intentId: intent.id })
-          }
-          return c.json(
-            {
-              data: {
-                intentId: intent.id,
-                status: intent.status,
-                statusUrl: `/v1/public/bookings/intents/${intent.id}`,
-              },
-            },
-            202,
-          )
-        }
-
-        const result = await storefrontService.bootstrapBookingSession(
-          getRequestContext(c) as StorefrontRequestContext & {
-            db: NonNullable<StorefrontRequestContext["db"]>
-          },
-          await parseJsonBody(c, storefrontBookingSessionBootstrapInputSchema),
-          c.get("userId" as never),
-          owner,
-        )
-
-        if (result.status !== "ok") {
-          const rejection = bootstrapRejectionResponse(result)
-          return c.json(rejection.body, rejection.httpStatus)
-        }
-        if (!("bootstrap" in result)) {
-          const rejection = bootstrapRejectionResponse({ status: "not_found" })
-          return c.json(rejection.body, rejection.httpStatus)
-        }
-
-        const { bootstrap } = result
-        const capability = await issueCheckoutCapability(
-          bootstrap.session.sessionId,
-          getRuntimeEnv(c),
-        )
-        c.header("Set-Cookie", checkoutCapabilityCookie(capability.token, capability.expiresAt), {
-          append: true,
-        })
-
-        return c.json(
-          {
-            data: {
-              ...bootstrap,
-              session: attachCheckoutCapability(bootstrap.session, capability),
-            },
-          },
-          201,
-        )
-      },
-    )
-    .post(
-      // Compatibility bootstrap (issue voyant#1984): hosts pass the minimal
-      // `{ productId, departureId, pax, currency, locale }` they can always
-      // build for an imported catalog departure; the server derives the slot,
-      // option, and authoritative price, then returns a normal booking session
-      // or a structured, machine-readable rejection. This is the first-class
-      // path for offers that are valid locally but cannot reconstruct the
-      // native quote/session contract.
-      "/bookings/sessions/compat-bootstrap",
-      idempotencyKey({
-        scope: "POST /v1/public/bookings/sessions/compat-bootstrap",
-        replayResponses: false,
-      }),
-      async (c) => {
-        const owner = await resolveCheckoutOwner(c)
-        const result = await storefrontService.bootstrapBookingSessionCompat(
-          getRequestContext(c) as StorefrontRequestContext & {
-            db: NonNullable<StorefrontRequestContext["db"]>
-          },
-          await parseJsonBody(c, storefrontBookingSessionCompatBootstrapInputSchema),
-          c.get("userId" as never),
-          owner,
-        )
-
-        if (result.status !== "ok") {
-          const rejection = bootstrapRejectionResponse(result)
-          return c.json(rejection.body, rejection.httpStatus)
-        }
-        if (!("bootstrap" in result)) {
-          const rejection = bootstrapRejectionResponse({ status: "not_found" })
-          return c.json(rejection.body, rejection.httpStatus)
-        }
-
-        const { bootstrap } = result
-        const capability = await issueCheckoutCapability(
-          bootstrap.session.sessionId,
-          getRuntimeEnv(c),
-        )
-        c.header("Set-Cookie", checkoutCapabilityCookie(capability.token, capability.expiresAt), {
-          append: true,
-        })
-
-        return c.json(
-          {
-            data: {
-              ...bootstrap,
-              session: attachCheckoutCapability(bootstrap.session, capability),
-            },
-          },
-          201,
-        )
-      },
-    )
-    .get("/bookings/intents/:intentId", async (c) => {
-      const db = c.get("db" as never) as NonNullable<StorefrontRequestContext["db"]>
-      const intent = await getWriteIntent(db, c.req.param("intentId"))
-      if (!intent || intent.kind !== BOOKING_BOOTSTRAP_INTENT_KIND) {
-        return c.json({ error: "Booking intent not found" }, 404)
-      }
-
-      if (intent.status === "succeeded") {
-        const stored = intent.result as {
-          bootstrap?: { session: { sessionId: string } } & Record<string, unknown>
-        } | null
-        const bootstrap = stored?.bootstrap
-        if (bootstrap?.session?.sessionId) {
-          // The checkout capability is issued at POLL time (it's a
-          // signed short-lived token derived from the sessionId — the
-          // async handler has no response to attach a cookie to).
-          const capability = await issueCheckoutCapability(
-            bootstrap.session.sessionId,
-            getRuntimeEnv(c),
-          )
-          c.header("Set-Cookie", checkoutCapabilityCookie(capability.token, capability.expiresAt), {
-            append: true,
-          })
-          return c.json({
-            data: {
-              intentId: intent.id,
-              status: "succeeded",
-              ...bootstrap,
-              session: attachCheckoutCapability(
-                bootstrap.session as { sessionId: string },
-                capability,
-              ),
-            },
-          })
-        }
-      }
-
-      if (intent.status === "failed") {
-        const detail = (intent.result ?? {}) as {
-          conflict?: string
-          httpStatus?: number
-          repricing?: unknown
-        }
-        // Surface the same machine-readable contract as the sync route
-        // (issue voyant#1984) so async pollers get a stable `code`/`retryable`.
-        const descriptor = detail.conflict
-          ? describeStorefrontBootstrapError(detail.conflict)
-          : null
-        return c.json({
-          data: {
-            intentId: intent.id,
-            status: "failed",
-            error: descriptor?.message ?? intent.error ?? "Booking intent failed",
-            ...(descriptor ? { code: descriptor.code, retryable: descriptor.retryable } : {}),
-            ...(detail.conflict ? { conflict: detail.conflict } : {}),
-            ...(detail.httpStatus ? { httpStatus: detail.httpStatus } : {}),
-            ...(detail.repricing !== undefined ? { repricing: detail.repricing } : {}),
-          },
-        })
-      }
-
-      return c.json({ data: { intentId: intent.id, status: "pending" } })
     })
     .post("/departures/:departureId/eligibility", async (c) => {
       return c.json({

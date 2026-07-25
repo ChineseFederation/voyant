@@ -51,7 +51,7 @@ describe("createStandardOperatorRouteFiles", () => {
     })
     const absent = createStandardOperatorRouteFiles({ presentationIds: [] })
 
-    expect(selected.filter((file) => file.path.startsWith("(storefront)/"))).toHaveLength(10)
+    expect(selected.filter((file) => file.path.startsWith("(storefront)/"))).toHaveLength(9)
     expect(absent.some((file) => file.path.startsWith("(storefront)/"))).toBe(false)
     expect(absent.map(({ path }) => path)).toEqual(
       selected.filter((file) => !file.path.startsWith("(storefront)/")).map(({ path }) => path),

@@ -22,40 +22,6 @@ export function createAdminHostDestinations(
     ...generated,
     "booking.detail": ({ bookingId, tab }: { bookingId: string; tab?: string }) =>
       `/bookings/${encodeURIComponent(bookingId)}${searchString({ tab })}`,
-    "bookingJourney.start": ({
-      entityModule,
-      entityId,
-      ...search
-    }: {
-      entityModule: string
-      entityId: string
-      sourceKind?: string
-      sourceConnectionId?: string
-      sourceRef?: string
-      departureId?: string
-      departureDate?: string
-      optionId?: string
-      roomTypeId?: string
-      ratePlanId?: string
-      board?: string
-      entityName?: string
-      entityImageUrl?: string
-    }) =>
-      `/catalog/journey/${encodeURIComponent(entityModule)}/${encodeURIComponent(entityId)}${searchString(
-        {
-          sourceKind: search.sourceKind,
-          sourceConnectionId: search.sourceConnectionId,
-          sourceRef: search.sourceRef,
-          departureId: search.departureId,
-          departureDate: search.departureDate,
-          optionId: search.optionId,
-          roomTypeId: search.roomTypeId,
-          ratePlanId: search.ratePlanId,
-          board: search.board,
-          entityName: search.entityName,
-          entityImageUrl: search.entityImageUrl,
-        },
-      )}`,
     "catalog.browse": ({ surface }: { surface: string }) => `/catalog/${surface}`,
     "catalog.detail": ({
       surface,

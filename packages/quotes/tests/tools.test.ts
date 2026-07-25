@@ -10,6 +10,7 @@ import {
   type QuotesToolServices,
   quotesTools,
   SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY,
+  snapshotAndSendQuoteTool,
 } from "../src/tools.js"
 
 function ctx(
@@ -39,25 +40,31 @@ function snapshotSendActionPolicy(): ToolHandlerActionPolicyContext {
       enforcement: "handler",
       invocation: {
         controlField: "_voyant",
-        requiredFields: [
-          "confirmed",
-          "targetId",
-          "idempotencyKey",
-          "approvalId",
-          "idempotencyFingerprint",
-        ],
-        optionalFields: ["reasonCode"],
+        requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
         fingerprintAlgorithm: "action-ledger-command-v1",
       },
     },
     invocation: {
-      confirmed: true,
-      targetId: quote.id,
       idempotencyKey: "quote-send-1",
       approvalId: "approval_1",
       idempotencyFingerprint: "sha256:test",
     },
   }
+}
+
+function registry() {
+  const registry = createToolRegistry()
+  for (const tool of quotesTools) {
+    if (tool === snapshotAndSendQuoteTool) {
+      registry.register(tool, {
+        actionPolicy: SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.actionPolicy,
+      })
+    } else {
+      registry.register(tool)
+    }
+  }
+  return registry
 }
 
 const timestamp = new Date("2026-07-15T08:00:00.000Z")
@@ -111,9 +118,7 @@ const version = {
 
 describe("quotes Tools", () => {
   it("registers structural reads and the complete guarded proposal lifecycle", () => {
-    const registry = createToolRegistry()
-    registry.registerAll(quotesTools)
-    const list = registry.list()
+    const list = registry().list()
     expect(list.map((tool) => tool.name).sort()).toEqual([
       "accept_quote_version",
       "decline_quote_version",
@@ -154,8 +159,7 @@ describe("quotes Tools", () => {
   })
 
   it("composes a snapshot and vetted-template delivery through one exact-idempotent service", async () => {
-    const registry = createToolRegistry()
-    registry.registerAll(quotesTools)
+    const toolRegistry = registry()
     const delivery: QuoteDeliveryToolServices = {
       async snapshotAndSendQuote(input, admitted) {
         expect(input).toMatchObject({
@@ -178,7 +182,7 @@ describe("quotes Tools", () => {
       },
     }
 
-    const result = await registry.dispatch<Record<string, unknown>>(
+    const result = await toolRegistry.dispatch<Record<string, unknown>>(
       "snapshot_and_send_quote",
       {
         quoteId: quote.id,
@@ -196,8 +200,7 @@ describe("quotes Tools", () => {
 
   it("dispatches the full lifecycle through domain services and serializes dates", async () => {
     const calls: string[] = []
-    const registry = createToolRegistry()
-    registry.registerAll(quotesTools)
+    const toolRegistry = registry()
     const services: QuotesToolServices = {
       async listQuotes(query) {
         calls.push(`list:${query.limit}`)
@@ -234,22 +237,22 @@ describe("quotes Tools", () => {
       },
     }
 
-    const snapshot = await registry.dispatch<Record<string, unknown>>(
+    const snapshot = await toolRegistry.dispatch<Record<string, unknown>>(
       "snapshot_quote_version",
       { quoteId: quote.id },
       ctx(services),
     )
-    const sent = await registry.dispatch<Record<string, unknown>>(
+    const sent = await toolRegistry.dispatch<Record<string, unknown>>(
       "send_quote_version",
       { quoteVersionId: version.id, validUntil: "2026-09-01" },
       ctx(services),
     )
-    const accepted = await registry.dispatch<{ quoteVersion: Record<string, unknown> }>(
+    const accepted = await toolRegistry.dispatch<{ quoteVersion: Record<string, unknown> }>(
       "accept_quote_version",
       { quoteVersionId: version.id },
       ctx(services),
     )
-    const declined = await registry.dispatch<Record<string, unknown>>(
+    const declined = await toolRegistry.dispatch<Record<string, unknown>>(
       "decline_quote_version",
       { quoteVersionId: version.id },
       ctx(services),
@@ -268,13 +271,12 @@ describe("quotes Tools", () => {
   })
 
   it("fails closed for non-staff grants and missing services", async () => {
-    const registry = createToolRegistry()
-    registry.registerAll(quotesTools)
-    await expect(registry.dispatch("list_quotes", {}, ctx(undefined))).rejects.toMatchObject({
+    const toolRegistry = registry()
+    await expect(toolRegistry.dispatch("list_quotes", {}, ctx(undefined))).rejects.toMatchObject({
       code: "MISSING_SERVICE",
     })
     await expect(
-      registry.dispatch("get_quote", { id: quote.id }, ctx(undefined, "customer")),
+      toolRegistry.dispatch("get_quote", { id: quote.id }, ctx(undefined, "customer")),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
   })
 })

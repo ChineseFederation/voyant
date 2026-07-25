@@ -1,11 +1,8 @@
 /** Bind the catalog booking Tool contract to the selected booking runtime. */
 
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { eq } from "drizzle-orm"
 import type { Context } from "hono"
 import {
-  bookEntity,
-  type CatalogBookingBookBody,
   type CatalogBookingProvenance,
   type CatalogBookingRouteModuleOptions,
   engineParametersFromDraft,
@@ -13,10 +10,8 @@ import {
   listOrders,
   OWNED_SOURCE_KIND,
   quoteEntity,
-  serializeBookResult,
   serializeQuoteResult,
 } from "./booking-engine/index.js"
-import { catalogQuotesTable, type SelectCatalogQuote } from "./booking-engine/schema.js"
 import type { CatalogBookingToolServices } from "./booking-tools.js"
 import { readSourcedEntry } from "./services/sourced-entry-service.js"
 
@@ -74,59 +69,6 @@ export function createCatalogBookingToolServices(
         result
       return serializeQuoteResult(transformed)
     },
-    async commit(body) {
-      const quoteId = body.quoteId
-      if (!quoteId) throw new Error("quoteId is required")
-      const quote = await loadQuote(db, quoteId)
-      const provenance = quote
-        ? {
-            sourceKind: quote.source_kind,
-            sourceProvider: quote.source_provider ?? undefined,
-            sourceConnectionId: quote.source_connection_id ?? undefined,
-            sourceRef: quote.source_ref ?? undefined,
-          }
-        : { sourceKind: "engine" }
-      const request: CatalogBookingBookBody = { ...body, quoteId }
-      const parameters =
-        (await booking.prepareBookParameters?.({
-          c,
-          db,
-          request,
-          quoteId,
-          quote,
-          provenance,
-          parameters: body.parameters ?? {},
-        })) ?? body.parameters
-      const result = await bookEntity(
-        db,
-        {
-          registry: booking.resolveSourceRegistry(c),
-          ownedHandlers: booking.resolveOwnedHandlers?.(c),
-          captureSnapshotContent: booking.captureSnapshotContent,
-        },
-        {
-          quoteId,
-          bookingId: body.bookingId,
-          party: body.party,
-          paymentIntent: body.paymentIntent,
-          parameters,
-          idempotencyKey: body.idempotencyKey,
-          adapterContext: resolveAdapterContext(
-            c,
-            booking,
-            db,
-            "book",
-            provenance,
-            resolveCorrelationId(c, booking),
-          ),
-          contentScope: booking.resolveContentScope?.({ c, db, body: request }),
-        },
-      )
-      await booking.onCommitted?.({ c, db, request, result })
-      const transformed =
-        (await booking.transformBookResult?.({ c, db, request, result })) ?? result
-      return serializeBookResult(transformed)
-    },
     async listOrders(query) {
       const result = await listOrders(db, query)
       return { rows: result.rows.map(serializeOrder) }
@@ -182,7 +124,7 @@ function resolveAdapterContext(
   c: Context,
   options: CatalogBookingRouteModuleOptions["booking"],
   db: AnyDrizzleDb,
-  operation: "quote" | "book",
+  operation: "quote",
   provenance: CatalogBookingProvenance,
   correlationId: string,
   entity?: { entityModule: string; entityId: string },
@@ -201,18 +143,6 @@ function resolveAdapterContext(
       correlation_id: correlationId,
     }
   )
-}
-
-async function loadQuote(
-  db: AnyDrizzleDb,
-  quoteId: string,
-): Promise<SelectCatalogQuote | undefined> {
-  const rows = (await db
-    .select()
-    .from(catalogQuotesTable)
-    .where(eq(catalogQuotesTable.id, quoteId))
-    .limit(1)) as SelectCatalogQuote[]
-  return rows[0]
 }
 
 function serializeOrder(row: Awaited<ReturnType<typeof getOrderById>> & object) {

@@ -201,8 +201,9 @@ Still missing:
 
 Partially resolved:
 
-- public booking-session init/read/update/reserve and public overview are in
-  Voyant source
+- public read/update/reprice/confirm operations for an existing booking session
+  and public overview are in Voyant source; session initialization does not
+  create booking rows
 - first-class booking-session state storage now exists at
   `/v1/public/bookings/sessions/:sessionId/state`
 - session snapshots now include persisted wizard state

@@ -8,7 +8,6 @@
  *   - `useBookingDraft`       — local draft state with server sync
  *   - `useBookingQuote`       — debounced live quote on draft change
  *   - `useBookingDraftShape`  — convenience accessor on the latest quote
- *   - `useBookingCommit`      — final book mutation, triggers handoff
  *
  * The hooks share a `useBookingJourneyApi()` accessor that derives
  * the API base from the surrounding `VoyantCatalogProvider` and
@@ -18,10 +17,6 @@
  * once, ship everywhere" rule (§ Rule 4).
  */
 
-export {
-  type UseBookingCommitOptions,
-  useBookingCommit,
-} from "./use-booking-commit.js"
 export {
   type UseBookingDraftOptions,
   useBookingDraft,

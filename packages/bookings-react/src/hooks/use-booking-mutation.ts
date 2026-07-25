@@ -7,8 +7,8 @@ import { useVoyantBookingsContext } from "../provider.js"
 import { bookingsQueryKeys } from "../query-keys.js"
 import { bookingSingleResponse, successEnvelope } from "../schemas.js"
 
-export interface CreateBookingInput {
-  bookingNumber: string
+export interface UpdateBookingInput {
+  bookingNumber?: string
   status?:
     | "draft"
     | "on_hold"
@@ -20,7 +20,7 @@ export interface CreateBookingInput {
     | "cancelled"
   personId?: string | null
   organizationId?: string | null
-  sellCurrency: string
+  sellCurrency?: string
   sellAmountCents?: number | null
   costAmountCents?: number | null
   startDate?: string | null
@@ -43,26 +43,9 @@ export interface CreateBookingInput {
   contactPostalCode?: string | null
 }
 
-export type UpdateBookingInput = Partial<CreateBookingInput>
-
 export function useBookingMutation() {
   const { baseUrl, fetcher } = useVoyantBookingsContext()
   const queryClient = useQueryClient()
-
-  const create = useMutation({
-    mutationFn: async (input: CreateBookingInput) => {
-      const { data } = await fetchWithValidation(
-        "/v1/admin/bookings",
-        bookingSingleResponse,
-        { baseUrl, fetcher },
-        { method: "POST", body: JSON.stringify(input) },
-      )
-      return data
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: bookingsQueryKeys.bookings() })
-    },
-  })
 
   const update = useMutation({
     mutationFn: async ({ id, input }: { id: string; input: UpdateBookingInput }) => {
@@ -96,5 +79,5 @@ export function useBookingMutation() {
     },
   })
 
-  return { create, update, remove }
+  return { update, remove }
 }

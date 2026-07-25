@@ -21,7 +21,7 @@ import * as React from "react"
  * ```
  *
  * Naming convention: `<entity>.<action>` (e.g. `"product.detail"`,
- * `"bookingJourney.start"`). The host then provides a resolver per declared
+ * `"catalog.detail"`). The host then provides a resolver per declared
  * key — `satisfies AdminDestinationResolvers` makes the map exhaustive.
  */
 // biome-ignore lint/suspicious/noEmptyInterface: augmented by domain packages via declaration merging -- owner: admin; existing suppression is intentional pending typed cleanup.

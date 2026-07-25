@@ -2,18 +2,11 @@ import type {
   OwnedBookingHandlerRegistry,
   SourceAdapterRegistry,
 } from "@voyant-travel/catalog/booking-engine"
-import {
-  cruiseCabinCategories,
-  cruiseSailings,
-  cruiseShips,
-  cruises,
-  cruisesBookingService,
-} from "@voyant-travel/cruises"
+import { cruiseCabinCategories, cruiseSailings, cruiseShips, cruises } from "@voyant-travel/cruises"
 import { createCruiseBookingHandler } from "@voyant-travel/cruises/booking-engine"
 import type { CruiseContent } from "@voyant-travel/cruises/content-shape"
 import { getCruiseContent } from "@voyant-travel/cruises/service-content"
 import { pricingService as cruisePricingService } from "@voyant-travel/cruises/service-pricing"
-import { bookingPaymentSchedules } from "@voyant-travel/finance"
 import { asc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -58,83 +51,6 @@ export function registerCruiseBookingHandler(
           currency: row.currency,
           fareCode: row.fareCode,
         }
-      },
-      async commitBridge(input, opts) {
-        return host.withDatabase(async (rawDb) => {
-          const db = rawDb as PostgresJsDatabase
-          try {
-            const result = await cruisesBookingService.createCruiseBooking(
-              db,
-              {
-                sailingId: input.sailingId,
-                cabinCategoryId: input.cabinCategoryId,
-                cabinId: input.cabinId,
-                occupancy: input.occupancy,
-                fareCode: input.fareCode,
-                personId: input.personId,
-                organizationId: input.organizationId,
-                contact: input.contact,
-                passengers: input.passengers,
-                airArrangement: input.airArrangement,
-                notes: input.notes,
-              },
-              opts?.userId,
-            )
-
-            // Cruise installments (per booking-journey-architecture
-            // §7): deposit at book + balance due 90 days before
-            // sail. The handler echoes the pricing total via the
-            // bridge input's pricing context — for now we read it
-            // off the quote stored in cruise_details (the cruise
-            // service already snapshotted it). When the journey
-            // surfaces explicit installment overrides, they flow
-            // through `input.installments` (TBD).
-            const totalCents = priceCentsFromString(result.cruiseDetails.quotedTotalForCabin)
-            if (totalCents > 0) {
-              const depositCents = Math.round(totalCents * 0.25)
-              const balanceCents = totalCents - depositCents
-              const today = new Date()
-              const sailDate = result.cruiseDetails.sailingId
-                ? // TODO: resolve sail date from sailings table when wired
-                  // — until then balance defaults to today + 60d.
-                  null
-                : null
-              const balanceDue = sailDate ?? new Date(today.getTime() + 60 * 24 * 60 * 60 * 1000)
-              const depositDue = today
-              await db.insert(bookingPaymentSchedules).values([
-                {
-                  bookingId: result.bookingId,
-                  scheduleType: "deposit",
-                  status: "due",
-                  dueDate: depositDue.toISOString().slice(0, 10),
-                  currency: result.cruiseDetails.quotedCurrency,
-                  amountCents: depositCents,
-                  notes: "Deposit at booking (per cruise journey §7)",
-                },
-                {
-                  bookingId: result.bookingId,
-                  scheduleType: "balance",
-                  status: "pending",
-                  dueDate: balanceDue.toISOString().slice(0, 10),
-                  currency: result.cruiseDetails.quotedCurrency,
-                  amountCents: balanceCents,
-                  notes: "Balance due before sail",
-                },
-              ])
-            }
-
-            return {
-              status: "ok",
-              bookingId: result.bookingId,
-              bookingNumber: result.bookingNumber,
-            }
-          } catch (err) {
-            return {
-              status: "failed",
-              reason: err instanceof Error ? err.message : String(err),
-            }
-          }
-        })
       },
     }),
   )
@@ -228,17 +144,4 @@ async function loadLocalCruiseContent(
     itinerary_stops: [],
     policies: [],
   }
-}
-
-/** Parse a numeric major-unit price string (e.g. cruise_prices'
- *  decimal column shape) into integer cents. */
-function priceCentsFromString(s: string): number {
-  const negative = s.startsWith("-")
-  const abs = negative ? s.slice(1) : s
-  const parts = abs.split(".")
-  const whole = parts[0] ?? "0"
-  const frac = parts[1] ?? ""
-  const fracPadded = `${frac}00`.slice(0, 2)
-  const cents = Number(whole) * 100 + Number(fracPadded)
-  return negative ? -cents : cents
 }

@@ -1,15 +1,9 @@
 // agent-quality: file-size exception -- owner: storefront; existing service module stays co-located until a dedicated split preserves behavior and tests.
 
-import type { PublicBookingOwner } from "@voyant-travel/bookings"
 import type { EventBus } from "@voyant-travel/core"
 import type { StorefrontIntakeContext } from "@voyant-travel/relationships-contracts/storefront-intake"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import {
-  bootstrapStorefrontBookingSession,
-  bootstrapStorefrontBookingSessionCompat,
-  type StorefrontBookingSessionBootstrapOptions,
-} from "./service-booking-session-bootstrap.js"
 import {
   getStorefrontDeparture,
   getStorefrontDepartureItinerary,
@@ -31,8 +25,6 @@ import {
 } from "./service-intake.js"
 import { evaluateStorefrontTransportEligibility } from "./service-transport-eligibility.js"
 import {
-  type StorefrontBookingSessionBootstrapInput,
-  type StorefrontBookingSessionCompatBootstrapInput,
   type StorefrontDepartureListQuery,
   type StorefrontDeparturePricePreviewInput,
   type StorefrontFormField,
@@ -60,16 +52,6 @@ import type {
 } from "./validation-transport-eligibility.js"
 
 export interface StorefrontServiceOptions {
-  /**
-   * Enables the async booking-bootstrap mode (queued write pipeline,
-   * RFC voyant#1687 §3.2). The selected-graph subscriber owns event-bus
-   * registration; this option supplies only the deployment-owned database
-   * lifecycle used when the subscriber executes. When omitted, async-mode
-   * requests fall back to the sync path.
-   */
-  bookingIntents?: {
-    withDb: <T>(bindings: unknown, operation: (db: PostgresJsDatabase) => Promise<T>) => Promise<T>
-  }
   settings?: StorefrontSettingsInput
   resolveSettings?: (
     context: StorefrontRequestContext,
@@ -101,7 +83,6 @@ export interface StorefrontServiceOptions {
     | Promise<StorefrontTransportEligibilityRuleInput[]>
     | StorefrontTransportEligibilityRuleInput[]
   intake?: StorefrontIntakeOptions
-  bookingSessionBootstrap?: StorefrontBookingSessionBootstrapOptions
 }
 
 export interface StorefrontRequestContext extends StorefrontIntakeContext {
@@ -539,34 +520,6 @@ export function createStorefrontService(options?: StorefrontServiceOptions) {
         travelers: body.travelers,
         rules,
       })
-    },
-    async bootstrapBookingSession(
-      context: StorefrontRequestContext & { db: PostgresJsDatabase },
-      input: StorefrontBookingSessionBootstrapInput,
-      userId?: string,
-      owner: PublicBookingOwner | null = null,
-    ) {
-      return bootstrapStorefrontBookingSession(
-        context,
-        input,
-        options?.bookingSessionBootstrap,
-        userId,
-        owner,
-      )
-    },
-    async bootstrapBookingSessionCompat(
-      context: StorefrontRequestContext & { db: PostgresJsDatabase },
-      input: StorefrontBookingSessionCompatBootstrapInput,
-      userId?: string,
-      owner: PublicBookingOwner | null = null,
-    ) {
-      return bootstrapStorefrontBookingSessionCompat(
-        context,
-        input,
-        options?.bookingSessionBootstrap,
-        userId,
-        owner,
-      )
     },
     async listApplicableOffers(input: {
       productId: string

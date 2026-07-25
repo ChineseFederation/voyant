@@ -17,17 +17,16 @@ Apps provide routing and deployment-specific behavior through callbacks:
 
 - `search`, `onTabChange`, `onQueryChange`, and `onPageChange` for URL state.
 - `formatSupplier` for supplier id labels.
-- `onBookHit`, `onBookDeparture`, `onOpenProductEditor`, and
-  `onLoadProductDetail` for route transitions and content APIs.
+- `onOpenProductEditor` and `onLoadProductDetail` for route transitions and
+  content APIs.
 - `detailSheetWidth`, `detailHeaderExtras`, `renderDetailBrochure`,
   `renderDetailMedia`, `renderDetailItineraryDay`, and
   `renderDetailExtraSections` for consumer-specific catalog detail sections
   such as brochure downloads, print actions, provenance cards, and richer
   media or itinerary layouts.
 
-`CatalogBookingPage` owns the quote-to-book form. Apps pass the route state plus
-`fetchers`, typically from `createCatalogBookingFetchers({ baseUrl })`, and may
-slot in their own contact picker via `renderContactPicker`.
+The package no longer exposes a routed quote-to-book page. Quote and draft
+hooks remain available for explicitly composed staff tools.
 
 ## I18n
 

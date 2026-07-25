@@ -8,7 +8,6 @@ import {
 import {
   type BootstrapCheckoutCollectionInput,
   bootstrapCheckoutCollectionSchema,
-  bootstrappedBookingSessionResponseSchema,
   bootstrappedCheckoutCollectionResponseSchema,
   checkoutCollectionPlanResponseSchema,
   type InitiateCheckoutCollectionInput,
@@ -18,7 +17,6 @@ import {
   type PublicBookingOverviewLookupQuery,
   type PublicBookingSessionMutationInput,
   type PublicBookingSessionRepriceInput,
-  type PublicCreateBookingSessionInput,
   type PublicUpdateBookingSessionInput,
   type PublicUpsertBookingSessionStateInput,
   previewCheckoutCollectionSchema,
@@ -28,11 +26,9 @@ import {
   publicBookingSessionRepriceResponseSchema,
   publicBookingSessionResponseSchema,
   publicBookingSessionStateResponseSchema,
-  publicCreateBookingSessionSchema,
   publicRepriceBookingSessionSchema,
   publicUpdateBookingSessionSchema,
   publicUpsertBookingSessionStateSchema,
-  type StorefrontBookingSessionBootstrapInput,
   type StorefrontDepartureItineraryQuery,
   type StorefrontDepartureListQuery,
   type StorefrontDeparturePricePreviewInput,
@@ -41,7 +37,6 @@ import {
   type StorefrontProductAvailabilitySummaryQuery,
   type StorefrontProductExtensionsQuery,
   type StorefrontPromotionalOfferListQuery,
-  storefrontBookingSessionBootstrapInputSchema,
   storefrontDepartureItineraryQuerySchema,
   storefrontDepartureItineraryResponseSchema,
   storefrontDepartureListQuerySchema,
@@ -217,34 +212,6 @@ export function getStorefrontOfferBySlug(
     withStorefrontQueryParams(`/v1/public/offers/${encodeURIComponent(slug)}`, query),
     storefrontPromotionalOfferResponseSchema,
     client,
-  ).then((response) => response.data)
-}
-
-export function createPublicBookingSession(
-  client: ResolvedClientOptions,
-  input: PublicCreateBookingSessionInput,
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicCreateBookingSessionSchema.parse(input)
-  return storefrontFetchWithValidation(
-    "/v1/public/bookings/sessions",
-    publicBookingSessionResponseSchema,
-    client,
-    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
-  ).then((response) => response.data)
-}
-
-export function bootstrapBookingSession(
-  client: ResolvedClientOptions,
-  input: StorefrontBookingSessionBootstrapInput,
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = storefrontBookingSessionBootstrapInputSchema.parse(input)
-  return storefrontFetchWithValidation(
-    "/v1/public/bookings/sessions/bootstrap",
-    bootstrappedBookingSessionResponseSchema,
-    client,
-    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
   ).then((response) => response.data)
 }
 

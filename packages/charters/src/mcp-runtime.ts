@@ -20,7 +20,6 @@ import { listCharterAdapters, resolveCharterAdapter } from "./adapters/registry.
 import { CHARTERS_CREATED_TARGET_POLICIES } from "./created-target-policy.js"
 import { parseUnifiedKey } from "./lib/key.js"
 import { chartersService } from "./service.js"
-import { chartersBookingService } from "./service-bookings.js"
 import { composePerSuiteQuote, composeWholeYachtQuote, pricingService } from "./service-pricing.js"
 import type { ChartersToolServices } from "./tools.js"
 
@@ -33,7 +32,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
   contribute({ request, context }) {
     const db = context.db as PostgresJsDatabase
     const c = request as Context<ChartersToolRequestEnv>
-    const userId = c.get("userId") ?? undefined
     const requestContext = chartersActionLedgerContext(c)
     const publicOnly = context.actor !== "staff"
     const execute: ChartersToolServices["execute"] = async (operation, input, admitted) => {
@@ -115,8 +113,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
           const { id, ...data } = args
           return chartersService.updateYacht(db, String(id), data as never)
         }
-        case "createBooking":
-          return createBooking(db, args, userId)
       }
     }
     return { charters: { execute } }
@@ -448,66 +444,6 @@ async function quoteWholeYacht(
   )
     throw new ToolError("Charter voyage not found", "NOT_FOUND")
   return pricingService.quoteWholeYacht(db, { voyageId: parsed.id, currency })
-}
-
-async function createBooking(
-  db: PostgresJsDatabase,
-  args: Record<string, unknown>,
-  userId?: string,
-) {
-  const parsed = parseUnifiedKey(String(args.key))
-  if (parsed.kind === "invalid") throw new ToolError("Invalid charter voyage key", "INVALID_INPUT")
-  const { key: _key, mode, ...payload } = args
-  if (parsed.kind === "external") {
-    const adapter = requiredAdapter(parsed.provider)
-    const result =
-      mode === "per_suite"
-        ? await chartersBookingService.createExternalPerSuiteBooking(
-            db,
-            {
-              ...payload,
-              adapter,
-              voyageRef: { externalId: parsed.ref },
-              suiteRef: { externalId: String(args.suiteId) },
-            } as never,
-            userId,
-          )
-        : await chartersBookingService.createExternalWholeYachtBooking(
-            db,
-            { ...payload, adapter, voyageRef: { externalId: parsed.ref } } as never,
-            userId,
-          )
-    return normalizeBookingResult(result)
-  }
-  const result =
-    mode === "per_suite"
-      ? await chartersBookingService.createPerSuiteBooking(
-          db,
-          { ...payload, voyageId: parsed.id } as never,
-          userId,
-        )
-      : await chartersBookingService.createWholeYachtBooking(
-          db,
-          { ...payload, voyageId: parsed.id } as never,
-          userId,
-        )
-  return normalizeBookingResult(result)
-}
-
-function normalizeBookingResult(result: {
-  bookingId: string
-  bookingNumber: string
-  sourceProvider?: string
-  charterDetails: { connectorBookingRef?: string | null }
-  quote: unknown
-}) {
-  return {
-    bookingId: result.bookingId,
-    bookingNumber: result.bookingNumber,
-    sourceProvider: "sourceProvider" in result ? result.sourceProvider : null,
-    connectorBookingRef: result.charterDetails.connectorBookingRef ?? null,
-    quote: result.quote,
-  }
 }
 
 function requiredAdapter(name: string): CharterAdapter {

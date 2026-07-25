@@ -56,7 +56,40 @@ describe("legal Tools", () => {
 
   it("uses admitted lifecycle command methods", async () => {
     const issueContract = vi.fn()
-    const issueContractCommand = vi.fn(async () => ({ id: "contract_1" }) as never)
+    const issueContractCommand = vi.fn(async () => {
+      const now = "2026-07-25T08:00:00.000Z"
+      return {
+        id: "contract_1",
+        contractNumber: "CTR-1",
+        scope: "customer",
+        status: "issued",
+        title: "Customer agreement",
+        bookingId: "booking_1",
+        personId: null,
+        organizationId: null,
+        supplierId: null,
+        language: "en",
+        issuedAt: now,
+        sentAt: null,
+        executedAt: null,
+        expiresAt: null,
+        voidedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        templateVersionId: null,
+        seriesId: null,
+        channelId: null,
+        targetKind: "booking",
+        targetId: "booking_1",
+        targetProvider: null,
+        targetSourceRef: null,
+        renderedBodyFormat: "markdown",
+        renderedBody: "# Customer agreement",
+        variables: {},
+        metadata: {},
+        stageHistory: [],
+      } as const
+    })
     const legal = {
       issueContract,
       issueContractCommand,
@@ -65,7 +98,10 @@ describe("legal Tools", () => {
     } as never
     const expected = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.issue
 
-    await issueLegalContractTool.handler(
+    const registry = createToolRegistry()
+    registry.register(issueLegalContractTool, { actionPolicy: expected.actionPolicy })
+    await registry.dispatch(
+      issueLegalContractTool.name,
       { contractId: "contract_1" },
       {
         ...baseContext(),
@@ -136,7 +172,12 @@ describe("legal Tools", () => {
     }))
     const expected = LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS.generate
 
-    await generateBookingContractDocumentTool.handler(
+    const registry = createToolRegistry()
+    registry.register(generateBookingContractDocumentTool, {
+      actionPolicy: expected.actionPolicy,
+    })
+    await registry.dispatch(
+      generateBookingContractDocumentTool.name,
       { bookingId: "booking_1", contractId: "contract_1" },
       {
         ...baseContext(),

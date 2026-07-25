@@ -1,14 +1,9 @@
 import {
   type ActionLedgerRequestContextValues,
   buildActionLedgerApprovedExecutionFields,
-  mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
-import {
-  defineToolContextContribution,
-  ToolError,
-  type ToolHandlerActionPolicyContext,
-} from "@voyant-travel/tools"
+import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { Context } from "hono"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
 import { redactBookingContact, shouldRevealBookingPii } from "./pii-redaction.js"
@@ -19,7 +14,7 @@ import {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
-import { bookingsService, buildLegacyBookingReservationCommandFingerprint } from "./service.js"
+import { bookingsService } from "./service.js"
 import { authorizeBookingStatusMutation } from "./status-authorization.js"
 
 export * from "./tools.js"
@@ -52,64 +47,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
           getBookingAggregates: (
             query: Parameters<typeof bookingsService.getBookingAggregates>[1],
           ) => bookingsService.getBookingAggregates(db, query),
-          async reserveBooking(
-            input: {
-              reservation: Parameters<typeof bookingsService.reserveBooking>[1]
-            },
-            admitted: ToolHandlerActionPolicyContext,
-          ) {
-            const requestContext = bookingToolActionLedgerContext(c)
-            const principal = mapActionLedgerRequestContext(requestContext)
-            if (principal.principalId === "unknown_request") {
-              throw new ToolError(
-                "Booking reservation requires a concrete authenticated principal.",
-                "AUTHORIZATION_DENIED",
-              )
-            }
-            const idempotencyKey = admitted.invocation.idempotencyKey?.trim()
-            if (!idempotencyKey) {
-              throw new ToolError(
-                "Booking reservation requires an admitted idempotency key.",
-                "INVALID_INPUT",
-              )
-            }
-            const legacyPrincipalId =
-              c.get("userId") ??
-              c.get("agentId") ??
-              c.get("workflowPrincipalId") ??
-              c.get("apiTokenId") ??
-              c.get("apiKeyId")
-            if (!legacyPrincipalId) {
-              throw new ToolError(
-                "Booking reservation requires a legacy-compatible principal.",
-                "AUTHORIZATION_DENIED",
-              )
-            }
-            const result = await bookingsService.reserveBooking(
-              db,
-              input.reservation,
-              principal.principalId,
-              {
-                eventBus: c.get("eventBus"),
-                actionLedgerContext: requestContext,
-                actionLedgerAdmitted: admitted,
-                actionLedgerLegacyIdempotencyScope: `bookings.reserve_booking:${legacyPrincipalId}`,
-                actionLedgerLegacyIdempotencyFingerprint:
-                  await buildLegacyBookingReservationCommandFingerprint(input.reservation),
-              },
-            )
-            if (result.status !== "ok" || !("booking" in result)) {
-              throw bookingReservationToolError(result)
-            }
-            return {
-              status: "reserved" as const,
-              booking: {
-                id: result.booking.id,
-                bookingNumber: input.reservation.bookingNumber,
-              },
-              replayed: result.replayed ?? false,
-            }
-          },
           async cancelBooking(input: {
             id: string
             note?: string
@@ -278,44 +215,6 @@ function bookingAuthorizationToolError(
           approvalId: result.validation.approval?.id,
         },
       )
-  }
-}
-
-function bookingReservationToolError(result: { status: string; existingActionId?: unknown }) {
-  switch (result.status) {
-    case "slot_not_found":
-      return new ToolError("The requested availability slot was not found.", "NOT_FOUND")
-    case "insufficient_capacity":
-      return new ToolError(
-        "The requested availability does not have enough capacity.",
-        "INVALID_INPUT",
-      )
-    case "slot_unavailable":
-      return new ToolError("The requested availability slot is not bookable.", "INVALID_INPUT")
-    case "slot_product_mismatch":
-    case "slot_option_mismatch":
-      return new ToolError(
-        "The reservation item does not match the requested availability slot.",
-        "INVALID_INPUT",
-        { status: result.status },
-      )
-    case "missing_idempotency_key":
-      return new ToolError("Booking reservation requires an idempotency key.", "INVALID_INPUT")
-    case "idempotency_conflict":
-      return new ToolError(
-        "The idempotency key was already used for a different reservation command.",
-        "INVALID_INPUT",
-        {
-          existingActionId:
-            typeof result.existingActionId === "string" ? result.existingActionId : undefined,
-        },
-      )
-    case "reservation_replay_incomplete":
-      return new ToolError("The prior reservation result could not be recovered.", "PROVIDER_ERROR")
-    default:
-      return new ToolError("Unable to reserve the booking.", "PROVIDER_ERROR", {
-        status: result.status,
-      })
   }
 }
 

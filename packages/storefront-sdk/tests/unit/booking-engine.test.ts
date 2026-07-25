@@ -53,33 +53,6 @@ describe("bookingEngine facade", () => {
     expect(snapshot.engine.allowedActions).toContain("update_travelers")
   })
 
-  it("reserves a session through the booking-engine API", async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const voyant = createVoyantStorefrontClient({
-      baseUrl: "https://operator.example.com",
-      fetcher: async (url, init) => {
-        calls.push({ url, init })
-        return Response.json({ data: session() })
-      },
-    })
-
-    const snapshot = await voyant.bookingEngine.reserve({
-      sellCurrency: "EUR",
-      items: [
-        {
-          title: "Danube tour",
-          quantity: 1,
-          totalSellAmountCents: 10000,
-          availabilitySlotId: "slot_123",
-        },
-      ],
-    })
-
-    expect(calls[0]?.url).toBe("https://operator.example.com/v1/public/bookings/sessions")
-    expect(calls[0]?.init?.method).toBe("POST")
-    expect(snapshot.engine.state).toBe("reserved")
-  })
-
   it("normalizes public booking-engine error envelopes", async () => {
     const voyant = createVoyantStorefrontClient({
       baseUrl: "https://operator.example.com",

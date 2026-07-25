@@ -121,7 +121,14 @@ describe("notifications tools", () => {
 
   it("dispatches sends only through the admitted template service", async () => {
     const registry = createToolRegistry()
-    registry.registerAll(notificationsTools)
+    for (const tool of notificationsTools) {
+      registry.register(
+        tool,
+        tool.name === "send_notification"
+          ? { actionPolicy: SEND_NOTIFICATION_HANDLER_POLICY.actionPolicy }
+          : {},
+      )
+    }
     const sendTemplated = vi.fn(async () => delivery({ id: "ndl_9", status: "pending" }))
     const result = await registry.dispatch(
       "send_notification",

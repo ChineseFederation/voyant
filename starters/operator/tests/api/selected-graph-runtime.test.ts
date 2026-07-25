@@ -57,14 +57,12 @@ import { realtimeRuntimePort } from "@voyant-travel/realtime"
 import { relationshipsRouteRuntimePort } from "@voyant-travel/relationships/voyant"
 import { storageMediaRuntimePort } from "@voyant-travel/storage/routes"
 import {
-  storefrontBookingIntentsRuntimePort,
   storefrontCustomerPortalRuntimePort,
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
   storefrontPaymentLinkRuntimePort,
   storefrontVerificationRuntimePort,
 } from "@voyant-travel/storefront"
-import { STOREFRONT_BOOKING_BOOTSTRAP_RUNTIME_KEY } from "@voyant-travel/storefront/booking-bootstrap-subscriber"
 import { TRIPS_PAYMENT_SUBSCRIBER_RUNTIME_KEY } from "@voyant-travel/trips/payment-subscribers"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "@voyant-travel/trips/voyant"
 import { describe, expect, it, vi } from "vitest"
@@ -308,34 +306,6 @@ describe("selected Operator graph runtime composition", () => {
     expect(subscribe.mock.calls.filter(([event]) => event === "payment.completed")).toHaveLength(1)
   })
 
-  it("activates the Storefront booking-bootstrap subscriber exactly once", async () => {
-    const runtime = createGeneratedGraphRuntime()
-    const storefrontUnit = runtime.modules.find((unit) => unit.id === "@voyant-travel/storefront")
-    const composed = await composeOperatorGraph(runtime)
-    const storefront = composed.modules.find((module) => module.module.name === "storefront")
-    const subscriberModule = composed.modules.find(
-      (module) => module.module.name === "storefront.graph-runtime",
-    )
-    const container = createContainer()
-    const eventBus = createEventBus()
-    const subscribe = vi.spyOn(eventBus, "subscribe")
-    const context = { bindings: {} as AppBindings, container, eventBus }
-
-    expect(
-      storefrontUnit?.references
-        .filter((reference) => reference.facet === "subscribers.runtime")
-        .map((reference) => reference.entityId),
-    ).toEqual(["@voyant-travel/storefront#subscriber.booking-bootstrap"])
-
-    await storefront?.module.bootstrap?.(context)
-    expect(container.has(STOREFRONT_BOOKING_BOOTSTRAP_RUNTIME_KEY)).toBe(true)
-    await subscriberModule?.module.bootstrap?.(context)
-
-    expect(
-      subscribe.mock.calls.filter(([event]) => event === "storefront.booking.bootstrap.requested"),
-    ).toHaveLength(1)
-  })
-
   it("activates both selected Commerce checkout subscribers exactly once", async () => {
     const runtime = createGeneratedGraphRuntime()
     const checkout = runtime.extensions.find(
@@ -518,7 +488,6 @@ describe("selected Operator graph runtime composition", () => {
         realtimeRuntimePort.id,
         storageMediaRuntimePort.id,
         storefrontCustomerPortalRuntimePort.id,
-        storefrontBookingIntentsRuntimePort.id,
         storefrontIntakeRuntimePort.id,
         storefrontOffersRuntimePort.id,
         storefrontPaymentLinkRuntimePort.id,

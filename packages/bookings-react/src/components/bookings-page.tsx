@@ -9,7 +9,6 @@ import { BookingList, type BookingListFiltersState } from "./booking-list.js"
 export interface BookingsPageProps {
   pageSize?: number
   onBookingOpen?: (booking: BookingRecord) => void
-  onCreateBooking?: () => void
   /**
    * Extra action(s) rendered alongside the primary "New booking" button.
    * Templates pass adjacent flows (e.g. a "Compose trip" link) here.
@@ -24,7 +23,6 @@ export interface BookingsPageProps {
 export function BookingsPage({
   pageSize,
   onBookingOpen,
-  onCreateBooking,
   headerActions,
   className,
   initialFilters,
@@ -42,7 +40,6 @@ export function BookingsPage({
       <BookingList
         pageSize={pageSize}
         onSelectBooking={onBookingOpen}
-        onCreateBooking={onCreateBooking}
         headerActions={headerActions}
         initialFilters={initialFilters}
         onFiltersChange={onFiltersChange}

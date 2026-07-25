@@ -313,7 +313,6 @@ export {
   bookingTravelers,
 } from "./schema.js"
 export {
-  type PublicBookingOwner,
   type PublicBookingsServiceResolvers,
   publicBookingsService,
   resolveSessionPricingSnapshot,
@@ -363,7 +362,6 @@ export {
   publicUpdateBookingSessionSchema,
   publicUpsertBookingSessionStateSchema,
   recordBookingRedemptionSchema,
-  reserveBookingSchema,
   sharingGroupsForSlotQuerySchema,
   startBookingSchema,
   updateBookingAllocationSchema,

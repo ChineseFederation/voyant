@@ -1,11 +1,6 @@
 "use client"
 
-import {
-  useAdminBreadcrumbs,
-  useAdminHref,
-  useAdminNavigate,
-  useOperatorAdminMessages,
-} from "@voyant-travel/admin"
+import { useAdminBreadcrumbs, useAdminHref, useOperatorAdminMessages } from "@voyant-travel/admin"
 import { useSuppliers } from "@voyant-travel/distribution-react/suppliers"
 import { useMemo, useState } from "react"
 
@@ -14,7 +9,6 @@ import {
   type CatalogVerticalDetailBreadcrumb,
   CatalogVerticalDetailPage,
 } from "../components/catalog-vertical-detail-page.js"
-import { bookingJourneyProvenanceSearchParams } from "./booking-journey-provenance.js"
 
 export interface VerticalDetailHostProps {
   surface: CatalogDetailSurface
@@ -24,13 +18,11 @@ export interface VerticalDetailHostProps {
 
 /**
  * Packaged admin host for `CatalogVerticalDetailPage` — binds the supplier
- * directory, the localized surface label, semantic-destination navigation
- * into the booking journey (packaged-admin RFC §4.7), and breadcrumbs, so
+ * directory, the localized surface label, and breadcrumbs, so
  * host route files stay trivial.
  */
 export function VerticalDetailHost({ surface, id, locale }: VerticalDetailHostProps) {
   const resolveHref = useAdminHref()
-  const navigateTo = useAdminNavigate()
   const nav = useOperatorAdminMessages().nav
   const vertical = catalogSurfaceVertical(surface)
   const surfaceLabel = surfaceTitle(surface, nav)
@@ -59,21 +51,6 @@ export function VerticalDetailHost({ surface, id, locale }: VerticalDetailHostPr
       locale={locale}
       formatSupplier={formatSupplier}
       onBreadcrumbs={setCrumbs}
-      // Vertical detail → the unified journey. Preserve sourced-entry provenance
-      // when content enrichment exposed it; otherwise let the journey APIs
-      // resolve provenance server-side from (entityModule, entityId).
-      onBook={(entityModule, entityId, opts) => {
-        return navigateTo("bookingJourney.start", {
-          entityModule,
-          entityId,
-          ...bookingJourneyProvenanceSearchParams(opts),
-          ...(opts.departureId ? { departureId: opts.departureId } : {}),
-          ...(opts.departureDate ? { departureDate: opts.departureDate.slice(0, 10) } : {}),
-          ...(opts.optionId ? { optionId: opts.optionId } : {}),
-          ...(opts.name ? { entityName: opts.name } : {}),
-          ...(opts.heroImageUrl ? { entityImageUrl: opts.heroImageUrl } : {}),
-        })
-      }}
     />
   )
 }

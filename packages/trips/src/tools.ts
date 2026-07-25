@@ -216,6 +216,8 @@ const createTripReferenceSchema = z.object({ envelopeId: z.string() })
 export type CreateTripResult = z.output<typeof createTripReferenceSchema>
 
 export const createTripTool = defineTool<CreateTripArgs, CreateTripResult, TripsToolContext>({
+  capabilityId: `${OWNER}#tool.create-trip`,
+  capabilityVersion: VERSION,
   name: "create_trip",
   description:
     "Create a deterministic trip envelope and optional components for a composed itinerary. " +
@@ -284,6 +286,8 @@ export type PriceTripArgs = z.infer<typeof priceTripSchema>
 export type PriceTripResult = z.output<typeof tripActionAcceptedResultSchema>
 
 export const priceTripTool = defineTool<PriceTripArgs, PriceTripResult, TripsToolContext>({
+  capabilityId: `${OWNER}#tool.price-trip`,
+  capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
   name: "price_trip",
   description:
     "Accept durable pricing for a deterministic trip through the exact selected provider. " +
@@ -310,6 +314,8 @@ export type ReserveTripArgs = z.infer<typeof reserveTripCommandSchema>
 export type ReserveTripResult = z.output<typeof tripActionAcceptedResultSchema>
 
 export const reserveTripTool = defineTool<ReserveTripArgs, ReserveTripResult, TripsToolContext>({
+  capabilityId: `${OWNER}#tool.reserve-trip`,
+  capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
   name: "reserve_trip",
   description:
     "Accept durable reservation of a priced trip through the exact selected provider. " +

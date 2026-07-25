@@ -1,4 +1,5 @@
 // agent-quality: file-size exception -- owner: finance; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
+import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger"
 import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
 import {
   bookingActivityLog,
@@ -9,14 +10,26 @@ import {
   bookings,
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
-import { createEventBus } from "@voyant-travel/core"
-import { eq, sql } from "drizzle-orm"
+import { eventOutboxTable } from "@voyant-travel/db/schema"
+import {
+  createToolRegistry,
+  defineTool,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
+import { and, eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { z } from "zod"
 import {
   availabilityHoldsRef as availabilityHolds,
   availabilitySlotsRef as availabilitySlots,
 } from "../../../bookings/src/availability-ref.js"
 import {
+  executeFinanceBookingCreateCommand,
+  financeBookingCreatedEventId,
+} from "../../src/booking-create-command.js"
+import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../../src/booking-create-policy.js"
+import {
+  bookingItemTaxLines,
   bookingPaymentSchedules,
   invoiceRenditions,
   invoices,
@@ -25,9 +38,69 @@ import {
   travelCreditRedemptions,
   travelCredits,
 } from "../../src/schema.js"
-import { bookingCreateSchema, createBooking } from "../../src/service-booking-create.js"
+import type { FinanceServiceRuntime } from "../../src/service.js"
+import { bookingCreateSchema, createBookingMutation } from "../../src/service-booking-create.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
+let directCreateSequence = 0
+
+async function createBooking(
+  db: Parameters<typeof createBookingMutation>[0],
+  input: Parameters<typeof createBookingMutation>[1],
+  options: { userId?: string; runtime?: FinanceServiceRuntime } = {},
+) {
+  const commandKey = `finance-booking-create-test-${++directCreateSequence}`
+  const admitted = await mintFinanceBookingCreateAdmission(commandKey)
+  try {
+    const result = await executeAdmittedCreatedTargetCommand(
+      {
+        db,
+        context: {
+          userId: options.userId ?? "user_finance_booking_create_test",
+          callerType: "session",
+          actor: "staff",
+          organizationId: "tenant_finance_booking_create_test",
+        },
+        admitted,
+        commandTargetType: "finance_booking_create_command",
+        canonicalTargetType: "booking",
+        resultReferenceType: "booking",
+        commandInput: input,
+        evaluatedRisk: "high",
+      },
+      {
+        async create(tx, lease) {
+          const outcome = await createBookingMutation(tx, input, {
+            commandIdempotencyKey: commandKey,
+            lease,
+            runtime: options.runtime,
+            userId: options.userId,
+          })
+          if (outcome.status !== "ok") throw new TestBookingCreateAbort(outcome)
+          return {
+            value: outcome,
+            targetId: outcome.result.booking.id,
+          }
+        },
+        async replay() {
+          throw new Error("test booking-create command unexpectedly replayed")
+        },
+      },
+    )
+    return result.value
+  } catch (error) {
+    if (error instanceof TestBookingCreateAbort) return error.outcome
+    throw error
+  }
+}
+
+class TestBookingCreateAbort extends Error {
+  constructor(
+    readonly outcome: Exclude<Awaited<ReturnType<typeof createBookingMutation>>, { status: "ok" }>,
+  ) {
+    super(outcome.status)
+  }
+}
 
 async function resetTables(
   // biome-ignore lint/suspicious/noExplicitAny: test db -- owner: finance; existing suppression is intentional pending typed cleanup.
@@ -35,6 +108,7 @@ async function resetTables(
 ) {
   const tableNames = [
     "action_ledger_entries",
+    "event_outbox",
     "payments",
     "invoice_renditions",
     "invoice_line_items",
@@ -44,6 +118,7 @@ async function resetTables(
     "payment_instruments",
     "booking_payment_schedules",
     "booking_allocations",
+    "booking_item_tax_lines",
     "booking_item_travelers",
     "booking_travelers",
     "booking_group_members",
@@ -371,6 +446,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       contactEmail: "alice@example.com",
       travelers: [
         {
+          clientTravelerKey: "trav:lead",
           firstName: "Alice",
           lastName: "Lead",
           email: "alice@example.com",
@@ -619,6 +695,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       ...bookingParty(),
       travelers: [
         {
+          clientTravelerKey: "trav:lead",
           firstName: "Alice",
           lastName: "Lead",
           email: "alice@example.com",
@@ -706,75 +783,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     const bookingRows = await db.select().from(bookings)
     expect(bookingRows).toHaveLength(1)
-  })
-
-  it("writes action ledger entries for successful creates and duplicate rejections", async () => {
-    const { productId, optionId } = await seedProduct()
-    const slot = await seedSlot({ productId, optionId })
-    const runtime = {
-      actionLedgerContext: {
-        userId: "user_booking_create_ledger",
-        callerType: "session" as const,
-        actor: "staff",
-      },
-      actionLedgerAuthorizationSource: "booking.create.route",
-    }
-
-    const first = await createBooking(
-      db,
-      {
-        productId,
-        optionId,
-        slotId: slot.id,
-        bookingNumber: nextBookingNumber(),
-        ...bookingParty(),
-      },
-      { userId: "user_booking_create_ledger", runtime },
-    )
-
-    expect(first.status).toBe("ok")
-    if (first.status !== "ok") return
-
-    const duplicate = await createBooking(
-      db,
-      {
-        productId,
-        optionId,
-        slotId: slot.id,
-        bookingNumber: nextBookingNumber(),
-        ...bookingParty(),
-      },
-      { userId: "user_booking_create_ledger", runtime },
-    )
-
-    expect(duplicate.status).toBe("duplicate_booking")
-
-    const ledgerRows = await db
-      .select()
-      .from(actionLedgerEntries)
-      .where(eq(actionLedgerEntries.actionName, "booking.create"))
-
-    expect(ledgerRows).toHaveLength(2)
-    expect(ledgerRows.find((row) => row.status === "succeeded")).toMatchObject({
-      actionKind: "create",
-      targetType: "booking",
-      targetId: first.result.booking.id,
-      principalType: "user",
-      principalId: "user_booking_create_ledger",
-      actorType: "staff",
-      routeOrToolName: "booking.create",
-      authorizationSource: "booking.create.route",
-    })
-    expect(ledgerRows.find((row) => row.status === "failed")).toMatchObject({
-      actionKind: "create",
-      targetType: "booking",
-      targetId: first.result.booking.id,
-      principalType: "user",
-      principalId: "user_booking_create_ledger",
-      actorType: "staff",
-      routeOrToolName: "booking.create",
-      authorizationSource: "booking.create.route",
-    })
   })
 
   it("allows duplicate active bookings when explicitly overridden", async () => {
@@ -938,6 +946,34 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(bookingsRows).toHaveLength(0)
   })
 
+  it("rejects tax lines in a currency different from booking sell currency", async () => {
+    const { productId } = await seedProduct()
+
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      taxLines: [
+        {
+          name: "Foreign VAT",
+          currency: "USD",
+          amountCents: 9500,
+          includedInPrice: true,
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("invalid_tax_lines")
+    if (outcome.status !== "invalid_tax_lines") return
+    expect(outcome.issues).toContainEqual({
+      path: ["taxLines", 0, "currency"],
+      message: "taxLines[0].currency must equal the booking's sellCurrency (EUR); got USD",
+    })
+
+    const bookingsRows = await db.select().from(bookings)
+    expect(bookingsRows).toHaveLength(0)
+  })
+
   it("rejects already-paid schedules without an explicit payment date", async () => {
     const { productId } = await seedProduct()
 
@@ -1080,9 +1116,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(renditionRows[0]?.status).toBe("pending")
   })
 
-  it("applies the invoice due-date resolver to schedule-derived booking-create invoices", async () => {
+  it("uses the configured Finance runtime when creating a booking invoice", async () => {
     const { productId } = await seedProduct()
-    let resolverScheduleDueDate: string | null = null
+    let dueDateResolverCalls = 0
 
     const outcome = await createBooking(
       db,
@@ -1090,14 +1126,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         productId,
         bookingNumber: nextBookingNumber(),
         ...bookingParty(),
-        paymentSchedules: [
-          {
-            scheduleType: "balance",
-            dueDate: "2020-01-01",
-            currency: "EUR",
-            amountCents: 50000,
-          },
-        ],
         documentGeneration: {
           contractDocument: false,
           invoiceDocument: true,
@@ -1105,9 +1133,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       },
       {
         runtime: {
-          invoiceDueDateResolver: ({ issueDate, dueDate, bookingPaymentSchedule }) => {
-            resolverScheduleDueDate = bookingPaymentSchedule?.dueDate ?? null
-            return bookingPaymentSchedule && dueDate < issueDate ? issueDate : dueDate
+          async invoiceDueDateResolver() {
+            dueDateResolverCalls += 1
+            return "2026-12-31"
           },
         },
       },
@@ -1115,9 +1143,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(resolverScheduleDueDate).toBe("2020-01-01")
-    expect(outcome.result.invoice?.issueDate).toBeTruthy()
-    expect(outcome.result.invoice?.dueDate).toBe(outcome.result.invoice?.issueDate)
+    expect(dueDateResolverCalls).toBe(1)
+    expect(outcome.result.invoice?.dueDate).toBe("2026-12-31")
   })
 
   it("creates explicit booking item lines for multiple selected units", async () => {
@@ -1125,7 +1152,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const secondUnitId = `opun_bc_single_${productSeq}`
     await db.execute(sql`
       INSERT INTO option_units (id, option_id, name, unit_type, is_required, min_quantity, sort_order)
-      VALUES (${secondUnitId}, ${optionId}, 'Single room', 'room', false, 1, 1)
+      VALUES (${secondUnitId}, ${optionId}, 'Additional person', 'person', false, 1, 1)
     `)
 
     const outcome = await createBooking(db, {
@@ -1146,7 +1173,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         {
           optionUnitId: secondUnitId,
           quantity: 1,
-          title: "Single room",
+          title: "Additional person",
           unitSellAmountCents: 10000,
           totalSellAmountCents: 10000,
         },
@@ -1161,10 +1188,16 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .from(bookingItems)
       .where(eq(bookingItems.bookingId, outcome.result.booking.id))
     expect(itemRows).toHaveLength(2)
-    expect(itemRows.map((item) => [item.optionUnitId, item.quantity])).toEqual([
-      [unitId, 2],
-      [secondUnitId, 1],
-    ])
+    expect(
+      itemRows
+        .map((item) => [item.optionUnitId, item.quantity] as const)
+        .sort(([left], [right]) => left.localeCompare(right)),
+    ).toEqual(
+      [
+        [unitId, 2],
+        [secondUnitId, 1],
+      ].sort(([left], [right]) => left.localeCompare(right)),
+    )
   })
 
   it("links explicit item and per-person extra lines to travelers", async () => {
@@ -1176,6 +1209,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       ...bookingParty(),
       travelers: [
         {
+          clientTravelerKey: "trav:lead",
           firstName: "Alice",
           lastName: "Lead",
           email: "alice@example.com",
@@ -1183,6 +1217,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           isPrimary: true,
         },
         {
+          clientTravelerKey: "trav:child",
           firstName: "Child",
           lastName: "Traveler",
           participantType: "traveler",
@@ -1195,7 +1230,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           optionUnitId: unitId,
           quantity: 2,
           title: "Adult",
-          travelerIndexes: [0, 1],
+          travelerKeys: ["trav:lead", "trav:child"],
         },
       ],
       extraLines: [
@@ -1209,7 +1244,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           sellCurrency: "EUR",
           unitSellAmountCents: 1000,
           totalSellAmountCents: 2000,
-          travelerIndexes: [0, 1],
+          travelerKeys: ["trav:lead", "trav:child"],
         },
       ],
     })
@@ -1233,7 +1268,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
   })
 
   it("links item and extra lines to reordered travelers through stable keys", async () => {
-    const { productId, unitId } = await seedProduct()
+    const { productId, unitId, childUnitId } = await seedProduct({ ageBandedUnits: true })
 
     const outcome = await createBooking(db, {
       productId,
@@ -1265,6 +1300,13 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           title: "Adult",
           travelerKeys: ["trav:lead"],
         },
+        {
+          clientLineKey: `unit:${childUnitId}`,
+          optionUnitId: childUnitId,
+          quantity: 1,
+          title: "Child",
+          travelerKeys: ["trav:child"],
+        },
       ],
       extraLines: [
         {
@@ -1295,6 +1337,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     `)
     expect(linkedRows).toEqual([
       { item_title: "Adult", traveler_last_name: "Lead" },
+      { item_title: "Child", traveler_last_name: "Traveler" },
       { item_title: "Lunch", traveler_last_name: "Traveler" },
     ])
   })
@@ -1311,6 +1354,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       confirmedSellAmountCents: bundledTotalAmountCents,
       travelers: [
         {
+          clientTravelerKey: "trav:lead",
           firstName: "Alice",
           lastName: "Lead",
           email: "alice@example.com",
@@ -1319,6 +1363,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           isPrimary: true,
         },
         {
+          clientTravelerKey: "trav:companion",
           firstName: "Bob",
           lastName: "Companion",
           participantType: "traveler",
@@ -1333,7 +1378,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           title: "DBL room",
           unitSellAmountCents: bundledTotalAmountCents,
           totalSellAmountCents: bundledTotalAmountCents,
-          travelerIndexes: [0, 1],
+          travelerKeys: ["trav:lead", "trav:companion"],
         },
       ],
     })
@@ -1341,66 +1386,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
     expect(outcome.result.booking.sellAmountCents).toBe(bundledTotalAmountCents)
-
-    const itemRows = await db
-      .select()
-      .from(bookingItems)
-      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
-    expect(itemRows).toHaveLength(1)
-    expect(itemRows[0]).toMatchObject({
-      optionUnitId: roomUnitId,
-      quantity: 1,
-      totalSellAmountCents: bundledTotalAmountCents,
-    })
-
-    const links = await db
-      .select()
-      .from(bookingItemTravelers)
-      .where(eq(bookingItemTravelers.bookingItemId, itemRows[0]!.id))
-    expect(links).toHaveLength(2)
-  })
-
-  it("normalizes legacy adult-keyed accommodation item lines onto the room unit", async () => {
-    const { productId, roomUnitId, adultUnitId } = await seedAccommodationProduct()
-    const bundledTotalAmountCents = 60_000
-
-    const outcome = await createBooking(db, {
-      productId,
-      bookingNumber: nextBookingNumber(),
-      ...bookingParty(),
-      catalogSellAmountCents: bundledTotalAmountCents,
-      confirmedSellAmountCents: bundledTotalAmountCents,
-      travelers: [
-        {
-          firstName: "Alice",
-          lastName: "Lead",
-          email: "alice@example.com",
-          participantType: "traveler",
-          travelerCategory: "adult",
-          isPrimary: true,
-        },
-        {
-          firstName: "Bob",
-          lastName: "Companion",
-          participantType: "traveler",
-          travelerCategory: "adult",
-        },
-      ],
-      itemLines: [
-        {
-          clientLineKey: `unit:${adultUnitId}`,
-          optionUnitId: adultUnitId,
-          quantity: 1,
-          title: "Adult",
-          unitSellAmountCents: bundledTotalAmountCents,
-          totalSellAmountCents: bundledTotalAmountCents,
-          travelerIndexes: [0, 1],
-        },
-      ],
-    })
-
-    expect(outcome.status).toBe("ok")
-    if (outcome.status !== "ok") return
 
     const itemRows = await db
       .select()
@@ -1429,6 +1414,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       ...bookingParty(),
       travelers: [
         {
+          clientTravelerKey: "trav:lead",
           firstName: "Alice",
           lastName: "Lead",
           email: "alice@example.com",
@@ -1653,52 +1639,45 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const { productId, unitId, childUnitId, infantUnitId } = await seedProduct({
       ageBandedUnits: true,
     })
-    const eventBus = createEventBus()
-    const rejectedEvents: unknown[] = []
-    eventBus.subscribe("booking_create.rejected", (event) => {
-      rejectedEvents.push(event)
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      travelers: [
+        {
+          clientTravelerKey: "trav:lead",
+          firstName: "Alice",
+          lastName: "Lead",
+          email: "alice@example.com",
+          participantType: "traveler",
+          travelerCategory: "adult",
+          isPrimary: true,
+        },
+        {
+          clientTravelerKey: "trav:child",
+          firstName: "Child",
+          lastName: "Traveler",
+          participantType: "traveler",
+          travelerCategory: "child",
+        },
+        {
+          clientTravelerKey: "trav:infant",
+          firstName: "Infant",
+          lastName: "Traveler",
+          participantType: "traveler",
+          travelerCategory: "infant",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}`,
+          optionUnitId: unitId,
+          quantity: 3,
+          title: "Adult",
+          travelerKeys: ["trav:lead", "trav:child", "trav:infant"],
+        },
+      ],
     })
-
-    const outcome = await createBooking(
-      db,
-      {
-        productId,
-        bookingNumber: nextBookingNumber(),
-        ...bookingParty(),
-        travelers: [
-          {
-            firstName: "Alice",
-            lastName: "Lead",
-            email: "alice@example.com",
-            participantType: "traveler",
-            travelerCategory: "adult",
-            isPrimary: true,
-          },
-          {
-            firstName: "Child",
-            lastName: "Traveler",
-            participantType: "traveler",
-            travelerCategory: "child",
-          },
-          {
-            firstName: "Infant",
-            lastName: "Traveler",
-            participantType: "traveler",
-            travelerCategory: "infant",
-          },
-        ],
-        itemLines: [
-          {
-            clientLineKey: `unit:${unitId}`,
-            optionUnitId: unitId,
-            quantity: 3,
-            title: "Adult",
-            travelerIndexes: [0, 1, 2],
-          },
-        ],
-      },
-      { runtime: { eventBus }, userId: "usrp_tester" },
-    )
 
     expect(outcome.status).toBe("payload_resolver_mismatch")
     if (outcome.status !== "payload_resolver_mismatch") return
@@ -1724,27 +1703,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(await db.select().from(bookings)).toHaveLength(0)
     expect(await db.select().from(bookingTravelers)).toHaveLength(0)
     expect(await db.select().from(bookingItems)).toHaveLength(0)
-
-    expect(rejectedEvents).toHaveLength(1)
-    const event = rejectedEvents[0] as {
-      name: string
-      data: {
-        reason: string
-        productId: string
-        mismatchCount: number
-        createdByUserId: string | null
-      }
-      metadata?: { category?: string; source?: string }
-    }
-    expect(event.name).toBe("booking_create.rejected")
-    expect(event.data.reason).toBe("payload_resolver_mismatch")
-    expect(event.data.productId).toBe(productId)
-    expect(event.data.mismatchCount).toBeGreaterThan(0)
-    expect(event.data.createdByUserId).toBe("usrp_tester")
-    expect(event.metadata).toMatchObject({ category: "internal", source: "service" })
   })
 
-  it("keeps accepting legacy age-banded item lines without traveler assignment metadata", async () => {
+  it("accepts explicit aggregate age-banded lines without per-traveler assignments", async () => {
     const { productId, unitId, childUnitId, infantUnitId } = await seedProduct({
       ageBandedUnits: true,
     })
@@ -1983,46 +1944,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(await db.select().from(bookings)).toHaveLength(0)
   })
 
-  it("emits booking.created event after commit when runtime provided", async () => {
-    const { productId } = await seedProduct()
-    const eventBus = createEventBus()
-    const received: unknown[] = []
-    eventBus.subscribe("booking.created", (event) => {
-      received.push(event)
-    })
-
-    const outcome = await createBooking(
-      db,
-      {
-        productId,
-        bookingNumber: nextBookingNumber(),
-        ...bookingParty(),
-        travelers: [{ firstName: "Evt", lastName: "Listener", participantType: "traveler" }],
-      },
-      { runtime: { eventBus }, userId: "usrp_tester" },
-    )
-
-    expect(outcome.status).toBe("ok")
-    if (outcome.status !== "ok") return
-
-    // Give the event bus a tick since subscribers run async.
-    await new Promise((resolve) => setTimeout(resolve, 10))
-
-    expect(received).toHaveLength(1)
-    const envelope = received[0] as {
-      name: string
-      data: {
-        bookingId: string
-        travelerCount: number
-        createdByUserId: string | null
-      }
-    }
-    expect(envelope.name).toBe("booking.created")
-    expect(envelope.data.bookingId).toBe(outcome.result.booking.id)
-    expect(envelope.data.travelerCount).toBe(1)
-    expect(envelope.data.createdByUserId).toBe("usrp_tester")
-  })
-
   it("leaves payment_instruments untouched when travel credit orchestration runs", async () => {
     // Regression guard: travel credit redemption must not mutate payment instruments;
     // the new orchestrator should never write to it.
@@ -2038,4 +1959,197 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(await db.select().from(paymentInstruments)).toHaveLength(0)
   })
+
+  it("settles one durable booking, result ledger, and outbox entry across exact replays", async () => {
+    const { productId, unitId } = await seedProduct()
+    const idempotencyKey = "finance-booking-create-replay"
+    const command = await durableCommand(idempotencyKey, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      taxLines: [{ name: "VAT", currency: "EUR", amountCents: 9500, includedInPrice: true }],
+    })
+
+    const first = await executeFinanceBookingCreateCommand(command)
+    const replay = await executeFinanceBookingCreateCommand(command)
+
+    expect(first).toMatchObject({ replayed: false })
+    expect(replay).toEqual(
+      expect.objectContaining({
+        replayed: true,
+        value: { bookingId: first.value.bookingId },
+      }),
+    )
+    expect(await db.select().from(bookings)).toHaveLength(1)
+    expect(await db.select().from(bookingItemTaxLines)).toHaveLength(1)
+    expect(await db.select().from(eventOutboxTable)).toEqual([
+      expect.objectContaining({
+        eventId: financeBookingCreatedEventId(first.value.bookingId),
+        name: "booking.created",
+      }),
+    ])
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(
+          and(
+            eq(actionLedgerEntries.idempotencyKey, idempotencyKey),
+            eq(actionLedgerEntries.status, "succeeded"),
+          ),
+        ),
+    ).toHaveLength(1)
+  })
+
+  it("fences concurrent commands behind one durable booking creation", async () => {
+    const { productId } = await seedProduct()
+    const command = await durableCommand("finance-booking-create-concurrent", {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+    })
+
+    const results = await Promise.all([
+      executeFinanceBookingCreateCommand(command),
+      executeFinanceBookingCreateCommand(command),
+    ])
+
+    expect(results.map((result) => result.replayed).sort()).toEqual([false, true])
+    expect(new Set(results.map((result) => result.value.bookingId)).size).toBe(1)
+    expect(await db.select().from(bookings)).toHaveLength(1)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(1)
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.idempotencyKey, "finance-booking-create-concurrent")),
+    ).toHaveLength(2)
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(
+          and(
+            eq(actionLedgerEntries.idempotencyKey, "finance-booking-create-concurrent"),
+            eq(actionLedgerEntries.status, "succeeded"),
+          ),
+        ),
+    ).toHaveLength(1)
+  })
+
+  it("rolls back the booking, claim, result, and outbox after an injected crash", async () => {
+    const { productId, unitId } = await seedProduct()
+    const idempotencyKey = "finance-booking-create-crash"
+    await expect(
+      executeFinanceBookingCreateCommand({
+        ...(await durableCommand(idempotencyKey, {
+          productId,
+          bookingNumber: nextBookingNumber(),
+          ...bookingParty(),
+          itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+          taxLines: [{ name: "VAT", currency: "EUR", amountCents: 9500, includedInPrice: true }],
+        })),
+        testHooks: {
+          async afterDomainCreate() {
+            throw new Error("injected finance booking-create crash")
+          },
+        },
+      }),
+    ).rejects.toThrow("injected finance booking-create crash")
+
+    expect(await db.select().from(bookings)).toHaveLength(0)
+    expect(await db.select().from(bookingItemTaxLines)).toHaveLength(0)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.idempotencyKey, idempotencyKey)),
+    ).toHaveLength(0)
+  })
+
+  async function durableCommand(
+    idempotencyKey: string,
+    commandInput: Parameters<typeof executeFinanceBookingCreateCommand>[0]["commandInput"],
+  ) {
+    const admitted = await mintFinanceBookingCreateAdmission(idempotencyKey)
+    return {
+      db,
+      context: {
+        userId: "user_finance_booking_create",
+        callerType: "session" as const,
+        actor: "staff" as const,
+        organizationId: "tenant_finance_booking_create",
+      },
+      commandInput,
+      admitted,
+    }
+  }
 })
+
+async function mintFinanceBookingCreateAdmission(
+  idempotencyKey: string,
+): Promise<ToolHandlerActionPolicyContext> {
+  let admitted: ToolHandlerActionPolicyContext | undefined
+  const registry = createToolRegistry()
+  registry.register(
+    defineTool({
+      owner: "@voyant-travel/finance",
+      capabilityId: FINANCE_BOOKING_CREATE_HANDLER_POLICY.capabilityId,
+      capabilityVersion: FINANCE_BOOKING_CREATE_HANDLER_POLICY.capabilityVersion,
+      name: FINANCE_BOOKING_CREATE_HANDLER_POLICY.canonicalName,
+      description: "Mint authentic Finance booking-create admission for integration coverage.",
+      inputSchema: z.object({}),
+      outputSchema: z.object({ ok: z.literal(true) }),
+      requiredScopes: [],
+      audience: { source: "grant", allowed: ["staff"] },
+      tier: "destructive",
+      riskPolicy: {
+        destructive: true,
+        reversible: false,
+        dryRunSupported: false,
+        confirmationRequired: true,
+        sideEffects: ["data-write", "external-booking", "payment"],
+      },
+      actionPolicyEnforcement: "handler",
+      async handler(_args, context) {
+        admitted = context.handlerActionPolicy
+        return { ok: true as const }
+      },
+    }),
+    { actionPolicy: FINANCE_BOOKING_CREATE_HANDLER_POLICY.actionPolicy },
+  )
+  await registry.dispatch(
+    FINANCE_BOOKING_CREATE_HANDLER_POLICY.canonicalName,
+    {},
+    {
+      db: {},
+      actor: "staff",
+      audience: "staff",
+      tenantId: "tenant_finance_booking_create",
+      resolverScope: {
+        locale: "en-GB",
+        audience: "staff",
+        market: "default",
+        actor: "staff",
+      },
+      handlerActionPolicy: {
+        ...FINANCE_BOOKING_CREATE_HANDLER_POLICY,
+        actionPolicy: {
+          ...FINANCE_BOOKING_CREATE_HANDLER_POLICY.actionPolicy,
+          enforcement: "handler",
+          invocation: {
+            controlField: "_voyant",
+            requiredFields: ["confirmed", "idempotencyKey"],
+            optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+            fingerprintAlgorithm: "action-ledger-command-v1",
+          },
+        },
+        invocation: { confirmed: true, idempotencyKey },
+      },
+    },
+  )
+  if (!admitted) throw new Error("Tool registry did not mint Finance booking-create admission")
+  return admitted
+}

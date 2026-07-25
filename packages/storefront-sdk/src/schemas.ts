@@ -5,8 +5,6 @@ import {
   publicBookingSessionRepriceResultSchema,
   publicBookingSessionSchema,
   publicBookingSessionStateSchema,
-  publicCheckoutCapabilitySchema,
-  publicCreateBookingSessionSchema,
   publicRepriceBookingSessionSchema,
   publicUpdateBookingSessionSchema,
   publicUpsertBookingSessionStateSchema,
@@ -20,8 +18,6 @@ import {
   previewCheckoutCollectionSchema,
 } from "@voyant-travel/finance/checkout-validation"
 import {
-  storefrontBookingSessionBootstrapInputSchema,
-  storefrontBookingSessionBootstrapSchema,
   storefrontDepartureItineraryQuerySchema,
   storefrontDepartureItinerarySchema,
   storefrontDepartureListQuerySchema,
@@ -72,13 +68,9 @@ export {
   publicBookingSessionRepriceResultSchema,
   publicBookingSessionSchema,
   publicBookingSessionStateSchema,
-  publicCheckoutCapabilitySchema,
-  publicCreateBookingSessionSchema,
   publicRepriceBookingSessionSchema,
   publicUpdateBookingSessionSchema,
   publicUpsertBookingSessionStateSchema,
-  storefrontBookingSessionBootstrapInputSchema,
-  storefrontBookingSessionBootstrapSchema,
   storefrontDepartureItineraryQuerySchema,
   storefrontDepartureItinerarySchema,
   storefrontDepartureListQuerySchema,
@@ -145,15 +137,6 @@ export const publicBookingSessionRepriceResponseSchema = storefrontSingleEnvelop
 export const publicBookingOverviewResponseSchema = storefrontSingleEnvelopeSchema(
   publicBookingOverviewSchema,
 )
-export const bootstrappedBookingSessionSchema = storefrontBookingSessionBootstrapSchema.extend({
-  session: publicBookingSessionSchema.extend({
-    checkoutCapability: publicCheckoutCapabilitySchema,
-  }),
-})
-export const bootstrappedBookingSessionResponseSchema = storefrontSingleEnvelopeSchema(
-  bootstrappedBookingSessionSchema,
-)
-
 export const checkoutCollectionPlanResponseSchema = storefrontSingleEnvelopeSchema(
   checkoutCollectionPlanSchema,
 )
@@ -196,7 +179,6 @@ export type StorefrontPromotionalOfferListQuery = z.input<
 >
 export type StorefrontPromotionalOfferRecord = z.infer<typeof storefrontPromotionalOfferSchema>
 
-export type PublicCreateBookingSessionInput = z.input<typeof publicCreateBookingSessionSchema>
 export type PublicUpdateBookingSessionInput = z.input<typeof publicUpdateBookingSessionSchema>
 export type PublicBookingSessionMutationInput = z.input<typeof publicBookingSessionMutationSchema>
 export type PublicBookingSessionRepriceInput = z.input<typeof publicRepriceBookingSessionSchema>
@@ -212,11 +194,6 @@ export type PublicBookingSessionRepriceResultRecord = z.infer<
   typeof publicBookingSessionRepriceResultSchema
 >
 export type PublicBookingOverviewRecord = z.infer<typeof publicBookingOverviewSchema>
-export type StorefrontBookingSessionBootstrapInput = z.input<
-  typeof storefrontBookingSessionBootstrapInputSchema
->
-export type StorefrontBookingSessionBootstrap = z.infer<typeof bootstrappedBookingSessionSchema>
-export type StorefrontBookingSessionBootstrapRecord = StorefrontBookingSessionBootstrap
 
 export type PreviewCheckoutCollectionInput = z.input<typeof previewCheckoutCollectionSchema>
 export type InitiateCheckoutCollectionInput = z.input<typeof initiateCheckoutCollectionSchema>

@@ -31,9 +31,7 @@ import {
 import {
   ForbiddenApiError,
   handleApiError,
-  idempotencyKey,
   isStaffRbacEnforced,
-  normalizeValidationError,
   openApiValidationHook,
   parseJsonBody,
   parseQuery,
@@ -93,8 +91,6 @@ import {
   cancelBookingSchema,
   completeBookingSchema,
   confirmBookingSchema,
-  convertProductSchema,
-  createBookingSchema,
   createTravelerWithTravelDetailsSchema,
   expireBookingSchema,
   expireStaleBookingsSchema,
@@ -111,7 +107,6 @@ import {
   pricingPreviewSchema,
   publicBookingOverviewSchema,
   recordBookingRedemptionSchema,
-  reserveBookingSchema,
   sharingGroupsForSlotQuerySchema,
   startBookingSchema,
   supplierConfirmationStatusSchema,
@@ -1721,34 +1716,6 @@ const getBookingRoute = createRoute({
   },
 })
 
-const createBookingRoute = createRoute({
-  method: "post",
-  path: "/",
-  request: { body: jsonBody(createBookingSchema, true, "Booking to create (manual/backoffice)") },
-  responses: {
-    201: dataResponse(bookingSchema, "The created booking"),
-    400: {
-      description: "invalid_request — the booking create payload failed validation",
-      content: {
-        "application/json": {
-          schema: z.object({ error: z.string(), details: z.unknown().optional() }),
-        },
-      },
-    },
-  },
-})
-
-const createFromProductRoute = createRoute({
-  method: "post",
-  path: "/from-product",
-  request: { body: jsonBody(convertProductSchema, true, "Product conversion input") },
-  responses: {
-    201: dataResponse(bookingSchema, "The created booking draft"),
-    400: invalidRequestResponse,
-    404: notFoundResponse("Product or option not found"),
-  },
-})
-
 const updateBookingRoute = createRoute({
   method: "patch",
   path: "/{id}",
@@ -1774,13 +1741,6 @@ const deleteBookingRoute = createRoute({
 })
 
 const coreCrudRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-// `createRoute` has no per-method middleware slot, so the idempotency guards
-// are registered via `.use(path, mw)` before the `.openapi()` chain (positional).
-coreCrudRoutes.use("/", idempotencyKey({ scope: "POST /v1/admin/bookings" }))
-coreCrudRoutes.use(
-  "/from-product",
-  idempotencyKey({ scope: "POST /v1/admin/bookings/from-product" }),
-)
 
 coreCrudRoutes
   .openapi(listBookingsRoute, async (c) => {
@@ -1840,53 +1800,6 @@ coreCrudRoutes
     const travelerRows = reveal ? travelers : travelers.map((row) => redactTravelerIdentity(row))
     return c.json({ data: { ...booking, items, travelers: travelerRows, documents } }, 200)
   })
-  .openapi(createFromProductRoute, async (c) => {
-    const data = c.req.valid("json")
-    await validateBookingBillingPartyReferences(c, data)
-    const row = await bookingsService.createBookingFromProduct(c.get("db"), data, c.get("userId"))
-    if (!row) {
-      return c.json({ error: "Product or option not found" }, 404)
-    }
-    return c.json({ data: row }, 201)
-  })
-  .openapi(createBookingRoute, async (c) =>
-    asRouteResponse(
-      (async () => {
-        try {
-          const data = c.req.valid("json")
-          await validateBookingBillingPartyReferences(c, data)
-          const db = c.get("db")
-          const row = getRouteRuntime(c).customFieldsForWrite
-            ? await db.transaction(async (tx) => {
-                await validateBookingCustomFields(c, data, "create", tx)
-                return bookingsService.createBooking(tx, data, c.get("userId"))
-              })
-            : await (async () => {
-                await validateBookingCustomFields(c, data, "create", db)
-                return bookingsService.createBooking(db, data, c.get("userId"))
-              })()
-          return c.json(
-            {
-              data: row,
-            },
-            201,
-          )
-        } catch (error) {
-          const validationError = normalizeValidationError(error)
-          if (validationError?.status === 400) {
-            return c.json(
-              {
-                error: validationError.message,
-                details: validationError.details?.fields ?? validationError.details,
-              },
-              400,
-            )
-          }
-          throw error
-        }
-      })(),
-    ),
-  )
   .openapi(updateBookingRoute, async (c) => {
     const data = c.req.valid("json") ?? {}
     await validateBookingBillingPartyReferences(c, data)
@@ -2137,18 +2050,6 @@ const actionLedgerRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
 // Lifecycle sub-chain
 // ==========================================================================
 
-const reserveRoute = createRoute({
-  method: "post",
-  path: "/reserve",
-  request: { body: jsonBody(reserveBookingSchema, true, "Reservation input") },
-  responses: {
-    201: dataResponse(bookingSchema, "The reserved on-hold booking"),
-    400: invalidRequestResponse,
-    404: notFoundResponse("Availability slot not found"),
-    409: conflictResponse("Slot capacity/availability/mismatch conflict"),
-  },
-})
-
 const expireStaleRoute = createRoute({
   method: "post",
   path: "/expire-stale",
@@ -2298,34 +2199,8 @@ const overrideStatusRoute = createRoute({
 })
 
 const lifecycleRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-lifecycleRoutes.use("/reserve", idempotencyKey({ scope: "POST /v1/admin/bookings/reserve" }))
 
 lifecycleRoutes
-  .openapi(reserveRoute, async (c) =>
-    asRouteResponse(
-      (async () => {
-        const data = c.req.valid("json")
-        await validateBookingBillingPartyReferences(c, data)
-        const result = await bookingsService.reserveBooking(c.get("db"), data, c.get("userId"))
-        if ("booking" in result) {
-          return c.json({ data: result.booking }, 201)
-        }
-        if (result.status === "slot_not_found") {
-          return c.json({ error: "Availability slot not found" }, 404)
-        }
-        if (result.status === "insufficient_capacity") {
-          return c.json({ error: "Insufficient slot capacity" }, 409)
-        }
-        if (result.status === "slot_unavailable") {
-          return c.json({ error: "Availability slot is not bookable" }, 409)
-        }
-        if (result.status === "slot_product_mismatch" || result.status === "slot_option_mismatch") {
-          return c.json({ error: "Reservation item does not match availability slot" }, 409)
-        }
-        return c.json({ error: "Unable to reserve booking" }, 400)
-      })(),
-    ),
-  )
   .openapi(expireStaleRoute, async (c) => {
     return c.json(
       await bookingsService.expireStaleBookings(
@@ -3915,7 +3790,7 @@ const documentsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHoo
 // separate sub-router tried in registration order, so cross-child
 // static-vs-dynamic precedence is NOT auto-resolved. The static single-segment
 // GET routes (`/aggregates`, `/overview`, `/sharing-groups`) and the static
-// POST routes (`/reserve`, `/expire-stale`, `/pricing-preview`) must be matched
+// POST routes (`/expire-stale`, `/pricing-preview`) must be matched
 // before the `coreCrudRoutes` `/{id}` catch-all — so coreCrud is mounted LAST.
 export const bookingRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   .route("/", readsRoutes)

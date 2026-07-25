@@ -1,13 +1,9 @@
-// Mixed workload — 80/15/5 read/quote/write against the public surface.
+// Mixed workload — 85/15 read/quote against the public surface.
 //
-// Reads (80%): catalog list, product detail, departures.
+// Reads (85%): catalog list, product detail, departures.
 // Quotes (15%): POST /v1/public/departures/:id/price (read-only despite POST).
-// Writes (5%): POST /v1/public/bookings/sessions/bootstrap — ONLY when
-// ALLOW_WRITES=1; without it the write share is folded into quotes and the
-// run stays read-only (safe default).
 //
 //   k6 run -e TARGET_URL=https://staging-tenant.example.com scripts/load/mixed.js
-//   k6 run -e TARGET_URL=... -e ALLOW_WRITES=1 scripts/load/mixed.js   # staging only
 //
 // Tunables: -e RATE=50 (rps), -e DURATION=5m
 //
@@ -15,22 +11,13 @@
 //   - http_req_failed rate < 2% (429s expected, tracked via rate_limited)
 //   - reads  (kind:read)  p(95) < 300ms
 //   - quotes (kind:quote) p(95) < 800ms
-//   - writes (kind:write) p(95) < 1500ms
 
 import { check, fail } from "k6"
 import http from "k6/http"
 import { Rate } from "k6/metrics"
 
+import { DEPARTURE_ID, PRODUCT_IDS, PRODUCT_SLUGS, pick, SLOT_ID } from "./lib/config.js"
 import {
-  ALLOW_WRITES,
-  DEPARTURE_ID,
-  PRODUCT_IDS,
-  PRODUCT_SLUGS,
-  pick,
-  SLOT_ID,
-} from "./lib/config.js"
-import {
-  bootstrapSession,
   discoverDeparture,
   discoverProducts,
   getProduct,
@@ -63,7 +50,6 @@ export const options = {
     http_req_failed: ["rate<0.02"],
     "http_req_duration{kind:read}": ["p(95)<300"],
     "http_req_duration{kind:quote}": ["p(95)<800"],
-    "http_req_duration{kind:write}": ["p(95)<1500"],
   },
 }
 
@@ -124,22 +110,11 @@ function doQuote(data) {
   check(res, { "quote ok": (r) => r.status === 200 || r.status === 429 })
 }
 
-function doWrite(data) {
-  const res = bootstrapSession(data.target, { endpoint: "bootstrap", kind: "write" })
-  rateLimited.add(res.status === 429)
-  check(res, {
-    "write 2xx or 429": (r) => (r.status >= 200 && r.status < 300) || r.status === 429,
-  })
-}
-
 export default function (data) {
   const roll = Math.random()
-  if (roll < 0.8) {
+  if (roll < 0.85) {
     doRead(data)
-  } else if (roll < 0.95 || !ALLOW_WRITES) {
-    // Without ALLOW_WRITES=1 the 5% write share folds into quotes.
-    doQuote(data)
   } else {
-    doWrite(data)
+    doQuote(data)
   }
 }

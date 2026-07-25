@@ -67,7 +67,6 @@ export {
 export {
   createStorefrontMessagesProvider,
   createStorefrontPresentationContribution,
-  type StorefrontBookingRouteProps,
   type StorefrontComposerRouteProps,
   type StorefrontPresentationContribution,
   type StorefrontPresentationRuntime,

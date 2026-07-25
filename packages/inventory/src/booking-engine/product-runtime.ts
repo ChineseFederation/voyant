@@ -15,10 +15,7 @@ import {
   pricingCategoryDependencies,
   resolveOptionPriceRulesForDate,
 } from "@voyant-travel/commerce"
-import {
-  createBooking as createFinanceBooking,
-  resolveBookingSellTaxRate,
-} from "@voyant-travel/finance"
+import { resolveBookingSellTaxRate } from "@voyant-travel/finance"
 import { createProductsBookingHandler } from "@voyant-travel/inventory/booking-engine"
 import { productExtras } from "@voyant-travel/inventory/extras"
 import { optionUnits, productOptions } from "@voyant-travel/inventory/schema"
@@ -29,13 +26,11 @@ import {
   releaseAvailabilityHold,
 } from "@voyant-travel/operations"
 import { resolveBookingTaxSettings } from "@voyant-travel/operator-settings"
-import { relationshipsService } from "@voyant-travel/relationships"
 import { and, asc, eq, inArray, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
   deriveTravelerCategory,
   humanizeFieldKey,
-  persistBookingCreateTaxLines,
   typeForFieldKey,
 } from "./product-runtime-support.js"
 
@@ -96,50 +91,6 @@ export function registerProductBookingHandler(
             await releaseAvailabilityHold(db, holdToken)
           })
         },
-      },
-      // Bridge into bookingsCreate. The handler builds the
-      // input shape; the bridge provides the transactional commit.
-      // env is captured by the closure so the bridge can resolve
-      // the per-request DB lazily.
-      async createBooking(input, opts) {
-        // The host owns the per-call database lifecycle.
-        // commit, closes in `finally`. `createFinanceBooking`'s
-        // signature still asks for postgres-js; force-cast here since
-        // the runtime is neon-serverless on Workers and the drizzle
-        // PgDatabase surface is identical across flavors for the
-        // ops we use.
-        return host.withDatabase(async (rawDb) => {
-          const db = asPostgresDb(rawDb)
-          // `input.initialStatus` is plumbed from the booking-engine
-          // commit caller (e.g. trips reserve) so bookings land in
-          // the operator's preferred state — `awaiting_payment` for live
-          // reservations, `draft` when the operator explicitly asks.
-          const outcome = await createFinanceBooking(db, input, opts)
-          if (outcome.status === "ok") {
-            await persistBookingCreateTaxLines(db, outcome.result.booking.id, input.taxLines)
-            return {
-              status: "ok",
-              bookingId: outcome.result.booking.id,
-              bookingNumber: outcome.result.booking.bookingNumber,
-            }
-          }
-          return { status: outcome.status }
-        })
-      },
-      // Resolve (or create) a CRM person from the billing contact when an
-      // anonymous storefront commit for an owned product carries no
-      // person/organization id. Mirrors the sourced/session arm's
-      // `resolveBillingPerson` wiring (framework composition) so both
-      // booking arms link a customer the same way.
-      async resolveBillingPerson(contact, ctx) {
-        return host.withDatabase(async (rawDb) => {
-          const db = asPostgresDb(rawDb)
-          const person = await relationshipsService.upsertPersonFromContact(db, contact, {
-            source: ctx.source,
-            sourceRef: ctx.sourceRef,
-          })
-          return person?.id ?? null
-        })
       },
       async loadTravelerFields(ctx, productId) {
         // Project booking-requirements rows into the engine's

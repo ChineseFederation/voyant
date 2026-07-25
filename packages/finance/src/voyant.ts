@@ -30,8 +30,6 @@ import { financeVoyantAdmin } from "./voyant-admin.js"
 import {
   bookingContractDocumentRequestedPayloadSchema,
   bookingCreatedPayloadSchema,
-  bookingCreateRejectedPayloadSchema,
-  bookingDualCreatedPayloadSchema,
   bookingPaymentSchedulePaidPayloadSchema,
   invoiceDocumentGeneratedPayloadSchema,
   invoiceIssuanceExternalPayloadSchema,
@@ -274,22 +272,6 @@ export const financeVoyantModule = defineModule({
       eventType: "booking.created",
       version: "1.0.0",
       payloadSchema: bookingCreatedPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "finance", category: "domain" },
-    },
-    {
-      id: "@voyant-travel/finance#event.booking.dual-created",
-      eventType: "booking.dual-created",
-      version: "1.0.0",
-      payloadSchema: bookingDualCreatedPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "finance", category: "domain" },
-    },
-    {
-      id: "@voyant-travel/finance#event.booking-create.rejected",
-      eventType: "booking_create.rejected",
-      version: "1.0.0",
-      payloadSchema: bookingCreateRejectedPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "finance", category: "domain" },
     },
@@ -560,19 +542,6 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   id: "@voyant-travel/finance#bookings-create-extension",
   packageName: "@voyant-travel/finance",
   localId: "finance.bookings-create-extension",
-  api: [
-    {
-      id: "@voyant-travel/finance#bookings-create-extension.api",
-      surface: "admin",
-      mount: "bookings",
-      openapi: { document: "bookings" },
-      transactional: true,
-      runtime: {
-        entry: "@voyant-travel/finance",
-        export: "bookingsCreateExtension",
-      },
-    },
-  ],
   tools: [
     {
       id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
@@ -586,21 +555,29 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   actions: [
     {
       id: "@voyant-travel/finance#bookings-create-extension.action.create-booking",
+      capabilityId: "@voyant-travel/finance#bookings-create-extension.action.create-booking",
       version: "v1",
       kind: "execute",
       targetType: "booking",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
+      availability: { status: "available" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "outbox",
+        testReference: "tests/integration/booking-create.test.ts",
+      },
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "finance_booking_create_command",
+        resultReferenceType: "booking",
+        durability: "handler-command-claim-v1",
+      },
       resource: "bookings",
       action: "write",
       requiredScopes: ["bookings:write", "finance:write"],
       risk: "high",
       ledger: "required",
       approval: "never",
-      reversible: true,
+      reversible: false,
       allowedActorTypes: ["staff"],
       from: {
         tools: ["@voyant-travel/finance#bookings-create-extension.tool.create-booking"],

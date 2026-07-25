@@ -49,8 +49,6 @@ export default function ProductDetailDefaultPage({ id }: ProductDetailPageCompon
     () => ({
       toProducts: () => navigateTo("product.list", {}),
       toProduct: (productId) => navigateTo("product.detail", { productId }),
-      toNewBooking: (productId) =>
-        navigateTo("bookingJourney.start", { entityModule: "products", entityId: productId }),
       toAvailability: (slotId) => navigateTo("availabilitySlot.detail", { slotId }),
     }),
     [navigateTo],

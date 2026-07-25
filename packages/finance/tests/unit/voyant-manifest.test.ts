@@ -513,15 +513,6 @@ describe("finance deployment manifest", () => {
       {
         schemaVersion: "voyant.extension.v1",
         id: "@voyant-travel/finance#bookings-create-extension",
-        api: [
-          {
-            id: "@voyant-travel/finance#bookings-create-extension.api",
-            surface: "admin",
-            mount: "bookings",
-            openapi: { document: "bookings" },
-            runtime: { entry: "@voyant-travel/finance", export: "bookingsCreateExtension" },
-          },
-        ],
         tools: [
           expect.objectContaining({
             id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
@@ -532,11 +523,18 @@ describe("finance deployment manifest", () => {
         actions: [
           expect.objectContaining({
             id: "@voyant-travel/finance#bookings-create-extension.action.create-booking",
-            availability: {
-              status: "unavailable",
-              reasonCode: "unsafe-nontransactional-effect",
-            },
+            availability: { status: "available" },
             effectBoundary: "multistage",
+            durability: {
+              strategy: "outbox",
+              testReference: "tests/integration/booking-create.test.ts",
+            },
+            targetLifecycle: "created",
+            createdTarget: {
+              commandTargetType: "finance_booking_create_command",
+              resultReferenceType: "booking",
+              durability: "handler-command-claim-v1",
+            },
             ledger: "required",
           }),
         ],

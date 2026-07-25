@@ -34,7 +34,6 @@ import { insertYachtSchema, updateYachtSchema } from "./validation-yachts.js"
 const OWNER = "@voyant-travel/charters"
 const READ_SCOPES = ["charters:read"] as const
 const WRITE_SCOPES = ["charters:write"] as const
-const BOOKING_SCOPES = ["charters:write", "bookings:write"] as const
 const PUBLIC_AUDIENCE = { source: "grant", allowed: ["staff", "customer"] } as const
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const WRITE_RISK = {
@@ -46,13 +45,6 @@ const WRITE_RISK = {
 const CREATED_WRITE_RISK = {
   ...WRITE_RISK,
   reversible: false,
-} as const
-const COMMIT_RISK = {
-  destructive: false,
-  reversible: false,
-  confirmationRequired: true,
-  dryRunSupported: false,
-  sideEffects: ["data-write", "external-booking"],
 } as const
 const timestampSchema = z.string().datetime()
 const sourceRefSchema = z
@@ -229,61 +221,6 @@ const perSuiteQuoteInputSchema = keyInputSchema.extend({
   currency: currencyCodeSchema,
 })
 const wholeYachtQuoteInputSchema = keyInputSchema.extend({ currency: currencyCodeSchema })
-const guestSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  travelerCategory: z.enum(["adult", "child", "infant", "senior", "other"]).optional().nullable(),
-  preferredLanguage: z.string().optional().nullable(),
-  specialRequests: z.string().optional().nullable(),
-  personId: z.string().optional().nullable(),
-  isPrimary: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
-})
-const contactSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  language: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  region: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  postalCode: z.string().optional().nullable(),
-})
-const createBookingInputSchema = z.discriminatedUnion("mode", [
-  z.object({
-    mode: z.literal("per_suite"),
-    key: z.string().min(1),
-    suiteId: z.string().min(1),
-    currency: currencyCodeSchema,
-    personId: z.string().optional().nullable(),
-    organizationId: z.string().optional().nullable(),
-    contact: contactSchema,
-    guests: z.array(guestSchema).min(1),
-    notes: z.string().optional().nullable(),
-  }),
-  z.object({
-    mode: z.literal("whole_yacht"),
-    key: z.string().min(1),
-    currency: currencyCodeSchema,
-    personId: z.string().optional().nullable(),
-    organizationId: z.string().optional().nullable(),
-    contact: contactSchema,
-    guests: z.array(guestSchema).optional(),
-    notes: z.string().optional().nullable(),
-  }),
-])
-const bookingResultSchema = z.object({
-  bookingId: z.string(),
-  bookingNumber: z.string(),
-  sourceProvider: z.string().nullable(),
-  connectorBookingRef: z.string().nullable(),
-  quote: z.union([perSuiteQuoteSchema, wholeYachtQuoteSchema]),
-})
-
 export type ChartersToolOperation =
   | "browseCharters"
   | "getProduct"
@@ -297,7 +234,6 @@ export type ChartersToolOperation =
   | "updateVoyage"
   | "createYacht"
   | "updateYacht"
-  | "createBooking"
 export interface ChartersToolServices {
   execute(
     operation: ChartersToolOperation,
@@ -512,24 +448,6 @@ export const updateCharterYachtTool = defineTool({
     return parse(yachtRowSchema.nullable(), await service(ctx).execute("updateYacht", input))
   },
 })
-export const createCharterBookingTool = defineTool({
-  owner: OWNER,
-  capabilityVersion: "v1",
-  capabilityId: `${OWNER}#tool.create-charter-booking`,
-  name: "create_charter_booking",
-  description:
-    "Commit a per-suite or whole-yacht booking locally or through the selected charter provider. Requires approval and confirmation.",
-  inputSchema: createBookingInputSchema,
-  outputSchema: bookingResultSchema,
-  requiredScopes: BOOKING_SCOPES,
-  audience: STAFF_AUDIENCE,
-  tier: "write",
-  riskPolicy: COMMIT_RISK,
-  async handler(input, ctx: ChartersToolContext) {
-    return parse(bookingResultSchema, await service(ctx).execute("createBooking", input))
-  },
-})
-
 export const chartersTools = [
   browseChartersTool,
   getCharterProductTool,
@@ -543,7 +461,6 @@ export const chartersTools = [
   updateCharterVoyageTool,
   createCharterYachtTool,
   updateCharterYachtTool,
-  createCharterBookingTool,
 ] as const
 
 function toJsonValue(value: unknown): unknown {

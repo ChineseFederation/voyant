@@ -1,11 +1,16 @@
-import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+import {
+  createToolRegistry,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
-
+import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../src/booking-create-policy.js"
 import { type FinanceToolServices, financeBookingsCreateTools, financeTools } from "../src/tools.js"
 import { financeBookingsCreateVoyantPlugin } from "../src/voyant.js"
 
 function ctx(
   services?: Partial<FinanceToolServices>,
+  handlerActionPolicy?: ToolHandlerActionPolicyContext,
 ): ToolContext & { finance?: FinanceToolServices } {
   return {
     db: {},
@@ -14,6 +19,7 @@ function ctx(
     tenantId: "default",
     resolverScope: { locale: "en-GB", audience: "staff", market: "default", actor: "staff" },
     finance: services as FinanceToolServices | undefined,
+    ...(handlerActionPolicy ? { handlerActionPolicy } : {}),
   }
 }
 
@@ -228,27 +234,9 @@ describe("finance tools", () => {
     ])
     expect(tool.actionPolicyEnforcement).toBe("handler")
     const services = {
-      async createBooking() {
-        return {
-          status: "ok",
-          result: {
-            booking: {
-              id: "booking_1",
-              bookingNumber: "B-1",
-              status: "draft",
-              sellCurrency: "EUR",
-              sellAmountCents: 120000,
-              pax: 2,
-            },
-            travelers: [{ id: "traveler_1" }, { id: "traveler_2" }],
-            paymentSchedules: [],
-            travelCreditRedemption: null,
-            groupMembership: null,
-            invoice: null,
-            invoiceDocument: { status: "not_requested" },
-            payments: [],
-          },
-        } as never
+      async createBooking(_input: unknown, admitted: ToolHandlerActionPolicyContext) {
+        expect(admitted.invocation.idempotencyKey).toBe("booking-create-1")
+        return { bookingId: "booking_1", replayed: false }
       },
     }
     const result = await registry.dispatch(
@@ -272,11 +260,25 @@ describe("finance tools", () => {
           ],
         },
       },
-      ctx(services),
+      ctx(services, {
+        capabilityId: FINANCE_BOOKING_CREATE_HANDLER_POLICY.capabilityId,
+        capabilityVersion: FINANCE_BOOKING_CREATE_HANDLER_POLICY.capabilityVersion,
+        canonicalName: "create_booking",
+        actionPolicy: {
+          ...FINANCE_BOOKING_CREATE_HANDLER_POLICY.actionPolicy,
+          enforcement: "handler",
+          invocation: {
+            requiredFields: ["confirmed", "idempotencyKey"],
+            optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          },
+        },
+        invocation: { confirmed: true, idempotencyKey: "booking-create-1" },
+      }),
     )
     expect(result).toMatchObject({
       status: "created",
-      booking: { id: "booking_1", bookingNumber: "B-1" },
+      bookingId: "booking_1",
+      replayed: false,
     })
   })
 

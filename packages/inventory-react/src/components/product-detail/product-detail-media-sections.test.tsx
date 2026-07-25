@@ -37,7 +37,6 @@ function renderWithProductDetailHost(children: React.ReactNode) {
           navigate: {
             toProducts: () => undefined,
             toProduct: () => undefined,
-            toNewBooking: () => undefined,
             toAvailability: () => undefined,
           },
         }}

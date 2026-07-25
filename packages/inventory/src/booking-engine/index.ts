@@ -7,12 +7,7 @@
 
 export {
   type AvailabilityHoldBridge,
-  type BookingCreateBridge,
-  type BookingCreateBridgeInput,
-  type BookingCreateBridgeResult,
   buildOwnedProductDraftShape,
   type CreateProductsBookingHandlerOptions,
   createProductsBookingHandler,
-  type OwnedBillingContact,
-  type ResolveOwnedBillingPerson,
 } from "./handler.js"

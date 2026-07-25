@@ -186,9 +186,7 @@ describe("startCatalogCheckout", () => {
     expect(checkoutInquiry.createInquiry).not.toHaveBeenCalled()
   })
 
-  it("throws booking_not_found when no booking + no snapshot materializes", async () => {
-    // No booking row, and the snapshot lookup (dynamic import of catalog)
-    // returns nothing → materializeBookingFromSnapshot yields null.
+  it("throws booking_not_found when the booking does not exist", async () => {
     const db = stubDb([])
     const err = await startCatalogCheckout(
       { db, env: {}, options: stubOptions() },
@@ -198,7 +196,7 @@ describe("startCatalogCheckout", () => {
     expect(err).toMatchObject({ code: "booking_not_found", status: 404 })
   })
 
-  it("rejects bank-transfer checkout before materializing a snapshot booking when no proforma series is active", async () => {
+  it("rejects bank-transfer checkout when the booking does not exist", async () => {
     const { db, calls } = queuedDb([[], [{ id: "snap_1" }], []])
 
     const err = await startCatalogCheckout(
@@ -208,8 +206,8 @@ describe("startCatalogCheckout", () => {
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
     expect(err).toMatchObject({
-      code: "bank_transfer_proforma_number_series_missing",
-      status: 422,
+      code: "booking_not_found",
+      status: 404,
     })
     expect(calls.inserts).toBe(0)
     expect(calls.updates).toBe(0)

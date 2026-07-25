@@ -10,7 +10,11 @@ import {
 import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
-import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import {
+  createToolRegistry,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
@@ -29,7 +33,11 @@ import {
   NOTIFICATION_SEND_DEAD_LETTERED_EVENT,
   NOTIFICATION_SEND_REQUESTED_EVENT,
 } from "../../src/service-durable-send.js"
-import { SEND_NOTIFICATION_HANDLER_POLICY } from "../../src/tools.js"
+import {
+  type NotificationsToolServices,
+  SEND_NOTIFICATION_HANDLER_POLICY,
+  sendNotificationTool,
+} from "../../src/tools.js"
 import type {
   DurableNotificationDeliveryContext,
   NotificationPayload,
@@ -70,16 +78,8 @@ describe.skipIf(!DB_AVAILABLE)("durable notification sends", () => {
 
   it("admits and exactly replays the template-only v2 Tool command", async () => {
     const command = await approvedToolCommand(`tool-${randomUUID()}`)
-    const first = await executeDurableNotificationSendCommand({
-      ...command,
-      db,
-      dispatcher: createNotificationService([provider]),
-    })
-    const replay = await executeDurableNotificationSendCommand({
-      ...command,
-      db,
-      dispatcher: createNotificationService([provider]),
-    })
+    const first = await executeToolCommand(command)
+    const replay = await executeToolCommand(command)
     expect(first.value).toMatchObject({
       templateSlug: "agent-booking-confirmed",
       status: "pending",
@@ -469,6 +469,41 @@ describe.skipIf(!DB_AVAILABLE)("durable notification sends", () => {
       registry: createNotificationService([provider]),
       input: { ...command.input, idempotencyKey: command.idempotencyKey },
     })
+  }
+
+  async function executeToolCommand(command: Awaited<ReturnType<typeof approvedToolCommand>>) {
+    const registry = createToolRegistry()
+    registry.register(sendNotificationTool, {
+      actionPolicy: SEND_NOTIFICATION_HANDLER_POLICY.actionPolicy,
+    })
+    let execution: Awaited<ReturnType<typeof executeDurableNotificationSendCommand>> | undefined
+    await registry.dispatch(sendNotificationTool.name, command.input, {
+      db,
+      actor: command.context.actor,
+      audience: command.context.actor,
+      tenantId: command.context.organizationId,
+      organizationId: command.context.organizationId,
+      resolverScope: {
+        locale: "en-GB",
+        audience: command.context.actor,
+        market: "default",
+        actor: command.context.actor,
+      },
+      handlerActionPolicy: command.admitted,
+      notifications: {
+        async sendTemplated(_input, admitted) {
+          execution = await executeDurableNotificationSendCommand({
+            ...command,
+            db,
+            admitted,
+            dispatcher: createNotificationService([provider]),
+          })
+          return execution.value
+        },
+      } as NotificationsToolServices,
+    } satisfies ToolContext & { notifications: NotificationsToolServices })
+    if (!execution) throw new Error("Notification Tool did not execute its durable command service")
+    return execution
   }
 
   function workerNow(offsetMs = 0) {

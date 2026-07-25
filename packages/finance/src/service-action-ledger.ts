@@ -1,6 +1,5 @@
 export * from "./service-action-ledger-accounting.js"
 export * from "./service-action-ledger-booking-payments.js"
-export * from "./service-action-ledger-bookings.js"
 export * from "./service-action-ledger-payment-authorizations.js"
 export * from "./service-action-ledger-payment-sessions.js"
 export * from "./service-action-ledger-supplier-payments.js"

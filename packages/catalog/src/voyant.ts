@@ -386,7 +386,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
       surface: "admin",
       mount: "catalog",
       openapi: { document: "catalog-booking" },
-      transactional: ["/book", "/holds", "/orders", "/quote", "/quotes/batch"],
+      transactional: ["/holds", "/orders", "/quote", "/quotes/batch"],
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogBookingVoyantRuntime",
@@ -397,7 +397,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
       surface: "public",
       mount: "catalog",
       openapi: { document: "catalog-booking" },
-      transactional: ["/book", "/holds", "/quote", "/quotes/batch"],
+      transactional: ["/holds", "/quote", "/quotes/batch"],
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogBookingVoyantRuntime",
@@ -415,17 +415,6 @@ export const catalogBookingEngineVoyantModule = defineModule({
       requiredScopes: ["catalog:quote"],
       context: ["catalogBooking"],
       risk: "medium",
-    },
-    {
-      id: "@voyant-travel/catalog#booking-engine#tool.commit-catalog-booking",
-      name: "commit_catalog_booking",
-      runtime: {
-        entry: "@voyant-travel/catalog/tools",
-        export: "commitCatalogBookingTool",
-      },
-      requiredScopes: ["catalog:read", "bookings:write"],
-      context: ["catalogBooking"],
-      risk: "critical",
     },
     {
       id: "@voyant-travel/catalog#booking-engine#tool.list-catalog-orders",
@@ -485,27 +474,6 @@ export const catalogBookingEngineVoyantModule = defineModule({
       reversible: true,
       from: {
         tools: ["@voyant-travel/catalog#booking-engine#tool.quote-catalog-entity"],
-      },
-    },
-    {
-      id: "@voyant-travel/catalog#booking-engine#action.commit-catalog-booking",
-      version: "v1",
-      kind: "execute",
-      targetType: "booking",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      resource: "bookings",
-      action: "write",
-      requiredScopes: ["catalog:read", "bookings:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      reversible: false,
-      from: {
-        tools: ["@voyant-travel/catalog#booking-engine#tool.commit-catalog-booking"],
       },
     },
   ],

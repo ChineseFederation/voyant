@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { bookingsUiEn } from "../../src/i18n/en.js"
 import {
-  buildCommitParty,
-  buildCommitPaymentIntent,
   canAdvanceFromStep,
   defaultMinimalShape,
   stackedStepComplete,
@@ -102,28 +100,7 @@ describe("booking-journey-rules", () => {
     )
   })
 
-  it("does not commit a stale organization id for an individual buyer", () => {
-    const draft = patchBilling(emptyDraft(ENTITY, { buyerType: "B2C" }), {
-      organizationId: "org_stale",
-      contact: {
-        firstName: "Test",
-        lastName: "Traveler",
-        email: "test@example.com",
-        personId: "person_1",
-      },
-    })
-
-    expect(buildCommitParty(draft)).toMatchObject({
-      personId: "person_1",
-      organizationId: undefined,
-      billing: {
-        personId: "person_1",
-        organizationId: undefined,
-      },
-    })
-  })
-
-  it("allows B2B organization-only billing and commits the company as the contact display name", () => {
+  it("allows B2B organization-only billing", () => {
     const shape = defaultMinimalShape()
     const draft = patchConfigure(
       patchBilling(emptyDraft(ENTITY, { buyerType: "B2B" }), {
@@ -141,31 +118,6 @@ describe("booking-journey-rules", () => {
     )
 
     expect(canAdvanceFromStep("billing", draft, shape, true)).toBe(true)
-    expect(buildCommitParty(draft)).toMatchObject({
-      personId: undefined,
-      organizationId: "org_1",
-      billing: {
-        personId: undefined,
-        organizationId: "org_1",
-        contact: {
-          firstName: "Acme Travel SRL",
-          lastName: "",
-          email: "",
-          phone: undefined,
-        },
-      },
-    })
-  })
-
-  it("builds only supported in-process commit payment intents", () => {
-    expect(buildCommitPaymentIntent(emptyDraft(ENTITY))).toEqual({ type: "hold" })
-
-    expect(() =>
-      buildCommitPaymentIntent({
-        ...emptyDraft(ENTITY),
-        payment: { intent: "card" },
-      }),
-    ).toThrow("Unsupported booking payment intent: card")
   })
 
   it("blocks payment advancement when an already-paid row has no payment date", () => {

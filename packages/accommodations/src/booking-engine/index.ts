@@ -6,9 +6,6 @@
  */
 
 export {
-  type AccommodationCommitBridge,
-  type AccommodationCommitBridgeInput,
-  type AccommodationCommitBridgeResult,
   type AccommodationContentLoader,
   type CreateAccommodationBookingHandlerOptions,
   createAccommodationBookingHandler,

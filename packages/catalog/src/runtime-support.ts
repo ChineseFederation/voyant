@@ -7,15 +7,8 @@ import type {
   IndexerSlice,
   SearchFilter,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
-import type { PackageOffer } from "@voyant-travel/connect-sdk"
 import type { SourceAdapterContext } from "./adapter/contract.js"
-import type {
-  BookEntityResult,
-  CatalogBookingBookBody,
-  CatalogBookingPrepareBookParametersInput,
-  QuoteEntityResult,
-  SourceAdapterRegistry,
-} from "./booking-engine/index.js"
+import type { QuoteEntityResult, SourceAdapterRegistry } from "./booking-engine/index.js"
 import type {
   CatalogBookingSnapshotExecutionContext,
   CatalogBookingSnapshotRuntime,
@@ -330,12 +323,6 @@ function narrowContentAudience(audience: string | undefined): Visibility {
   return CONTENT_AUDIENCES.has(audience as Visibility) ? (audience as Visibility) : "customer"
 }
 
-export interface SourcedBookingRowValues {
-  booking: Record<string, unknown>
-  item: Record<string, unknown>
-  activity: Record<string, unknown>
-}
-
 export function createCatalogProjectionRuntimeAdapter<TBindings, TDb>(options: {
   bindings: TBindings
   withDb<R>(bindings: TBindings, operation: (db: TDb) => Promise<R>): Promise<R>
@@ -408,146 +395,6 @@ export function createCatalogBookingSnapshotRuntimeAdapter<TBindings, TDb>(optio
   }
 }
 
-export function buildSourcedBookingRowValues(input: {
-  request: CatalogBookingBookBody
-  result: BookEntityResult
-  snapshot: {
-    id: string
-    entity_module: string
-    entity_id: string
-    source_kind: string
-    source_connection_id: string | null
-    source_ref: string | null
-    frozen_payload: unknown
-    pricing_currency: string | null
-  }
-  actorId: string
-  bookingItemId: string
-  bookingNumber: string
-}): SourcedBookingRowValues {
-  const party = asRecord(input.request.party)
-  const billing = asRecord(party?.billing)
-  const contact = asRecord(billing?.contact)
-  const draft = asRecord(asRecord(input.request.parameters)?.draft)
-  const configure = asRecord(draft?.configure)
-  const range = asRecord(configure?.dateRange)
-  const currency = input.result.pricing?.currency ?? input.snapshot.pricing_currency ?? "EUR"
-  const total = input.result.pricing
-    ? Math.round(
-        input.result.pricing.base_amount +
-          input.result.pricing.taxes +
-          input.result.pricing.fees +
-          input.result.pricing.surcharges,
-      )
-    : null
-  const startDate = dateString(configure?.departureDate) ?? dateString(range?.checkIn) ?? null
-  const endDate = dateString(range?.checkOut) ?? startDate
-  const status = input.result.status === "held" ? "on_hold" : "confirmed"
-  const title = sourcedBookingTitle(input.snapshot.frozen_payload, input.snapshot.entity_id)
-  return {
-    booking: {
-      id: input.result.bookingId,
-      bookingNumber: input.bookingNumber,
-      status,
-      personId: stringValue(party?.personId) ?? stringValue(billing?.personId) ?? null,
-      organizationId:
-        stringValue(party?.organizationId) ?? stringValue(billing?.organizationId) ?? null,
-      sourceType: "api_partner",
-      externalBookingRef: input.result.orderRef,
-      contactFirstName: stringValue(contact?.firstName) ?? null,
-      contactLastName: stringValue(contact?.lastName) ?? null,
-      contactEmail: stringValue(contact?.email) ?? null,
-      contactPhone: stringValue(contact?.phone) ?? null,
-      sellCurrency: currency,
-      sellAmountCents: total,
-      startDate,
-      endDate,
-      pax: totalPax(draft),
-      internalNotes: `Sourced booking committed via ${input.snapshot.source_kind}. Snapshot: ${input.snapshot.id}`,
-    },
-    item: {
-      id: input.bookingItemId,
-      bookingId: input.result.bookingId,
-      title,
-      itemType: "unit",
-      status,
-      serviceDate: startDate,
-      quantity: 1,
-      sellCurrency: currency,
-      unitSellAmountCents: total,
-      totalSellAmountCents: total,
-      productId: input.snapshot.entity_module === "products" ? input.snapshot.entity_id : null,
-      sourceSnapshotId: input.snapshot.id,
-      sourceOfferId: input.snapshot.source_ref,
-      productNameSnapshot: title,
-      metadata: {
-        entityModule: input.snapshot.entity_module,
-        entityId: input.snapshot.entity_id,
-        sourceKind: input.snapshot.source_kind,
-        sourceConnectionId: input.snapshot.source_connection_id,
-        upstreamRef: input.result.orderRef,
-      },
-    },
-    activity: {
-      bookingId: input.result.bookingId,
-      actorId: input.actorId,
-      activityType: "booking_created",
-      description: `Booking ${input.bookingNumber} created from sourced catalog order ${input.result.orderRef}`,
-      metadata: {
-        sourceKind: input.snapshot.source_kind,
-        snapshotId: input.snapshot.id,
-        orderRef: input.result.orderRef,
-      },
-    },
-  }
-}
-
-export function createCatalogPackageHoldPreparer(options: {
-  lock(input: {
-    context: unknown
-    connectionId: string
-    offer: PackageOffer
-  }): Promise<string | null>
-}) {
-  return async ({
-    c,
-    parameters,
-    provenance,
-    quote,
-  }: CatalogBookingPrepareBookParametersInput): Promise<Record<string, unknown>> => {
-    if (parameters.connectRoute !== "packages" || stringValue(parameters.holdId)) return parameters
-    if (provenance.sourceKind !== "voyant-connect" || !provenance.sourceConnectionId) {
-      return parameters
-    }
-    const payload = asRecord(quote?.upstream_payload)
-    const offer = asRecord(payload?.offer) ?? payload
-    if (!isPackageOffer(offer)) return parameters
-    const holdId = await options.lock({
-      context: c,
-      connectionId: provenance.sourceConnectionId,
-      offer,
-    })
-    return holdId ? { ...parameters, holdId } : parameters
-  }
-}
-
-function isPackageOffer(
-  offer: Record<string, unknown> | undefined,
-): offer is Record<string, unknown> & PackageOffer {
-  return Boolean(
-    offer &&
-      stringValue(offer.id) &&
-      stringValue(offer.connectionId) &&
-      stringValue(offer.supplierId) &&
-      asRecord(offer.productRef) &&
-      asRecord(offer.stay) &&
-      Array.isArray(offer.flights) &&
-      asRecord(offer.pricing) &&
-      asRecord(offer.cancellationPolicy) &&
-      stringValue(offer.expiresAt),
-  )
-}
-
 export async function resolveCatalogHoldTtlMs(options: {
   entityModule: string
   entityId: string
@@ -570,10 +417,6 @@ export async function resolveCatalogHoldTtlMs(options: {
 
 function positiveMinutes(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null
-}
-
-export function createSourcedBookingNumber(now = Date.now(), random = Math.random()): string {
-  return `SRC-${now.toString(36).toUpperCase()}-${random.toString(36).slice(2, 6).toUpperCase()}`
 }
 
 export interface CatalogQuoteTaxLine {
@@ -650,42 +493,4 @@ export async function applyCatalogTaxToQuoteResult(input: {
   }
   await input.persistPricing(input.result.quoteId, adjusted)
   return { ...input.result, pricing: adjusted }
-}
-
-function totalPax(draft: Record<string, unknown> | undefined): number | null {
-  const pax = asRecord(asRecord(draft?.configure)?.pax)
-  if (!pax) return null
-  const total = Object.values(pax).reduce<number>(
-    (sum, value) => sum + (typeof value === "number" && Number.isFinite(value) ? value : 0),
-    0,
-  )
-  return total > 0 ? total : null
-}
-
-function sourcedBookingTitle(payloadValue: unknown, fallback: string): string {
-  const payload = asRecord(payloadValue)
-  const content = asRecord(payload?.content)
-  return (
-    stringValue(asRecord(content?.product)?.name) ??
-    stringValue(asRecord(content?.hotel)?.name) ??
-    stringValue(asRecord(content?.cruise)?.name) ??
-    stringValue(payload?.name) ??
-    fallback
-  )
-}
-
-function dateString(value: unknown): string | null {
-  if (typeof value !== "string") return null
-  const trimmed = value.trim()
-  return /^\d{4}-\d{2}-\d{2}/.test(trimmed) ? trimmed.slice(0, 10) : null
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
 }

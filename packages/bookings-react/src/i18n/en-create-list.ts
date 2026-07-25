@@ -173,7 +173,6 @@ export const bookingsUiEnCreateList = {
   },
   bookingList: {
     searchPlaceholder: "Search bookings…",
-    newBooking: "New booking",
     columns: {
       bookingNumber: "Booking #",
       whatBooked: "Items",

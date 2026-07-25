@@ -86,7 +86,7 @@ describe("createToolRegistry", () => {
     expect(registry.getByCapabilityId("@voyant-travel/test#tool.echo", "v3")).toBeUndefined()
   })
 
-  it("passes request-scoped handler action policy without retaining it in later calls", async () => {
+  it("strips handler action policy from generic tools without retaining it in later calls", async () => {
     const registry = createToolRegistry()
     const seen: Array<ToolContext["handlerActionPolicy"]> = []
     registry.register(
@@ -130,11 +130,11 @@ describe("createToolRegistry", () => {
 
     await expect(
       registry.dispatch("handler_context", {}, { ...ctx, handlerActionPolicy }),
-    ).resolves.toEqual({ approvalId: "appr_1" })
+    ).resolves.toEqual({ approvalId: null })
     await expect(registry.dispatch("handler_context", {}, ctx)).resolves.toEqual({
       approvalId: null,
     })
-    expect(seen).toEqual([handlerActionPolicy, undefined])
+    expect(seen).toEqual([undefined, undefined])
     expect(ctx.handlerActionPolicy).toBeUndefined()
   })
 
@@ -173,6 +173,33 @@ describe("createToolRegistry", () => {
     )
     await expect(registry.dispatch("bad", {}, ctx)).rejects.toMatchObject({
       code: "INVALID_OUTPUT",
+    })
+  })
+
+  it("preserves the provider cause when normalizing handler failures", async () => {
+    const cause = Object.assign(new Error("conflicting provider command"), {
+      name: "ProviderIdempotencyConflictError",
+      existingActionId: "act_1",
+    })
+    const registry = createToolRegistry()
+    registry.register(
+      defineTool({
+        name: "provider_failure",
+        description: "Throws a provider-owned error.",
+        inputSchema: z.object({}),
+        outputSchema: z.object({}),
+        requiredScopes: ["catalog:read"],
+        tier: "read",
+        riskPolicy: READ_ONLY_RISK,
+        async handler() {
+          throw cause
+        },
+      }),
+    )
+
+    await expect(registry.dispatch("provider_failure", {}, ctx)).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause,
     })
   })
 

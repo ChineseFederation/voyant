@@ -10,7 +10,6 @@ import {
   insertBookingAllocationSchema,
   insertBookingFulfillmentSchema,
   recordBookingRedemptionSchema,
-  reserveBookingSchema,
   updateBookingAllocationSchema,
   updateBookingFulfillmentSchema,
 } from "../../src/validation.js"
@@ -24,38 +23,6 @@ describe("Reservation schemas", () => {
     })
 
     expect(result.pax).toBe(3)
-  })
-
-  it("parses reserve booking input with policy-resolved hold minutes", () => {
-    const result = reserveBookingSchema.parse({
-      bookingNumber: "BK-RES-001",
-      sellCurrency: "USD",
-      items: [
-        {
-          title: "Adult ticket",
-          availabilitySlotId: "avs_123",
-          sourceSnapshotId: "sels_123",
-          sourceOfferId: "ofr_123",
-        },
-      ],
-    })
-
-    expect(result.holdMinutes).toBeUndefined()
-    expect(result.sourceType).toBe("manual")
-    expect(result.items[0]?.itemType).toBe("unit")
-    expect(result.items[0]?.allocationType).toBe("unit")
-    expect(result.items[0]?.sourceSnapshotId).toBe("sels_123")
-    expect(result.items[0]?.sourceOfferId).toBe("ofr_123")
-  })
-
-  it("requires at least one reservation item", () => {
-    expect(() =>
-      reserveBookingSchema.parse({
-        bookingNumber: "BK-RES-001",
-        sellCurrency: "USD",
-        items: [],
-      }),
-    ).toThrow()
   })
 
   it("requires a hold extension value", () => {

@@ -36,7 +36,6 @@
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
-    "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/charters-contracts": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",

@@ -129,7 +129,6 @@ for (const [source, required] of [
   [
     movedRuntimeFactories[4],
     [
-      "materializeSourcedBookingForCatalogCommit",
       "applyOperatorTaxToQuoteResult",
       "inventory.getProductContent",
       "operations.listAvailabilitySlots",

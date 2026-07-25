@@ -8,7 +8,6 @@ describe("standard booking action-ledger authority", () => {
   it("keeps the manifest in parity with the canonical request registry", () => {
     const actions = bookingsVoyantModule.actions ?? []
     expect(actions.map(({ id, capabilityId }) => ({ id, capabilityId }))).toEqual([
-      { id: "booking.reserve", capabilityId: "bookings:reserve" },
       { id: "booking.pii.read", capabilityId: "bookings-pii:read" },
       { id: "booking.status.confirm", capabilityId: "bookings:status:confirm" },
       { id: "booking.status.expire", capabilityId: "bookings:status:expire" },

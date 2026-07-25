@@ -1,7 +1,10 @@
 // agent-quality: file-size exception -- owner: action-ledger; durable command admission, replay validation, and canonical completion share one exact state machine.
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { dbSupportsTransactions } from "@voyant-travel/db/transaction-capability"
-import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import {
+  assertAuthenticHandlerActionPolicyContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { and, eq, sql } from "drizzle-orm"
 
 import type {
@@ -96,6 +99,7 @@ export class ActionLedgerCreatedCommandProtocolError extends Error {
     | "invalid_command_payload"
     | "claim_changed_during_mutation"
     | "result_created_during_mutation"
+    | "invalid_mutation_lease"
 
   readonly field?: keyof ActionLedgerEntry
 
@@ -215,8 +219,65 @@ export interface CreatedTargetCommandMutation<TValue> {
   payloads?: AppendActionLedgerEntryInput["payloads"]
 }
 
+export interface CreatedTargetMutationLease {
+  readonly claimActionId: string
+}
+
+export interface CreatedTargetMutationLeaseIdentity {
+  actionName: string
+  actionVersion: string
+  commandTarget: { type: string; id: string }
+  canonicalTargetType: string
+  resultReferenceType: string
+}
+
+class CreatedTargetMutationLeaseImpl implements CreatedTargetMutationLease {
+  readonly #tx: AnyDrizzleDb
+  readonly #identity: CreatedTargetMutationLeaseIdentity
+  #consumed = false
+
+  constructor(
+    tx: AnyDrizzleDb,
+    readonly claimActionId: string,
+    identity: CreatedTargetMutationLeaseIdentity,
+  ) {
+    this.#tx = tx
+    this.#identity = identity
+  }
+
+  consume(tx: AnyDrizzleDb, expected: CreatedTargetMutationLeaseIdentity): boolean {
+    if (
+      this.#consumed ||
+      this.#tx !== tx ||
+      this.#identity.actionName !== expected.actionName ||
+      this.#identity.actionVersion !== expected.actionVersion ||
+      this.#identity.commandTarget.type !== expected.commandTarget.type ||
+      this.#identity.commandTarget.id !== expected.commandTarget.id ||
+      this.#identity.canonicalTargetType !== expected.canonicalTargetType ||
+      this.#identity.resultReferenceType !== expected.resultReferenceType
+    ) {
+      return false
+    }
+    this.#consumed = true
+    return true
+  }
+}
+
+export function consumeCreatedTargetMutationLease(
+  value: unknown,
+  tx: AnyDrizzleDb,
+  expected: CreatedTargetMutationLeaseIdentity,
+): asserts value is CreatedTargetMutationLease {
+  if (!(value instanceof CreatedTargetMutationLeaseImpl) || !value.consume(tx, expected)) {
+    throw new ActionLedgerCreatedCommandProtocolError("invalid_mutation_lease")
+  }
+}
+
 export interface ExecuteCreatedTargetCommandHandlers<TValue, TReferenceType extends string> {
-  create: (tx: AnyDrizzleDb) => Promise<CreatedTargetCommandMutation<TValue>>
+  create: (
+    tx: AnyDrizzleDb,
+    lease: CreatedTargetMutationLease,
+  ) => Promise<CreatedTargetCommandMutation<TValue>>
   replay: (
     tx: AnyDrizzleDb,
     result: CreatedTargetCommandResultMetadata<TReferenceType>,
@@ -345,6 +406,7 @@ export async function executeAdmittedCreatedTargetCommand<TValue, TReferenceType
   input: ExecuteAdmittedCreatedTargetCommandInput<TReferenceType>,
   handlers: ExecuteCreatedTargetCommandHandlers<TValue, TReferenceType>,
 ): Promise<ExecuteCreatedTargetCommandResult<TValue, TReferenceType>> {
+  assertAuthenticHandlerActionPolicyContext(input.admitted)
   const principal = mapActionLedgerRequestContext(input.context)
   const selected = input.admitted.actionPolicy
   const createdTarget = selected.createdTarget
@@ -417,6 +479,7 @@ export async function executeAdmittedExistingTargetCommand<TValue, TCommandPaylo
   input: ExecuteAdmittedExistingTargetCommandInput<TCommandPayload>,
   handlers: ExecuteAdmittedExistingTargetCommandHandlers<TValue, TCommandPayload>,
 ): Promise<ExecuteAdmittedExistingTargetCommandResult<TValue>> {
+  assertAuthenticHandlerActionPolicyContext(input.admitted)
   const payload = freezeCommandPayload(input.commandInput)
   const principal = mapActionLedgerRequestContext(input.context)
   if (principal.principalId === "unknown_request") {
@@ -792,7 +855,16 @@ export async function executeCreatedTargetCommand<TValue, TReferenceType extends
     }
     const inserted = await insertEntry(tx, expectedClaim)
     const state = toState(inserted.entry, { ...prepared, expectedClaim })
-    const mutation = await handlers.create(tx)
+    const mutation = await handlers.create(
+      tx,
+      new CreatedTargetMutationLeaseImpl(tx, inserted.entry.id, {
+        actionName: input.actionName,
+        actionVersion: input.actionVersion,
+        commandTarget: input.commandTarget,
+        canonicalTargetType: input.canonicalTargetType,
+        resultReferenceType: input.resultReferenceType,
+      }),
+    )
     await assertCurrentClaim(tx, state)
     if (await findResultEntry(tx, state)) {
       throw new ActionLedgerCreatedCommandProtocolError("result_created_during_mutation")

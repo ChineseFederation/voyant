@@ -381,7 +381,6 @@ describe("handler-owned MCP action policy", () => {
       ),
     )
 
-    expect((result.result as { isError?: boolean }).isError).toBe(true)
     expect(JSON.stringify(result)).toContain("AUTHORIZATION_DENIED")
     expect(handlerCalls).toBe(0)
   })

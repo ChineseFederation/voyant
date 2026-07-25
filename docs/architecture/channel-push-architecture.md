@@ -406,10 +406,14 @@ The catalog plane stays neutral: it owns the inbound `SourceAdapter` contract an
 
 ## 8. The owned-arm + channel push interaction
 
-In the booking journey's `OwnedBookingHandler.commit` (per `booking-journey-architecture.md` §6), the commit is atomic against the local DB (booking + travelers + payment schedules + snapshot). **Channel push runs AFTER commit, asynchronously, via the event subscriber.** The booking is durable locally even if channel push fails; ops gets a notification and can retry or compensate manually.
+The admitted Finance booking-create command settles atomically through the
+lease-gated Bookings domain path. **Channel push runs after settlement,
+asynchronously, via the event subscriber.** The booking is durable locally even
+if channel push fails; ops gets a notification and can retry or compensate
+manually.
 
 This is the right separation:
-- **Synchronous (commit):** local booking row, snapshot, voucher redemption, group membership. All-or-nothing within one transaction.
+- **Synchronous (settlement):** local booking row and its required children. All-or-nothing within the authorized transaction.
 - **Asynchronous (post-commit):** channel push, notifications, webhook delivery, document generation. Eventually-consistent, retryable, independently failing.
 
 For sourced bookings (where the upstream IS the source of truth), the engine's existing `adapter.reserve` path does the equivalent — the upstream commit is part of the synchronous flow, and there's no separate channel push because the source IS the channel. Owned bookings need channel push as a separate post-commit concern; sourced bookings don't.

@@ -4,6 +4,7 @@ import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import { identityAddresses } from "@voyant-travel/identity"
 import { insertAddressForEntitySchema } from "@voyant-travel/identity/validation"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -17,6 +18,7 @@ import {
   organizationCreatedEventId,
 } from "../../src/organization-created-command.js"
 import { organizations } from "../../src/schema.js"
+import { createOrganizationTool, type RelationshipsToolServices } from "../../src/tools.js"
 import { insertOrganizationSchema } from "../../src/validation.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -51,7 +53,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
       domainInserted = resolve
     })
 
-    const firstPromise = executeOrganizationCreateCommand({
+    const firstPromise = executeCommand({
       ...command,
       testHooks: {
         async afterDomainCreate() {
@@ -62,7 +64,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
     })
     await inserted
     let secondSettled = false
-    const secondPromise = executeOrganizationCreateCommand(command).finally(() => {
+    const secondPromise = executeCommand(command).finally(() => {
       secondSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -73,17 +75,26 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
     expect(first.replayed).toBe(false)
     expect(concurrentReplay).toMatchObject({ replayed: true, value: first.value })
 
-    const exactReplay = await executeOrganizationCreateCommand(command)
+    const exactReplay = await executeCommand(command)
     expect(exactReplay).toMatchObject({ replayed: true, value: first.value })
     await expect(
-      executeOrganizationCreateCommand({
+      executeCommand({
         ...command,
         commandInput: {
           ...command.commandInput,
           organization: { ...command.commandInput.organization, name: "Drifted organization" },
         },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      message: expect.stringContaining(
+        "Action ledger idempotency key was reused with a different fingerprint",
+      ),
+      cause: {
+        name: "ActionLedgerIdempotencyConflictError",
+        existingActionId: expect.any(String),
+      },
+    })
 
     const organizationRows = await db.select().from(organizations)
     expect(organizationRows).toHaveLength(1)
@@ -134,13 +145,13 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
 
   it("keeps identical cross-principal commands and lifecycle events distinct", async () => {
     const idempotencyKey = "organization-create-cross-principal"
-    const first = await executeOrganizationCreateCommand(
+    const first = await executeCommand(
       organizationCommand(idempotencyKey, {
         userId: "user_1",
         organizationId: "tenant_1",
       }),
     )
-    const second = await executeOrganizationCreateCommand(
+    const second = await executeCommand(
       organizationCommand(idempotencyKey, {
         userId: "user_2",
         organizationId: "tenant_2",
@@ -167,7 +178,7 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
       name: "Rollback organization",
     })
     await expect(
-      executeOrganizationCreateCommand({
+      executeCommand({
         ...command,
         testHooks: {
           async afterDomainCreate() {
@@ -232,5 +243,51 @@ describe.skipIf(!DB_AVAILABLE)("Relationships organization created-target comman
         invocation: { idempotencyKey },
       },
     }
+  }
+
+  async function executeCommand(command: ReturnType<typeof organizationCommand>) {
+    const registry = createToolRegistry()
+    registry.register(createOrganizationTool, {
+      actionPolicy: RELATIONSHIPS_ORGANIZATION_HANDLER_ACTION_POLICY.actionPolicy,
+    })
+    const result = await registry.dispatch<{
+      status: "created"
+      organization: { id: string }
+      replayed: boolean
+    }>(
+      createOrganizationTool.name,
+      {
+        ...command.commandInput.organization,
+        billingAddress: command.commandInput.billingAddress,
+      },
+      {
+        db: command.db,
+        actor: command.context.actor,
+        audience: command.context.actor,
+        tenantId: command.context.organizationId,
+        organizationId: command.context.organizationId,
+        resolverScope: {
+          locale: "en-GB",
+          audience: command.context.actor,
+          market: "default",
+          actor: command.context.actor,
+        },
+        handlerActionPolicy: command.admitted,
+        relationships: {
+          async createOrganization(_input, admitted) {
+            const execution = await executeOrganizationCreateCommand({
+              ...command,
+              admitted,
+            })
+            return {
+              status: "created",
+              organization: execution.value,
+              replayed: execution.replayed,
+            }
+          },
+        } as RelationshipsToolServices,
+      } satisfies ToolContext & { relationships: RelationshipsToolServices },
+    )
+    return { value: result.organization, replayed: result.replayed }
   }
 })

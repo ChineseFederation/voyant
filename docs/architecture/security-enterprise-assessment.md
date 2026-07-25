@@ -157,10 +157,13 @@ public paths change.
 ### H6 — Unbounded anonymous row creation (CRM intake + outbox flooding)
 **`packages/storefront/src/service-intake.ts:101,160-225`, `packages/storefront/src/routes-public.ts:269-299`**
 
-`POST /v1/public/leads` / `newsletter` creates a `crm.person` + `customer_signal` per request; dedup is only by a client-supplied `sourceSubmissionId`, so omitting it inserts new rows on every call. The operator wires no intake guard (only a comment that hosts "can wire captcha"). Separately, `POST /v1/public/bookings/sessions/bootstrap?async=1` enqueues a `write_intents` row + an `event_outbox` row per request, deduped only by an optional `Idempotency-Key`.
+`POST /v1/public/leads` / `newsletter` creates a `crm.person` + `customer_signal` per request; dedup is only by a client-supplied `sourceSubmissionId`, so omitting it inserts new rows on every call. The operator wires no intake guard (only a comment that hosts "can wire captcha").
 
-**Impact:** Anonymous, free DB flooding (junk persons/signals; unbounded `write_intents`/`event_outbox`) → storage cost, CRM degradation, and starvation of the */2min outbox drain — a write-amplified DoS against the very pipeline RFC #1687 added for resilience. Newsletter double-opt-in additionally emails arbitrary addresses.
-**Fix:** Wire captcha + per-IP rate limiting on intake; enforce server-side dedup independent of client-supplied ids; require an idempotency key (or server-issued nonce) and cap pending intents per client on the async bootstrap path.
+**Impact:** Anonymous, free DB flooding produces junk persons/signals, storage
+cost, and CRM degradation. Newsletter double-opt-in additionally emails
+arbitrary addresses.
+**Fix:** Wire captcha + per-IP rate limiting on intake and enforce server-side
+dedup independent of client-supplied ids.
 
 ### H7 — Session tokens and OTPs leak into logs
 **`packages/hono/src/middleware/error-boundary.ts:21,41-57`, `packages/finance/src/routes-public.ts:238-340`, `starters/operator/src/api/auth/handler.ts:234,247`**

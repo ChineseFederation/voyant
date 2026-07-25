@@ -155,7 +155,7 @@ describe("catalog deployment manifest", () => {
           surface: "admin",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/book", "/holds", "/orders", "/quote", "/quotes/batch"],
+          transactional: ["/holds", "/orders", "/quote", "/quotes/batch"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",
@@ -166,7 +166,7 @@ describe("catalog deployment manifest", () => {
           surface: "public",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/book", "/holds", "/quote", "/quotes/batch"],
+          transactional: ["/holds", "/quote", "/quotes/batch"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",
@@ -174,17 +174,6 @@ describe("catalog deployment manifest", () => {
         },
       ],
       runtimePorts: [{ id: "catalog.booking-runtime" }],
-    })
-    expect(
-      catalogBookingEngineVoyantModule.actions?.find(
-        ({ id }) => id === "@voyant-travel/catalog#booking-engine#action.commit-catalog-booking",
-      ),
-    ).toMatchObject({
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
     })
     expect(catalogBookingEngineVoyantModule.tools).toEqual(
       expect.arrayContaining([expect.objectContaining({ context: ["catalogBooking"] })]),

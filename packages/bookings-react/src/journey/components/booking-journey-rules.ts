@@ -14,64 +14,6 @@ import { evaluatePaxBandDependencies } from "../lib/pax-band-dependencies.js"
 import { findPaidScheduleRowsMissingPaymentDate } from "../lib/payment-schedule.js"
 import type { JourneyStep } from "../types.js"
 
-/**
- * The buyer + travelers the owned commit reads off `request.party` (the draft
- * carries them but `extractBillingParty` only inspects `party`). B2C supplies
- * `personId`; B2B supplies `organizationId`; traveler person links thread
- * through so the booking attaches to the right CRM records.
- */
-export function buildCommitParty(draft: Draft): Record<string, unknown> {
-  const c = draft.billing.contact
-  const companyName = draft.billing.company?.name?.trim()
-  const contactFirstName =
-    draft.billing.buyerType === "B2B" && companyName ? companyName : c.firstName
-  const contactLastName =
-    draft.billing.buyerType === "B2B" && contactFirstName === companyName ? "" : c.lastName
-  const personId = draft.billing.buyerType === "B2B" ? undefined : c.personId
-  const organizationId =
-    draft.billing.buyerType === "B2B" ? draft.billing.organizationId : undefined
-  return {
-    personId,
-    organizationId,
-    billing: {
-      personId,
-      organizationId,
-      contact: {
-        firstName: contactFirstName,
-        lastName: contactLastName,
-        email: draft.billing.buyerType === "B2B" && companyName ? "" : c.email,
-        phone: draft.billing.buyerType === "B2B" && companyName ? undefined : c.phone,
-      },
-    },
-    travelerParty: {
-      travelers: draft.travelers.map((t) => ({ personId: t.personId })),
-    },
-  }
-}
-
-/**
- * Initial booking status from the operator's choices: an explicit "save as
- * draft", else live — confirmed when the payment is fully marked paid,
- * otherwise awaiting payment.
- */
-export function resolveInitialStatus(draft: Draft): "draft" | "confirmed" | "awaiting_payment" {
-  if (draft.saveAsDraft) return "draft"
-  const schedules = draft.paymentSchedules ?? []
-  const fullyPaid = schedules.length > 0 && schedules.every((s) => s.status === "paid")
-  return fullyPaid ? "confirmed" : "awaiting_payment"
-}
-
-/**
- * The packaged admin journey's in-process commit route can only create a held
- * booking. Other payment intents need a dedicated checkout/provider flow
- * because the route contract requires fields the generic draft does not carry
- * (`tokenizedCard`, `agencyAccount`, bank-transfer instructions, etc.).
- */
-export function buildCommitPaymentIntent(draft: Draft): { type: "hold" } {
-  if (draft.payment.intent === "hold") return { type: "hold" }
-  throw new Error(`Unsupported booking payment intent: ${draft.payment.intent}`)
-}
-
 export function isStepVisible(step: JourneyStep, shape: BookingDraftShape): boolean {
   const subSteps = shape.configureSubSteps ?? []
   switch (step) {

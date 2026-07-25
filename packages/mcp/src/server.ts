@@ -25,7 +25,6 @@ import {
   type VoyantGraphRuntime,
 } from "@voyant-travel/framework/runtime-attestation"
 import {
-  admitHandlerActionPolicy,
   createToolRegistry,
   TOOL_ACTION_INVOCATION_FIELD,
   TOOL_CONTEXT_CONTRIBUTION_EXPORT,
@@ -711,12 +710,6 @@ function handlerDispatchContext(
       invocation: { ...invocation },
     },
   }
-  admitHandlerActionPolicy(handlerContext, {
-    capabilityId: entry.capabilityId,
-    capabilityVersion: entry.capabilityVersion,
-    canonicalName: entry.name,
-    actionPolicy,
-  })
   return handlerContext
 }
 

@@ -203,7 +203,6 @@ describe("booking create helpers", () => {
       { optu_double: 1 },
       [{ optionId: "opto_dbl", optionUnitId: "optu_double", unitName: "DBL" }],
       null,
-      { optu_double: [1, 0] },
       { optu_double: ["trav:second", "trav:first"] },
     )
 
@@ -211,7 +210,6 @@ describe("booking create helpers", () => {
       clientLineKey: "unit:optu_double",
       travelerKeys: ["trav:second", "trav:first"],
     })
-    expect(result[0]?.travelerIndexes).toBeUndefined()
   })
 
   it("splits selected room lines by traveler pricing category", () => {
@@ -239,9 +237,7 @@ describe("booking create helpers", () => {
           },
         ],
       },
-      { optu_double: [0, 1, 2] },
       { optu_double: ["trav:adult1", "trav:adult2", "trav:child"] },
-      { optu_double: { pcat_adult: [0, 1], pcat_child_under6: [2] } },
       {
         optu_double: {
           pcat_adult: ["trav:adult1", "trav:adult2"],

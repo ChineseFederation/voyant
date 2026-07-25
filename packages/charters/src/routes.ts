@@ -32,11 +32,6 @@ import {
   wholeYachtQuoteResponseSchema,
 } from "./routes-public.js"
 import { chartersService } from "./service.js"
-import {
-  type CreatePerSuiteBookingInput,
-  type CreateWholeYachtBookingInput,
-  chartersBookingService,
-} from "./service-bookings.js"
 import { type CharterContractsService, mybaService } from "./service-myba.js"
 import { composePerSuiteQuote, composeWholeYachtQuote, pricingService } from "./service-pricing.js"
 import {
@@ -105,53 +100,6 @@ function makeExternalKey(adapter: CharterAdapter, ref: SourceRef): string {
 }
 
 // ---------- payload schemas (parsed in-handler on key-gated legs) ----------
-
-const guestSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  travelerCategory: z.enum(["adult", "child", "infant", "senior", "other"]).optional().nullable(),
-  preferredLanguage: z.string().optional().nullable(),
-  specialRequests: z.string().optional().nullable(),
-  personId: z.string().optional().nullable(),
-  isPrimary: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
-})
-
-const contactSchema = z.object({
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  email: z.string().email().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  language: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  region: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  postalCode: z.string().optional().nullable(),
-})
-
-const createPerSuiteBookingPayload = z.object({
-  voyageId: z.string(),
-  suiteId: z.string(),
-  currency: currencyCodeSchema,
-  personId: z.string().optional().nullable(),
-  organizationId: z.string().optional().nullable(),
-  contact: contactSchema,
-  guests: z.array(guestSchema).min(1),
-  notes: z.string().optional().nullable(),
-}) satisfies z.ZodType<CreatePerSuiteBookingInput>
-
-const createWholeYachtBookingPayload = z.object({
-  voyageId: z.string(),
-  currency: currencyCodeSchema,
-  personId: z.string().optional().nullable(),
-  organizationId: z.string().optional().nullable(),
-  contact: contactSchema,
-  guests: z.array(guestSchema).optional(),
-  notes: z.string().optional().nullable(),
-}) satisfies z.ZodType<CreateWholeYachtBookingInput>
 
 const generateMybaPayload = z.object({
   templateIdOverride: z.string().optional().nullable(),
@@ -684,20 +632,6 @@ const quotePerSuiteRoute = createRoute({
   },
 })
 
-const bookPerSuiteRoute = createRoute({
-  method: "post",
-  path: "/voyages/{key}/bookings/per-suite",
-  request: { params: keyParamSchema },
-  responses: {
-    201: {
-      description: "The created per-suite booking",
-      content: { "application/json": { schema: opaqueDataResponseSchema } },
-    },
-    400: errorResponse("Key is invalid or payload voyageId does not match the URL key"),
-    501: errorResponse("Referenced adapter is not registered"),
-  },
-})
-
 const quoteWholeYachtRoute = createRoute({
   method: "post",
   path: "/voyages/{key}/quote/whole-yacht",
@@ -709,20 +643,6 @@ const quoteWholeYachtRoute = createRoute({
     },
     400: errorResponse("Key is not a valid local id or external key"),
     404: errorResponse("Voyage not found"),
-    501: errorResponse("Referenced adapter is not registered"),
-  },
-})
-
-const bookWholeYachtRoute = createRoute({
-  method: "post",
-  path: "/voyages/{key}/bookings/whole-yacht",
-  request: { params: keyParamSchema },
-  responses: {
-    201: {
-      description: "The created whole-yacht booking",
-      content: { "application/json": { schema: opaqueDataResponseSchema } },
-    },
-    400: errorResponse("Key is invalid or payload voyageId does not match the URL key"),
     501: errorResponse("Referenced adapter is not registered"),
   },
 })
@@ -818,44 +738,6 @@ const voyagesAdminRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
     })
     return c.json({ data: quote }, 200)
   })
-  .openapi(bookPerSuiteRoute, async (c) => {
-    const parsed = parseUnifiedKey(c.req.valid("param").key)
-    if (parsed.kind === "invalid") return c.json(invalidKey(parsed.raw), 400)
-    if (parsed.kind === "external") {
-      const ext = resolveExternal(parsed)
-      if (!ext) return c.json(adapterNotRegistered(parsed.provider), 501)
-      const payload = await parseJsonBody(c, createPerSuiteBookingPayload)
-      const result = await chartersBookingService.createExternalPerSuiteBooking(
-        c.get("db"),
-        {
-          adapter: ext.adapter,
-          voyageRef: ext.sourceRef,
-          suiteRef: { externalId: payload.suiteId },
-          currency: payload.currency,
-          personId: payload.personId ?? null,
-          organizationId: payload.organizationId ?? null,
-          contact: payload.contact,
-          guests: payload.guests,
-          notes: payload.notes ?? null,
-        },
-        c.get("userId"),
-      )
-      return c.json({ data: result }, 201)
-    }
-    const payload = await parseJsonBody(c, createPerSuiteBookingPayload)
-    if (payload.voyageId !== parsed.id) {
-      return c.json(
-        { error: "voyage_id_mismatch", detail: "URL key and payload voyageId must match" },
-        400,
-      )
-    }
-    const result = await chartersBookingService.createPerSuiteBooking(
-      c.get("db"),
-      payload,
-      c.get("userId"),
-    )
-    return c.json({ data: result }, 201)
-  })
   .openapi(quoteWholeYachtRoute, async (c) => {
     const parsed = parseUnifiedKey(c.req.valid("param").key)
     if (parsed.kind === "invalid") return c.json(invalidKey(parsed.raw), 400)
@@ -882,43 +764,6 @@ const voyagesAdminRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
       currency: payload.currency,
     })
     return c.json({ data: quote }, 200)
-  })
-  .openapi(bookWholeYachtRoute, async (c) => {
-    const parsed = parseUnifiedKey(c.req.valid("param").key)
-    if (parsed.kind === "invalid") return c.json(invalidKey(parsed.raw), 400)
-    if (parsed.kind === "external") {
-      const ext = resolveExternal(parsed)
-      if (!ext) return c.json(adapterNotRegistered(parsed.provider), 501)
-      const payload = await parseJsonBody(c, createWholeYachtBookingPayload)
-      const result = await chartersBookingService.createExternalWholeYachtBooking(
-        c.get("db"),
-        {
-          adapter: ext.adapter,
-          voyageRef: ext.sourceRef,
-          currency: payload.currency,
-          personId: payload.personId ?? null,
-          organizationId: payload.organizationId ?? null,
-          contact: payload.contact,
-          guests: payload.guests,
-          notes: payload.notes ?? null,
-        },
-        c.get("userId"),
-      )
-      return c.json({ data: result }, 201)
-    }
-    const payload = await parseJsonBody(c, createWholeYachtBookingPayload)
-    if (payload.voyageId !== parsed.id) {
-      return c.json(
-        { error: "voyage_id_mismatch", detail: "URL key and payload voyageId must match" },
-        400,
-      )
-    }
-    const result = await chartersBookingService.createWholeYachtBooking(
-      c.get("db"),
-      payload,
-      c.get("userId"),
-    )
-    return c.json({ data: result }, 201)
   })
   .openapi(getVoyageRoute, async (c) => {
     const parsed = parseUnifiedKey(c.req.valid("param").key)

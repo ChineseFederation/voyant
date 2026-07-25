@@ -49,12 +49,3 @@ export const customerSignalCreatedEventPayloadSchema = {
   },
   additionalProperties: false,
 } as const
-
-export const bookingBootstrapRequestedEventPayloadSchema = {
-  type: "object",
-  required: ["intentId"],
-  properties: {
-    intentId: { type: "string" },
-  },
-  additionalProperties: false,
-} as const

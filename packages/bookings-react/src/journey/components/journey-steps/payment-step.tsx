@@ -70,7 +70,7 @@ export function PaymentStep({
   // Snap the draft's intent to a sensible value when the current pick isn't on
   // the list — covers descriptor changes mid-flow (e.g. owned→sourced narrows
   // the list). In checkbox mode the baseline is always "hold". This MUST run in
-  // an effect, not during render: `setDraft` updates the parent BookingJourney,
+  // an effect, not during render: `setDraft` updates the parent draft owner,
   // and calling it in the render body triggers React's "Cannot update a
   // component while rendering a different component" warning (and drops frames).
   const allowedKey = allowed.join("|")

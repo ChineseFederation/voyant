@@ -446,8 +446,8 @@ for the composer.
 ### 5.5. Booking Sessions
 
 Booking Sessions support public customer checkout state after a booking row
-exists, protected by a scoped checkout capability. The storefront also exposes
-booking-session bootstrap helpers for customer-facing product departures.
+exists, protected by a scoped checkout capability. They cannot bootstrap or
+create that booking row.
 
 They are too late and too item-concrete to be the full AI planning state. The
 composer should create or update Booking Sessions only after a Trip has been

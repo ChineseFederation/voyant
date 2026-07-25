@@ -95,7 +95,6 @@ export function ProductDetailPage({ id }: { id: string }) {
         isDuplicating={mutations.duplicateProduct.isPending}
         isDeleting={mutations.deleteProduct.isPending}
         onEdit={dialogs.edit.openNow}
-        onAddBooking={() => navigate.toNewBooking(id)}
         onDuplicate={() => {
           mutations.duplicateProduct.mutate(undefined, {
             onSuccess: (result) => {

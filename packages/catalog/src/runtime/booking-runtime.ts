@@ -1,25 +1,15 @@
-import { bookingActivityLog, bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import {
-  type BookEntityResult,
-  type CatalogBookingBookBody,
-  type CatalogBookingCommittedEvent,
   type CatalogBookingRouteModuleOptions,
   type CatalogBookingRoutesOptions,
   catalogQuotesTable,
-  getOrderById,
   OWNED_SOURCE_KIND,
   type QuoteEntityResult,
 } from "@voyant-travel/catalog/booking-engine"
 import {
   applyCatalogTaxToQuoteResult,
-  buildSourcedBookingRowValues,
-  createCatalogPackageHoldPreparer,
-  createSourcedBookingNumber,
   resolveCatalogHoldTtlMs,
 } from "@voyant-travel/catalog/runtime-support"
-import { createVoyantConnectClient } from "@voyant-travel/connect-sdk"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { newId } from "@voyant-travel/db/lib/typeid"
 import {
   computeBookingItemTaxLine,
   resolveBookingSellTaxRate,
@@ -75,89 +65,8 @@ function createOperatorCatalogBookingRoutesOptions(): CatalogBookingRoutesOption
         },
       })
     },
-    prepareBookParameters: prepareConnectPackageBookParameters,
-    onCommitted: materializeSourcedBookingForCatalogCommit,
-    onDraftConsumedError: ({ error }) => {
-      console.warn("[catalog-booking] markDraftConsumed failed:", error)
-    },
   }
 }
-
-export async function materializeSourcedBookingForCatalogCommit({
-  c,
-  db,
-  request,
-  result,
-}: CatalogBookingCommittedEvent): Promise<void> {
-  if (c.req.path.startsWith("/v1/public/")) return
-
-  const snapshot = await getOrderById(db, result.snapshotId)
-  if (!snapshot || snapshot.source_kind === OWNED_SOURCE_KIND) return
-
-  const typedDb = db as PostgresJsDatabase
-  const [existing] = await typedDb
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(eq(bookings.id, result.bookingId))
-    .limit(1)
-  if (existing) return
-
-  const actorId = typeof c.get("userId") === "string" ? c.get("userId") : "system"
-  const rows = buildSourcedBookingRows({ request, result, snapshot, actorId })
-
-  await typedDb.transaction(async (tx) => {
-    await tx.insert(bookings).values(rows.booking)
-    await tx.insert(bookingItems).values(rows.item)
-    await tx.insert(bookingActivityLog).values(rows.activity)
-  })
-}
-
-export function buildSourcedBookingRows({
-  request,
-  result,
-  snapshot,
-  actorId,
-}: {
-  request: CatalogBookingBookBody
-  result: BookEntityResult
-  snapshot: NonNullable<Awaited<ReturnType<typeof getOrderById>>>
-  actorId: string
-}): {
-  booking: typeof bookings.$inferInsert
-  item: typeof bookingItems.$inferInsert
-  activity: typeof bookingActivityLog.$inferInsert
-} {
-  const rows = buildSourcedBookingRowValues({
-    request,
-    result,
-    snapshot,
-    actorId,
-    bookingItemId: newId("booking_items"),
-    bookingNumber: createSourcedBookingNumber(),
-  })
-  return {
-    booking: rows.booking as typeof bookings.$inferInsert,
-    item: rows.item as typeof bookingItems.$inferInsert,
-    activity: rows.activity as typeof bookingActivityLog.$inferInsert,
-  }
-}
-
-const prepareConnectPackageBookParameters = createCatalogPackageHoldPreparer({
-  lock: async ({ context, connectionId, offer }) => {
-    const c = context as Context
-    const { resolveVoyantConnectEnv } = await import("@voyant-travel/plugin-voyant-connect")
-    const config = resolveVoyantConnectEnv(c.env as Record<string, string | undefined>, {
-      warn: (message) => console.warn(`[catalog-booking] ${message}`),
-    })
-    if (!config) return null
-    const hold = await createVoyantConnectClient({
-      apiKey: config.apiKey,
-      operatorId: config.operatorId,
-      baseUrl: config.baseUrl,
-    }).packages.lock(connectionId, offer)
-    return hold.id
-  },
-})
 
 export function createOperatorCatalogBookingRouteModuleOptions(): CatalogBookingRouteModuleOptions {
   const { inventory, operations } = catalogRuntimeExtensions()

@@ -3,7 +3,6 @@ import { type BookingEngineSnapshot, createBookingEngineSnapshot } from "./engin
 import {
   bootstrapCheckoutCollection,
   confirmPublicBookingSession,
-  createPublicBookingSession,
   expirePublicBookingSession,
   getPublicBookingOverview,
   getPublicBookingSession,
@@ -22,7 +21,6 @@ import type {
   PublicBookingSessionMutationInput,
   PublicBookingSessionRecord,
   PublicBookingSessionRepriceInput,
-  PublicCreateBookingSessionInput,
   PublicUpdateBookingSessionInput,
   PublicUpsertBookingSessionStateInput,
 } from "./schemas.js"
@@ -52,15 +50,6 @@ export function createBookingEngineSessionSnapshot(
     session,
     engine: createBookingEngineSnapshot(session),
   }
-}
-
-export async function reserveBookingEngineSession(
-  client: ResolvedClientOptions,
-  input: PublicCreateBookingSessionInput,
-  options?: StorefrontRequestOptions,
-) {
-  const session = await createPublicBookingSession(client, input, options)
-  return createBookingEngineSessionSnapshot(session)
 }
 
 export async function getBookingEngineSessionSnapshot(

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest"
 
 import { NoOwnedHandlerRegisteredError } from "./errors.js"
 import {
-  type CommitOwnedRequest,
   type ComputeQuoteRequest,
   createOwnedBookingHandlerRegistry,
   type OwnedBookingHandler,
@@ -15,9 +14,6 @@ function stubHandler(entityModule: string): OwnedBookingHandler {
     entityModule,
     async computeQuote(_ctx: OwnedHandlerContext, _req: ComputeQuoteRequest) {
       return { available: true }
-    },
-    async commit(_ctx: OwnedHandlerContext, req: CommitOwnedRequest) {
-      return { status: "held", orderRef: `ord-${req.bookingId}` }
     },
   }
 }
@@ -61,9 +57,6 @@ describe("OwnedBookingHandlerRegistry", () => {
       async computeQuote(_ctx, req) {
         captured.push(req)
         return { available: true, pricing: undefined }
-      },
-      async commit() {
-        return { status: "held", orderRef: "x" }
       },
     })
 

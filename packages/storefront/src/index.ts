@@ -3,14 +3,9 @@ import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { stampOpenApiRegistryApiId } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
 
-import { registerStorefrontBookingBootstrapRuntime } from "./booking-bootstrap-subscriber-runtime.js"
 import { createStorefrontAdminRoutes } from "./routes-admin.js"
 import { createStorefrontPublicRoutes } from "./routes-public.js"
-import {
-  storefrontBookingIntentsRuntimePort,
-  storefrontIntakeRuntimePort,
-  storefrontOffersRuntimePort,
-} from "./runtime-port.js"
+import { storefrontIntakeRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
 
 export type {
   GuestBookingGuardOptions,
@@ -44,12 +39,6 @@ export {
   mergeStorefrontSettingsPatch,
   resolveStorefrontSettings,
 } from "./service.js"
-export type { StorefrontBookingSessionBootstrapOptions } from "./service-booking-session-bootstrap.js"
-export {
-  describeStorefrontBootstrapError,
-  STOREFRONT_BOOTSTRAP_ERROR_CODES,
-  type StorefrontBootstrapErrorDescriptor,
-} from "./service-booking-session-bootstrap.js"
 export type {
   StorefrontCustomerSignalCreatedEvent,
   StorefrontIntakeGuard,
@@ -69,11 +58,6 @@ export type {
   StorefrontBankTransferAccount,
   StorefrontBankTransferAccountInput,
   StorefrontBankTransferInput,
-  StorefrontBookingBootstrapErrorCode,
-  StorefrontBookingBootstrapRejection,
-  StorefrontBookingSessionBootstrap,
-  StorefrontBookingSessionBootstrapInput,
-  StorefrontBookingSessionCompatBootstrapInput,
   StorefrontCurrencyDisplay,
   StorefrontDepartureListQuery,
   StorefrontDeparturePricePreview,
@@ -111,15 +95,6 @@ export {
   storefrontBankTransferAccountSchema,
   storefrontBankTransferInputSchema,
   storefrontBankTransferSchema,
-  storefrontBookingBootstrapErrorCodeSchema,
-  storefrontBookingBootstrapRejectionSchema,
-  storefrontBookingSessionAvailabilitySnapshotSchema,
-  storefrontBookingSessionBootstrapInputSchema,
-  storefrontBookingSessionBootstrapSchema,
-  storefrontBookingSessionCompatBootstrapInputSchema,
-  storefrontBookingSessionPaymentPlanSchema,
-  storefrontBookingSessionQuoteSchema,
-  storefrontBookingSessionRepricingSnapshotSchema,
   storefrontCurrencyDisplaySchema,
   storefrontDepartureItinerarySchema,
   storefrontDepartureListQuerySchema,
@@ -223,13 +198,6 @@ export function createStorefrontApiModule(options?: StorefrontApiModuleOptions):
   return {
     module: {
       ...storefrontModule,
-      bootstrap: ({ container }) => {
-        if (!options?.bookingIntents) return
-        registerStorefrontBookingBootstrapRuntime(container, {
-          withDb: options.bookingIntents.withDb,
-          serviceOptions: options,
-        })
-      },
     },
     adminRoutes: stampOpenApiRegistryApiId(
       createStorefrontAdminRoutes(options),
@@ -246,14 +214,12 @@ export function createStorefrontApiModule(options?: StorefrontApiModuleOptions):
 }
 
 export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(async ({ api, getPort }) => {
-  const [offers, bookingIntents, persistence] = await Promise.all([
+  const [offers, persistence] = await Promise.all([
     getPort(storefrontOffersRuntimePort),
-    getPort(storefrontBookingIntentsRuntimePort),
     getPort(storefrontIntakeRuntimePort),
   ])
   const configured = createStorefrontApiModule({
     offers,
-    bookingIntents,
     intake: { persistence },
   })
   const selected: ApiModule = { module: configured.module }
@@ -272,21 +238,6 @@ export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(async ({ 
 })
 
 export {
-  registerStorefrontBookingBootstrapRuntime,
-  STOREFRONT_BOOKING_BOOTSTRAP_RUNTIME_KEY,
-  STOREFRONT_BOOKING_BOOTSTRAP_SUBSCRIBER_ID,
-  type StorefrontBookingBootstrapRuntime,
-  storefrontBookingBootstrapSubscriber,
-} from "./booking-bootstrap-subscriber-runtime.js"
-export {
-  BOOKING_BOOTSTRAP_INTENT_EVENT,
-  BOOKING_BOOTSTRAP_INTENT_KIND,
-  type BookingBootstrapIntentDeps,
-  type BookingBootstrapIntentPayload,
-  createBookingBootstrapIntentHandler,
-} from "./booking-intents.js"
-export {
-  storefrontBookingIntentsRuntimePort,
   storefrontCustomerPortalRuntimePort,
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,

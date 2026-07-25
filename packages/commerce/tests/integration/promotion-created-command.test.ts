@@ -2,6 +2,7 @@ import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -16,6 +17,7 @@ import {
 } from "../../src/promotion-created-command.js"
 import { promotionalOfferProducts, promotionalOffers } from "../../src/promotions/schema.js"
 import { insertPromotionalOfferSchema } from "../../src/promotions/validation.js"
+import { type CommerceToolServices, createPromotionTool } from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 type ClosableTestDb = PostgresJsDatabase & {
@@ -49,7 +51,7 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
       domainInserted = resolve
     })
 
-    const firstPromise = executePromotionCreateCommand({
+    const firstPromise = executeCommand({
       ...command,
       testHooks: {
         async afterDomainCreate() {
@@ -61,7 +63,7 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
     await inserted
 
     let secondSettled = false
-    const secondPromise = executePromotionCreateCommand(command).finally(() => {
+    const secondPromise = executeCommand(command).finally(() => {
       secondSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -73,11 +75,14 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
     expect(concurrentReplay).toMatchObject({ replayed: true, value: first.value })
 
     await expect(
-      executePromotionCreateCommand({
+      executeCommand({
         ...command,
         input: { ...command.input, name: "Drifted promotion" },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
 
     const offers = await db.select().from(promotionalOffers)
     expect(offers).toHaveLength(1)
@@ -121,14 +126,14 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
 
   it("keeps identical cross-principal commands and their outbox events distinct", async () => {
     const idempotencyKey = "promotion-create-cross-principal"
-    const first = await executePromotionCreateCommand(
+    const first = await executeCommand(
       promotionCommand(idempotencyKey, {
         userId: "user_1",
         organizationId: "organization_1",
         active: false,
       }),
     )
-    const second = await executePromotionCreateCommand(
+    const second = await executeCommand(
       promotionCommand(idempotencyKey, {
         userId: "user_2",
         organizationId: "organization_2",
@@ -151,7 +156,7 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
     const idempotencyKey = "promotion-create-crash"
     const command = promotionCommand(idempotencyKey)
     await expect(
-      executePromotionCreateCommand({
+      executeCommand({
         ...command,
         input: {
           ...command.input,
@@ -164,7 +169,10 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
           },
         },
       }),
-    ).rejects.toThrow("injected post-insert crash")
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { message: "injected post-insert crash" },
+    })
 
     expect(
       await db
@@ -234,5 +242,42 @@ describe.skipIf(!DB_AVAILABLE)("Commerce promotion created-target command", () =
         },
       },
     }
+  }
+
+  async function executeCommand(command: Parameters<typeof executePromotionCreateCommand>[0]) {
+    const expectation = commerceHandlerActionPolicyExpectation(
+      COMMERCE_CREATED_TARGET_POLICIES.promotion,
+    )
+    const registry = createToolRegistry()
+    registry.register(createPromotionTool, { actionPolicy: expectation.actionPolicy })
+    const result = await registry.dispatch<{
+      status: "created"
+      promotion: { id: string }
+      replayed: boolean
+    }>(createPromotionTool.name, command.input, {
+      db: command.db,
+      actor: command.context.actor,
+      audience: command.context.actor,
+      tenantId: command.context.organizationId,
+      organizationId: command.context.organizationId,
+      resolverScope: {
+        locale: "en-GB",
+        audience: command.context.actor,
+        market: "default",
+        actor: command.context.actor,
+      },
+      handlerActionPolicy: command.admitted,
+      commerce: {
+        async createPromotion(_input, admitted) {
+          const execution = await executePromotionCreateCommand({ ...command, admitted })
+          return {
+            status: "created",
+            promotion: execution.value,
+            replayed: execution.replayed,
+          }
+        },
+      } as CommerceToolServices,
+    } satisfies ToolContext & { commerce: CommerceToolServices })
+    return { value: result.promotion, replayed: result.replayed }
   }
 })

@@ -29,13 +29,6 @@ import {
   useVoyantAvailabilityContext,
 } from "../index.js"
 
-// Lazy: the booking sheets pull the bookings-ui bundle; only operators who
-// actually create/preview a booking from a slot pay for it.
-const BookingCreateSheet = lazy(() =>
-  import("@voyant-travel/bookings-react/components/booking-create-sheet").then((module) => ({
-    default: module.BookingCreateSheet,
-  })),
-)
 const BookingQuickViewSheet = lazy(() =>
   import("@voyant-travel/bookings-react/components/booking-quick-view-sheet").then((module) => ({
     default: module.BookingQuickViewSheet,
@@ -86,10 +79,6 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
   const productName = productQuery.data?.data?.name ?? null
   const [bookingPreviewId, setBookingPreviewId] = useState<string | null>(null)
   const [productPreviewId, setProductPreviewId] = useState<string | null>(null)
-  const [bookingCreateDefaults, setBookingCreateDefaults] = useState<{
-    slotId: string
-    productId: string
-  } | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   // Lazy-load rules + start times only when the edit dialog opens —
   // the slot detail view itself doesn't need them. Scope to the slot's
@@ -122,7 +111,6 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
         onOpenStartTime={(startTimeId) =>
           navigateTo("availabilityStartTime.detail", { startTimeId })
         }
-        onCreateBooking={(input) => setBookingCreateDefaults(input)}
         onEdit={() => setEditDialogOpen(true)}
         renderAllocation={({ slotId: allocationSlotId }) => (
           <SlotAllocationPage
@@ -136,18 +124,6 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
         )}
         extrasTabLabel={extrasMessages.slotManifest.title}
       />
-
-      <Suspense fallback={null}>
-        <BookingCreateSheet
-          open={Boolean(bookingCreateDefaults)}
-          onOpenChange={(open) => {
-            if (!open) setBookingCreateDefaults(null)
-          }}
-          defaultProductId={bookingCreateDefaults?.productId}
-          defaultSlotId={bookingCreateDefaults?.slotId}
-          onCreated={(booking) => setBookingPreviewId(booking.id)}
-        />
-      </Suspense>
 
       <Suspense fallback={null}>
         <BookingQuickViewSheet

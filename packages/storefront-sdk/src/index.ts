@@ -7,7 +7,6 @@ import {
   getBookingEngineSessionSnapshot,
   previewBookingEnginePayment,
   repriceBookingEngineSession,
-  reserveBookingEngineSession,
   startBookingEnginePayment,
   updateBookingEngineProgress,
   updateBookingEngineSession,
@@ -20,10 +19,8 @@ import {
   deriveBookingEngineState,
 } from "./engine-state.js"
 import {
-  bootstrapBookingSession,
   bootstrapCheckoutCollection,
   confirmPublicBookingSession,
-  createPublicBookingSession,
   createStorefrontLead,
   expirePublicBookingSession,
   getPublicBookingOverview,
@@ -125,14 +122,6 @@ export function createVoyantStorefrontClient(options: VoyantStorefrontClientOpti
         getStorefrontOfferBySlug(client, slug, query),
     },
     booking: {
-      bootstrapSession: (
-        input: Parameters<typeof bootstrapBookingSession>[1],
-        requestOptions?: Parameters<typeof bootstrapBookingSession>[2],
-      ) => bootstrapBookingSession(client, input, requestOptions),
-      createSession: (
-        input: Parameters<typeof createPublicBookingSession>[1],
-        requestOptions?: Parameters<typeof createPublicBookingSession>[2],
-      ) => createPublicBookingSession(client, input, requestOptions),
       getSession: (sessionId: string) => getPublicBookingSession(client, sessionId),
       updateSession: (
         sessionId: string,
@@ -167,10 +156,6 @@ export function createVoyantStorefrontClient(options: VoyantStorefrontClientOpti
       canRunAction: canRunBookingEngineAction,
     },
     bookingEngine: {
-      reserve: (
-        input: Parameters<typeof reserveBookingEngineSession>[1],
-        requestOptions?: Parameters<typeof reserveBookingEngineSession>[2],
-      ) => reserveBookingEngineSession(client, input, requestOptions),
       getSnapshot: (sessionId: string) => getBookingEngineSessionSnapshot(client, sessionId),
       updateSession: (
         sessionId: string,

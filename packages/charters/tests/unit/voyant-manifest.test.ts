@@ -106,24 +106,8 @@ describe("charters deployment manifest", () => {
   })
 
   it("declares exact ledger and approval policy for Tool actions", () => {
-    expect(chartersVoyantModule.tools).toHaveLength(13)
-    expect(chartersVoyantModule.actions).toHaveLength(13)
-    const booking = chartersVoyantModule.actions?.find((action) =>
-      action.from?.tools?.includes("@voyant-travel/charters#tool.create-charter-booking"),
-    )
-    expect(booking).toMatchObject({
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      requiredScopes: ["charters:write", "bookings:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      reversible: false,
-      allowedActorTypes: ["staff"],
-    })
+    expect(chartersVoyantModule.tools).toHaveLength(12)
+    expect(chartersVoyantModule.actions).toHaveLength(12)
     for (const action of chartersVoyantModule.actions?.filter(
       ({ kind, risk }) => kind === "execute" && risk === "medium",
     ) ?? []) {

@@ -402,7 +402,7 @@ the host resolves keys to hrefs exactly once:
 - A domain package declares the destinations its pages need via declaration
   merging — `declare module "@voyant-travel/admin"` adding e.g.
   `"supplier.detail": { supplierId: string }`. Naming convention:
-  `<entity>.<action>` (`"product.detail"`, `"bookingJourney.start"`).
+  `<entity>.<action>` (`"product.detail"`, `"catalog.detail"`).
 - The host registers one resolver map and hands it to the workspace shell
   (`AdminWorkspaceShell destinations={...}` in `@voyant-travel/admin/app/workspace`), which
   injects router navigation behind the provider. `satisfies
@@ -430,9 +430,9 @@ ejection contract and `--check` drift gate. The host map shrinks to
 `{ ...generatedAdminDestinations, ...custom } satisfies
 AdminDestinationResolvers`: of the operator's 36 destination keys, 29 are
 generated; hand-written are only the genuinely custom seven — search-param
-construction (`booking.detail`, `bookingJourney.start`, `catalog.detail`),
-the multi-route `catalog.browse`, and host-owned pages (`booking.create`,
-`product.detail`, `legal.home`). `voyant admin doctor`'s Finding D is now
+construction (`booking.detail`, `catalog.detail`), the multi-route
+`catalog.browse`, and host-owned pages (`product.detail`, `legal.home`).
+`voyant admin doctor`'s Finding D is now
 two-tier: the GENERATED portion is a gate (annotated destination missing
 from the generated module, generated resolver whose annotation vanished, or
 content drift → exit 1, aligned with `--check`), while custom-resolver

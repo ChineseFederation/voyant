@@ -194,14 +194,6 @@ export const cruisesVoyantModule = defineModule({
       context: ["cruises"],
       risk: "medium" as const,
     })),
-    {
-      id: "@voyant-travel/cruises#tool.create-cruise-booking",
-      name: "create_cruise_booking",
-      runtime: { entry: "@voyant-travel/cruises/tools", export: "createCruiseBookingTool" },
-      requiredScopes: ["cruises:write", "bookings:write"],
-      context: ["cruises"],
-      risk: "critical",
-    },
   ],
   actions: [
     ...(
@@ -283,24 +275,6 @@ export const cruisesVoyantModule = defineModule({
         durability: "handler-command-claim-v1",
       },
       from: { tools: ["@voyant-travel/cruises#tool.create-cruise-ship"] },
-    },
-    {
-      id: "@voyant-travel/cruises#action.create-cruise-booking",
-      version: "v1",
-      kind: "execute",
-      targetType: "cruise-booking",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      requiredScopes: ["cruises:write", "bookings:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      reversible: false,
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/cruises#tool.create-cruise-booking"] },
     },
   ],
   lifecycle: {

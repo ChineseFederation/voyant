@@ -2,7 +2,7 @@ import { createToolRegistry } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 
 import type { CatalogBookingToolContext } from "./booking-tools.js"
-import { catalogBookingTools, commitCatalogBookingTool, quoteCatalogEntityTool } from "./tools.js"
+import { catalogBookingTools, quoteCatalogEntityTool } from "./tools.js"
 
 function context(): CatalogBookingToolContext {
   return {
@@ -23,12 +23,6 @@ function context(): CatalogBookingToolContext {
         expiresAt: "2026-07-15T12:10:00.000Z",
         available: true,
       })),
-      commit: vi.fn(async () => ({
-        bookingId: "booking_1",
-        orderRef: "order_1",
-        status: "confirmed" as const,
-        snapshotId: "snapshot_1",
-      })),
       listOrders: vi.fn(async () => ({ rows: [] })),
       getOrder: vi.fn(async () => null),
     },
@@ -36,9 +30,9 @@ function context(): CatalogBookingToolContext {
 }
 
 describe("catalog booking tools", () => {
-  it("publishes provider-neutral quote, commit, and order capabilities", () => {
-    expect(catalogBookingTools).toHaveLength(4)
-    expect(new Set(catalogBookingTools.map((tool) => tool.capabilityId)).size).toBe(4)
+  it("publishes provider-neutral quote and order capabilities", () => {
+    expect(catalogBookingTools).toHaveLength(3)
+    expect(new Set(catalogBookingTools.map((tool) => tool.capabilityId)).size).toBe(3)
     expect(() => createToolRegistry().registerAll(catalogBookingTools)).not.toThrow()
   })
 
@@ -50,15 +44,5 @@ describe("catalog booking tools", () => {
         scope: expect.objectContaining({ locale: "en-GB", audience: "staff", market: "uk" }),
       }),
     )
-  })
-
-  it("requires confirmation for externally committing a booking", () => {
-    expect(commitCatalogBookingTool.requiredScopes).toEqual(["catalog:read", "bookings:write"])
-    expect(commitCatalogBookingTool.riskPolicy).toMatchObject({
-      destructive: true,
-      reversible: false,
-      confirmationRequired: true,
-      sideEffects: ["external-booking", "data-write"],
-    })
   })
 })

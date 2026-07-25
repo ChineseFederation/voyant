@@ -36,7 +36,7 @@ export function ProductDetailPageProducts({
   entityModule: string
   entityId: string
 }): React.ReactElement {
-  const { apiUrl, navigate, scope } = useStorefrontUi()
+  const { apiUrl, scope } = useStorefrontUi()
 
   const slots = useQuery({
     queryKey: publicCatalogSlotsQueryKey(entityModule, entityId, {
@@ -134,19 +134,6 @@ export function ProductDetailPageProducts({
             isQuoting={quote.isQuoting}
             quoteData={quote.data}
             disabled={!selectedSlotId || totalPax < 1 || quote.data?.available === false}
-            onBook={() => {
-              if (!selectedSlotId) return
-              navigate({
-                to: "/shop/book/$entityModule/$entityId",
-                params: { entityModule, entityId },
-                search: {
-                  departureSlotId: selectedSlotId,
-                  adult: adultCount,
-                  ...(childCount > 0 ? { child: childCount } : {}),
-                  ...(infantCount > 0 ? { infant: infantCount } : {}),
-                } as never,
-              })
-            }}
           >
             <DepartureSelect
               slots={slotRows ?? []}

@@ -215,7 +215,7 @@ describe("legal contract draft created-target command", () => {
         actor: "partner",
         handlerActionPolicy: legalHandlerContext(),
       }),
-    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
     expect(mutations).toBe(0)
   })
 })

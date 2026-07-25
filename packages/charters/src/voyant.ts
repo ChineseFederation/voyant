@@ -124,14 +124,6 @@ export const chartersVoyantModule = defineModule({
       context: ["charters"],
       risk: "medium" as const,
     })),
-    {
-      id: "@voyant-travel/charters#tool.create-charter-booking",
-      name: "create_charter_booking",
-      runtime: { entry: "@voyant-travel/charters/tools", export: "createCharterBookingTool" },
-      requiredScopes: ["charters:write", "bookings:write"],
-      context: ["charters"],
-      risk: "critical",
-    },
   ],
   actions: [
     ...(
@@ -208,24 +200,6 @@ export const chartersVoyantModule = defineModule({
       },
       from: { tools: [`@voyant-travel/charters#tool.${id}`] },
     })),
-    {
-      id: "@voyant-travel/charters#action.create-charter-booking",
-      version: "v1",
-      kind: "execute",
-      targetType: "charter-booking",
-      availability: {
-        status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
-      },
-      effectBoundary: "multistage",
-      requiredScopes: ["charters:write", "bookings:write"],
-      risk: "critical",
-      ledger: "required",
-      approval: "required",
-      reversible: false,
-      allowedActorTypes: ["staff"],
-      from: { tools: ["@voyant-travel/charters#tool.create-charter-booking"] },
-    },
   ],
   lifecycle: {
     uninstall: { default: "retain-data", purge: "not-supported" },

@@ -1,6 +1,6 @@
 /**
  * `catalog_quotes` — short-lived quote records the booking engine writes
- * before a `bookEntity` call validates and consumes them.
+ * before an admitted vertical command validates and consumes them.
  *
  * One quote = one (entity_module, entity_id, scope) combination at a
  * specific time, with an `expires_at` driven by the engine's quote TTL
@@ -66,16 +66,15 @@ export const catalogQuotesTable = pgTable(
      */
     pricing_applied_offers: jsonb("pricing_applied_offers").$type<AppliedOffer[]>(),
 
-    /** Opaque adapter payload echoed forward into `bookEntity` if supported. */
+    /** Opaque adapter payload available to an admitted vertical command. */
     upstream_payload: jsonb("upstream_payload"),
 
     /**
-     * Set when a `bookEntity` call consumes this quote. Consumed quotes
-     * are kept (audit) but rejected on subsequent book calls.
+     * Set when an admitted vertical command consumes this quote. Consumed
+     * quotes are kept for audit.
      */
     consumed_at: timestamp("consumed_at", { withTimezone: true }),
     consumed_booking_id: text("consumed_booking_id"),
-
     created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     expires_at: timestamp("expires_at", { withTimezone: true }).notNull(),
   },

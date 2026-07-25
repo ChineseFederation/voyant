@@ -12,33 +12,20 @@ const repoRoot = path.resolve(fileURLToPath(import.meta.url), "../../..")
 const checker = path.join(repoRoot, "scripts/check-storefront-subscriber-authority.mjs")
 
 async function createFixture(overrides = {}) {
-  const root = await mkdtemp(path.join(tmpdir(), "voyant-storefront-subscriber-authority-"))
+  const root = await mkdtemp(path.join(tmpdir(), "voyant-storefront-authority-"))
   const files = {
     "packages/storefront/src/voyant.ts": `
 runtime: { entry: "@voyant-travel/storefront", export: "createStorefrontVoyantRuntime" },
 runtimePorts: [
   requirePort(storefrontOffersRuntimePort),
-  requirePort(storefrontBookingIntentsRuntimePort),
   requirePort(storefrontIntakeRuntimePort),
 ],
-subscribers: [{ runtime: { entry: "@voyant-travel/storefront/booking-bootstrap-subscriber", export: "storefrontBookingBootstrapSubscriber" } }]
-`,
-    "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts": `
-export const storefrontBookingBootstrapSubscriber: SubscriberRuntimeDescriptor = {
-  register: ({ eventBus }) => {
-    eventBus.subscribe(BOOKING_BOOTSTRAP_INTENT_EVENT, async (envelope) => {
-      await createBookingBootstrapIntentHandler({ resolveDb: () => db })(envelope)
-    })
-  }
-}
 `,
     "packages/storefront/src/index.ts":
-      "registerStorefrontBookingBootstrapRuntime(container, runtime)\n",
+      "export const createStorefrontVoyantRuntime = () => undefined\n",
     "packages/runtime/src/deployment-resources.ts": "export const resources = {}\n",
     "packages/storefront/src/runtime-contributor.ts": `
-host.primitives.database.transaction
 [storefrontOffersRuntimePort.id]: createCommerceStorefrontOfferResolvers()
-[storefrontBookingIntentsRuntimePort.id]: bookingIntents
 [storefrontCustomerPortalRuntimePort.id]: customerPortal
 `,
     "packages/relationships/src/runtime-contributor.ts":
@@ -63,40 +50,31 @@ async function runChecker(root) {
 }
 
 describe("check-storefront-subscriber-authority", () => {
-  it("accepts package-owned selected-graph activation", async () => {
+  it("accepts the retained Storefront runtime without booking bootstrap authority", async () => {
     const root = await createFixture()
     const { stdout } = await runChecker(root)
-    assert.match(stdout, /Storefront subscriber authority: OK/)
+    assert.match(stdout, /Storefront authority: OK/)
   })
 
-  it("rejects a missing manifest runtime reference", async () => {
+  it("rejects a restored booking-intents runtime port", async () => {
     const root = await createFixture({
-      "packages/storefront/src/voyant.ts": "subscribers: []\n",
-    })
-    await assert.rejects(runChecker(root), /manifest must own the booking-bootstrap subscriber/)
-  })
-
-  it("rejects central Storefront module subscription", async () => {
-    const root = await createFixture({
-      "packages/storefront/src/index.ts": `
-registerStorefrontBookingBootstrapRuntime(container, runtime)
-eventBus.subscribe("storefront.booking.bootstrap.requested", handler)
+      "packages/storefront/src/voyant.ts": `
+runtime: { entry: "@voyant-travel/storefront", export: "createStorefrontVoyantRuntime" },
+runtimePorts: [
+  requirePort(storefrontOffersRuntimePort),
+  requirePort(storefrontBookingIntentsRuntimePort),
+  requirePort(storefrontIntakeRuntimePort),
+],
 `,
     })
-    await assert.rejects(runChecker(root), /must not retain manual subscriber authority/)
+    await assert.rejects(runChecker(root), /must not restore the retired Storefront/)
   })
 
-  it("rejects swallowed infrastructure errors", async () => {
+  it("rejects a restored booking-bootstrap registration", async () => {
     const root = await createFixture({
-      "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts": `
-export const storefrontBookingBootstrapSubscriber: SubscriberRuntimeDescriptor = {
-  register: ({ eventBus }) => eventBus.subscribe(BOOKING_BOOTSTRAP_INTENT_EVENT, async (envelope) => {
-    try { await createBookingBootstrapIntentHandler({ resolveDb: () => db })(envelope) }
-    catch (error) { console.error(error) }
-  })
-}
-`,
+      "packages/storefront/src/index.ts":
+        "registerStorefrontBookingBootstrapRuntime(container, runtime)\n",
     })
-    await assert.rejects(runChecker(root), /must not swallow infrastructure errors/)
+    await assert.rejects(runChecker(root), /must not restore the retired Storefront/)
   })
 })

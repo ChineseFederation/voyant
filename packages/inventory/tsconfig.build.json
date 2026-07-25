@@ -344,6 +344,9 @@
       "@voyant-travel/bookings/action-ledger-drift-remediation": [
         "../bookings/dist/action-ledger-drift-remediation.d.ts"
       ],
+      "@voyant-travel/bookings/booking-create-command-domain": [
+        "../bookings/dist/booking-create-command-domain.d.ts"
+      ],
       "@voyant-travel/bookings/checkout-capability": ["../bookings/dist/checkout-capability.d.ts"],
       "@voyant-travel/bookings/extensions/suppliers": [
         "../bookings/dist/extensions/suppliers.d.ts"
@@ -1773,9 +1776,6 @@
       "@voyant-travel/storefront-sdk/operations": ["../storefront-sdk/dist/operations.d.ts"],
       "@voyant-travel/storefront-sdk/schemas": ["../storefront-sdk/dist/schemas.d.ts"],
       "@voyant-travel/storefront/admin-routes": ["../storefront/dist/routes-admin.d.ts"],
-      "@voyant-travel/storefront/booking-bootstrap-subscriber": [
-        "../storefront/dist/booking-bootstrap-subscriber-runtime.d.ts"
-      ],
       "@voyant-travel/storefront/customer-auth-client": [
         "../storefront/dist/customer-auth-client.d.ts"
       ],

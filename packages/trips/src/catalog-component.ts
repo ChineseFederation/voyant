@@ -3,10 +3,9 @@
  *
  * Trips owns the reserve/checkout flow for catalog-backed components, so the
  * orchestration that turns a `TripComponent` into a catalog booking-engine
- * quote / reservation / cancellation lives here rather than in any deployment:
+ * quote / cancellation lives here rather than in any deployment:
  *   - offer validation (`quote`) + customer-facing tax recompute hand-off,
- *   - reserve-with-origin-tracking (stamp the booking's catalog reservation
- *     origin so the component → booking link survives),
+ *   - fail-closed reservation while Catalog has no durable admitted command,
  *   - hold release (compensation) + cancellation preview + cancel,
  *   - checkout hand-off.
  *
@@ -29,16 +28,9 @@
  *   4. The checkout starter (`startCatalogCheckout`) — deployment-specific
  *      payment-provider wiring.
  *
- * Behaviour is byte-for-byte equivalent to the operator's previous
- * `trips-catalog-runtime.ts`.
+ * Catalog booking creation is intentionally unavailable.
  */
 import {
-  toCatalogReservationBookingOriginInput,
-  upsertBookingOrigin,
-} from "@voyant-travel/bookings"
-import {
-  type BookEntityResult,
-  bookEntity,
   type CancelEntityResult,
   cancelEntity,
   type OwnedBookingHandlerRegistry,
@@ -53,7 +45,6 @@ import {
 import type { PricingBasis } from "@voyant-travel/catalog/snapshot/schema"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
-import { bookingDraftFromComponent } from "./catalog-component-adapter.js"
 import type {
   CancelComponentInput,
   CancelComponentResult,
@@ -170,71 +161,8 @@ export function createCatalogComponentAdapter(
     return serializeQuoteResult(transformed)
   }
 
-  async function reserve(input: ReserveComponentInput): Promise<ReserveComponentResult> {
-    const component = input.component
-    const quoteId = required(component.catalogQuoteId, "component.catalogQuoteId")
-    const bookingDraft = bookingDraftFromComponent(component)
-    // The trips can start underlying bookings in draft status. When the
-    // operator leaves that option unchecked, the resulting booking lands in
-    // `awaiting_payment`. The owned products handler reads this off
-    // `request.parameters.initialStatus` and forwards it to the bridge.
-    const createAsDraft = readBoolean(input.envelope.constraints?.createAsDraft)
-    const initialStatus = createAsDraft ? "draft" : "awaiting_payment"
-    const result = await bookEntity(
-      db,
-      {
-        registry,
-        ownedHandlers,
-      },
-      {
-        quoteId,
-        party: {
-          draft: bookingDraft,
-          travelerParty: input.envelope.travelerParty,
-        },
-        paymentIntent: { type: "hold" },
-        parameters: { ...engineParametersFromBookingDraft(undefined, bookingDraft), initialStatus },
-        idempotencyKey: componentReserveIdempotencyKey(component.id, quoteId),
-        adapterContext: adapterContext(component.sourceConnectionId ?? component.sourceKind),
-      },
-    )
-
-    if (result.status === "failed") {
-      throw new Error("component_reservation_failed")
-    }
-
-    const orderRef = result.orderRef || result.snapshotId
-    if (result.bookingId) {
-      await upsertBookingOrigin(
-        db,
-        toCatalogReservationBookingOriginInput({
-          bookingId: result.bookingId,
-          tripEnvelopeId: input.envelope.id,
-          tripComponentId: component.id,
-          reservationPlanId: input.reservationPlanId,
-          catalogPriceResponseId: quoteId,
-          catalogSnapshotId: result.snapshotId,
-          providerSourceKind: component.sourceKind,
-          providerSourceConnectionId: component.sourceConnectionId,
-          providerSourceRef: component.sourceRef,
-          providerOrderRef: orderRef,
-          metadata: {
-            entityModule: component.entityModule,
-            entityId: component.entityId,
-            createAsDraft,
-          },
-        }),
-      )
-    }
-
-    return {
-      status: bookStatusToComponentStatus(result.status),
-      bookingId: result.bookingId,
-      orderId: orderRef,
-      providerRef: orderRef,
-      supplierRef: orderRef,
-      warnings: result.status === "held" ? undefined : [`booking_engine_status:${result.status}`],
-    }
+  async function reserve(_input: ReserveComponentInput): Promise<ReserveComponentResult> {
+    throw new Error("catalog_booking_commit_not_available")
   }
 
   async function release(
@@ -420,14 +348,6 @@ function toPricingBreakdownV1(basis: PricingBasis | undefined): PricingBreakdown
   }
 }
 
-function bookStatusToComponentStatus(status: BookEntityResult["status"]): "held" | "booked" {
-  return status === "held" ? "held" : "booked"
-}
-
-function componentReserveIdempotencyKey(componentId: string, quoteId: string): string {
-  return `trips:${componentId}:${quoteId}`.slice(0, 128)
-}
-
 function engineParametersFromBookingDraft(
   parameters: Record<string, unknown> | undefined,
   bookingDraftPayload: unknown,
@@ -456,10 +376,6 @@ function engineParametersFromBookingDraft(
   }
 
   return next
-}
-
-function readBoolean(value: unknown): boolean {
-  return value === true
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

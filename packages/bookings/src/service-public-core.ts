@@ -28,7 +28,6 @@ import {
   bookingTravelers,
 } from "./schema.js"
 import { type BookingServiceRuntime, bookingsService } from "./service.js"
-import { toDirectB2CBookingOriginInput, upsertBookingOrigin } from "./service-origin.js"
 import type {
   InternalBookingOverviewLookupQuery,
   PublicBookingOverviewAccessQuery,
@@ -36,7 +35,6 @@ import type {
   PublicBookingSessionMutationInput,
   PublicBookingSessionRepriceInput,
   PublicBookingSessionState,
-  PublicCreateBookingSessionInput,
   PublicUpdateBookingSessionInput,
   PublicUpsertBookingSessionStateInput,
 } from "./validation-public.js"
@@ -54,11 +52,6 @@ export interface PublicBookingsServiceResolvers {
   resolveBillingPerson?: ResolveBookingBillingPerson
   resolveTravelerPerson?: ResolveBookingTravelerPerson
 }
-
-/** Server-derived commercial owner stamped once when a public booking is created. */
-export type PublicBookingOwner =
-  | { kind: "personal"; personId: string }
-  | { kind: "business"; organizationId: string }
 
 const BOOKING_PERSON_SOURCE = "storefront-booking" as const
 
@@ -515,29 +508,6 @@ function computeLineTotal(
     default:
       return unitSellAmountCents ?? fallbackAmount
   }
-}
-
-async function generateBookingNumber(db: PostgresJsDatabase) {
-  const now = new Date()
-  const y = now.getFullYear().toString().slice(-2)
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const suffix = String(Math.floor(Math.random() * 900000) + 100000)
-    const bookingNumber = `BK-${y}${m}-${suffix}`
-
-    const [existing] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(eq(bookings.bookingNumber, bookingNumber))
-      .limit(1)
-
-    if (!existing) {
-      return bookingNumber
-    }
-  }
-
-  throw new Error("Unable to generate a unique booking number")
 }
 
 async function buildOverviewSnapshot(
@@ -1139,107 +1109,6 @@ async function buildSessionSnapshot(db: PostgresJsDatabase, bookingId: string) {
 }
 
 export const publicBookingsService = {
-  async createSession(
-    db: PostgresJsDatabase,
-    input: PublicCreateBookingSessionInput,
-    userId?: string,
-    resolvers: PublicBookingsServiceResolvers = {},
-    owner: PublicBookingOwner | null = null,
-  ) {
-    const travelers = input.travelers ?? []
-    const travelerCount = countTravelerParticipants(travelers)
-    const bookingNumber = await generateBookingNumber(db)
-    const result = await bookingsService.reserveBooking(
-      db,
-      {
-        bookingNumber,
-        sourceType: "direct",
-        externalBookingRef: input.externalBookingRef ?? null,
-        communicationLanguage: input.communicationLanguage ?? null,
-        sellCurrency: input.sellCurrency,
-        baseCurrency: input.baseCurrency ?? null,
-        sellAmountCents: input.sellAmountCents ?? null,
-        baseSellAmountCents: input.baseSellAmountCents ?? null,
-        costAmountCents: input.costAmountCents ?? null,
-        baseCostAmountCents: input.baseCostAmountCents ?? null,
-        marginPercent: input.marginPercent ?? null,
-        startDate: input.startDate ?? null,
-        endDate: input.endDate ?? null,
-        pax: input.pax ?? (travelerCount > 0 ? travelerCount : null),
-        holdMinutes: input.holdMinutes,
-        holdExpiresAt: input.holdExpiresAt ?? null,
-        personId: owner?.kind === "personal" ? owner.personId : null,
-        organizationId: owner?.kind === "business" ? owner.organizationId : null,
-        items: input.items.map((item) => ({
-          ...item,
-          sellCurrency: item.sellCurrency ?? input.sellCurrency,
-          costCurrency: item.costCurrency ?? null,
-          description: item.description ?? null,
-          notes: item.notes ?? null,
-          productId: item.productId ?? null,
-          optionId: item.optionId ?? null,
-          optionUnitId: item.optionUnitId ?? null,
-          pricingCategoryId: item.pricingCategoryId ?? null,
-          sourceSnapshotId: item.sourceSnapshotId ?? null,
-          sourceOfferId: null,
-          metadata: item.metadata ?? null,
-        })),
-        internalNotes: null,
-      },
-      userId,
-    )
-
-    if (!("booking" in result) || !result.booking) {
-      return result
-    }
-
-    await upsertBookingOrigin(
-      db,
-      toDirectB2CBookingOriginInput({
-        bookingId: result.booking.id,
-        externalBookingRef: input.externalBookingRef ?? null,
-        items: input.items,
-        buyerKind: owner?.kind ?? "guest",
-      }),
-    )
-
-    for (const participant of travelers) {
-      const personId = await safeResolveTravelerPerson(
-        db,
-        resolvers.resolveTravelerPerson,
-        {
-          firstName: participant.firstName,
-          lastName: participant.lastName,
-          email: participant.email ?? null,
-          phone: participant.phone ?? null,
-          preferredLanguage: participant.preferredLanguage ?? null,
-        },
-        result.booking.id,
-      )
-      await bookingsService.createTravelerRecord(
-        db,
-        result.booking.id,
-        {
-          participantType: participant.participantType,
-          travelerCategory: participant.travelerCategory ?? null,
-          firstName: participant.firstName,
-          lastName: participant.lastName,
-          email: participant.email ?? null,
-          phone: participant.phone ?? null,
-          preferredLanguage: participant.preferredLanguage ?? null,
-          specialRequests: participant.specialRequests ?? null,
-          isPrimary: participant.isPrimary,
-          notes: participant.notes ?? null,
-          personId,
-        },
-        userId,
-      )
-    }
-
-    const session = await buildSessionSnapshot(db, result.booking.id)
-    return session ? { status: "ok" as const, session } : { status: "not_found" as const }
-  },
-
   getSessionById(db: PostgresJsDatabase, bookingId: string) {
     return buildSessionSnapshot(db, bookingId)
   },

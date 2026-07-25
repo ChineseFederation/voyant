@@ -1,6 +1,5 @@
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
-import { bookingBootstrapRequestedEventPayloadSchema } from "./event-payload-schemas.js"
 
 // Lightweight reference (id only) so the deployment-graph manifest stays
 // import-cheap — importing the real port from @voyant-travel/payments would
@@ -10,7 +9,6 @@ const paymentAdapterRuntimePortReference = {
 } as const
 
 import {
-  storefrontBookingIntentsRuntimePort,
   storefrontCustomerPortalRuntimePort,
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
@@ -27,14 +25,12 @@ export const storefrontVoyantModule = defineModule({
     capabilities: ["storefront.data-owner"],
     ports: [
       providePort(storefrontOffersRuntimePort),
-      providePort(storefrontBookingIntentsRuntimePort),
       providePort(customerBusinessAccountOnboardingRuntimePort),
     ],
   },
   runtime: { entry: "@voyant-travel/storefront", export: "createStorefrontVoyantRuntime" },
   runtimePorts: [
     requirePort(storefrontOffersRuntimePort),
-    requirePort(storefrontBookingIntentsRuntimePort),
     requirePort(storefrontIntakeRuntimePort),
   ],
   api: [
@@ -81,27 +77,6 @@ export const storefrontVoyantModule = defineModule({
       export: "storefrontVerificationLinkable",
     },
   ],
-  events: [
-    {
-      id: "@voyant-travel/storefront#event.booking-bootstrap-requested",
-      eventType: "storefront.booking.bootstrap.requested",
-      version: "1.0.0",
-      payloadSchema: bookingBootstrapRequestedEventPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "storefront", category: "domain" },
-    },
-  ],
-  subscribers: [
-    {
-      id: "@voyant-travel/storefront#subscriber.booking-bootstrap",
-      eventType: "storefront.booking.bootstrap.requested",
-      source: "@voyant-travel/storefront",
-      runtime: {
-        entry: "@voyant-travel/storefront/booking-bootstrap-subscriber",
-        export: "storefrontBookingBootstrapSubscriber",
-      },
-    },
-  ],
   resources: [
     {
       id: "@voyant-travel/storefront#resource.database",
@@ -116,18 +91,17 @@ export const storefrontVoyantModule = defineModule({
         id: "@voyant-travel/storefront#access.storefront",
         resource: "storefront",
         label: "Storefront",
-        description: "Manage storefront offers, customer intake, and booking intents.",
+        description: "Manage storefront offers and customer intake.",
         actions: [
           {
             action: "read",
             label: "View storefront",
-            description: "View storefront offers, customer intake, and booking intents.",
+            description: "View storefront offers and customer intake.",
           },
           {
             action: "write",
             label: "Manage storefront",
-            description:
-              "Create and update storefront offers, customer intake, and booking intents.",
+            description: "Create and update storefront offers and customer intake.",
           },
         ],
       },

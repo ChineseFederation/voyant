@@ -24,8 +24,7 @@ export interface BookingsHostProps {
  *
  * Proof-of-contract for semantic destinations (RFC §4.7): no host route
  * tree is imported — opening a booking resolves `"booking.detail"` and the
- * "New booking" button resolves `"booking.create"` through the resolvers
- * the workspace shell registered. The route file stays the thin binding
+ * detail route resolves through the workspace's semantic resolver. The route file stays the thin binding
  * layer for search-state (via {@link bookingsIndexSearchSchema} and the
  * `bookingsSearchToFilters`/`bookingsFiltersToSearch` helpers).
  */
@@ -38,7 +37,6 @@ export function BookingsHost({
 
   return (
     <BookingsPage
-      onCreateBooking={() => navigateTo("booking.create", {})}
       onBookingOpen={(booking) => navigateTo("booking.detail", { bookingId: booking.id })}
       headerActions={headerActions}
       initialFilters={initialFilters}

@@ -5,6 +5,7 @@ import {
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { Context } from "hono"
 
+import { executeFinanceBookingCreateCommand } from "./booking-create-command.js"
 import {
   authorizeFinanceInvoiceIssue,
   FINANCE_INVOICE_ISSUE_ACTION_NAME,
@@ -17,10 +18,9 @@ import {
   FINANCE_REFUND_CAPABILITY,
   FINANCE_REFUND_ROUTE_OR_TOOL_NAME,
 } from "./refund-authorization.js"
-import { getActionLedgerRequestContext, getFinanceRouteRuntime } from "./routes-runtime.js"
+import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { type CreateInvoiceFromBookingInput, financeService } from "./service.js"
-import { createBooking } from "./service-booking-create.js"
 import { issueInvoiceFromBookingCommand } from "./service-issue.js"
 
 export * from "./tools.js"
@@ -39,15 +39,20 @@ export const voyantToolContextContribution = defineToolContextContribution({
           financeService.getFinanceAggregates(db, query),
         voidInvoice: (id: string, input: { reason?: string }) =>
           financeService.voidInvoice(db, id, input),
-        createBooking: (input: Parameters<typeof createBooking>[1]) =>
-          createBooking(db, input, {
-            userId: c.get("userId") ?? undefined,
-            runtime: {
-              ...getFinanceRouteRuntime(c),
-              actionLedgerContext: getActionLedgerRequestContext(c),
-              actionLedgerAuthorizationSource: "finance.booking_create.tool",
-            },
-          }),
+        createBooking: (
+          input: Parameters<typeof executeFinanceBookingCreateCommand>[0]["commandInput"],
+          admitted: Parameters<typeof executeFinanceBookingCreateCommand>[0]["admitted"],
+        ) =>
+          executeFinanceBookingCreateCommand({
+            db,
+            context: financeToolActionLedgerContext(c),
+            commandInput: input,
+            admitted,
+            runtime: getFinanceRouteRuntime(c),
+          }).then((result) => ({
+            bookingId: result.value.bookingId,
+            replayed: result.replayed,
+          })),
         async issueInvoiceFromBooking(input: {
           command: CreateInvoiceFromBookingInput
           idempotencyKey: string

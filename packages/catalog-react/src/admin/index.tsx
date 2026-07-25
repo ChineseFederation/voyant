@@ -18,40 +18,14 @@ import type { CatalogDetailSurface } from "../catalog-surfaces.js"
 
 /**
  * Semantic destinations the catalog admin surfaces navigate to (packaged-admin
- * RFC §4.7). The catalog pages link into routes they do not own — the booking
- * journey, the supplier page, the product editor — so instead of importing a
+ * RFC §4.7). The catalog pages link into routes they do not own — the
+ * supplier page and product editor — so instead of importing a
  * host route tree they resolve these keys through
  * `useAdminHref`/`useAdminNavigate` from `@voyant-travel/admin`. Hosts register one
  * resolver per key (`satisfies AdminDestinationResolvers`).
  */
 declare module "@voyant-travel/admin" {
   interface AdminDestinations {
-    /**
-     * The unified booking journey wizard for an offer-carrying entity.
-     * Optional fields pre-pin the journey: a departure (by id for owned
-     * inventory, by date for sourced), an option/cabin, an accommodation rate
-     * (room type + rate plan + board), and name/image for the side-panel
-     * preview. Pass only the fields the selection actually carries — key
-     * presence is meaningful to the journey's search params.
-     */
-    "bookingJourney.start": {
-      /** Entity module owning the bookable entity (e.g. `"products"`, `"cruises"`). */
-      entityModule: string
-      entityId: string
-      /** Offer source kind (e.g. `"owned"`, `"voyant-connect"`), when known. */
-      sourceKind?: string
-      sourceConnectionId?: string
-      sourceRef?: string
-      departureId?: string
-      /** ISO date (YYYY-MM-DD). */
-      departureDate?: string
-      optionId?: string
-      roomTypeId?: string
-      ratePlanId?: string
-      board?: string
-      entityName?: string
-      entityImageUrl?: string
-    }
     /** A catalog surface's browse page (e.g. Packages, Cruises). */
     "catalog.browse": { surface: CatalogDetailSurface }
     /**

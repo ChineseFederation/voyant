@@ -25,17 +25,15 @@ describe("createBookingsAdminExtension", () => {
     expect(extension.navigation).toBeUndefined()
   })
 
-  it("describes the booking-flow routes with unique ids and paths", () => {
+  it("describes the retained booking routes with unique ids and paths", () => {
     const extension = createBookingsAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(5)
-    expect(new Set(routes.map((route) => route.id)).size).toBe(5)
+    expect(routes).toHaveLength(3)
+    expect(new Set(routes.map((route) => route.id)).size).toBe(3)
     expect(routes.map((route) => route.path)).toEqual([
       "/bookings",
       "/bookings/$id",
-      "/bookings/new",
       "/bookings/compose",
-      "/catalog/journey/$entityModule/$entityId",
     ])
   })
 
@@ -49,13 +47,8 @@ describe("createBookingsAdminExtension", () => {
     expect(index?.title).toBe("Rezervări")
     const detail = extension.routes?.find((route) => route.id === "bookings-detail")
     expect(detail?.path).toBe("/reservations/$id")
-    const create = extension.routes?.find((route) => route.id === "bookings-new")
-    expect(create?.path).toBe("/reservations/new")
     const compose = extension.routes?.find((route) => route.id === "bookings-compose")
     expect(compose?.path).toBe("/reservations/compose")
-    // The journey mounts on the catalog plane, independent of basePath.
-    const journey = extension.routes?.find((route) => route.id === "bookings-journey")
-    expect(journey?.path).toBe("/catalog/journey/$entityModule/$entityId")
   })
 
   it("carries the packaged search contracts", () => {
@@ -67,29 +60,6 @@ describe("createBookingsAdminExtension", () => {
     })
     const detail = extension.routes?.find((route) => route.id === "bookings-detail")
     expect(detail?.validateSearch?.({ tab: "finance" })).toMatchObject({ tab: "finance" })
-    const create = extension.routes?.find((route) => route.id === "bookings-new")
-    expect(create?.validateSearch?.({ productId: "prod_1", slotId: "slot_1" })).toMatchObject({
-      productId: "prod_1",
-      slotId: "slot_1",
-    })
-    const journey = extension.routes?.find((route) => route.id === "bookings-journey")
-    expect(journey?.validateSearch?.({ sourceKind: "owned", departureId: "as_1" })).toMatchObject({
-      sourceKind: "owned",
-      departureId: "as_1",
-    })
-    // The journey can omit provenance and let catalog booking APIs resolve it
-    // server-side from (entityModule, entityId).
-    expect(journey?.validateSearch?.({})).toMatchObject({})
-  })
-
-  it("binds the route-backed booking.create destination on the new-booking route", () => {
-    const extension = createBookingsAdminExtension()
-    const create = extension.routes?.find((route) => route.id === "bookings-new")
-    expect(create?.destination).toBe("booking.create")
-    // The journey route stays unbound: `bookingJourney.start` constructs
-    // search params, which is beyond pure path interpolation.
-    const journey = extension.routes?.find((route) => route.id === "bookings-journey")
-    expect(journey?.destination).toBeUndefined()
   })
 
   it("carries full route implementations as lazy pages (RFC §4.8)", () => {
@@ -100,7 +70,7 @@ describe("createBookingsAdminExtension", () => {
     // per-route SSR mode.
     const extension = createBookingsAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(5)
+    expect(routes).toHaveLength(3)
     for (const route of routes) {
       expect(route.component).toBeUndefined()
       expect(typeof route.page).toBe("function")

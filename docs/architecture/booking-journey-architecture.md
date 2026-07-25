@@ -90,14 +90,14 @@ Before specifying anything new, this doc commits to reusing the following primit
 
 | Concern | Existing primitive | This doc's stance |
 |---------|---------------------|--------------------|
-| Encrypted PII (passport, DOB, dietary, accessibility) | `booking_traveler_travel_details` with `KmsEnvelope` columns (`identityEncrypted`, `dietaryEncrypted`, `accessibilityEncrypted`) — `packages/bookings/src/schema/travel-details.ts` | **Reuse.** Per-traveler document fields collected in the Travelers step commit through this envelope; no parallel `bookingTravelers.documents jsonb`. The Travelers step's *transient* draft state may carry plaintext during the journey, but the commit path encrypts. |
+| Encrypted PII (passport, DOB, dietary, accessibility) | `booking_traveler_travel_details` with `KmsEnvelope` columns (`identityEncrypted`, `dietaryEncrypted`, `accessibilityEncrypted`) — `packages/bookings/src/schema/travel-details.ts` | **Reuse.** Per-traveler document fields collected in the Travelers step flow through this envelope; no parallel `bookingTravelers.documents jsonb`. The Travelers step's *transient* draft state may carry plaintext during the journey, but authorized settlement encrypts it. |
 | Tax-regime catalog (jurisdiction × rate) | `tax_regimes` table — `packages/finance/src/schema.ts` | **Reuse.** New `tax_classes` (this doc, §9) carries the per-product tax-treatment decision and *resolves to* a `tax_regimes` row at quote time. They stack, not overlap. |
 | Per-occupancy pricing for cruises | `cruise_prices.occupancy` column + `cruisePrices` table — `packages/cruises/src/schema-pricing.ts` | **Reuse for cruises.** The new `product_pax_pricing_tiers` (§9) is for non-cruise verticals that need single-supplement / triple-share. Cruises keep their specialized table; the engine reads from the right place per vertical. |
-| Payment-collection UI (saved cards, new card, processor flow) | Finance React checkout UI's `PaymentStep` — `packages/finance-react/src/checkout-components/payment-step.tsx` | **Compose.** The journey's "Payment" step picks **intent + schedule** (hold vs card vs ticket-on-credit; deposit vs full vs split) — that's a journey concern. Actual provider mechanics (Netopia tokenization, Stripe Elements, etc.) hand off to Finance React checkout UI's `PaymentStep` at commit time. The journey shell does not introduce a new payment-provider seam. |
+| Payment-collection UI (saved cards, new card, processor flow) | Finance React checkout UI's `PaymentStep` — `packages/finance-react/src/checkout-components/payment-step.tsx` | **Compose.** The journey's "Payment" step picks **intent + schedule** (hold vs card vs ticket-on-credit; deposit vs full vs split) — that's a journey concern. Actual provider mechanics (Netopia tokenization, Stripe Elements, etc.) hand off to Finance React checkout UI after authorized booking settlement. The journey shell does not introduce a new payment-provider seam. |
 | Quantity-tier pricing (more units → cheaper per-unit) | `option_unit_tiers` — `packages/commerce/src/pricing/schema-option-rules.ts` | **Reuse.** Quantity tiers are an orthogonal axis to per-occupancy tiers; the engine consults both when pricing an option. |
-| Snapshot graph at commit | `booking_catalog_snapshot` + `captureSnapshot` / `captureSnapshotGraph` — `packages/catalog/src/services/snapshot-service.ts` | **Reuse.** Both owned and sourced commits pass through these. |
-| Atomic owned-product transaction | `bookingsCreate` — `packages/finance/src/service-booking-create.ts` | **Bridge only.** The products owned handler maps a draft to booking-create's input shape for the current commit path. Booking-create's input still does not model every axis the journey can collect (full extras, all accommodation stay details, encrypted travel details, tax lines, catalog snapshots, arbitrary draft shape), so vertical handlers remain the seam for richer commit primitives. |
-| Public booking sessions (existing model) | `booking_session_states` keyed by `booking_id` — `packages/bookings/src/schema-operations.ts`. Public routes at `POST /v1/public/bookings/sessions`, `/state`, `/reprice`, `/confirm`. | **Sibling, not replacement.** The existing model materializes a `bookings` row first (status `draft`) and wraps it with session state. The journey's `booking_drafts` (§5.7) is the inverse — a pre-booking-row hold that may *never* materialize into a booking (abandonment is the common case). See §12.10 for the open question on whether to extend `booking_session_states` to allow `booking_id IS NULL` instead of adding `booking_drafts`. |
+| Snapshot graph | `booking_catalog_snapshot` + `captureSnapshot` / `captureSnapshotGraph` — `packages/catalog/src/services/snapshot-service.ts` | **Reuse.** Snapshot capture cannot create a booking row. |
+| Atomic booking creation | admitted Finance command + lease-gated Bookings settlement | **Single authority.** Vertical handlers quote and hold only; they do not expose a second commit bridge. |
+| Public booking sessions (existing model) | `booking_session_states` keyed by an existing `booking_id` — `packages/bookings/src/schema-operations.ts`. Public routes read/update/reprice/confirm/expire that existing session. | **Sibling, not replacement.** Session initialization does not create a booking. The journey's `booking_drafts` (§5.7) is pre-booking state that may *never* be consumed (abandonment is the common case). |
 
 The rule of thumb: if a reasonable read of "I need X" finds an existing primitive in the table above, the new code uses it. Adding a parallel primitive needs a one-paragraph justification in this doc.
 
@@ -137,7 +137,9 @@ We're **not** adopting:
 
 - Astro / Payload split. We stay on TanStack Start + Hono + drizzle.
 - Form state via local React Context with manual serialization. We use a single source-of-truth `BookingDraft` object held at the journey root, shared with sub-steps via render props or context as suits the codebase.
-- **Per-step *engine* dispatch** (one server call per step, fragmented commit). One reference shipped a `POST /api/step-1`, `/step-2`, etc. surface. We don't fragment the commit path that way — `bookEntity` runs once, atomically, against the final draft. Note: this is **not** the same as draft persistence — see §5.7. The journey *does* PUT to `/v1/{admin,public}/catalog/drafts/:id` on every step transition (so the draft survives refresh / tab loss), but those PUTs are pure draft-state writes, not engine commits.
+- **Per-step booking creation.** Draft PUTs and hold calls are pre-booking
+  state changes only. They never insert a booking; creation is a separate
+  admitted Finance command.
 
 ## 3. Step model
 
@@ -380,7 +382,9 @@ A quote always carries an `expiresAt` (default 10 min). Today, Confirm validates
 
 Cruise (and complex tour) bookings span minutes-to-hours of operator effort: contacting the lead, collecting passport scans, proposing alternatives. Two production systems we've shipped have converged on the same contract worth adopting — one materializes the booking row at step 1 and mutates it through subsequent steps, the other carries an explicit `booking-sessions` row with `expiresAt`. Both share the load-bearing idea:
 
-> Every meaningful journey has a server-side draft with a hold. The draft survives refresh, tab loss, and short walk-aways. On commit it materializes into a `bookings` row (or merges into an existing one if the journey was started against a draft booking).
+> Every meaningful journey has server-side draft state and, where needed, a
+> hold. The draft survives refresh, tab loss, and short walk-aways. It does not
+> itself create a booking.
 
 We introduce `booking_drafts`:
 
@@ -405,12 +409,11 @@ booking_drafts
 
 The wizard PUTs to `/v1/{admin,public}/catalog/drafts/:id` on every step transition. It places or refreshes a hold through `/v1/{admin,public}/catalog/holds/place` once the user advances past Configure with enough inventory-specific input. For owned products, the current real lock is `availability_holds`, which decrements `availability_slots.remainingPax` and is tied to the `booking_drafts` row. Products, accommodations, and cruises all expose the handler methods; only products currently lock real capacity. For sourced rows, the route surface exists but sourced hold release remains a contract gap: the reaper can honor `AdapterCapabilities.holdReleaseGraceMs`, but it no-ops release because `SourceAdapter` still has no hold-only release method.
 
-The HTTP route accepts a `draftId` instead of (or alongside) a `quoteId`. When `draftId` is supplied, the route loads `booking_drafts.current_quote_id`, threads the draft payload into engine parameters, then calls `bookEntity` with the resolved quote. The quote is the most recent pricing snapshot; the draft carries the full payload. On commit:
-
-1. Final re-quote; reject on drift.
-2. Materialize the booking row + travelers + payment schedule (owned arm) or call `adapter.reserve` with `payment_intent.type !== "hold"` (sourced arm).
-3. Capture the snapshot graph.
-4. Mark the draft `consumed_booking_id`.
+Quote and hold routes may accept a `draftId`. They load
+`booking_drafts.current_quote_id` and thread the draft payload into the
+provider-neutral pricing/hold operation. Booking creation is not part of this
+route family. A caller may stamp `consumed_booking_id` only after the admitted
+Finance command returns the canonical booking reference.
 
 Drafts older than `expires_at` are reaped by the operator starter's hourly scheduled job (`starters/operator/src/api/draft-reaper-scheduled.ts`); their owned holds are released first. Orphaned drafts (where the hold expired but the draft didn't) remain a recovery-surface gap rather than a shipped operator view.
 
@@ -432,14 +435,6 @@ export interface OwnedBookingHandler {
    * meaningful input change. Returns shape + pricing + availability.
    */
   computeQuote(ctx: OwnedHandlerContext, request: ComputeQuoteRequest): Promise<ComputeQuoteResult>
-
-  /**
-   * Commit the draft to a booking row. May call bookingsCreate as
-   * a bridge today; richer commit primitives (extras, accommodation
-   * stays, encrypted travel details, tax lines, snapshot graph) land
-   * on this same handler as each vertical deepens.
-   */
-  commit(ctx: OwnedHandlerContext, request: CommitOwnedRequest): Promise<CommitOwnedResult>
 
   /** Optional: place / extend / release a soft hold on the row. */
   placeHold?(ctx: OwnedHandlerContext, request: HoldRequest): Promise<HoldResult>
@@ -464,15 +459,15 @@ quoteEntity({ entity, draft, scope })
   └── else
         → sourceAdapterRegistry.resolveOrThrow(entity.sourceKind).liveResolve(...)
 
-bookEntity({ quoteId | draftId, draft })
-  ├── owned:    ownedHandlerRegistry.resolveOrThrow(entity.module).commit(...)
-  └── sourced:  sourceAdapterRegistry.resolveOrThrow(entity.sourceKind).reserve(...) + captureSnapshot(...)
+placeHold({ entity, draft })
+  ├── owned:    ownedHandlerRegistry.resolveOrThrow(entity.module).placeHold(...)
+  └── sourced:  provider-specific hold operation where supported
 ```
 
 **Where the handlers live.** Each vertical owns its handler:
 
-- `packages/inventory/src/booking-engine/handler.ts` -> `createProductsBookingHandler({ db })`. Composes Inventory's Product pricing/availability + `bookingsCreate` as the current bridge.
-- Accommodation resale handler -> daily-rate computation and room-option stay booking for sourced or packaged accommodation. This should not include hotel/property operations.
+- `packages/inventory/src/booking-engine/handler.ts` -> `createProductsBookingHandler({ db })`. Composes Inventory product pricing, availability, and holds.
+- Accommodation resale handler -> daily-rate computation and room-option availability for sourced or packaged accommodation. This should not include hotel/property operations.
 - `packages/cruises/src/booking-engine/handler.ts` → uses `cruise_prices.occupancy` for tiers, sailing-level holds.
 - And so on per vertical.
 
@@ -558,8 +553,8 @@ Per Rule 4 (§overview), every piece of the journey except the wired-up route co
 
 | Concern | Package | New / Existing |
 |---------|---------|----------------|
-| Engine endpoints + types (`POST /quote`, `POST /book`, `BookingDraftShape`, `PricingBreakdown`) | `@voyant-travel/catalog/booking-engine` | Existing — extend |
-| React hooks (`useBookingDraft`, `useBookingQuote`, `useBookingCommit`, `useBookingDraftShape`) | `@voyant-travel/catalog-react/booking-engine` *(new sub-path)* | New |
+| Engine endpoints + types (`POST /quote`, draft/hold routes, `BookingDraftShape`, `PricingBreakdown`) | `@voyant-travel/catalog/booking-engine` | Existing — extend |
+| React hooks (`useBookingDraft`, `useBookingQuote`, `useBookingDraftShape`, `useBookingHold`) | `@voyant-travel/catalog-react/booking-engine` *(new sub-path)* | New |
 | Wizard shell (`<BookingJourney />`, step navigation, sticky footer, draft persistence) | `@voyant-travel/bookings-react/journey` | **New** — the missing piece. Modeled on `@voyant-travel/flights-react/ui`'s `FlightBookingShell`. |
 | Step section components (Configure, Billing, Travelers, Accommodation, Add-ons, Payment, Review) | `@voyant-travel/bookings-react/journey` | New, with renderers per sub-step `kind` |
 | Reusable form sections that pre-date the journey | `@voyant-travel/bookings-react/ui` (PassengersSection, PaymentScheduleSection, RoomsStepperSection, SharedRoomSection, VoucherPickerSection, PriceBreakdownSection) | Existing — widen as §8 table notes |
@@ -742,12 +737,11 @@ section as the current execution map.
   `@voyant-travel/catalog/booking-engine`.
 - `createCatalogBookingRoutes()` and `createCatalogBookingApiModule()` are
   exported from `@voyant-travel/catalog/booking-engine`; the operator starter uses
-  the shared route factory for the reusable quote/draft/hold/book family.
+  the shared route factory for the reusable quote/draft/hold family.
 - `BookingDraftV1`, `BookingDraftShapeV1`, `QuoteResponseV1`,
   `BookResponseV1`, and `PricingBreakdownV1` are exported as Zod contracts.
 - `@voyant-travel/catalog-react/booking-engine` ships `useBookingDraft`,
-  `useBookingQuote`, `useBookingDraftShape`, `useBookingCommit`, and
-  `useBookingHold`.
+  `useBookingQuote`, `useBookingDraftShape`, and `useBookingHold`.
 - `@voyant-travel/bookings-react/journey` ships `<BookingJourney />`, the step header,
   side panel, and Configure/Billing/Travelers/Accommodation/Add-ons/Payment/
   Review steps.
@@ -826,7 +820,9 @@ vertical hardening or composer work.
 3. ~~**Single quote table or split.**~~ **Resolved (§5.7):** keep `catalog_quotes` for the live-pricing snapshot; introduce `booking_drafts` for the resumable session-bound hold. Two tables, two lifetimes.
 4. ~~**Per-band pricing rules — adult vs child vs infant — does pricing live with the band declaration, or with the optionUnit row?**~~ **Resolved: band-based is canonical; count-based is a per-band transformation.** The descriptor's `paxBands[]` carries `code` ("adult" / "child" / "infant" / vertical-specific) as the unit of pricing; per-product per-occupancy tables (`product_pax_pricing_tiers`, `cruise_prices`) are read keyed by `(option_unit_id|sailing_id, occupancy_count)` and then *broken down* into per-band charges that the wizard can render in the breakdown.
 5. ~~**Validation depth.**~~ **Resolved:** hard reject only on physically-required-to-commit fields (firstName, lastName, pax band totals); everything else is a soft warning surfaced inline above the Next button. The shell's `canAdvanceFromStep` enforces hard rules; `warningsForStep` renders the soft hints. Per-product rules ride on the descriptor's `travelerFields[].required` flag.
-6. ~~**Idempotency.**~~ **Resolved:** `bookEntity` accepts `idempotencyKey` (8–128 chars). Stored on `booking_catalog_snapshot.idempotency_key` with a partial unique index; duplicate calls return the prior booking. Auto-generated client-side by `useBookingCommit` so double-clicks don't double-book.
+6. ~~**Idempotency.**~~ **Resolved:** booking creation idempotency belongs to
+   the admitted Finance command and its action-ledger claim. Catalog quote and
+   hold routes do not create booking rows.
 7. **Cabin number selection — actual deck plan or numbered grid?** A numbered grid is the simpler affordance and what production cruise systems we've shipped converged on; a deck plan (visual) is richer but takes a CMS and SVG assets per ship. v1 should ship the grid; deck plan is a follow-up that's purely a presentation swap (descriptor unchanged).
 8. **Per-guest excursion selection vs party-level.** Per-guest selection (each guest can pick different excursions) is what production cruise systems we've shipped use; some cruise lines mandate party-level. The descriptor's `addonGroups[].perGuestSelection` boolean already covers this — but who declares the value? Probably the supplier, surfaced via supplier metadata on the cruise's catalog row.
 9. ~~**Hold release semantics.**~~ **Resolved:** immediate release on `expires_at` for v1. The reaper job (`/api/draft-reaper-scheduled` cron) lists expired drafts hourly and calls each handler's `releaseHold`. Per-supplier grace periods are a follow-up that lives on adapter metadata (the contract takes a `releaseHold(token)` method that adapters can implement to delay the upstream release).
@@ -848,3 +844,15 @@ This doc consolidates patterns we've validated in production booking engines we 
 
 - A general-purpose travel booking engine (Astro + React + react-hook-form + Zod). Source of: linear wizard with conditional steps, per-passenger DOB + document fields collected inline at the passengers step, live pricing on every input change with sticky-footer total, session-bound inventory hold via a session token.
 - A luxury cruise booking engine (Next.js + Zustand + Supabase). Source of: cabin-category → cabin-number two-step selection, per-occupancy pricing tiers (single/double/triple/quad), pre/post-cruise Extensions separate from generic Extras, per-port excursions with per-guest selection, resumable booking-row-as-draft model that informs §5.7's `booking_drafts` design.
+# Status: routed creation UI retired
+
+The packaged admin and standard storefront no longer mount the single-line
+booking-creation journey described below. Catalog and inventory detail surfaces
+are read-only, and the standard storefront has no `/shop/book/...` route.
+Booking creation is admitted through the Finance staff Tool. Booking detail,
+customer-portal sessions, catalog quote/draft contracts, and reusable draft
+sections remain supported where they serve existing bookings or explicit
+tool/trip composition.
+
+The remainder of this document is retained as historical design context. Route
+and public-shell examples below are not current product authority.

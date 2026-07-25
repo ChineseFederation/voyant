@@ -1,7 +1,7 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
-import { type CruisesToolServices, createCruiseBookingTool, cruisesTools } from "../../src/tools.js"
+import { type CruisesToolServices, cruisesTools } from "../../src/tools.js"
 
 function context(services?: CruisesToolServices): ToolContext & { cruises?: CruisesToolServices } {
   return {
@@ -25,23 +25,15 @@ describe("cruise tools", () => {
     expect(() => registry.registerAll(cruisesTools)).not.toThrow()
     const manifest = registry.list()
 
-    expect(manifest).toHaveLength(12)
-    expect(new Set(manifest.map(({ capabilityId }) => capabilityId)).size).toBe(12)
+    expect(manifest).toHaveLength(11)
+    expect(new Set(manifest.map(({ capabilityId }) => capabilityId)).size).toBe(11)
     expect(manifest.every(({ owner }) => owner === "@voyant-travel/cruises")).toBe(true)
     expect(manifest.some(({ name }) => name.includes("archive") || name.includes("delete"))).toBe(
       false,
     )
   })
 
-  it("guards created targets and supplier-committing booking as irreversible writes", () => {
-    expect(createCruiseBookingTool.requiredScopes).toEqual(["cruises:write", "bookings:write"])
-    expect(createCruiseBookingTool.audience).toEqual({ source: "grant", allowed: ["staff"] })
-    expect(createCruiseBookingTool.riskPolicy).toMatchObject({
-      destructive: false,
-      reversible: false,
-      confirmationRequired: true,
-      sideEffects: ["data-write", "external-booking"],
-    })
+  it("guards created targets as irreversible writes", () => {
     for (const tool of cruisesTools.filter(
       ({ requiredScopes }) => requiredScopes[0] === "cruises:write" && requiredScopes.length === 1,
     )) {

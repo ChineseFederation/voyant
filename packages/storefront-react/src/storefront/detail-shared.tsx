@@ -59,7 +59,7 @@ export function BookingSidebar({
   isQuoting: boolean
   quoteData: { available?: boolean; invalidReason?: string } | null | undefined
   disabled: boolean
-  onBook: () => void
+  onBook?: () => void
 }): React.ReactElement {
   const t = useStorefrontUi().messages.shopDetailShared
   const priceLabel =
@@ -96,27 +96,33 @@ export function BookingSidebar({
               {humanizeInvalidReason(quoteData.invalidReason, t)}
             </p>
           ) : null}
-          <Button type="button" className="w-full" disabled={disabled} onClick={onBook}>
-            {t.book}
-          </Button>
-          <p className="text-muted-foreground text-xs">{t.noChargeYet}</p>
+          {onBook ? (
+            <>
+              <Button type="button" className="w-full" disabled={disabled} onClick={onBook}>
+                {t.book}
+              </Button>
+              <p className="text-muted-foreground text-xs">{t.noChargeYet}</p>
+            </>
+          ) : null}
         </CardContent>
       </Card>
 
       {/* Mobile fixed bottom panel — collapses sidebar on narrow viewports */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background p-3 shadow-lg lg:hidden">
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <div className="text-muted-foreground text-xs">
-              {totalPax} {guestsLabel}
+      {onBook ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background p-3 shadow-lg lg:hidden">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-muted-foreground text-xs">
+                {totalPax} {guestsLabel}
+              </div>
+              <div className="font-medium">{priceLabel}</div>
             </div>
-            <div className="font-medium">{priceLabel}</div>
+            <Button type="button" disabled={disabled} onClick={onBook}>
+              {t.book}
+            </Button>
           </div>
-          <Button type="button" disabled={disabled} onClick={onBook}>
-            {t.book}
-          </Button>
         </div>
-      </div>
+      ) : null}
     </>
   )
 }

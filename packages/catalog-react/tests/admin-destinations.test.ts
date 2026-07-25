@@ -18,7 +18,6 @@ import type { ProductDetailSearchParams } from "../src/admin/index.js"
 describe("catalog admin destinations (type-level)", () => {
   it("augments AdminDestinations with the catalog destination keys", () => {
     const keys = [
-      "bookingJourney.start",
       "catalog.browse",
       "catalog.detail",
       "product.detail",
@@ -28,8 +27,6 @@ describe("catalog admin destinations (type-level)", () => {
     // Exhaustive: `satisfies AdminDestinationResolvers` fails to compile if a
     // declared key is missing a resolver or a param shape drifts.
     const resolvers = {
-      "bookingJourney.start": ({ entityModule, entityId, sourceKind }) =>
-        `/journey/${entityModule}/${entityId}${sourceKind ? `?sourceKind=${sourceKind}` : ""}`,
       "catalog.browse": ({ surface }) => `/catalog/${surface}`,
       "catalog.detail": ({ surface, id }) => `/catalog/${surface}/${id}`,
       "product.detail": ({ productId }) => `/products/${productId}`,

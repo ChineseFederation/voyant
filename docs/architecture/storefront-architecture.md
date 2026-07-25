@@ -124,11 +124,12 @@ when the operator chooses to expose them. Booking/session checkout surfaces are
 different: once a public flow creates a booking session, the booking id is only
 an identifier and must not be treated as the bearer secret.
 
-The public checkout/session model is:
+The public checkout/session model applies to an existing booking created
+through the admitted Finance command:
 
-- `POST /v1/public/bookings/sessions` creates the booking session and returns a
-  short-lived `checkoutCapability` object. The route also sets an HttpOnly
-  SameSite cookie named `voyant_checkout_session` for same-site storefronts.
+- The authorized creation response supplies the short-lived checkout
+  capability. Same-site storefronts may also receive the HttpOnly
+  `voyant_checkout_session` cookie from their host integration.
 - PII-bearing session reads and all public session mutations require the
   capability, either via the cookie or the
   `X-Voyant-Checkout-Capability` header.

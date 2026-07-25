@@ -3,22 +3,13 @@
 // enrichment change) and splitting the OpenAPI route group is out of scope for
 // the additive #2969 wiring; tracked for a follow-up split.
 import { OpenAPIHono, z } from "@hono/zod-openapi"
-import {
-  ForbiddenApiError,
-  idempotencyKey,
-  openApiValidationHook,
-  requireCustomerBuyerContext,
-  UnauthorizedApiError,
-} from "@voyant-travel/hono"
+import { idempotencyKey, openApiValidationHook, UnauthorizedApiError } from "@voyant-travel/hono"
 import type { Context, MiddlewareHandler } from "hono"
 
 import {
   type CheckoutCapabilityAction,
-  checkoutCapabilityActions,
-  checkoutCapabilityCookie,
   guestBookingAccessActions,
   guestBookingAccessCookie,
-  issueCheckoutCapability,
   issueGuestBookingAccess,
   requireCheckoutCapability,
   requireGuestBookingAccess,
@@ -31,11 +22,7 @@ import {
 } from "./route-runtime.js"
 import { createBookingsPublicRoute as createRoute } from "./routes-openapi.js"
 import { type Env, getRuntimeEnv, notFound } from "./routes-shared.js"
-import {
-  type PublicBookingOwner,
-  type PublicBookingsServiceResolvers,
-  publicBookingsService,
-} from "./service-public.js"
+import { type PublicBookingsServiceResolvers, publicBookingsService } from "./service-public.js"
 import {
   publicBookingOverviewAccessQuerySchema,
   publicBookingOverviewSchema,
@@ -43,7 +30,6 @@ import {
   publicBookingSessionRepriceResultSchema,
   publicBookingSessionSchema,
   publicBookingSessionStateSchema,
-  publicCreateBookingSessionSchema,
   publicGuestBookingLookupResponseSchema,
   publicGuestBookingLookupSchema,
   publicRepriceBookingSessionSchema,
@@ -83,20 +69,6 @@ function sessionConflictError(status: string) {
       return "Changing quantity for held items requires a fresh reservation"
     default:
       return "Unable to process booking session"
-  }
-}
-
-function attachCheckoutCapability<T extends { sessionId: string }>(
-  session: T,
-  issued: Awaited<ReturnType<typeof issueCheckoutCapability>>,
-) {
-  return {
-    ...session,
-    checkoutCapability: {
-      token: issued.token,
-      expiresAt: issued.expiresAt.toISOString(),
-      actions: [...checkoutCapabilityActions],
-    },
   }
 }
 
@@ -184,61 +156,7 @@ function publicResolvers(c: Context): PublicBookingsServiceResolvers {
   }
 }
 
-async function resolvePublicBookingOwner(c: Context<Env>): Promise<PublicBookingOwner | null> {
-  if (c.get("isAnonymousRequest") === true) return null
-  const hasAuthContext = Boolean(
-    c.get("actor") || c.get("realm") || c.get("userId") || c.get("callerType"),
-  )
-  if (!hasAuthContext) return null
-
-  const buyer = requireCustomerBuyerContext(c)
-  const runtime = getRouteRuntime(c)
-  if (buyer.kind === "personal") {
-    const personId = buyer.relationshipPersonId
-    if (!personId || !runtime.resolveBillingPersonById) {
-      throw new ForbiddenApiError("An active linked customer record is required")
-    }
-    if (!(await runtime.resolveBillingPersonById(c.get("db"), personId))) {
-      throw new ForbiddenApiError("The linked customer record is no longer active")
-    }
-    return { kind: "personal", personId }
-  }
-
-  if (
-    !runtime.resolveBillingOrganizationById ||
-    !(await runtime.resolveBillingOrganizationById(c.get("db"), buyer.relationshipOrganizationId))
-  ) {
-    throw new ForbiddenApiError("The business buyer organization is no longer active")
-  }
-  return { kind: "business", organizationId: buyer.relationshipOrganizationId }
-}
-
 const sessionParamsSchema = z.object({ sessionId: z.string() })
-
-const createSessionRoute = createRoute({
-  method: "post",
-  path: "/sessions",
-  request: {
-    body: {
-      required: true,
-      content: { "application/json": { schema: publicCreateBookingSessionSchema } },
-    },
-  },
-  responses: {
-    201: {
-      description: "Created booking session with a checkout capability",
-      content: { "application/json": { schema: z.object({ data: publicBookingSessionSchema }) } },
-    },
-    404: {
-      description: "Availability slot not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    409: {
-      description: "Booking session could not be created",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-  },
-})
 
 const getSessionRoute = createRoute({
   method: "get",
@@ -466,7 +384,6 @@ const guestLookupRoute = createRoute({
 // the `.openapi()` chain — middleware is positional, so it must precede the
 // routes it guards.
 const publicBookingApp = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-publicBookingApp.use("/sessions", idempotencyKey({ scope: "POST /v1/public/bookings/sessions" }))
 publicBookingApp.use("/sessions/:sessionId", sessionResourceGuard())
 publicBookingApp.use("/sessions/:sessionId/state", sessionResourceGuard())
 publicBookingApp.use(
@@ -486,31 +403,6 @@ publicBookingApp.use(
 )
 
 export const publicBookingRoutes = publicBookingApp
-  .openapi(createSessionRoute, async (c) => {
-    const owner = await resolvePublicBookingOwner(c)
-    const result = await publicBookingsService.createSession(
-      c.get("db"),
-      c.req.valid("json"),
-      c.get("userId"),
-      publicResolvers(c),
-      owner,
-    )
-
-    if (result.status === "slot_not_found") {
-      return notFound(c, "Availability slot not found")
-    }
-
-    if (!hasSession(result)) {
-      return c.json({ error: sessionConflictError(result.status) }, 409)
-    }
-
-    const capability = await issueCheckoutCapability(result.session.sessionId, getRuntimeEnv(c))
-    c.header("Set-Cookie", checkoutCapabilityCookie(capability.token, capability.expiresAt), {
-      append: true,
-    })
-
-    return c.json({ data: attachCheckoutCapability(result.session, capability) }, 201)
-  })
   .openapi(getSessionRoute, async (c) => {
     const session = await publicBookingsService.getSessionById(
       c.get("db"),

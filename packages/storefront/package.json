@@ -6,7 +6,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./admin-routes": "./src/routes-admin.ts",
-    "./booking-bootstrap-subscriber": "./src/booking-bootstrap-subscriber-runtime.ts",
     "./customer-portal": "./src/customer-portal/index.ts",
     "./customer-auth-client": "./src/customer-auth-client.ts",
     "./customer-portal/public-routes": "./src/customer-portal/routes-public.ts",
@@ -128,11 +127,6 @@
         "types": "./dist/routes-admin.d.ts",
         "import": "./dist/routes-admin.js",
         "default": "./dist/routes-admin.js"
-      },
-      "./booking-bootstrap-subscriber": {
-        "types": "./dist/booking-bootstrap-subscriber-runtime.d.ts",
-        "import": "./dist/booking-bootstrap-subscriber-runtime.js",
-        "default": "./dist/booking-bootstrap-subscriber-runtime.js"
       },
       "./customer-portal": {
         "types": "./dist/customer-portal/index.d.ts",

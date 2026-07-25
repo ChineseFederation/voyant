@@ -1,5 +1,5 @@
 /**
- * Step components rendered inside `<BookingJourney />`. Each takes a
+ * Reusable booking-draft step components. Each takes a
  * draft + setDraft pair plus the active descriptor; updates flow up
  * via setDraft and the shell re-quotes on the next debounce tick.
  *

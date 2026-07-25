@@ -42,8 +42,8 @@ import {
  * overview, inclusions, an availability calendar with a per-room rate table,
  * rooms, and reviews.
  *
- * Presentational: navigation (`onBook`) and breadcrumbs (`onBreadcrumbs`) are
- * injected by the host; the base URL + fetcher come from `VoyantCatalogProvider`.
+ * Presentational: breadcrumbs (`onBreadcrumbs`) are injected by the host; the
+ * base URL + fetcher come from `VoyantCatalogProvider`.
  */
 
 /** The offer the user clicked Book on — enough for the journey to pre-fill the
@@ -74,12 +74,8 @@ export interface ProductDetailPageProps {
   productsLabel: string
   /** Href of the packages browse page, e.g. `/catalog/products`. */
   productsHref: string
-  /**
-   * Route to the booking journey, pinned to the resolved source when known.
-   * `selection` carries the offer the user clicked Book on, so the journey can
-   * pre-fill the date and show a preview instead of starting blank.
-   */
-  onBook: (
+  /** Optional booking handoff supplied only by deployments with an admitted UI command. */
+  onBook?: (
     productId: string,
     source: { kind?: string | null; connectionId?: string; ref?: string | null },
     selection?: ProductBookSelection,
@@ -236,7 +232,7 @@ export function ProductDetailPage({
   }, [selectedOffers, roomByCode])
 
   const bookOffer = (offer: Offer) =>
-    onBook(
+    onBook?.(
       productId,
       {
         kind: state.source?.kind,
@@ -446,7 +442,7 @@ export function ProductDetailPage({
                     key={group.code ?? group.offers[0]?.id}
                     group={group}
                     showImage={roomsHaveImages}
-                    onBook={bookOffer}
+                    {...(onBook ? { onBook: bookOffer } : {})}
                     t={t}
                     locale={resolvedLocale}
                   />

@@ -185,9 +185,7 @@ export function itemLinesToRows(
   quantities: Record<string, number>,
   units: BookingCreateUnitLineRecord[],
   pricing: BookingCreatePricingRecord | null,
-  travelerIndexesByUnitId: Record<string, number[]> = {},
   travelerKeysByUnitId: Record<string, string[]> = {},
-  travelerIndexesByUnitAndCategoryId: Record<string, Record<string, number[]>> = {},
   travelerKeysByUnitAndCategoryId: Record<string, Record<string, string[]>> = {},
 ): BookingCreateItemLineInput[] {
   const unitsById = new Map(units.map((unit) => [unit.optionUnitId, unit]))
@@ -225,13 +223,10 @@ export function itemLinesToRows(
       return categoryPricedLines.map((pricedLine) => {
         const pricingCategoryId = pricedLine.pricingCategoryId
         const categoryQuantity = Math.max(1, pricedLine.quantity ?? 1)
-        const travelerIndexes = pricingCategoryId
-          ? travelerIndexesByUnitAndCategoryId[optionUnitId]?.[pricingCategoryId]
-          : undefined
         const travelerKeys = pricingCategoryId
           ? travelerKeysByUnitAndCategoryId[optionUnitId]?.[pricingCategoryId]
           : undefined
-        const hasTravelerLinks = Boolean(travelerKeys?.length || travelerIndexes?.length)
+        const hasTravelerLinks = Boolean(travelerKeys?.length)
         return {
           clientLineKey: hasTravelerLinks
             ? `unit:${optionUnitId}:category:${pricingCategoryId ?? "default"}`
@@ -243,11 +238,7 @@ export function itemLinesToRows(
           title: pricedLine.label ?? unitNames.get(optionUnitId) ?? null,
           unitSellAmountCents: pricedLine.unitAmountCents,
           totalSellAmountCents: pricedLine.totalAmountCents,
-          ...(travelerKeys?.length
-            ? { travelerKeys }
-            : travelerIndexes?.length
-              ? { travelerIndexes }
-              : {}),
+          ...(travelerKeys?.length ? { travelerKeys } : {}),
         }
       })
     }
@@ -264,9 +255,8 @@ export function itemLinesToRows(
     const unitSellAmountCents =
       pricedLine?.unitAmountCents ??
       (totalSellAmountCents != null ? Math.floor(totalSellAmountCents / quantity) : null)
-    const travelerIndexes = travelerIndexesByUnitId[optionUnitId]
     const travelerKeys = travelerKeysByUnitId[optionUnitId]
-    const hasTravelerLinks = Boolean(travelerKeys?.length || travelerIndexes?.length)
+    const hasTravelerLinks = Boolean(travelerKeys?.length)
     return {
       // Server uses `clientLineKey` to look up this item after insert
       // and link it to travelers via `booking_item_travelers`. Only
@@ -278,11 +268,7 @@ export function itemLinesToRows(
       title: pricedLine?.label ?? unitNames.get(optionUnitId) ?? null,
       unitSellAmountCents,
       totalSellAmountCents,
-      ...(travelerKeys?.length
-        ? { travelerKeys }
-        : travelerIndexes?.length
-          ? { travelerIndexes }
-          : {}),
+      ...(travelerKeys?.length ? { travelerKeys } : {}),
     }
   })
 }

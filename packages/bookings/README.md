@@ -24,7 +24,6 @@ const app = createApp({
 
 The public routes include:
 
-- `POST /v1/public/bookings/sessions`
 - `GET /v1/public/bookings/sessions/:sessionId`
 - `PUT /v1/public/bookings/sessions/:sessionId/state`
 - `POST /v1/public/bookings/sessions/:sessionId/reprice`
@@ -64,12 +63,6 @@ entries consistently link back to the requested action and approval.
 The selected deployment graph exposes package-owned Tools from
 `@voyant-travel/bookings/tools`:
 
-- `reserve_booking` creates an on-hold booking and holds the requested
-  availability with `bookings:write` only. The handler fingerprints the complete
-  reservation command and its selected policy inputs, then delegates the entire
-  booking transaction to the shared action-ledger created-command executor.
-  Exact retries resolve the typed immutable booking reference without consuming
-  capacity again.
 - `cancel_booking` always enters the action-ledger approval flow for agent
   callers. Its first call returns a pending approval; execution requires the
   approved id and the same command, principal, target snapshot, and

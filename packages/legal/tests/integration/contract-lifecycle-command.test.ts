@@ -6,6 +6,7 @@ import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -24,6 +25,13 @@ import {
   LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS,
   LEGAL_CONTRACT_LIFECYCLE_POLICIES,
 } from "../../src/existing-target-policy.js"
+import {
+  executeLegalContractTool,
+  issueLegalContractTool,
+  type LegalLifecycleCommandToolServices,
+  type LegalToolServices,
+  sendLegalContractTool,
+} from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 type ClosableTestDb = PostgresJsDatabase & {
@@ -62,7 +70,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     }
     const command = await approvedCommand("send", "send-contract-1", commandInput)
 
-    const first = await executeLegalContractLifecycleCommand(command)
+    const first = await executeCommand(command)
     expect(first).toMatchObject({
       replayed: false,
       value: { id: contract.id, status: "sent", title: "Original title" },
@@ -72,7 +80,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       .update(contracts)
       .set({ title: "Changed after command", updatedAt: new Date() })
       .where(eq(contracts.id, contract.id))
-    const replay = await executeLegalContractLifecycleCommand(command)
+    const replay = await executeCommand(command)
     expect(replay).toMatchObject({ replayed: true, value: first.value })
 
     const results = await db.select().from(contractLifecycleCommandResults)
@@ -107,7 +115,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     })
     expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
-    await expect(executeLegalContractLifecycleCommand(command)).resolves.toMatchObject({
+    await expect(executeCommand(command)).resolves.toMatchObject({
       replayed: true,
       value: first.value,
     })
@@ -129,7 +137,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const transitionReached = new Promise<void>((resolve) => {
       transitioned = resolve
     })
-    const firstPromise = executeLegalContractLifecycleCommand({
+    const firstPromise = executeCommand({
       ...command,
       testHooks: {
         async afterTransition() {
@@ -140,7 +148,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     })
     await transitionReached
     let secondSettled = false
-    const secondPromise = executeLegalContractLifecycleCommand(command).finally(() => {
+    const secondPromise = executeCommand(command).finally(() => {
       secondSettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -182,7 +190,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const transitionReached = new Promise<void>((resolve) => {
       transitioned = resolve
     })
-    const firstPromise = executeLegalContractLifecycleCommand({
+    const firstPromise = executeCommand({
       ...firstCommand,
       testHooks: {
         async afterTransition() {
@@ -193,7 +201,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     })
     await transitionReached
     let secondSettled = false
-    const secondResult = executeLegalContractLifecycleCommand(secondCommand).then(
+    const secondResult = executeCommand(secondCommand).then(
       () => {
         secondSettled = true
         throw new Error("The second same-target command unexpectedly succeeded")
@@ -223,11 +231,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       message: "Original",
     }
     const command = await approvedCommand("send", "send-contract-conflict", originalInput)
-    await executeLegalContractLifecycleCommand(command)
+    await executeCommand(command)
 
     const driftedInput = { ...originalInput, subject: "Drifted" }
     await expect(
-      executeLegalContractLifecycleCommand({
+      executeCommand({
         ...command,
         commandInput: driftedInput,
         admitted: await admittedForExistingApproval(
@@ -237,11 +245,14 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
           command.admitted.invocation.approvalId as string,
         ),
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
 
     const targetInput = { ...originalInput, contractId: otherContract.id }
     await expect(
-      executeLegalContractLifecycleCommand({
+      executeCommand({
         ...command,
         commandInput: targetInput,
         admitted: await admittedForExistingApproval(
@@ -251,14 +262,20 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
           command.admitted.invocation.approvalId as string,
         ),
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
 
     await expect(
-      executeLegalContractLifecycleCommand({
+      executeCommand({
         ...command,
         context: { ...command.context, organizationId: "organization_other" },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerCreatedCommandApprovalError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerCreatedCommandApprovalError" },
+    })
 
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
     expect(await db.select().from(eventOutboxTable)).toHaveLength(1)
@@ -277,13 +294,16 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       message: "Rollback",
     })
     await expect(
-      executeLegalContractLifecycleCommand({
+      executeCommand({
         ...command,
         insertEvents: async () => {
           throw new Error("injected outbox insertion failure")
         },
       }),
-    ).rejects.toThrow("injected outbox insertion failure")
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { message: "injected outbox insertion failure" },
+    })
 
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
     expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
@@ -303,7 +323,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const issue = await approvedCommand("issue", "issue-contract-1", {
       contractId: contract.id,
     })
-    await expect(executeLegalContractLifecycleCommand(issue)).resolves.toMatchObject({
+    await expect(executeCommand(issue)).resolves.toMatchObject({
       replayed: false,
       value: { id: contract.id, status: "issued" },
     })
@@ -315,7 +335,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const execute = await approvedCommand("execute", "execute-contract-1", {
       contractId: contract.id,
     })
-    await expect(executeLegalContractLifecycleCommand(execute)).resolves.toMatchObject({
+    await expect(executeCommand(execute)).resolves.toMatchObject({
       replayed: false,
       value: { id: contract.id, status: "executed" },
     })
@@ -338,6 +358,53 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       .returning()
     if (!row) throw new Error("Test contract insert failed")
     return row
+  }
+
+  async function executeCommand(
+    command: Parameters<typeof executeLegalContractLifecycleCommand>[0],
+  ) {
+    const toolByTransition = {
+      issue: issueLegalContractTool,
+      send: sendLegalContractTool,
+      execute: executeLegalContractTool,
+    } as const
+    const tool = toolByTransition[command.transition]
+    const expectation = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS[command.transition]
+    const registry = createToolRegistry()
+    registry.register(tool, { actionPolicy: expectation.actionPolicy })
+    let execution: Awaited<ReturnType<typeof executeLegalContractLifecycleCommand>> | undefined
+    const run = async (
+      transition: Transition,
+      admitted: Parameters<typeof executeLegalContractLifecycleCommand>[0]["admitted"],
+    ) => {
+      expect(transition).toBe(command.transition)
+      execution = await executeLegalContractLifecycleCommand({ ...command, admitted })
+      return execution.value
+    }
+    const lifecycleServices = {
+      issueContractCommand: (_input, admitted) => run("issue", admitted),
+      sendContractCommand: (_input, admitted) => run("send", admitted),
+      executeContractCommand: (_input, admitted) => run("execute", admitted),
+    } satisfies LegalLifecycleCommandToolServices
+    await registry.dispatch(tool.name, command.commandInput, {
+      db: command.db,
+      actor: command.context.actor,
+      audience: command.context.actor,
+      tenantId: command.context.organizationId,
+      organizationId: command.context.organizationId,
+      resolverScope: {
+        locale: "en-GB",
+        audience: command.context.actor,
+        market: "default",
+        actor: command.context.actor,
+      },
+      handlerActionPolicy: command.admitted,
+      legal: lifecycleServices as LegalToolServices & LegalLifecycleCommandToolServices,
+    } satisfies ToolContext & {
+      legal: LegalToolServices & LegalLifecycleCommandToolServices
+    })
+    if (!execution) throw new Error("Legal lifecycle Tool did not execute its command service")
+    return execution
   }
 
   async function approvedCommand(

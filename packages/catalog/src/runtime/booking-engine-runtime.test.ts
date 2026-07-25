@@ -79,11 +79,10 @@ describe("getBookingEngineRegistry", () => {
 })
 
 describe("ensureBookingEngineRegistry", () => {
-  it("registers per-connection adapters after the warm so book-time resolves by connection id", async () => {
+  it("registers per-connection adapters after the warm", async () => {
     const { ensureBookingEngineRegistry } = await loadRuntime()
     const registry = await ensureBookingEngineRegistry(CONNECT_ENV)
-    // The connection-scoped adapter is now resolvable by its connection id —
-    // the routing key `bookEntity` uses for a sourced row (#2044).
+    // The connection-scoped adapter is now resolvable by its connection id.
     expect(registry.resolveByConnection("conn_1")).toBeDefined()
     // The un-scoped fallback still coexists for cold-window / connection-less rows.
     expect(registry.hasKind("voyant-connect")).toBe(true)

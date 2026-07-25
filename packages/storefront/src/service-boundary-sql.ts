@@ -322,45 +322,6 @@ export async function countStorefrontSlots(
   return Number(rows[0]?.value ?? 0)
 }
 
-export async function loadStorefrontAvailabilitySlot(
-  db: PostgresJsDatabase,
-  slotId: string,
-): Promise<StorefrontSlotRow | null> {
-  const rows = await executeBoundaryRows<StorefrontSlotDbRow>(
-    db,
-    // agent-quality: raw-sql reviewed -- owner: storefront; bootstrap validates a specific parameter-bound Availability slot id.
-    sql`
-      SELECT
-        s.id,
-        s.product_id,
-        s.itinerary_id,
-        s.option_id,
-        s.start_time_id,
-        s.date_local,
-        s.starts_at,
-        s.ends_at,
-        s.timezone,
-        s.status,
-        s.unlimited,
-        s.initial_pax,
-        s.remaining_pax,
-        s.remaining_resources,
-        s.past_cutoff,
-        s.too_early,
-        s.nights,
-        s.days,
-        st.label AS start_time_label,
-        st.start_time_local,
-        st.duration_minutes
-      FROM availability_slots s
-      LEFT JOIN availability_start_times st ON st.id = s.start_time_id
-      WHERE s.id = ${slotId}
-      LIMIT 1
-    `,
-  )
-  return rows[0] ? mapSlot(rows[0]) : null
-}
-
 export async function listMeetingPointsByProductIds(
   db: PostgresJsDatabase,
   productIds: string[],

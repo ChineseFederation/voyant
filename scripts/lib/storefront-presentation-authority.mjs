@@ -5,7 +5,6 @@ export const STOREFRONT_ROUTE_HOSTS = {
   "shop_.account.sign-in.tsx": "accountSignIn",
   "shop_.account.sign-up.tsx": "accountSignUp",
   "shop_.account.verify-email.tsx": "accountVerifyEmail",
-  "shop_.book.$entityModule.$entityId.tsx": "booking",
   "shop_.composer.tsx": "composer",
   "shop_.confirmation.$bookingId.tsx": "confirmation",
   "shop_.products.$entityModule.$entityId.tsx": "productDetail",
@@ -56,7 +55,6 @@ export function checkStorefrontPresentationAuthority({
   for (const token of [
     '"@voyant-travel/storefront#presentation.customer"',
     "presentationFactories",
-    "StorefrontBookingPage",
     "StorefrontComposerPage",
     "CruiseDetailPage",
     "ProductDetailPageProducts",

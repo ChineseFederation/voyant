@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { createStorefrontVoyantRuntime } from "../../src/index.js"
 import {
-  storefrontBookingIntentsRuntimePort,
   storefrontCustomerPortalRuntimePort,
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
@@ -29,16 +28,11 @@ describe("storefront deployment manifest", () => {
         capabilities: ["storefront.data-owner"],
         ports: [
           { id: storefrontOffersRuntimePort.id },
-          { id: storefrontBookingIntentsRuntimePort.id },
           { id: "auth.customer-business-onboarding.runtime" },
         ],
       },
       runtime: { entry: "@voyant-travel/storefront", export: "createStorefrontVoyantRuntime" },
-      runtimePorts: [
-        { id: "storefront.offers.runtime" },
-        { id: "storefront.booking-intents.runtime" },
-        { id: "storefront.intake.runtime" },
-      ],
+      runtimePorts: [{ id: "storefront.offers.runtime" }, { id: "storefront.intake.runtime" }],
       api: [
         {
           id: "@voyant-travel/storefront#api.admin",
@@ -82,23 +76,6 @@ describe("storefront deployment manifest", () => {
           export: "storefrontVerificationLinkable",
         },
       ],
-      events: [
-        {
-          id: "@voyant-travel/storefront#event.booking-bootstrap-requested",
-          eventType: "storefront.booking.bootstrap.requested",
-        },
-      ],
-      subscribers: [
-        {
-          id: "@voyant-travel/storefront#subscriber.booking-bootstrap",
-          eventType: "storefront.booking.bootstrap.requested",
-          source: "@voyant-travel/storefront",
-          runtime: {
-            entry: "@voyant-travel/storefront/booking-bootstrap-subscriber",
-            export: "storefrontBookingBootstrapSubscriber",
-          },
-        },
-      ],
       resources: [{ id: "@voyant-travel/storefront#resource.database", kind: "database" }],
       lifecycle: { uninstall: { default: "retain-data", purge: "not-supported" } },
     })
@@ -127,7 +104,7 @@ describe("storefront deployment manifest", () => {
     expect(runtime.publicRoutes).toBeDefined()
   })
 
-  it("declares its owned event payload without duplicating Relationships authority", () => {
+  it("does not duplicate externally owned event authority", () => {
     const events = new Map(
       storefrontVoyantModule.events?.map(({ eventType, payloadSchema }) => [
         eventType,
@@ -136,12 +113,6 @@ describe("storefront deployment manifest", () => {
     )
 
     expect(events.has("customer.signal.created")).toBe(false)
-    expect(events.get("storefront.booking.bootstrap.requested")).toEqual({
-      type: "object",
-      required: ["intentId"],
-      properties: { intentId: { type: "string" } },
-      additionalProperties: false,
-    })
   })
 
   it("owns package-namespaced storefront fragments", () => {

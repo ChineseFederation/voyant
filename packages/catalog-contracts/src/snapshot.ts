@@ -48,7 +48,6 @@ export interface CaptureSnapshotInput {
   overlayStateAtCapture?: unknown
   /** Structured pricing breakdown alongside the JSONB blob. */
   pricingBasis?: PricingBasis
-  /** Caller-supplied idempotency key — when set, a duplicate
-   *  `bookEntity` call returns the prior result. */
+  /** Idempotency key retained from the originating admitted command. */
   idempotencyKey?: string
 }

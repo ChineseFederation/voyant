@@ -82,10 +82,8 @@ export const bookingCatalogSnapshotTable = pgTable(
     pricing_applied_offers: jsonb("pricing_applied_offers").$type<AppliedOffer[]>(),
 
     /**
-     * Caller-supplied idempotency key for the commit. When set, a
-     * second `bookEntity` call with the same key returns this row's
-     * booking instead of creating a new one. Per
-     * booking-journey-architecture §12.6.
+     * Idempotency key retained from the originating admitted command for
+     * long-term audit.
      */
     idempotency_key: text("idempotency_key"),
 

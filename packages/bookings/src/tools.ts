@@ -6,19 +6,9 @@
  * `list_bookings` / `get_booking` return non-PII booking state (`bookings:read`).
  * PII fields are a separate concern gated on `bookings-pii:read` (see the booking
  * PII surface) and are not exposed here.
- * `reserve_booking` owns the bookings-only hold flow with handler-owned
- * idempotency. `cancel_booking` always uses an action-ledger approval before
- * execution.
+ * `cancel_booking` always uses an action-ledger approval before execution.
  */
-import {
-  admitHandlerActionPolicy,
-  defineTool,
-  type HandlerActionPolicyExpectation,
-  READ_ONLY_RISK,
-  requireService,
-  type ToolContext,
-  type ToolHandlerActionPolicyContext,
-} from "@voyant-travel/tools"
+import { defineTool, READ_ONLY_RISK, requireService, type ToolContext } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
@@ -68,7 +58,7 @@ import {
   updateProductContactRequirementTool as updateProductContactRequirementDefinition,
 } from "./requirements/tools.js"
 import { bookingToolSchema } from "./tool-output-schemas.js"
-import { bookingListQuerySchema, reserveBookingSchema } from "./validation.js"
+import { bookingListQuerySchema } from "./validation.js"
 
 export interface BookingsToolServices {
   listBookings(query: z.infer<typeof bookingListQuerySchema>): Promise<unknown>
@@ -84,10 +74,6 @@ export interface BookingsToolServices {
     idempotencyKey: string
     approvalId?: string
   }): Promise<unknown>
-  reserveBooking(
-    input: z.infer<typeof reserveBookingToolInputSchema>,
-    admitted: ToolHandlerActionPolicyContext,
-  ): Promise<unknown>
 }
 
 export type BookingsToolContext = ToolContext & { bookings?: BookingsToolServices }
@@ -220,82 +206,7 @@ export const cancelBookingTool = defineTool<
   },
 })
 
-export const reserveBookingToolInputSchema = z.object({
-  reservation: reserveBookingSchema,
-})
-
-export const reservedBookingReferenceSchema = z.object({
-  id: z.string(),
-  bookingNumber: z.string(),
-})
-
-export const reserveBookingToolOutputSchema = z.object({
-  status: z.literal("reserved"),
-  booking: reservedBookingReferenceSchema,
-  replayed: z.boolean(),
-})
-
-export const RESERVE_BOOKING_HANDLER_POLICY = {
-  capabilityId: "@voyant-travel/bookings#tool.reserve-booking",
-  capabilityVersion: "v1",
-  canonicalName: "reserve_booking",
-  actionPolicy: {
-    id: "booking.reserve",
-    capabilityId: "bookings:reserve",
-    version: "v1",
-    kind: "execute",
-    targetType: "booking",
-    targetLifecycle: "created",
-    createdTarget: {
-      commandTargetType: "booking_reservation_command",
-      resultReferenceType: "booking",
-      durability: "handler-command-claim-v1",
-    },
-    risk: "high",
-    ledger: "required",
-    approval: "never",
-    reversible: true,
-    allowedActorTypes: ["staff"],
-  },
-} as const satisfies HandlerActionPolicyExpectation
-
-export const reserveBookingTool = defineTool<
-  z.infer<typeof reserveBookingToolInputSchema>,
-  z.infer<typeof reserveBookingToolOutputSchema>,
-  BookingsToolContext
->({
-  owner: "@voyant-travel/bookings",
-  capabilityId: "@voyant-travel/bookings#tool.reserve-booking",
-  capabilityVersion: "v1",
-  name: "reserve_booking",
-  description:
-    "Reserve availability and create an on-hold booking. Exact retries return the original booking reference.",
-  inputSchema: reserveBookingToolInputSchema,
-  outputSchema: reserveBookingToolOutputSchema,
-  requiredScopes: ["bookings:write"],
-  audience: { source: "grant", allowed: ["staff"] },
-  tier: "destructive",
-  riskPolicy: {
-    destructive: true,
-    reversible: true,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["data-write"],
-  },
-  annotations: { idempotentHint: true },
-  actionPolicyEnforcement: "handler",
-  async handler(input, ctx) {
-    const admitted = admitHandlerActionPolicy(ctx, RESERVE_BOOKING_HANDLER_POLICY)
-    return reserveBookingToolOutputSchema.parse(await bookings(ctx).reserveBooking(input, admitted))
-  },
-})
-
-export const bookingsTools = [
-  listBookingsTool,
-  getBookingTool,
-  reserveBookingTool,
-  cancelBookingTool,
-] as const
+export const bookingsTools = [listBookingsTool, getBookingTool, cancelBookingTool] as const
 
 // Extension Tools are wrapped at the package's canonical `./tools` entry so
 // deployment graph selection, MCP discovery, and manifest convergence all use

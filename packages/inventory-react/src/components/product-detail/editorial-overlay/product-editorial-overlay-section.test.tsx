@@ -189,7 +189,6 @@ async function render(children: ReactNode, api: ProductDetailApi) {
               navigate: {
                 toProducts: () => undefined,
                 toProduct: () => undefined,
-                toNewBooking: () => undefined,
                 toAvailability: () => undefined,
               },
             }}

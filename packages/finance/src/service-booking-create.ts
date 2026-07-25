@@ -1,13 +1,8 @@
 // agent-quality: file-size exception -- owner: finance; existing service module stays co-located until a dedicated split preserves behavior and tests.
-import {
-  type ActionLedgerRequestContextValues,
-  appendActionLedgerMutation,
-} from "@voyant-travel/action-ledger"
-import {
-  type BookingConfirmedEvent,
-  bookingGroupsService,
-  bookingsService,
-} from "@voyant-travel/bookings"
+
+import type { CreatedTargetMutationLease } from "@voyant-travel/action-ledger"
+import { bookingGroupsService } from "@voyant-travel/bookings"
+import { settleBookingCreateDomain } from "@voyant-travel/bookings/booking-create-command-domain"
 import {
   type BookingDraftMismatch,
   type PricingAssignmentUnit,
@@ -20,7 +15,7 @@ import {
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
 import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
-import { eq, sql } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 
@@ -31,17 +26,8 @@ import type {
   TravelCredit,
   TravelCreditRedemption,
 } from "./schema.js"
-import { bookingPaymentSchedules, travelCredits } from "./schema.js"
+import { bookingItemTaxLines, bookingPaymentSchedules, travelCredits } from "./schema.js"
 import { type FinanceServiceRuntime, financeService, toRows } from "./service.js"
-import {
-  buildBookingCreateRejectedActionLedgerInput,
-  buildBookingCreateSucceededActionLedgerInput,
-} from "./service-action-ledger.js"
-import {
-  financeDocumentsService,
-  type InvoiceDocumentGenerator,
-  type InvoiceDocumentRuntimeOptions,
-} from "./service-documents.js"
 import { TravelCreditServiceError, travelCreditsService } from "./service-travel-credits.js"
 import {
   paymentMethodSchema,
@@ -62,13 +48,6 @@ const travelerInputSchema = z.object({
   travelerCategory: z.enum(["adult", "child", "infant", "senior", "other"]).optional().nullable(),
   preferredLanguage: z.string().max(35).optional().nullable(),
   specialRequests: z.string().optional().nullable(),
-  /**
-   * Deprecated compatibility alias for the traveler's pricing-tier option
-   * unit. Accepted by the input schema for wire compatibility but not
-   * persisted; item-line travelerKeys are the supported traveler-to-item
-   * linkage.
-   */
-  roomUnitId: z.string().optional().nullable(),
   isPrimary: z.boolean().optional().nullable(),
   notes: z.string().optional().nullable(),
 })
@@ -115,11 +94,6 @@ const itemLineInputSchema = z.object({
    * `booking_item_travelers` row per traveler.
    */
   travelerKeys: z.array(z.string().min(1).max(255)).optional().nullable(),
-  /**
-   * Deprecated position-based traveler links. Removal target: next
-   * booking-create wire-format major.
-   */
-  travelerIndexes: z.array(z.number().int().min(0)).optional().nullable(),
 })
 
 const extraLineInputSchema = z.object({
@@ -135,7 +109,19 @@ const extraLineInputSchema = z.object({
   unitSellAmountCents: z.number().int().min(0).optional().nullable(),
   totalSellAmountCents: z.number().int().min(0).optional().nullable(),
   travelerKeys: z.array(z.string().min(1).max(255)).optional().nullable(),
-  travelerIndexes: z.array(z.number().int().min(0)).optional().nullable(),
+})
+
+const taxLineInputSchema = z.object({
+  code: z.string().optional().nullable(),
+  name: z.string().min(1),
+  jurisdiction: z.string().optional().nullable(),
+  scope: z.enum(["included", "excluded", "withheld"]).optional(),
+  currency: z.string().length(3),
+  amountCents: z.number().int(),
+  rateBasisPoints: z.number().int().optional().nullable(),
+  includedInPrice: z.boolean().optional(),
+  remittanceParty: z.string().optional().nullable(),
+  sortOrder: z.number().int().optional(),
 })
 
 const travelCreditRedemptionInputSchema = z.object({
@@ -358,9 +344,8 @@ const bookingCreateBaseSchema = z.object({
   internalNotes: z.string().optional().nullable(),
   /**
    * Override the seed `sellAmountCents` on the new booking + line item.
-   * Threads through to `convertProductToBooking` so promotion-discounted
-   * quotes land at the discounted amount instead of the product's list
-   * price. Per docs/architecture/promotions-architecture.md §7.1.
+   * Threads through domain settlement so promotion-discounted quotes land at
+   * the discounted amount instead of the product's list price.
    */
   sellAmountCentsOverride: z.number().int().min(0).optional().nullable(),
   catalogSellAmountCents: z.number().int().min(0).optional().nullable(),
@@ -394,8 +379,8 @@ const bookingCreateBaseSchema = z.object({
   allowDuplicate: z.boolean().optional(),
   // Billing-contact snapshot — captured at create time. Caller (the
   // dialog) reads the linked CRM person/org and supplies what it
-  // knows; the convertProductToBooking helper writes everything
-  // through to the booking row's contact_* columns.
+  // knows; domain settlement writes everything through to the booking row's
+  // contact_* columns.
   contactFirstName: z.string().max(255).optional().nullable(),
   contactLastName: z.string().max(255).optional().nullable(),
   contactEmail: z.string().max(255).optional().nullable(),
@@ -412,6 +397,7 @@ const bookingCreateBaseSchema = z.object({
   travelers: z.array(travelerInputSchema).optional(),
   itemLines: z.array(itemLineInputSchema).optional(),
   extraLines: z.array(extraLineInputSchema).optional(),
+  taxLines: z.array(taxLineInputSchema).optional(),
   paymentSchedules: z.array(paymentScheduleInputSchema).optional(),
   travelCreditRedemption: travelCreditRedemptionInputSchema.optional(),
   groupMembership: groupMembershipInputSchema.optional(),
@@ -424,59 +410,9 @@ export const bookingCreateSchema = bookingCreateBaseSchema
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
 
-export const bookingCreateSubSchema = bookingCreateBaseSchema
-  .omit({ groupMembership: true })
-  .superRefine(requirePriceOverrideReason)
-  .superRefine(requireCompleteBookingParty)
-  .superRefine(requireUniqueClientTravelerKeys)
-  .superRefine(requireKnownTravelerKeys)
-
 export type BookingCreateInput = z.infer<typeof bookingCreateSchema>
 type BookingCreatePaymentScheduleInput = NonNullable<BookingCreateInput["paymentSchedules"]>[number]
 export type BookingCreateTravelerInput = z.infer<typeof travelerInputSchema>
-
-// ---------- runtime ----------
-
-/**
- * Fire-and-forget post-commit events. The orchestrator only knows about
- * `booking.created` — downstream confirm/cancel lifecycle events stay
- * with the booking service itself (the booking lands in `draft` status so no
- * `booking.confirmed` should fire here).
- */
-export interface BookingCreateRuntime extends FinanceServiceRuntime {
-  invoiceDocumentGenerator?: InvoiceDocumentGenerator
-  resolveCustomFields?: InvoiceDocumentRuntimeOptions["resolveCustomFields"]
-  bindings?: Record<string, unknown>
-}
-
-export interface BookingCreatedEvent {
-  bookingId: string
-  bookingNumber: string
-  productId: string
-  travelerCount: number
-  paymentScheduleCount: number
-  travelCreditRedeemedCents: number | null
-  groupId: string | null
-  documentGeneration: {
-    contractDocument: boolean
-    invoiceDocument: boolean
-    invoiceType: "invoice" | "proforma"
-  }
-  createdByUserId: string | null
-  occurredAt: Date
-}
-
-export interface BookingCreateRejectedEvent {
-  reason: "payload_resolver_mismatch"
-  productId: string
-  optionId: string | null
-  slotId: string | null
-  bookingNumber: string
-  mismatchCount: number
-  mismatches: BookingDraftMismatch[]
-  createdByUserId: string | null
-  occurredAt: Date
-}
 
 // ---------- result shape ----------
 
@@ -508,6 +444,7 @@ export interface BookingCreateValidationIssue {
 export type BookingCreateOutcome =
   | { status: "ok"; result: BookingCreateResult }
   | { status: "invalid_payment_schedules"; issues: BookingCreateValidationIssue[] }
+  | { status: "invalid_tax_lines"; issues: BookingCreateValidationIssue[] }
   | { status: "payload_resolver_mismatch"; mismatches: BookingDraftMismatch[] }
   | {
       status: "room_occupancy_insufficient"
@@ -531,17 +468,13 @@ export type BookingCreateOutcome =
  * Atomic booking-create orchestrator. Runs product conversion + travelers +
  * payment schedules + travel credit redemption + group membership inside a single
  * transaction so partial failures (e.g. travel credit insufficient-balance after
- * schedules have been written) roll the whole thing back.
- *
- * Event emission is post-commit — if the tx rolls back, subscribers never
- * hear about it.
+ * schedules have been written) roll the whole thing back. This mutation primitive
+ * accepts only the transaction leased by the durable created-target command.
  *
  * Why the orchestrator lives in `@voyant-travel/finance`: finance already imports
  * from `@voyant-travel/bookings` (invoices-from-bookings, travel credit service, payment
  * schedules all sit here), so this is the one place that can compose the
- * three packages without creating a new workspace dep cycle. The route wires
- * it under `/v1/admin/bookings/create` via a ApiExtension whose
- * `module` targets `"bookings"`.
+ * three packages without creating a new workspace dependency cycle.
  */
 /**
  * Sentinel thrown inside the tx to force drizzle to roll back. Returning a
@@ -851,8 +784,7 @@ function hasResolverRejectionSignals(input: {
   itemLines: NonNullable<BookingCreateInput["itemLines"]>
 }) {
   const hasTravelerLinks = (line: NonNullable<BookingCreateInput["itemLines"]>[number]) =>
-    (Array.isArray(line.travelerKeys) && line.travelerKeys.length > 0) ||
-    (Array.isArray(line.travelerIndexes) && line.travelerIndexes.length > 0)
+    Array.isArray(line.travelerKeys) && line.travelerKeys.length > 0
 
   return (
     input.travelers.every(
@@ -885,33 +817,13 @@ async function verifyBookingCreatePayload(tx: PostgresJsDatabase, input: Booking
   if (!verification.ok) {
     if (!hasResolverRejectionSignals({ travelers, itemLines })) {
       console.warn(
-        `[bookings/create] payload drift skipped hard rejection for product=${input.productId}`,
+        `[finance-booking-create] payload drift skipped hard rejection for product=${input.productId}`,
         JSON.stringify(verification.mismatches),
       )
       return
     }
     throw new BookingCreateValidationError("payload_resolver_mismatch", verification.mismatches)
   }
-}
-
-/**
- * Filter + dedupe deprecated `travelerIndexes` against the inserted traveler
- * array, dropping any indexes outside `[0, travelersLength)`.
- */
-function uniqueValidTravelerIndexes(
-  indexes: readonly number[] | null | undefined,
-  travelersLength: number,
-): number[] {
-  if (!indexes?.length) return []
-  const seen = new Set<number>()
-  const result: number[] = []
-  for (const index of indexes) {
-    if (index < 0 || index >= travelersLength) continue
-    if (seen.has(index)) continue
-    seen.add(index)
-    result.push(index)
-  }
-  return result
 }
 
 function uniqueTravelerKeys(keys: readonly string[] | null | undefined): string[] {
@@ -946,7 +858,6 @@ async function linkBookingCreateItemsToTravelers(
   lines: ReadonlyArray<{
     clientLineKey?: string | null
     travelerKeys?: readonly string[] | null
-    travelerIndexes?: readonly number[] | null
   }>,
 ) {
   if (travelers.length === 0 || lines.length === 0) return
@@ -979,17 +890,6 @@ async function linkBookingCreateItemsToTravelers(
           traveler: travelerByClientKey.get(travelerKey) ?? null,
         })
       }
-      continue
-    }
-    for (const travelerIndex of uniqueValidTravelerIndexes(
-      line.travelerIndexes,
-      travelers.length,
-    )) {
-      requestedLinks.push({
-        clientLineKey: line.clientLineKey ?? null,
-        travelerKey: null,
-        traveler: travelers[travelerIndex] ?? null,
-      })
     }
   }
   if (requestedLinks.length === 0) return
@@ -1031,6 +931,62 @@ async function linkBookingCreateItemsToTravelers(
   if (linkRows.length > 0) {
     await tx.insert(bookingItemTravelers).values(linkRows)
   }
+}
+
+async function persistBookingCreateTaxLines(
+  tx: PostgresJsDatabase,
+  bookingId: string,
+  taxLines: BookingCreateInput["taxLines"],
+) {
+  if (!taxLines?.length) return
+  const items = await tx
+    .select({
+      id: bookingItems.id,
+      totalSellAmountCents: bookingItems.totalSellAmountCents,
+    })
+    .from(bookingItems)
+    .where(eq(bookingItems.bookingId, bookingId))
+    .orderBy(asc(bookingItems.createdAt))
+  if (items.length === 0) return
+
+  const totalCents = items.reduce((sum, item) => sum + (item.totalSellAmountCents ?? 0), 0)
+  const rows = taxLines.flatMap((taxLine) =>
+    distributeBookingCreateTaxLine(taxLine.amountCents, items, totalCents).map(
+      ({ itemId, amountCents }) => ({
+        bookingItemId: itemId,
+        code: taxLine.code ?? null,
+        name: taxLine.name,
+        jurisdiction: taxLine.jurisdiction ?? null,
+        scope: taxLine.scope ?? (taxLine.includedInPrice ? "included" : "excluded"),
+        currency: taxLine.currency,
+        amountCents,
+        rateBasisPoints: taxLine.rateBasisPoints ?? null,
+        includedInPrice: taxLine.includedInPrice ?? taxLine.scope === "included",
+        remittanceParty: taxLine.remittanceParty ?? null,
+        sortOrder: taxLine.sortOrder ?? 0,
+      }),
+    ),
+  )
+  if (rows.length > 0) await tx.insert(bookingItemTaxLines).values(rows)
+}
+
+function distributeBookingCreateTaxLine(
+  amountCents: number,
+  items: Array<{ id: string; totalSellAmountCents: number | null }>,
+  totalCents: number,
+) {
+  if (items.length === 1 || totalCents <= 0) {
+    return [{ itemId: items[0]!.id, amountCents }]
+  }
+  let remaining = amountCents
+  return items.map((item, index) => {
+    const amount =
+      index === items.length - 1
+        ? remaining
+        : Math.round(amountCents * ((item.totalSellAmountCents ?? 0) / totalCents))
+    remaining -= amount
+    return { itemId: item.id, amountCents: amount }
+  })
 }
 
 function validatePaymentSchedules(
@@ -1075,6 +1031,23 @@ function validatePaymentSchedules(
   return issues
 }
 
+function validateTaxLines(
+  input: BookingCreateInput,
+  booking: Booking,
+): BookingCreateValidationIssue[] {
+  const expectedCurrency = booking.sellCurrency
+  return (input.taxLines ?? []).flatMap((taxLine, index) =>
+    taxLine.currency === expectedCurrency
+      ? []
+      : [
+          {
+            path: ["taxLines", index, "currency"],
+            message: `taxLines[${index}].currency must equal the booking's sellCurrency (${expectedCurrency}); got ${taxLine.currency}`,
+          },
+        ],
+  )
+}
+
 function bookingItemStatusForInitialStatus(
   status: BookingCreateInput["initialStatus"] | undefined,
 ): "draft" | "on_hold" | "confirmed" | "cancelled" | "expired" | "fulfilled" {
@@ -1112,76 +1085,17 @@ export function deriveBookingCreatePax(input: {
   return pax > 0 ? pax : null
 }
 
-function buildBookingCreateLedgerCommand(
-  input: BookingCreateInput,
-  options: {
-    pax: number | null
-    documentGeneration: {
-      contractDocument: boolean
-      invoiceDocument: boolean
-      invoiceType: "invoice" | "proforma"
-    }
-  },
-) {
-  return {
-    productId: input.productId,
-    optionId: input.optionId ?? null,
-    slotId: input.slotId ?? null,
-    bookingNumber: input.bookingNumber,
-    personId: input.personId ?? null,
-    organizationId: input.organizationId ?? null,
-    pax: options.pax,
-    itemLineCount: input.itemLines?.length ?? 0,
-    extraLineCount: input.extraLines?.length ?? 0,
-    travelerCount: input.travelers?.length ?? 0,
-    paymentScheduleCount: input.paymentSchedules?.length ?? 0,
-    travelCreditRedemptionRequested: Boolean(input.travelCreditRedemption),
-    groupMembershipAction: input.groupMembership?.action ?? null,
-    initialStatus: input.initialStatus ?? null,
-    documentGeneration: options.documentGeneration,
-  }
-}
-
-async function appendBookingCreateRejectedActionLedger(
-  db: PostgresJsDatabase,
-  context: ActionLedgerRequestContextValues | undefined,
-  outcome: Extract<BookingCreateOutcome, { status: "duplicate_booking" }>,
-  input: BookingCreateInput,
-  options: {
-    pax: number | null
-    documentGeneration: {
-      contractDocument: boolean
-      invoiceDocument: boolean
-      invoiceType: "invoice" | "proforma"
-    }
-    authorizationSource?: string | null
-  },
-) {
-  if (!context) return
-
-  await appendActionLedgerMutation(
-    db,
-    await buildBookingCreateRejectedActionLedgerInput(
-      context,
-      {
-        existingBooking: outcome.existingBooking,
-        command: buildBookingCreateLedgerCommand(input, options),
-        reason: "duplicate_booking",
-      },
-      { authorizationSource: options.authorizationSource },
-    ),
-  )
-}
-
-export async function createBooking(
-  db: PostgresJsDatabase,
+export async function createBookingMutation(
+  tx: PostgresJsDatabase,
   rawInput: BookingCreateInput,
   options: {
+    commandIdempotencyKey: string
+    lease: CreatedTargetMutationLease
     userId?: string
-    runtime?: BookingCreateRuntime
-  } = {},
+    runtime?: FinanceServiceRuntime
+  },
 ): Promise<BookingCreateOutcome> {
-  const { userId, runtime } = options
+  const { commandIdempotencyKey, lease, runtime, userId } = options
   // Parse through the schema so defaults (makeBookingPrimary, role,
   // participantType, etc.) are applied even when callers bypass validation —
   // unit tests and hand-written integrations commonly do.
@@ -1198,7 +1112,7 @@ export async function createBooking(
   // inside the redeem savepoint so two concurrent redemptions can't double-
   // spend.
   if (input.travelCreditRedemption) {
-    const [travelCredit] = await db
+    const [travelCredit] = await tx
       .select()
       .from(travelCredits)
       .where(eq(travelCredits.id, input.travelCreditRedemption.travelCreditId))
@@ -1218,7 +1132,7 @@ export async function createBooking(
 
   let result: BookingCreateResult
   try {
-    result = await db.transaction(async (tx) => {
+    result = await (async () => {
       const duplicateBooking = await findDuplicateBookingForCreate(tx, input)
       if (duplicateBooking) {
         throw new BookingCreateAbort({
@@ -1242,8 +1156,10 @@ export async function createBooking(
         throw new BookingCreateAbort(roomOccupancyIssue)
       }
       // 1. Booking from product
-      const booking = await bookingsService.createBookingFromProduct(
+      const booking = await settleBookingCreateDomain(
+        lease,
         tx,
+        commandIdempotencyKey,
         {
           productId: input.productId,
           optionId: input.optionId ?? null,
@@ -1284,6 +1200,13 @@ export async function createBooking(
         throw new BookingCreateAbort({
           status: "invalid_payment_schedules",
           issues: paymentScheduleIssues,
+        })
+      }
+      const taxLineIssues = validateTaxLines(input, booking)
+      if (taxLineIssues.length > 0) {
+        throw new BookingCreateAbort({
+          status: "invalid_tax_lines",
+          issues: taxLineIssues,
         })
       }
 
@@ -1327,11 +1250,8 @@ export async function createBooking(
         )
       }
 
-      // 2. Travelers. The wire-format `roomUnitId` on a traveler is a
-      // deprecated pricing-tier alias accepted for compatibility but
-      // not stored on the traveler row itself. Per-traveler item linkage
-      // is expressed through `booking_item_travelers` rows linked from
-      // each `booking_item`. See voyant-travel/voyant#1267.
+      // 2. Travelers. Per-traveler item linkage is expressed through
+      // `booking_item_travelers` rows linked from each `booking_item`.
       const travelers: BookingTraveler[] = []
       for (const traveler of input.travelers ?? []) {
         const [row] = await tx
@@ -1356,10 +1276,8 @@ export async function createBooking(
 
       // 2b. Link booking_items + extras to specific travelers when
       // the caller supplied `clientLineKey` + `travelerKeys` on any
-      // line. Deprecated `travelerIndexes` remain a fallback. Item
-      // rows were inserted earlier by
-      // `convertProductToBooking` (this slice's product converter
-      // doesn't run them in the orchestrator); we look them up by
+      // line. Item rows were inserted earlier by the guarded booking domain
+      // settlement; we look them up by
       // the `metadata.bookingCreateLineKey` the converter stamped.
       await linkBookingCreateItemsToTravelers(tx, booking.id, travelers, input.travelers ?? [], [
         ...(normalizedItemLines ?? []),
@@ -1370,6 +1288,7 @@ export async function createBooking(
       // itemLines + travelers and reject any client/server drift on
       // per-band quantities. See voyant-travel/voyant#1272.
       await verifyBookingCreatePayload(tx, { ...input, itemLines: normalizedItemLines })
+      await persistBookingCreateTaxLines(tx, booking.id, input.taxLines)
 
       // 3. Payment schedules
       const paymentSchedules: BookingPaymentSchedule[] = []
@@ -1463,20 +1382,6 @@ export async function createBooking(
         }
       }
 
-      if (runtime?.actionLedgerContext) {
-        await appendActionLedgerMutation(
-          tx,
-          await buildBookingCreateSucceededActionLedgerInput(
-            runtime.actionLedgerContext,
-            {
-              booking,
-              command: buildBookingCreateLedgerCommand(input, { pax, documentGeneration }),
-            },
-            { authorizationSource: runtime.actionLedgerAuthorizationSource },
-          ),
-        )
-      }
-
       return {
         booking,
         travelers,
@@ -1487,40 +1392,12 @@ export async function createBooking(
         invoiceDocument: { status: "not_requested" as const },
         payments: [],
       }
-    })
+    })()
   } catch (error) {
     if (error instanceof BookingCreateAbort) {
-      if (error.outcome.status === "duplicate_booking") {
-        await appendBookingCreateRejectedActionLedger(
-          db,
-          runtime?.actionLedgerContext,
-          error.outcome,
-          input,
-          {
-            pax,
-            documentGeneration,
-            authorizationSource: runtime?.actionLedgerAuthorizationSource,
-          },
-        )
-      }
       return error.outcome
     }
     if (error instanceof BookingCreateValidationError) {
-      await runtime?.eventBus?.emit(
-        "booking_create.rejected",
-        {
-          reason: error.code,
-          productId: input.productId,
-          optionId: input.optionId ?? null,
-          slotId: input.slotId ?? null,
-          bookingNumber: input.bookingNumber,
-          mismatchCount: error.mismatches.length,
-          mismatches: error.mismatches,
-          createdByUserId: userId ?? null,
-          occurredAt: new Date(),
-        } satisfies BookingCreateRejectedEvent,
-        { category: "internal", source: "service" },
-      )
       return { status: error.code, mismatches: error.mismatches }
     }
     if (error instanceof TravelCreditServiceError) {
@@ -1539,7 +1416,7 @@ export async function createBooking(
   const shouldCreateInvoice = documentGeneration.invoiceDocument || paidSchedules.length > 0
 
   if (shouldCreateInvoice) {
-    const items = await db
+    const items = await tx
       .select()
       .from(bookingItems)
       .where(eq(bookingItems.bookingId, result.booking.id))
@@ -1553,7 +1430,7 @@ export async function createBooking(
       result.paymentSchedules.find((schedule) => schedule.dueDate === dueDate) ?? null
 
     const invoice = await financeService.createInvoiceFromBooking(
-      db,
+      tx,
       {
         bookingId: result.booking.id,
         invoiceNumber: generateInvoiceNumber(result.booking.bookingNumber),
@@ -1578,7 +1455,7 @@ export async function createBooking(
         const methodResult = paymentMethodSchema.safeParse(
           metadata?.paymentMethod ?? "bank_transfer",
         )
-        const payment = await financeService.createPayment(db, invoice.id, {
+        const payment = await financeService.createPayment(tx, invoice.id, {
           amountCents: schedule.amountCents,
           currency: schedule.currency,
           paymentMethod: methodResult.success ? methodResult.data : "bank_transfer",
@@ -1592,79 +1469,19 @@ export async function createBooking(
 
       let invoiceDocument: BookingCreateResult["invoiceDocument"] = { status: "not_requested" }
       if (documentGeneration.invoiceDocument) {
-        if (runtime?.invoiceDocumentGenerator) {
-          const generated = await financeDocumentsService.generateInvoiceDocument(
-            db,
-            invoice.id,
-            { format: "pdf", replaceExisting: true, publicDelivery: false },
-            {
-              generator: runtime.invoiceDocumentGenerator,
-              eventBus: runtime.eventBus,
-              bindings: runtime.bindings,
-              resolveCustomFields: runtime.resolveCustomFields,
-            },
-          )
-          invoiceDocument =
-            generated.status === "generated"
-              ? { status: "generated", renditionId: generated.rendition.id }
-              : { status: "failed" }
-        } else {
-          const requested = await financeService.renderInvoice(db, invoice.id, { format: "pdf" })
-          invoiceDocument =
-            requested.status === "requested"
-              ? { status: "requested", renditionId: requested.rendition?.id ?? null }
-              : { status: "failed" }
-        }
+        const requested = await financeService.renderInvoice(tx, invoice.id, { format: "pdf" })
+        invoiceDocument =
+          requested.status === "requested"
+            ? { status: "requested", renditionId: requested.rendition?.id ?? null }
+            : { status: "failed" }
       }
 
       result = {
         ...result,
-        invoice: await financeService.getInvoiceById(db, invoice.id),
+        invoice: await financeService.getInvoiceById(tx, invoice.id),
         invoiceDocument,
         payments,
       }
-    }
-  }
-
-  // Post-commit event emission. Fire-and-forget (the eventBus contract
-  // handles subscriber errors); callers that need strict delivery can
-  // re-emit from their own subscriber chain.
-  if (runtime?.eventBus) {
-    const event: BookingCreatedEvent = {
-      bookingId: result.booking.id,
-      bookingNumber: result.booking.bookingNumber,
-      productId: input.productId,
-      travelerCount: result.travelers.length,
-      paymentScheduleCount: result.paymentSchedules.length,
-      travelCreditRedeemedCents: result.travelCreditRedemption
-        ? result.travelCreditRedemption.redemption.amountCents
-        : null,
-      groupId: result.groupMembership?.groupId ?? null,
-      documentGeneration,
-      createdByUserId: userId ?? null,
-      occurredAt: new Date(),
-    }
-    await runtime.eventBus.emit("booking.created", event)
-    // When the caller asked us to land the booking already in
-    // `confirmed`, fan out the `booking.confirmed` event the same way
-    // the verb endpoint would so notification / document-bundle
-    // subscribers fire just once at create-time.
-    if (input.initialStatus === "confirmed") {
-      const confirmedEvent: BookingConfirmedEvent = {
-        bookingId: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        actorId: userId ?? null,
-        suppressNotifications: input.suppressNotifications === true ? true : undefined,
-      }
-      await runtime.eventBus.emit("booking.confirmed", confirmedEvent)
-    }
-    if (documentGeneration.contractDocument) {
-      await runtime.eventBus.emit("booking.contract_document.requested", {
-        bookingId: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        createdByUserId: userId ?? null,
-        occurredAt: new Date(),
-      })
     }
   }
 

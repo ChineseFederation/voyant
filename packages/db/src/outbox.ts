@@ -62,8 +62,8 @@ export function createOutboxEventStore(getDb: () => DrizzleClient): OutboxEventS
  * outbox" proper):
  *
  *     await db.transaction(async (tx) => {
- *       await tx.insert(bookings).values(...)
- *       await insertOutboxEvents(tx, [{ name: "booking.created", data, metadata }])
+ *       await tx.insert(domainRecords).values(...)
+ *       await insertOutboxEvents(tx, [{ name: "domain.created", data, metadata }])
  *     })
  *     // post-commit: the drain (or a waitUntil kick) delivers.
  *

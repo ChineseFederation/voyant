@@ -28,11 +28,7 @@ const [
 ])
 
 const packagePorts = {
-  storefront: [
-    "storefrontOffersRuntimePort",
-    "storefrontBookingIntentsRuntimePort",
-    "storefrontCustomerPortalRuntimePort",
-  ],
+  storefront: ["storefrontOffersRuntimePort", "storefrontCustomerPortalRuntimePort"],
   relationships: ["storefrontIntakeRuntimePort"],
   notifications: ["storefrontVerificationRuntimePort"],
   trips: ["storefrontPaymentLinkRuntimePort"],

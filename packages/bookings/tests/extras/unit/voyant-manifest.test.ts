@@ -51,6 +51,7 @@ describe("bookings extras deployment manifest", () => {
           durability: "handler-command-claim-v1",
           parentAnchor: { targetType: "booking", targetIdField: "bookingId" },
         },
+        risk: "high",
         reversible: false,
       }),
     )

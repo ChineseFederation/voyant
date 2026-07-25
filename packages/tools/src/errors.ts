@@ -21,8 +21,9 @@ export class ToolError extends Error {
     message: string,
     public readonly code: ToolErrorCode,
     public readonly meta?: Record<string, unknown>,
+    options?: ErrorOptions,
   ) {
-    super(message)
+    super(message, options)
     this.name = "ToolError"
   }
 }

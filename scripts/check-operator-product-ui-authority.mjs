@@ -67,7 +67,6 @@ for (const relativePath of [
   "packages/storefront-react/src/storefront/messages.tsx",
   "packages/storefront-react/src/storefront/scope.tsx",
   "packages/storefront-react/src/storefront/shell.tsx",
-  "packages/bookings-react/src/storefront/storefront-booking-page.tsx",
   "packages/trips-react/src/storefront/storefront-composer-block.tsx",
 ]) {
   const path = join(root, relativePath)
@@ -101,14 +100,7 @@ if (existsSync(join(root, "starters/operator/src/custom-fields"))) {
 }
 
 const requiredTokens = new Map([
-  [
-    "packages/bookings-react/src/storefront/index.ts",
-    ["StorefrontBookingJourney", "StorefrontBookingPage", "resolveContractVariables"],
-  ],
-  [
-    "packages/bookings-react/src/storefront/storefront-booking-page.tsx",
-    ["storefrontBookingSearchSchema", "useStorefrontUi", "useEntityContent"],
-  ],
+  ["packages/bookings-react/src/storefront/index.ts", ["resolveContractVariables"]],
   ["packages/bookings-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
   ["packages/quotes-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
   ["packages/finance-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
@@ -151,13 +143,11 @@ const requiredTokens = new Map([
   [
     "packages/operator-standard/src/standard-route-files.ts",
     [
-      '"(storefront)/shop_.book.$entityModule.$entityId.tsx"',
       '"(storefront)/shop.tsx"',
       '"(storefront)/shop_.products.$entityModule.$entityId.tsx"',
       '"(storefront)/shop_.account.tsx"',
       '"(storefront)/shop_.confirmation.$bookingId.tsx"',
       '"(storefront)/shop_.composer.tsx"',
-      '"booking"',
       '"shop"',
       '"productDetail"',
       '"account"',
@@ -168,7 +158,6 @@ const requiredTokens = new Map([
   [
     "packages/operator-standard/src/standard-frontend.tsx",
     [
-      'from "@voyant-travel/bookings-react/storefront"',
       'from "@voyant-travel/cruises-react/storefront"',
       'from "@voyant-travel/inventory-react/storefront"',
       'from "@voyant-travel/storefront-react/storefront"',

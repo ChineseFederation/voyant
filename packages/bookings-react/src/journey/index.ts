@@ -1,15 +1,4 @@
-/**
- * `@voyant-travel/bookings-react/journey` — the unified booking journey shell.
- *
- * Per `docs/architecture/booking-journey-architecture.md`.
- *
- * Single shell, slot-injected. Operator and storefront consume the
- * same `<BookingJourney />` and inject surface-specific behavior
- * (CRM picker, payment provider widget, B2B vs B2C defaults, post-
- * commit handoff) via render-prop slots.
- */
-
-export { BookingJourney } from "./components/booking-journey.js"
+/** Shared booking-draft primitives retained for trip composition. */
 export {
   type ContractAcceptance,
   ContractPreviewDialog,
@@ -42,12 +31,6 @@ export {
 export {
   type BillingExtrasContext,
   type BookingEntitySummary,
-  type BookingJourneyCheckoutContext,
-  type BookingJourneyProps,
-  type BookingJourneyTransitionGuard,
-  type BookingJourneyTransitionGuardContext,
-  type BookingJourneyTransitionGuardResult,
-  type ContractAcceptanceEvent,
   type DeparturePickerProps,
   JOURNEY_STEP_ORDER,
   type JourneyHeaderState,

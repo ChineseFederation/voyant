@@ -80,9 +80,8 @@ export const storefrontMessagesEn = {
     },
   },
   shop: {
-    heading: "Browse and book",
-    intro:
-      "Customer-facing booking journey. Same engine the operator uses, served via /v1/public/catalog/* with an unauthenticated customer actor.",
+    heading: "Browse travel",
+    intro: "Explore the products and departures currently published by the operator.",
     buildTrip: "Build a trip",
     searchPlaceholder: "Search products, tours, stays…",
     verticalProducts: "Tours & products",
@@ -90,9 +89,8 @@ export const storefrontMessagesEn = {
     verticalAccommodations: "Stays",
     verticalCharters: "Charters",
     unavailableTitle: "Catalog search isn't configured",
-    unavailableBody:
-      "The catalog search provider is unavailable. You can still open the booking journey directly — pick a product id from the operator dashboard and visit:",
-    viewAndBook: "View & book",
+    unavailableBody: "The catalog search provider is unavailable. Please try again later.",
+    viewAndBook: "View details",
     nonBookableTitle: "Not available for online booking",
     nonBookableBody:
       "{vertical} are not available for online booking yet. Contact the operator to plan this request.",
@@ -228,18 +226,10 @@ export const storefrontMessagesEn = {
       "We've placed a hold on your reservation. You'll receive a confirmation email shortly with the next steps.",
     backToStorefront: "Back to storefront",
   },
-  bookingJourney: {
-    marketingLabel: "Email me occasional updates about new tours and promotions.",
-    checkoutFailed:
-      "We couldn't complete your booking. Please review your selection or try again in a moment.",
-    requestReference: "Reference: {requestId}",
-    reserveFailed:
-      "This selection isn't available to book right now. Please adjust your dates or room and try again.",
-  },
   composer: {
     gateTitle: "Sign in to build a trip",
     gateBody:
-      "The trip composer saves a working draft against your account, so you need to be signed in before you can start one. Browsing and booking individual items stays open to everyone.",
+      "The trip composer saves a working draft against your account, so you need to be signed in before you can start one. Browsing remains open to everyone.",
     gateSignIn: "Sign in to continue",
     gateBrowse: "Back to browsing",
   },
@@ -309,9 +299,8 @@ export const storefrontMessagesRo: StorefrontMessages = {
     },
   },
   shop: {
-    heading: "Cauta si rezerva",
-    intro:
-      "Parcurs de rezervare pentru clienti. Acelasi motor folosit de operator, servit prin /v1/public/catalog/* cu un actor customer neautentificat.",
+    heading: "Exploreaza calatorii",
+    intro: "Descopera produsele si plecarile publicate in prezent de operator.",
     buildTrip: "Construieste o calatorie",
     searchPlaceholder: "Cauta produse, tururi, sejururi…",
     verticalProducts: "Tururi si produse",
@@ -320,8 +309,8 @@ export const storefrontMessagesRo: StorefrontMessages = {
     verticalCharters: "Charter",
     unavailableTitle: "Cautarea in catalog nu este configurata",
     unavailableBody:
-      "Furnizorul de cautare in catalog nu este disponibil. Poti totusi deschide parcursul de rezervare direct — alege un id de produs din panoul operatorului si viziteaza:",
-    viewAndBook: "Vezi si rezerva",
+      "Furnizorul de cautare in catalog nu este disponibil. Incearca din nou mai tarziu.",
+    viewAndBook: "Vezi detalii",
     nonBookableTitle: "Indisponibil pentru rezervare online",
     nonBookableBody:
       "{vertical} nu este disponibil pentru rezervare online inca. Contacteaza operatorul pentru a planifica aceasta cerere.",
@@ -457,18 +446,10 @@ export const storefrontMessagesRo: StorefrontMessages = {
       "Am pastrat o rezervare pentru tine. Vei primi in scurt timp un email de confirmare cu pasii urmatori.",
     backToStorefront: "Inapoi la magazin",
   },
-  bookingJourney: {
-    marketingLabel: "Trimite-mi ocazional noutati despre tururi noi si promotii.",
-    checkoutFailed:
-      "Nu am putut finaliza rezervarea. Verifica selectia sau incearca din nou peste putin timp.",
-    requestReference: "Referinta: {requestId}",
-    reserveFailed:
-      "Aceasta selectie nu poate fi rezervata acum. Ajusteaza datele sau camera si incearca din nou.",
-  },
   composer: {
     gateTitle: "Autentifica-te pentru a construi o calatorie",
     gateBody:
-      "Compozitorul de calatorie salveaza o ciorna de lucru in contul tau, asa ca trebuie sa fii autentificat inainte de a incepe. Navigarea si rezervarea produselor individuale raman deschise tuturor.",
+      "Compozitorul de calatorie salveaza o ciorna de lucru in contul tau, asa ca trebuie sa fii autentificat inainte de a incepe. Navigarea ramane deschisa tuturor.",
     gateSignIn: "Autentifica-te pentru a continua",
     gateBrowse: "Inapoi la navigare",
   },

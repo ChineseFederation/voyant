@@ -39,7 +39,8 @@ export interface CruiseDetailPageProps {
   surface?: CatalogSurface
   cruisesLabel: string
   cruisesHref: string
-  onBook: (
+  /** Optional booking handoff supplied only by deployments with an admitted UI command. */
+  onBook?: (
     cruiseId: string,
     opts: {
       departureId?: string
@@ -233,7 +234,7 @@ export function CruiseDetailPage({
   }, [activeRef, id, baseUrl, fetcher, surface])
 
   const book = (sail: CruiseSailing, cabinCode?: string) =>
-    onBook(id, {
+    onBook?.(id, {
       ...(sail.sourceRef || sail.id ? { departureId: sail.sourceRef ?? sail.id ?? "" } : {}),
       ...(cabinCode ? { optionId: cabinCode } : {}),
       departureDate: sail.startDate,
@@ -436,13 +437,15 @@ export function CruiseDetailPage({
                                         {t.perPerson}
                                       </span>
                                     </div>
-                                    <Button
-                                      size="sm"
-                                      disabled={!cab.available}
-                                      onClick={() => book(sail, cab.code)}
-                                    >
-                                      {t.book}
-                                    </Button>
+                                    {onBook ? (
+                                      <Button
+                                        size="sm"
+                                        disabled={!cab.available}
+                                        onClick={() => book(sail, cab.code)}
+                                      >
+                                        {t.book}
+                                      </Button>
+                                    ) : null}
                                   </div>
                                 </li>
                               )
@@ -467,9 +470,11 @@ export function CruiseDetailPage({
                             ) : (
                               <span />
                             )}
-                            <Button size="sm" onClick={() => book(sail)}>
-                              {t.book}
-                            </Button>
+                            {onBook ? (
+                              <Button size="sm" onClick={() => book(sail)}>
+                                {t.book}
+                              </Button>
+                            ) : null}
                           </div>
                         )}
                       </div>

@@ -7,17 +7,10 @@
 //   GET  /v1/public/products/slug/:slug           (catalog detail by slug)
 //   GET  /v1/public/products/:id/departures       (storefront departures)
 //   POST /v1/public/departures/:id/price          (price preview — read-only despite POST)
-//   POST /v1/public/bookings/sessions/bootstrap   (MUTATES — booking session bootstrap)
 
 import http from "k6/http"
 
-import {
-  CURRENCY,
-  jsonHeaders,
-  PUBLIC_BASE,
-  QUOTE_TOTAL_CENTS,
-  uniqueIdempotencyKey,
-} from "./config.js"
+import { CURRENCY, jsonHeaders, PUBLIC_BASE } from "./config.js"
 
 function params(tags, extraHeaders) {
   return { headers: jsonHeaders(extraHeaders), tags: tags || {} }
@@ -56,55 +49,6 @@ export function priceDeparture(departureId, tags, pax) {
     currencyCode: CURRENCY,
   })
   return http.post(`${PUBLIC_BASE}/departures/${departureId}/price`, body, params(tags))
-}
-
-// ---------------------------------------------------------------------------
-// Write (booking session bootstrap — MUTATES DATA, staging only)
-// ---------------------------------------------------------------------------
-
-/**
- * Minimal valid body for storefrontBookingSessionBootstrapInputSchema
- * (packages/storefront/src/validation.ts):
- *   { departureId, slotId, quote: { currencyCode, totalSellAmountCents },
- *     session: { sellCurrency, items: [{ title, availabilitySlotId }] } }
- * At least one session item must reference slotId.
- */
-function buildBootstrapBody(target) {
-  return {
-    departureId: target.departureId,
-    slotId: target.slotId,
-    quote: {
-      currencyCode: CURRENCY,
-      totalSellAmountCents: QUOTE_TOTAL_CENTS,
-    },
-    session: {
-      sellCurrency: CURRENCY,
-      pax: 2,
-      items: [
-        {
-          title: "k6 load-test item",
-          quantity: 1,
-          availabilitySlotId: target.slotId,
-        },
-      ],
-      travelers: [
-        {
-          firstName: "Load",
-          lastName: "Test",
-          isPrimary: true,
-        },
-      ],
-    },
-  }
-}
-
-export function bootstrapSession(target, tags) {
-  const body = JSON.stringify(buildBootstrapBody(target))
-  return http.post(
-    `${PUBLIC_BASE}/bookings/sessions/bootstrap`,
-    body,
-    params(tags, { "Idempotency-Key": uniqueIdempotencyKey("k6-load") }),
-  )
 }
 
 // ---------------------------------------------------------------------------

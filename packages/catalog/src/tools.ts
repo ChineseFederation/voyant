@@ -23,7 +23,6 @@ import {
 import { z } from "zod"
 
 import {
-  commitCatalogBookingDefinition,
   getCatalogOrderDefinition,
   listCatalogOrdersDefinition,
   quoteCatalogEntityDefinition,
@@ -258,13 +257,11 @@ export const getCatalogEntryTool = defineTool<
 
 /** All catalog agent tools, ready to register on a `ToolRegistry`. */
 export const quoteCatalogEntityTool = defineTool(quoteCatalogEntityDefinition)
-export const commitCatalogBookingTool = defineTool(commitCatalogBookingDefinition)
 export const listCatalogOrdersTool = defineTool(listCatalogOrdersDefinition)
 export const getCatalogOrderTool = defineTool(getCatalogOrderDefinition)
 
 export const catalogBookingTools = [
   quoteCatalogEntityTool,
-  commitCatalogBookingTool,
   listCatalogOrdersTool,
   getCatalogOrderTool,
 ] as const

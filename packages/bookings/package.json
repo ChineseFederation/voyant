@@ -18,6 +18,7 @@
     "./job-runtime": "./src/job-runtime.ts",
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
+    "./booking-create-command-domain": "./src/booking-create-command-domain.ts",
     "./action-ledger-drift": "./src/action-ledger-drift.ts",
     "./action-ledger-drift-remediation": "./src/action-ledger-drift-remediation.ts",
     "./action-ledger-capabilities": "./src/action-ledger-capabilities.ts",
@@ -149,6 +150,11 @@
         "types": "./dist/routes.d.ts",
         "import": "./dist/routes.js",
         "default": "./dist/routes.js"
+      },
+      "./booking-create-command-domain": {
+        "types": "./dist/booking-create-command-domain.d.ts",
+        "import": "./dist/booking-create-command-domain.js",
+        "default": "./dist/booking-create-command-domain.js"
       },
       "./action-ledger-drift": {
         "types": "./dist/action-ledger-drift.d.ts",

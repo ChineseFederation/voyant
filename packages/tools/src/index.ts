@@ -40,6 +40,7 @@ export {
 } from "./errors.js"
 export {
   admitHandlerActionPolicy,
+  assertAuthenticHandlerActionPolicyContext,
   type HandlerActionPolicyExpectation,
 } from "./handler-action-policy.js"
 export {

@@ -1,7 +1,6 @@
 // agent-quality: file-size exception -- owner: bookings-react; existing UI surface stays co-located until a dedicated split preserves behavior and tests.
 "use client"
 
-import { Button } from "@voyant-travel/ui/components/button"
 import { Input } from "@voyant-travel/ui/components/input"
 import { Label } from "@voyant-travel/ui/components/label"
 import {
@@ -21,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@voyant-travel/ui/components/table"
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search } from "lucide-react"
+import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react"
 import * as React from "react"
 import { BOOKING_STATUS_ALL } from "../booking-list-constants.js"
 import {
@@ -95,7 +94,6 @@ const DEFAULT_FILTERS: BookingListFiltersState = {
 export interface BookingListProps {
   pageSize?: number
   onSelectBooking?: (booking: BookingRecord) => void
-  onCreateBooking?: () => void
   /**
    * Extra action(s) rendered next to the primary "New booking" button in
    * the filter bar. Templates use this to surface adjacent flows such as
@@ -132,7 +130,6 @@ const TABLE_COLUMN_COUNT = 8
 export function BookingList({
   pageSize = 25,
   onSelectBooking,
-  onCreateBooking,
   headerActions,
   initialFilters,
   onFiltersChange,
@@ -344,22 +341,7 @@ export function BookingList({
           onClearFilters={clearFilters}
         />
 
-        <div className="ml-auto flex items-center gap-2">
-          {headerActions}
-          <Button
-            onClick={() => {
-              if (onCreateBooking) {
-                onCreateBooking()
-                return
-              }
-              setEditing(undefined)
-              setDialogOpen(true)
-            }}
-          >
-            <Plus className="mr-2 size-4" />
-            {messages.bookingList.newBooking}
-          </Button>
-        </div>
+        <div className="ml-auto flex items-center gap-2">{headerActions}</div>
       </div>
 
       <div className="rounded-md border">
@@ -509,14 +491,16 @@ export function BookingList({
         ) : null}
       </div>
 
-      <BookingDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        booking={editing}
-        onSuccess={(booking) => {
-          onSelectBooking?.(booking)
-        }}
-      />
+      {editing ? (
+        <BookingDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          booking={editing}
+          onSuccess={(booking) => {
+            onSelectBooking?.(booking)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

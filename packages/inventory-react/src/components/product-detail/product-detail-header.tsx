@@ -1,5 +1,5 @@
 import { Badge, Button, DropdownMenuItem } from "@voyant-travel/ui/components"
-import { CalendarPlus, Copy, Pencil, Trash2 } from "lucide-react"
+import { Copy, Pencil, Trash2 } from "lucide-react"
 import { useEffect } from "react"
 import { useProductDetailHost, useProductDetailMessages } from "./host.js"
 
@@ -12,7 +12,6 @@ export interface ProductDetailHeaderProps {
   isDuplicating: boolean
   isDeleting: boolean
   onEdit: () => void
-  onAddBooking: () => void
   onDuplicate: () => void
   onDelete: () => void
 }
@@ -22,7 +21,6 @@ export function ProductDetailHeader({
   isDuplicating,
   isDeleting,
   onEdit,
-  onAddBooking,
   onDuplicate,
   onDelete,
 }: ProductDetailHeaderProps) {
@@ -47,10 +45,6 @@ export function ProductDetailHeader({
         <Button variant="outline" size="sm" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
           {productMessages.edit}
-        </Button>
-        <Button variant="outline" size="sm" onClick={onAddBooking}>
-          <CalendarPlus className="h-4 w-4" />
-          {productMessages.addBooking}
         </Button>
         <ActionMenu label={`${productMessages.pageTitle}: ${product.name}`}>
           <DropdownMenuItem disabled={isDuplicating} onClick={onDuplicate}>

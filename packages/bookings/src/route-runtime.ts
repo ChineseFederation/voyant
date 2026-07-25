@@ -24,8 +24,8 @@ export type ResolveBookingTravelSnapshot = (
 ) => Promise<BookingTravelerSnapshot | null>
 
 /**
- * Best-effort contact snapshot the booking-session bootstrap + update
- * flows hand to the caller's person resolver. Mirrors the storefront
+ * Best-effort contact snapshot an existing booking-session update hands to
+ * the caller's person resolver. Mirrors the storefront
  * lead-intake `StorefrontLeadContact` shape so the same resolver can
  * service both surfaces.
  */
@@ -52,8 +52,8 @@ export type ResolveBookingBillingPerson = (
 
 /**
  * Resolves (or upserts) a CRM person from a booking traveler payload.
- * Called from `publicBookingsService.createSession` /
- * `updateSession` per-traveler so storefront-originated bookings
+ * Called from `publicBookingsService.updateSession` per traveler so
+ * storefront-originated bookings
  * produce CRM person links per traveler (not just for the billing
  * contact). Returns the resolved person id, or `null` to keep
  * `booking_travelers.person_id` unset.

@@ -126,7 +126,6 @@ async function renderWithHost(children: ReactNode, hostApi: ProductDetailApi = a
             navigate: {
               toProducts: () => undefined,
               toProduct: () => undefined,
-              toNewBooking: () => undefined,
               toAvailability: () => undefined,
             },
           }}

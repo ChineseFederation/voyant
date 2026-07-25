@@ -116,11 +116,8 @@ function SearchUnavailable(): React.ReactElement {
       <CardHeader>
         <CardTitle>{t.unavailableTitle}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent className="text-sm">
         <p>{t.unavailableBody}</p>
-        <p>
-          <code>/shop/book/products/&lt;productId&gt;</code>
-        </p>
       </CardContent>
     </Card>
   )

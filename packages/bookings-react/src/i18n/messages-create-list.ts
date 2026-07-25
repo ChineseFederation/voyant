@@ -167,7 +167,6 @@ export type BookingsUiCreateListMessages = {
   }
   bookingList: {
     searchPlaceholder: string
-    newBooking: string
     columns: {
       bookingNumber: string
       whatBooked: string

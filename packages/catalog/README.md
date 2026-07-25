@@ -229,13 +229,15 @@ External adapters that do not run the catalog package can import the same
 schemas and types from `@voyant-travel/catalog-contracts/adapter/schemas` and
 `@voyant-travel/catalog-contracts/adapter/contract`.
 
-## BookingJourney HTTP routes
+## Catalog quote and draft HTTP routes
 
 `@voyant-travel/catalog` exports `createCatalogBookingApiModule(...)` and
-`createCatalogBookingRoutes(...)` for the BookingJourney server contract. The
-same functions remain available from `@voyant-travel/catalog/booking-engine` for
-consumers that prefer the narrower subpath. The module mounts the shared quote,
-draft, hold, and book endpoints on both catalog API surfaces:
+`createCatalogBookingRoutes(...)` for catalog quote, draft, hold, and reservation
+contracts. The same functions remain available from
+`@voyant-travel/catalog/booking-engine` for consumers that prefer the narrower
+subpath. The module mounts these engine endpoints on both catalog API surfaces.
+They are not a second booking-row creation authority; creation is admitted
+through the Finance staff Tool:
 
 - `/v1/admin/catalog/*`
 - `/v1/public/catalog/*`

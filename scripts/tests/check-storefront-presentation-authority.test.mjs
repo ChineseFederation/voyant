@@ -14,7 +14,6 @@ const routeHosts = Object.fromEntries(
 const hostAdapter = [
   '"@voyant-travel/storefront#presentation.customer"',
   "presentationFactories",
-  "StorefrontBookingPage",
   "StorefrontComposerPage",
   "CruiseDetailPage",
   "ProductDetailPageProducts",

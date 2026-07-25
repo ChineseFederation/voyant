@@ -6,8 +6,10 @@
  *
  * Lifecycle:
  *   1. `quoteEntity` → write to `catalog_quotes`, return short-lived quote.
- *   2. `bookEntity`  → call `adapter.reserve`, write `booking_catalog_snapshot`.
- *   3. `cancelEntity` → call `adapter.cancel`, snapshot stays for audit.
+ *   2. `cancelEntity` → call `adapter.cancel`, snapshot stays for audit.
+ *
+ * Catalog booking creation is intentionally unavailable until a durable
+ * admitted vertical command owns the mutation.
  *
  * Reads:
  *   - `listOrders` / `getOrderById` — surface snapshot rows cross-vertically.
@@ -17,13 +19,6 @@
  *     engine consults it on every dispatch.
  */
 
-export {
-  type BookEntityDeps,
-  type BookEntityRequest,
-  type BookEntityResult,
-  type BookingPaymentIntent,
-  bookEntity,
-} from "./book.js"
 export {
   type CancelEntityDeps,
   type CancelEntityRequest,
@@ -129,14 +124,8 @@ export {
   ORDER_ALREADY_CANCELLED,
   ORDER_NOT_FOUND,
   QUOTE_EXPIRED,
-  QUOTE_MISMATCH,
   QUOTE_NOT_FOUND,
   QuoteExpiredError,
-  QuoteMismatchError,
-  RESERVE_FAILED,
-  ReserveFailedError,
-  SNAPSHOT_CONTENT_UNAVAILABLE,
-  SnapshotContentUnavailableError,
 } from "./errors.js"
 export {
   type CatalogAvailabilitySlotsScope,
@@ -161,8 +150,6 @@ export {
   listOrders,
 } from "./orders.js"
 export {
-  type CommitOwnedRequest,
-  type CommitOwnedResult,
   type ComputeQuoteBatchResult,
   type ComputeQuoteBatchSelection,
   type ComputeQuoteRequest,
@@ -205,16 +192,10 @@ export {
   type CatalogBookingBatchQuoteBody,
   type CatalogBookingBatchQuoteSelection,
   type CatalogBookingBatchQuoteTransformInput,
-  type CatalogBookingBookBody,
-  type CatalogBookingBookTransformInput,
-  type CatalogBookingCommittedEvent,
-  type CatalogBookingContentScopeInput,
   type CatalogBookingDraftBody,
-  type CatalogBookingDraftConsumedError,
   type CatalogBookingHoldPlaceBody,
   type CatalogBookingHoldReleaseBody,
   type CatalogBookingHoldTtlInput,
-  type CatalogBookingPrepareBookParametersInput,
   type CatalogBookingProvenance,
   type CatalogBookingProvenanceInput,
   type CatalogBookingQuoteBody,
@@ -223,7 +204,6 @@ export {
   createCatalogBookingApiModule,
   createCatalogBookingRoutes,
   engineParametersFromDraft,
-  serializeBookResult,
   serializeQuoteResult,
 } from "./routes.js"
 export {
@@ -231,13 +211,6 @@ export {
   type InsertCatalogQuote,
   type SelectCatalogQuote,
 } from "./schema.js"
-export {
-  type ContentSnapshotAdapter,
-  composeSnapshotContentCapturer,
-  type SnapshotContentCapture,
-  type SnapshotContentCaptureInput,
-  type SnapshotContentCapturer,
-} from "./snapshot-content.js"
 export {
   type SyncAdapterSummary,
   type SyncProgressEvent,

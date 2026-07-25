@@ -64,7 +64,15 @@ function ctxWith(
 
 function makeRegistry() {
   const registry = createToolRegistry()
-  registry.registerAll(inventoryTools)
+  for (const tool of inventoryTools) {
+    if (tool.name === "create_product") {
+      registry.register(tool, { actionPolicy: CREATE_PRODUCT_HANDLER_POLICY.actionPolicy })
+    } else if (tool.name === "compose_product") {
+      registry.register(tool, { actionPolicy: COMPOSE_PRODUCT_HANDLER_POLICY.actionPolicy })
+    } else {
+      registry.register(tool)
+    }
+  }
   return registry
 }
 

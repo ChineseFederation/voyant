@@ -1,7 +1,6 @@
-// agent-quality: file-size exception -- booking-engine pricing, commit, and draft helpers stay together until the owned products handler support layer is split.
+// agent-quality: file-size exception -- booking-engine pricing and draft helpers stay together until the owned products handler support layer is split.
 import type {
   AddonOffer,
-  CommitOwnedRequest,
   OwnedHandlerContext,
   ProductVariantOption,
 } from "@voyant-travel/catalog/booking-engine"
@@ -11,7 +10,6 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { productPaxPricingTiers, products } from "../schema-core.js"
 import type {
-  BookingCreateBridgeInput,
   CreateProductsBookingHandlerOptions,
   DraftLike,
   ResolvedOptionPrice,
@@ -372,218 +370,6 @@ function unitAmountForPaxTier(input: {
     : input.pricePerPaxCents
 }
 
-export function bookingItemLinesFromOptionSelections(
-  selections: ReadonlyArray<NormalizedOptionSelection>,
-): BookingCreateBridgeInput["itemLines"] | undefined {
-  const lines = selections.flatMap((selection) =>
-    selection.optionUnitId
-      ? [
-          {
-            optionId: selection.optionId,
-            optionUnitId: selection.optionUnitId,
-            quantity: selection.quantity,
-          },
-        ]
-      : [],
-  )
-  return lines.length > 0 ? lines : undefined
-}
-
-interface AcceptedBasePriceLine {
-  optionId?: string
-  optionUnitId?: string
-  quantity: number
-  unitAmountCents: number
-  totalAmountCents: number
-  label: string | null
-}
-
-/**
- * Populate missing booking-item amounts from the accepted quote.
- *
- * Quote lines carrying option provenance are matched directly. Legacy quotes
- * without provenance retain their itemized amounts when their line ordering
- * and quantities still identify the selected units. Any residual (promotion,
- * operator override, or cent rounding) is allocated by the accepted base-line
- * weights, with quantity as the final fallback. Explicit caller amounts are
- * never replaced and the authoritative line totals sum exactly to `target`.
- * `target` is the booking sell amount: gross when tax is included, pre-tax
- * when tax is excluded (the separate booking tax lines carry excluded tax).
- */
-export function fillMissingBookingItemSellAmounts(input: {
-  itemLines: BookingCreateBridgeInput["itemLines"]
-  pricing: CommitOwnedRequest["pricing"]
-  targetSellAmountCents: number | null
-  extraLines?: BookingCreateBridgeInput["extraLines"]
-}): BookingCreateBridgeInput["itemLines"] | undefined {
-  if (!input.itemLines?.length) return input.itemLines
-
-  const target = input.targetSellAmountCents
-  if (target == null || target < 0) return input.itemLines
-
-  const extraTotal = (input.extraLines ?? []).reduce(
-    (sum, line) => sum + Math.max(0, line.totalSellAmountCents ?? 0),
-    0,
-  )
-  if (extraTotal > target) {
-    throw new Error("Accepted booking pricing is inconsistent: add-ons exceed the sell total.")
-  }
-  const itemTarget = target - extraTotal
-  const quoteLines = acceptedBasePriceLines(input.pricing)
-  const quoteBySelection = matchAcceptedBasePriceLines(input.itemLines, quoteLines)
-
-  const explicitTotal = input.itemLines.reduce(
-    (sum, line) => sum + Math.max(0, line.totalSellAmountCents ?? 0),
-    0,
-  )
-  if (explicitTotal > itemTarget) {
-    throw new Error(
-      "Accepted booking pricing is inconsistent: explicit item lines exceed the item total.",
-    )
-  }
-  const missingIndexes = input.itemLines.flatMap((line, index) =>
-    line.totalSellAmountCents == null ? [index] : [],
-  )
-  if (missingIndexes.length === 0) {
-    if (explicitTotal !== itemTarget) {
-      throw new Error(
-        "Accepted booking pricing is inconsistent: explicit item lines do not equal the item total.",
-      )
-    }
-    return input.itemLines
-  }
-
-  const remaining = itemTarget - explicitTotal
-  const weights = missingIndexes.map((index) => {
-    const quoted = quoteBySelection.get(index)?.totalAmountCents
-    return quoted != null && quoted > 0
-      ? quoted
-      : Math.max(1, input.itemLines?.[index]?.quantity ?? 1)
-  })
-  const allocated = allocateExactTotal(remaining, weights)
-
-  return input.itemLines.map((line, index) => {
-    if (line.totalSellAmountCents != null) return line
-    const missingIndex = missingIndexes.indexOf(index)
-    if (missingIndex < 0) return line
-    const totalSellAmountCents = allocated[missingIndex] ?? 0
-    const quoted = quoteBySelection.get(index)
-    const unitSellAmountCents =
-      quoted && quoted.totalAmountCents === totalSellAmountCents
-        ? quoted.unitAmountCents
-        : Math.floor(totalSellAmountCents / Math.max(1, line.quantity))
-    return {
-      ...line,
-      ...(line.title == null && quoted?.label ? { title: quoted.label } : {}),
-      unitSellAmountCents,
-      totalSellAmountCents,
-    }
-  })
-}
-
-function acceptedBasePriceLines(pricing: CommitOwnedRequest["pricing"]): AcceptedBasePriceLine[] {
-  const breakdown = pricing?.breakdown
-  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return []
-  const lines = (breakdown as { lines?: unknown }).lines
-  if (!Array.isArray(lines)) return []
-  return lines.flatMap((value) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return []
-    const line = value as Record<string, unknown>
-    if (line.kind !== "base") return []
-    const quantity = asFiniteInteger(line.quantity)
-    const unitAmountCents = asFiniteInteger(line.unitAmount)
-    const totalAmountCents = asFiniteInteger(line.totalAmount)
-    if (
-      quantity == null ||
-      quantity <= 0 ||
-      unitAmountCents == null ||
-      unitAmountCents < 0 ||
-      totalAmountCents == null ||
-      totalAmountCents < 0
-    ) {
-      return []
-    }
-    return [
-      {
-        ...(typeof line.optionId === "string" ? { optionId: line.optionId } : {}),
-        ...(typeof line.optionUnitId === "string" ? { optionUnitId: line.optionUnitId } : {}),
-        quantity,
-        unitAmountCents,
-        totalAmountCents,
-        label: typeof line.label === "string" ? line.label : null,
-      },
-    ]
-  })
-}
-
-function matchAcceptedBasePriceLines(
-  itemLines: NonNullable<BookingCreateBridgeInput["itemLines"]>,
-  quoteLines: readonly AcceptedBasePriceLine[],
-): Map<number, AcceptedBasePriceLine> {
-  const matched = new Map<number, AcceptedBasePriceLine>()
-  const claimed = new Set<number>()
-  for (const [itemIndex, item] of itemLines.entries()) {
-    const quoteIndexes = quoteLines.flatMap((line, index) =>
-      !claimed.has(index) &&
-      line.optionUnitId === item.optionUnitId &&
-      (line.optionId == null || item.optionId == null || line.optionId === item.optionId)
-        ? [index]
-        : [],
-    )
-    if (quoteIndexes.length > 0) {
-      for (const quoteIndex of quoteIndexes) claimed.add(quoteIndex)
-      const quoted = quoteIndexes.flatMap((index) => (quoteLines[index] ? [quoteLines[index]] : []))
-      const totalAmountCents = quoted.reduce((sum, line) => sum + line.totalAmountCents, 0)
-      matched.set(itemIndex, {
-        optionId: item.optionId ?? undefined,
-        optionUnitId: item.optionUnitId,
-        quantity: item.quantity,
-        unitAmountCents:
-          quoted.length === 1 && quoted[0]?.quantity === item.quantity
-            ? quoted[0].unitAmountCents
-            : Math.floor(totalAmountCents / Math.max(1, item.quantity)),
-        totalAmountCents,
-        label: quoted[0]?.label ?? null,
-      })
-    }
-  }
-
-  const unmatchedItems = itemLines.flatMap((_, index) => (matched.has(index) ? [] : [index]))
-  const unmatchedQuotes = quoteLines.flatMap((line, index) =>
-    claimed.has(index) || line.optionUnitId != null ? [] : [{ line, index }],
-  )
-  if (
-    unmatchedItems.length === unmatchedQuotes.length &&
-    unmatchedItems.every(
-      (itemIndex, index) =>
-        itemLines[itemIndex]?.quantity === unmatchedQuotes[index]?.line.quantity,
-    )
-  ) {
-    for (const [index, itemIndex] of unmatchedItems.entries()) {
-      const quoted = unmatchedQuotes[index]?.line
-      if (quoted) matched.set(itemIndex, quoted)
-    }
-  }
-  return matched
-}
-
-function allocateExactTotal(total: number, weights: readonly number[]): number[] {
-  if (weights.length === 0) return []
-  const positiveWeights = weights.map((weight) => Math.max(0, weight))
-  const denominator = positiveWeights.reduce((sum, weight) => sum + weight, 0)
-  if (denominator <= 0) return positiveWeights.map((_, index) => (index === 0 ? total : 0))
-
-  let allocated = 0
-  return positiveWeights.map((weight, index) => {
-    const amount =
-      index === positiveWeights.length - 1
-        ? total - allocated
-        : Math.floor((total * weight) / denominator)
-    allocated += amount
-    return amount
-  })
-}
-
 export function applyAddonSelections(input: {
   priced: PricedQuote
   addons: DraftLike["addons"] | undefined
@@ -619,12 +405,24 @@ export function applyAddonSelections(input: {
   return { totalCents, lines }
 }
 
+export interface BookingExtraLine {
+  productExtraId: string
+  name: string
+  description?: string | null
+  pricingMode?: string | null
+  pricedPerPerson?: boolean | null
+  quantity: number
+  sellCurrency: string
+  unitSellAmountCents?: number | null
+  totalSellAmountCents?: number | null
+}
+
 export function bookingExtraLinesFromAddonSelections(input: {
   addons: DraftLike["addons"] | undefined
   addonCatalog: ReadonlyArray<AddonOffer> | undefined
   currency: string
   quantityMultiplier?: number
-}): BookingCreateBridgeInput["extraLines"] | undefined {
+}): BookingExtraLine[] | undefined {
   if (!Array.isArray(input.addons) || input.addons.length === 0) return undefined
   const catalogById = new Map((input.addonCatalog ?? []).map((offer) => [offer.id, offer]))
   const lines = input.addons.flatMap((selection) => {
@@ -735,167 +533,4 @@ export function priceQuote(input: {
       },
     ],
   }
-}
-
-export function readInitialStatus(
-  parameters: Record<string, unknown> | undefined,
-): BookingCreateBridgeInput["initialStatus"] {
-  const allowed: ReadonlyArray<NonNullable<BookingCreateBridgeInput["initialStatus"]>> = [
-    "draft",
-    "on_hold",
-    "awaiting_payment",
-    "confirmed",
-    "in_progress",
-    "completed",
-    "cancelled",
-    "expired",
-  ]
-  const raw = parameters?.initialStatus
-  return typeof raw === "string" && (allowed as ReadonlyArray<string>).includes(raw)
-    ? (raw as BookingCreateBridgeInput["initialStatus"])
-    : undefined
-}
-
-export function extractInternalNotes(
-  party: Record<string, unknown> | undefined,
-): string | undefined {
-  if (!party) return undefined
-  const v = party.internalNotes
-  return typeof v === "string" && v.length > 0 ? v : undefined
-}
-
-export function extractBillingParty(party: Record<string, unknown> | undefined): {
-  personId?: string | null
-  organizationId?: string | null
-  contactFirstName?: string | null
-  contactLastName?: string | null
-  contactEmail?: string | null
-  contactPhone?: string | null
-} {
-  const directBilling = asRecord(party?.billing)
-  const travelerParty = asRecord(party?.travelerParty)
-  const envelopeBilling = asRecord(travelerParty?.billing)
-  const billing = envelopeBilling ?? directBilling
-  const contact = asRecord(billing?.contact)
-
-  return {
-    personId: stringValue(party?.personId) ?? stringValue(billing?.personId),
-    organizationId: stringValue(party?.organizationId) ?? stringValue(billing?.organizationId),
-    contactFirstName: stringValue(contact?.firstName),
-    contactLastName: stringValue(contact?.lastName),
-    contactEmail: stringValue(contact?.email),
-    contactPhone: stringValue(contact?.phone),
-  }
-}
-
-// Mirrors `isRealEmail` in @voyant-travel/finance's `requireCompleteBookingParty`
-// (and the trips copy). The owned booking handler resolves a CRM person from the
-// billing contact before calling `createBooking`, which rejects a blank or
-// placeholder email — so the resolver must apply the same rule up front, or it
-// orphans a CRM person on every failed checkout. Keep this set in sync with
-// finance's `placeholderEmails`.
-const placeholderBillingEmails = new Set([
-  "noreply@example.com",
-  "tbd@example.com",
-  "traveler@example.com",
-])
-
-export function isRealBillingEmail(value: string | null | undefined): value is string {
-  const normalized = value?.trim().toLowerCase() ?? ""
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !placeholderBillingEmails.has(normalized)
-}
-
-export function extractPartyTravelers(
-  party: Record<string, unknown> | undefined,
-): Array<{ personId?: string | null }> {
-  const travelerParty = asRecord(party?.travelerParty)
-  const travelers = Array.isArray(travelerParty?.travelers) ? travelerParty.travelers : []
-  return travelers.map((traveler) => ({
-    personId: stringValue(asRecord(traveler)?.personId),
-  }))
-}
-
-export function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
-}
-
-export function stringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null
-}
-
-export function extractTaxLines(
-  pricing: CommitOwnedRequest["pricing"],
-): BookingCreateBridgeInput["taxLines"] {
-  const breakdown = pricing?.breakdown
-  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return undefined
-  const taxes = (breakdown as { taxes?: unknown }).taxes
-  if (!Array.isArray(taxes)) return undefined
-
-  const lines: NonNullable<BookingCreateBridgeInput["taxLines"]> = []
-  for (const [index, tax] of taxes.entries()) {
-    if (!tax || typeof tax !== "object" || Array.isArray(tax)) continue
-    const row = tax as Record<string, unknown>
-    const amountCents = asFiniteInteger(row.amount)
-    const rate = typeof row.rate === "number" && Number.isFinite(row.rate) ? row.rate : null
-    const currency =
-      typeof pricing?.currency === "string" && pricing.currency.length === 3
-        ? pricing.currency
-        : "EUR"
-    const name = typeof row.label === "string" && row.label.length > 0 ? row.label : "Tax"
-    if (!amountCents || amountCents <= 0) continue
-    const includedInPrice = row.includedInPrice === true || row.scope === "included"
-    lines.push({
-      code: typeof row.code === "string" ? row.code : null,
-      name,
-      scope: includedInPrice ? "included" : "excluded",
-      currency,
-      amountCents,
-      rateBasisPoints: rate == null ? null : Math.round(rate * 10_000),
-      includedInPrice,
-      sortOrder: index,
-    })
-  }
-
-  return lines.length ? lines : undefined
-}
-
-export function resolveSellAmountCentsOverride(
-  pricing: CommitOwnedRequest["pricing"],
-): number | null {
-  if (!pricing) return null
-  const breakdown = pricing.breakdown
-  if (hasInclusiveTaxLine(breakdown)) {
-    const total = readBreakdownTotal(breakdown)
-    if (total != null) return total
-  }
-  return pricing.base_amount != null ? Math.round(pricing.base_amount) : null
-}
-
-export function hasInclusiveTaxLine(breakdown: unknown): boolean {
-  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return false
-  const taxes = (breakdown as { taxes?: unknown }).taxes
-  if (!Array.isArray(taxes)) return false
-  return taxes.some((tax) => {
-    if (!tax || typeof tax !== "object" || Array.isArray(tax)) return false
-    const row = tax as Record<string, unknown>
-    return row.includedInPrice === true || row.scope === "included"
-  })
-}
-
-export function readBreakdownTotal(breakdown: unknown): number | null {
-  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return null
-  const total = (breakdown as { total?: unknown }).total
-  return typeof total === "number" && Number.isFinite(total) ? Math.round(total) : null
-}
-
-export function asFiniteInteger(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value)) return null
-  return Math.round(value)
-}
-
-export function defaultBookingNumber(): string {
-  const ts = Date.now().toString(36).toUpperCase()
-  return `BK-${ts}`
 }

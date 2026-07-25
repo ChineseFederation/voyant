@@ -1,5 +1,11 @@
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import {
+  createToolRegistry,
+  defineTool,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { z } from "zod"
 
 import {
   ActionLedgerCreatedCommandApprovalError,
@@ -11,6 +17,7 @@ import {
   buildCreatedTargetCommandFingerprint,
   buildCreatedTargetIdempotencyScope,
   buildExistingTargetIdempotencyScope,
+  consumeCreatedTargetMutationLease,
   type ExecuteAdmittedExistingTargetCommandInput,
   type ExecuteCreatedTargetCommandInput,
   executeAdmittedCreatedTargetCommand,
@@ -47,7 +54,7 @@ const POLICY_DRIFTS: Array<[string, Partial<ExecuteCreatedTargetCommandInput>]> 
 describe("existing-target durable command protocol", () => {
   it("commits exact admission before dispatch and routes same-command retries to replay", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     const scope = await buildExistingTargetIdempotencyScope({
       actionName: admitted.actionPolicy.capabilityId,
       actionVersion: admitted.actionPolicy.version,
@@ -130,7 +137,7 @@ describe("existing-target durable command protocol", () => {
     ["target", { commandInput: { tripId: "trip_2", currency: "EUR" } }],
   ])("conflicts when an admitted key is reused with altered %s", async (_label, patch) => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     const scope = await buildExistingTargetIdempotencyScope({
       actionName: admitted.actionPolicy.capabilityId,
       actionVersion: admitted.actionPolicy.version,
@@ -159,7 +166,7 @@ describe("existing-target durable command protocol", () => {
 
   it("rejects missing protocol metadata and mismatched stable target before claiming", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     const handlers = { prepare: vi.fn(), execute: vi.fn(), replay: vi.fn() }
 
     await expect(
@@ -172,7 +179,7 @@ describe("existing-target durable command protocol", () => {
         },
         handlers,
       ),
-    ).rejects.toMatchObject({ reason: "admitted_policy_mismatch" })
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
     await expect(
       executeAdmittedExistingTargetCommand(
         { ...existingCommandInput(harness.db, admitted), targetId: "trip_other" },
@@ -184,7 +191,7 @@ describe("existing-target durable command protocol", () => {
 
   it("clones and recursively freezes a nested JSON command payload", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
     const commandInput = {
       tripId: "trip_1",
@@ -232,7 +239,7 @@ describe("existing-target durable command protocol", () => {
 
   it("normalizes negative zero so fingerprint-equivalent retries cannot reach handlers differently", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
     const negativeZeroInput = { tripId: "trip_1", currency: "EUR", adjustment: -0 }
     const zeroInput = { tripId: "trip_1", currency: "EUR", adjustment: 0 }
@@ -289,7 +296,7 @@ describe("existing-target durable command protocol", () => {
 
   it("uses one sanitized payload snapshot for target, fingerprint, claim, and handlers", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
     const descriptorReads = { tripId: 0, currency: 0 }
     const unstableInput = new Proxy(
@@ -354,7 +361,7 @@ describe("existing-target durable command protocol", () => {
     ["a sparse array (whose hole JSON serializes like null)", Array(1)],
   ])("rejects non-JSON command payload value %s before claiming", async (_label, invalid) => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     const handlers = { prepare: vi.fn(), execute: vi.fn(), replay: vi.fn() }
 
     await expect(
@@ -375,7 +382,7 @@ describe("existing-target durable command protocol", () => {
 
   it("rejects cyclic and accessor-bearing command payloads before fingerprinting", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     const handlers = { prepare: vi.fn(), execute: vi.fn(), replay: vi.fn() }
     const cyclic: Record<string, unknown> = { tripId: "trip_1", currency: "EUR" }
     cyclic.self = cyclic
@@ -408,25 +415,28 @@ describe("existing-target durable command protocol", () => {
   it("binds required approval to the exact target, key, fingerprint, and causation", async () => {
     const harness = makeCreatedCommandDb()
     const commandInput = { tripId: "trip_1", currency: "EUR" }
-    const admitted = makeAdmittedExistingTargetContext({ approval: "required" })
+    const baseAdmitted = await makeAdmittedExistingTargetContext({ approval: "required" })
     const fingerprint = await buildActionApprovalCommandFingerprint({
-      actionName: admitted.actionPolicy.capabilityId,
-      actionVersion: admitted.actionPolicy.version,
+      actionName: baseAdmitted.actionPolicy.capabilityId,
+      actionVersion: baseAdmitted.actionPolicy.version,
       targetType: "trip",
       targetId: "trip_1",
       commandInput,
       approvalPolicy: "required",
-      capabilityId: admitted.actionPolicy.capabilityId,
-      capabilityVersion: admitted.actionPolicy.version,
+      capabilityId: baseAdmitted.actionPolicy.capabilityId,
+      capabilityVersion: baseAdmitted.actionPolicy.version,
       evaluatedRisk: "high",
       reasonCode: "operator_approved",
     })
-    admitted.invocation = {
-      idempotencyKey: "price_1",
-      approvalId: "appr_existing",
-      idempotencyFingerprint: fingerprint,
-      reasonCode: "operator_approved",
-    }
+    const admitted = await makeAdmittedExistingTargetContext({
+      approval: "required",
+      invocation: {
+        idempotencyKey: "price_1",
+        approvalId: "appr_existing",
+        idempotencyFingerprint: fingerprint,
+        reasonCode: "operator_approved",
+      },
+    })
     const scope = await buildExistingTargetIdempotencyScope({
       actionName: admitted.actionPolicy.capabilityId,
       actionVersion: admitted.actionPolicy.version,
@@ -465,12 +475,12 @@ describe("existing-target durable command protocol", () => {
     }
     await expect(
       executeAdmittedExistingTargetCommand(existingCommandInput(harness.db, changedKey), handlers),
-    ).rejects.toMatchObject({ reason: "idempotency_key_mismatch" })
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
   })
 
   it("rolls back the claim and package intent when intent preparation fails", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
 
     await expect(
@@ -490,7 +500,7 @@ describe("existing-target durable command protocol", () => {
 
   it("resumes a committed intent after a crash between commit and first execution", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
     const prepare = vi.fn(async (tx, command) => {
       ;(tx as AnyDrizzleDb & { __intents: string[] }).__intents.push(
@@ -531,7 +541,7 @@ describe("existing-target durable command protocol", () => {
 
   it("prepares one intent and classifies a concurrent exact call as replay", async () => {
     const harness = makeCreatedCommandDb()
-    const admitted = makeAdmittedExistingTargetContext()
+    const admitted = await makeAdmittedExistingTargetContext()
     await configureExistingClaimLookup(harness.db, admitted)
     const prepare = vi.fn(async (tx, command) => {
       ;(tx as AnyDrizzleDb & { __intents: string[] }).__intents.push(
@@ -578,6 +588,76 @@ describe("existing-target durable command protocol", () => {
 })
 
 describe("created-target command protocol", () => {
+  it.each([
+    ["unrelated action", { actionName: "unrelated.action" }],
+    ["wrong version", { actionVersion: "v2" }],
+    ["wrong command target type", { commandTarget: { type: "other-command", id: "key_1" } }],
+    ["wrong command target id", { commandTarget: { type: "person-command", id: "other-key" } }],
+    ["wrong canonical target", { canonicalTargetType: "organization" }],
+    ["wrong result reference", { resultReferenceType: "organization" }],
+  ])("rejects a mutation lease with %s identity", async (_label, patch) => {
+    const harness = makeCreatedCommandDb()
+    const input = await makeInput()
+    ;(harness.db as AnyDrizzleDb & { __claimScope?: string }).__claimScope =
+      `${input.idempotency.scope}:created-command-claim`
+    await expect(
+      executeCreatedTargetCommand(harness.db, input, {
+        async create(tx, lease) {
+          consumeCreatedTargetMutationLease(lease, tx, {
+            actionName: input.actionName,
+            actionVersion: input.actionVersion,
+            commandTarget: input.commandTarget,
+            canonicalTargetType: input.canonicalTargetType,
+            resultReferenceType: input.resultReferenceType,
+            ...patch,
+          })
+          return { value: { id: "person_1" }, targetId: "person_1" }
+        },
+        async replay() {
+          throw new Error("unexpected replay")
+        },
+      }),
+    ).rejects.toMatchObject({ reason: "invalid_mutation_lease" })
+  })
+
+  it("rejects forged, cross-transaction, and reused mutation leases", async () => {
+    for (const mode of ["forged", "cross-transaction", "reused"] as const) {
+      const harness = makeCreatedCommandDb()
+      const input = await makeInput()
+      ;(harness.db as AnyDrizzleDb & { __claimScope?: string }).__claimScope =
+        `${input.idempotency.scope}:created-command-claim`
+      const expected = {
+        actionName: input.actionName,
+        actionVersion: input.actionVersion,
+        commandTarget: input.commandTarget,
+        canonicalTargetType: input.canonicalTargetType,
+        resultReferenceType: input.resultReferenceType,
+      }
+      await expect(
+        executeCreatedTargetCommand(harness.db, input, {
+          async create(tx, lease) {
+            if (mode === "forged") {
+              consumeCreatedTargetMutationLease(
+                { claimActionId: lease.claimActionId },
+                tx,
+                expected,
+              )
+            } else if (mode === "cross-transaction") {
+              consumeCreatedTargetMutationLease(lease, {} as AnyDrizzleDb, expected)
+            } else {
+              consumeCreatedTargetMutationLease(lease, tx, expected)
+              consumeCreatedTargetMutationLease(lease, tx, expected)
+            }
+            return { value: { id: "person_1" }, targetId: "person_1" }
+          },
+          async replay() {
+            throw new Error("unexpected replay")
+          },
+        }),
+      ).rejects.toMatchObject({ reason: "invalid_mutation_lease" })
+    }
+  })
+
   it("uses admitted graph identity, Tool route identity, and replays the canonical child reference", async () => {
     const harness = makeCreatedCommandDb()
     const actionName = "inventory:product-extra:create"
@@ -595,7 +675,7 @@ describe("created-target command protocol", () => {
       value: { id: "extra_1", replayed: false },
       targetId: "extra_1",
     }))
-    const admitted = makeAdmittedCreatedTargetContext({ actionName, actionVersion })
+    const admitted = await makeAdmittedCreatedTargetContext({ actionName, actionVersion })
     const execute = () =>
       executeAdmittedCreatedTargetCommand(
         {
@@ -667,124 +747,8 @@ describe("created-target command protocol", () => {
           },
         },
       ),
-    ).rejects.toMatchObject({
-      name: ActionLedgerCreatedCommandProtocolError.name,
-      reason: "admitted_policy_mismatch",
-    })
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
     expect(create).toHaveBeenCalledTimes(1)
-  })
-
-  it("replays a reservation claimed before the admitted-executor upgrade", async () => {
-    const harness = makeCreatedCommandDb()
-    const context = {
-      userId: "usr_1",
-      organizationId: "org_1",
-      actor: "staff",
-      callerType: "session",
-    }
-    const commandInput = {
-      bookingNumber: "BK-UPGRADE-000001",
-      sellCurrency: "EUR",
-      items: [{ availabilitySlotId: "slot_1", quantity: 1 }],
-    }
-    const command = {
-      actionName: "booking.reserve",
-      actionVersion: "v1",
-      commandTarget: {
-        type: "booking_reservation_command",
-        id: commandInput.bookingNumber,
-      },
-      canonicalTargetType: "booking",
-      resultReferenceType: "booking",
-      commandInput,
-      capabilityId: "bookings:reserve",
-      capabilityVersion: "v1",
-      evaluatedRisk: "high" as const,
-      approvalPolicy: "none" as const,
-      approvalReasonCode: null,
-    }
-    const fingerprint = await buildCreatedTargetCommandFingerprint(command)
-    const scope = await buildCreatedTargetIdempotencyScope({
-      actionName: command.actionName,
-      actionVersion: command.actionVersion,
-      principalType: "user",
-      principalId: "usr_1",
-      organizationId: "org_1",
-    })
-    ;(harness.db as AnyDrizzleDb & { __claimScope?: string }).__claimScope =
-      `${scope}:created-command-claim`
-
-    await executeCreatedTargetCommand(
-      harness.db,
-      {
-        context,
-        ...command,
-        routeOrToolName: "bookings.reserve_booking",
-        authorizationSource: "selected_graph_mcp_handler",
-        idempotency: { scope, key: "reserve-command-1", fingerprint },
-      },
-      {
-        async create() {
-          return { value: { id: "booking_1" }, targetId: "booking_1" }
-        },
-        async replay(_tx, completed) {
-          return { id: completed.reference.id }
-        },
-      },
-    )
-
-    const baseAdmitted = makeAdmittedCreatedTargetContext({ actionName: "booking.reserve" })
-    const admitted = {
-      ...baseAdmitted,
-      capabilityId: "@voyant-travel/bookings#tool.reserve-booking",
-      canonicalName: "reserve_booking",
-      actionPolicy: {
-        ...baseAdmitted.actionPolicy,
-        capabilityId: "bookings:reserve",
-        targetType: "booking",
-        createdTarget: {
-          commandTargetType: "booking_reservation_command",
-          resultReferenceType: "booking",
-          durability: "handler-command-claim-v1" as const,
-        },
-      },
-      invocation: { idempotencyKey: "reserve-command-1" },
-    }
-    const create = vi.fn()
-    await expect(
-      executeAdmittedCreatedTargetCommand(
-        {
-          db: harness.db,
-          context,
-          admitted,
-          commandTargetType: "booking_reservation_command",
-          commandTargetId: commandInput.bookingNumber,
-          routeOrToolName: "bookings.reserve_booking",
-          canonicalTargetType: "booking",
-          resultReferenceType: "booking",
-          commandInput,
-          evaluatedRisk: "high",
-        },
-        {
-          create,
-          async replay(_tx, completed) {
-            return { id: completed.reference.id }
-          },
-        },
-      ),
-    ).resolves.toMatchObject({
-      replayed: true,
-      value: { id: "booking_1" },
-    })
-    expect(create).not.toHaveBeenCalled()
-    expect(harness.entries).toHaveLength(2)
-    expect(harness.entries[0]).toMatchObject({
-      actionName: "booking.reserve",
-      targetType: "booking_reservation_command",
-      targetId: "BK-UPGRADE-000001",
-      routeOrToolName: "bookings.reserve_booking",
-      capabilityId: "bookings:reserve",
-    })
   })
 
   it.each([
@@ -795,7 +759,7 @@ describe("created-target command protocol", () => {
   ])("rejects %s before opening a transaction", async (_label, policyPatch, invocation) => {
     const harness = makeCreatedCommandDb()
     const create = vi.fn()
-    const admitted = makeAdmittedCreatedTargetContext()
+    const admitted = await makeAdmittedCreatedTargetContext()
 
     await expect(
       executeAdmittedCreatedTargetCommand(
@@ -821,10 +785,7 @@ describe("created-target command protocol", () => {
         },
         { create, replay: vi.fn() },
       ),
-    ).rejects.toMatchObject({
-      name: ActionLedgerCreatedCommandProtocolError.name,
-      reason: "admitted_policy_mismatch",
-    })
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
     expect(harness.events).toEqual([])
     expect(create).not.toHaveBeenCalled()
   })
@@ -846,7 +807,7 @@ describe("created-target command protocol", () => {
             actor: "staff",
             callerType: "session",
           },
-          admitted: makeAdmittedCreatedTargetContext(),
+          admitted: await makeAdmittedCreatedTargetContext(),
           idempotencyKey: "key_1",
           commandTargetType: "product-extra-create-command",
           canonicalTargetType: "product_extra",
@@ -867,8 +828,22 @@ describe("created-target command protocol", () => {
   it("requires both polymorphic and related anchors before opening a transaction", async () => {
     const harness = makeCreatedCommandDb()
     const create = vi.fn()
-    const admitted = makeAdmittedCreatedTargetContext()
+    const admitted = await makeAdmittedCreatedTargetContext()
     const createdTarget = admitted.actionPolicy.createdTarget
+    const polymorphicAdmitted = await mintAdmission({
+      ...admitted,
+      actionPolicy: {
+        ...admitted.actionPolicy,
+        createdTarget: {
+          ...createdTarget,
+          parentAnchor: {
+            targetTypeField: "entityType",
+            targetIdField: "entityId",
+            relatedTargetIdField: "optionId",
+          },
+        },
+      },
+    })
 
     await expect(
       executeAdmittedCreatedTargetCommand(
@@ -880,20 +855,7 @@ describe("created-target command protocol", () => {
             actor: "staff",
             callerType: "session",
           },
-          admitted: {
-            ...admitted,
-            actionPolicy: {
-              ...admitted.actionPolicy,
-              createdTarget: {
-                ...createdTarget,
-                parentAnchor: {
-                  targetTypeField: "entityType",
-                  targetIdField: "entityId",
-                  relatedTargetIdField: "optionId",
-                },
-              },
-            },
-          },
+          admitted: polymorphicAdmitted,
           idempotencyKey: "key_1",
           commandTargetType: "product-extra-create-command",
           canonicalTargetType: "product_extra",
@@ -1318,11 +1280,14 @@ describe("created-target command protocol", () => {
   })
 })
 
-function makeAdmittedExistingTargetContext(
-  input: { approval?: "never" | "required" } = {},
-): ExecuteAdmittedExistingTargetCommandInput["admitted"] {
+async function makeAdmittedExistingTargetContext(
+  input: {
+    approval?: "never" | "required"
+    invocation?: ToolHandlerActionPolicyContext["invocation"]
+  } = {},
+): Promise<ExecuteAdmittedExistingTargetCommandInput["admitted"]> {
   const approval = input.approval ?? "never"
-  return {
+  return mintAdmission({
     capabilityId: "@voyant-travel/trips#tool.price-trip",
     capabilityVersion: "v1",
     canonicalName: "price_trip",
@@ -1351,8 +1316,8 @@ function makeAdmittedExistingTargetContext(
         fingerprintAlgorithm: "action-ledger-command-v1",
       },
     },
-    invocation: { idempotencyKey: "price_1" },
-  }
+    invocation: input.invocation ?? { idempotencyKey: "price_1" },
+  })
 }
 
 function existingCommandInput(
@@ -1376,8 +1341,8 @@ function existingCommandInput(
 }
 
 async function approvedExistingContext() {
-  const admitted = makeAdmittedExistingTargetContext({ approval: "required" })
-  admitted.invocation = {
+  const admitted = await makeAdmittedExistingTargetContext({ approval: "required" })
+  const invocation = {
     idempotencyKey: "price_1",
     approvalId: "appr_existing",
     idempotencyFingerprint: await buildActionApprovalCommandFingerprint({
@@ -1394,7 +1359,7 @@ async function approvedExistingContext() {
     }),
     reasonCode: "operator_approved",
   }
-  return admitted
+  return makeAdmittedExistingTargetContext({ approval: "required", invocation })
 }
 
 async function configureExistingClaimLookup(
@@ -1483,12 +1448,12 @@ function mockApprovedExistingCommand(
   })
 }
 
-function makeAdmittedCreatedTargetContext(
+async function makeAdmittedCreatedTargetContext(
   input: { actionName?: string; actionVersion?: string } = {},
 ) {
   const actionName = input.actionName ?? "inventory:product-extra:create"
   const actionVersion = input.actionVersion ?? "v1"
-  return {
+  return mintAdmission({
     capabilityId: "@voyant-travel/inventory#extras.tool.create-product-extra",
     capabilityVersion: "v1",
     canonicalName: "create_product_extra",
@@ -1518,7 +1483,53 @@ function makeAdmittedCreatedTargetContext(
       },
     },
     invocation: { idempotencyKey: "key_1" },
-  }
+  })
+}
+
+async function mintAdmission(
+  candidate: ToolHandlerActionPolicyContext,
+): Promise<ToolHandlerActionPolicyContext> {
+  let admitted: ToolHandlerActionPolicyContext | undefined
+  const registry = createToolRegistry()
+  registry.register(
+    defineTool({
+      capabilityId: candidate.capabilityId,
+      capabilityVersion: candidate.capabilityVersion,
+      owner: "@voyant-travel/action-ledger-test",
+      name: candidate.canonicalName,
+      description: "Mint an authentic admission through real Tool dispatch",
+      inputSchema: z.object({}),
+      outputSchema: z.object({ ok: z.literal(true) }),
+      requiredScopes: [],
+      tier: "write",
+      riskPolicy: {
+        destructive: false,
+        reversible: true,
+        dryRunSupported: false,
+        sideEffects: ["test"],
+      },
+      actionPolicyEnforcement: "handler",
+      async handler(_args, context) {
+        admitted = context.handlerActionPolicy
+        return { ok: true as const }
+      },
+    }),
+    { actionPolicy: candidate.actionPolicy },
+  )
+  await registry.dispatch(
+    candidate.canonicalName,
+    {},
+    {
+      db: {},
+      actor: "staff",
+      audience: "staff",
+      tenantId: "org_1",
+      resolverScope: { locale: "en-GB", audience: "staff", market: "default", actor: "staff" },
+      handlerActionPolicy: candidate,
+    },
+  )
+  if (!admitted) throw new Error("Tool registry did not mint a handler admission")
+  return admitted
 }
 
 async function executePersonCommand(db: AnyDrizzleDb, input: ExecuteCreatedTargetCommandInput) {

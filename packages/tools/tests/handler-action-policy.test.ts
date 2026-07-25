@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
+import { z } from "zod"
 
 import {
   admitHandlerActionPolicy,
+  createToolRegistry,
+  defineTool,
   type HandlerActionPolicyExpectation,
   type ToolContext,
   type ToolError,
@@ -31,92 +34,73 @@ const expected = {
   },
 } satisfies HandlerActionPolicyExpectation
 
+const invocationPolicy = {
+  controlField: "_voyant",
+  requiredFields: ["confirmed", "idempotencyKey", "approvalId", "idempotencyFingerprint"],
+  optionalFields: ["reasonCode"],
+  fingerprintAlgorithm: "action-ledger-command-v1",
+} as const
+
 describe("admitHandlerActionPolicy", () => {
-  it("admits the exact package contract and canonical Tool identity", () => {
-    const admitted = admitHandlerActionPolicy(context(), expected)
-
-    expect(admitted.canonicalName).toBe("legal_issue_document")
-    expect(admitted.actionPolicy.allowedActorTypes).toEqual(["staff"])
-  })
-
-  it("rejects stale or mismatched policy context before mutation", () => {
-    let mutations = 0
-    const handler = (ctx: ToolContext) => {
-      admitHandlerActionPolicy(ctx, expected)
-      mutations += 1
-    }
-    const fresh = context()
-    const stalePolicy = fresh.handlerActionPolicy
-    if (!stalePolicy) throw new Error("Test context is missing its handler policy")
-    const stale: ToolContext = {
-      ...fresh,
-      handlerActionPolicy: {
-        ...stalePolicy,
-        canonicalName: "legal_issue_document_alias",
-      },
-    }
-
-    expect(() => handler(stale)).toThrowError(
-      expect.objectContaining<Partial<ToolError>>({ code: "ACTION_POLICY_REQUIRED" }),
-    )
-    expect(mutations).toBe(0)
-  })
-
-  it("rejects a stale generated-child parent anchor before mutation", () => {
-    let mutations = 0
-    const stale = context()
-    if (!stale.handlerActionPolicy) throw new Error("Test context is missing its handler policy")
-    stale.handlerActionPolicy.actionPolicy.createdTarget = {
-      ...stale.handlerActionPolicy.actionPolicy.createdTarget!,
-      parentAnchor: { targetType: "contract", targetIdField: "documentId" },
-    }
-
-    expect(() => {
-      admitHandlerActionPolicy(stale, expected)
-      mutations += 1
-    }).toThrowError(expect.objectContaining<Partial<ToolError>>({ code: "ACTION_POLICY_REQUIRED" }))
-    expect(mutations).toBe(0)
-  })
-
-  it("rejects stale existing-target durable result metadata before mutation", () => {
-    const existingExpected = {
-      ...expected,
-      actionPolicy: {
-        ...expected.actionPolicy,
-        targetType: "booking",
-        commandTargetField: "bookingId",
-        targetLifecycle: "existing" as const,
-        existingTarget: { durability: "handler-command-result-v1" as const },
-        createdTarget: undefined,
-      },
-    } satisfies HandlerActionPolicyExpectation
-    const stale = context()
-    if (!stale.handlerActionPolicy) throw new Error("Test context is missing its handler policy")
-    stale.handlerActionPolicy.actionPolicy = {
-      ...existingExpected.actionPolicy,
-      existingTarget: undefined,
-      enforcement: "handler",
-      invocation: stale.handlerActionPolicy.actionPolicy.invocation,
-    }
-
-    expect(() => admitHandlerActionPolicy(stale, existingExpected)).toThrowError(
+  it("rejects a forged structural clone", () => {
+    expect(() => admitHandlerActionPolicy(context(), expected)).toThrowError(
       expect.objectContaining<Partial<ToolError>>({ code: "ACTION_POLICY_REQUIRED" }),
     )
   })
 
-  it("rejects an actor excluded by the selected action before mutation", () => {
-    let mutations = 0
-    const handler = (ctx: ToolContext) => {
-      admitHandlerActionPolicy(ctx, expected)
-      mutations += 1
-    }
+  it("accepts an admission minted by real registry dispatch", async () => {
+    const registry = createRegistry()
+    await expect(registry.dispatch("legal_issue_document", {}, context())).resolves.toEqual({
+      canonicalName: "legal_issue_document",
+    })
+  })
 
-    expect(() => handler(context("customer"))).toThrowError(
-      expect.objectContaining<Partial<ToolError>>({ code: "AUTHORIZATION_DENIED" }),
-    )
+  it("rejects stale identity before minting or mutation", async () => {
+    let mutations = 0
+    const registry = createRegistry(() => {
+      mutations += 1
+    })
+    const stale = context()
+    if (!stale.handlerActionPolicy) throw new Error("missing test policy")
+    stale.handlerActionPolicy.canonicalName = "legal_issue_document_alias"
+
+    await expect(registry.dispatch("legal_issue_document", {}, stale)).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+    })
     expect(mutations).toBe(0)
   })
 })
+
+function createRegistry(beforeAdmit?: () => void) {
+  const registry = createToolRegistry()
+  registry.register(
+    defineTool({
+      capabilityId: expected.capabilityId,
+      capabilityVersion: expected.capabilityVersion,
+      owner: "@voyant-travel/legal",
+      name: expected.canonicalName,
+      description: "Test authentic handler admission",
+      inputSchema: z.object({}),
+      outputSchema: z.object({ canonicalName: z.string() }),
+      requiredScopes: [],
+      tier: "write",
+      riskPolicy: {
+        destructive: false,
+        reversible: true,
+        dryRunSupported: false,
+        sideEffects: ["legal-document-write"],
+      },
+      actionPolicyEnforcement: "handler",
+      async handler(_args, ctx) {
+        beforeAdmit?.()
+        const admitted = admitHandlerActionPolicy(ctx, expected)
+        return { canonicalName: admitted.canonicalName }
+      },
+    }),
+    { actionPolicy: expected.actionPolicy },
+  )
+  return registry
+}
 
 function context(actor: ToolContext["actor"] = "staff"): ToolContext {
   return {
@@ -132,12 +116,7 @@ function context(actor: ToolContext["actor"] = "staff"): ToolContext {
       actionPolicy: {
         ...expected.actionPolicy,
         enforcement: "handler",
-        invocation: {
-          controlField: "_voyant",
-          requiredFields: ["confirmed", "idempotencyKey", "approvalId", "idempotencyFingerprint"],
-          optionalFields: ["reasonCode"],
-          fingerprintAlgorithm: "action-ledger-command-v1",
-        },
+        invocation: invocationPolicy,
       },
       invocation: {
         confirmed: true,

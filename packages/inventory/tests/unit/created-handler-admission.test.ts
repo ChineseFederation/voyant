@@ -33,7 +33,7 @@ describe("Inventory created handler admission", () => {
         context,
       ),
     ).rejects.toMatchObject({
-      code: variant === "non-staff" ? "AUTHORIZATION_DENIED" : "ACTION_POLICY_REQUIRED",
+      code: "ACTION_POLICY_REQUIRED",
     })
     expect(mutations).toBe(0)
   })
@@ -63,7 +63,7 @@ describe("Inventory created handler admission", () => {
         context,
       ),
     ).rejects.toMatchObject({
-      code: variant === "non-staff" ? "AUTHORIZATION_DENIED" : "ACTION_POLICY_REQUIRED",
+      code: "ACTION_POLICY_REQUIRED",
     })
     expect(mutations).toBe(0)
   })

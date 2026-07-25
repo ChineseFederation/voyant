@@ -298,16 +298,13 @@ Voyant should preserve that distinction:
 
 ```txt
 channel reserve
-  -> Voyant reserveBooking
-  -> local booking status: on_hold
-  -> local allocations: held
-  -> channel booking link created
+  -> provider/channel hold
+  -> no local booking row
 
 channel confirm/book
-  -> Voyant confirmBooking
-  -> local booking status: confirmed
-  -> allocations confirmed
-  -> fulfillment artifacts issued where applicable
+  -> admitted Finance booking-create command
+  -> lease-gated Bookings settlement
+  -> fulfillment artifacts issued asynchronously where applicable
   -> channel booking link updated
 ```
 

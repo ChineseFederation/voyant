@@ -1,9 +1,7 @@
 name: Load Test
 
 # k6 load-test suite (perf assessment Phase 3.5 — scripts/load/README.md).
-# Manual / release-triggered only: NO cron. Point target_url at a STAGING
-# tenant; payday-spike mutates data and requires allow_writes=true (the
-# script additionally refuses to run without ALLOW_WRITES=1).
+# Manual / release-triggered only: NO cron.
 
 on:
   workflow_dispatch:
@@ -19,13 +17,7 @@ on:
         default: storefront-firehose
         options:
           - storefront-firehose
-          - payday-spike
           - mixed
-      allow_writes:
-        description: "Allow data-mutating scenarios (staging only!)"
-        required: false
-        type: boolean
-        default: false
       product_ids:
         description: "Optional comma-separated product ids (skips discovery)"
         required: false
@@ -46,12 +38,6 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Refuse write scenario without allow_writes
-        if: inputs.scenario == 'payday-spike' && !inputs.allow_writes
-        run: |
-          echo "::error::payday-spike mutates data on the target tenant. Re-run with allow_writes=true against a STAGING tenant only."
-          exit 1
-
       - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
 
       # k6 exits non-zero on any threshold breach, which fails this step (and
@@ -60,7 +46,6 @@ jobs:
       - name: Run k6 scenario
         env:
           TARGET_URL: ${{ inputs.target_url }}
-          ALLOW_WRITES: ${{ inputs.allow_writes && '1' || '0' }}
           PRODUCT_IDS: ${{ inputs.product_ids }}
           API_TOKEN: ${{ secrets.LOAD_TEST_API_TOKEN }}
         run: |

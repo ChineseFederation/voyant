@@ -190,15 +190,6 @@ describe("database-owned custom-field write boundaries", () => {
         ).status,
       ).toBe(400)
     }
-
-    expect(
-      (
-        await bookingApp().request("/", {
-          method: "POST",
-          ...json({ bookingNumber: "BK-DB-1", sellCurrency: "EUR" }),
-        })
-      ).status,
-    ).toBe(400)
   })
 
   it("validates valid, invalid, required, and unknown relationship fields from persisted rows", async () => {

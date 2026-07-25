@@ -1,7 +1,4 @@
-// agent-quality: file-size exception — cohesive booking-engine quote/commit
-// suite; splitting would scatter shared product/context fixtures. See #2618.
 import type {
-  CommitOwnedRequest,
   ComputeQuoteRequest,
   OwnedHandlerContext,
 } from "@voyant-travel/catalog/booking-engine"
@@ -12,7 +9,6 @@ import {
   type ResolvedOptionPrice,
   type ResolvedPaxPricingTier,
 } from "../../src/booking-engine/handler.js"
-import { fillMissingBookingItemSellAmounts } from "../../src/booking-engine/handler-support.js"
 
 const product = {
   id: "prod_a",
@@ -50,9 +46,7 @@ const baseRequest = (draft?: unknown): ComputeQuoteRequest => ({
 
 describe("createProductsBookingHandler.computeQuote", () => {
   it("falls back to product.sellAmountCents × pax when no resolver hooks are wired", async () => {
-    const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
-    })
+    const handler = createProductsBookingHandler({})
 
     const result = await handler.computeQuote(
       makeCtx([product]),
@@ -98,7 +92,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
     const loadSlotDate = vi.fn(async () => "2026-06-21")
 
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadResolvedOptionPrice,
       loadSlotDate,
     })
@@ -131,7 +124,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
 
   it("uses baseSellAmountCents × pax for per-booking rules with no unit prices", async () => {
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadSlotDate: async () => "2026-07-15",
       loadResolvedOptionPrice: async () => ({
         baseSellAmountCents: 18000,
@@ -173,7 +165,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
       }),
     )
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadSlotDate: async () => "2026-07-15",
       loadProductOptions: async () => [
         {
@@ -232,7 +223,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
       }),
     )
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadSlotDate: async () => "2026-07-27",
       loadProductOptions: async () => [
         { id: "opt_standard", name: "Standard", units: [{ id: "unit_double", name: "Double" }] },
@@ -282,7 +272,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
       },
     )
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadProductOptions: async () => [
         {
           id: "opt_standard",
@@ -356,7 +345,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
       },
     )
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadProductOptions: async () => [
         {
           id: "opt_tour",
@@ -401,7 +389,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
 
   it("falls through to product.sellAmountCents when the resolver returns null", async () => {
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadSlotDate: async () => "2026-12-01",
       loadResolvedOptionPrice: async () => null,
     })
@@ -425,7 +412,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
     const loadResolvedOptionPrice = vi.fn(async (): Promise<ResolvedOptionPrice | null> => null)
 
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadResolvedOptionPrice,
       loadSlotDate: async () => "2026-06-21",
     })
@@ -449,7 +435,6 @@ describe("createProductsBookingHandler.computeQuote", () => {
     )
 
     const handler = createProductsBookingHandler({
-      createBooking: vi.fn(),
       loadResolvedOptionPrice,
     })
 
@@ -471,767 +456,5 @@ describe("createProductsBookingHandler.computeQuote", () => {
     })
     const breakdown = result.pricing?.breakdown as Record<string, unknown>
     expect(breakdown?.total).toBe(40000)
-  })
-})
-
-describe("createProductsBookingHandler.commit", () => {
-  it("converts the draft hold into an on-hold booking for the held pax", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_held",
-      bookingNumber: "BK-HELD",
-    }))
-    const handler = createProductsBookingHandler({ createBooking })
-
-    const result = await handler.commit(makeCtx([product]), {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_held",
-      parameters: { availabilityHoldToken: "draft_held" },
-      draft: {
-        configure: {
-          departureSlotId: "slot_held",
-          pax: { adult: 2 },
-        },
-      },
-    })
-
-    expect(result.status).toBe("held")
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        slotId: "slot_held",
-        pax: 2,
-        availabilityHoldToken: "draft_held",
-        initialStatus: "on_hold",
-      }),
-    )
-  })
-
-  it("uses the gross inclusive-tax total for the booking sell amount override", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const handler = createProductsBookingHandler({ createBooking })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: {
-          optionSelections: [{ optionId: "opt_suite", optionUnitId: "unit_suite", quantity: 2 }],
-        },
-        travelCreditRedemption: {
-          travelCreditId: "trc_123",
-          amountCents: 2_500,
-        },
-      },
-      pricing: {
-        base_amount: 8333,
-        taxes: 1667,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-        breakdown: {
-          currency: "RON",
-          subtotal: 8333,
-          taxTotal: 1667,
-          total: 10000,
-          taxes: [
-            {
-              label: "VAT",
-              rate: 0.2,
-              amount: 1667,
-              includedInPrice: true,
-              scope: "included",
-            },
-          ],
-        },
-      },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        productId: product.id,
-        itemLines: [
-          {
-            optionId: "opt_suite",
-            optionUnitId: "unit_suite",
-            quantity: 2,
-            unitSellAmountCents: 5000,
-            totalSellAmountCents: 10000,
-          },
-        ],
-        optionId: "opt_suite",
-        sellAmountCentsOverride: 10000,
-        travelCreditRedemption: {
-          travelCreditId: "trc_123",
-          amountCents: 2_500,
-        },
-      }),
-    )
-  })
-
-  it("keeps excluded tax outside persisted booking-item totals", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const handler = createProductsBookingHandler({ createBooking })
-
-    await handler.commit(makeCtx([product]), {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: {
-          optionSelections: [{ optionId: "opt_suite", optionUnitId: "unit_suite", quantity: 1 }],
-        },
-      },
-      pricing: {
-        base_amount: 40000,
-        taxes: 7600,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-        breakdown: {
-          currency: "RON",
-          lines: [
-            {
-              kind: "base",
-              label: "Suite",
-              quantity: 1,
-              unitAmount: 40000,
-              totalAmount: 40000,
-              optionId: "opt_suite",
-              optionUnitId: "unit_suite",
-            },
-          ],
-          taxes: [
-            {
-              label: "VAT",
-              rate: 0.19,
-              amount: 7600,
-              includedInPrice: false,
-              scope: "excluded",
-            },
-          ],
-          subtotal: 40000,
-          taxTotal: 7600,
-          total: 47600,
-        },
-      },
-    })
-
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sellAmountCentsOverride: 40000,
-        itemLines: [
-          expect.objectContaining({
-            unitSellAmountCents: 40000,
-            totalSellAmountCents: 40000,
-          }),
-        ],
-        taxLines: [expect.objectContaining({ amountCents: 7600, includedInPrice: false })],
-      }),
-    )
-  })
-
-  it("rejects accepted pricing when add-ons exceed the sell total", () => {
-    expect(() =>
-      fillMissingBookingItemSellAmounts({
-        itemLines: [{ optionUnitId: "unit_1", quantity: 1 }],
-        pricing: { base_amount: 500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-        targetSellAmountCents: 500,
-        extraLines: [
-          {
-            productExtraId: "extra_1",
-            name: "Impossible extra",
-            quantity: 1,
-            sellCurrency: "RON",
-            totalSellAmountCents: 501,
-          },
-        ],
-      }),
-    ).toThrow(/add-ons exceed the sell total/)
-  })
-
-  it("rejects accepted pricing when explicit item totals exceed the target", () => {
-    expect(() =>
-      fillMissingBookingItemSellAmounts({
-        itemLines: [
-          {
-            optionUnitId: "unit_explicit",
-            quantity: 1,
-            unitSellAmountCents: 501,
-            totalSellAmountCents: 501,
-          },
-          { optionUnitId: "unit_missing", quantity: 1 },
-        ],
-        pricing: { base_amount: 500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-        targetSellAmountCents: 500,
-      }),
-    ).toThrow(/explicit item lines exceed the item total/)
-  })
-
-  it("commits multiple selected option quantities as item lines without a single option id", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const handler = createProductsBookingHandler({ createBooking })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: {
-          optionSelections: [
-            { optionId: "opt_standard", optionUnitId: "unit_standard", quantity: 1 },
-            { optionId: "opt_suite", optionUnitId: "unit_suite", quantity: 1 },
-          ],
-        },
-      },
-      pricing: {
-        base_amount: 29000,
-        taxes: 0,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-      },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        optionId: null,
-        itemLines: [
-          {
-            optionId: "opt_standard",
-            optionUnitId: "unit_standard",
-            quantity: 1,
-            unitSellAmountCents: 14500,
-            totalSellAmountCents: 14500,
-          },
-          {
-            optionId: "opt_suite",
-            optionUnitId: "unit_suite",
-            quantity: 1,
-            unitSellAmountCents: 14500,
-            totalSellAmountCents: 14500,
-          },
-        ],
-      }),
-    )
-  })
-
-  it("persists accepted quote lines and reconciles add-ons and cent rounding exactly", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const handler = createProductsBookingHandler({
-      createBooking,
-      loadAddonCatalog: async () => [
-        {
-          id: "extra_breakfast",
-          name: "Breakfast",
-          kind: "extras" as const,
-          pricingMode: "per_person",
-          unitAmountCents: 500,
-          currency: "RON",
-        },
-      ],
-    })
-
-    const result = await handler.commit(makeCtx([product]), {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: {
-          optionSelections: [
-            { optionId: "opt_standard", optionUnitId: "unit_standard", quantity: 1 },
-            { optionId: "opt_suite", optionUnitId: "unit_suite", quantity: 1 },
-          ],
-        },
-        travelers: [
-          { firstName: "Ada", lastName: "Lovelace", band: "adult" },
-          { firstName: "Grace", lastName: "Hopper", band: "adult" },
-        ],
-        addons: [{ extraId: "extra_breakfast", quantity: 1 }],
-        priceOverride: { amountCents: 40001, reason: "Accepted manual adjustment" },
-      },
-      pricing: {
-        base_amount: 39000,
-        taxes: 1000,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-        breakdown: {
-          currency: "RON",
-          lines: [
-            {
-              kind: "base",
-              label: "Standard",
-              quantity: 1,
-              unitAmount: 30000,
-              totalAmount: 30000,
-              optionId: "opt_standard",
-              optionUnitId: "unit_standard",
-            },
-            {
-              kind: "base",
-              label: "Suite",
-              quantity: 1,
-              unitAmount: 9000,
-              totalAmount: 9000,
-              optionId: "opt_suite",
-              optionUnitId: "unit_suite",
-            },
-            {
-              kind: "addon",
-              label: "Breakfast",
-              quantity: 2,
-              unitAmount: 500,
-              totalAmount: 1000,
-            },
-          ],
-          taxes: [
-            {
-              label: "VAT",
-              rate: 0.025,
-              amount: 1000,
-              includedInPrice: true,
-              scope: "included",
-            },
-          ],
-          subtotal: 39000,
-          taxTotal: 1000,
-          total: 40000,
-        },
-      },
-    })
-
-    expect(result.status).toBe("held")
-    const input = createBooking.mock.calls[0]?.[0]
-    expect(input?.itemLines).toEqual([
-      expect.objectContaining({
-        optionUnitId: "unit_standard",
-        title: "Standard",
-        unitSellAmountCents: 30000,
-        totalSellAmountCents: 30000,
-      }),
-      expect.objectContaining({
-        optionUnitId: "unit_suite",
-        title: "Suite",
-        unitSellAmountCents: 9001,
-        totalSellAmountCents: 9001,
-      }),
-    ])
-    expect(input?.extraLines).toEqual([
-      expect.objectContaining({
-        productExtraId: "extra_breakfast",
-        totalSellAmountCents: 1000,
-      }),
-    ])
-    const persistedTotal = [...(input?.itemLines ?? []), ...(input?.extraLines ?? [])].reduce(
-      (sum, line) => sum + (line.totalSellAmountCents ?? 0),
-      0,
-    )
-    expect(persistedTotal).toBe(40001)
-  })
-
-  it("threads trips billing and traveler records into the booking bridge", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const handler = createProductsBookingHandler({ createBooking })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      party: {
-        travelerParty: {
-          billing: {
-            personId: "pers_billing",
-            contact: {
-              firstName: "Diego",
-              lastName: "Muller",
-              email: "diego@example.com",
-              phone: "+40700111222",
-            },
-          },
-          travelers: [{ personId: "pers_billing" }, { personId: "pers_companion" }],
-        },
-      },
-      draft: {
-        configure: { pax: { adult: 2 } },
-        travelers: [
-          { firstName: "Diego", lastName: "Muller", band: "adult" },
-          { firstName: "Anya", lastName: "Costa", band: "adult" },
-        ],
-      },
-      pricing: {
-        base_amount: 29000,
-        taxes: 0,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-      },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        personId: "pers_billing",
-        contactFirstName: "Diego",
-        contactLastName: "Muller",
-        contactEmail: "diego@example.com",
-        contactPhone: "+40700111222",
-        travelers: [
-          expect.objectContaining({ firstName: "Diego", personId: "pers_billing" }),
-          expect.objectContaining({ firstName: "Anya", personId: "pers_companion" }),
-        ],
-      }),
-    )
-  })
-
-  it("resolves a CRM person from the billing contact when an anonymous commit has no person/org", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_resolved")
-    const handler = createProductsBookingHandler({
-      createBooking,
-      resolveBillingPerson,
-      generateBookingNumber: () => "BK-TEST-1",
-    })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      // Anonymous storefront: billing contact only, no personId/organizationId.
-      party: {
-        billing: {
-          contact: {
-            firstName: "Guest",
-            lastName: "Customer",
-            email: "guest@example.com",
-            phone: "+40700333444",
-          },
-        },
-      },
-      draft: {
-        configure: { pax: { adult: 1 } },
-        travelers: [{ firstName: "Guest", lastName: "Customer", band: "adult" }],
-      },
-      pricing: {
-        base_amount: 14500,
-        taxes: 0,
-        fees: 0,
-        surcharges: 0,
-        currency: "RON",
-      },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).toHaveBeenCalledWith(
-      {
-        firstName: "Guest",
-        lastName: "Customer",
-        email: "guest@example.com",
-        phone: "+40700333444",
-      },
-      // Provenance ref is the persisted booking NUMBER, not the provisional
-      // `request.bookingId` (which the finance bridge discards for its own id).
-      expect.objectContaining({
-        bookingId: "BK-TEST-1",
-        sourceRef: "BK-TEST-1",
-        source: "storefront-booking",
-      }),
-    )
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bookingNumber: "BK-TEST-1",
-        personId: "pers_resolved",
-        organizationId: null,
-        contactFirstName: "Guest",
-        contactEmail: "guest@example.com",
-      }),
-    )
-  })
-
-  it("resolves the billing person from the saved draft when the storefront commit sends no party", async () => {
-    // The anonymous storefront POSTs only a draftId to /book, so `request.party`
-    // is empty and the billing contact lives in `draft.billing.contact`.
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_from_draft")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      // No party — mirrors the storefront /book payload (draftId only).
-      draft: {
-        configure: { pax: { adult: 1 } },
-        travelers: [{ firstName: "Guest", lastName: "Customer", band: "adult" }],
-        billing: {
-          contact: {
-            firstName: "Guest",
-            lastName: "Customer",
-            email: "guest@example.com",
-            phone: "+40700333444",
-          },
-        },
-      },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).toHaveBeenCalledWith(
-      expect.objectContaining({ email: "guest@example.com", phone: "+40700333444" }),
-      expect.objectContaining({ source: "storefront-booking" }),
-    )
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        personId: "pers_from_draft",
-        contactEmail: "guest@example.com",
-        contactFirstName: "Guest",
-      }),
-    )
-  })
-
-  it("skips the billing-person resolver when the commit already carries a person id", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_should_not_be_used")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      party: {
-        billing: {
-          personId: "pers_existing",
-          contact: { firstName: "Ana", lastName: "Pop", email: "ana@example.com" },
-        },
-      },
-      draft: { configure: { pax: { adult: 1 } } },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).not.toHaveBeenCalled()
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({ personId: "pers_existing" }),
-    )
-  })
-
-  it("skips the resolver when the billing contact has a name but no email or phone", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_should_not_be_used")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      party: {
-        // Name only, no contact point — resolving would create a CRM person
-        // that still can't satisfy createBooking's email/phone requirement.
-        billing: { contact: { firstName: "Guest", lastName: "Customer" } },
-      },
-      draft: { configure: { pax: { adult: 1 } } },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).not.toHaveBeenCalled()
-    expect(createBooking).toHaveBeenCalledWith(expect.objectContaining({ personId: null }))
-  })
-
-  it("skips the resolver when the billing contact point is whitespace-only", async () => {
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_should_not_be_used")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: { pax: { adult: 1 } },
-        billing: {
-          // Whitespace-only email/phone must not trigger a name-only CRM person.
-          contact: { firstName: "Guest", lastName: "Customer", email: "   ", phone: "  " },
-        },
-      },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).not.toHaveBeenCalled()
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({ personId: null, contactEmail: null, contactPhone: null }),
-    )
-  })
-
-  it("skips the resolver when the billing contact has a contact point but no full name", async () => {
-    // createBooking requires first AND last name once a personId is set, so
-    // resolving on a nameless contact would create a person it then rejects.
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_should_not_be_used")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: { pax: { adult: 1 } },
-        billing: {
-          // Email present, but only a first name — no last name.
-          contact: { firstName: "Guest", email: "guest@example.com" },
-        },
-      },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).not.toHaveBeenCalled()
-    expect(createBooking).toHaveBeenCalledWith(expect.objectContaining({ personId: null }))
-  })
-
-  it("clears a placeholder billing email but still resolves on a real phone", async () => {
-    // createBooking rejects a placeholder email even alongside a phone, so the
-    // handler must treat it as absent — otherwise it resolves a CRM person that
-    // createBooking then rejects, orphaning the row.
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_from_phone")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: { pax: { adult: 1 } },
-        travelers: [{ firstName: "Guest", lastName: "Customer", band: "adult" }],
-        billing: {
-          contact: {
-            firstName: "Guest",
-            lastName: "Customer",
-            email: "traveler@example.com",
-            phone: "+40700333444",
-          },
-        },
-      },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).toHaveBeenCalledWith(
-      expect.objectContaining({ email: null, phone: "+40700333444" }),
-      expect.objectContaining({ source: "storefront-booking" }),
-    )
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({ personId: "pers_from_phone", contactEmail: null }),
-    )
-  })
-
-  it("skips the resolver when the draft has a complete billing contact but no travelers", async () => {
-    // createBooking's requireCompleteBookingParty rejects a party with zero
-    // travelers, so resolving a person first would orphan it.
-    const createBooking = vi.fn(async () => ({
-      status: "ok" as const,
-      bookingId: "book_1",
-      bookingNumber: "BK-1",
-    }))
-    const resolveBillingPerson = vi.fn(async () => "pers_should_not_be_used")
-    const handler = createProductsBookingHandler({ createBooking, resolveBillingPerson })
-
-    const request: CommitOwnedRequest = {
-      entityModule: "products",
-      entityId: product.id,
-      bookingId: "catalog_booking_1",
-      draft: {
-        configure: { pax: { adult: 1 } },
-        // Complete billing contact, but no traveler rows.
-        billing: {
-          contact: {
-            firstName: "Guest",
-            lastName: "Customer",
-            email: "guest@example.com",
-            phone: "+40700333444",
-          },
-        },
-      },
-      pricing: { base_amount: 14500, taxes: 0, fees: 0, surcharges: 0, currency: "RON" },
-    }
-
-    const result = await handler.commit(makeCtx([product]), request)
-
-    expect(result.status).toBe("held")
-    expect(resolveBillingPerson).not.toHaveBeenCalled()
-    expect(createBooking).toHaveBeenCalledWith(expect.objectContaining({ personId: null }))
   })
 })

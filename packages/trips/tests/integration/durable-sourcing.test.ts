@@ -8,6 +8,7 @@ import type { AvailabilityCandidate, SourceAdapter } from "@voyant-travel/catalo
 import { createDbClient } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
@@ -27,7 +28,11 @@ import {
   requestedEventId,
 } from "../../src/service-durable-sourcing.js"
 import { createTripRequirementSourcingDeps } from "../../src/sourcing-runtime.js"
-import { SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY } from "../../src/tools.js"
+import {
+  SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY,
+  sourceTripRequirementCandidatesTool,
+  type TripsToolServices,
+} from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 type ClosableTestDb = PostgresJsDatabase & {
@@ -60,7 +65,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
     const preparedSignal = new Promise<void>((resolve) => {
       prepared = resolve
     })
-    const firstPromise = executeDurableTripRequirementSourcingCommand({
+    const firstPromise = executeCommand({
       ...command,
       testHooks: {
         async afterPrepare() {
@@ -71,7 +76,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
     })
     await preparedSignal
     let replaySettled = false
-    const replayPromise = executeDurableTripRequirementSourcingCommand(command).finally(() => {
+    const replayPromise = executeCommand(command).finally(() => {
       replaySettled = true
     })
     await new Promise((resolve) => setTimeout(resolve, 25))
@@ -121,28 +126,39 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
       }),
     ).toBeNull()
 
-    const exactReplay = await executeDurableTripRequirementSourcingCommand(command)
+    const exactReplay = await executeCommand(command)
     expect(exactReplay).toEqual({ ...first, replayed: true })
     await expect(
-      executeDurableTripRequirementSourcingCommand({
+      executeCommand({
         ...command,
         input: { ...command.input, limit: 99 },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
 
     const other = await seedRequirement()
     await expect(
-      executeDurableTripRequirementSourcingCommand({
+      executeCommand({
         ...command,
         input: { ...command.input, requirementId: other.id },
       }),
-    ).rejects.toMatchObject({ name: "ActionLedgerIdempotencyConflictError" })
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { name: "ActionLedgerIdempotencyConflictError" },
+    })
     await expect(
-      executeDurableTripRequirementSourcingCommand({
+      executeCommand({
         ...command,
         context: { ...command.context, organizationId: "tenant_2" },
       }),
-    ).rejects.toThrow(`Trip requirement ${requirement.id} already has an active sourcing operation`)
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: {
+        message: `Trip requirement ${requirement.id} already has an active sourcing operation`,
+      },
+    })
 
     expect(await db.select().from(tripRequirementSourcingOperations)).toHaveLength(1)
     expect(await liveCandidates(requirement.id)).toHaveLength(1)
@@ -159,7 +175,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
   it("replaces candidates only on successful fenced settlement and keeps replay immutable", async () => {
     const requirement = await seedRequirementWithCandidate()
     const command = sourcingCommand(requirement.id, "source-command-complete")
-    const accepted = await executeDurableTripRequirementSourcingCommand(command)
+    const accepted = await executeCommand(command)
     const search = vi.fn(async () => sourcedResult("new-candidate"))
     const drained = await drainTripRequirementSourcing(db, { search })
 
@@ -186,7 +202,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
     expect(allCandidates).toContainEqual(
       expect.objectContaining({ candidateRef: "old-candidate", status: "discarded" }),
     )
-    expect(await executeDurableTripRequirementSourcingCommand(command)).toEqual({
+    expect(await executeCommand(command)).toEqual({
       ...accepted,
       replayed: true,
     })
@@ -222,9 +238,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("retains existing candidates through retry and dead-letter recovery", async () => {
     const requirement = await seedRequirementWithCandidate()
-    const accepted = await executeDurableTripRequirementSourcingCommand(
-      sourcingCommand(requirement.id, "source-command-failure"),
-    )
+    const accepted = await executeCommand(sourcingCommand(requirement.id, "source-command-failure"))
     await db
       .update(tripRequirementSourcingOperations)
       .set({ maxAttempts: 1 })
@@ -272,7 +286,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("treats an all-failed fan-out as retryable and never publishes no-availability", async () => {
     const requirement = await seedRequirementWithCandidate()
-    const accepted = await executeDurableTripRequirementSourcingCommand(
+    const accepted = await executeCommand(
       sourcingCommand(requirement.id, "source-command-all-failed"),
     )
     const result = await drainTripRequirementSourcing(
@@ -316,9 +330,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("sources and settles candidates in an owned-only deployment", async () => {
     const requirement = await seedRequirementWithCandidate()
-    await executeDurableTripRequirementSourcingCommand(
-      sourcingCommand(requirement.id, "source-command-owned-only"),
-    )
+    await executeCommand(sourcingCommand(requirement.id, "source-command-owned-only"))
     const sourced = createSourceAdapterRegistry()
     const owned = createOwnedAvailabilitySearchHandlerRegistry()
     const ownedSearch = vi.fn(async () => ({
@@ -354,9 +366,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("deterministically merges owned and sourced candidates in one settlement", async () => {
     const requirement = await seedRequirementWithCandidate()
-    await executeDurableTripRequirementSourcingCommand(
-      sourcingCommand(requirement.id, "source-command-mixed"),
-    )
+    await executeCommand(sourcingCommand(requirement.id, "source-command-mixed"))
     const sourced = createSourceAdapterRegistry()
     sourced.register(
       "connection-z",
@@ -392,7 +402,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("rolls back candidate replacement and retries when settlement crashes", async () => {
     const requirement = await seedRequirementWithCandidate()
-    const accepted = await executeDurableTripRequirementSourcingCommand(
+    const accepted = await executeCommand(
       sourcingCommand(requirement.id, "source-command-settle-crash"),
     )
     const search = vi.fn(async () => sourcedResult("safe-retry"))
@@ -428,9 +438,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("fences an expired worker lease after a replacement worker settles", async () => {
     const requirement = await seedRequirementWithCandidate()
-    await executeDurableTripRequirementSourcingCommand(
-      sourcingCommand(requirement.id, "source-command-fence"),
-    )
+    await executeCommand(sourcingCommand(requirement.id, "source-command-fence"))
     const startedAt = workerNow()
     let releaseFirst: () => void = () => undefined
     const holdFirst = new Promise<void>((resolve) => {
@@ -491,7 +499,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
 
   it("dead-letters an abandoned final-attempt lease without calling providers again", async () => {
     const requirement = await seedRequirementWithCandidate()
-    const accepted = await executeDurableTripRequirementSourcingCommand(
+    const accepted = await executeCommand(
       sourcingCommand(requirement.id, "source-command-abandoned-final"),
     )
     const now = new Date("2026-07-24T12:00:00.000Z")
@@ -528,7 +536,7 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
     const requirement = await seedRequirementWithCandidate()
     const command = sourcingCommand(requirement.id, "source-command-rollback")
     await expect(
-      executeDurableTripRequirementSourcingCommand({
+      executeCommand({
         ...command,
         testHooks: {
           async afterPrepare() {
@@ -536,7 +544,10 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
           },
         },
       }),
-    ).rejects.toThrow("injected prepare crash")
+    ).rejects.toMatchObject({
+      code: "PROVIDER_ERROR",
+      cause: { message: "injected prepare crash" },
+    })
 
     expect(await db.select().from(tripRequirementSourcingOperations)).toHaveLength(0)
     expect(
@@ -583,6 +594,38 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
       priceAmount: "500.00",
     })
     return requirement
+  }
+
+  async function executeCommand(
+    command: Parameters<typeof executeDurableTripRequirementSourcingCommand>[0],
+  ) {
+    const registry = createToolRegistry()
+    registry.register(sourceTripRequirementCandidatesTool, {
+      actionPolicy: SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY.actionPolicy,
+    })
+    let execution:
+      | Awaited<ReturnType<typeof executeDurableTripRequirementSourcingCommand>>
+      | undefined
+    await registry.dispatch(sourceTripRequirementCandidatesTool.name, command.input, {
+      db: command.db,
+      actor: command.context.actor,
+      audience: command.context.actor,
+      tenantId: command.context.organizationId,
+      organizationId: command.context.organizationId,
+      resolverScope: command.input.scope,
+      handlerActionPolicy: command.admitted,
+      trips: {
+        async acceptRequirementCandidateSourcing(_input, admitted) {
+          execution = await executeDurableTripRequirementSourcingCommand({
+            ...command,
+            admitted,
+          })
+          return execution.value
+        },
+      } as TripsToolServices,
+    } satisfies ToolContext & { trips: TripsToolServices })
+    if (!execution) throw new Error("Trips Tool did not execute its durable sourcing service")
+    return execution
   }
 
   function sourcingCommand(requirementId: string, idempotencyKey: string) {

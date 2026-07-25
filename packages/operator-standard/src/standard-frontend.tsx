@@ -30,11 +30,6 @@ import type {
   LocalAuthRouteContribution,
 } from "@voyant-travel/auth-react/local-auth-routes"
 import type { RedeemInvitationStatus } from "@voyant-travel/auth-react/ui"
-import {
-  StorefrontBookingPage,
-  type StorefrontBookingSearch,
-  storefrontBookingSearchSchema,
-} from "@voyant-travel/bookings-react/storefront"
 import { RealtimeChannel } from "@voyant-travel/cloud-sdk"
 import type { VoyantGraphJsonValue } from "@voyant-travel/core/project"
 import { CruiseDetailPage } from "@voyant-travel/cruises-react/storefront"
@@ -52,7 +47,6 @@ import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
 import {
   AccommodationDetailPage,
   createStorefrontMessagesProvider,
-  type StorefrontBookingRouteProps,
   type StorefrontComposerRouteProps,
   type StorefrontPresentationContribution,
   type StorefrontPresentationRuntime,
@@ -240,9 +234,7 @@ function createPresentationRuntime(
     "@voyant-travel/storefront#presentation.customer"
   ] as ((runtime: StorefrontPresentationRuntime) => StorefrontPresentationContribution) | undefined
   const storefront = storefrontFactory?.({
-    BookingPage: StandardStorefrontBookingPage,
     ComposerPage: StandardStorefrontComposerPage,
-    bookingSearchSchema: storefrontBookingSearchSchema,
     getApiUrl: getAdminApiUrl,
     projectFetcher: adminFetcher,
     renderProductDetail: (entityModule, entityId) => {
@@ -412,10 +404,6 @@ type FinancePublicPresentationFactory = (
 type QuotesPublicPresentationFactory = (
   runtime: QuotesPublicRouteRuntime,
 ) => ReturnType<typeof createQuotesPublicRouteContribution>
-
-function StandardStorefrontBookingPage({ search, ...props }: StorefrontBookingRouteProps) {
-  return <StorefrontBookingPage {...props} search={search as StorefrontBookingSearch} />
-}
 
 function StandardStorefrontComposerPage(props: StorefrontComposerRouteProps) {
   return (
