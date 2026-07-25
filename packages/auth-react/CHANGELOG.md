@@ -1,5 +1,11 @@
 # @voyant-travel/auth-react
 
+## 0.143.6
+
+### Patch Changes
+
+- @voyant-travel/auth@0.143.6
+
 ## 0.143.5
 
 ### Patch Changes

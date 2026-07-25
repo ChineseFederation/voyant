@@ -3102,7 +3102,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       '@voyant-travel/framework':
-        specifier: ^0.64.3
+        specifier: ^0.64.5
         version: link:../framework
       '@voyant-travel/hono':
         specifier: workspace:^

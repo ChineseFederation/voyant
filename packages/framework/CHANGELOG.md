@@ -1,5 +1,15 @@
 # @voyant-travel/framework
 
+## 0.64.5
+
+### Patch Changes
+
+- Updated dependencies [17f1239]
+  - @voyant-travel/action-ledger@0.115.0
+  - @voyant-travel/cruises@0.202.0
+  - @voyant-travel/tools@0.7.0
+  - @voyant-travel/operator-standard@0.13.4
+
 ## 0.64.4
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @voyant-travel/crm
 
+## 0.134.1
+
+### Patch Changes
+
+- Updated dependencies [17f1239]
+  - @voyant-travel/action-ledger@0.115.0
+  - @voyant-travel/trips@0.195.0
+  - @voyant-travel/tools@0.7.0
+  - @voyant-travel/operator-settings@0.14.24
+  - @voyant-travel/relationships@0.131.6
+
 ## 0.134.0
 
 ### Minor Changes

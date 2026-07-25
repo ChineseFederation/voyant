@@ -1,5 +1,12 @@
 # @voyant-travel/catalog-authoring
 
+## 0.107.29
+
+### Patch Changes
+
+- Updated dependencies [17f1239]
+  - @voyant-travel/inventory@0.20.0
+
 ## 0.107.28
 
 ### Patch Changes
