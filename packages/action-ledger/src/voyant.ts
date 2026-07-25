@@ -253,6 +253,14 @@ export const actionLedgerVoyantModule = defineModule({
       approval: "never",
       reversible: true,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "action-approval-request-command",
+        resultReferenceType: "action-approval",
+        durability: "handler-command-claim-v1",
+      },
       from: { tools: ["@voyant-travel/action-ledger#tool.request-approval"] },
     },
     {

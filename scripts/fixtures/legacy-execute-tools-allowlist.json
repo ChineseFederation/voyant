@@ -5,7 +5,6 @@
   "@voyant-travel/accommodations#action.set-room-block-nights",
   "@voyant-travel/action-ledger#action.approve-approval",
   "@voyant-travel/action-ledger#action.deny-approval",
-  "@voyant-travel/action-ledger#action.request-approval",
   "@voyant-travel/auth#team.action.activate-member",
   "@voyant-travel/auth#team.action.deactivate-member",
   "@voyant-travel/auth#team.action.revoke-invitation",
