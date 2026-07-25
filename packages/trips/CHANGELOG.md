@@ -1,5 +1,29 @@
 # @voyant-travel/trips
 
+## 0.194.0
+
+### Minor Changes
+
+- 3201e48: Replace direct Trip pricing and reservation mutations with handler-admitted,
+  asynchronous durable operations. Deployments can enable the actions only by
+  selecting an exact provider that passes replay, restart reconciliation, payload
+  drift, and backend-identity conformance. Add an immutable operation-status Tool
+  and remove the direct price/reserve HTTP routes plus the transitional
+  `reserveTripDeps` route authority. `create_trip` now accepts idempotency only
+  from the admitted `_voyant` invocation instead of a top-level compatibility
+  field.
+
+### Patch Changes
+
+- @voyant-travel/bookings@0.202.0
+- @voyant-travel/catalog@0.200.0
+- @voyant-travel/finance@0.202.0
+- @voyant-travel/flights@0.202.0
+- @voyant-travel/storefront@0.204.0
+- @voyant-travel/commerce@0.43.3
+- @voyant-travel/inventory@0.19.6
+- @voyant-travel/operator-settings@0.14.23
+
 ## 0.193.1
 
 ### Patch Changes

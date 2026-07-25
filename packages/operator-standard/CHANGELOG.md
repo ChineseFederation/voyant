@@ -1,5 +1,68 @@
 # @voyant-travel/operator-standard
 
+## 0.13.3
+
+### Patch Changes
+
+- 3201e48: Replace the quarantined quote snapshot-and-send flow with one handler-admitted
+  durable command bound to the exact selected Notifications provider. Snapshot,
+  sent state, provider identity, durable delivery enqueue, action claim, and
+  replay result now commit atomically; provider execution remains worker-only.
+  The durable-send worker now resolves that same selected graph runtime instead
+  of rebuilding providers from host configuration.
+
+  Remove public quote acceptance's direct Trip reserve, cancellation, and
+  checkout authority. Public acceptance now records only the Quotes lifecycle
+  decision, while reservation and checkout remain separate approved domain
+  actions.
+
+  Remove the historical quote lifecycle Tool aliases; only canonical names and
+  stable capability IDs remain.
+
+- Updated dependencies [3201e48]
+- Updated dependencies [3201e48]
+  - @voyant-travel/quotes@0.134.0
+  - @voyant-travel/quotes-react@0.200.0
+  - @voyant-travel/notifications@0.139.0
+  - @voyant-travel/trips@0.194.0
+  - @voyant-travel/mice@0.58.0
+  - @voyant-travel/notifications-react@0.139.0
+  - @voyant-travel/trips-react@0.194.0
+  - @voyant-travel/accommodations@0.162.0
+  - @voyant-travel/mice-react@0.70.0
+  - @voyant-travel/bookings-react@0.202.0
+  - @voyant-travel/storefront-react@0.204.0
+  - @voyant-travel/action-ledger-react@0.91.0
+  - @voyant-travel/distribution-react@0.192.0
+  - @voyant-travel/finance-react@0.202.0
+  - @voyant-travel/identity-react@0.202.0
+  - @voyant-travel/legal-react@0.202.0
+  - @voyant-travel/operations-react@0.83.0
+  - @voyant-travel/cruises-react@0.201.0
+  - @voyant-travel/inventory-react@0.84.0
+  - @voyant-travel/admin-app@0.94.0
+  - @voyant-travel/catalog-react@0.200.0
+  - @voyant-travel/commerce-react@0.84.0
+  - @voyant-travel/flights-react@0.202.0
+  - @voyant-travel/operator-settings-react@0.57.0
+  - @voyant-travel/relationships-react@0.202.0
+  - @voyant-travel/admin-host@0.52.0
+  - @voyant-travel/bookings@0.202.0
+  - @voyant-travel/catalog@0.200.0
+  - @voyant-travel/charters@0.200.0
+  - @voyant-travel/cruises@0.201.0
+  - @voyant-travel/distribution@0.192.0
+  - @voyant-travel/finance@0.202.0
+  - @voyant-travel/flights@0.202.0
+  - @voyant-travel/identity@0.202.0
+  - @voyant-travel/legal@0.202.0
+  - @voyant-travel/storefront@0.204.0
+  - @voyant-travel/commerce@0.43.3
+  - @voyant-travel/inventory@0.19.6
+  - @voyant-travel/relationships@0.131.5
+  - @voyant-travel/operations@0.8.45
+  - @voyant-travel/operator-settings@0.14.23
+
 ## 0.13.2
 
 ### Patch Changes

@@ -1,5 +1,33 @@
 # @voyant-travel/notifications
 
+## 0.139.0
+
+### Minor Changes
+
+- 3201e48: Replace the quarantined quote snapshot-and-send flow with one handler-admitted
+  durable command bound to the exact selected Notifications provider. Snapshot,
+  sent state, provider identity, durable delivery enqueue, action claim, and
+  replay result now commit atomically; provider execution remains worker-only.
+  The durable-send worker now resolves that same selected graph runtime instead
+  of rebuilding providers from host configuration.
+
+  Remove public quote acceptance's direct Trip reserve, cancellation, and
+  checkout authority. Public acceptance now records only the Quotes lifecycle
+  decision, while reservation and checkout remain separate approved domain
+  actions.
+
+  Remove the historical quote lifecycle Tool aliases; only canonical names and
+  stable capability IDs remain.
+
+### Patch Changes
+
+- Updated dependencies [3201e48]
+  - @voyant-travel/quotes@0.134.0
+  - @voyant-travel/bookings@0.202.0
+  - @voyant-travel/finance@0.202.0
+  - @voyant-travel/legal@0.202.0
+  - @voyant-travel/storefront@0.204.0
+
 ## 0.138.1
 
 ### Patch Changes
