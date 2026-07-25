@@ -45,7 +45,6 @@ export const getSetupStateTool = defineTool<
   SetupToolContext
 >({
   name: "get_setup_state",
-  aliases: ["read_setup_state"],
   description:
     "Read organization setup progress, graph-selected steps, and safe prefill data. Read-only.",
   inputSchema: z.object({}),
@@ -65,7 +64,6 @@ export const initializeSetupTool = defineTool<
   SetupToolContext
 >({
   name: "initialize_setup",
-  aliases: ["start_setup"],
   description:
     "Initialize organization setup using exactly the graph-selected step IDs returned by get_setup_state.",
   inputSchema: initializeSetupInputSchema,
@@ -91,7 +89,6 @@ export const completeSetupStepTool = defineTool<
   SetupToolContext
 >({
   name: "complete_setup_step",
-  aliases: ["mark_setup_step_complete"],
   description: "Mark one graph-selected organization setup step complete.",
   inputSchema: stepMutationInputSchema,
   outputSchema: setupStepStateSchema,
@@ -112,7 +109,6 @@ export const completeSetupStepTool = defineTool<
 
 export const skipSetupStepTool = defineTool<{ stepId: string }, SetupStepState, SetupToolContext>({
   name: "skip_setup_step",
-  aliases: ["mark_setup_step_skipped"],
   description: "Skip one graph-selected organization setup step when that step is skippable.",
   inputSchema: stepMutationInputSchema,
   outputSchema: setupStepStateSchema,

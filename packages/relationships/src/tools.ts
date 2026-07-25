@@ -1,4 +1,5 @@
 /** Module-owned CRM lifecycle tools backed by Relationships services. */
+// agent-quality: file-size exception -- owner: relationships; CRM entity tools stay co-located because person/org/address/contact handlers share one admission and schema surface.
 
 import {
   insertAddressForEntitySchema,
@@ -295,7 +296,6 @@ export const listPeopleTool = defineTool<
   ...readMetadata,
   capabilityId: `${OWNER}#tool.list-people`,
   name: "list_people",
-  aliases: ["crm_people_list"],
   description: "Search CRM people by name, contact point, organization, relationship, or status.",
   inputSchema: personListQuerySchema,
   outputSchema: peopleListOutputSchema,
@@ -312,7 +312,6 @@ export const getPersonTool = defineTool<
   ...readMetadata,
   capabilityId: `${OWNER}#tool.get-person`,
   name: "get_person",
-  aliases: ["crm_people_get"],
   description: "Read one CRM person by id. Returns null when not found.",
   inputSchema: idArgsSchema,
   outputSchema: personToolSchema.nullable(),
@@ -330,7 +329,6 @@ export const createPersonTool = defineTool<
   riskPolicy: CREATED_WRITE_RISK,
   capabilityId: `${OWNER}#tool.create-person`,
   name: "create_person",
-  aliases: ["crm_person_create"],
   description:
     "Create a new CRM person with at least one real email or phone. Exact retries return the original immutable person reference; use read tools to resolve an existing person.",
   inputSchema: createPersonToolInputSchema,
@@ -360,7 +358,6 @@ export const updatePersonTool = defineTool<
   ...sensitiveWriteMetadata,
   capabilityId: `${OWNER}#tool.update-person`,
   name: "update_person",
-  aliases: ["crm_person_update"],
   description:
     "Update a CRM person's profile, inline primary contact, tags, or lifecycle status. Returns null when not found.",
   inputSchema: updatePersonToolInputSchema,
@@ -379,7 +376,6 @@ export const listOrganizationsTool = defineTool<
   ...readMetadata,
   capabilityId: `${OWNER}#tool.list-organizations`,
   name: "list_organizations",
-  aliases: ["crm_organizations_list"],
   description: "Search CRM organizations by name, website, exact tax id, relationship, or status.",
   inputSchema: organizationToolListInputSchema,
   outputSchema: organizationListOutputSchema,
@@ -404,7 +400,6 @@ export const getOrganizationTool = defineTool<
   ...readMetadata,
   capabilityId: `${OWNER}#tool.get-organization`,
   name: "get_organization",
-  aliases: ["crm_organizations_get"],
   description: "Read one CRM organization by id. Returns null when not found.",
   inputSchema: idArgsSchema,
   outputSchema: organizationSchema.nullable(),
@@ -422,7 +417,6 @@ export const createOrganizationTool = defineTool<
   riskPolicy: CREATED_WRITE_RISK,
   capabilityId: `${OWNER}#tool.create-organization`,
   name: "create_organization",
-  aliases: ["crm_organization_create"],
   description:
     "Create a CRM organization and optional billing address atomically. Exact retries return the original immutable organization reference.",
   inputSchema: createOrganizationToolInputSchema,
@@ -446,7 +440,6 @@ export const updateOrganizationTool = defineTool<
   ...routineWriteMetadata,
   capabilityId: `${OWNER}#tool.update-organization`,
   name: "update_organization",
-  aliases: ["crm_organization_update"],
   description:
     "Update an organization's profile, tags, or lifecycle status. Returns null when not found.",
   inputSchema: updateOrganizationToolInputSchema,
@@ -465,7 +458,6 @@ export const listRelationshipNotesTool = defineTool<
   ...sensitiveReadMetadata,
   capabilityId: `${OWNER}#tool.list-relationship-notes`,
   name: "list_relationship_notes",
-  aliases: ["crm_notes_list"],
   description: "List staff-authored notes on a CRM person or organization.",
   inputSchema: relationshipEntityArgsSchema,
   outputSchema: noteListOutputSchema,
@@ -503,24 +495,6 @@ export const addOrganizationNoteTool = defineTool(
   defineAddNoteTool("organization", organizationNoteSchema),
 )
 
-/** @deprecated Use the person- or organization-specific Tool selected by the graph. */
-const deprecatedAddRelationshipNoteTool = defineTool<
-  AddNoteInput,
-  z.infer<typeof noteSchema> | null,
-  RelationshipsToolContext
->({
-  ...sensitiveWriteMetadata,
-  capabilityId: `${OWNER}#tool.add-relationship-note`,
-  name: "add_relationship_note",
-  aliases: ["crm_note_add"],
-  description: "Add a staff-attributed note to a CRM person or organization.",
-  inputSchema: addNoteInputSchema,
-  outputSchema: noteSchema.nullable(),
-  async handler(input, ctx) {
-    return parseJsonResult(noteSchema.nullable(), await crm(ctx).addNote(input))
-  },
-})
-
 export const updateRelationshipNoteTool = defineTool<
   EditNoteInput,
   z.infer<typeof noteSchema> | null,
@@ -529,7 +503,6 @@ export const updateRelationshipNoteTool = defineTool<
   ...sensitiveWriteMetadata,
   capabilityId: `${OWNER}#tool.update-relationship-note`,
   name: "update_relationship_note",
-  aliases: ["crm_note_update"],
   description: "Edit an existing CRM person or organization note. Returns null when not found.",
   inputSchema: editNoteInputSchema,
   outputSchema: noteSchema.nullable(),
@@ -547,7 +520,6 @@ export const listRelationshipContactMethodsTool = defineTool<
   ...sensitiveReadMetadata,
   capabilityId: `${OWNER}#tool.list-relationship-contact-methods`,
   name: "list_relationship_contact_methods",
-  aliases: ["crm_contact_methods_list"],
   description: "List email, phone, messaging, website, and other contact methods for a CRM entity.",
   inputSchema: relationshipEntityArgsSchema,
   outputSchema: z.array(contactMethodSchema),
@@ -582,24 +554,6 @@ export const addOrganizationContactMethodTool = defineTool(
   defineAddContactMethodTool("organization"),
 )
 
-/** @deprecated Use the person- or organization-specific Tool selected by the graph. */
-const deprecatedAddRelationshipContactMethodTool = defineTool<
-  AddContactMethodInput,
-  z.infer<typeof contactMethodSchema> | null,
-  RelationshipsToolContext
->({
-  ...sensitiveWriteMetadata,
-  capabilityId: `${OWNER}#tool.add-relationship-contact-method`,
-  name: "add_relationship_contact_method",
-  aliases: ["crm_contact_method_add"],
-  description: "Add a contact method to a CRM person or organization.",
-  inputSchema: addContactMethodInputSchema,
-  outputSchema: contactMethodSchema.nullable(),
-  async handler(input, ctx) {
-    return parseJsonResult(contactMethodSchema.nullable(), await crm(ctx).addContactMethod(input))
-  },
-})
-
 export const updateRelationshipContactMethodTool = defineTool<
   EditContactMethodInput,
   z.infer<typeof contactMethodSchema> | null,
@@ -608,7 +562,6 @@ export const updateRelationshipContactMethodTool = defineTool<
   ...sensitiveWriteMetadata,
   capabilityId: `${OWNER}#tool.update-relationship-contact-method`,
   name: "update_relationship_contact_method",
-  aliases: ["crm_contact_method_update"],
   description: "Update a CRM contact method without re-parenting it. Returns null when not found.",
   inputSchema: editContactMethodInputSchema,
   outputSchema: contactMethodSchema.nullable(),
@@ -629,7 +582,6 @@ export const listRelationshipAddressesTool = defineTool<
   ...sensitiveReadMetadata,
   capabilityId: `${OWNER}#tool.list-relationship-addresses`,
   name: "list_relationship_addresses",
-  aliases: ["crm_addresses_list"],
   description: "List billing, legal, primary, and other addresses for a CRM entity.",
   inputSchema: relationshipEntityArgsSchema,
   outputSchema: z.array(addressSchema),
@@ -662,24 +614,6 @@ function defineAddAddressTool(ownerType: "person" | "organization") {
 export const addPersonAddressTool = defineTool(defineAddAddressTool("person"))
 export const addOrganizationAddressTool = defineTool(defineAddAddressTool("organization"))
 
-/** @deprecated Use the person- or organization-specific Tool selected by the graph. */
-const deprecatedAddRelationshipAddressTool = defineTool<
-  AddAddressInput,
-  z.infer<typeof addressSchema> | null,
-  RelationshipsToolContext
->({
-  ...sensitiveWriteMetadata,
-  capabilityId: `${OWNER}#tool.add-relationship-address`,
-  name: "add_relationship_address",
-  aliases: ["crm_address_add"],
-  description: "Add an address to a CRM person or organization.",
-  inputSchema: addAddressInputSchema,
-  outputSchema: addressSchema.nullable(),
-  async handler(input, ctx) {
-    return parseJsonResult(addressSchema.nullable(), await crm(ctx).addAddress(input))
-  },
-})
-
 export const updateRelationshipAddressTool = defineTool<
   EditAddressInput,
   z.infer<typeof addressSchema> | null,
@@ -688,7 +622,6 @@ export const updateRelationshipAddressTool = defineTool<
   ...sensitiveWriteMetadata,
   capabilityId: `${OWNER}#tool.update-relationship-address`,
   name: "update_relationship_address",
-  aliases: ["crm_address_update"],
   description: "Update a CRM address without re-parenting it. Returns null when not found.",
   inputSchema: editAddressInputSchema,
   outputSchema: addressSchema.nullable(),
@@ -720,12 +653,6 @@ export const relationshipsTools = [
   addOrganizationAddressTool,
   updateRelationshipAddressTool,
 ] as const
-
-export {
-  deprecatedAddRelationshipAddressTool as addRelationshipAddressTool,
-  deprecatedAddRelationshipContactMethodTool as addRelationshipContactMethodTool,
-  deprecatedAddRelationshipNoteTool as addRelationshipNoteTool,
-}
 
 function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {
   return schema.parse(toJsonValue(value))

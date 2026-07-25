@@ -5,9 +5,6 @@ import {
   RELATIONSHIPS_PERSON_HANDLER_ACTION_POLICY,
 } from "../src/created-target-policy.js"
 import {
-  addRelationshipAddressTool,
-  addRelationshipContactMethodTool,
-  addRelationshipNoteTool,
   createOrganizationTool,
   createPersonTool,
   type RelationshipsToolServices,
@@ -239,26 +236,28 @@ describe("relationships (crm) tools", () => {
     expect(manifest.find((tool) => tool.name === "create_organization")).toMatchObject({
       tier: "write",
       deploymentRisk: "medium",
-      aliases: ["crm_organization_create"],
     })
     expect(manifest.find((tool) => tool.name === "list_relationship_addresses")).toMatchObject({
       tier: "sensitive",
       deploymentRisk: "high",
       requiredScopes: ["crm:read"],
-      aliases: ["crm_addresses_list"],
     })
+    for (const tool of manifest) {
+      expect(tool.aliases ?? []).toEqual([])
+    }
   })
 
-  it("keeps deprecated generic add exports outside the selected Tool registry", () => {
-    const selected: ReadonlySet<unknown> = new Set(relationshipsTools)
-    expect(selected.has(addRelationshipNoteTool)).toBe(false)
-    expect(selected.has(addRelationshipContactMethodTool)).toBe(false)
-    expect(selected.has(addRelationshipAddressTool)).toBe(false)
+  it("does not export deprecated generic relationship add Tools", async () => {
+    const toolsModule = await import("../src/tools.js")
+    expect(toolsModule).not.toHaveProperty("addRelationshipNoteTool")
+    expect(toolsModule).not.toHaveProperty("addRelationshipContactMethodTool")
+    expect(toolsModule).not.toHaveProperty("addRelationshipAddressTool")
+    expect(relationshipsTools.some((tool) => tool.name.startsWith("add_relationship_"))).toBe(false)
   })
 
   it("normalizes typed person reads and strips encrypted profile envelopes", async () => {
     const result = await registry().dispatch<{ data: Array<Record<string, unknown>> }>(
-      "crm_people_list",
+      "list_people",
       { search: "Popescu" },
       ctx({
         async listPeople(query) {
@@ -285,7 +284,7 @@ describe("relationships (crm) tools", () => {
 
     let forwarded: unknown
     const result = await registry().dispatch(
-      "crm_person_create",
+      "create_person",
       { firstName: "Ana", lastName: "Popescu", email: "ana@example.com" },
       ctx(
         {
@@ -346,7 +345,7 @@ describe("relationships (crm) tools", () => {
   it("supports organization creation with a billing address and lifecycle updates", async () => {
     let listed: unknown
     await registry().dispatch(
-      "crm_organizations_list",
+      "list_organizations",
       { vatNumber: "RO123" },
       ctx({
         async listOrganizations(query) {
@@ -359,7 +358,7 @@ describe("relationships (crm) tools", () => {
 
     let created: unknown
     const createResult = await registry().dispatch(
-      "crm_organization_create",
+      "create_organization",
       {
         name: "Example Travel",
         vatNumber: "RO123",
@@ -400,7 +399,7 @@ describe("relationships (crm) tools", () => {
 
     let updated: unknown
     await registry().dispatch(
-      "crm_organization_update",
+      "update_organization",
       { id: "org_1", status: "inactive", tags: ["former-client"] },
       ctx({
         async updateOrganization(input) {
@@ -439,7 +438,7 @@ describe("relationships (crm) tools", () => {
       },
     })
     await registry().dispatch(
-      "crm_notes_list",
+      "list_relationship_notes",
       { entityType: "person", entityId: "pers_1" },
       services,
     )
@@ -482,7 +481,7 @@ describe("relationships (crm) tools", () => {
       services,
     )
     await registry().dispatch(
-      "crm_address_update",
+      "update_relationship_address",
       { id: "iadr_1", line1: "Calea Victoriei 2" },
       services,
     )

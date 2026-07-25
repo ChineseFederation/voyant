@@ -17,9 +17,9 @@ const baseContext: ToolContext = {
 }
 
 describe("navigation preference Tools", () => {
-  it("declares structural contracts, aliases, audience, and risk", () => {
+  it("declares structural contracts, audience, and risk", () => {
     expect(getNavigationPreferencesTool.inputSchema.safeParse({}).success).toBe(true)
-    expect(getNavigationPreferencesTool.aliases).toEqual(["read_navigation_preferences"])
+    expect(getNavigationPreferencesTool.aliases ?? []).toEqual([])
     expect(getNavigationPreferencesTool.audience?.allowed).toEqual(["staff"])
     expect(setOrganizationNavigationPreferencesTool.tier).toBe("sensitive")
     expect(setOrganizationNavigationPreferencesTool.riskPolicy.confirmationRequired).toBe(true)

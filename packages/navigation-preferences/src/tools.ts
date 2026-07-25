@@ -33,7 +33,6 @@ export const getNavigationPreferencesTool = defineTool<
   NavigationPreferencesToolContext
 >({
   name: "get_navigation_preferences",
-  aliases: ["read_navigation_preferences"],
   description:
     "Read organization defaults, the authenticated member's overrides, and effective admin navigation visibility. Read-only.",
   inputSchema: z.object({}),
@@ -53,7 +52,6 @@ export const setOrganizationNavigationPreferencesTool = defineTool<
   NavigationPreferencesToolContext
 >({
   name: "set_organization_navigation_preferences",
-  aliases: ["update_organization_navigation_preferences"],
   description:
     "Replace organization-wide admin navigation visibility defaults. Requires confirmation and affects all members unless they have overrides.",
   inputSchema: updateNavigationPreferencesSchema,
@@ -79,7 +77,6 @@ export const setMyNavigationPreferencesTool = defineTool<
   NavigationPreferencesToolContext
 >({
   name: "set_my_navigation_preferences",
-  aliases: ["update_my_navigation_preferences"],
   description: "Replace admin navigation visibility overrides for the authenticated member only.",
   inputSchema: updateNavigationPreferencesSchema,
   outputSchema: visibilityResultSchema,

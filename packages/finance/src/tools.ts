@@ -289,7 +289,6 @@ export const issueInvoiceFromBookingTool = defineTool<
   capabilityId: "@voyant-travel/finance#tool.issue-invoice-from-booking",
   capabilityVersion: "v1",
   name: "issue_invoice_from_booking",
-  aliases: ["invoices_issue_from_booking"],
   description:
     "Request approval to create and issue an invoice or proforma from a booking, or execute and idempotently replay the exact approved command.",
   inputSchema: issueInvoiceFromBookingToolInputSchema,

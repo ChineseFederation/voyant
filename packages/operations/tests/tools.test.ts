@@ -71,15 +71,15 @@ describe("Operations tools", () => {
       expect(tool.outputSchema).toMatchObject({ type: "object" })
       expect(tool.outputSchema).not.toHaveProperty("x-voyant-schema-quality")
     }
-    expect(manifest.find((tool) => tool.name === "list_departures")?.aliases).toEqual([
-      "departures_list_by_product",
-    ])
+    for (const tool of manifest) {
+      expect(tool.aliases ?? []).toEqual([])
+    }
   })
 
-  it("dispatches the hosted overview alias through the domain service", async () => {
+  it("dispatches the availability overview through the domain service", async () => {
     let forwarded: unknown
     const result = await registry().dispatch(
-      "availability_overview",
+      "get_availability_overview",
       { productId: "prod_1", attentionLimit: 3 },
       contextWith({
         async getAvailabilityOverview(query) {
@@ -104,7 +104,7 @@ describe("Operations tools", () => {
     let forwarded: unknown
     const createdAt = new Date("2026-08-01T08:00:00.000Z")
     const result = await registry().dispatch<{ data: Array<Record<string, unknown>> }>(
-      "departures_list_by_product",
+      "list_departures",
       {
         productId: "prod_1",
         date: "2026-09-10",
@@ -183,7 +183,7 @@ describe("Operations tools", () => {
       departure: null,
     })
     await expect(
-      registry().dispatch("availability_rule_get", { id: "missing" }, ctx),
+      registry().dispatch("get_availability_rule", { id: "missing" }, ctx),
     ).resolves.toEqual({ rule: null })
   })
 
@@ -213,14 +213,14 @@ describe("Operations tools", () => {
 })
 
 describe("Operations dashboard Tool", () => {
-  it("publishes a structural, staff-only composed read with the hosted alias", () => {
+  it("publishes a structural, staff-only composed read", () => {
     const registry = createToolRegistry()
     registry.register(getOperatorDashboardSummaryTool)
     expect(registry.list()[0]).toMatchObject({
       capabilityId: "@voyant-travel/operations#dashboard#tool.get-operator-dashboard-summary",
       owner: "@voyant-travel/operations#dashboard",
       name: "get_operator_dashboard_summary",
-      aliases: ["dashboard_summary"],
+      aliases: [],
       audience: { source: "grant", allowed: ["staff"] },
       requiredScopes: [
         "operations:read",
@@ -242,7 +242,7 @@ describe("Operations dashboard Tool", () => {
       kpis: Record<string, unknown>
       alerts: unknown[]
     }>(
-      "dashboard_summary",
+      "get_operator_dashboard_summary",
       { range: "this-month" },
       {
         ...contextWith({

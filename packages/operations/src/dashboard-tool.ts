@@ -215,7 +215,6 @@ export const getOperatorDashboardSummaryDefinition = {
   capabilityId: "@voyant-travel/operations#dashboard#tool.get-operator-dashboard-summary",
   capabilityVersion: VERSION,
   name: "get_operator_dashboard_summary",
-  aliases: ["dashboard_summary"],
   description:
     "Compose an operator dashboard summary from the selected Bookings, Finance, Inventory, " +
     "Distribution, and Operations aggregate services. Staff-only and read-only.",

@@ -4,6 +4,7 @@ Per-minor consolidated migration notes for Voyant. Each page collects every brea
 
 Unreleased caller migrations:
 
+- [Removed callable Tool name aliases](./removed-tool-aliases.md) — 35 removed compatibility Tool names across Setup, Navigation preferences, Operations, Legal, Relationships, Inventory, and Finance, plus 3 deprecated Relationships add Tools dropped entirely.
 - [Created-target Tool commands](./created-target-tool-commands.md)
 - [Created local Commerce, Charters, and Cruises targets](./created-target-commerce-charters-cruises.md) — includes the breaking `create_promotion` and `create_cruise` response-envelope migrations.
 - [Created Relationships people](./created-relationships-person.md) — restore atomic, replay-safe `create_person` with an immutable response envelope.

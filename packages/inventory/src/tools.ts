@@ -406,7 +406,6 @@ export const composeProductTool = defineTool({
   capabilityId: `${OWNER}#authoring.tool.compose-product`,
   capabilityVersion: VERSION,
   name: "compose_product",
-  aliases: ["products_compose"],
   description:
     "Atomically author a complete product graph through Inventory's category-aware composer: product, options, units, pricing rules, and itinerary. Invalid graphs return actionable issues without writing. Departures and publication remain separate confirmed operations.",
   inputSchema: composeProductToolInputSchema,

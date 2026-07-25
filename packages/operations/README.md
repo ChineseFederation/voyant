@@ -17,7 +17,7 @@ operations remain intentionally absent until their action-ledger and argument-de
 policies are designed.
 
 `@voyant-travel/operations/dashboard` is a separately selectable composed module. Its
-`get_operator_dashboard_summary` Tool (legacy alias `dashboard_summary`) coordinates the
+`get_operator_dashboard_summary` Tool coordinates the
 provider-neutral aggregate services injected by Bookings, Finance, Inventory, Distribution, and
 Operations. The Tool requires every underlying read scope with AND semantics; it does not query
 another module's tables or move aggregate authority into Operations. Its output carries the

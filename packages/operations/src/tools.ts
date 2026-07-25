@@ -191,7 +191,6 @@ export const getAvailabilityOverviewTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.get-availability-overview`,
   name: "get_availability_overview",
-  aliases: ["availability_overview"],
   description:
     "Summarize upcoming availability: open and constrained departures, active recurrence " +
     "rules and pickup points, products missing future departures, and the next constrained slots.",
@@ -234,7 +233,6 @@ export const listAvailabilityRulesTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.list-availability-rules`,
   name: "list_availability_rules",
-  aliases: ["availability_rules_list"],
   description:
     "List recurrence rules that generate departures, filtered by product, option, facility, or active status.",
   inputSchema: availabilityRuleListQuerySchema,
@@ -255,7 +253,6 @@ export const getAvailabilityRuleTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.get-availability-rule`,
   name: "get_availability_rule",
-  aliases: ["availability_rule_get"],
   description: "Read one availability recurrence rule by id. Returns null when not found.",
   inputSchema: idArgsSchema,
   outputSchema: availabilityRuleOutputSchema,
@@ -274,7 +271,6 @@ export const listAvailabilityStartTimesTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.list-availability-start-times`,
   name: "list_availability_start_times",
-  aliases: ["availability_start_times_list"],
   description:
     "List configured local departure start times, filtered by product, option, facility, or active status.",
   inputSchema: availabilityStartTimeListQuerySchema,
@@ -295,7 +291,6 @@ export const listDeparturesTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.list-departures`,
   name: "list_departures",
-  aliases: ["departures_list_by_product"],
   description:
     "List departures across the catalog or for one product, with local date, start window, " +
     "status, remaining capacity, product name, and pagination. Results are ordered by start time.",
@@ -323,7 +318,6 @@ export const getDepartureTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.get-departure`,
   name: "get_departure",
-  aliases: ["departures_get"],
   description:
     "Read one departure by id, including status, timing, remaining capacity, and local end date. Returns null when not found.",
   inputSchema: idArgsSchema,
@@ -343,7 +337,6 @@ export const listAvailabilityCloseoutsTool = defineTool<
   ...commonMetadata,
   capabilityId: `${OWNER}#tool.list-availability-closeouts`,
   name: "list_availability_closeouts",
-  aliases: ["availability_closeouts_list"],
   description:
     "List product/date or departure-specific closeouts, filtered by product, departure, or local date.",
   inputSchema: availabilityCloseoutListQuerySchema,

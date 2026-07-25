@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: legal; contract lifecycle tools stay co-located because create/read/update/document handlers share one admission and schema surface.
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -470,7 +471,6 @@ export const listLegalContractsTool = defineTool({
   ...readMetadata,
   capabilityId: `${OWNER}#tool.list-contracts`,
   name: "list_legal_contracts",
-  aliases: ["legal_contract_list"],
   description: "List compact contract records without rendered bodies or variable snapshots.",
   inputSchema: listContractsInputSchema,
   outputSchema: z.object({ data: z.array(legalContractSummarySchema), meta: pageSchema }),
@@ -480,7 +480,6 @@ export const getLegalContractTool = defineTool({
   ...readMetadata,
   capabilityId: `${OWNER}#tool.get-contract`,
   name: "get_legal_contract",
-  aliases: ["legal_contract_get"],
   description:
     "Read one contract including its rendered body, variables, metadata, and stage history.",
   inputSchema: idInputSchema,
@@ -496,7 +495,6 @@ export const createLegalContractDraftTool = defineTool({
   riskPolicy: { ...writeMetadata.riskPolicy, reversible: false },
   capabilityId: `${OWNER}#tool.create-contract-draft`,
   name: "create_legal_contract_draft",
-  aliases: ["legal_contract_create"],
   description: "Create a draft contract only. Lifecycle status cannot be supplied or spoofed.",
   inputSchema: createDraftInputSchema,
   outputSchema: z.object({
@@ -651,7 +649,6 @@ export const listContractAttachmentsTool = defineTool({
   ...readMetadata,
   capabilityId: `${OWNER}#tool.list-contract-attachments`,
   name: "list_contract_attachments",
-  aliases: ["legal_contract_attachments_list"],
   description: "List contract attachment metadata without exposing private storage keys.",
   inputSchema: listAttachmentsInputSchema,
   outputSchema: z.array(attachmentSchema),
