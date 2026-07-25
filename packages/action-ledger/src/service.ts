@@ -14,9 +14,11 @@ import {
 } from "./service/cursors.js"
 import {
   assertSameFingerprint,
+  decisionEntryInput,
   findApprovalById,
   findApprovalForRequestedAction,
   findExistingIdempotentEntry,
+  findReplayedDecision,
   insertEntry,
 } from "./service/entries.js"
 import {
@@ -165,6 +167,8 @@ export const actionLedgerService = {
       const approval = await findApprovalById(tx, input.id)
       if (!approval) return null
       if (approval.status !== "pending") {
+        const replayed = await findReplayedDecision(tx, input, approval)
+        if (replayed) return replayed
         throw new ActionApprovalDecisionConflictError(approval.id, approval.status)
       }
 
@@ -182,19 +186,15 @@ export const actionLedgerService = {
       if (!updatedApproval) {
         const current = await findApprovalById(tx, input.id)
         if (!current) return null
+        const replayed = await findReplayedDecision(tx, input, current)
+        if (replayed) return replayed
         throw new ActionApprovalDecisionConflictError(current.id, current.status)
       }
 
-      const decisionAction = await actionLedgerService.appendEntry(tx, {
-        ...input.decisionAction,
-        actionKind: input.status === "approved" ? "approve" : "reject",
-        status: input.status,
-        evaluatedRisk: input.decisionAction.evaluatedRisk ?? updatedApproval.riskSnapshot,
-        targetType: input.decisionAction.targetType ?? "action_approval",
-        targetId: input.decisionAction.targetId ?? updatedApproval.id,
-        causationActionId: updatedApproval.requestedActionId,
-        approvalId: updatedApproval.id,
-      })
+      const decisionAction = await actionLedgerService.appendEntry(
+        tx,
+        decisionEntryInput(input, updatedApproval),
+      )
 
       return {
         approval: updatedApproval,

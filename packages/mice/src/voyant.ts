@@ -221,6 +221,8 @@ export const miceVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: false,
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "mice-program-create-command",
@@ -240,6 +242,9 @@ export const miceVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/mice#tool.update-program"] },
     },
   ],

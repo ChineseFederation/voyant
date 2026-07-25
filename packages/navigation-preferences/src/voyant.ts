@@ -130,6 +130,9 @@ export const navigationPreferencesVoyantModule = defineModule({
       approval: "required",
       reversible: true,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: {
         tools: [
           "@voyant-travel/navigation-preferences#tool.set-organization-navigation-preferences",
@@ -149,6 +152,9 @@ export const navigationPreferencesVoyantModule = defineModule({
       approval: "never",
       reversible: true,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: {
         tools: ["@voyant-travel/navigation-preferences#tool.set-my-navigation-preferences"],
       },

@@ -404,6 +404,92 @@ describe("actionLedgerService approval lifecycle", () => {
     })
   })
 
+  test("replays an already-settled decision that matches the requested status and idempotency key", async () => {
+    const settledApproval = makeApproval({
+      id: "appr_done",
+      status: "approved",
+      decidedByPrincipalId: "usr_decider",
+      decidedAt: new Date("2026-05-15T12:30:00.000Z"),
+    })
+    const existingDecision = makeEntry({
+      id: "alge_decision",
+      actionName: "action_approval.approve",
+      actionKind: "approve",
+      status: "approved",
+      targetType: "action_approval",
+      targetId: "appr_done",
+      approvalId: "appr_done",
+      causationActionId: settledApproval.requestedActionId,
+      principalId: "usr_decider",
+      idempotencyScope: "appr_done:decision",
+      idempotencyKey: "approved",
+    })
+    const { db, entries, approvals } = makeApprovalLifecycleDb({
+      approvals: [settledApproval],
+      entries: [existingDecision],
+    })
+
+    const result = await actionLedgerService.decideApproval(db, {
+      id: "appr_done",
+      status: "approved",
+      decidedByPrincipalId: "usr_retrier",
+      decisionAction: {
+        actionName: "action_approval.approve",
+        actionVersion: "v1",
+        principalType: "user",
+        principalId: "usr_retrier",
+        internalRequest: false,
+        idempotencyScope: "appr_done:decision",
+        idempotencyKey: "approved",
+      },
+    })
+
+    expect(result).toEqual({ approval: settledApproval, decisionAction: existingDecision })
+    expect(entries).toHaveLength(1)
+    expect(approvals).toHaveLength(1)
+    expect(approvals[0]?.decidedByPrincipalId).toBe("usr_decider")
+  })
+
+  test("still throws a conflict when a settled decision does not match the requested status", async () => {
+    const settledApproval = makeApproval({ id: "appr_done", status: "approved" })
+    const existingDecision = makeEntry({
+      id: "alge_decision",
+      actionName: "action_approval.approve",
+      actionKind: "approve",
+      status: "approved",
+      targetType: "action_approval",
+      targetId: "appr_done",
+      approvalId: "appr_done",
+      idempotencyScope: "appr_done:decision",
+      idempotencyKey: "approved",
+    })
+    const { db } = makeApprovalLifecycleDb({
+      approvals: [settledApproval],
+      entries: [existingDecision],
+    })
+
+    await expect(
+      actionLedgerService.decideApproval(db, {
+        id: "appr_done",
+        status: "denied",
+        decidedByPrincipalId: "usr_decider",
+        decisionAction: {
+          actionName: "action_approval.deny",
+          actionVersion: "v1",
+          principalType: "user",
+          principalId: "usr_decider",
+          internalRequest: false,
+          idempotencyScope: "appr_done:decision",
+          idempotencyKey: "denied",
+        },
+      }),
+    ).rejects.toMatchObject({
+      name: ActionApprovalDecisionConflictError.name,
+      approvalId: "appr_done",
+      currentStatus: "approved",
+    })
+  })
+
   test("rejects non-terminal decision statuses before writing", async () => {
     const pendingApproval = makeApproval({
       id: "appr_pending",

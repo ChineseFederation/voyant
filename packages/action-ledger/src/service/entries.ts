@@ -11,7 +11,12 @@ import {
   actionSensitiveReadDetails,
 } from "../schema.js"
 import { ActionLedgerIdempotencyConflictError } from "./errors.js"
-import type { AppendActionLedgerEntryInput, AppendActionLedgerEntryResult } from "./types.js"
+import type {
+  AppendActionLedgerEntryInput,
+  AppendActionLedgerEntryResult,
+  DecideActionApprovalInput,
+  DecideActionApprovalResult,
+} from "./types.js"
 
 export async function insertEntry(
   db: AnyDrizzleDb,
@@ -109,4 +114,46 @@ export function assertSameFingerprint(entry: ActionLedgerEntry, fingerprint: str
   if (entry.idempotencyFingerprint !== fingerprint) {
     throw new ActionLedgerIdempotencyConflictError(entry.id)
   }
+}
+
+/** Merge a decision input against the current approval row into a full ledger-entry input. */
+export function decisionEntryInput(
+  input: DecideActionApprovalInput,
+  approval: ActionApproval,
+): AppendActionLedgerEntryInput {
+  return {
+    ...input.decisionAction,
+    actionKind: input.status === "approved" ? "approve" : "reject",
+    status: input.status,
+    evaluatedRisk: input.decisionAction.evaluatedRisk ?? approval.riskSnapshot,
+    targetType: input.decisionAction.targetType ?? "action_approval",
+    targetId: input.decisionAction.targetId ?? approval.id,
+    causationActionId: approval.requestedActionId,
+    approvalId: approval.id,
+  }
+}
+
+/**
+ * `decideApproval` transitions an approval exactly once (pending -> a terminal
+ * status). A retried decision request lands here once the approval is no
+ * longer pending: if it already settled at the caller's requested status and
+ * the decision's own idempotent ledger entry exists (matched by scope + key,
+ * same as `appendEntry`'s replay lookup), this is an exact replay rather than
+ * a conflicting second decision, so the original result is returned instead
+ * of raising `ActionApprovalDecisionConflictError`. A different requested
+ * status, or no matching prior entry, is a genuine conflict and returns null
+ * so the caller throws.
+ */
+export async function findReplayedDecision(
+  db: AnyDrizzleDb,
+  input: DecideActionApprovalInput,
+  approval: ActionApproval,
+): Promise<DecideActionApprovalResult | null> {
+  if (approval.status !== input.status) return null
+  const existingDecision = await findExistingIdempotentEntry(
+    db,
+    decisionEntryInput(input, approval),
+  )
+  if (!existingDecision) return null
+  return { approval, decisionAction: existingDecision }
 }
