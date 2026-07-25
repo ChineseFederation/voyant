@@ -58,7 +58,7 @@ const contributorRequirements = [
     mice,
     ["host.getRuntimePort(relationshipsMiceRuntimePort)", "resolveDelegatePersonById"],
   ],
-  ["quotes", quotes, ["host.getRuntimePort(tripsRoutesRuntimePort)", "createQuotesRuntime(host"]],
+  ["quotes", quotes, ["createQuotesRuntime(host"]],
   ["custom-fields", customFields, ["customFieldsRuntimePort.id"]],
   [
     "relationships",
@@ -96,6 +96,9 @@ if (relationships.includes("host.primitives.config.read")) {
   violations.push(
     "relationships runtime contributor must not restore deployment-configured custom fields",
   )
+}
+if (quotes.includes("tripsRoutesRuntimePort")) {
+  violations.push("quotes runtime contributor must not consume Trips route mutation authority")
 }
 
 if (violations.length > 0) {

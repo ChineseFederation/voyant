@@ -36,4 +36,21 @@ describe("@voyant-travel/trips package exports", () => {
       default: "./dist/sourcing-job.js",
     })
   })
+
+  it("publishes the durable Trip action conformance and worker subpaths", () => {
+    expect(packageJson.exports["./durable-action-runtime-port"]).toBe(
+      "./src/durable-action-runtime-port.ts",
+    )
+    expect(packageJson.publishConfig.exports["./durable-action-runtime-port"]).toEqual({
+      types: "./dist/durable-action-runtime-port.d.ts",
+      import: "./dist/durable-action-runtime-port.js",
+      default: "./dist/durable-action-runtime-port.js",
+    })
+    expect(packageJson.exports["./action-job"]).toBe("./src/action-job.ts")
+    expect(packageJson.publishConfig.exports["./action-job"]).toEqual({
+      types: "./dist/action-job.d.ts",
+      import: "./dist/action-job.js",
+      default: "./dist/action-job.js",
+    })
+  })
 })

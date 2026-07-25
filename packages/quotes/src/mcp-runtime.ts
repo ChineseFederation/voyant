@@ -1,4 +1,9 @@
-import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
+import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger"
+import {
+  defineToolContextContribution,
+  requireService,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import type { Context } from "hono"
 import {
   type QuotesNotificationsRuntime,
@@ -7,11 +12,7 @@ import {
   quotesProposalRuntimePort,
 } from "./runtime-port.js"
 import { quotesService } from "./service/index.js"
-import {
-  QuoteDeliveryFailedError,
-  QuoteDeliveryIdempotencyConflictError,
-  snapshotAndSendQuote,
-} from "./service/quote-delivery.js"
+import { executeSnapshotAndSendQuoteCommand } from "./service/quote-delivery.js"
 
 export * from "./tools.js"
 
@@ -35,7 +36,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
         declineQuoteVersion: (id: string) => quotesService.declineQuoteVersion(db, id),
       },
       quoteDelivery: {
-        async snapshotAndSendQuote(input: Parameters<typeof snapshotAndSendQuote>[2]) {
+        async snapshotAndSendQuote(
+          input: Parameters<typeof executeSnapshotAndSendQuoteCommand>[0]["input"],
+          admitted: ToolHandlerActionPolicyContext,
+        ) {
           const notifications = await Promise.resolve(
             requireService(
               resources[quotesNotificationsRuntimePort.id] as
@@ -54,24 +58,36 @@ export const voyantToolContextContribution = defineToolContextContribution({
               quotesProposalRuntimePort.id,
             ),
           )
-          try {
-            const result = await snapshotAndSendQuote(db, notifications, input, {
-              publicProposalBaseUrl: proposal.resolvePublicProposalBaseUrl(c),
-              bindings: c.env as Record<string, unknown>,
-            })
-            if (!result) throw new ToolError("Quote not found.", "NOT_FOUND")
-            return result
-          } catch (error) {
-            if (error instanceof QuoteDeliveryIdempotencyConflictError) {
-              throw new ToolError(error.message, "INVALID_INPUT")
-            }
-            if (error instanceof QuoteDeliveryFailedError) {
-              throw new ToolError(error.message, "PROVIDER_ERROR")
-            }
-            throw error
-          }
+          const result = await executeSnapshotAndSendQuoteCommand({
+            db,
+            context: actionLedgerContext(c),
+            admitted,
+            notifications,
+            input,
+            publicProposalBaseUrl: proposal.resolvePublicProposalBaseUrl(c),
+          })
+          return result.value
         },
       },
     }
   },
 })
+
+function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
+  const vars = c.var as Record<string, unknown>
+  return {
+    userId: (vars.userId as string | undefined) ?? null,
+    agentId: (vars.agentId as string | undefined) ?? null,
+    workflowPrincipalId: (vars.workflowPrincipalId as string | undefined) ?? null,
+    principalSubtype: (vars.principalSubtype as string | undefined) ?? null,
+    sessionId: (vars.sessionId as string | undefined) ?? null,
+    apiTokenId: ((vars.apiTokenId ?? vars.apiKeyId) as string | undefined) ?? null,
+    callerType: (vars.callerType as ActionLedgerRequestContextValues["callerType"]) ?? null,
+    actor: (vars.actor as ActionLedgerRequestContextValues["actor"]) ?? null,
+    isInternalRequest: (vars.isInternalRequest as boolean | undefined) ?? false,
+    organizationId: (vars.organizationId as string | undefined) ?? null,
+    workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
+    workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
+    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}

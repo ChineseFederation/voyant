@@ -5,6 +5,7 @@ import type { TripComponent } from "../src/schema.js"
 import {
   CREATE_TRIP_HANDLER_POLICY,
   createTripTool,
+  PRICE_TRIP_HANDLER_POLICY,
   priceTripTool,
   SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY,
   type TripsToolServices,
@@ -47,6 +48,7 @@ describe("trips tools", () => {
     expect(manifest.map((t) => t.name).sort()).toEqual([
       "add_trip_requirement",
       "create_trip",
+      "get_trip_action_operation",
       "get_trip_requirement_sourcing_operation",
       "price_trip",
       "reserve_trip",
@@ -85,7 +87,6 @@ describe("trips tools", () => {
       "create_trip",
       {
         title: "AI trip",
-        idempotencyKey: "trip-create-1",
         components: [
           {
             kind: "manual_placeholder",
@@ -140,12 +141,6 @@ describe("trips tools", () => {
               updatedAt: now,
             } satisfies TripComponent
           },
-          priceTrip: async () => {
-            throw new Error("not used")
-          },
-          reserveTrip: async () => {
-            throw new Error("not used")
-          },
         },
         {
           handlerActionPolicy: {
@@ -157,12 +152,12 @@ describe("trips tools", () => {
               enforcement: "handler",
               invocation: {
                 controlField: "_voyant",
-                requiredFields: [],
+                requiredFields: ["idempotencyKey"],
                 optionalFields: [],
                 fingerprintAlgorithm: "action-ledger-command-v1",
               },
             },
-            invocation: {},
+            invocation: { idempotencyKey: "trip-create-1" },
           } as ToolContext["handlerActionPolicy"],
         },
       ),
@@ -181,7 +176,28 @@ describe("trips tools", () => {
           envelopeId: "trip_123",
           scope: { locale: "en-GB", audience: "staff", market: "default", currency: "EUR" },
         },
-        ctxWith(undefined),
+        ctxWith(undefined, {
+          handlerActionPolicy: {
+            capabilityId: PRICE_TRIP_HANDLER_POLICY.capabilityId,
+            capabilityVersion: PRICE_TRIP_HANDLER_POLICY.capabilityVersion,
+            canonicalName: PRICE_TRIP_HANDLER_POLICY.canonicalName,
+            actionPolicy: {
+              ...PRICE_TRIP_HANDLER_POLICY.actionPolicy,
+              enforcement: "handler",
+              invocation: {
+                controlField: "_voyant",
+                requiredFields: ["idempotencyKey", "approvalId", "idempotencyFingerprint"],
+                optionalFields: ["reasonCode"],
+                fingerprintAlgorithm: "action-ledger-command-v1",
+              },
+            },
+            invocation: {
+              idempotencyKey: "price-1",
+              approvalId: "appr_1",
+              idempotencyFingerprint: "sha256:test",
+            },
+          } as ToolContext["handlerActionPolicy"],
+        }),
       ),
     ).rejects.toMatchObject({ code: "MISSING_SERVICE" })
   })
@@ -201,12 +217,6 @@ describe("trips tools", () => {
               return { envelopeId: "trip_123" }
             },
             async addComponent() {
-              throw new Error("not used")
-            },
-            async priceTrip() {
-              throw new Error("not used")
-            },
-            async reserveTrip() {
               throw new Error("not used")
             },
           },
@@ -231,12 +241,6 @@ describe("trips tools", () => {
               return { envelopeId: "trip_123" }
             },
             async addComponent() {
-              throw new Error("not used")
-            },
-            async priceTrip() {
-              throw new Error("not used")
-            },
-            async reserveTrip() {
               throw new Error("not used")
             },
           },

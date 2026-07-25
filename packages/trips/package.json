@@ -9,6 +9,8 @@
     "./validation": "./src/validation.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
+    "./action-job": "./src/action-job.ts",
+    "./durable-action-runtime-port": "./src/durable-action-runtime-port.ts",
     "./checkout": "./src/checkout/index.ts",
     "./catalog-component": "./src/catalog-component.ts",
     "./flight-component": "./src/flight-component.ts",
@@ -117,6 +119,16 @@
         "types": "./dist/mcp-runtime.d.ts",
         "import": "./dist/mcp-runtime.js",
         "default": "./dist/mcp-runtime.js"
+      },
+      "./action-job": {
+        "types": "./dist/action-job.d.ts",
+        "import": "./dist/action-job.js",
+        "default": "./dist/action-job.js"
+      },
+      "./durable-action-runtime-port": {
+        "types": "./dist/durable-action-runtime-port.d.ts",
+        "import": "./dist/durable-action-runtime-port.js",
+        "default": "./dist/durable-action-runtime-port.js"
       },
       "./checkout": {
         "types": "./dist/checkout/index.d.ts",

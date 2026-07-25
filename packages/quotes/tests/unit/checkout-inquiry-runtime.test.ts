@@ -1,7 +1,13 @@
 import { checkoutInquiryRuntimePort } from "@voyant-travel/quotes-contracts/checkout-inquiry"
 import { describe, expect, it, vi } from "vitest"
 
-vi.mock("../../src/runtime.js", () => ({ createQuotesRuntime: vi.fn() }))
+vi.mock("../../src/runtime.js", () => ({
+  createQuotesRuntime: vi.fn(async () => ({
+    quotes: {},
+    proposal: {},
+    snapshot: {},
+  })),
+}))
 
 import { createCheckoutInquiryRuntime } from "../../src/checkout-inquiry-runtime.js"
 import { createQuotesRuntimePortContribution } from "../../src/runtime-contributor.js"

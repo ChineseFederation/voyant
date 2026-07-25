@@ -1,12 +1,6 @@
 import type { EventBus } from "@voyant-travel/core"
 import { getOperatorSettings, toPublicOperatorSettings } from "@voyant-travel/operator-settings"
 import { relationshipsService } from "@voyant-travel/relationships"
-import type {
-  CancelTripComponentsDeps,
-  ReserveTripDeps,
-  StartCheckoutDeps,
-  TripsRoutesOptionsProvider,
-} from "@voyant-travel/trips"
 import type { Context } from "hono"
 import type {
   QuotesRuntimeContribution,
@@ -17,9 +11,7 @@ import type { QuotesProposalRuntime } from "./runtime-port.js"
 /** Build standard Node Quotes runtimes from generic primitives and package services. */
 export async function createQuotesRuntime(
   host: QuotesRuntimeContributorHost,
-  createTripsRoutesOptions: TripsRoutesOptionsProvider,
 ): Promise<QuotesRuntimeContribution> {
-  const tripRoutes = await createTripsRoutesOptions()
   const resolveDb: QuotesProposalRuntime["resolveDb"] = (context) =>
     host.primitives.database.fromContext<ReturnType<QuotesProposalRuntime["resolveDb"]>>(context)
   return {
@@ -32,18 +24,6 @@ export async function createQuotesRuntime(
       resolveDb,
       resolvePublicProposalBaseUrl: (context) =>
         resolvePublicBaseUrl(host.primitives.env(context.env)),
-      reserveTripDeps: requireRouteDeps<ReserveTripDeps>(
-        tripRoutes.reserveTripDeps,
-        "reserveTripDeps",
-      ),
-      startCheckoutDeps: requireRouteDeps<StartCheckoutDeps>(
-        tripRoutes.startCheckoutDeps,
-        "startCheckoutDeps",
-      ),
-      cancelTripComponentsDeps: requireRouteDeps<CancelTripComponentsDeps>(
-        tripRoutes.cancelTripComponentsDeps,
-        "cancelTripComponentsDeps",
-      ),
       resolveOperatorProfile: async (db) => {
         const settings = await getOperatorSettings(db)
         return settings ? toPublicOperatorSettings(settings) : null
@@ -80,27 +60,6 @@ export async function createQuotesRuntime(
         return activity
       },
     },
-  }
-}
-
-function requireRouteDeps<T>(
-  dependency: T | ((context: Context) => T | Promise<T | undefined> | undefined) | undefined,
-  name: string,
-): (context: Context) => Promise<T> {
-  if (dependency === undefined) {
-    throw new Error(`Quotes runtime requires Trips ${name}.`)
-  }
-  return async (context) => {
-    const resolved =
-      typeof dependency === "function"
-        ? await (dependency as (context: Context) => T | Promise<T | undefined> | undefined)(
-            context,
-          )
-        : dependency
-    if (resolved === undefined) {
-      throw new Error(`Trips ${name} returned no runtime dependencies.`)
-    }
-    return resolved
   }
 }
 

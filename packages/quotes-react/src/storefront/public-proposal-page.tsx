@@ -77,7 +77,6 @@ interface PublicProposal {
     licenseAuthority: string
   } | null
   proposalUrl: string
-  acceptable: boolean
 }
 
 interface DeclineProposalResponse {
@@ -96,11 +95,8 @@ interface RequestEditsProposalResponse {
 interface AcceptProposalResponse {
   data: {
     status: string
-    checkoutUrl: string | null
-    paymentSessionId: string | null
     currency: string
     totalAmountCents: number
-    warnings: string[]
   }
 }
 
@@ -153,11 +149,7 @@ export function PublicProposalPage({
         `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(quoteVersionId)}/accept`,
         {
           method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            intent: "card",
-            idempotencyKey: `proposal-${quoteVersionId}-accept`,
-          }),
+          headers: { Accept: "application/json" },
         },
       )
       const body = (await res.json()) as Partial<AcceptProposalResponse> & {
@@ -173,7 +165,6 @@ export function PublicProposalPage({
       void queryClient.setQueryData<PublicProposal>(["public-proposal", quoteVersionId], (data) =>
         data ? { ...data, status: result.status } : data,
       )
-      if (result.checkoutUrl) window.location.assign(result.checkoutUrl)
     },
   })
   const requestEdits = useMutation({
@@ -363,16 +354,14 @@ export function PublicProposalPage({
                   <p className="text-[#3f4b26] text-sm">{t.requestEditsSent}</p>
                 ) : null}
                 <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                  {proposal.acceptable ? (
-                    <button
-                      type="button"
-                      className="h-10 bg-[#232826] px-5 font-medium text-sm text-white transition hover:bg-[#3a403d] disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isMutating}
-                      onClick={() => void accept.mutateAsync()}
-                    >
-                      {accept.isPending ? t.accepting : t.accept}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="h-10 bg-[#232826] px-5 font-medium text-sm text-white transition hover:bg-[#3a403d] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isMutating}
+                    onClick={() => void accept.mutateAsync()}
+                  >
+                    {accept.isPending ? t.accepting : t.accept}
+                  </button>
                   <button
                     type="submit"
                     className="inline-flex h-10 items-center justify-center border border-[#52645d] px-4 font-medium text-[#3a443f] text-sm transition hover:bg-[#eef4df] disabled:cursor-not-allowed disabled:opacity-60"

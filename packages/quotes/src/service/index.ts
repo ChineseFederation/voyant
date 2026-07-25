@@ -10,13 +10,12 @@ export const quotesService = {
 
 export { PipelineDeleteConflictError, pipelinesService } from "./pipelines.js"
 export type {
+  ExecuteSnapshotAndSendQuoteCommandInput,
   SnapshotAndSendQuoteInput,
   SnapshotAndSendQuoteResult,
 } from "./quote-delivery.js"
 export {
-  QuoteDeliveryFailedError,
-  QuoteDeliveryIdempotencyConflictError,
-  snapshotAndSendQuote,
+  executeSnapshotAndSendQuoteCommand,
   snapshotAndSendQuoteInputSchema,
 } from "./quote-delivery.js"
 export type { AcceptQuoteVersionResult } from "./quote-versions.js"

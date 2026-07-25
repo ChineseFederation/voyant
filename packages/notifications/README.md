@@ -78,6 +78,9 @@ stable provider delivery key.
 ## Domain sends
 
 Finance, Quotes, booking-document, and reminder flows call narrow package ports.
+The Quotes adapter is contributed only when `notifications.durable-provider` is
+actually selected, and it closes over that exact provider set. It never
+re-resolves delivery providers from host configuration.
 Their sends also require idempotency and use the same durable admission and
 worker protocol. The admin API retains domain routes such as:
 

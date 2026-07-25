@@ -14,6 +14,7 @@ export const tripsRoutesRuntimePort = definePort<TripsRoutesOptionsProvider>({
 })
 
 export interface TripsDatabaseRuntime {
+  resolveDb(bindings: unknown): AnyDrizzleDb
   withDb<T>(bindings: unknown, operation: (db: AnyDrizzleDb) => Promise<T>): Promise<T>
 }
 
@@ -24,8 +25,8 @@ export const tripsDatabaseRuntimePort = definePort<TripsDatabaseRuntime>({
     if (provider === null || typeof provider !== "object") {
       throw new Error("trips.database-runtime provider must be an options object.")
     }
-    if (typeof provider.withDb !== "function") {
-      throw new Error("trips.database-runtime provider must implement withDb().")
+    if (typeof provider.resolveDb !== "function" || typeof provider.withDb !== "function") {
+      throw new Error("trips.database-runtime provider must implement resolveDb() and withDb().")
     }
   },
 })

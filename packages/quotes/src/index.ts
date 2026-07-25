@@ -113,13 +113,10 @@ export {
 export type { AcceptQuoteVersionResult } from "./service/index.js"
 export {
   pipelinesService,
-  QuoteDeliveryFailedError,
-  QuoteDeliveryIdempotencyConflictError,
   QuoteVersionConflictError,
   quoteRecordsService,
   quotesService,
   quoteVersionsService,
-  snapshotAndSendQuote,
   snapshotAndSendQuoteInputSchema,
 } from "./service/index.js"
 export {

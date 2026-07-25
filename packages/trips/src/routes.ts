@@ -15,7 +15,7 @@
  * deeply-nested composed/opaque sub-objects (pricing/candidate payloads,
  * frozen snapshot blobs) are documented pass-throughs typed as `z.unknown()`.
  *
- * The 22 legs are split across per-resource `OpenAPIHono` sub-chains
+ * The 20 legs are split across per-resource `OpenAPIHono` sub-chains
  * (envelopes / snapshots / components / requirements / lifecycle / health),
  * each composed onto the parent `OpenAPIHono` via `.route("/", subApp)`.
  * Mounting an `OpenAPIHono` child with `.route("/")` DOES propagate the child's
@@ -23,12 +23,12 @@
  * `commerce/src/pricing/routes-rules.ts` and `distribution/src/suppliers/routes.ts`),
  * so all trips operations still reach the composed operator OpenAPI document and
  * the emitted paths are unchanged. The split keeps per-chain type-inference cost
- * bounded — one flat 24-leg `.openapi()` chain has O(n²) inference cost and
+ * bounded — one flat multi-leg `.openapi()` chain has O(n²) inference cost and
  * OOMed CI's typecheck at its 8 GB heap. See voyant#2114 / voyant#2208.
  *
- * agent-quality: file-size exception — intentional: 22 Travel Composer legs
- * (envelope/snapshot/component/requirement CRUD + the price/reserve/checkout/
- * cancel lifecycle) authored as `createRoute` objects co-located with their
+ * agent-quality: file-size exception — intentional: 20 Travel Composer legs
+ * (envelope/snapshot/component/requirement CRUD + checkout/cancel lifecycle)
+ * authored as `createRoute` objects co-located with their
  * handlers, grouped into per-resource `OpenAPIHono` sub-chains composed onto a
  * single parent. See voyant#2114 / voyant#2208.
  */
@@ -40,8 +40,6 @@ import { listResponseSchema } from "@voyant-travel/types"
 import type { Context } from "hono"
 import {
   type CancelTripComponentsDeps,
-  type PriceTripDeps,
-  type ReserveTripDeps,
   type StartCheckoutDeps,
   TripsInvariantError,
   tripsService,
@@ -55,9 +53,7 @@ import {
   createTripSnapshotSchema,
   listTripsQuerySchema,
   previewTripCancellationSchema,
-  priceTripSchema,
   reorderTripComponentsSchema,
-  reserveTripSchema,
   selectCandidateSchema,
   startTripCheckoutSchema,
   tripComponentKindSchema,
@@ -78,8 +74,6 @@ type Env = {
 
 export interface TripsRoutesOptions {
   surface?: "admin" | "public"
-  priceTripDeps?: TripsRouteDeps<PriceTripDeps>
-  reserveTripDeps?: TripsRouteDeps<ReserveTripDeps>
   startCheckoutDeps?: TripsRouteDeps<StartCheckoutDeps>
   cancelTripComponentsDeps?: TripsRouteDeps<CancelTripComponentsDeps>
 }
@@ -89,9 +83,7 @@ export type TripsRoutesOptionsProvider = () => TripsRoutesOptions | Promise<Trip
 export type TripsRoutesOptionsInput = TripsRoutesOptions | TripsRoutesOptionsProvider
 type ResolveTripsRoutesOptions = () => Promise<TripsRoutesOptions>
 
-const priceTripBodySchema = priceTripSchema.omit({ envelopeId: true })
 const createTripSnapshotBodySchema = createTripSnapshotSchema.omit({ envelopeId: true })
-const reserveTripBodySchema = reserveTripSchema.omit({ envelopeId: true })
 const startCheckoutBodySchema = startTripCheckoutSchema.omit({ envelopeId: true })
 const previewCancellationBodySchema = previewTripCancellationSchema.omit({ envelopeId: true })
 const cancelTripComponentsBodySchema = cancelTripComponentsSchema.omit({ envelopeId: true })
@@ -253,9 +245,9 @@ const envelopeDataSchema = z.object({ data: tripEnvelopeRowSchema })
 const componentDataSchema = z.object({ data: tripComponentRowSchema })
 
 /**
- * Lifecycle result envelopes (price/reserve/checkout/cancellation). The
+ * Lifecycle result envelopes (checkout/cancellation). The
  * envelope + components rows are modeled faithfully; the per-operation
- * composed result fields (pricing/reservation/checkout/cancellation payloads)
+ * composed result fields (checkout/cancellation payloads)
  * pass through as `z.unknown()` — bounded effort per voyant#2208.
  */
 const lifecycleResultSchema = z.object({
@@ -284,19 +276,6 @@ function routeError(error: unknown): { message: string; status: 400 | 404 | 409 
   return {
     message: isInternalErrorMessage(message) ? "Trips route failed" : message,
     status: 400,
-  }
-}
-
-function reserveFailureResponse(result: Awaited<ReturnType<typeof tripsService.reserveTrip>>) {
-  return {
-    error: "Trip reservation failed",
-    data: result,
-    failures: result.failures.map(({ componentId, reason, code }) => ({
-      componentId,
-      reason,
-      ...(code ? { code } : {}),
-    })),
-    reservationPlanId: result.reservationPlanId ?? null,
   }
 }
 
@@ -849,74 +828,6 @@ const selectCandidateRoute = createRoute({
 
 // lifecycle ──────────────────────────────────────────────────────────────────
 
-const priceTripRoute = createRoute({
-  method: "post",
-  path: "/{envelopeId}/price",
-  request: {
-    params: envelopeIdParamSchema,
-    body: {
-      required: true,
-      content: { "application/json": { schema: priceTripBodySchema } },
-    },
-  },
-  responses: {
-    200: {
-      description: "The priced envelope with components and a composed pricing result",
-      content: { "application/json": { schema: lifecycleResultSchema } },
-    },
-    400: {
-      description: "invalid_request — body failed validation",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    404: {
-      description: "Trip envelope not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    409: {
-      description: "Envelope cannot be priced in its current state",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    501: {
-      description: "Trips price dependencies are not configured",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-  },
-})
-
-const reserveTripRoute = createRoute({
-  method: "post",
-  path: "/{envelopeId}/reserve",
-  request: {
-    params: envelopeIdParamSchema,
-    body: {
-      required: true,
-      content: { "application/json": { schema: reserveTripBodySchema } },
-    },
-  },
-  responses: {
-    200: {
-      description: "The reserved envelope with components and a composed reservation result",
-      content: { "application/json": { schema: lifecycleResultSchema } },
-    },
-    400: {
-      description: "invalid_request — body failed validation",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    404: {
-      description: "Trip envelope not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    409: {
-      description: "Envelope cannot be reserved in its current state",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    501: {
-      description: "Trips reserve dependencies are not configured",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-  },
-})
-
 const checkoutTripRoute = createRoute({
   method: "post",
   path: "/{envelopeId}/checkout",
@@ -1230,51 +1141,6 @@ function createRequirementRoutes(readOptions: ResolveTripsRoutesOptions): OpenAP
 
 function createLifecycleRoutes(readOptions: ResolveTripsRoutesOptions): OpenAPIHono<Env> {
   return new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-    .openapi(priceTripRoute, async (c) => {
-      const deps = await resolveConfiguredRouteDeps(
-        c,
-        readOptions,
-        (options) => options.priceTripDeps,
-      )
-      if (!deps) {
-        return c.json({ error: "Trips price dependencies are not configured" }, 501)
-      }
-      try {
-        const result = await tripsService.priceTrip(
-          c.get("db"),
-          { ...c.req.valid("json"), envelopeId: c.req.valid("param").envelopeId },
-          deps,
-        )
-        return c.json({ data: result }, 200)
-      } catch (error) {
-        const { message, status } = routeError(error)
-        return c.json({ error: message }, status)
-      }
-    })
-    .openapi(reserveTripRoute, async (c) => {
-      const deps = await resolveConfiguredRouteDeps(
-        c,
-        readOptions,
-        (options) => options.reserveTripDeps,
-      )
-      if (!deps) {
-        return c.json({ error: "Trips reserve dependencies are not configured" }, 501)
-      }
-      try {
-        const result = await tripsService.reserveTrip(
-          c.get("db"),
-          { ...c.req.valid("json"), envelopeId: c.req.valid("param").envelopeId },
-          deps,
-        )
-        if (result.failures.length > 0) {
-          return c.json(reserveFailureResponse(result), 409)
-        }
-        return c.json({ data: result }, 200)
-      } catch (error) {
-        const { message, status } = routeError(error)
-        return c.json({ error: message }, status)
-      }
-    })
     .openapi(checkoutTripRoute, async (c) => {
       const deps = await resolveConfiguredRouteDeps(
         c,

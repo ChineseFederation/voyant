@@ -2,7 +2,7 @@
 
 Quotes owns pipelines, stages, quotes, quote versions, quote participants,
 quote products, quote version lines, proposal lifecycle decisions, and the
-accept-to-reserve booking quote details extension.
+public proposal and booking quote details extensions.
 
 People and organizations are referenced by plain ids. This package does not
 import Relationships schema tables or own relationship lifecycle state.
@@ -47,14 +47,23 @@ versions.
 
 The proposal extension additionally owns `snapshot_and_send_quote`: one confirmation- and
 approval-gated command snapshots the current quote, renders a public proposal link through a
-vetted Notifications template, delivers it, then marks that exact version sent. A required
-idempotency key fingerprints the complete command; exact retries reuse both the prepared version
-and the notification delivery, while command drift fails closed.
+vetted Notifications template, atomically enqueues the delivery, and marks that exact version
+sent. Idempotency and approval come exclusively from the admitted `_voyant` invocation. The quote
+snapshot, action claim, exact selected notification provider, durable delivery operation, and
+replay result commit together; provider code runs only in Notifications' worker.
 
-The compatibility aliases `quote_version_snapshot`, `quote_version_send`,
-`quote_version_accept`, and `quote_version_decline` preserve the existing hosted invocation names
-while consumers migrate to stable capability IDs. `send_quote_version` remains the state-only
-primitive; `snapshot_and_send_quote` is the composed customer-delivery flow.
+The action is unavailable by default and becomes available only when the deployment selects a
+`notifications.durable-provider` implementation that passes replay, restart, accepted-count, and
+payload-drift conformance. Missing or non-conformant providers fail closed.
+
+Public proposal acceptance records the customer's Quotes-owned lifecycle decision only. It does
+not reserve a Trip, cancel supplier holds, start checkout, or resolve deployment mutation
+adapters. Reservation and checkout remain separate approved domain actions.
+
+`send_quote_version` remains the state-only primitive;
+`snapshot_and_send_quote` is the composed customer-delivery flow. Historical
+hosted invocation aliases are not published; callers use the canonical Tool
+names and stable capability IDs.
 
 ## License
 

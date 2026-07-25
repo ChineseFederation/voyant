@@ -20,16 +20,12 @@ import {
 import { z } from "zod"
 
 import type { TripComponent } from "./schema.js"
-import type {
-  PriceTripResult as ServicePriceTripResult,
-  ReserveTripResult as ServiceReserveTripResult,
-} from "./service.js"
 import {
-  priceTripResultSchema,
-  reserveTripResultSchema,
   reviseTripResultSchema,
   selectTripCandidateResultSchema,
   sourceTripCandidatesAcceptedResultSchema,
+  tripActionAcceptedResultSchema,
+  tripActionOperationResultSchema,
   tripRequirementSourcingOperationResultSchema,
   tripRequirementToolSchema,
 } from "./tool-output-schemas.js"
@@ -48,6 +44,7 @@ import {
 const OWNER = "@voyant-travel/trips"
 const VERSION = "v1"
 const SOURCE_REQUIREMENT_CANDIDATES_VERSION = "v2"
+const DURABLE_TRIP_ACTION_VERSION = "v2"
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const REQUIREMENT_WRITE_RISK = {
   destructive: false,
@@ -123,6 +120,46 @@ export const SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+export const PRICE_TRIP_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.price-trip`,
+  capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
+  canonicalName: "price_trip",
+  actionPolicy: {
+    id: `${OWNER}#action.price-trip`,
+    capabilityId: `${OWNER}#action.price-trip`,
+    version: DURABLE_TRIP_ACTION_VERSION,
+    kind: "execute",
+    targetType: "trip",
+    commandTargetField: "envelopeId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: true,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
+export const RESERVE_TRIP_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.reserve-trip`,
+  capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
+  canonicalName: "reserve_trip",
+  actionPolicy: {
+    id: `${OWNER}#action.reserve-trip`,
+    capabilityId: `${OWNER}#action.reserve-trip`,
+    version: DURABLE_TRIP_ACTION_VERSION,
+    kind: "execute",
+    targetType: "trip",
+    commandTargetField: "envelopeId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "critical",
+    ledger: "required",
+    approval: "required",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
 /** The trips service surface a deployment binds into the tool context. */
 export interface TripsToolServices {
   createTrip(
@@ -131,8 +168,18 @@ export interface TripsToolServices {
   ): Promise<{ envelopeId: string }>
   addComponent(input: z.infer<typeof createTripComponentSchema>): Promise<TripComponent>
   removeComponent?(componentId: string): Promise<TripComponent | null>
-  priceTrip(input: z.infer<typeof priceTripSchema>): Promise<ServicePriceTripResult>
-  reserveTrip(input: z.infer<typeof reserveTripSchema>): Promise<ServiceReserveTripResult>
+  acceptPriceTrip(
+    input: z.infer<typeof priceTripSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
+  acceptReserveTrip(
+    input: Omit<z.infer<typeof reserveTripSchema>, "idempotencyKey">,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
+  getTripActionOperation(input: {
+    operationId: string
+    envelopeId: string
+  }): Promise<unknown | null>
   addRequirement(input: z.infer<typeof addRequirementSchema>): Promise<unknown>
   acceptRequirementCandidateSourcing(
     input: z.infer<typeof sourceRequirementCandidatesSchema>,
@@ -162,7 +209,6 @@ function assertToolAudience(ctx: TripsToolContext, audience: Visibility): void {
 
 const createTripArgs = createTripEnvelopeSchema.extend({
   components: z.array(createTripComponentBodySchema).default([]),
-  idempotencyKey: z.string().trim().min(1).max(255).optional(),
 })
 export type CreateTripArgs = z.infer<typeof createTripArgs>
 
@@ -235,34 +281,41 @@ export const reviseTripTool = defineTool<ReviseTripArgs, ReviseTripResult, Trips
 })
 
 export type PriceTripArgs = z.infer<typeof priceTripSchema>
-export type PriceTripResult = z.output<typeof priceTripResultSchema>
+export type PriceTripResult = z.output<typeof tripActionAcceptedResultSchema>
 
 export const priceTripTool = defineTool<PriceTripArgs, PriceTripResult, TripsToolContext>({
   name: "price_trip",
   description:
-    "Price a deterministic trip. Returns aggregate totals, component statuses, warnings, " +
-    "failures, and quote expiry data.",
+    "Accept durable pricing for a deterministic trip through the exact selected provider. " +
+    "Returns an operation id for get_trip_action_operation; provider dispatch is asynchronous.",
   inputSchema: priceTripSchema,
-  outputSchema: priceTripResultSchema,
+  outputSchema: tripActionAcceptedResultSchema,
   requiredScopes: ["trips:write"],
   tier: "write",
   riskPolicy: PRICE_WRITE_RISK,
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
   async handler(args, ctx) {
     assertToolAudience(ctx, args.scope.audience)
-    return parseJsonResult(priceTripResultSchema, await trips(ctx).priceTrip(args))
+    const admitted = admitHandlerActionPolicy(ctx, PRICE_TRIP_HANDLER_POLICY)
+    return parseJsonResult(
+      tripActionAcceptedResultSchema,
+      await trips(ctx).acceptPriceTrip(args, admitted),
+    )
   },
 })
 
-export type ReserveTripArgs = z.infer<typeof reserveTripSchema>
-export type ReserveTripResult = z.output<typeof reserveTripResultSchema>
+const reserveTripCommandSchema = reserveTripSchema.omit({ idempotencyKey: true })
+export type ReserveTripArgs = z.infer<typeof reserveTripCommandSchema>
+export type ReserveTripResult = z.output<typeof tripActionAcceptedResultSchema>
 
 export const reserveTripTool = defineTool<ReserveTripArgs, ReserveTripResult, TripsToolContext>({
   name: "reserve_trip",
   description:
-    "Reserve a priced trip through deterministic trips services. Partial failures return " +
-    "explicit compensation and staff-remediation state.",
-  inputSchema: reserveTripSchema,
-  outputSchema: reserveTripResultSchema,
+    "Accept durable reservation of a priced trip through the exact selected provider. " +
+    "Returns an operation id for get_trip_action_operation; provider dispatch is asynchronous.",
+  inputSchema: reserveTripCommandSchema,
+  outputSchema: tripActionAcceptedResultSchema,
   requiredScopes: ["trips:write"],
   tier: "destructive",
   riskPolicy: {
@@ -272,9 +325,44 @@ export const reserveTripTool = defineTool<ReserveTripArgs, ReserveTripResult, Tr
     confirmationRequired: true,
     sideEffects: ["external-booking", "payment"],
   },
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
   async handler(args, ctx) {
     if (args.refreshScope) assertToolAudience(ctx, args.refreshScope.audience)
-    return parseJsonResult(reserveTripResultSchema, await trips(ctx).reserveTrip(args))
+    const admitted = admitHandlerActionPolicy(ctx, RESERVE_TRIP_HANDLER_POLICY)
+    return parseJsonResult(
+      tripActionAcceptedResultSchema,
+      await trips(ctx).acceptReserveTrip(args, admitted),
+    )
+  },
+})
+
+export const getTripActionOperationTool = defineTool({
+  capabilityId: `${OWNER}#tool.get-trip-action-operation`,
+  capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
+  name: "get_trip_action_operation",
+  description:
+    "Read the immutable status and terminal provider outcome of an admitted Trip pricing or reservation operation.",
+  inputSchema: z.object({
+    operationId: z.string().min(1),
+    envelopeId: z.string().min(1),
+  }),
+  outputSchema: tripActionOperationResultSchema.nullable(),
+  requiredScopes: ["trips:read"],
+  audience: STAFF_AUDIENCE,
+  tier: "read",
+  riskPolicy: {
+    destructive: false,
+    reversible: true,
+    dryRunSupported: true,
+    confirmationRequired: false,
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true },
+  async handler(input, ctx: TripsToolContext) {
+    return parseJsonResult(
+      tripActionOperationResultSchema.nullable(),
+      await trips(ctx).getTripActionOperation(input),
+    )
   },
 })
 
@@ -365,6 +453,7 @@ export const tripsTools = [
   reviseTripTool,
   priceTripTool,
   reserveTripTool,
+  getTripActionOperationTool,
   addTripRequirementTool,
   sourceTripRequirementCandidatesTool,
   getTripRequirementSourcingOperationTool,

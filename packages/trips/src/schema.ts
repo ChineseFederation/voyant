@@ -87,6 +87,19 @@ export const tripRequirementSourcingOperationStatusEnum = pgEnum(
   ["pending", "processing", "retry", "completed", "dead_letter"],
 )
 
+export const tripActionOperationKindEnum = pgEnum("trip_action_operation_kind", [
+  "price-trip",
+  "reserve-trip",
+])
+
+export const tripActionOperationStatusEnum = pgEnum("trip_action_operation_status", [
+  "pending",
+  "processing",
+  "retry",
+  "completed",
+  "dead_letter",
+])
+
 export type TripEnvelopePricingSnapshot = {
   currency: string
   subtotalAmountCents: number
@@ -530,6 +543,48 @@ export const tripRequirementSourcingOperations = pgTable(
   ],
 )
 
+export const tripActionOperations = pgTable(
+  "trip_action_operations",
+  {
+    // The admitted claim id is the stable globally unique operation identity.
+    id: text("id").primaryKey(),
+    commandScope: text("command_scope").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    claimActionId: text("claim_action_id").notNull(),
+    organizationId: text("organization_id"),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id")
+      .notNull()
+      .references(() => tripEnvelopes.id, { onDelete: "restrict" }),
+    kind: tripActionOperationKindEnum("kind").notNull(),
+    backendIdentity: text("backend_identity").notNull(),
+    requestSnapshot: jsonb("request_snapshot").$type<Record<string, unknown>>().notNull(),
+    resultSnapshot: jsonb("result_snapshot").$type<Record<string, unknown>>().notNull(),
+    outcomeSnapshot: jsonb("outcome_snapshot").$type<Record<string, unknown>>(),
+    providerOperationId: text("provider_operation_id"),
+    status: tripActionOperationStatusEnum("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(8),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    leaseVersion: integer("lease_version").notNull().default(0),
+    lastError: text("last_error"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uidx_trip_action_operations_command").on(table.commandScope, table.idempotencyKey),
+    index("idx_trip_action_operations_due").on(
+      table.status,
+      table.nextAttemptAt,
+      table.leaseExpiresAt,
+    ),
+    index("idx_trip_action_operations_target").on(table.targetId, table.kind, table.status),
+  ],
+)
+
 export const tripEnvelopeRelations = relations(tripEnvelopes, ({ many }) => ({
   components: many(tripComponents),
   events: many(tripComponentEvents),
@@ -621,3 +676,5 @@ export type NewTripCandidate = typeof tripCandidates.$inferInsert
 export type TripRequirementSourcingOperation = typeof tripRequirementSourcingOperations.$inferSelect
 export type NewTripRequirementSourcingOperation =
   typeof tripRequirementSourcingOperations.$inferInsert
+export type TripActionOperation = typeof tripActionOperations.$inferSelect
+export type NewTripActionOperation = typeof tripActionOperations.$inferInsert

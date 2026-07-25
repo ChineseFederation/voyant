@@ -1,17 +1,18 @@
-import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { QuotesNotificationsRuntime } from "@voyant-travel/quotes/runtime-port"
 
+import type { DurableNotificationProviderRuntime } from "./durable-provider-port.js"
 import { createNotificationService } from "./service.js"
 import { enqueueNotification } from "./service-durable-send.js"
 
 /** Adapt Notifications delivery to Quotes' narrow, template-only proposal contract. */
 export function createQuotesNotificationsRuntime(
-  primitives: VoyantRuntimeHostPrimitives,
+  selectedRuntime: DurableNotificationProviderRuntime,
 ): QuotesNotificationsRuntime {
+  const providers = [...selectedRuntime.providers]
+  const providerNames = providers.map(({ name }) => name)
   return {
-    async sendQuoteProposal(db, bindings, input) {
-      const resolver = primitives.config.read(bindings, "notificationProviders")
-      const providers = typeof resolver === "function" ? resolver(primitives.env(bindings)) : []
+    providerNames,
+    async enqueueQuoteProposal(db, input) {
       const delivery = await enqueueNotification({
         db,
         registry: createNotificationService(providers),

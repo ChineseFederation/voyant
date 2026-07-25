@@ -34,12 +34,14 @@ describe("trips deployment manifest", () => {
           { id: "trips.routes-runtime" },
           { id: "trips.database-runtime" },
           { id: "trips.sourcing-job-runtime" },
+          { id: "trips.durable-action-runtime" },
         ],
       },
       runtimePorts: [
         { id: "trips.routes-runtime" },
         { id: "trips.database-runtime" },
         { id: "trips.sourcing-job-runtime" },
+        { id: "trips.durable-action-runtime", optional: true },
         { id: "payments.adapter.runtime", optional: true },
         { id: "catalog.runtime-services" },
         { id: "commerce.checkout-api-options" },
@@ -64,6 +66,15 @@ describe("trips deployment manifest", () => {
       schema: [{ id: "@voyant-travel/trips#schema" }],
       migrations: [{ id: "@voyant-travel/trips#migrations" }],
       jobs: [
+        {
+          id: "trips.execute-durable-actions",
+          wakeup: true,
+          scheduling: { required: true },
+          runtime: {
+            entry: "@voyant-travel/trips/action-job",
+            export: "runTripActionJob",
+          },
+        },
         {
           id: "trips.source-requirement-candidates",
           wakeup: true,
@@ -187,14 +198,27 @@ describe("trips deployment manifest", () => {
     ])
     expect(tripsVoyantModule.actions).toContainEqual({
       id: "@voyant-travel/trips#action.reserve-trip",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "trip",
+      commandTargetField: "envelopeId",
+      targetLifecycle: "existing",
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: ["trips.durable-action-runtime"],
+          },
+        },
       },
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/trips/tests/integration/durable-actions.test.ts",
+      },
       requiredScopes: ["trips:write"],
       risk: "critical",
       ledger: "required",
@@ -204,15 +228,27 @@ describe("trips deployment manifest", () => {
     })
     expect(tripsVoyantModule.actions).toContainEqual({
       id: "@voyant-travel/trips#action.price-trip",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "trip",
       targetLifecycle: "existing",
+      commandTargetField: "envelopeId",
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: ["trips.durable-action-runtime"],
+          },
+        },
       },
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/trips/tests/integration/durable-actions.test.ts",
+      },
       requiredScopes: ["trips:write"],
       risk: "high",
       ledger: "required",
@@ -312,7 +348,8 @@ describe("trips deployment manifest", () => {
       async <T>(_bindings: unknown, operation: (value: AnyDrizzleDb) => Promise<T>): Promise<T> =>
         operation(db),
     )
-    const databaseRuntime: TripsDatabaseRuntime = { withDb }
+    const resolveDb = vi.fn(() => db)
+    const databaseRuntime: TripsDatabaseRuntime = { resolveDb, withDb }
 
     await expect(assertPortConforms(tripsRoutesRuntimePort, routeOptions)).resolves.toBeUndefined()
     await expect(
@@ -322,8 +359,11 @@ describe("trips deployment manifest", () => {
       assertPortConforms(tripsDatabaseRuntimePort, databaseRuntime),
     ).resolves.toBeUndefined()
     await expect(
-      assertPortConforms(tripsDatabaseRuntimePort, { withDb: true } as never),
-    ).rejects.toThrow(/withDb/)
+      assertPortConforms(tripsDatabaseRuntimePort, { resolveDb, withDb: true } as never),
+    ).rejects.toThrow(/resolveDb.*withDb/)
+    await expect(
+      assertPortConforms(tripsDatabaseRuntimePort, { resolveDb: true, withDb } as never),
+    ).rejects.toThrow(/resolveDb.*withDb/)
     await expect(
       assertPortConforms(tripsSourcingJobRuntimePort, {
         resolveDb: vi.fn(),

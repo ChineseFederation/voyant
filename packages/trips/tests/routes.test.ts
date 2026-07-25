@@ -163,30 +163,8 @@ describe("trips routes", () => {
     })
   })
 
-  it("resolves lazy route options only when an injected dependency is needed", async () => {
-    vi.spyOn(tripsService, "reserveTrip")
-      .mockResolvedValueOnce({
-        envelope: { id: "trip_123", status: "reserved" },
-        components: [],
-        reservationPlanId: "trpl_1",
-        reserved: [],
-        failures: [],
-        compensations: [],
-        warnings: [],
-      } as never)
-      .mockResolvedValueOnce({
-        envelope: { id: "trip_123", status: "reserved" },
-        components: [],
-        reservationPlanId: "trpl_1",
-        reserved: [],
-        failures: [],
-        compensations: [],
-        warnings: [],
-      } as never)
-    const submitReservationPlan = vi.fn()
-    const routeOptions = vi.fn(async () => ({
-      reserveTripDeps: { submitReservationPlan },
-    }))
+  it("does not expose direct price or reserve mutation routes", async () => {
+    const routeOptions = vi.fn(async () => ({}))
     const app = appWithDb(createTripsRoutes(routeOptions))
 
     expect(routeOptions).not.toHaveBeenCalled()
@@ -195,98 +173,15 @@ describe("trips routes", () => {
     expect(health.status).toBe(200)
     expect(routeOptions).not.toHaveBeenCalled()
 
-    const firstReserve = await app.request("/trip_123/reserve", {
-      method: "POST",
-      body: JSON.stringify({}),
-      headers: { "content-type": "application/json" },
-    })
-    expect(firstReserve.status).toBe(200)
-    expect(routeOptions).toHaveBeenCalledTimes(1)
-
-    const secondReserve = await app.request("/trip_123/reserve", {
-      method: "POST",
-      body: JSON.stringify({}),
-      headers: { "content-type": "application/json" },
-    })
-    expect(secondReserve.status).toBe(200)
-    expect(routeOptions).toHaveBeenCalledTimes(1)
-  })
-
-  it("returns a conflict response when reserve produces component failures", async () => {
-    vi.spyOn(tripsService, "reserveTrip").mockResolvedValueOnce({
-      envelope: { id: "trip_123", status: "failed" },
-      components: [],
-      reservationPlanId: "trpl_1",
-      reserved: [],
-      failures: [
-        {
-          componentId: "trcp_1",
-          reason: "component_reservation_failed",
-          code: "component_reservation_failed",
-        },
-      ],
-      compensations: [],
-      warnings: ["component_reservation_failed"],
-    } as never)
-    const app = appWithDb(
-      createTripsRoutes({
-        reserveTripDeps: { submitReservationPlan: vi.fn() },
-      }),
-    )
-
-    const res = await app.request("/trip_123/reserve", {
-      method: "POST",
-      body: JSON.stringify({ idempotencyKey: "reserve-1" }),
-      headers: { "content-type": "application/json" },
-    })
-
-    expect(res.status).toBe(409)
-    await expect(res.json()).resolves.toEqual({
-      error: "Trip reservation failed",
-      data: {
-        envelope: { id: "trip_123", status: "failed" },
-        components: [],
-        reservationPlanId: "trpl_1",
-        reserved: [],
-        failures: [
-          {
-            componentId: "trcp_1",
-            reason: "component_reservation_failed",
-            code: "component_reservation_failed",
-          },
-        ],
-        compensations: [],
-        warnings: ["component_reservation_failed"],
-      },
-      failures: [
-        {
-          componentId: "trcp_1",
-          reason: "component_reservation_failed",
-          code: "component_reservation_failed",
-        },
-      ],
-      reservationPlanId: "trpl_1",
-    })
-  })
-
-  it("sanitizes raw SQL errors thrown by reserve dependencies", async () => {
-    vi.spyOn(tripsService, "reserveTrip").mockRejectedValueOnce(
-      new Error('Failed query: insert into "booking_payment_schedules" values ($1)\nparams: x'),
-    )
-    const app = appWithDb(
-      createTripsRoutes({
-        reserveTripDeps: { submitReservationPlan: vi.fn() },
-      }),
-    )
-
-    const res = await app.request("/trip_123/reserve", {
-      method: "POST",
-      body: JSON.stringify({}),
-      headers: { "content-type": "application/json" },
-    })
-
-    expect(res.status).toBe(400)
-    await expect(res.json()).resolves.toEqual({ error: "Trips route failed" })
+    for (const path of ["/trip_123/price", "/trip_123/reserve"]) {
+      const response = await app.request(path, {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "content-type": "application/json" },
+      })
+      expect(response.status, path).toBe(404)
+    }
+    expect(routeOptions).not.toHaveBeenCalled()
   })
 })
 

@@ -1,5 +1,12 @@
-import { sha256 } from "@voyant-travel/action-ledger/fingerprint"
-import { and, eq, sql } from "drizzle-orm"
+import {
+  type ActionLedgerRequestContextValues,
+  type AdmittedExistingTargetCommand,
+  type ExistingTargetCommandPayload,
+  executeAdmittedExistingTargetCommand,
+} from "@voyant-travel/action-ledger"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
+import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 
@@ -9,7 +16,7 @@ import type {
   QuotesNotificationsRuntime,
 } from "../runtime-port.js"
 import type { QuoteVersion } from "../schema.js"
-import { quoteProposalDeliveryRequests, quoteVersions } from "../schema.js"
+import { quoteProposalDeliveryRequests, quotes } from "../schema.js"
 import { QuoteVersionConflictError, quoteVersionsService } from "./quote-versions.js"
 
 export const snapshotAndSendQuoteInputSchema = z.object({
@@ -19,139 +26,152 @@ export const snapshotAndSendQuoteInputSchema = z.object({
   channel: z.enum(["email", "sms"]).default("email"),
   validUntil: z.string().date().nullable().optional(),
   data: z.record(z.string(), z.unknown()).default({}),
-  idempotencyKey: z.string().trim().min(8).max(255),
 })
 
 export type SnapshotAndSendQuoteInput = z.infer<typeof snapshotAndSendQuoteInputSchema>
 
-export interface SnapshotAndSendQuoteResult {
+export interface SnapshotAndSendQuoteResult extends Record<string, unknown> {
   quoteVersion: QuoteVersion
   proposalUrl: string
   delivery: QuoteProposalNotificationDelivery
-  reused: boolean
 }
 
-export class QuoteDeliveryIdempotencyConflictError extends Error {
-  constructor() {
-    super("Quote delivery idempotency key was already used for a different command")
-    this.name = "QuoteDeliveryIdempotencyConflictError"
-  }
+export interface ExecuteSnapshotAndSendQuoteCommandInput {
+  db: AnyDrizzleDb
+  context: ActionLedgerRequestContextValues
+  admitted: ToolHandlerActionPolicyContext
+  notifications: QuotesNotificationsRuntime
+  input: SnapshotAndSendQuoteInput
+  publicProposalBaseUrl?: string | null
 }
 
-export class QuoteDeliveryFailedError extends Error {
-  constructor(readonly delivery: QuoteProposalNotificationDelivery) {
-    super(`Quote proposal notification finished with status ${delivery.status}`)
-    this.name = "QuoteDeliveryFailedError"
-  }
+/**
+ * Admit one quote delivery command and atomically persist the quote snapshot,
+ * sent lifecycle state, durable Notifications enqueue, exact provider
+ * identity, immutable command, and replay result. Provider code is worker-only.
+ */
+export async function executeSnapshotAndSendQuoteCommand(
+  input: ExecuteSnapshotAndSendQuoteCommandInput,
+) {
+  return executeAdmittedExistingTargetCommand(
+    {
+      db: input.db,
+      context: input.context,
+      admitted: input.admitted,
+      commandInput: input.input,
+      evaluatedRisk: "high",
+    },
+    {
+      prepare: (tx, command, payload) =>
+        prepareSnapshotAndSendQuote(
+          tx,
+          input.notifications,
+          command,
+          payload,
+          input.publicProposalBaseUrl,
+        ),
+      execute: (command) => resolveSnapshotAndSendQuoteResult(input.db, command),
+      replay: (command) => resolveSnapshotAndSendQuoteResult(input.db, command),
+    },
+  )
 }
 
-export async function snapshotAndSendQuote(
-  db: PostgresJsDatabase,
+async function prepareSnapshotAndSendQuote(
+  tx: AnyDrizzleDb,
   notifications: QuotesNotificationsRuntime,
-  input: SnapshotAndSendQuoteInput,
-  options: {
-    publicProposalBaseUrl?: string | null
-    bindings?: Record<string, unknown>
-  } = {},
-): Promise<SnapshotAndSendQuoteResult | null> {
-  const requestFingerprint = `sha256:${await sha256({ ...input, idempotencyKey: null })}`
-  const prepared = await db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`quotes.snapshot-and-send:${input.idempotencyKey}`}))`,
-    )
-    const [existing] = await tx
-      .select()
-      .from(quoteProposalDeliveryRequests)
-      .where(eq(quoteProposalDeliveryRequests.idempotencyKey, input.idempotencyKey))
-      .limit(1)
-    if (existing) {
-      if (existing.requestFingerprint !== requestFingerprint) {
-        throw new QuoteDeliveryIdempotencyConflictError()
-      }
-      const [quoteVersion] = await tx
-        .select()
-        .from(quoteVersions)
-        .where(eq(quoteVersions.id, existing.quoteVersionId))
-        .limit(1)
-      if (!quoteVersion) {
-        throw new QuoteVersionConflictError("Prepared quote delivery lost its Quote Version")
-      }
-      return {
-        quoteVersion,
-        proposalUrl: existing.proposalUrl,
-        reused: true,
-        completed: existing.completedAt !== null,
-      }
-    }
+  command: AdmittedExistingTargetCommand,
+  input: ExistingTargetCommandPayload<SnapshotAndSendQuoteInput>,
+  publicProposalBaseUrl: string | null | undefined,
+): Promise<void> {
+  const [quote] = await tx
+    .select({ id: quotes.id })
+    .from(quotes)
+    .where(eq(quotes.id, command.target.id))
+    .for("update")
+    .limit(1)
+  if (!quote || command.target.type !== "quote" || input.quoteId !== quote.id) {
+    throw new QuoteVersionConflictError(`Quote ${command.target.id} was not found`)
+  }
 
-    const quoteVersion = await quoteVersionsService.createVersionSnapshotFromQuote(
-      tx as PostgresJsDatabase,
-      input.quoteId,
-    )
-    if (!quoteVersion) return null
-    const proposalUrl = buildQuoteVersionProposalUrl(quoteVersion.id, {
-      baseUrl: options.publicProposalBaseUrl,
-    })
-    await tx.insert(quoteProposalDeliveryRequests).values({
-      idempotencyKey: input.idempotencyKey,
-      requestFingerprint,
-      quoteId: input.quoteId,
-      quoteVersionId: quoteVersion.id,
-      proposalUrl,
-    })
-    return { quoteVersion, proposalUrl, reused: false, completed: false }
+  const quoteDb = tx as PostgresJsDatabase
+  const quoteVersion = await quoteVersionsService.createVersionSnapshotFromQuote(quoteDb, quote.id)
+  if (!quoteVersion) throw new QuoteVersionConflictError(`Quote ${quote.id} was not found`)
+  const proposalUrl = buildQuoteVersionProposalUrl(quoteVersion.id, {
+    baseUrl: publicProposalBaseUrl,
   })
-  if (!prepared) return null
-
-  const delivery = await notifications.sendQuoteProposal(db, options.bindings ?? {}, {
-    idempotencyKey: `quotes.snapshot-and-send:${input.idempotencyKey}`,
+  const delivery = await notifications.enqueueQuoteProposal(tx, {
+    idempotencyKey: `quotes:snapshot-send:${command.causation.claimActionId}`,
     templateSlug: input.templateSlug,
     to: input.to,
     channel: input.channel,
-    quoteId: input.quoteId,
-    quoteVersionId: prepared.quoteVersion.id,
+    quoteId: quote.id,
+    quoteVersionId: quoteVersion.id,
     data: {
       ...input.data,
-      quoteId: input.quoteId,
-      quoteVersionId: prepared.quoteVersion.id,
-      proposalUrl: prepared.proposalUrl,
+      quoteId: quote.id,
+      quoteVersionId: quoteVersion.id,
+      proposalUrl,
     },
   })
   if (delivery.status === "failed" || delivery.status === "cancelled") {
-    throw new QuoteDeliveryFailedError(delivery)
-  }
-
-  if (prepared.completed) {
-    return {
-      quoteVersion: prepared.quoteVersion,
-      proposalUrl: prepared.proposalUrl,
-      delivery,
-      reused: true,
-    }
-  }
-
-  if (!["draft", "sent"].includes(prepared.quoteVersion.status)) {
     throw new QuoteVersionConflictError(
-      `Prepared Quote Version cannot complete delivery from ${prepared.quoteVersion.status}`,
+      `Notifications rejected quote delivery with status ${delivery.status}`,
     )
   }
-  const quoteVersion =
-    prepared.quoteVersion.status === "sent"
-      ? prepared.quoteVersion
-      : await quoteVersionsService.sendQuoteVersion(db, prepared.quoteVersion.id, {
-          validUntil: input.validUntil,
-        })
-  if (!quoteVersion) throw new QuoteVersionConflictError("Prepared Quote Version was not found")
 
-  await db
-    .update(quoteProposalDeliveryRequests)
-    .set({ completedAt: new Date() })
+  const sent = await quoteVersionsService.sendQuoteVersion(quoteDb, quoteVersion.id, {
+    validUntil: input.validUntil,
+  })
+  if (!sent) throw new QuoteVersionConflictError("Prepared Quote Version was not found")
+  const result: SnapshotAndSendQuoteResult = {
+    quoteVersion: sent,
+    proposalUrl,
+    delivery,
+  }
+  await tx.insert(quoteProposalDeliveryRequests).values({
+    id: command.causation.claimActionId,
+    commandScope: command.idempotency.scope,
+    commandIdempotencyKey: command.idempotency.key,
+    requestFingerprint: command.idempotency.fingerprint,
+    claimActionId: command.causation.claimActionId,
+    organizationId: command.authorization.organizationId,
+    targetType: command.target.type,
+    targetId: command.target.id,
+    quoteId: quote.id,
+    quoteVersionId: sent.id,
+    proposalUrl,
+    provider: delivery.provider,
+    resultSnapshot: result,
+    completedAt: new Date(),
+  })
+}
+
+async function resolveSnapshotAndSendQuoteResult(
+  db: AnyDrizzleDb,
+  command: AdmittedExistingTargetCommand,
+): Promise<SnapshotAndSendQuoteResult> {
+  const [operation] = await db
+    .select()
+    .from(quoteProposalDeliveryRequests)
     .where(
       and(
-        eq(quoteProposalDeliveryRequests.idempotencyKey, input.idempotencyKey),
-        eq(quoteProposalDeliveryRequests.quoteVersionId, quoteVersion.id),
+        eq(quoteProposalDeliveryRequests.commandScope, command.idempotency.scope),
+        eq(quoteProposalDeliveryRequests.commandIdempotencyKey, command.idempotency.key),
       ),
     )
-
-  return { quoteVersion, proposalUrl: prepared.proposalUrl, delivery, reused: prepared.reused }
+    .limit(1)
+  if (
+    !operation ||
+    operation.requestFingerprint !== command.idempotency.fingerprint ||
+    operation.claimActionId !== command.causation.claimActionId ||
+    operation.organizationId !== command.authorization.organizationId ||
+    operation.targetType !== command.target.type ||
+    operation.targetId !== command.target.id ||
+    operation.quoteId !== command.target.id
+  ) {
+    throw new QuoteVersionConflictError(
+      "Durable quote delivery command state is missing or inconsistent",
+    )
+  }
+  return operation.resultSnapshot as SnapshotAndSendQuoteResult
 }

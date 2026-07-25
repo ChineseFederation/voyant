@@ -1,6 +1,7 @@
 import { commerceCardPaymentRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import { storefrontPaymentLinkRuntimePort } from "@voyant-travel/storefront/runtime-port"
+import { durableTripActionRuntimePort } from "./durable-action-runtime-port.js"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "./runtime-port.js"
 import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
 
@@ -8,6 +9,44 @@ const catalogRuntimeServicesPortReference = { id: "catalog.runtime-services" } a
 const catalogCheckoutApiRuntimePortReference = { id: "commerce.checkout-api-options" } as const
 const flightsRuntimePortReference = { id: "flights.runtime" } as const
 const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
+
+const tripActionRequestedPayloadSchema = {
+  type: "object",
+  required: ["operationId", "action", "envelopeId", "backendIdentity"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    action: { type: "string", enum: ["price-trip", "reserve-trip"] },
+    envelopeId: { type: "string", minLength: 1 },
+    backendIdentity: { type: "string", minLength: 1 },
+  },
+  additionalProperties: false,
+} as const
+
+const tripActionCompletedPayloadSchema = {
+  type: "object",
+  required: ["operationId", "action", "envelopeId", "backendIdentity", "providerOperationId"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    action: { type: "string", enum: ["price-trip", "reserve-trip"] },
+    envelopeId: { type: "string", minLength: 1 },
+    backendIdentity: { type: "string", minLength: 1 },
+    providerOperationId: { type: "string", minLength: 1 },
+  },
+  additionalProperties: false,
+} as const
+
+const tripActionDeadLetteredPayloadSchema = {
+  type: "object",
+  required: ["operationId", "action", "envelopeId", "attempts", "error"],
+  properties: {
+    operationId: { type: "string", minLength: 1 },
+    action: { type: "string", enum: ["price-trip", "reserve-trip"] },
+    envelopeId: { type: "string", minLength: 1 },
+    attempts: { type: "integer", minimum: 1 },
+    error: { type: "string" },
+  },
+  additionalProperties: false,
+} as const
 
 const tripRequirementSourcingRequestedPayloadSchema = {
   type: "object",
@@ -46,6 +85,10 @@ const tripRequirementSourcingDeadLetteredPayloadSchema = {
 } as const
 
 export {
+  type DurableTripActionRuntime,
+  durableTripActionRuntimePort,
+} from "./durable-action-runtime-port.js"
+export {
   type TripsDatabaseRuntime,
   tripsDatabaseRuntimePort,
   tripsRoutesRuntimePort,
@@ -63,12 +106,14 @@ export const tripsVoyantModule = defineModule({
       providePort(tripsRoutesRuntimePort),
       providePort(tripsDatabaseRuntimePort),
       providePort(tripsSourcingJobRuntimePort),
+      providePort(durableTripActionRuntimePort),
     ],
   },
   runtimePorts: [
     requirePort(tripsRoutesRuntimePort),
     requirePort(tripsDatabaseRuntimePort),
     requirePort(tripsSourcingJobRuntimePort),
+    requirePort(durableTripActionRuntimePort, { optional: true }),
     { ...paymentAdapterRuntimePortReference, optional: true },
     catalogRuntimeServicesPortReference,
     catalogCheckoutApiRuntimePortReference,
@@ -111,6 +156,22 @@ export const tripsVoyantModule = defineModule({
     },
   ],
   jobs: [
+    {
+      id: "trips.execute-durable-actions",
+      schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { every: "1m", overlap: "skip" },
+          economical: { every: "5m", overlap: "skip" },
+        },
+      },
+      wakeup: true,
+      runtime: {
+        entry: "@voyant-travel/trips/action-job",
+        export: "runTripActionJob",
+      },
+    },
     {
       id: "trips.source-requirement-candidates",
       schedule: { every: "1m", overlap: "skip" },
@@ -197,6 +258,17 @@ export const tripsVoyantModule = defineModule({
       risk: "critical",
     },
     {
+      id: "@voyant-travel/trips#tool.get-trip-action-operation",
+      name: "get_trip_action_operation",
+      runtime: {
+        entry: "@voyant-travel/trips/tools",
+        export: "getTripActionOperationTool",
+      },
+      requiredScopes: ["trips:read"],
+      context: ["trips"],
+      risk: "low",
+    },
+    {
       id: "@voyant-travel/trips#tool.source-requirement-candidates",
       name: "source_trip_requirement_candidates",
       runtime: {
@@ -270,15 +342,27 @@ export const tripsVoyantModule = defineModule({
     },
     {
       id: "@voyant-travel/trips#action.price-trip",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "trip",
       targetLifecycle: "existing",
+      commandTargetField: "envelopeId",
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableTripActionRuntimePort.id],
+          },
+        },
       },
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/trips/tests/integration/durable-actions.test.ts",
+      },
       requiredScopes: ["trips:write"],
       risk: "high",
       ledger: "required",
@@ -288,14 +372,27 @@ export const tripsVoyantModule = defineModule({
     },
     {
       id: "@voyant-travel/trips#action.reserve-trip",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "trip",
+      commandTargetField: "envelopeId",
+      targetLifecycle: "existing",
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableTripActionRuntimePort.id],
+          },
+        },
       },
+      existingTarget: { durability: "handler-command-result-v1" },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/trips/tests/integration/durable-actions.test.ts",
+      },
       requiredScopes: ["trips:write"],
       risk: "critical",
       ledger: "required",
@@ -369,6 +466,30 @@ export const tripsVoyantModule = defineModule({
     },
   ],
   events: [
+    {
+      id: "@voyant-travel/trips#event.action-requested",
+      eventType: "trip.action-requested",
+      version: "1.0.0",
+      payloadSchema: tripActionRequestedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/trips#event.action-completed",
+      eventType: "trip.action-completed",
+      version: "1.0.0",
+      payloadSchema: tripActionCompletedPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/trips#event.action-dead-lettered",
+      eventType: "trip.action-dead-lettered",
+      version: "1.0.0",
+      payloadSchema: tripActionDeadLetteredPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "trips", category: "domain" },
+    },
     {
       id: "@voyant-travel/trips#event.requirement-sourcing-requested",
       eventType: "trip.requirement-sourcing-requested",

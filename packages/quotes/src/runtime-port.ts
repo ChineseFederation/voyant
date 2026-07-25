@@ -1,5 +1,5 @@
 import { definePort } from "@voyant-travel/core/project"
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type {
   QuoteProposalRoutesOptions,
   QuoteVersionSnapshotRoutesOptions,
@@ -38,13 +38,14 @@ export interface QuoteProposalNotificationDelivery {
 
 /** Notifications-owned delivery behavior consumed by the Quotes proposal composer. */
 export interface QuotesNotificationsRuntime {
+  /** Exact graph-selected durable provider identities available to this adapter. */
+  readonly providerNames: readonly string[]
   /**
-   * Deliver one vetted-template proposal notification. Reusing a key with the
-   * same command must replay the prior delivery; command drift must conflict.
+   * Atomically enqueue one vetted-template proposal notification. Provider
+   * dispatch is worker-only and uses the selected durable provider runtime.
    */
-  sendQuoteProposal(
-    db: PostgresJsDatabase,
-    bindings: Record<string, unknown>,
+  enqueueQuoteProposal(
+    db: AnyDrizzleDb,
     input: QuoteProposalNotificationInput,
   ): Promise<QuoteProposalNotificationDelivery>
 }
@@ -79,9 +80,6 @@ export const quotesProposalRuntimePort = definePort<QuotesProposalRuntime>({
     requireFunctions("quotes.proposal-runtime", provider, [
       "resolveDb",
       "resolvePublicProposalBaseUrl",
-      "reserveTripDeps",
-      "startCheckoutDeps",
-      "cancelTripComponentsDeps",
       "resolveOperatorProfile",
     ])
     const feedback = Reflect.get(provider, "recordPublicProposalFeedback")
@@ -105,6 +103,17 @@ export const quotesNotificationsRuntimePort = definePort<QuotesNotificationsRunt
   id: "quotes.notifications.runtime",
   test(provider) {
     requireObject("quotes.notifications.runtime", provider)
-    requireFunctions("quotes.notifications.runtime", provider, ["sendQuoteProposal"])
+    requireFunctions("quotes.notifications.runtime", provider, ["enqueueQuoteProposal"])
+    const providerNames = Reflect.get(provider, "providerNames")
+    if (
+      !Array.isArray(providerNames) ||
+      providerNames.length === 0 ||
+      providerNames.some((name) => typeof name !== "string" || !name.trim()) ||
+      new Set(providerNames).size !== providerNames.length
+    ) {
+      throw new Error(
+        "quotes.notifications.runtime providerNames must identify the exact selected provider set.",
+      )
+    }
   },
 })

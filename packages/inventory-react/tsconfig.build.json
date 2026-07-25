@@ -1901,9 +1901,13 @@
       "@voyant-travel/trips-react/provider": ["../trips-react/dist/provider.d.ts"],
       "@voyant-travel/trips-react/query-keys": ["../trips-react/dist/query-keys.d.ts"],
       "@voyant-travel/trips-react/storefront": ["../trips-react/dist/storefront/index.d.ts"],
+      "@voyant-travel/trips/action-job": ["../trips/dist/action-job.d.ts"],
       "@voyant-travel/trips/catalog-component": ["../trips/dist/catalog-component.d.ts"],
       "@voyant-travel/trips/checkout": ["../trips/dist/checkout/index.d.ts"],
       "@voyant-travel/trips/cruise-extension": ["../trips/dist/cruise-extension.d.ts"],
+      "@voyant-travel/trips/durable-action-runtime-port": [
+        "../trips/dist/durable-action-runtime-port.d.ts"
+      ],
       "@voyant-travel/trips/flight-component": ["../trips/dist/flight-component.d.ts"],
       "@voyant-travel/trips/payment-subscribers": ["../trips/dist/payment-subscriber-runtime.d.ts"],
       "@voyant-travel/trips/route-runtime": ["../trips/dist/route-runtime.d.ts"],

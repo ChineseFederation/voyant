@@ -1,10 +1,15 @@
-import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+import {
+  createToolRegistry,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
 import {
   type QuoteDeliveryToolServices,
   type QuotesToolServices,
   quotesTools,
+  SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY,
 } from "../src/tools.js"
 
 function ctx(
@@ -18,8 +23,40 @@ function ctx(
     audience: actor,
     tenantId: "default",
     resolverScope: { locale: "en-GB", audience: actor, market: "default", actor },
+    handlerActionPolicy: snapshotSendActionPolicy(),
     quotes: services as QuotesToolServices | undefined,
     quoteDelivery: delivery,
+  }
+}
+
+function snapshotSendActionPolicy(): ToolHandlerActionPolicyContext {
+  return {
+    capabilityId: SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.capabilityId,
+    capabilityVersion: SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.capabilityVersion,
+    canonicalName: SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.canonicalName,
+    actionPolicy: {
+      ...SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler",
+      invocation: {
+        controlField: "_voyant",
+        requiredFields: [
+          "confirmed",
+          "targetId",
+          "idempotencyKey",
+          "approvalId",
+          "idempotencyFingerprint",
+        ],
+        optionalFields: ["reasonCode"],
+        fingerprintAlgorithm: "action-ledger-command-v1",
+      },
+    },
+    invocation: {
+      confirmed: true,
+      targetId: quote.id,
+      idempotencyKey: "quote-send-1",
+      approvalId: "approval_1",
+      idempotencyFingerprint: "sha256:test",
+    },
   }
 }
 
@@ -93,7 +130,7 @@ describe("quotes Tools", () => {
       "@voyant-travel/quotes#proposal-extension",
     )
     for (const tool of list) {
-      expect(tool.capabilityVersion).toBe("v1")
+      expect(tool.capabilityVersion).toBe(tool.name === "snapshot_and_send_quote" ? "v2" : "v1")
       expect(tool.audience).toEqual({ source: "grant", allowed: ["staff"] })
       expect(tool.outputSchema).not.toHaveProperty("x-voyant-schema-quality")
     }
@@ -114,42 +151,29 @@ describe("quotes Tools", () => {
         },
       })
     }
-    expect(list.find((tool) => tool.name === "snapshot_quote_version")?.aliases).toEqual([
-      "quote_version_snapshot",
-    ])
-    expect(list.find((tool) => tool.name === "send_quote_version")?.aliases).toEqual([
-      "quote_version_send",
-    ])
-    expect(list.find((tool) => tool.name === "accept_quote_version")?.aliases).toEqual([
-      "quote_version_accept",
-    ])
-    expect(list.find((tool) => tool.name === "decline_quote_version")?.aliases).toEqual([
-      "quote_version_decline",
-    ])
   })
 
   it("composes a snapshot and vetted-template delivery through one exact-idempotent service", async () => {
     const registry = createToolRegistry()
     registry.registerAll(quotesTools)
     const delivery: QuoteDeliveryToolServices = {
-      async snapshotAndSendQuote(input) {
+      async snapshotAndSendQuote(input, admitted) {
         expect(input).toMatchObject({
           quoteId: quote.id,
           templateSlug: "quote-proposal",
-          idempotencyKey: "quote-send-1",
         })
+        expect(admitted.invocation.idempotencyKey).toBe("quote-send-1")
         return {
           quoteVersion: { ...version, status: "sent", sentAt: timestamp },
           proposalUrl: `/proposal/${version.id}`,
           delivery: {
             id: "ndel_1",
-            status: "sent",
+            status: "pending",
             channel: "email",
             provider: "local",
             providerMessageId: "message_1",
             toAddress: "traveler@example.test",
           },
-          reused: false,
         }
       },
     }
@@ -160,15 +184,13 @@ describe("quotes Tools", () => {
         quoteId: quote.id,
         to: "traveler@example.test",
         templateSlug: "quote-proposal",
-        idempotencyKey: "quote-send-1",
       },
       ctx(undefined, "staff", delivery),
     )
 
     expect(result).toMatchObject({
       proposalUrl: `/proposal/${version.id}`,
-      delivery: { id: "ndel_1", status: "sent" },
-      reused: false,
+      delivery: { id: "ndel_1", status: "pending" },
     })
   })
 
@@ -213,22 +235,22 @@ describe("quotes Tools", () => {
     }
 
     const snapshot = await registry.dispatch<Record<string, unknown>>(
-      "quote_version_snapshot",
+      "snapshot_quote_version",
       { quoteId: quote.id },
       ctx(services),
     )
     const sent = await registry.dispatch<Record<string, unknown>>(
-      "quote_version_send",
+      "send_quote_version",
       { quoteVersionId: version.id, validUntil: "2026-09-01" },
       ctx(services),
     )
     const accepted = await registry.dispatch<{ quoteVersion: Record<string, unknown> }>(
-      "quote_version_accept",
+      "accept_quote_version",
       { quoteVersionId: version.id },
       ctx(services),
     )
     const declined = await registry.dispatch<Record<string, unknown>>(
-      "quote_version_decline",
+      "decline_quote_version",
       { quoteVersionId: version.id },
       ctx(services),
     )

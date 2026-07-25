@@ -4,6 +4,14 @@ import type { TripsStatus } from "./validation.js"
 export { cancelComponents, previewCancellation } from "./service-cancellation.js"
 export { completeTripCheckout, startCheckout } from "./service-checkout.js"
 export {
+  drainTripActionOperations,
+  executeDurableTripActionCommand,
+  getTripActionOperation,
+  type TripActionAcceptedResult,
+  type TripActionOperationView,
+  type TripActionOutcome,
+} from "./service-durable-actions.js"
+export {
   getTripRequirementSourcingOperation,
   type TripRequirementSourcingOperationView,
   type TripRequirementSourcingOutcome,

@@ -9,7 +9,7 @@ import { sha256 } from "@voyant-travel/action-ledger/fingerprint"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
@@ -641,6 +641,16 @@ export async function drainDurableNotificationSends(
   }
 
   return result
+}
+
+/** Whether queued or leased sends require the exact selected provider runtime. */
+export async function hasRecoverableNotificationSends(db: AnyDrizzleDb): Promise<boolean> {
+  const rows = await db
+    .select({ id: notificationSendOperations.id })
+    .from(notificationSendOperations)
+    .where(inArray(notificationSendOperations.status, ["pending", "processing", "retry"]))
+    .limit(1)
+  return rows.length > 0
 }
 
 async function claimDurableNotificationSends(

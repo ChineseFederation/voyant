@@ -45,6 +45,14 @@ export {
   representCruiseExtensionSelection,
 } from "./cruise-extension.js"
 export {
+  type DurableTripActionCapability,
+  type DurableTripActionCommand,
+  type DurableTripActionKind,
+  type DurableTripActionResult,
+  type DurableTripActionRuntime,
+  durableTripActionRuntimePort,
+} from "./durable-action-runtime-port.js"
+export {
   createFlightComponentAdapter,
   type FlightAdapterContext,
   type FlightComponentAdapter,

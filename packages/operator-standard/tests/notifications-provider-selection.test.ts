@@ -1,6 +1,7 @@
-import { defineProvider, providePort } from "@voyant-travel/core/project"
+import { defineModule, defineProvider, providePort } from "@voyant-travel/core/project"
 import { durableNotificationProviderPort } from "@voyant-travel/notifications/durable-provider-port"
 import { notificationsVoyantModule } from "@voyant-travel/notifications/voyant"
+import { quotesProposalVoyantPlugin } from "@voyant-travel/quotes/voyant"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -10,6 +11,42 @@ import {
 } from "../../framework/src/deployment-graph.js"
 
 describe("notifications durable provider selection", () => {
+  it("rejects proposal delivery when the Notifications adapter owner is absent", async () => {
+    const provider = defineProvider({
+      id: "@example/voyant-notifications-provider",
+      provides: { ports: [providePort(durableNotificationProviderPort)] },
+      providers: [
+        {
+          id: "@example/voyant-notifications-provider#provider.durable-email",
+          port: durableNotificationProviderPort.id,
+          selection: { role: "notifications", value: "durable-email" },
+          runtime: { entry: "@example/voyant-notifications-provider", export: "createProvider" },
+        },
+      ],
+    })
+    const graph = await resolveDeploymentGraph({
+      project: defineProject({
+        modules: [defineModule({ id: "@example/voyant-quotes-host" })],
+        extensions: [quotesProposalVoyantPlugin],
+        providers: [provider],
+      }),
+      deployment: {
+        target: "node",
+        providers: { notifications: "durable-email" },
+        requirements: { resources: [] },
+      },
+    })
+
+    expect(graph.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "VOYANT_GRAPH_MISSING_CAPABILITY",
+        source: quotesProposalVoyantPlugin.id,
+        facet: "requires.capabilities",
+      }),
+    )
+    expect(graph.extensions[0]?.requires.capabilities).toContain("notifications.delivery")
+  })
+
   it("resolves an external conformant provider as the conditional send authority", async () => {
     expect(validateGraphUnitManifest(notificationsVoyantModule, "module")).toEqual([])
     const provider = defineProvider({

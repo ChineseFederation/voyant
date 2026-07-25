@@ -77,6 +77,7 @@ export function createTripsRuntimePortContribution(
       }),
     )
   const tripsDatabase: TripsDatabaseRuntime = {
+    resolveDb: (bindings) => host.primitives.database.resolve(bindings),
     withDb: (bindings, operation) =>
       host.primitives.database.transaction(bindings, (database) => operation(database as never)),
   }

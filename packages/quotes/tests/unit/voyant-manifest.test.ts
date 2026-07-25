@@ -109,6 +109,7 @@ describe("quotes deployment manifests", () => {
       {
         schemaVersion: "voyant.extension.v1",
         id: "@voyant-travel/quotes#proposal-extension",
+        requires: { capabilities: ["notifications.delivery"] },
         provides: { ports: [{ id: "quotes.proposal-runtime" }] },
         api: [
           {
@@ -220,7 +221,19 @@ describe("quotes deployment manifests", () => {
 
   it("owns the cross-module proposal snapshot and notification action", () => {
     expect(quotesProposalVoyantPlugin).toMatchObject({
-      runtimePorts: [{ id: "quotes.proposal-runtime" }, { id: "quotes.notifications.runtime" }],
+      requires: { capabilities: ["notifications.delivery"] },
+      runtimePorts: [
+        { id: "quotes.proposal-runtime" },
+        { id: "quotes.notifications.runtime", optional: true },
+        {
+          id: "notifications.durable-provider",
+          optional: true,
+          conformance: {
+            entry: "@voyant-travel/notifications/durable-provider-port",
+            export: "durableNotificationProviderPort",
+          },
+        },
+      ],
       tools: [
         {
           id: "@voyant-travel/quotes#proposal-extension.tool.snapshot-and-send-quote",
@@ -233,11 +246,25 @@ describe("quotes deployment manifests", () => {
       actions: [
         {
           id: "@voyant-travel/quotes#proposal-extension.action.snapshot-and-send-quote",
+          version: "v2",
+          commandTargetField: "quoteId",
+          targetLifecycle: "existing",
+          existingTarget: { durability: "handler-command-result-v1" },
           availability: {
             status: "unavailable",
-            reasonCode: "unsafe-nontransactional-effect",
+            reasonCode: "provider-idempotency-unavailable",
+            enableWhen: {
+              selectedProviderPorts: {
+                mode: "all",
+                ports: ["notifications.durable-provider"],
+              },
+            },
           },
           effectBoundary: "multistage",
+          durability: {
+            strategy: "saga",
+            testReference: "packages/quotes/tests/integration/quote-delivery.test.ts",
+          },
           ledger: "required",
           approval: "required",
           reversible: false,

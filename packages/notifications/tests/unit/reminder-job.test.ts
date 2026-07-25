@@ -1,12 +1,17 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-const { drainDurableNotificationSends, sendDueNotificationReminders } = vi.hoisted(() => ({
+const {
+  drainDurableNotificationSends,
+  hasRecoverableNotificationSends,
+  sendDueNotificationReminders,
+} = vi.hoisted(() => ({
   drainDurableNotificationSends: vi.fn(async () => ({
     claimed: 0,
     sent: 0,
     retried: 0,
     deadLettered: 0,
   })),
+  hasRecoverableNotificationSends: vi.fn(async () => false),
   sendDueNotificationReminders: vi.fn(async () => ({
     processed: 0,
     sent: 0,
@@ -15,7 +20,10 @@ const { drainDurableNotificationSends, sendDueNotificationReminders } = vi.hoist
   })),
 }))
 vi.mock("../../src/tasks/send-due-reminders.js", () => ({ sendDueNotificationReminders }))
-vi.mock("../../src/service-durable-send.js", () => ({ drainDurableNotificationSends }))
+vi.mock("../../src/service-durable-send.js", () => ({
+  drainDurableNotificationSends,
+  hasRecoverableNotificationSends,
+}))
 
 import {
   runDueNotificationRemindersJob,
@@ -23,6 +31,11 @@ import {
 } from "../../src/reminder-job.js"
 
 describe("due reminders job", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    hasRecoverableNotificationSends.mockResolvedValue(false)
+  })
+
   it("polls durable reminder state without accepting a run payload", async () => {
     const db = {}
     const env = { DATABASE_URL: "postgres://test" }
@@ -37,17 +50,30 @@ describe("due reminders job", () => {
     expect(sendDueNotificationReminders).toHaveBeenCalledWith(db, env, {}, options)
   })
 
-  it("exports a fixed durable-send job that resolves deployment providers", async () => {
+  it("exports a fixed durable-send job that uses the exact selected provider port", async () => {
     const db = {}
-    const env = { DATABASE_URL: "postgres://test" }
     const providers = [{ name: "durable-provider" }]
     await runDueNotificationSendsJob({
-      getPort: async () => ({
-        resolveDb: async () => db,
-        resolveEnv: async () => env,
-        resolveRuntimeOptions: async () => ({ providers }),
-      }),
+      hasPort: () => true,
+      getPort: async (port: { id: string }) =>
+        port.id === "notifications.durable-provider"
+          ? { providers }
+          : {
+              resolveDb: async () => db,
+            },
     } as never)
     expect(drainDurableNotificationSends).toHaveBeenCalledWith(db, providers)
+  })
+
+  it("fails closed when recoverable sends lose their selected provider", async () => {
+    const db = {}
+    hasRecoverableNotificationSends.mockResolvedValueOnce(true)
+    await expect(
+      runDueNotificationSendsJob({
+        hasPort: () => false,
+        getPort: async () => ({ resolveDb: async () => db }),
+      } as never),
+    ).rejects.toThrow(/exact durable provider is unavailable/)
+    expect(drainDurableNotificationSends).not.toHaveBeenCalled()
   })
 })

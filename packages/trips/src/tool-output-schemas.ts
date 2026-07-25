@@ -168,6 +168,40 @@ export const tripRequirementSourcingOperationResultSchema = z.object({
   updatedAt: isoTimestamp,
 })
 
+export const tripActionAcceptedResultSchema = z.object({
+  status: z.literal("accepted"),
+  operationId: z.string().min(1),
+  action: z.enum(["price-trip", "reserve-trip"]),
+  envelopeId: z.string().min(1),
+  statusTool: z.literal("get_trip_action_operation"),
+})
+
+export const tripActionOperationResultSchema = z.object({
+  operationId: z.string().min(1),
+  action: z.enum(["price-trip", "reserve-trip"]),
+  envelopeId: z.string().min(1),
+  status: z.enum(["pending", "processing", "retry", "completed", "dead_letter"]),
+  result: tripActionAcceptedResultSchema,
+  outcome: z
+    .discriminatedUnion("status", [
+      z.object({
+        status: z.literal("completed"),
+        backendIdentity: z.string().min(1),
+        providerOperationId: z.string().min(1),
+        result: jsonObject,
+      }),
+      z.object({ status: z.literal("dead_letter"), error: z.string() }),
+    ])
+    .nullable(),
+  error: z.string().nullable(),
+  attempts: z.number().int().nonnegative(),
+  maxAttempts: z.number().int().positive(),
+  nextAttemptAt: isoTimestamp,
+  completedAt: isoTimestamp.nullable(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
 export const selectTripCandidateResultSchema = z.object({
   requirement: tripRequirementToolSchema,
   candidate: tripCandidateToolSchema,

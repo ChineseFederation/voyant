@@ -296,7 +296,7 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     },
     {
       resolve: "@voyant-travel/quotes/proposal-extension",
-      owners: ["@voyant-travel/quotes"],
+      owners: ["@voyant-travel/quotes", "@voyant-travel/notifications"],
     },
     {
       resolve: "@voyant-travel/catalog/offers-extension",

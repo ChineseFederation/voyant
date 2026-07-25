@@ -233,8 +233,14 @@ export const quoteVersionLines = pgTable(
 export const quoteProposalDeliveryRequests = pgTable(
   "quote_proposal_delivery_requests",
   {
-    idempotencyKey: text("idempotency_key").primaryKey(),
+    id: text("id").primaryKey(),
+    commandScope: text("command_scope").notNull(),
+    commandIdempotencyKey: text("command_idempotency_key").notNull(),
     requestFingerprint: text("request_fingerprint").notNull(),
+    claimActionId: text("claim_action_id").notNull(),
+    organizationId: text("organization_id"),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
     quoteId: typeIdRef("quote_id")
       .notNull()
       .references(() => quotes.id, { onDelete: "cascade" }),
@@ -242,12 +248,19 @@ export const quoteProposalDeliveryRequests = pgTable(
       .notNull()
       .references(() => quoteVersions.id, { onDelete: "cascade" }),
     proposalUrl: text("proposal_url").notNull(),
+    provider: text("provider").notNull(),
+    resultSnapshot: jsonb("result_snapshot").$type<Record<string, unknown>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
     index("idx_quote_proposal_delivery_requests_quote").on(table.quoteId, table.createdAt),
     uniqueIndex("uidx_quote_proposal_delivery_requests_version").on(table.quoteVersionId),
+    uniqueIndex("uidx_quote_proposal_delivery_requests_command").on(
+      table.commandScope,
+      table.commandIdempotencyKey,
+    ),
+    uniqueIndex("uidx_quote_proposal_delivery_requests_claim").on(table.claimActionId),
   ],
 )
 

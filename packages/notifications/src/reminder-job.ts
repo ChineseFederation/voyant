@@ -1,7 +1,10 @@
 import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/project"
+import { durableNotificationProviderPort } from "./durable-provider-port.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
-import { drainDurableNotificationSends } from "./service-durable-send.js"
-import { buildNotificationTaskRuntime } from "./task-runtime.js"
+import {
+  drainDurableNotificationSends,
+  hasRecoverableNotificationSends,
+} from "./service-durable-send.js"
 import { sendDueNotificationReminders } from "./tasks/send-due-reminders.js"
 
 export { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
@@ -20,7 +23,15 @@ export async function runDueNotificationSendsJob(
   context: VoyantGraphRuntimeFactoryContext,
 ): Promise<void> {
   const runtime = await context.getPort(notificationsReminderJobRuntimePort)
-  const [db, env] = await Promise.all([runtime.resolveDb(), runtime.resolveEnv()])
-  const taskRuntime = buildNotificationTaskRuntime(env, await runtime.resolveRuntimeOptions(env))
-  await drainDurableNotificationSends(db, taskRuntime.providers)
+  const db = await runtime.resolveDb()
+  if (!context.hasPort(durableNotificationProviderPort)) {
+    if (await hasRecoverableNotificationSends(db)) {
+      throw new Error(
+        "Recoverable notification sends exist but the exact durable provider is unavailable",
+      )
+    }
+    return
+  }
+  const selectedRuntime = await context.getPort(durableNotificationProviderPort)
+  await drainDurableNotificationSends(db, selectedRuntime.providers)
 }

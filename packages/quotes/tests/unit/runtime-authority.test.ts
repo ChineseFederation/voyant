@@ -57,11 +57,16 @@ describe("quotes deployment authority", () => {
           { id: "custom-fields.value-operations" },
         ],
       },
-      runtimePorts: [{ id: "quotes.runtime" }, { id: "trips.routes-runtime" }],
+      runtimePorts: [{ id: "quotes.runtime" }],
       api: [{ runtime: { export: "createQuotesVoyantRuntime" } }],
     })
     expect(quotesProposalVoyantPlugin).toMatchObject({
-      runtimePorts: [{ id: "quotes.proposal-runtime" }, { id: "quotes.notifications.runtime" }],
+      requires: { capabilities: ["notifications.delivery"] },
+      runtimePorts: [
+        { id: "quotes.proposal-runtime" },
+        { id: "quotes.notifications.runtime", optional: true },
+        { id: "notifications.durable-provider", optional: true },
+      ],
       api: [
         { surface: "admin", runtime: { export: "createQuoteProposalVoyantRuntime" } },
         { surface: "public", runtime: { export: "createQuoteProposalVoyantRuntime" } },
@@ -100,9 +105,6 @@ describe("quotes deployment authority", () => {
     const proposalProvider = {
       resolveDb: vi.fn(),
       resolvePublicProposalBaseUrl: vi.fn(() => null),
-      reserveTripDeps: vi.fn(),
-      startCheckoutDeps: vi.fn(),
-      cancelTripComponentsDeps: vi.fn(),
       resolveOperatorProfile: vi.fn(async () => null),
     }
     const snapshotProvider = { resolveDb: vi.fn() }

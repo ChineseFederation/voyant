@@ -22,6 +22,13 @@
       "when": 1784192581000,
       "tag": "20260716000301_namespace_custom_field_values",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784970000000,
+      "tag": "0002_durable_quote_delivery",
+      "breakpoints": true
     }
   ]
 }

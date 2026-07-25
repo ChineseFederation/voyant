@@ -1,9 +1,12 @@
 import {
+  admitHandlerActionPolicy,
   defineTool,
+  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   ToolError,
+  type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
@@ -18,6 +21,7 @@ import { quoteListQuerySchema, sendQuoteVersionSchema } from "./validation.js"
 
 const OWNER = "@voyant-travel/quotes"
 const VERSION = "v1"
+const DURABLE_QUOTE_DELIVERY_VERSION = "v2"
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const READ_SCOPES = ["quotes:read"] as const
 const WRITE_SCOPES = ["quotes:write"] as const
@@ -38,7 +42,10 @@ export interface QuotesToolServices {
 }
 
 export interface QuoteDeliveryToolServices {
-  snapshotAndSendQuote(input: z.infer<typeof snapshotAndSendQuoteInputSchema>): Promise<unknown>
+  snapshotAndSendQuote(
+    input: z.infer<typeof snapshotAndSendQuoteInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
 }
 
 export type QuotesToolContext = ToolContext & {
@@ -91,8 +98,27 @@ export const snapshotAndSendQuoteOutputSchema = z.object({
   quoteVersion: quoteVersionSchema,
   proposalUrl: z.string().min(1),
   delivery: quoteProposalDeliverySchema,
-  reused: z.boolean(),
 })
+
+export const SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#proposal-extension.tool.snapshot-and-send-quote`,
+  capabilityVersion: DURABLE_QUOTE_DELIVERY_VERSION,
+  canonicalName: "snapshot_and_send_quote",
+  actionPolicy: {
+    id: `${OWNER}#proposal-extension.action.snapshot-and-send-quote`,
+    capabilityId: `${OWNER}#proposal-extension.action.snapshot-and-send-quote`,
+    version: DURABLE_QUOTE_DELIVERY_VERSION,
+    kind: "execute",
+    targetType: "quote",
+    commandTargetField: "quoteId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "high",
+    ledger: "required",
+    approval: "required",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
 
 export const listQuotesTool = defineTool({
   ...readMetadata,
@@ -123,7 +149,6 @@ export const snapshotQuoteVersionTool = defineTool({
   capabilityId: `${OWNER}#tool.snapshot-quote-version`,
   capabilityVersion: VERSION,
   name: "snapshot_quote_version",
-  aliases: ["quote_version_snapshot"],
   description:
     "Freeze a quote's current line items into a new immutable draft proposal version. " +
     "The quote service expires prior draft or sent versions atomically.",
@@ -146,7 +171,6 @@ export const sendQuoteVersionTool = defineTool({
   capabilityId: `${OWNER}#tool.send-quote-version`,
   capabilityVersion: VERSION,
   name: "send_quote_version",
-  aliases: ["quote_version_send"],
   description:
     "Mark a draft proposal version as sent and immutable, with an optional validity date. " +
     "This records proposal lifecycle state; customer delivery remains notification-owned.",
@@ -167,13 +191,12 @@ export const sendQuoteVersionTool = defineTool({
 export const snapshotAndSendQuoteTool = defineTool({
   owner: `${OWNER}#proposal-extension`,
   capabilityId: `${OWNER}#proposal-extension.tool.snapshot-and-send-quote`,
-  capabilityVersion: VERSION,
+  capabilityVersion: DURABLE_QUOTE_DELIVERY_VERSION,
   name: "snapshot_and_send_quote",
-  aliases: ["quote_snapshot_send"],
   description:
-    "Atomically prepare a new proposal snapshot, deliver its public link through a vetted " +
-    "notification template, and mark that exact version sent. Exact retries require the same " +
-    "idempotency key and command.",
+    "Atomically prepare a new proposal snapshot, enqueue its public link through a vetted " +
+    "notification template, and mark that exact version sent. Exact retries use the admitted " +
+    "action idempotency key and command.",
   inputSchema: snapshotAndSendQuoteInputSchema,
   outputSchema: snapshotAndSendQuoteOutputSchema,
   requiredScopes: ["quotes:write", "notifications:send"],
@@ -187,10 +210,12 @@ export const snapshotAndSendQuoteTool = defineTool({
     sideEffects: ["data-write", "email", "sms"],
   },
   annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx: QuotesToolContext) {
+    const admitted = admitHandlerActionPolicy(ctx, SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY)
     return parseJsonResult(
       snapshotAndSendQuoteOutputSchema,
-      await quoteDelivery(ctx).snapshotAndSendQuote(input),
+      await quoteDelivery(ctx).snapshotAndSendQuote(input, admitted),
     )
   },
 })
@@ -200,7 +225,6 @@ export const acceptQuoteVersionTool = defineTool({
   capabilityId: `${OWNER}#tool.accept-quote-version`,
   capabilityVersion: VERSION,
   name: "accept_quote_version",
-  aliases: ["quote_version_accept"],
   description:
     "Record acceptance of a sent proposal. This wins the quote, pins the accepted version, " +
     "and closes competing draft or sent versions atomically.",
@@ -223,7 +247,6 @@ export const declineQuoteVersionTool = defineTool({
   capabilityId: `${OWNER}#tool.decline-quote-version`,
   capabilityVersion: VERSION,
   name: "decline_quote_version",
-  aliases: ["quote_version_decline"],
   description:
     "Record decline of a sent proposal version. The quote remains open for a revised snapshot.",
   inputSchema: z.object({ quoteVersionId: quoteVersionIdSchema }),

@@ -9,13 +9,20 @@ import {
   customFieldValueOperationsRuntimePort,
 } from "@voyant-travel/core/runtime-port"
 import { checkoutInquiryRuntimePort } from "@voyant-travel/quotes-contracts/runtime-port"
-import { tripsRoutesRuntimePort } from "@voyant-travel/trips/runtime-port"
 import {
   quotesNotificationsRuntimePort,
   quotesProposalRuntimePort,
   quotesRuntimePort,
   quotesSnapshotRuntimePort,
 } from "./runtime-port.js"
+
+const durableNotificationProviderPortReference = {
+  id: "notifications.durable-provider",
+  conformance: {
+    entry: "@voyant-travel/notifications/durable-provider-port",
+    export: "durableNotificationProviderPort",
+  },
+} as const
 
 const quoteChangedPayloadSchema = {
   type: "object",
@@ -29,7 +36,7 @@ export const quotesVoyantModule = defineModule({
   id: "@voyant-travel/quotes",
   packageName: "@voyant-travel/quotes",
   localId: "quotes",
-  runtimePorts: [requirePort(quotesRuntimePort), requirePort(tripsRoutesRuntimePort)],
+  runtimePorts: [requirePort(quotesRuntimePort)],
   customFieldTargets: [
     {
       id: "quote",
@@ -361,10 +368,12 @@ export const quotesProposalVoyantPlugin = defineExtension({
   id: "@voyant-travel/quotes#proposal-extension",
   packageName: "@voyant-travel/quotes",
   localId: "quotes.proposal-extension",
+  requires: { capabilities: ["notifications.delivery"] },
   provides: { ports: [providePort(quotesProposalRuntimePort)] },
   runtimePorts: [
     requirePort(quotesProposalRuntimePort),
-    requirePort(quotesNotificationsRuntimePort),
+    requirePort(quotesNotificationsRuntimePort, { optional: true }),
+    { ...durableNotificationProviderPortReference, optional: true },
   ],
   tools: [
     {
@@ -382,14 +391,27 @@ export const quotesProposalVoyantPlugin = defineExtension({
   actions: [
     {
       id: "@voyant-travel/quotes#proposal-extension.action.snapshot-and-send-quote",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "quote",
+      commandTargetField: "quoteId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableNotificationProviderPortReference.id],
+          },
+        },
       },
       effectBoundary: "multistage",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/quotes/tests/integration/quote-delivery.test.ts",
+      },
       resource: "quotes",
       action: "write",
       requiredScopes: ["quotes:write", "notifications:send"],
