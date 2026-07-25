@@ -1,5 +1,36 @@
 # @voyant-travel/operator-standard
 
+## 0.15.2
+
+### Patch Changes
+
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+  - @voyant-travel/accommodations@0.167.1
+  - @voyant-travel/commerce@0.44.5
+  - @voyant-travel/distribution@0.197.1
+  - @voyant-travel/finance@0.207.1
+  - @voyant-travel/identity@0.207.1
+  - @voyant-travel/legal@0.207.1
+  - @voyant-travel/quotes@0.134.6
+  - @voyant-travel/relationships@0.132.3
+  - @voyant-travel/storefront@0.209.1
+  - @voyant-travel/trips@0.199.1
+  - @voyant-travel/distribution-react@0.197.1
+  - @voyant-travel/finance-react@0.207.1
+  - @voyant-travel/identity-react@0.207.1
+  - @voyant-travel/legal-react@0.207.1
+  - @voyant-travel/storefront-react@0.209.1
+  - @voyant-travel/trips-react@0.199.1
+
 ## 0.15.1
 
 ### Patch Changes

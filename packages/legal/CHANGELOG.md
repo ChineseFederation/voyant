@@ -1,5 +1,36 @@
 # @voyant-travel/legal
 
+## 0.207.1
+
+### Patch Changes
+
+- accb1cf: Declare `availability`/`effectBoundary: "local"` on
+  `action.create-contract-draft`, which already claims its command idempotently
+  via `executeAdmittedCreatedTargetCommand` (the `handler-command-claim-v1`
+  `createdTarget` contract was already declared).
+
+  Quarantine `action.author-contract-template` from agent Tool exposure
+  (`availability: unavailable`, `reasonCode: "unsafe-unclaimed-create-target"`)
+  instead of migrating it: the action binds two tools with genuinely different
+  lifecycles (`create-contract-template` creates a new template with no
+  idempotency key or claim protocol; `update-contract-template` mutates an
+  existing template by id), so neither `targetLifecycle: "created"` nor
+  `"existing"` would honestly describe it as a single action, and the create
+  side has no dedup to safely retry. Admin UI template authoring is unaffected;
+  only agent Tool exposure is disabled pending a split into separate
+  create/update actions with a real created-target claim.
+
+  No runtime changes.
+
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+- Updated dependencies [accb1cf]
+  - @voyant-travel/commerce@0.44.5
+  - @voyant-travel/distribution@0.197.1
+  - @voyant-travel/finance@0.207.1
+  - @voyant-travel/relationships@0.132.3
+
 ## 0.207.0
 
 ### Patch Changes
