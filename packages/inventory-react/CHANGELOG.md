@@ -1,5 +1,19 @@
 # @voyant-travel/inventory-react
 
+## 0.86.0
+
+### Patch Changes
+
+- 9e57a5d: Add localized alt text, canonical delivery URLs, and an optional authenticated
+  site/CMS bridge to the shared media library.
+- Updated dependencies [9e57a5d]
+  - @voyant-travel/media-react@0.5.0
+  - @voyant-travel/catalog-react@0.202.0
+  - @voyant-travel/finance-react@0.204.0
+  - @voyant-travel/storefront-react@0.206.0
+  - @voyant-travel/finance@0.204.0
+  - @voyant-travel/inventory@0.20.1
+
 ## 0.85.0
 
 ### Patch Changes

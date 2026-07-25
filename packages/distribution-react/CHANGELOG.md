@@ -1,5 +1,15 @@
 # @voyant-travel/distribution-react
 
+## 0.194.0
+
+### Patch Changes
+
+- Updated dependencies [9e57a5d]
+  - @voyant-travel/inventory-react@0.86.0
+  - @voyant-travel/bookings-react@0.204.0
+  - @voyant-travel/relationships-react@0.204.0
+  - @voyant-travel/distribution@0.194.0
+
 ## 0.193.0
 
 ### Patch Changes

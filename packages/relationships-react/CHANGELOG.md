@@ -1,5 +1,12 @@
 # @voyant-travel/crm-react
 
+## 0.204.0
+
+### Patch Changes
+
+- @voyant-travel/identity-react@0.204.0
+- @voyant-travel/relationships@0.131.7
+
 ## 0.203.0
 
 ### Patch Changes

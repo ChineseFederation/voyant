@@ -1,5 +1,17 @@
 # @voyant-travel/media-react
 
+## 0.5.0
+
+### Minor Changes
+
+- 9e57a5d: Add localized alt text, canonical delivery URLs, and an optional authenticated
+  site/CMS bridge to the shared media library.
+
+### Patch Changes
+
+- Updated dependencies [9e57a5d]
+  - @voyant-travel/media@0.5.0
+
 ## 0.4.1
 
 ### Patch Changes
