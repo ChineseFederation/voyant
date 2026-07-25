@@ -30,6 +30,10 @@ pnpm add @voyant-travel/flights
 - **`./contract/schemas`** — zod schemas for the public flight contract
   request, response, enum, and value-object shapes. Use these at HTTP, queue,
   RPC, and adapter boundaries instead of re-declaring runtime validators.
+- **`./durable-action-runtime-port`** — deployment-owned crash-safe ticket and
+  cancellation capability. The framework activates those mutation Tools only
+  after the exact selected provider passes behavioral idempotency and restart
+  reconciliation conformance.
 - **`./orchestration/fingerprint`** — Itinerary fingerprint helper. Two
   providers selling the same flight produce identical fingerprints.
 - **`./orchestration/fan-out`** — Multi-connection fan-out search:
@@ -97,6 +101,25 @@ import type { FlightBookRequest } from "@voyant-travel/flights/contract/types"
 
 const request: FlightBookRequest = flightBookRequestSchema.parse(await req.json())
 ```
+
+### Durable supplier mutations
+
+`flights.runtime` remains the provider-neutral connector surface for search,
+reads, and admin routes. It does not make supplier mutations safe by itself.
+Deployments that expose `ticket_flight_order` or `cancel_flight_order` must
+select a provider for `flights.durable-action-runtime`. That provider owns a
+stable backend identity, caller-controlled idempotency, reconciliation after
+ambiguous responses, immutable organization-scoped provider authority, and an
+isolated non-ticketing conformance probe. The host must also schedule
+`drainDurableFlightActionOperations`; its leased reconciliation pass recovers
+pending or abandoned supplier operations without relying on the original
+caller to retain and replay an approval envelope. Operational status can be
+read by operation id with `getDurableFlightActionOperation`. Voyant isolates
+tenants at the deployment boundary (one database, one runtime per
+organization — see ADR-0001), so the package does not filter this lookup by
+organization; the stored `organizationId` is supplier metadata, not an
+access-control predicate. Without that selected port, both mutation Tools
+remain unavailable.
 
 ### Reference data — operator's own Postgres tables
 

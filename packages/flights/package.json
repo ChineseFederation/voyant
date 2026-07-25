@@ -8,6 +8,7 @@
     "./contract/types": "./src/contract/types.ts",
     "./contract/adapter": "./src/contract/adapter.ts",
     "./contract/schemas": "./src/contract/schemas.ts",
+    "./durable-action-runtime-port": "./src/durable-action-runtime-port.ts",
     "./orchestration/fingerprint": "./src/orchestration/fingerprint.ts",
     "./orchestration/fan-out": "./src/orchestration/fan-out.ts",
     "./snapshot": "./src/snapshot.ts",
@@ -86,6 +87,11 @@
         "import": "./dist/contract/schemas.js",
         "default": "./dist/contract/schemas.js"
       },
+      "./durable-action-runtime-port": {
+        "types": "./dist/durable-action-runtime-port.d.ts",
+        "import": "./dist/durable-action-runtime-port.js",
+        "default": "./dist/durable-action-runtime-port.js"
+      },
       "./orchestration/fingerprint": {
         "types": "./dist/orchestration/fingerprint.d.ts",
         "import": "./dist/orchestration/fingerprint.js",
@@ -158,6 +164,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/finance": "workspace:^",

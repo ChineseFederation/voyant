@@ -19,7 +19,16 @@
 
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { eq, inArray } from "drizzle-orm"
-import { integer, pgTable, real, text } from "drizzle-orm/pg-core"
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 
 import type {
   Aircraft,
@@ -71,6 +80,56 @@ export const referenceAircraft = pgTable("reference_aircraft", {
   manufacturer: text("manufacturer"),
   typicalSeats: integer("typical_seats"),
 })
+
+/**
+ * Durable intent and immutable supplier outcome for admitted ticket/cancel
+ * commands. The action-ledger claim and pending row are inserted in one
+ * transaction before any provider call.
+ */
+export const flightActionOperations = pgTable(
+  "flight_action_operations",
+  {
+    id: text("id").primaryKey(),
+    commandScope: text("command_scope").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestFingerprint: text("request_fingerprint").notNull(),
+    claimActionId: text("claim_action_id").notNull(),
+    organizationId: text("organization_id").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
+    kind: text("kind").notNull(),
+    backendIdentity: text("backend_identity").notNull(),
+    requestSnapshot: jsonb("request_snapshot").$type<Record<string, unknown>>().notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+    leaseVersion: integer("lease_version").notNull().default(0),
+    lastError: text("last_error"),
+    providerOperationId: text("provider_operation_id"),
+    outcomeSnapshot: jsonb("outcome_snapshot").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("uidx_flight_action_operations_command").on(
+      table.commandScope,
+      table.idempotencyKey,
+    ),
+    index("idx_flight_action_operations_target").on(
+      table.targetType,
+      table.targetId,
+      table.kind,
+      table.status,
+    ),
+    index("idx_flight_action_operations_due").on(
+      table.status,
+      table.nextAttemptAt,
+      table.leaseExpiresAt,
+    ),
+  ],
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider factory

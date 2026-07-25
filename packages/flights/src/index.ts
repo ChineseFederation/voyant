@@ -34,6 +34,24 @@ export {
 export * from "./contract/schemas.js"
 export * from "./contract/types.js"
 export {
+  type DrainDurableFlightActionOperationsOptions,
+  type DrainDurableFlightActionOperationsResult,
+  type DurableFlightActionOperationView,
+  drainDurableFlightActionOperations,
+  getDurableFlightActionOperation,
+} from "./durable-action-command.js"
+export {
+  assertDurableFlightActionResult,
+  DURABLE_FLIGHT_ACTION_PROTOCOL,
+  type DurableFlightActionCapability,
+  type DurableFlightActionCommand,
+  type DurableFlightActionKind,
+  type DurableFlightActionProbe,
+  type DurableFlightActionResult,
+  type DurableFlightActionRuntime,
+  durableFlightActionRuntimePort,
+} from "./durable-action-runtime-port.js"
+export {
   FLIGHTS_ENTITY_MODULE,
   mergedFlightOffersToCandidates,
   mergedFlightOfferToCandidate,

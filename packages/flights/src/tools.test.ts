@@ -1,7 +1,12 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
-import { type FlightsToolServices, flightsTools } from "./tools.js"
+import {
+  CANCEL_FLIGHT_ORDER_HANDLER_POLICY,
+  type FlightsToolServices,
+  flightsTools,
+  TICKET_FLIGHT_ORDER_HANDLER_POLICY,
+} from "./tools.js"
 
 function ctx(
   services?: Partial<FlightsToolServices>,
@@ -38,9 +43,31 @@ describe("flight tools", () => {
     )) {
       expect(tool).toMatchObject({
         tier: "destructive",
+        capabilityVersion: "v2",
+        annotations: { idempotentHint: true },
         riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
       })
     }
+    expect([TICKET_FLIGHT_ORDER_HANDLER_POLICY, CANCEL_FLIGHT_ORDER_HANDLER_POLICY]).toEqual([
+      expect.objectContaining({
+        actionPolicy: expect.objectContaining({
+          targetType: "flight-order",
+          commandTargetField: "orderId",
+          existingTarget: { durability: "handler-command-result-v1" },
+          ledger: "required",
+          approval: "required",
+        }),
+      }),
+      expect.objectContaining({
+        actionPolicy: expect.objectContaining({
+          targetType: "flight-order",
+          commandTargetField: "orderId",
+          existingTarget: { durability: "handler-command-result-v1" },
+          ledger: "required",
+          approval: "required",
+        }),
+      }),
+    ])
   })
 
   it("routes flight search through the selected connector service", async () => {

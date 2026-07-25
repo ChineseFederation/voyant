@@ -25,7 +25,7 @@ async function createFixture(overrides = {}) {
       },
     }),
     "flights/src/voyant.ts":
-      'runtimePorts: [requirePort(flightsRuntimePort)]\nrequires: { capabilities: ["finance.payment-sessions"] }\nexport: "createFlightsVoyantRuntime"\n',
+      'runtimePorts: [\nrequirePort(flightsRuntimePort),\nrequirePort(durableFlightActionRuntimePort, { optional: true }),\n]\nrequires: { capabilities: ["finance.payment-sessions"] }\nexport: "createFlightsVoyantRuntime"\n',
     "flights/src/api-runtime.ts":
       'defineGraphRuntimeFactory(({ getPort }) => getPort(flightsRuntimePort))\ncreateOrderPaymentSessions({ targetType: "flight_order" })\n',
     "flights/src/runtime-port.ts": '["resolveAdapter", "startCardPayment"]\n',

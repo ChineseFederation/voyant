@@ -1034,6 +1034,9 @@
       "@voyant-travel/flights/contract/adapter": ["../flights/dist/contract/adapter.d.ts"],
       "@voyant-travel/flights/contract/schemas": ["../flights/dist/contract/schemas.d.ts"],
       "@voyant-travel/flights/contract/types": ["../flights/dist/contract/types.d.ts"],
+      "@voyant-travel/flights/durable-action-runtime-port": [
+        "../flights/dist/durable-action-runtime-port.d.ts"
+      ],
       "@voyant-travel/flights/mcp-runtime": ["../flights/dist/mcp-runtime.d.ts"],
       "@voyant-travel/flights/orchestration/fan-out": [
         "../flights/dist/orchestration/fan-out.d.ts"

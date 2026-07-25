@@ -45,12 +45,13 @@ if (!packageJson.voyant?.requiresSchemas?.includes("@voyant-travel/finance")) {
   violations.push("Flights must declare its Finance payment-session schema dependency")
 }
 if (
-  !manifest.includes("runtimePorts: [requirePort(flightsRuntimePort)]") ||
+  !manifest.includes("requirePort(flightsRuntimePort)") ||
+  !manifest.includes("requirePort(durableFlightActionRuntimePort, { optional: true })") ||
   !manifest.includes('requires: { capabilities: ["finance.payment-sessions"] }') ||
   !manifest.includes('export: "createFlightsVoyantRuntime"')
 ) {
   violations.push(
-    "Flights manifest must declare its typed port, Finance capability, and package-owned runtime factory",
+    "Flights manifest must declare its typed ports (runtime + optional durable-action), Finance capability, and package-owned runtime factory",
   )
 }
 if (

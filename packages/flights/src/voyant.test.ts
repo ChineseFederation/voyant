@@ -16,7 +16,17 @@ describe("flights deployment manifest", () => {
       id: "@voyant-travel/flights",
       packageName: "@voyant-travel/flights",
       provides: { ports: [{ id: "flights.runtime" }] },
-      runtimePorts: [{ id: "flights.runtime" }],
+      runtimePorts: [
+        { id: "flights.runtime" },
+        {
+          id: "flights.durable-action-runtime",
+          optional: true,
+          conformance: {
+            entry: "@voyant-travel/flights/durable-action-runtime-port",
+            export: "durableFlightActionRuntimePort",
+          },
+        },
+      ],
       requires: { capabilities: ["finance.payment-sessions"] },
       api: [
         {
@@ -132,11 +142,25 @@ describe("flights deployment manifest", () => {
       "@voyant-travel/flights#action.cancel-order",
     ]) {
       expect(flightsVoyantModule.actions?.find(({ id }) => id === actionId)).toMatchObject({
+        version: "v2",
+        commandTargetField: "orderId",
+        targetLifecycle: "existing",
+        existingTarget: { durability: "handler-command-result-v1" },
         availability: {
           status: "unavailable",
-          reasonCode: "unsafe-nontransactional-effect",
+          reasonCode: "provider-idempotency-unavailable",
+          enableWhen: {
+            selectedProviderPorts: {
+              mode: "all",
+              ports: ["flights.durable-action-runtime"],
+            },
+          },
         },
         effectBoundary: "external",
+        durability: {
+          strategy: "saga",
+          testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+        },
       })
     }
   })

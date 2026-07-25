@@ -1,4 +1,5 @@
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+import { durableFlightActionRuntimePort } from "./durable-action-runtime-port.js"
 import { flightsRuntimePort } from "./runtime-port.js"
 
 /** Import-cheap deployment declaration owned by the flights package. */
@@ -7,7 +8,10 @@ export const flightsVoyantModule = defineModule({
   packageName: "@voyant-travel/flights",
   localId: "flights",
   provides: { ports: [providePort(flightsRuntimePort)] },
-  runtimePorts: [requirePort(flightsRuntimePort)],
+  runtimePorts: [
+    requirePort(flightsRuntimePort),
+    requirePort(durableFlightActionRuntimePort, { optional: true }),
+  ],
   requires: { capabilities: ["finance.payment-sessions"] },
   api: [
     {
@@ -148,14 +152,27 @@ export const flightsVoyantModule = defineModule({
     },
     {
       id: "@voyant-travel/flights#action.ticket-order",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "flight-order",
+      commandTargetField: "orderId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableFlightActionRuntimePort.id],
+          },
+        },
       },
       effectBoundary: "external",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+      },
       requiredScopes: ["flights:write"],
       risk: "critical",
       ledger: "required",
@@ -165,14 +182,27 @@ export const flightsVoyantModule = defineModule({
     },
     {
       id: "@voyant-travel/flights#action.cancel-order",
-      version: "v1",
+      version: "v2",
       kind: "execute",
       targetType: "flight-order",
+      commandTargetField: "orderId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
       availability: {
         status: "unavailable",
-        reasonCode: "unsafe-nontransactional-effect",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [durableFlightActionRuntimePort.id],
+          },
+        },
       },
       effectBoundary: "external",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+      },
       requiredScopes: ["flights:write"],
       risk: "critical",
       ledger: "required",

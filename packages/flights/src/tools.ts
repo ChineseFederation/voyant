@@ -12,11 +12,14 @@ import {
   flightSearchResponseSchema,
 } from "@voyant-travel/flights-contracts/contract/schemas"
 import {
+  admitHandlerActionPolicy,
   defineTool,
+  type HandlerActionPolicyExpectation,
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
   ToolError,
+  type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { z } from "zod"
 
@@ -24,6 +27,7 @@ const OWNER = "@voyant-travel/flights"
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const orderIdSchema = z.object({ orderId: z.string().min(1) })
 const cancelOrderSchema = orderIdSchema.extend({ reason: flightCancelReasonSchema.optional() })
+const DURABLE_FLIGHT_ACTION_VERSION = "v2"
 
 type FlightSearchInput = z.infer<typeof flightSearchRequestSchema>
 type FlightPriceInput = z.infer<typeof flightPriceRequestSchema>
@@ -35,8 +39,8 @@ export interface FlightsToolServices {
   priceOffer(input: FlightPriceInput): Promise<unknown>
   listOrders(input: FlightOrdersListInput): Promise<unknown>
   getOrder(orderId: string): Promise<unknown>
-  ticketOrder(orderId: string): Promise<unknown>
-  cancelOrder(input: FlightCancelInput): Promise<unknown>
+  ticketOrder(orderId: string, admitted: ToolHandlerActionPolicyContext): Promise<unknown>
+  cancelOrder(input: FlightCancelInput, admitted: ToolHandlerActionPolicyContext): Promise<unknown>
 }
 
 export type FlightsToolContext = ToolContext & { flights?: FlightsToolServices }
@@ -61,6 +65,48 @@ const criticalWriteRisk = {
   confirmationRequired: true,
   sideEffects: ["external-booking", "payment"],
 } as const
+
+export const TICKET_FLIGHT_ORDER_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.ticket-order`,
+  capabilityVersion: DURABLE_FLIGHT_ACTION_VERSION,
+  canonicalName: "ticket_flight_order",
+  actionPolicy: {
+    id: `${OWNER}#action.ticket-order`,
+    capabilityId: `${OWNER}#action.ticket-order`,
+    version: DURABLE_FLIGHT_ACTION_VERSION,
+    kind: "execute",
+    targetType: "flight-order",
+    commandTargetField: "orderId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "critical",
+    ledger: "required",
+    approval: "required",
+    policy: "flight-ticket",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
+export const CANCEL_FLIGHT_ORDER_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.cancel-order`,
+  capabilityVersion: DURABLE_FLIGHT_ACTION_VERSION,
+  canonicalName: "cancel_flight_order",
+  actionPolicy: {
+    id: `${OWNER}#action.cancel-order`,
+    capabilityId: `${OWNER}#action.cancel-order`,
+    version: DURABLE_FLIGHT_ACTION_VERSION,
+    kind: "execute",
+    targetType: "flight-order",
+    commandTargetField: "orderId",
+    targetLifecycle: "existing",
+    existingTarget: { durability: "handler-command-result-v1" },
+    risk: "critical",
+    ledger: "required",
+    approval: "required",
+    policy: "flight-cancel",
+    reversible: false,
+  },
+} as const satisfies HandlerActionPolicyExpectation
 
 export const searchFlightsTool = defineTool({
   ...offerReadMetadata,
@@ -116,7 +162,7 @@ export const getFlightOrderTool = defineTool({
 
 export const ticketFlightOrderTool = defineTool({
   owner: OWNER,
-  capabilityVersion: "v1",
+  capabilityVersion: DURABLE_FLIGHT_ACTION_VERSION,
   capabilityId: `${OWNER}#tool.ticket-order`,
   name: "ticket_flight_order",
   description: "Issue tickets for a held flight order through a connector that supports ticketing.",
@@ -124,16 +170,19 @@ export const ticketFlightOrderTool = defineTool({
   audience: STAFF_AUDIENCE,
   tier: "destructive",
   riskPolicy: criticalWriteRisk,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   inputSchema: orderIdSchema,
   outputSchema: flightGetOrderResponseSchema,
   async handler({ orderId }, ctx: FlightsToolContext) {
-    return flightGetOrderResponseSchema.parse(await flights(ctx).ticketOrder(orderId))
+    const admitted = admitHandlerActionPolicy(ctx, TICKET_FLIGHT_ORDER_HANDLER_POLICY)
+    return flightGetOrderResponseSchema.parse(await flights(ctx).ticketOrder(orderId, admitted))
   },
 })
 
 export const cancelFlightOrderTool = defineTool({
   owner: OWNER,
-  capabilityVersion: "v1",
+  capabilityVersion: DURABLE_FLIGHT_ACTION_VERSION,
   capabilityId: `${OWNER}#tool.cancel-order`,
   name: "cancel_flight_order",
   description: "Cancel a flight order through the connector; supplier refund rules may apply.",
@@ -141,10 +190,13 @@ export const cancelFlightOrderTool = defineTool({
   audience: STAFF_AUDIENCE,
   tier: "destructive",
   riskPolicy: criticalWriteRisk,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   inputSchema: cancelOrderSchema,
   outputSchema: flightCancelResponseSchema,
   async handler(input, ctx: FlightsToolContext) {
-    return flightCancelResponseSchema.parse(await flights(ctx).cancelOrder(input))
+    const admitted = admitHandlerActionPolicy(ctx, CANCEL_FLIGHT_ORDER_HANDLER_POLICY)
+    return flightCancelResponseSchema.parse(await flights(ctx).cancelOrder(input, admitted))
   },
 })
 
