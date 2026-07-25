@@ -1,5 +1,14 @@
 # @voyant-travel/flights
 
+## 0.205.0
+
+### Patch Changes
+
+- 113edfc: Activate flight ticketing and cancellation Tools only for a selected, behaviorally conformant durable provider, and route admitted commands through crash-safe provider reconciliation.
+- Updated dependencies [58baffe]
+  - @voyant-travel/finance@0.205.0
+  - @voyant-travel/catalog@0.203.0
+
 ## 0.204.0
 
 ### Patch Changes

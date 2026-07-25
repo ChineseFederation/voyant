@@ -1,5 +1,34 @@
 # @voyant-travel/legal-react
 
+## 0.205.0
+
+### Minor Changes
+
+- 58baffe: Remove callable Tool name aliases from the standard Operator graph. MCP and
+  other callers must use canonical Tool names only; previous compatibility names
+  (for example `crm_*`, `legal_contract_*`, `availability_*`, `dashboard_summary`,
+  `read_setup_state`, `products_compose`, `invoices_issue_from_booking`) no longer
+  dispatch.
+
+  Stop publicly exporting the deprecated Relationships Tools
+  `add_relationship_note`, `add_relationship_contact_method`, and
+  `add_relationship_address`. Use the person- or organization-specific add Tools
+  selected by the graph instead.
+
+  See the consolidated [caller migration
+  page](../docs/migrations/removed-tool-aliases.md) for the complete old →
+  canonical name mapping.
+
+### Patch Changes
+
+- Updated dependencies [58baffe]
+  - @voyant-travel/legal@0.205.0
+  - @voyant-travel/bookings-react@0.205.0
+  - @voyant-travel/relationships-react@0.205.0
+  - @voyant-travel/inventory-react@0.87.0
+  - @voyant-travel/distribution-react@0.195.0
+  - @voyant-travel/commerce-react@0.87.0
+
 ## 0.204.0
 
 ### Patch Changes

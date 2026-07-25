@@ -1,5 +1,16 @@
 # @voyant-travel/notifications
 
+## 0.139.3
+
+### Patch Changes
+
+- Updated dependencies [58baffe]
+  - @voyant-travel/legal@0.205.0
+  - @voyant-travel/finance@0.205.0
+  - @voyant-travel/storefront@0.207.0
+  - @voyant-travel/quotes@0.134.3
+  - @voyant-travel/bookings@0.205.0
+
 ## 0.139.2
 
 ### Patch Changes

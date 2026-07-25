@@ -1,5 +1,75 @@
 # @voyant-travel/operator-standard
 
+## 0.14.0
+
+### Minor Changes
+
+- 58baffe: Remove callable Tool name aliases from the standard Operator graph. MCP and
+  other callers must use canonical Tool names only; previous compatibility names
+  (for example `crm_*`, `legal_contract_*`, `availability_*`, `dashboard_summary`,
+  `read_setup_state`, `products_compose`, `invoices_issue_from_booking`) no longer
+  dispatch.
+
+  Stop publicly exporting the deprecated Relationships Tools
+  `add_relationship_note`, `add_relationship_contact_method`, and
+  `add_relationship_address`. Use the person- or organization-specific add Tools
+  selected by the graph instead.
+
+  See the consolidated [caller migration
+  page](../docs/migrations/removed-tool-aliases.md) for the complete old →
+  canonical name mapping.
+
+### Patch Changes
+
+- Updated dependencies [113edfc]
+- Updated dependencies [58baffe]
+  - @voyant-travel/flights@0.205.0
+  - @voyant-travel/setup@0.6.0
+  - @voyant-travel/navigation-preferences@0.17.0
+  - @voyant-travel/navigation-preferences-react@0.17.0
+  - @voyant-travel/operations@0.9.0
+  - @voyant-travel/legal@0.205.0
+  - @voyant-travel/legal-react@0.205.0
+  - @voyant-travel/relationships@0.132.0
+  - @voyant-travel/inventory@0.21.0
+  - @voyant-travel/finance@0.205.0
+  - @voyant-travel/finance-react@0.205.0
+  - @voyant-travel/setup-react@0.10.0
+  - @voyant-travel/accommodations@0.165.0
+  - @voyant-travel/catalog-authoring@0.107.30
+  - @voyant-travel/mice@0.61.0
+  - @voyant-travel/operations-react@0.86.0
+  - @voyant-travel/storefront@0.207.0
+  - @voyant-travel/notifications@0.139.3
+  - @voyant-travel/bookings-react@0.205.0
+  - @voyant-travel/quotes@0.134.3
+  - @voyant-travel/relationships-react@0.205.0
+  - @voyant-travel/inventory-react@0.87.0
+  - @voyant-travel/trips@0.197.0
+  - @voyant-travel/catalog@0.203.0
+  - @voyant-travel/commerce@0.44.2
+  - @voyant-travel/cruises@0.204.0
+  - @voyant-travel/distribution@0.195.0
+  - @voyant-travel/flights-react@0.205.0
+  - @voyant-travel/operator-settings@0.14.26
+  - @voyant-travel/operator-settings-react@0.60.0
+  - @voyant-travel/trips-react@0.197.0
+  - @voyant-travel/admin-app@0.97.0
+  - @voyant-travel/mice-react@0.73.0
+  - @voyant-travel/storefront-react@0.207.0
+  - @voyant-travel/action-ledger-react@0.94.0
+  - @voyant-travel/distribution-react@0.195.0
+  - @voyant-travel/identity-react@0.205.0
+  - @voyant-travel/quotes-react@0.203.0
+  - @voyant-travel/catalog-react@0.203.0
+  - @voyant-travel/commerce-react@0.87.0
+  - @voyant-travel/admin-host@0.55.0
+  - @voyant-travel/cruises-react@0.204.0
+  - @voyant-travel/bookings@0.205.0
+  - @voyant-travel/charters@0.203.0
+  - @voyant-travel/identity@0.205.0
+  - @voyant-travel/notifications-react@0.139.3
+
 ## 0.13.5
 
 ### Patch Changes

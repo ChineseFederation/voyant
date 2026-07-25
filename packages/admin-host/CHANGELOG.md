@@ -1,5 +1,11 @@
 # @voyant-travel/admin-host
 
+## 0.55.0
+
+### Patch Changes
+
+- @voyant-travel/admin-app@0.97.0
+
 ## 0.54.0
 
 ### Patch Changes
