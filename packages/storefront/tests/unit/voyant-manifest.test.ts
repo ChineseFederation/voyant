@@ -5,6 +5,7 @@ import {
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
   storefrontPaymentLinkRuntimePort,
+  storefrontPaymentReconciliationJobRuntimePort,
 } from "../../src/runtime-port.js"
 import {
   storefrontCustomerPortalVoyantModule,
@@ -17,6 +18,9 @@ describe("storefront deployment manifest", () => {
   it("exports import-cheap runtime port contracts", () => {
     expect(storefrontIntakeRuntimePort.id).toBe("storefront.intake.runtime")
     expect(storefrontPaymentLinkRuntimePort.id).toBe("storefront.payment-link.runtime")
+    expect(storefrontPaymentReconciliationJobRuntimePort.id).toBe(
+      "storefront.payment-reconciliation-job.runtime",
+    )
   })
 
   it("owns the base runtime, persistence, and verification link facets", () => {
@@ -188,6 +192,7 @@ describe("storefront deployment manifest", () => {
       },
       runtimePorts: [
         { id: "storefront.payment-link.runtime" },
+        { id: "storefront.payment-reconciliation-job.runtime" },
         { id: "payments.adapter.runtime", optional: true },
       ],
       api: [
@@ -204,6 +209,34 @@ describe("storefront deployment manifest", () => {
           },
         },
       ],
+      jobs: [
+        {
+          id: "storefront.reconcile-payment-sessions",
+          schedule: { every: "1m", overlap: "skip" },
+          scheduling: { required: true },
+          runtime: {
+            entry: "@voyant-travel/storefront/payment-reconciliation-job",
+            export: "runPaymentAdapterReconciliationJob",
+          },
+        },
+      ],
+    })
+    const reconciliation = storefrontPaymentLinkVoyantModule.jobs?.find(
+      ({ id }) => id === "storefront.reconcile-payment-sessions",
+    )
+    expect(reconciliation).toMatchObject({
+      schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { every: "1m", overlap: "skip" },
+          economical: { every: "5m", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/storefront/payment-reconciliation-job",
+        export: "runPaymentAdapterReconciliationJob",
+      },
     })
   })
 

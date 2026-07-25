@@ -13,6 +13,7 @@ import {
   storefrontIntakeRuntimePort,
   storefrontOffersRuntimePort,
   storefrontPaymentLinkRuntimePort,
+  storefrontPaymentReconciliationJobRuntimePort,
   storefrontVerificationRuntimePort,
 } from "./runtime-port.js"
 
@@ -458,6 +459,7 @@ export const storefrontPaymentLinkVoyantModule = defineModule({
   },
   runtimePorts: [
     requirePort(storefrontPaymentLinkRuntimePort),
+    requirePort(storefrontPaymentReconciliationJobRuntimePort),
     // Optional: when a payment adapter is wired (self-host in-process OR the
     // managed remote adapter), the IPN webhook verifies + applies callbacks.
     { ...paymentAdapterRuntimePortReference, optional: true },
@@ -473,6 +475,23 @@ export const storefrontPaymentLinkVoyantModule = defineModule({
       runtime: {
         entry: "@voyant-travel/storefront/payment-link",
         export: "createPaymentLinkApiModule",
+      },
+    },
+  ],
+  jobs: [
+    {
+      id: "storefront.reconcile-payment-sessions",
+      schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { every: "1m", overlap: "skip" },
+          economical: { every: "5m", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/storefront/payment-reconciliation-job",
+        export: "runPaymentAdapterReconciliationJob",
       },
     },
   ],

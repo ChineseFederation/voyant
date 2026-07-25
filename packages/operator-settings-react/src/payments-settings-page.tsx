@@ -3,26 +3,26 @@
 /**
  * Settings → Payments (source-free, package-delivered).
  *
- * Lists the first-party payment processors an operator can connect and lets
- * them connect/disconnect one (single active provider per org). Talks to the
- * `@voyant-travel/operator-settings` routes at `/v1/admin/settings/payments/*`.
- *
- * Managed deployments connect in-app (credentials are brokered to the
- * voyant-cloud control plane, never stored in the Operator). Self-host
- * deployments pin their processor via environment variables, so the page
- * renders a read-only status. See
- * `docs/adr/0015-payment-adapter-transports-and-managed-connect.md`.
+ * Credential providers submit their declared secret fields to the managed
+ * registry. Hosted providers instead request a short-lived browser bootstrap
+ * and hand it to an injected embedded-onboarding client. The AccountSession
+ * secret stays in this component's memory: it is never put in query data,
+ * storage, logs, URLs, or rendered markup.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useOperatorAdminMessages } from "@voyant-travel/admin/providers/operator-admin-messages"
 import { useVoyantReactContext } from "@voyant-travel/react"
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge,
   Button,
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
   Dialog,
@@ -31,15 +31,33 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
   Input,
-  Label,
+  NativeSelect,
+  NativeSelectOption,
+  Spinner,
   Switch,
 } from "@voyant-travel/ui/components"
-import { CreditCard, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { CreditCard, TriangleAlert } from "lucide-react"
+import { type ComponentType, useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 
 type ProviderMode = "sandbox" | "test" | "live"
+type ConnectionState =
+  | "pending_requirements"
+  | "pending_verification"
+  | "connected"
+  | "restricted"
+  | "error"
+  | "disconnected"
 
 interface CredentialField {
   key: string
@@ -55,15 +73,23 @@ interface ProviderDescriptor {
   id: string
   displayName: string
   description: string
+  connectionMethod: "credentials" | "embedded_onboarding" | "read_only"
   credentialFieldSchema: CredentialField[]
   availability: "available" | "coming_soon"
   modes: ProviderMode[]
 }
 
+interface ConnectionRequirement {
+  code: string
+  message: string
+  deadlineAt?: string | null
+}
+
 interface ConnectionStatus {
   activeProviderId: string | null
-  status: "disconnected" | "connected" | "error"
+  status: ConnectionState
   mode: ProviderMode | null
+  requirements?: ConnectionRequirement[]
   lastError?: string | null
   readOnly?: boolean
 }
@@ -72,6 +98,93 @@ interface ConnectResult {
   ok: boolean
   status: ConnectionStatus
   error?: string
+}
+
+export interface PaymentEmbeddedOnboardingSession {
+  type: "embedded_onboarding"
+  publishableKey: string
+  clientSecret: string
+  expiresAt: string
+}
+
+interface OnboardingResult {
+  ok: boolean
+  status: ConnectionStatus
+  session?: PaymentEmbeddedOnboardingSession
+  error?: string
+}
+
+/**
+ * Integration seam for Stripe Connect.js (or another approved hosted client).
+ * The client asks for an ephemeral secret when it initializes and whenever
+ * Connect.js refreshes an expired AccountSession.
+ */
+export interface PaymentEmbeddedOnboardingClientProps {
+  publishableKey: string
+  fetchClientSecret: () => Promise<string>
+  onExit: () => void
+  loadErrorTitle: string
+  loadErrorDescription: string
+}
+
+export type PaymentEmbeddedOnboardingClient = ComponentType<PaymentEmbeddedOnboardingClientProps>
+
+interface PaymentEmbeddedOnboardingBoundaryProps {
+  session: PaymentEmbeddedOnboardingSession
+  client?: PaymentEmbeddedOnboardingClient
+  refreshClientSecret: () => Promise<string>
+  onExit: () => void
+  fallbackTitle: string
+  fallbackDescription: string
+}
+
+/**
+ * Keeps session secrets behind a callback and out of the DOM. The initial
+ * secret is consumed once; every later call must mint a fresh AccountSession.
+ */
+export function PaymentEmbeddedOnboardingBoundary({
+  session,
+  client: Client,
+  refreshClientSecret,
+  onExit,
+  fallbackTitle,
+  fallbackDescription,
+}: PaymentEmbeddedOnboardingBoundaryProps) {
+  const initialClientSecret = useRef<string | null>(session.clientSecret)
+  const fetchClientSecret = useCallback(async () => {
+    const initial = initialClientSecret.current
+    if (initial) {
+      initialClientSecret.current = null
+      return initial
+    }
+    try {
+      return await refreshClientSecret()
+    } catch {
+      // Never let an upstream error containing session material cross this
+      // browser-facing boundary.
+      throw new Error(fallbackDescription)
+    }
+  }, [fallbackDescription, refreshClientSecret])
+
+  if (!Client) {
+    return (
+      <Alert>
+        <TriangleAlert aria-hidden="true" />
+        <AlertTitle>{fallbackTitle}</AlertTitle>
+        <AlertDescription>{fallbackDescription}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  return (
+    <Client
+      publishableKey={session.publishableKey}
+      fetchClientSecret={fetchClientSecret}
+      onExit={onExit}
+      loadErrorTitle={fallbackTitle}
+      loadErrorDescription={fallbackDescription}
+    />
+  )
 }
 
 const PROVIDERS_KEY = ["payment-providers"]
@@ -83,13 +196,136 @@ async function responseError(response: Response, fallback: string) {
     message?: unknown
   } | null
   if (typeof body?.error === "string" && body.error.trim()) return body.error
-  if (typeof body?.message === "string" && body.message.trim()) {
-    return body.message
-  }
+  if (typeof body?.message === "string" && body.message.trim()) return body.message
   return fallback
 }
 
-export function PaymentsSettingsPage() {
+type PaymentSettingsFetcher = (input: string, init?: RequestInit) => Promise<Response>
+
+/** Request the short-lived bootstrap without placing it in a query cache. */
+export async function requestPaymentOnboardingSession(
+  fetcher: PaymentSettingsFetcher,
+  baseUrl: string,
+  providerId: string,
+  mode: ProviderMode,
+  failureMessage: string,
+): Promise<OnboardingResult> {
+  const response = await fetcher(`${baseUrl}/v1/admin/settings/payments/onboarding`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ providerId, mode }),
+  })
+  if (!response.ok) throw new Error(failureMessage)
+  const result = (
+    (await response.json().catch(() => null)) as {
+      data?: OnboardingResult
+    } | null
+  )?.data
+  if (!result) throw new Error(failureMessage)
+  return result
+}
+
+function isPaymentEmbeddedOnboardingSession(
+  session: PaymentEmbeddedOnboardingSession | undefined,
+): session is PaymentEmbeddedOnboardingSession {
+  return Boolean(
+    session &&
+      session.type === "embedded_onboarding" &&
+      session.publishableKey.trim() &&
+      session.clientSecret.trim() &&
+      session.expiresAt.trim(),
+  )
+}
+
+export function paymentConnectionStatusLabel(
+  state: ConnectionState,
+  labels: Record<ConnectionState, string>,
+): string {
+  return labels[state]
+}
+
+export function canConfigurePaymentProvider(
+  provider: Pick<ProviderDescriptor, "availability" | "connectionMethod">,
+): boolean {
+  return provider.availability === "available" && provider.connectionMethod !== "read_only"
+}
+
+/** Hosted disconnect is fail-closed until the managed control plane exposes it. */
+export function canDisconnectPaymentProvider(
+  provider: Pick<ProviderDescriptor, "connectionMethod"> | undefined,
+): boolean {
+  return provider?.connectionMethod === "credentials"
+}
+
+function modeLabel(
+  mode: ProviderMode,
+  labels: { sandbox: string; test: string; live: string },
+): string {
+  if (mode === "live") return labels.live
+  if (mode === "test") return labels.test
+  return labels.sandbox
+}
+
+function ModeField({
+  modes,
+  mode,
+  onChange,
+  label,
+  labels,
+}: {
+  modes: ProviderMode[]
+  mode: ProviderMode
+  onChange: (mode: ProviderMode) => void
+  label: string
+  labels: { sandbox: string; test: string; live: string }
+}) {
+  if (modes.length < 2) return null
+
+  if (
+    modes.length === 2 &&
+    modes.includes("live") &&
+    (modes.includes("sandbox") || modes.includes("test"))
+  ) {
+    const nonLiveMode = modes.includes("sandbox") ? "sandbox" : "test"
+    return (
+      <Field orientation="horizontal">
+        <FieldLabel htmlFor="payment-provider-mode">{label}</FieldLabel>
+        <div className="flex items-center gap-3">
+          <span>{modeLabel(nonLiveMode, labels)}</span>
+          <Switch
+            id="payment-provider-mode"
+            checked={mode === "live"}
+            onCheckedChange={(checked) => onChange(checked ? "live" : nonLiveMode)}
+          />
+          <span>{labels.live}</span>
+        </div>
+      </Field>
+    )
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="payment-provider-mode">{label}</FieldLabel>
+      <NativeSelect
+        id="payment-provider-mode"
+        value={mode}
+        onChange={(event) => onChange(event.target.value as ProviderMode)}
+      >
+        {modes.map((availableMode) => (
+          <NativeSelectOption key={availableMode} value={availableMode}>
+            {modeLabel(availableMode, labels)}
+          </NativeSelectOption>
+        ))}
+      </NativeSelect>
+    </Field>
+  )
+}
+
+export interface PaymentsSettingsPageProps {
+  embeddedOnboardingClient?: PaymentEmbeddedOnboardingClient
+}
+
+export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSettingsPageProps = {}) {
   const queryClient = useQueryClient()
   const { baseUrl, fetcher } = useVoyantReactContext()
   const t = useOperatorAdminMessages().settings.paymentsPage
@@ -97,90 +333,164 @@ export function PaymentsSettingsPage() {
   const providersQuery = useQuery({
     queryKey: PROVIDERS_KEY,
     queryFn: async (): Promise<ProviderDescriptor[]> => {
-      const res = await fetcher(`${baseUrl}/v1/admin/settings/payments/providers`)
-      if (!res.ok) throw new Error(t.loadFailed)
-      return ((await res.json()) as { data: ProviderDescriptor[] }).data
+      const response = await fetcher(`${baseUrl}/v1/admin/settings/payments/providers`)
+      if (!response.ok) throw new Error(t.loadFailed)
+      return ((await response.json()) as { data: ProviderDescriptor[] }).data
     },
   })
 
   const connectionQuery = useQuery({
     queryKey: CONNECTION_KEY,
     queryFn: async (): Promise<ConnectionStatus> => {
-      const res = await fetcher(`${baseUrl}/v1/admin/settings/payments`)
-      if (!res.ok) throw new Error(t.loadFailed)
-      return ((await res.json()) as { data: ConnectionStatus }).data
+      const response = await fetcher(`${baseUrl}/v1/admin/settings/payments`)
+      if (!response.ok) throw new Error(t.loadFailed)
+      return ((await response.json()) as { data: ConnectionStatus }).data
     },
   })
 
   const [dialogProvider, setDialogProvider] = useState<ProviderDescriptor | null>(null)
   const [credentials, setCredentials] = useState<Record<string, unknown>>({})
   const [mode, setMode] = useState<ProviderMode>("sandbox")
+  const [onboardingPending, setOnboardingPending] = useState(false)
+  const [onboardingSession, setOnboardingSession] =
+    useState<PaymentEmbeddedOnboardingSession | null>(null)
 
-  const invalidate = () => {
+  const invalidateConnection = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: CONNECTION_KEY })
-  }
+  }, [queryClient])
+
+  const closeDialog = useCallback(() => {
+    setDialogProvider(null)
+    setCredentials({})
+    setOnboardingSession(null)
+    setOnboardingPending(false)
+  }, [])
 
   const connect = useMutation({
     mutationFn: async (provider: ProviderDescriptor): Promise<ConnectResult> => {
-      const res = await fetcher(`${baseUrl}/v1/admin/settings/payments/connect`, {
+      const response = await fetcher(`${baseUrl}/v1/admin/settings/payments/connect`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ providerId: provider.id, mode, credentials }),
       })
-      if (!res.ok) throw new Error(await responseError(res, t.connectFailed))
-      return ((await res.json()) as { data: ConnectResult }).data
+      if (!response.ok) throw new Error(await responseError(response, t.connectFailed))
+      return ((await response.json()) as { data: ConnectResult }).data
     },
     onSuccess: (result, provider) => {
       if (result.ok) {
         toast.success(t.connectedToast.replace("{provider}", provider.displayName))
-        setDialogProvider(null)
-        setCredentials({})
-        invalidate()
+        closeDialog()
+        invalidateConnection()
       } else {
         toast.error(result.error ?? t.connectFailed)
       }
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : t.connectFailed),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t.connectFailed),
   })
+
+  const beginOnboarding = async (provider: ProviderDescriptor) => {
+    setOnboardingPending(true)
+    setOnboardingSession(null)
+    try {
+      // Deliberately bypass React Query: its mutation cache would retain the
+      // AccountSession secret beyond this dialog's in-memory lifecycle.
+      const result = await requestPaymentOnboardingSession(
+        fetcher,
+        baseUrl,
+        provider.id,
+        mode,
+        t.onboardingFailed,
+      )
+      if (!result.ok || !isPaymentEmbeddedOnboardingSession(result.session)) {
+        toast.error(t.onboardingFailed)
+        return
+      }
+      setOnboardingSession(result.session)
+      invalidateConnection()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.onboardingFailed)
+    } finally {
+      setOnboardingPending(false)
+    }
+  }
+
+  const refreshOnboardingClientSecret = useCallback(async () => {
+    if (!dialogProvider) throw new Error(t.onboardingFailed)
+    const result = await requestPaymentOnboardingSession(
+      fetcher,
+      baseUrl,
+      dialogProvider.id,
+      mode,
+      t.onboardingFailed,
+    )
+    if (!result.ok || !isPaymentEmbeddedOnboardingSession(result.session)) {
+      throw new Error(t.onboardingFailed)
+    }
+    invalidateConnection()
+    return result.session.clientSecret
+  }, [baseUrl, dialogProvider, fetcher, invalidateConnection, mode, t.onboardingFailed])
 
   const disconnect = useMutation({
     mutationFn: async () => {
-      const res = await fetcher(`${baseUrl}/v1/admin/settings/payments/disconnect`, {
+      const response = await fetcher(`${baseUrl}/v1/admin/settings/payments/disconnect`, {
         method: "POST",
       })
-      if (!res.ok) throw new Error(await responseError(res, t.connectFailed))
+      if (!response.ok) throw new Error(await responseError(response, t.connectFailed))
     },
     onSuccess: () => {
       toast.success(t.disconnectedToast)
-      invalidate()
+      invalidateConnection()
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : t.connectFailed),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t.connectFailed),
   })
 
   if (providersQuery.isPending || connectionQuery.isPending) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Spinner className="size-6 text-muted-foreground" aria-label={t.loading} />
       </div>
+    )
+  }
+
+  if (providersQuery.isError || connectionQuery.isError) {
+    return (
+      <Alert variant="destructive">
+        <TriangleAlert aria-hidden="true" />
+        <AlertTitle>{t.loadFailed}</AlertTitle>
+        <AlertDescription>{t.tryAgainLater}</AlertDescription>
+      </Alert>
     )
   }
 
   const connection = connectionQuery.data
   const providers = providersQuery.data ?? []
   const activeId = connection?.activeProviderId ?? null
+  const activeProvider = providers.find((provider) => provider.id === activeId)
+  const statusLabels: Record<ConnectionState, string> = {
+    pending_requirements: t.pendingRequirements,
+    pending_verification: t.pendingVerification,
+    connected: t.connected,
+    restricted: t.restricted,
+    error: t.connectionError,
+    disconnected: t.disconnected,
+  }
+  const statusLabel = paymentConnectionStatusLabel(
+    connection?.status ?? "disconnected",
+    statusLabels,
+  )
 
   const openConnect = (provider: ProviderDescriptor) => {
     setDialogProvider(provider)
     setCredentials({})
+    setOnboardingSession(null)
     setMode(provider.modes.includes("sandbox") ? "sandbox" : (provider.modes[0] ?? "live"))
   }
 
-  const statusLabel =
-    connection?.status === "connected"
-      ? t.connected
-      : connection?.status === "error"
-        ? t.connectionError
-        : t.disconnected
+  const modeLabels = {
+    sandbox: t.modeSandbox,
+    test: t.modeTest,
+    live: t.modeLive,
+  }
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -195,82 +505,129 @@ export function PaymentsSettingsPage() {
             <CardTitle>{t.activeProvider}</CardTitle>
             <CardDescription>{t.configuredViaEnv}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">
-                {providers.find((p) => p.id === activeId)?.displayName ?? activeId ?? statusLabel}
+              <CreditCard aria-hidden="true" />
+              <span>
+                {providers.find((provider) => provider.id === activeId)?.displayName ??
+                  activeId ??
+                  statusLabel}
               </span>
               {activeId ? <Badge variant="secondary">{statusLabel}</Badge> : null}
             </div>
-            <p className="text-xs text-muted-foreground">{t.configuredViaEnvHint}</p>
+            <p className="text-muted-foreground">{t.configuredViaEnvHint}</p>
           </CardContent>
         </Card>
       ) : (
         <>
-          {connection?.status === "connected" && activeId ? (
+          {connection && connection.status !== "disconnected" && activeId ? (
             <Card>
               <CardHeader>
                 <CardTitle>{t.activeProvider}</CardTitle>
+                <CardDescription>{t.readinessDescription}</CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">
-                    {providers.find((p) => p.id === activeId)?.displayName ?? activeId}
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CreditCard aria-hidden="true" />
+                  <span>
+                    {providers.find((provider) => provider.id === activeId)?.displayName ??
+                      activeId}
                   </span>
-                  <Badge>{t.connected}</Badge>
+                  <Badge variant={connection.status === "error" ? "destructive" : "secondary"}>
+                    {statusLabel}
+                  </Badge>
                   {connection.mode ? (
-                    <Badge variant="outline">
-                      {connection.mode === "live" ? t.modeLive : t.modeSandbox}
-                    </Badge>
+                    <Badge variant="outline">{modeLabel(connection.mode, modeLabels)}</Badge>
                   ) : null}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={disconnect.isPending}
-                  onClick={() => disconnect.mutate()}
-                >
-                  {disconnect.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {t.disconnect}
-                </Button>
+
+                {connection.requirements?.length ? (
+                  <Alert>
+                    <TriangleAlert aria-hidden="true" />
+                    <AlertTitle>{t.requirementsTitle}</AlertTitle>
+                    <AlertDescription>
+                      <ul className="flex list-disc flex-col gap-2 pl-5">
+                        {connection.requirements.map((requirement) => (
+                          <li key={`${requirement.code}:${requirement.deadlineAt ?? ""}`}>
+                            <span>{requirement.message}</span>
+                            {requirement.deadlineAt ? (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                {t.requirementDeadline.replace(
+                                  "{date}",
+                                  new Date(requirement.deadlineAt).toLocaleDateString(),
+                                )}
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
               </CardContent>
+              <CardFooter>
+                {canDisconnectPaymentProvider(activeProvider) ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={disconnect.isPending}
+                    onClick={() => disconnect.mutate()}
+                  >
+                    {disconnect.isPending ? <Spinner data-icon="inline-start" /> : null}
+                    {t.disconnect}
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" disabled>
+                    {t.disconnectUnavailable}
+                  </Button>
+                )}
+              </CardFooter>
             </Card>
           ) : null}
 
-          <section className="space-y-3">
+          <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-muted-foreground">{t.availableProviders}</h2>
             {providers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t.empty}</p>
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <CreditCard aria-hidden="true" />
+                  </EmptyMedia>
+                  <EmptyTitle>{t.empty}</EmptyTitle>
+                  <EmptyDescription>{t.emptyDescription}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {providers.map((provider) => {
                   const isActive = provider.id === activeId
-                  const isComingSoon = provider.availability === "coming_soon"
+                  const unavailable = !canConfigurePaymentProvider(provider)
                   return (
                     <Card key={provider.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between gap-2">
-                          <CardTitle className="text-base">{provider.displayName}</CardTitle>
-                          {isComingSoon ? (
+                          <CardTitle>{provider.displayName}</CardTitle>
+                          {provider.availability === "coming_soon" ? (
                             <Badge variant="secondary">{t.comingSoon}</Badge>
                           ) : isActive ? (
-                            <Badge>{t.connected}</Badge>
+                            <Badge>{statusLabel}</Badge>
                           ) : null}
                         </div>
                         <CardDescription>{provider.description}</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardFooter>
                         <Button
                           size="sm"
                           variant={isActive ? "outline" : "default"}
-                          disabled={isComingSoon || isActive}
+                          disabled={unavailable || isActive}
                           onClick={() => openConnect(provider)}
                         >
-                          {t.connect}
+                          {provider.connectionMethod === "embedded_onboarding"
+                            ? t.startOnboarding
+                            : t.connect}
                         </Button>
-                      </CardContent>
+                      </CardFooter>
                     </Card>
                   )
                 })}
@@ -283,99 +640,153 @@ export function PaymentsSettingsPage() {
       <Dialog
         open={dialogProvider !== null}
         onOpenChange={(open) => {
-          if (!open) setDialogProvider(null)
+          if (!open) closeDialog()
         }}
       >
         <DialogContent>
           {dialogProvider ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {t.credentialsTitle.replace("{provider}", dialogProvider.displayName)}
-                </DialogTitle>
-                <DialogDescription>
-                  {t.credentialsDescription.replace("{provider}", dialogProvider.displayName)}
-                </DialogDescription>
-              </DialogHeader>
+            dialogProvider.connectionMethod === "embedded_onboarding" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {t.onboardingTitle.replace("{provider}", dialogProvider.displayName)}
+                  </DialogTitle>
+                  <DialogDescription>{t.onboardingDescription}</DialogDescription>
+                </DialogHeader>
 
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  connect.mutate(dialogProvider)
-                }}
-              >
-                {dialogProvider.modes.length > 1 ? (
-                  <div className="space-y-1">
-                    <Label htmlFor="pay-mode">{t.modeLabel}</Label>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm">{t.modeSandbox}</span>
-                      <Switch
-                        id="pay-mode"
-                        checked={mode === "live"}
-                        onCheckedChange={(checked) => setMode(checked ? "live" : "sandbox")}
-                      />
-                      <span className="text-sm">{t.modeLive}</span>
-                    </div>
-                  </div>
-                ) : null}
-
-                {dialogProvider.credentialFieldSchema.map((field) => (
-                  <div key={field.key} className="space-y-1">
-                    <Label htmlFor={`pay-${field.key}`}>{field.label}</Label>
-                    {field.kind === "boolean" ? (
-                      <Switch
-                        id={`pay-${field.key}`}
-                        checked={Boolean(credentials[field.key])}
-                        onCheckedChange={(checked) =>
-                          setCredentials((prev) => ({ ...prev, [field.key]: checked }))
-                        }
-                      />
-                    ) : field.kind === "select" ? (
-                      <select
-                        id={`pay-${field.key}`}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                        value={String(credentials[field.key] ?? "")}
-                        onChange={(e) =>
-                          setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                      >
-                        <option value="" />
-                        {(field.options ?? []).map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <Input
-                        id={`pay-${field.key}`}
-                        type={field.kind === "secret" ? "password" : "text"}
-                        autoComplete="off"
-                        placeholder={field.placeholder}
-                        value={String(credentials[field.key] ?? "")}
-                        onChange={(e) =>
-                          setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
-                        }
-                      />
-                    )}
-                    {field.helpText ? (
-                      <p className="text-xs text-muted-foreground">{field.helpText}</p>
-                    ) : null}
-                  </div>
-                ))}
+                {onboardingSession ? (
+                  <PaymentEmbeddedOnboardingBoundary
+                    key={onboardingSession.expiresAt}
+                    session={onboardingSession}
+                    client={embeddedOnboardingClient}
+                    refreshClientSecret={refreshOnboardingClientSecret}
+                    onExit={closeDialog}
+                    fallbackTitle={t.onboardingUnavailableTitle}
+                    fallbackDescription={t.onboardingUnavailableDescription}
+                  />
+                ) : (
+                  <FieldGroup>
+                    <ModeField
+                      modes={dialogProvider.modes}
+                      mode={mode}
+                      onChange={setMode}
+                      label={t.modeLabel}
+                      labels={modeLabels}
+                    />
+                  </FieldGroup>
+                )}
 
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setDialogProvider(null)}>
+                  <Button type="button" variant="outline" onClick={closeDialog}>
                     {t.cancel}
                   </Button>
-                  <Button type="submit" disabled={connect.isPending}>
-                    {connect.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {t.connect}
-                  </Button>
+                  {!onboardingSession ? (
+                    <Button
+                      type="button"
+                      disabled={onboardingPending}
+                      onClick={() => void beginOnboarding(dialogProvider)}
+                    >
+                      {onboardingPending ? <Spinner data-icon="inline-start" /> : null}
+                      {t.continueOnboarding}
+                    </Button>
+                  ) : null}
                 </DialogFooter>
-              </form>
-            </>
+              </>
+            ) : (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {t.credentialsTitle.replace("{provider}", dialogProvider.displayName)}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {t.credentialsDescription.replace("{provider}", dialogProvider.displayName)}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    connect.mutate(dialogProvider)
+                  }}
+                >
+                  <FieldGroup>
+                    <ModeField
+                      modes={dialogProvider.modes}
+                      mode={mode}
+                      onChange={setMode}
+                      label={t.modeLabel}
+                      labels={modeLabels}
+                    />
+
+                    {dialogProvider.credentialFieldSchema.map((field) => (
+                      <Field key={field.key}>
+                        <FieldLabel htmlFor={`payment-${field.key}`}>{field.label}</FieldLabel>
+                        {field.kind === "boolean" ? (
+                          <Switch
+                            id={`payment-${field.key}`}
+                            checked={Boolean(credentials[field.key])}
+                            aria-required={field.required}
+                            onCheckedChange={(checked) =>
+                              setCredentials((current) => ({
+                                ...current,
+                                [field.key]: checked,
+                              }))
+                            }
+                          />
+                        ) : field.kind === "select" ? (
+                          <NativeSelect
+                            id={`payment-${field.key}`}
+                            required={field.required}
+                            value={String(credentials[field.key] ?? "")}
+                            onChange={(event) =>
+                              setCredentials((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                          >
+                            <NativeSelectOption value="" />
+                            {(field.options ?? []).map((option) => (
+                              <NativeSelectOption key={option.value} value={option.value}>
+                                {option.label}
+                              </NativeSelectOption>
+                            ))}
+                          </NativeSelect>
+                        ) : (
+                          <Input
+                            id={`payment-${field.key}`}
+                            type={field.kind === "secret" ? "password" : "text"}
+                            autoComplete="off"
+                            required={field.required}
+                            placeholder={field.placeholder}
+                            value={String(credentials[field.key] ?? "")}
+                            onChange={(event) =>
+                              setCredentials((current) => ({
+                                ...current,
+                                [field.key]: event.target.value,
+                              }))
+                            }
+                          />
+                        )}
+                        {field.helpText ? (
+                          <FieldDescription>{field.helpText}</FieldDescription>
+                        ) : null}
+                      </Field>
+                    ))}
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={closeDialog}>
+                        {t.cancel}
+                      </Button>
+                      <Button type="submit" disabled={connect.isPending}>
+                        {connect.isPending ? <Spinner data-icon="inline-start" /> : null}
+                        {t.connect}
+                      </Button>
+                    </DialogFooter>
+                  </FieldGroup>
+                </form>
+              </>
+            )
           ) : null}
         </DialogContent>
       </Dialog>

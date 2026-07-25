@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   createPaymentLinkApiModule,
   createPaymentLinkRoutes,
+  createPaymentStatusRefreshHandler,
   createVerifiedPaymentCallbackHandler,
   PAYMENT_LINK_ROUTE_PATHS,
   type PaymentLinkRoutesOptions,
@@ -218,6 +219,75 @@ describe("createPaymentLinkRoutes", () => {
     expect(applyEvent).not.toHaveBeenCalled()
   })
 
+  it("reconciles status through the selected adapter with the request event bus", async () => {
+    const eventBus = createEventBus()
+    const adapter = makePaymentAdapter(
+      vi.fn(async () => ({ verified: false as const, reason: "malformed" })),
+    )
+    const refreshStatus = vi.fn(async () => ({ status: "paid" }))
+    const app = mountApp(
+      stubOptions({
+        refreshPaymentSessionStatus: createPaymentStatusRefreshHandler(adapter, { refreshStatus }),
+      }),
+      makeDb([
+        [
+          {
+            id: "bk_scoped",
+            bookingNumber: "B-SCOPED",
+            status: "awaiting_payment",
+            updatedAt: new Date("2026-07-25T10:00:00Z"),
+          },
+        ],
+        [
+          {
+            id: "ps_scoped",
+            status: "requires_redirect",
+            amountCents: 12000,
+            currency: "RON",
+            invoiceId: null,
+            paymentMethod: "credit_card",
+            completedAt: null,
+            failedAt: null,
+            updatedAt: new Date("2026-07-25T10:01:00Z"),
+          },
+        ],
+        [
+          {
+            id: "ps_scoped",
+            status: "paid",
+            amountCents: 12000,
+            currency: "RON",
+            invoiceId: null,
+            paymentMethod: "credit_card",
+            completedAt: new Date("2026-07-25T10:02:00Z"),
+            failedAt: null,
+            updatedAt: new Date("2026-07-25T10:02:00Z"),
+          },
+        ],
+      ]),
+      eventBus,
+    )
+
+    const response = await app.request(
+      "/v1/public/bookings/bk_scoped/checkout-status?ref=ps_scoped",
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      data: {
+        bookingId: "bk_scoped",
+        paymentStatus: "paid",
+        session: { id: "ps_scoped", status: "paid" },
+      },
+    })
+    expect(refreshStatus).toHaveBeenCalledWith(
+      adapter,
+      expect.anything(),
+      "ps_scoped",
+      expect.objectContaining({ runtime: { eventBus } }),
+    )
+  })
+
   it("payment-link-config returns instructions + checkout base url with cache header", async () => {
     const options = stubOptions()
     const app = mountApp(options, makeDb([]))
@@ -342,6 +412,27 @@ describe("createPaymentLinkRoutes", () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       data: { sessionId: "ps_active", alreadyPaid: false },
+    })
+  })
+
+  it("retry does not describe an authorized but uncaptured session as paid", async () => {
+    const db = makeDb([
+      [
+        {
+          id: "ps_authorized",
+          status: "authorized",
+        },
+      ],
+    ])
+    const app = mountApp(stubOptions(), db)
+
+    const res = await app.request("/v1/public/payment-link/ps_authorized/retry", {
+      method: "POST",
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      data: { sessionId: "ps_authorized", alreadyPaid: false },
     })
   })
 
@@ -925,7 +1016,7 @@ describe("createPaymentLinkRoutes", () => {
     expect((body.data.session as { id: string }).id).toBe("ps_latest")
   })
 
-  it("checkout-status reports paid when a session is authorized and attaches bank-transfer instructions", async () => {
+  it("checkout-status reports paid for a paid session and attaches bank-transfer instructions", async () => {
     const db = makeDb([
       // booking lookup
       [
@@ -940,12 +1031,12 @@ describe("createPaymentLinkRoutes", () => {
       [
         {
           id: "ps_bt",
-          status: "authorized",
+          status: "paid",
           amountCents: 50000,
           currency: "RON",
           invoiceId: "inv_1",
           paymentMethod: "bank_transfer",
-          completedAt: null,
+          completedAt: new Date("2026-06-15T12:00:00Z"),
           failedAt: null,
           updatedAt: new Date("2026-06-15T12:00:00Z"),
         },
@@ -972,6 +1063,130 @@ describe("createPaymentLinkRoutes", () => {
       iban: "RO49AAAA1B31007593840000",
       reference: "BOOK-B-2002",
       proformaNumber: "PRO-1",
+    })
+  })
+
+  it("checkout-status does not repeat completion after reconciliation persisted paid", async () => {
+    const refreshPaymentSessionStatus = vi.fn(async () => undefined)
+    const paid = {
+      id: "ps_once",
+      status: "paid",
+      amountCents: 24000,
+      currency: "RON",
+      invoiceId: null,
+      paymentMethod: "credit_card",
+      completedAt: new Date("2026-07-25T11:01:00Z"),
+      failedAt: null,
+      updatedAt: new Date("2026-07-25T11:01:00Z"),
+    }
+    const db = makeDb([
+      [
+        {
+          id: "bk_once",
+          bookingNumber: "B-ONCE",
+          status: "awaiting_payment",
+          updatedAt: new Date("2026-07-25T11:00:00Z"),
+        },
+      ],
+      [{ ...paid, status: "processing", completedAt: null }],
+      [paid],
+      [
+        {
+          id: "bk_once",
+          bookingNumber: "B-ONCE",
+          status: "confirmed",
+          updatedAt: new Date("2026-07-25T11:01:00Z"),
+        },
+      ],
+      [paid],
+    ])
+    const app = mountApp(stubOptions({ refreshPaymentSessionStatus }), db)
+
+    const first = await app.request("/v1/public/bookings/bk_once/checkout-status")
+    const second = await app.request("/v1/public/bookings/bk_once/checkout-status")
+
+    expect((await first.json()).data.paymentStatus).toBe("paid")
+    expect((await second.json()).data.paymentStatus).toBe("paid")
+    expect(refreshPaymentSessionStatus).toHaveBeenCalledOnce()
+    expect(refreshPaymentSessionStatus).toHaveBeenCalledWith(expect.anything(), "ps_once")
+  })
+
+  it("checkout-status safely returns persisted state when reconciliation fails", async () => {
+    const refreshPaymentSessionStatus = vi.fn(async () => {
+      throw new Error("platform credential and Stripe details")
+    })
+    const db = makeDb([
+      [
+        {
+          id: "bk_retry",
+          bookingNumber: "B-RETRY",
+          status: "awaiting_payment",
+          updatedAt: new Date("2026-07-25T12:00:00Z"),
+        },
+      ],
+      [
+        {
+          id: "ps_retry",
+          status: "processing",
+          amountCents: 32000,
+          currency: "RON",
+          invoiceId: null,
+          paymentMethod: "credit_card",
+          completedAt: null,
+          failedAt: null,
+          updatedAt: new Date("2026-07-25T12:01:00Z"),
+        },
+      ],
+    ])
+    const app = mountApp(stubOptions({ refreshPaymentSessionStatus }), db)
+
+    const response = await app.request("/v1/public/bookings/bk_retry/checkout-status")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      data: {
+        bookingId: "bk_retry",
+        paymentStatus: "pending",
+        session: { id: "ps_retry", status: "processing" },
+      },
+    })
+  })
+
+  it("does not expose an authorized but uncaptured session as paid", async () => {
+    const db = makeDb([
+      [
+        {
+          id: "bk_authorized",
+          bookingNumber: "B-AUTH",
+          status: "awaiting_payment",
+          updatedAt: new Date("2026-07-25T12:00:00Z"),
+        },
+      ],
+      [
+        {
+          id: "ps_authorized",
+          status: "authorized",
+          amountCents: 32000,
+          currency: "RON",
+          invoiceId: null,
+          paymentMethod: "credit_card",
+          completedAt: null,
+          failedAt: null,
+          updatedAt: new Date("2026-07-25T12:01:00Z"),
+        },
+      ],
+    ])
+    const app = mountApp(stubOptions(), db)
+
+    const response = await app.request("/v1/public/bookings/bk_authorized/checkout-status")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      data: {
+        bookingId: "bk_authorized",
+        paymentStatus: "pending",
+        session: { id: "ps_authorized", status: "authorized" },
+      },
     })
   })
 

@@ -1786,6 +1786,9 @@
         "../storefront/dist/customer-portal/routes.d.ts"
       ],
       "@voyant-travel/storefront/payment-link": ["../storefront/dist/payment-link/routes.d.ts"],
+      "@voyant-travel/storefront/payment-reconciliation-job": [
+        "../storefront/dist/payment-reconciliation-job.d.ts"
+      ],
       "@voyant-travel/storefront/public-routes": ["../storefront/dist/routes-public.d.ts"],
       "@voyant-travel/storefront/runtime-contributor": [
         "../storefront/dist/runtime-contributor.d.ts"

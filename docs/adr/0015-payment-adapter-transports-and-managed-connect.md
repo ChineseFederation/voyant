@@ -86,22 +86,32 @@ Exactly one active adapter per deployment/org is enforced. In `managed` mode
 this is a single active configuration row; in the pinned modes it is the graph
 selection itself.
 
-### 3. Managed connect: credentials never rest in the Operator
+### 3. Managed connect: secrets never rest in the Operator
 
 Self-host and managed differ **only** in credential custody:
 
 - **Self-host** brings its own environment variables. No processor credentials
   are stored in the Operator database. The Settings → Payments page renders a
   **read-only** status ("configured via environment") for the pinned provider.
-- **Managed** stores credentials in **voyant-cloud, encrypted with GCP KMS**,
-  reusing the existing `connect-utils` KMS envelope pattern already used for
-  per-org connector credentials (`"integrations"` key type, region-scoped
-  EU/US, `{ enc: <ciphertext> }` envelope). The managed connect form posts
-  credentials **directly to the voyant-cloud control plane** — they are
-  KMS-encrypted at rest there and decrypted by the **stateless** processor
-  worker at call time. The Operator database holds only an opaque connection
-  reference, the active provider id, connection status, and mode. Raw processor
-  credentials never transit or rest inside the Operator boundary.
+- **Managed credential providers** store credentials in **voyant-cloud,
+  encrypted with GCP KMS**, reusing the existing `connect-utils` KMS envelope
+  pattern already used for per-org connector credentials (`"integrations"` key
+  type, region-scoped EU/US, `{ enc: <ciphertext> }` envelope). The managed
+  connect form posts credentials **directly to the voyant-cloud control
+  plane** — they are KMS-encrypted at rest there and decrypted by the
+  **stateless** processor worker at call time.
+- **Managed hosted-account providers** such as Voyant Payments do not ask the
+  operator for a processor API key. Voyant Cloud owns the platform Stripe
+  credentials and creates an organization-scoped connected account. Settings
+  renders short-lived embedded onboarding and account-management sessions
+  issued by the control plane. Client/component secrets are ephemeral,
+  redacted, never persisted by the Operator, and never treated as proof that
+  onboarding completed.
+
+In both managed methods, the Operator database holds only an opaque immutable
+connection reference, the active provider id, connection/account status, mode,
+and non-secret readiness/requirements projection. Processor credentials and
+platform secrets never transit or rest inside the Operator boundary.
 
 This keeps PCI-DSS scope (Req. 3 stored-data protection, Req. 10 audit) on the
 voyant-cloud + worker surface we already operate and audit, and keeps key
@@ -114,9 +124,11 @@ entry is a `PaymentProviderDescriptor`:
 
 - `id`, `displayName`, `description`, `logo`;
 - `capabilities` (`PaymentAdapterCapabilities`);
+- `connectionMethod` (`credentials | embedded_onboarding | read_only`);
 - `credentialFieldSchema` — the declarative field list (key, label, kind
   `text | secret | boolean | select`, validation, help text) that renders the
-  connect form;
+  connect form when `connectionMethod=credentials`; it is empty for hosted
+  account onboarding;
 - `regions` / `currencies` support hints;
 - `availability` (`available` | `coming_soon`) and `modes`
   (`sandbox` | `live`).
@@ -133,14 +145,30 @@ The Operator exposes the catalog and connection state under
 
 1. Settings → Payments shows the catalog (Netopia `available`, Voyant Payments
    `coming_soon` at launch).
-2. Operator selects a provider; the connect form is rendered from that
-   provider's `credentialFieldSchema`.
-3. Submit. In managed mode the payload goes to the voyant-cloud control plane,
-   which KMS-encrypts it and asks the processor worker to run
-   `adapter.health()` against the supplied credentials.
-4. On a healthy result the connection is marked **connected**, the active
-   provider is set, and the previous provider (if any) is disconnected —
-   enforcing one active per org.
+2. Operator selects a provider.
+3. For `credentials`, Settings renders `credentialFieldSchema`, submits
+   directly to voyant-cloud, which KMS-encrypts the payload and asks the
+   processor worker to run `adapter.health()`.
+4. For `embedded_onboarding`, Settings asks voyant-cloud to begin or resume an
+   organization-scoped account connection. Voyant Cloud returns only the
+   publishable configuration and a short-lived embedded component secret.
+   Settings mounts the approved component. Its client-secret callback mints a
+   fresh AccountSession whenever the component asks to refresh; secrets are
+   never cached, persisted, logged, or placed in markup or URLs. Browser back,
+   abandonment, and resume are supported.
+5. A component `onExit`, redirect, or return to Settings never marks the
+   connection healthy. Voyant Cloud projects processor account/capability
+   state from verified webhooks and canonical retrieval. The registry exposes
+   `pending_requirements`, `pending_verification`, `connected`, `restricted`,
+   and `error` readiness with non-secret requirement summaries.
+6. Only a healthy/readiness-complete result makes the provider active. The
+   previous provider is retired as an immutable connection revision, preserving
+   the identity required by existing sessions and callbacks.
+
+Voyant Payments must use `embedded_onboarding`; its catalog entry must not
+declare a fake API-key credential. It remains `coming_soon` until the cloud
+adapter, embedded components, callback transport, sandbox conformance run, and
+operational launch gates are complete.
 
 ### 6. Runtime resolution seam
 
@@ -196,7 +224,9 @@ id conflicts with the stored session identity.
 - Making payment processors installable "apps." Payments remain trusted
   deployment adapters per the Remote App Platform RFC.
 - Storing processor credentials in the Operator database in any mode. Self-host
-  uses environment variables; managed uses voyant-cloud + GCP KMS.
+  uses environment variables; managed credential providers use voyant-cloud +
+  GCP KMS; managed hosted-account providers use platform-owned credentials that
+  remain exclusively in voyant-cloud.
 - A public/third-party processor marketplace. All adapters are first-party,
   built and maintained by Voyant.
 - Multi-processor routing per `PaymentRequest`. One active provider per org for
@@ -208,6 +238,10 @@ id conflicts with the stored session identity.
   centralized rotation, per-key IAM, Cloud Audit Logs on every decrypt) via the
   audited `connect-utils` pattern — not app-level symmetric encryption whose key
   would sit in an application environment.
+- Hosted-account platform credentials remain exclusively in voyant-cloud.
+  Account and component session creation is organization-, environment-, and
+  role-scoped. Sensitive embedded component features are authorized on the
+  server, not merely hidden in the UI.
 - Raw processor credentials are confined to voyant-cloud and the stateless
   workers; the Operator holds only opaque references, shrinking PCI scope.
 - Remote transport traffic is signed and versioned; callback forwarding is
@@ -253,8 +287,8 @@ id conflicts with the stored session identity.
 - Managed payments introduce a network hop and remote failure modes on the
   checkout path (mitigated by health checks, idempotency, and the existing
   bank-transfer fallback).
-- Two credential-custody paths (env for self-host, KMS for managed) must both be
-  maintained and tested.
+- Environment-pinned credentials, managed KMS credentials, and hosted-account
+  onboarding must each be maintained and tested.
 - voyant-cloud operates the registry, workers, KMS storage, and callback
   forwarding.
 
@@ -264,11 +298,16 @@ id conflicts with the stored session identity.
   the Operator build in `managed` mode.
 - Contract: `createRemotePaymentAdapter(...)` satisfies `paymentAdapterRuntimePort`
   conformance.
-- Self-host regression: pinned `netopia` / `voyant-payments` continue to resolve
-  from environment variables with no DB credential storage.
-- Connect flow: selecting a provider and submitting valid credentials runs
-  `health()` and transitions to `connected`; invalid credentials do not.
+- Self-host regression: pinned `netopia` continues to resolve from environment
+  variables with no DB credential storage; a fake Voyant Payments API key does
+  not invent a hosted-account connection.
+- Credential connect flow: selecting a credential provider and submitting valid
+  credentials runs `health()` and transitions to `connected`; invalid
+  credentials do not.
 - One-active-per-org invariant holds across provider switches.
 - Callback forwarding is signature-verified end to end.
+- Hosted onboarding: the Operator never receives platform credentials; expired
+  component sessions fail closed; exit/return does not activate the connection;
+  verified account readiness does.
 </content>
 </invoke>

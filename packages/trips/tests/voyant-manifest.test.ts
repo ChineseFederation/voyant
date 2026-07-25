@@ -31,6 +31,7 @@ describe("trips deployment manifest", () => {
         ports: [
           { id: "commerce.card-payment.runtime" },
           { id: "storefront.payment-link.runtime" },
+          { id: "storefront.payment-reconciliation-job.runtime" },
           { id: "trips.routes-runtime" },
           { id: "trips.database-runtime" },
           { id: "trips.sourcing-job-runtime" },

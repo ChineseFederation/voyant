@@ -1,4 +1,6 @@
 import { definePort } from "@voyant-travel/core/project"
+import type { PaymentAdapter } from "@voyant-travel/payments"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { PublicCustomerPortalRouteOptions } from "./customer-portal/routes-public.js"
 import type { PaymentLinkRoutesOptions } from "./payment-link/routes.js"
@@ -17,6 +19,13 @@ function optionsPort<T extends object>(id: string) {
   })
 }
 
+export interface PaymentReconciliationJobRuntime {
+  resolveDb(bindings: unknown): PostgresJsDatabase | Promise<PostgresJsDatabase>
+  resolveAdapter(): PaymentAdapter | null | Promise<PaymentAdapter | null>
+  resolveEnv(bindings: unknown): Readonly<Record<string, unknown>>
+  warn?(message: string, detail?: unknown): void
+}
+
 export const storefrontOffersRuntimePort = optionsPort<StorefrontOfferResolvers>(
   "storefront.offers.runtime",
 )
@@ -26,6 +35,8 @@ export const storefrontIntakeRuntimePort = optionsPort<StorefrontIntakePersisten
 export const storefrontPaymentLinkRuntimePort = optionsPort<PaymentLinkRoutesOptions>(
   "storefront.payment-link.runtime",
 )
+export const storefrontPaymentReconciliationJobRuntimePort =
+  optionsPort<PaymentReconciliationJobRuntime>("storefront.payment-reconciliation-job.runtime")
 export const storefrontCustomerPortalRuntimePort = optionsPort<PublicCustomerPortalRouteOptions>(
   "storefront.customer-portal.runtime",
 )

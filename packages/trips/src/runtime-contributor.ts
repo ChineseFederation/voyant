@@ -14,7 +14,10 @@ import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import { type FlightsRuntime, flightsRuntimePort } from "@voyant-travel/flights"
 import { type PaymentAdapter, paymentAdapterRuntimePort } from "@voyant-travel/payments"
-import { storefrontPaymentLinkRuntimePort } from "@voyant-travel/storefront"
+import {
+  storefrontPaymentLinkRuntimePort,
+  storefrontPaymentReconciliationJobRuntimePort,
+} from "@voyant-travel/storefront"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
 import { createTripsRoutesRuntime } from "./runtime.js"
@@ -83,6 +86,13 @@ export function createTripsRuntimePortContribution(
   }
   const contribution: Record<string, unknown> = {
     [storefrontPaymentLinkRuntimePort.id]: createStandardPaymentLinkRouteOptions(paymentAdapter),
+    [storefrontPaymentReconciliationJobRuntimePort.id]: {
+      resolveDb: (bindings: unknown) =>
+        host.primitives.database.resolve<PostgresJsDatabase>(bindings),
+      resolveAdapter: () => (paymentAdapter ? Promise.resolve(paymentAdapter) : null),
+      resolveEnv: (bindings: unknown) => host.primitives.env(bindings),
+      warn: (message: string, detail?: unknown) => console.warn(message, detail),
+    },
     [tripsRoutesRuntimePort.id]: tripsRoutes,
     [tripsDatabaseRuntimePort.id]: tripsDatabase,
     [tripsSourcingJobRuntimePort.id]: {

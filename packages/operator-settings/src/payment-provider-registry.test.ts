@@ -47,6 +47,18 @@ describe("default payment provider registry", () => {
       })
       expect(result.ok).toBe(false)
     })
+
+    it("does not infer a hosted-account connection from a fake API key", async () => {
+      const registry = createDefaultPaymentProviderRegistry({
+        db: emptyDb,
+        env: { VOYANT_PAYMENTS_API_KEY: "must-not-be-used" },
+      })
+      await expect(registry.getConnection()).resolves.toMatchObject({
+        activeProviderId: null,
+        status: "disconnected",
+        readOnly: true,
+      })
+    })
   })
 
   describe("managed", () => {
@@ -66,9 +78,23 @@ describe("default payment provider registry", () => {
       const result = await registry.connect({
         providerId: "voyant-payments",
         mode: "sandbox",
-        credentials: { apiKey: "k" },
+        credentials: {},
       })
       expect(result.ok).toBe(false)
+    })
+
+    it("fails closed when hosted onboarding is not available", async () => {
+      const registry = createDefaultPaymentProviderRegistry({ db: emptyDb, env: managedEnv })
+      const result = await registry.beginOnboarding({
+        providerId: "voyant-payments",
+        mode: "sandbox",
+      })
+      expect(result).toMatchObject({
+        ok: false,
+        status: { status: "disconnected" },
+      })
+      expect(result.session).toBeUndefined()
+      expect(result.error).toContain("not yet available")
     })
 
     it("rejects missing required credentials", async () => {

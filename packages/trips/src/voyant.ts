@@ -1,6 +1,9 @@
 import { commerceCardPaymentRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
-import { storefrontPaymentLinkRuntimePort } from "@voyant-travel/storefront/runtime-port"
+import {
+  storefrontPaymentLinkRuntimePort,
+  storefrontPaymentReconciliationJobRuntimePort,
+} from "@voyant-travel/storefront/runtime-port"
 import { durableTripActionRuntimePort } from "./durable-action-runtime-port.js"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "./runtime-port.js"
 import { tripsSourcingJobRuntimePort } from "./sourcing-job-runtime-port.js"
@@ -103,6 +106,7 @@ export const tripsVoyantModule = defineModule({
     ports: [
       providePort(commerceCardPaymentRuntimePort),
       providePort(storefrontPaymentLinkRuntimePort),
+      providePort(storefrontPaymentReconciliationJobRuntimePort),
       providePort(tripsRoutesRuntimePort),
       providePort(tripsDatabaseRuntimePort),
       providePort(tripsSourcingJobRuntimePort),

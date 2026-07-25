@@ -198,7 +198,10 @@ export const paymentProviderConfig = pgTable("payment_provider_config", {
   id: typeId("payment_provider_config"),
   /** Catalog id of the active provider (e.g. `netopia`); null when none. */
   activeProviderId: text("active_provider_id"),
-  /** `disconnected` | `connected` | `error`. */
+  /**
+   * `pending_requirements` | `pending_verification` | `connected` |
+   * `restricted` | `error` | `disconnected`.
+   */
   status: text("status").notNull().default("disconnected"),
   /** `sandbox` | `test` | `live`; null until connected. */
   mode: text("mode"),

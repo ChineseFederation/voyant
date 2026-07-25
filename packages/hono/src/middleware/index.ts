@@ -42,4 +42,9 @@ export {
 } from "./rate-limit.js"
 export { isStaffRbacEnforced, requireActor } from "./require-actor.js"
 export { requirePermission } from "./require-permission.js"
-export { type SecurityHeadersOptions, securityHeaders } from "./security-headers.js"
+export {
+  type SecurityHeadersOptions,
+  type StripeConnectSecurityHeadersScope,
+  securityHeaders,
+  withStripeConnectCsp,
+} from "./security-headers.js"

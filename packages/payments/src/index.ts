@@ -6,6 +6,14 @@ export const PAYMENT_ADAPTER_RUNTIME_PORT_ID = "payments.adapter.runtime" as con
 export type PaymentAdapterMode = "sandbox" | "test" | "live"
 export type PaymentCaptureMode = "automatic" | "manual"
 export type PaymentOperationStatus = "accepted" | "declined" | "pending" | "failed"
+export const PAYMENT_ADAPTER_ERROR_CODES = [
+  "CAPABILITY_NOT_SUPPORTED",
+  "IDEMPOTENCY_KEY_REUSED",
+  "INVALID_REQUEST",
+  "PROVIDER_UNAVAILABLE",
+  "ADAPTER_FAILURE",
+] as const
+export type PaymentAdapterErrorCode = (typeof PAYMENT_ADAPTER_ERROR_CODES)[number]
 export type PaymentSessionState =
   | "pending"
   | "requires_redirect"
@@ -50,6 +58,34 @@ export interface PaymentAdapterDiagnostics {
   checkedAt: string
   message?: string
   details?: Record<string, unknown>
+}
+
+/**
+ * The transport-safe error shape rejected by adapter methods.
+ *
+ * Implementations may use their own Error subclass, but conformance requires
+ * these fields so callers can fail closed without parsing provider messages.
+ */
+export interface PaymentAdapterError {
+  code: PaymentAdapterErrorCode
+  message: string
+  retryable: boolean
+  details?: Record<string, unknown>
+}
+
+export function isPaymentAdapterError(error: unknown): error is PaymentAdapterError {
+  if (!error || typeof error !== "object") return false
+  const candidate = error as Partial<PaymentAdapterError>
+  return (
+    typeof candidate.message === "string" &&
+    candidate.message.trim().length > 0 &&
+    typeof candidate.retryable === "boolean" &&
+    PAYMENT_ADAPTER_ERROR_CODES.includes(candidate.code as PaymentAdapterErrorCode) &&
+    (candidate.details === undefined ||
+      (Boolean(candidate.details) &&
+        typeof candidate.details === "object" &&
+        !Array.isArray(candidate.details)))
+  )
 }
 
 export interface PaymentInitiationInput {
@@ -229,6 +265,10 @@ export const paymentAdapterRuntimePort = definePort<PaymentAdapter>({
 export type {
   PaymentAdapterConformanceHarness,
   PaymentAdapterConformanceResult,
+  PaymentOperationConformanceFixture,
+  PaymentOperationConformanceInput,
+  PaymentStatusConformanceFixture,
+  PaymentStatusConformanceInput,
 } from "./conformance.js"
 export { runPaymentAdapterConformance } from "./conformance.js"
 export {
@@ -237,6 +277,7 @@ export {
 } from "./default-catalog.js"
 export type {
   PaymentConnectInput,
+  PaymentConnectionRequirement,
   PaymentConnectionState,
   PaymentConnectionStatus,
   PaymentConnectResult,
@@ -245,7 +286,11 @@ export type {
   PaymentCredentialFieldKind,
   PaymentCredentialFieldOption,
   PaymentCredentialFieldSchema,
+  PaymentEmbeddedOnboardingSession,
+  PaymentOnboardingSetupInput,
+  PaymentOnboardingSetupResult,
   PaymentProviderAvailability,
+  PaymentProviderConnectionMethod,
   PaymentProviderDescriptor,
   PaymentProviderRegistry,
 } from "./provider-catalog.js"

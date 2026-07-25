@@ -13,7 +13,11 @@
  * adapter are the only payment code in the bundle, for any of N processors.
  */
 
-import type { PaymentCallbackRequest, PaymentCallbackVerificationResult } from "./index.js"
+import type {
+  PaymentAdapterErrorCode,
+  PaymentCallbackRequest,
+  PaymentCallbackVerificationResult,
+} from "./index.js"
 import type { RemotePaymentCall, RemotePaymentTransport } from "./remote-adapter.js"
 
 export interface ControlPlaneRemotePaymentTransportConfig {
@@ -26,7 +30,25 @@ export interface ControlPlaneRemotePaymentTransportConfig {
   deploymentToken: string
   deploymentId: string
   fetchImpl?: typeof fetch
-  now?: () => Date
+}
+
+class ControlPlanePaymentAdapterError extends Error {
+  readonly code: PaymentAdapterErrorCode
+  readonly retryable: boolean
+  readonly details?: Record<string, unknown>
+
+  constructor(input: {
+    code: PaymentAdapterErrorCode
+    message: string
+    retryable: boolean
+    details?: Record<string, unknown>
+  }) {
+    super(input.message)
+    this.name = "ControlPlanePaymentAdapterError"
+    this.code = input.code
+    this.retryable = input.retryable
+    this.details = input.details
+  }
 }
 
 function flattenHeaders(
@@ -48,8 +70,6 @@ export function createControlPlaneRemotePaymentTransport(
 ): RemotePaymentTransport {
   const doFetch = config.fetchImpl ?? fetch
   const base = config.endpoint.replace(/\/+$/, "")
-  const now = config.now ?? (() => new Date())
-
   async function post(path: string, body: unknown): Promise<unknown> {
     const response = await doFetch(`${base}${path}`, {
       method: "POST",
@@ -68,9 +88,33 @@ export function createControlPlaneRemotePaymentTransport(
 
   /** Unwrap a `{ data: { ok, result } | { ok, error } }` control-plane body. */
   function unwrapOutcome<T>(body: unknown): T {
-    const data = (body as { data?: { ok: boolean; result?: T; error?: string } }).data
+    const data = (
+      body as {
+        data?: {
+          ok: boolean
+          result?: T
+          error?:
+            | string
+            | {
+                code: PaymentAdapterErrorCode
+                message: string
+                retryable: boolean
+                details?: Record<string, unknown>
+              }
+        }
+      }
+    ).data
     if (!data) throw new Error("Malformed control-plane response.")
-    if (!data.ok) throw new Error(data.error ?? "Control-plane operation failed.")
+    if (!data.ok) {
+      if (data.error && typeof data.error === "object") {
+        throw new ControlPlanePaymentAdapterError(data.error)
+      }
+      throw new ControlPlanePaymentAdapterError({
+        code: "ADAPTER_FAILURE",
+        message: typeof data.error === "string" ? data.error : "Control-plane operation failed.",
+        retryable: false,
+      })
+    }
     if (data.result === undefined) {
       throw new Error("Control-plane response missing result.")
     }
@@ -85,6 +129,18 @@ export function createControlPlaneRemotePaymentTransport(
 
         case "status":
           return unwrapOutcome<TResult>(await post("/status", rpcCall.payload))
+
+        case "authorize":
+          return unwrapOutcome<TResult>(await post("/authorize", rpcCall.payload))
+
+        case "capture":
+          return unwrapOutcome<TResult>(await post("/capture", rpcCall.payload))
+
+        case "void":
+          return unwrapOutcome<TResult>(await post("/void", rpcCall.payload))
+
+        case "refund":
+          return unwrapOutcome<TResult>(await post("/refund", rpcCall.payload))
 
         case "verifyCallback": {
           // Fail CLOSED: any transport/parse failure rejects the callback.
@@ -111,10 +167,7 @@ export function createControlPlaneRemotePaymentTransport(
         }
 
         case "health":
-          return {
-            status: "ok",
-            checkedAt: now().toISOString(),
-          } as TResult
+          return unwrapOutcome<TResult>(await post("/health", rpcCall.payload))
 
         default:
           throw new Error(

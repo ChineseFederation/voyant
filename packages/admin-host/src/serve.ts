@@ -1,6 +1,12 @@
 import { serveStatic } from "@hono/node-server/serve-static"
+import { securityHeaders } from "@voyant-travel/hono/middleware/security-headers"
 import type { ExecutionContext } from "hono"
 import { Hono } from "hono"
+
+const ADMIN_SSR_FALLBACK_CSP =
+  "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; " +
+  "img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; " +
+  "script-src 'self' 'unsafe-inline'; connect-src 'self'"
 
 /** Options for {@link serveAdminHost}. */
 export interface ServeAdminHostOptions<Env extends object> {
@@ -34,6 +40,18 @@ export function serveAdminHost<Env extends object = Record<string, unknown>>(
   options: ServeAdminHostOptions<Env>,
 ): Hono<{ Bindings: Env }> {
   const web = new Hono<{ Bindings: Env }>()
+  // Client-side navigation means every HTML document can render Payments.
+  // Keep assets and API fall-through responses on the strict defaults.
+  web.use(
+    "*",
+    securityHeaders({
+      // TanStack Start currently emits inline hydration bootstrap scripts
+      // without response CSP hashes/nonces. A downstream CSP still wins.
+      contentSecurityPolicy: ADMIN_SSR_FALLBACK_CSP,
+      preserveResponseContentSecurityPolicy: true,
+      stripeConnect: { pathPrefixes: ["/"], documentResponsesOnly: true },
+    }),
+  )
   web.use("*", serveStatic({ root: options.clientAssetsDir }))
   web.all("*", (c) => options.app(c.req.raw, c.env, c.executionCtx))
   return web

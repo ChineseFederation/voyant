@@ -56,9 +56,6 @@ function detectPinnedProvider(
     const sandbox = stringEnv(env.NETOPIA_SANDBOX)
     return { providerId: "netopia", mode: sandbox === "true" ? "sandbox" : "live" }
   }
-  if (stringEnv(env.VOYANT_PAYMENTS_API_KEY)) {
-    return { providerId: "voyant-payments", mode: "live" }
-  }
   return null
 }
 
@@ -132,6 +129,13 @@ export function createDefaultPaymentProviderRegistry(
           error: `${descriptor.displayName} is not yet available.`,
         }
       }
+      if (descriptor.connectionMethod !== "credentials") {
+        return {
+          ok: false,
+          status: current,
+          error: `${descriptor.displayName} does not accept credential-based connections.`,
+        }
+      }
 
       const fieldErrors = validatePaymentCredentials(
         descriptor.credentialFieldSchema,
@@ -153,6 +157,51 @@ export function createDefaultPaymentProviderRegistry(
         ok: false,
         status: current,
         error: "Managed payments brokering is not yet available.",
+      }
+    },
+
+    async beginOnboarding(input) {
+      const current = await this.getConnection()
+
+      if (!managed) {
+        return {
+          ok: false,
+          status: current,
+          error:
+            "Payment provider is configured via environment variables and cannot be changed here.",
+        }
+      }
+
+      const descriptor = findPaymentProviderDescriptor(input.providerId, catalog)
+      if (!descriptor) {
+        return {
+          ok: false,
+          status: current,
+          error: `Unknown payment provider "${input.providerId}".`,
+        }
+      }
+      if (descriptor.availability !== "available") {
+        return {
+          ok: false,
+          status: current,
+          error: `${descriptor.displayName} is not yet available.`,
+        }
+      }
+      if (descriptor.connectionMethod !== "embedded_onboarding") {
+        return {
+          ok: false,
+          status: current,
+          error: `${descriptor.displayName} does not support embedded onboarding.`,
+        }
+      }
+
+      // Hosted onboarding session issuance belongs to the managed control-plane
+      // registry. The default registry has no platform credential authority and
+      // therefore fails closed without returning an invented client secret.
+      return {
+        ok: false,
+        status: current,
+        error: "Managed payment onboarding is not yet available.",
       }
     },
 

@@ -6,11 +6,13 @@ import {
 } from "@voyant-travel/admin/extensions"
 import type { AdminCoreSettingsExtraPage } from "@voyant-travel/admin-app/core-extension"
 import { Building, CreditCard } from "lucide-react"
+import { type ComponentType, createElement } from "react"
 
 import {
   OPERATOR_PROFILE_SETUP_STEP_ID,
   parseOperatorProfileSetupPrefill,
 } from "./operator-profile-setup-prefill.js"
+import type { PaymentsSettingsPageProps } from "./payments-settings-page.js"
 
 /**
  * Options for {@link createOperatorProfileSettingsExtraPage}. All optional —
@@ -71,9 +73,16 @@ export function createPaymentsSettingsExtraPage(
     group: "general",
     order: options.order ?? 47,
     page: () =>
-      import("./payments-settings-page.js").then((module) =>
-        adminRoutePageModule(module.PaymentsSettingsPage),
-      ),
+      Promise.all([
+        import("./payments-settings-page.js"),
+        import("./stripe-connect-onboarding.js"),
+      ]).then(([payments, stripe]) => {
+        const PaymentsSettingsRoute = () =>
+          createElement(payments.PaymentsSettingsPage as ComponentType<PaymentsSettingsPageProps>, {
+            embeddedOnboardingClient: stripe.StripeConnectEmbeddedOnboarding,
+          })
+        return adminRoutePageModule(PaymentsSettingsRoute)
+      }),
   }
 }
 

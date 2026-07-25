@@ -1,5 +1,17 @@
 # @voyant-travel/payments
 
+## Unreleased
+
+### Minor Changes
+
+- Expand the public payment-adapter conformance kit across authorize, capture,
+  void, refund, and status, with capability/fixture honesty, strict positive
+  minor-unit money, typed fail-closed errors, full idempotency conflict checks,
+  callback signature/replay semantics, stable processor identity and
+  references, manual capture, partial-operation bounds, and typed health
+  diagnostics. Add deterministic conforming and deliberately broken fake
+  adapters that exercise every contract case.
+
 ## 0.6.5
 
 ### Patch Changes

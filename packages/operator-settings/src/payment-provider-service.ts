@@ -12,7 +12,13 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { paymentProviderConfig } from "./schema.js"
 
-export type PaymentProviderConnectionState = "disconnected" | "connected" | "error"
+export type PaymentProviderConnectionState =
+  | "pending_requirements"
+  | "pending_verification"
+  | "connected"
+  | "restricted"
+  | "error"
+  | "disconnected"
 
 /** Patch applied when a provider is activated (or its status changes). */
 export interface PaymentProviderConfigPatch {

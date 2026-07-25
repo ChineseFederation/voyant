@@ -26,6 +26,13 @@ const redirectProcessorCapabilities: PaymentAdapterCapabilities = {
   retrySafeInitiation: true,
 }
 
+const voyantPaymentsCapabilities: PaymentAdapterCapabilities = {
+  ...redirectProcessorCapabilities,
+  // Hosted refunds are deliberately unavailable until the control plane can
+  // prove a member/role approval, not just a deployment checkout credential.
+  refund: false,
+}
+
 /** Netopia — the Romanian card processor. Its adapter already ships in-repo. */
 const netopia: PaymentProviderDescriptor = {
   id: "netopia",
@@ -33,6 +40,7 @@ const netopia: PaymentProviderDescriptor = {
   description: "Card payments and hosted checkout for the Romanian market.",
   logoRef: "netopia",
   capabilities: redirectProcessorCapabilities,
+  connectionMethod: "credentials",
   availability: "available",
   modes: ["sandbox", "live"],
   regions: ["RO"],
@@ -77,19 +85,11 @@ const voyantPayments: PaymentProviderDescriptor = {
   displayName: "Voyant Payments",
   description: "The Voyant-native payment processor. Coming soon.",
   logoRef: "voyant-payments",
-  capabilities: redirectProcessorCapabilities,
+  capabilities: voyantPaymentsCapabilities,
+  connectionMethod: "embedded_onboarding",
   availability: "coming_soon",
   modes: ["sandbox", "live"],
-  credentialFieldSchema: [
-    {
-      key: "apiKey",
-      label: "API key",
-      kind: "secret",
-      required: true,
-      helpText: "Voyant Payments API key.",
-      maxLength: 512,
-    },
-  ],
+  credentialFieldSchema: [],
 }
 
 export const defaultPaymentProviderCatalog: readonly PaymentProviderDescriptor[] = [

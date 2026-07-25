@@ -51,10 +51,15 @@ export type PaymentCredentialFieldSchema = readonly PaymentCredentialField[]
 /** Whether a catalog entry can be connected now or is announced but not ready. */
 export type PaymentProviderAvailability = "available" | "coming_soon"
 
+/** How Settings establishes or reports a provider connection. */
+export type PaymentProviderConnectionMethod = "credentials" | "embedded_onboarding" | "read_only"
+
 /**
  * A catalog entry: everything the admin UI needs to list a processor and render
- * its connect form. `capabilities` mirror the `PaymentAdapter` capabilities the
- * connected adapter will declare, so the UI can badge them before connecting.
+ * its connection flow. `credentialFieldSchema` is used only by
+ * `connectionMethod: "credentials"` and must be empty for hosted onboarding.
+ * `capabilities` mirror the `PaymentAdapter` capabilities the connected adapter
+ * will declare, so the UI can badge them before connecting.
  */
 export interface PaymentProviderDescriptor {
   id: string
@@ -63,6 +68,7 @@ export interface PaymentProviderDescriptor {
   /** Opaque logo reference (asset key / registry id); resolved by the UI. */
   logoRef?: string
   capabilities: PaymentAdapterCapabilities
+  connectionMethod: PaymentProviderConnectionMethod
   credentialFieldSchema: PaymentCredentialFieldSchema
   regions?: readonly string[]
   currencies?: readonly string[]
@@ -71,7 +77,24 @@ export interface PaymentProviderDescriptor {
 }
 
 /** Connection lifecycle for the single active provider per org. */
-export type PaymentConnectionState = "disconnected" | "connected" | "error"
+export type PaymentConnectionState =
+  | "pending_requirements"
+  | "pending_verification"
+  | "connected"
+  | "restricted"
+  | "error"
+  | "disconnected"
+
+/**
+ * A deliberately non-sensitive readiness item. It may describe the class of
+ * information or action still needed, but never includes submitted identity
+ * values, document contents, processor secrets, or other verification data.
+ */
+export interface PaymentConnectionRequirement {
+  code: string
+  message: string
+  deadlineAt?: string | null
+}
 
 /**
  * The current connection, independent of which transport backs it. `mode` is
@@ -85,6 +108,7 @@ export interface PaymentConnectionStatus {
   /** ISO-8601. Last successful `health()` check, if any. */
   lastHealthAt?: string | null
   lastError?: string | null
+  requirements?: readonly PaymentConnectionRequirement[]
   /**
    * True when the deployment pins its processor via environment variables
    * (self-host). The UI then renders read-only "configured via environment"
@@ -108,6 +132,40 @@ export interface PaymentConnectResult {
   error?: string
 }
 
+/** Input that begins or resumes a hosted provider's embedded onboarding. */
+export interface PaymentOnboardingSetupInput {
+  providerId: string
+  mode: PaymentAdapterMode
+}
+
+/**
+ * Short-lived browser bootstrap for an approved embedded onboarding component.
+ * `clientSecret` is an ephemeral, single-purpose component credential. Callers
+ * must never persist or log it. It is not a processor API key or a platform
+ * credential.
+ */
+export interface PaymentEmbeddedOnboardingSession {
+  type: "embedded_onboarding"
+  publishableKey: string
+  clientSecret: string
+  expiresAt: string
+}
+
+/** Result of beginning or resuming hosted onboarding. */
+export type PaymentOnboardingSetupResult =
+  | {
+      ok: true
+      status: PaymentConnectionStatus
+      session: PaymentEmbeddedOnboardingSession
+      error?: never
+    }
+  | {
+      ok: false
+      status: PaymentConnectionStatus
+      session?: never
+      error: string
+    }
+
 /**
  * The runtime port backing Settings → Payments. A managed deployment resolves
  * this against the voyant-cloud control plane + provider registry; a self-host
@@ -117,6 +175,7 @@ export interface PaymentProviderRegistry {
   listProviders(): Promise<readonly PaymentProviderDescriptor[]>
   getConnection(): Promise<PaymentConnectionStatus>
   connect(input: PaymentConnectInput): Promise<PaymentConnectResult>
+  beginOnboarding(input: PaymentOnboardingSetupInput): Promise<PaymentOnboardingSetupResult>
   disconnect(): Promise<void>
 }
 

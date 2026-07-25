@@ -90,6 +90,7 @@ const providerDescriptorSchema = z.object({
   description: z.string(),
   logoRef: z.string().optional(),
   capabilities: capabilitiesSchema,
+  connectionMethod: z.enum(["credentials", "embedded_onboarding", "read_only"]),
   credentialFieldSchema: z.array(credentialFieldSchema),
   regions: z.array(z.string()).optional(),
   currencies: z.array(z.string()).optional(),
@@ -99,10 +100,26 @@ const providerDescriptorSchema = z.object({
 
 const connectionStatusSchema = z.object({
   activeProviderId: z.string().nullable(),
-  status: z.enum(["disconnected", "connected", "error"]),
+  status: z.enum([
+    "pending_requirements",
+    "pending_verification",
+    "connected",
+    "restricted",
+    "error",
+    "disconnected",
+  ]),
   mode: z.enum(["sandbox", "test", "live"]).nullable(),
   lastHealthAt: z.string().nullable().optional(),
   lastError: z.string().nullable().optional(),
+  requirements: z
+    .array(
+      z.object({
+        code: z.string(),
+        message: z.string(),
+        deadlineAt: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
   readOnly: z.boolean().optional(),
 })
 
@@ -115,6 +132,25 @@ const connectRequestSchema = z.object({
 const connectResultSchema = z.object({
   ok: z.boolean(),
   status: connectionStatusSchema,
+  error: z.string().optional(),
+})
+
+const onboardingSetupRequestSchema = z.object({
+  providerId: z.string().min(1),
+  mode: z.enum(["sandbox", "test", "live"]),
+})
+
+const onboardingSessionSchema = z.object({
+  type: z.literal("embedded_onboarding"),
+  publishableKey: z.string().min(1),
+  clientSecret: z.string().min(1),
+  expiresAt: z.string(),
+})
+
+const onboardingSetupResultSchema = z.object({
+  ok: z.boolean(),
+  status: connectionStatusSchema,
+  session: onboardingSessionSchema.optional(),
   error: z.string().optional(),
 })
 
@@ -160,6 +196,18 @@ const connectRoute = createRoute({
   },
 })
 
+const beginOnboardingRoute = createRoute({
+  method: "post",
+  path: "/v1/admin/settings/payments/onboarding",
+  request: { body: jsonBody(onboardingSetupRequestSchema) },
+  responses: {
+    200: jsonContent(
+      dataEnvelope(onboardingSetupResultSchema),
+      "The embedded onboarding setup or fail-closed result",
+    ),
+  },
+})
+
 const disconnectRoute = createRoute({
   method: "post",
   path: "/v1/admin/settings/payments/disconnect",
@@ -192,6 +240,14 @@ export function mountPaymentProviderRoutes(hono: OpenApiMountTarget): void {
         (async () => {
           const registry = await resolveRegistry(c)
           return c.json({ data: await registry.connect(c.req.valid("json")) }, 200)
+        })(),
+      ),
+    )
+    .openapi(beginOnboardingRoute, (c) =>
+      asRouteResponse(
+        (async () => {
+          const registry = await resolveRegistry(c)
+          return c.json({ data: await registry.beginOnboarding(c.req.valid("json")) }, 200)
         })(),
       ),
     )

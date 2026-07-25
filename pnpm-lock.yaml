@@ -690,6 +690,9 @@ importers:
       '@hono/node-server':
         specifier: 2.0.6
         version: 2.0.6(hono@4.12.25)
+      '@voyant-travel/hono':
+        specifier: workspace:^
+        version: link:../hono
       '@voyant-travel/runtime-core':
         specifier: workspace:^
         version: link:../runtime-core
@@ -3767,6 +3770,12 @@ importers:
 
   packages/operator-settings-react:
     dependencies:
+      '@stripe/connect-js':
+        specifier: ^3.4.6
+        version: 3.4.6
+      '@stripe/react-connect-js':
+        specifier: ^3.4.4
+        version: 3.4.4(@stripe/connect-js@3.4.6)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@voyant-travel/react':
         specifier: workspace:^
         version: link:../react
@@ -7836,6 +7845,16 @@ packages:
 
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
+
+  '@stripe/connect-js@3.4.6':
+    resolution: {integrity: sha512-fuC/U/ONDBMKwTBxKAnEBQH+m0x+Tze62/bV1ZDLT7oRnsJgddEnRi7FzdwIxz9pmFZhOJpSaikLIBw9g/1o1w==}
+
+  '@stripe/react-connect-js@3.4.4':
+    resolution: {integrity: sha512-LUtVcGwnkOU9SO1t6j/kAhc89tMCPpFzXz+LU+fhJkOVSDFy8lnidd+t0vNmkVvVU3o8wNVvWgUMxRHL/d1QhQ==}
+    peerDependencies:
+      '@stripe/connect-js': '>=3.4.6'
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
@@ -14677,6 +14696,14 @@ snapshots:
   '@standard-schema/spec@1.1.0': {}
 
   '@standard-schema/utils@0.3.0': {}
+
+  '@stripe/connect-js@3.4.6': {}
+
+  '@stripe/react-connect-js@3.4.4(@stripe/connect-js@3.4.6)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@stripe/connect-js': 3.4.6
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
 
   '@swc/helpers@0.5.23':
     dependencies:

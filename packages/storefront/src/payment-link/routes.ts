@@ -35,6 +35,7 @@ import {
   applyPaymentAdapterCallbackEvent,
   buildPaymentLinkUrl,
   financeService,
+  refreshPaymentAdapterStatus,
 } from "@voyant-travel/finance"
 import { invoices, paymentSessions } from "@voyant-travel/finance/schema"
 import {
@@ -177,6 +178,13 @@ export interface PaymentLinkRoutesOptions {
     c: Context,
     request: PaymentCallbackRequest,
   ): Promise<{ ok: true } | { ok: false; reason: string }>
+  /**
+   * Best-effort reconciliation for a booking-scoped card session. Managed
+   * deployments use the deployment-authenticated status RPC; the adapter and
+   * Finance own canonical provider correlation, leasing, and idempotent
+   * completion.
+   */
+  refreshPaymentSessionStatus?(c: Context, paymentSessionId: string): Promise<unknown>
   /**
    * Resolve a trip envelope (+ reconcile a paid checkout) and its visible
    * components with product-media enrichment, or `null` when the envelope is
@@ -619,7 +627,7 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           {
             data: {
               sessionId: original.id,
-              alreadyPaid: original.status === "paid" || original.status === "authorized",
+              alreadyPaid: original.status === "paid",
             },
           },
           200,
@@ -990,9 +998,27 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           .limit(5)
       }
 
-      const paidSession = sessions.find(
-        (session) => session.status === "paid" || session.status === "authorized",
+      const refreshableSession = sessions.find((session) =>
+        ["requires_redirect", "processing", "authorized"].includes(session.status),
       )
+      if (refreshableSession && options.refreshPaymentSessionStatus) {
+        try {
+          await options.refreshPaymentSessionStatus(c, refreshableSession.id)
+          sessions = await db
+            .select(sessionColumns)
+            .from(paymentSessions)
+            .where(sessionWhere)
+            .orderBy(desc(paymentSessions.createdAt))
+            .limit(5)
+        } catch {
+          // Reconciliation is best-effort for this public read. Preserve the
+          // last persisted state and never expose control-plane details.
+        }
+      }
+
+      // Authorization only reserves funds; it is not settlement and must
+      // never confirm/release a travel booking before capture succeeds.
+      const paidSession = sessions.find((session) => session.status === "paid")
       const latestSession = paidSession ?? sessions[0] ?? null
       const isBankTransferSession =
         latestSession?.paymentMethod === "bank_transfer" ||
@@ -1100,9 +1126,28 @@ export const createPaymentLinkVoyantRuntime = defineGraphRuntimeFactory(
       verifyAndApplyPaymentCallback: adapter
         ? createVerifiedPaymentCallbackHandler(adapter)
         : undefined,
+      refreshPaymentSessionStatus: adapter ? createPaymentStatusRefreshHandler(adapter) : undefined,
     })
   },
 )
+
+export function createPaymentStatusRefreshHandler(
+  adapter: PaymentAdapter,
+  dependencies: {
+    refreshStatus?: typeof refreshPaymentAdapterStatus
+  } = {},
+): NonNullable<PaymentLinkRoutesOptions["refreshPaymentSessionStatus"]> {
+  const refreshStatus = dependencies.refreshStatus ?? refreshPaymentAdapterStatus
+  return async (c, paymentSessionId) => {
+    const eventBus = c.get("eventBus" as never) as EventBus | undefined
+    return refreshStatus(adapter, getDb(c), paymentSessionId, {
+      context: {
+        env: c.env as Readonly<Record<string, unknown>>,
+      },
+      runtime: { eventBus },
+    })
+  }
+}
 
 export function createVerifiedPaymentCallbackHandler(
   adapter: PaymentAdapter,
