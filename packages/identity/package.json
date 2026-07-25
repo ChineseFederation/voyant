@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/identity",
-  "version": "0.206.0",
+  "version": "0.207.0",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

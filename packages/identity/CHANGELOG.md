@@ -1,5 +1,7 @@
 # @voyant-travel/identity
 
+## 0.207.0
+
 ## 0.206.0
 
 ### Patch Changes
