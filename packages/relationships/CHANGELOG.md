@@ -1,5 +1,12 @@
 # @voyant-travel/crm
 
+## 0.131.3
+
+### Patch Changes
+
+- @voyant-travel/bookings@0.201.0
+- @voyant-travel/identity@0.201.0
+
 ## 0.131.2
 
 ### Patch Changes

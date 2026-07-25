@@ -1,5 +1,31 @@
 # @voyant-travel/crm
 
+## 0.133.0
+
+### Minor Changes
+
+- 5e03ae7: Replace every notification mutation path with required-idempotency durable
+  admission, outbox publication, leased worker delivery, and canonical provider
+  replay. This major release explicitly supersedes the `0.136.0`
+  compatibility surface: request-scoped provider sends, `NotificationProvider.send`,
+  `NotificationService` exports, generic direct-send routes, bundled local/Cloud
+  provider shims, and optional notification idempotency are no longer supported.
+  Provider packages now implement the public durable provider port and its
+  non-delivering restart/replay/drift conformance probe. The send action becomes
+  available only for the exact selected graph provider that passes that behavioral
+  contract.
+
+  Framework graph resolution now treats an absent external provider package as a
+  valid disabled state for a conditional action. The action remains unavailable;
+  selection, typed-port conformance, and ambiguity checks still apply when a
+  provider is present.
+
+### Patch Changes
+
+- @voyant-travel/operator-settings@0.14.21
+- @voyant-travel/trips@0.193.0
+- @voyant-travel/relationships@0.131.3
+
 ## 0.132.4
 
 ### Patch Changes
