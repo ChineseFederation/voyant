@@ -1,5 +1,28 @@
 # @voyant-travel/accommodations
 
+## 0.161.1
+
+### Patch Changes
+
+- a02a76b: Move generic MCP action targets, idempotency fingerprints, and approval preflight
+  behind a discoverable server-owned Tool contract. Migrated packages resolve ledger
+  targets from validated input, approval-required calls return structured server-issued
+  approval metadata, and exact retries are validated against the stored command and
+  principal. Route every handler-created target through the selected Tool admission,
+  remove the raw created-target executor from the public package surface, and reject
+  future package-level bypasses during manifest convergence. Validate graph risk
+  against the loaded Tool tier before release and keep the Operator MCP health check
+  from accepting startup failures.
+- Updated dependencies [a02a76b]
+  - @voyant-travel/tools@0.6.0
+  - @voyant-travel/action-ledger@0.114.0
+  - @voyant-travel/bookings@0.201.1
+  - @voyant-travel/catalog@0.199.1
+  - @voyant-travel/distribution@0.191.1
+  - @voyant-travel/finance@0.201.1
+  - @voyant-travel/mice@0.57.1
+  - @voyant-travel/operations@0.8.44
+
 ## 0.161.0
 
 ### Patch Changes
