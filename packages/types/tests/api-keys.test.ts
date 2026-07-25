@@ -22,7 +22,6 @@ const selectedCatalog: AccessCatalog = {
         { action: "read", label: "Read", description: "Read" },
         { action: "write", label: "Write", description: "Write" },
       ],
-      legacyActions: ["cancel"],
     },
     {
       id: "bookings-pii",
@@ -57,6 +56,7 @@ const selectedCatalog: AccessCatalog = {
         { action: "refund", label: "Refund", description: "Refund" },
         { action: "void", label: "Void", description: "Void" },
       ],
+      legacyActions: ["chargeback"],
     },
     {
       id: "notifications",
@@ -104,7 +104,7 @@ describe("assertKnownPermissions", () => {
   it("accepts selected resources, legacy actions, and wildcards", () => {
     expect(() =>
       assertKnownPermissions(
-        { bookings: ["read", "cancel"], finance: ["refund", "void"], "*": ["read"] },
+        { bookings: ["read"], finance: ["refund", "void", "chargeback"], "*": ["read"] },
         selectedCatalog,
       ),
     ).not.toThrow()
@@ -120,6 +120,12 @@ describe("assertKnownPermissions", () => {
       UnknownApiKeyPermissionError,
     )
     expect(() => assertKnownPermissions({ bookings: ["send"] }, selectedCatalog)).toThrow(
+      UnknownApiKeyPermissionError,
+    )
+  })
+
+  it("rejects the retired bookings:cancel legacy action", () => {
+    expect(() => assertKnownPermissions({ bookings: ["cancel"] }, selectedCatalog)).toThrow(
       UnknownApiKeyPermissionError,
     )
   })

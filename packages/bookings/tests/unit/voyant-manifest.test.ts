@@ -81,7 +81,6 @@ describe("bookings deployment manifest", () => {
           expect.objectContaining({ action: "read" }),
           expect.objectContaining({ action: "write" }),
         ]),
-        legacyActions: ["cancel"],
       }),
       expect.objectContaining({
         resource: "bookings-pii",

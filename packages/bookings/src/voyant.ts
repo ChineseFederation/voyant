@@ -1,3 +1,5 @@
+// agent-quality: file-size exception -- owner: bookings; the selected Voyant manifest stays
+// co-located as a single module declaration until a dedicated split preserves behavior and tests.
 import { actionLedgerBookingDriftRuntimePort } from "@voyant-travel/action-ledger/runtime-port"
 import {
   defineExtension,
@@ -459,7 +461,6 @@ export const bookingsVoyantModule = defineModule({
             sensitive: true,
           },
         ],
-        legacyActions: ["cancel"],
       },
       {
         id: "@voyant-travel/bookings#access.bookings-pii",

@@ -19,7 +19,11 @@ and do not fail authentication, but new token grants must name a catalog resourc
 `*`, `*:*`, `*:action`, and `resource:*` retain their existing behavior. A resource with
 `wildcard: "explicit-resource"` is never granted by a wildcard on another resource. Bookings is the
 first package-owned authority: it advertises `bookings:read`, `bookings:write`, and explicit
-`bookings-pii:read`. Stored `bookings:cancel` grants remain accepted as a hidden compatibility action.
+`bookings-pii:read`. `bookings:cancel` was a hidden compatibility action retained from the legacy
+central catalog; it has been removed and is no longer a mintable or recognized permission. Cancelling
+a booking has always been enforced under `bookings:write` (see `cancel_booking` in
+`packages/bookings/src/voyant.ts`), so this removal only affects permission-editor/API-key minting
+surfaces, not runtime enforcement.
 
 ## Route Enforcement
 

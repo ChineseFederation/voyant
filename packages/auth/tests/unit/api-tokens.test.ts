@@ -41,7 +41,6 @@ const selectedCatalog: AccessCatalog = {
         { action: "read", label: "Read", description: "Read" },
         { action: "write", label: "Write", description: "Write" },
       ],
-      legacyActions: ["cancel"],
     },
     {
       id: "catalog",

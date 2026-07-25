@@ -66,7 +66,7 @@ assert.deepEqual(
   byResource.get("bookings")?.actions.map(({ action }) => action),
   ["delete", "read", "write"],
 )
-assert.deepEqual(byResource.get("bookings")?.legacyActions, ["cancel"])
+assert.equal(byResource.get("bookings")?.legacyActions, undefined)
 assert.equal(byResource.get("bookings-pii")?.unitId, "@voyant-travel/bookings")
 assert.equal(byResource.get("bookings-pii")?.wildcard, "explicit-resource")
 assert.equal(
