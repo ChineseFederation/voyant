@@ -1,5 +1,20 @@
 # @voyant-travel/mice
 
+## 0.63.1
+
+### Patch Changes
+
+- cb7221d: Declare `availability` and `effectBoundary: "local"` on
+  `action.create-program` and `action.update-program`. Program creation
+  already claims its command idempotently via
+  `executeAdmittedCreatedTargetCommand` (the `handler-command-claim-v1`
+  `createdTarget` contract was already declared); program updates apply a
+  single local Postgres update against an existing program, so this adds
+  `targetLifecycle: "existing"`. No runtime changes.
+- Updated dependencies [cb7221d]
+- Updated dependencies [535956f]
+  - @voyant-travel/action-ledger@0.115.1
+
 ## 0.63.0
 
 ### Patch Changes

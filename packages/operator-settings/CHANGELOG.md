@@ -1,5 +1,16 @@
 # @voyant-travel/operator-settings
 
+## 0.15.2
+
+### Patch Changes
+
+- cb7221d: Declare `availability`, `effectBoundary: "local"`, and
+  `targetLifecycle: "existing"` on `action.update-operator-settings`. The
+  handler upserts the operator's own profile, payment instruction, and
+  payment default rows in Postgres with no external calls, so this only
+  documents the existing local behavior in the deployment graph; no runtime
+  changes.
+
 ## 0.15.1
 
 ### Patch Changes

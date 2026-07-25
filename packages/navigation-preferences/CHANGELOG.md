@@ -1,5 +1,15 @@
 # @voyant-travel/navigation-preferences
 
+## 0.17.1
+
+### Patch Changes
+
+- cb7221d: Declare `availability`, `effectBoundary: "local"`, and
+  `targetLifecycle: "existing"` on `action.set-organization-navigation-preferences`
+  and `action.set-my-navigation-preferences`. Both handlers upsert a single
+  row via `onConflictDoUpdate`, so this only documents the existing local,
+  idempotent behavior in the deployment graph; no runtime changes.
+
 ## 0.17.0
 
 ### Minor Changes

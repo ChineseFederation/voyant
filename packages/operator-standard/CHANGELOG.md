@@ -1,5 +1,25 @@
 # @voyant-travel/operator-standard
 
+## 0.15.1
+
+### Patch Changes
+
+- Updated dependencies [cb7221d]
+- Updated dependencies [535956f]
+- Updated dependencies [cb7221d]
+- Updated dependencies [cb7221d]
+- Updated dependencies [cb7221d]
+- Updated dependencies [cb7221d]
+- Updated dependencies [cb7221d]
+  - @voyant-travel/action-ledger@0.115.1
+  - @voyant-travel/auth@0.143.7
+  - @voyant-travel/mice@0.63.1
+  - @voyant-travel/navigation-preferences@0.17.1
+  - @voyant-travel/operator-settings@0.15.2
+  - @voyant-travel/setup@0.6.1
+  - @voyant-travel/auth-react@0.143.7
+  - @voyant-travel/navigation-preferences-react@0.17.1
+
 ## 0.15.0
 
 ### Minor Changes

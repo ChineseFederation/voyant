@@ -1,5 +1,15 @@
 # @voyant-travel/setup
 
+## 0.6.1
+
+### Patch Changes
+
+- cb7221d: Declare `availability`, `effectBoundary: "local"`, and
+  `targetLifecycle: "existing"` on `action.complete-setup-step` and
+  `action.skip-setup-step`. Both handlers apply a single conditional update to
+  an already-created setup step row, so this only documents the existing
+  local, replay-safe behavior in the deployment graph; no runtime changes.
+
 ## 0.6.0
 
 ### Minor Changes
