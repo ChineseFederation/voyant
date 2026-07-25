@@ -101,7 +101,12 @@ function commerceToolAction(
       "update-promotion",
       "archive-promotion",
     ].includes(suffix)
-      ? { commandTargetField: "id" }
+      ? {
+          commandTargetField: "id",
+          availability: { status: "available" as const },
+          effectBoundary: "local" as const,
+          targetLifecycle: "existing" as const,
+        }
       : {}),
     ...(suffix === "create-promotion"
       ? {
@@ -111,6 +116,12 @@ function commerceToolAction(
             strategy: "outbox" as const,
             testReference: "packages/commerce/tests/integration/promotion-created-command.test.ts",
           },
+        }
+      : {}),
+    ...(suffix === "create-cancellation-policy" || suffix === "create-price-catalog"
+      ? {
+          availability: { status: "available" as const },
+          effectBoundary: "local" as const,
         }
       : {}),
     resource,

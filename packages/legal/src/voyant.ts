@@ -531,6 +531,8 @@ export const legalVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "legal_contract_draft_create_command",
@@ -572,6 +574,10 @@ export const legalVoyantModule = defineModule({
       approval: "required",
       reversible: true,
       allowedActorTypes: ["staff"],
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-unclaimed-create-target",
+      },
       from: {
         tools: [
           "@voyant-travel/legal#tool.create-contract-template",

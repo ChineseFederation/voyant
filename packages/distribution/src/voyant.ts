@@ -337,6 +337,8 @@ export const distributionVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: false,
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "supplier_create_command",
@@ -356,6 +358,9 @@ export const distributionVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/distribution#tool.update-supplier"] },
     },
     {
@@ -388,6 +393,8 @@ export const distributionVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: false,
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "distribution_channel_create_command",
@@ -407,6 +414,9 @@ export const distributionVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/distribution#tool.update-channel"] },
     },
     {
@@ -435,6 +445,8 @@ export const distributionVoyantModule = defineModule({
       version: "v1",
       kind: "execute",
       targetType: "external-reference",
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "external-reference-create-command",
@@ -461,6 +473,9 @@ export const distributionVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/distribution#tool.update-external-reference"] },
     },
   ],

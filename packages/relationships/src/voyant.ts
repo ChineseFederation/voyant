@@ -443,6 +443,9 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-person"] },
     },
     {
@@ -482,6 +485,9 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-organization"] },
     },
     {
@@ -508,6 +514,8 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required" as const,
       approval: "never" as const,
       reversible: true,
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
       from: { tools: [`@voyant-travel/relationships#tool.add-${ownerType}-note`] },
     })),
     {
@@ -521,6 +529,9 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-relationship-note"] },
     },
     {
@@ -547,6 +558,8 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required" as const,
       approval: "never" as const,
       reversible: true,
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
       from: {
         tools: [`@voyant-travel/relationships#tool.add-${ownerType}-contact-method`],
       },
@@ -562,6 +575,9 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-relationship-contact-method"] },
     },
     {
@@ -588,6 +604,8 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required" as const,
       approval: "never" as const,
       reversible: true,
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
       from: { tools: [`@voyant-travel/relationships#tool.add-${ownerType}-address`] },
     })),
     {
@@ -601,6 +619,9 @@ export const relationshipsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/relationships#tool.update-relationship-address"] },
     },
     {

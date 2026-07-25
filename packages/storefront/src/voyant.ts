@@ -291,6 +291,9 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       approval: "never",
       reversible: true,
       allowedActorTypes: ["customer"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/storefront#tool.update-my-customer-portal-profile"] },
     },
     {
@@ -321,6 +324,10 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       approval: "never",
       reversible: true,
       allowedActorTypes: ["customer"],
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-unclaimed-create-target",
+      },
       from: {
         tools: [
           "@voyant-travel/storefront#tool.create-my-customer-portal-companion",
@@ -342,6 +349,10 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       approval: "never",
       reversible: true,
       allowedActorTypes: ["customer"],
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-unclaimed-create-target",
+      },
       from: {
         tools: [
           "@voyant-travel/storefront#tool.create-my-customer-portal-document",
@@ -435,6 +446,9 @@ export const storefrontVerificationVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["customer"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: {
         tools: [
           "@voyant-travel/storefront#tool.confirm-my-email-verification",
@@ -546,6 +560,8 @@ export const storefrontPaymentLinkVoyantModule = defineModule({
       approval: "required",
       reversible: true,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
       from: { tools: ["@voyant-travel/storefront#tool.create-invoice-payment-link"] },
     },
   ],

@@ -190,6 +190,8 @@ export const identityVoyantModule = defineModule({
       version: "v1" as const,
       kind: "execute" as const,
       targetType,
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
       targetLifecycle: "created" as const,
       createdTarget: {
         commandTargetType,
@@ -222,6 +224,9 @@ export const identityVoyantModule = defineModule({
       ledger: "required" as const,
       approval: "never" as const,
       reversible: true,
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
+      targetLifecycle: "existing" as const,
       from: { tools: [`@voyant-travel/identity#tool.${id}`] },
     })),
   ],

@@ -213,6 +213,8 @@ export const accommodationsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: false,
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "room-block-create-command",
@@ -231,6 +233,9 @@ export const accommodationsVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/accommodations#tool.set-room-block-nights"] },
     },
     {
@@ -255,6 +260,9 @@ export const accommodationsVoyantModule = defineModule({
       ledger: "required",
       approval: "required",
       reversible: true,
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/accommodations#tool.reverse-room-block-pickup"] },
     },
   ],

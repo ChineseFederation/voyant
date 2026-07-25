@@ -236,6 +236,8 @@ export const quotesVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
       from: { tools: ["@voyant-travel/quotes#tool.snapshot-quote-version"] },
     },
     {
@@ -252,6 +254,9 @@ export const quotesVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/quotes#tool.send-quote-version"] },
     },
     {
@@ -268,6 +273,9 @@ export const quotesVoyantModule = defineModule({
       approval: "required",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/quotes#tool.accept-quote-version"] },
     },
     {
@@ -284,6 +292,9 @@ export const quotesVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/quotes#tool.decline-quote-version"] },
     },
   ],
