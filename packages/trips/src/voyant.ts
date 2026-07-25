@@ -358,6 +358,7 @@ export const tripsVoyantModule = defineModule({
       version: "v1",
       kind: "execute",
       targetType: "trip-requirement",
+      commandTargetField: "requirementId",
       requiredScopes: ["trips:write"],
       risk: "medium",
       ledger: "required",

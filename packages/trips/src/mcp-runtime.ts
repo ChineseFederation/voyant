@@ -1,8 +1,4 @@
-import {
-  buildCreatedTargetCommandFingerprint,
-  buildCreatedTargetIdempotencyScope,
-  executeCreatedTargetCommand,
-} from "@voyant-travel/action-ledger/created-command"
+import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import {
   type ActionLedgerRequestContextValues,
   mapActionLedgerRequestContext,
@@ -44,42 +40,19 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const db = c.var.db as AnyDrizzleDb
     const trips: TripsToolServices = {
       async createTrip({ idempotencyKey: legacyIdempotencyKey, components, ...input }, admitted) {
-        const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
+        admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
         const requestContext = actionLedgerContext(c)
-        const principal = mapActionLedgerRequestContext(requestContext)
-        const command = {
-          actionName: admitted.actionPolicy.capabilityId,
-          actionVersion: admitted.actionPolicy.version,
-          commandTarget: { type: "trip-create-command", id: idempotencyKey },
-          canonicalTargetType: "trip",
-          resultReferenceType: "trip" as const,
-          commandInput: { ...input, components },
-          capabilityId: admitted.actionPolicy.capabilityId,
-          capabilityVersion: admitted.actionPolicy.version,
-          evaluatedRisk: "medium" as const,
-          approvalPolicy: "none" as const,
-          approvalReasonCode: null,
-        }
-        const fingerprint = await buildCreatedTargetCommandFingerprint(command)
-        const scope = await buildCreatedTargetIdempotencyScope({
-          actionName: command.actionName,
-          actionVersion: command.actionVersion,
-          principalType: principal.principalType,
-          principalId: principal.principalId,
-          organizationId: principal.organizationId,
-        })
-        const result = await executeCreatedTargetCommand(
-          db,
+        const result = await executeAdmittedCreatedTargetCommand(
           {
+            db,
             context: requestContext,
-            ...command,
-            routeOrToolName: admitted.capabilityId,
-            authorizationSource: "selected_graph_mcp_handler",
-            idempotency: {
-              scope,
-              key: idempotencyKey,
-              fingerprint,
-            },
+            admitted,
+            idempotencyKey: legacyIdempotencyKey,
+            commandTargetType: "trip-create-command",
+            canonicalTargetType: "trip",
+            resultReferenceType: "trip",
+            commandInput: { ...input, components },
+            evaluatedRisk: "medium",
           },
           {
             async create(tx) {

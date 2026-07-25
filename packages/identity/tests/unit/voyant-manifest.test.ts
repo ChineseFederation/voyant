@@ -51,4 +51,14 @@ describe("identity deployment manifest", () => {
       )
     }
   })
+
+  it("targets existing identity children by id", () => {
+    for (const actionId of ["update-address", "update-contact-point", "update-named-contact"]) {
+      expect(
+        identityVoyantModule.actions?.find(
+          ({ id }) => id === `@voyant-travel/identity#action.${actionId}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
+  })
 })

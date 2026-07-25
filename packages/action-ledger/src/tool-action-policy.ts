@@ -15,6 +15,7 @@ import {
   appendActionLedgerMutation,
   appendActionLedgerSensitiveRead,
   mapActionLedgerRequestContext,
+  requestActionLedgerApproval,
 } from "./request-context.js"
 import type { ActionLedgerEntry } from "./schema.js"
 import { actionLedgerService } from "./service.js"
@@ -73,7 +74,10 @@ export function createToolActionPolicyGate(
         return dispatch()
       }
 
-      const targetId = requiredInvocationString(execution, "targetId")
+      const serverOwnedTarget = execution.actionPolicy.invocation.targetResolution !== undefined
+      const targetId = serverOwnedTarget
+        ? requiredResolvedTarget(execution)
+        : requiredInvocationString(execution, "targetId")
       assertCommandTargetMatches(selected, execution, targetId)
       const principal = concretePrincipal(input.requestContext)
 
@@ -95,19 +99,43 @@ export function createToolActionPolicyGate(
         return dispatch()
       }
 
-      const idempotencyKey = requiredInvocationString(execution, "idempotencyKey")
+      const executionKey = requiredInvocationString(
+        execution,
+        serverOwnedTarget ? "requestId" : "idempotencyKey",
+      )
       const fingerprint = await commandFingerprint(selected, execution, targetId)
       const approved =
         selected.approval === "required"
-          ? await validateApproval({
-              db: input.db,
-              selected,
-              execution,
-              targetId,
-              idempotencyKey,
-              fingerprint,
-              principal,
-            })
+          ? serverOwnedTarget
+            ? execution.invocation.approvalId
+              ? await validateApproval({
+                  db: input.db,
+                  selected,
+                  execution,
+                  targetId,
+                  requestId: executionKey,
+                  fingerprint,
+                  principal,
+                })
+              : await requestApprovalPreflight({
+                  db: input.db,
+                  selected,
+                  execution,
+                  targetId,
+                  requestId: executionKey,
+                  fingerprint,
+                  principal,
+                  requestContext: input.requestContext,
+                })
+            : await validateLegacyApproval({
+                db: input.db,
+                selected,
+                execution,
+                targetId,
+                idempotencyKey: executionKey,
+                fingerprint,
+                principal,
+              })
           : null
 
       const actionName = selected.capabilityId ?? selected.id
@@ -129,7 +157,7 @@ export function createToolActionPolicyGate(
         idempotencyScope: approved
           ? `${approved.approval.id}:mcp-execution-preflight`
           : `${actionName}:${selected.version}:${targetId}:mcp-preflight`,
-        idempotencyKey: approved?.approval.id ?? idempotencyKey,
+        idempotencyKey: approved?.approval.id ?? executionKey,
         idempotencyFingerprint: fingerprint,
         mutationDetail: {
           summary: `MCP Tool ${execution.canonicalName} passed selected action policy`,
@@ -140,7 +168,10 @@ export function createToolActionPolicyGate(
         throw new ToolError(
           "This exact Tool execution has already been claimed; refusing duplicate dispatch.",
           "AUTHORIZATION_DENIED",
-          { actionId: preflight.entry.id, idempotencyKey },
+          {
+            actionId: preflight.entry.id,
+            ...(serverOwnedTarget ? { requestId: executionKey } : { idempotencyKey: executionKey }),
+          },
         )
       }
 
@@ -152,7 +183,7 @@ export function createToolActionPolicyGate(
           execution,
           selected,
           targetId,
-          idempotencyKey,
+          executionKey,
           fingerprint,
           preflightActionId: preflight.entry.id,
           approved,
@@ -166,7 +197,7 @@ export function createToolActionPolicyGate(
           execution,
           selected,
           targetId,
-          idempotencyKey,
+          executionKey,
           fingerprint,
           preflightActionId: preflight.entry.id,
           approved,
@@ -303,7 +334,7 @@ function assertActorAllowed(
 
 function requiredInvocationString(
   execution: ToolActionPolicyExecutionInput,
-  field: "targetId" | "idempotencyKey" | "approvalId" | "idempotencyFingerprint",
+  field: "requestId" | "targetId" | "idempotencyKey" | "approvalId" | "idempotencyFingerprint",
 ): string {
   const value = execution.invocation[field]
   if (!value?.trim()) {
@@ -314,6 +345,21 @@ function requiredInvocationString(
     )
   }
   return value
+}
+
+function requiredResolvedTarget(execution: ToolActionPolicyExecutionInput): string {
+  const targetId = execution.resolvedTargetId?.trim()
+  if (!targetId) {
+    throw new ToolError(
+      "A server-owned action target is required for ledgered generic Tool dispatch.",
+      "ACTION_POLICY_REQUIRED",
+      {
+        capabilityId: execution.capabilityId,
+        targetResolution: execution.actionPolicy.invocation.targetResolution ?? "missing",
+      },
+    )
+  }
+  return targetId
 }
 
 function concretePrincipal(context: ActionLedgerRequestContextValues) {
@@ -367,6 +413,58 @@ async function validateApproval(input: {
   selected: VoyantGraphActionDeclaration
   execution: ToolActionPolicyExecutionInput
   targetId: string
+  requestId: string
+  fingerprint: string
+  principal: ReturnType<typeof mapActionLedgerRequestContext>
+}) {
+  const approvalId = requiredInvocationString(input.execution, "approvalId")
+  const actionName = input.selected.capabilityId ?? input.selected.id
+  const validation = await actionLedgerService.validateApprovedAction(input.db, {
+    approvalId,
+    actionName,
+    actionVersion: input.selected.version,
+    requestedActionKind: "execute",
+    requestedActionStatus: "awaiting_approval",
+    targetType: input.selected.targetType,
+    targetId: input.targetId,
+    routeOrToolName: input.execution.capabilityId,
+    principalType: input.principal.principalType,
+    principalId: input.principal.principalId,
+    requireApprovalProvenance: true,
+    organizationId: input.principal.organizationId,
+    capabilityId: actionName,
+    capabilityVersion: input.selected.version,
+    evaluatedRisk: input.selected.risk,
+    policyName: input.selected.policy ?? input.selected.id,
+    policyVersion: input.selected.version,
+    reasonCode: input.execution.invocation.reasonCode ?? null,
+    idempotencyKey: input.requestId,
+    idempotencyFingerprint: input.fingerprint,
+    executionActionKind: "execute",
+    executionStatus: "succeeded",
+  })
+  if (!validation.ok) {
+    throw new ToolError(
+      "The approval does not authorize this exact Tool command.",
+      "AUTHORIZATION_DENIED",
+      { approvalId, reason: validation.reason },
+    )
+  }
+  if (validation.requestedAction.idempotencyKey !== input.requestId) {
+    throw new ToolError(
+      "The Tool requestId does not match the approved request.",
+      "AUTHORIZATION_DENIED",
+      { approvalId, reason: "request_id_mismatch" },
+    )
+  }
+  return validation
+}
+
+async function validateLegacyApproval(input: {
+  db: AnyDrizzleDb
+  selected: VoyantGraphActionDeclaration
+  execution: ToolActionPolicyExecutionInput
+  targetId: string
   idempotencyKey: string
   fingerprint: string
   principal: ReturnType<typeof mapActionLedgerRequestContext>
@@ -414,16 +512,66 @@ async function validateApproval(input: {
   return validation
 }
 
+async function requestApprovalPreflight(input: {
+  db: AnyDrizzleDb
+  selected: VoyantGraphActionDeclaration
+  execution: ToolActionPolicyExecutionInput
+  targetId: string
+  requestId: string
+  fingerprint: string
+  principal: ReturnType<typeof mapActionLedgerRequestContext>
+  requestContext: ActionLedgerRequestContextValues
+}): Promise<never> {
+  const actionName = input.selected.capabilityId ?? input.selected.id
+  const result = await requestActionLedgerApproval(input.db, {
+    context: input.requestContext,
+    actionName,
+    actionVersion: input.selected.version,
+    actionKind: "execute",
+    evaluatedRisk: input.selected.risk,
+    targetType: input.selected.targetType,
+    targetId: input.targetId,
+    routeOrToolName: input.execution.capabilityId,
+    capabilityId: actionName,
+    capabilityVersion: input.selected.version,
+    authorizationSource: "selected_graph_mcp_preflight",
+    idempotencyScope: `${actionName}:${input.selected.version}:mcp-approval`,
+    idempotencyKey: input.requestId,
+    idempotencyFingerprint: input.fingerprint,
+    approval: {
+      requestedByPrincipalId: input.principal.principalId,
+      policyName: input.selected.policy ?? input.selected.id,
+      policyVersion: input.selected.version,
+      riskSnapshot: input.selected.risk,
+      reasonCode: input.execution.invocation.reasonCode ?? null,
+    },
+  })
+  throw new ToolError(
+    "This Tool action is awaiting approval. Approve the server-issued request, then retry the exact command.",
+    "APPROVAL_REQUIRED",
+    {
+      approvalId: result.approval.id,
+      requestedActionId: result.requestedAction.id,
+      status: result.approval.status,
+      requestId: input.requestId,
+      replayed: result.replayed,
+    },
+  )
+}
+
 async function appendExecutionResult(input: {
   db: AnyDrizzleDb
   context: ActionLedgerRequestContextValues
   execution: ToolActionPolicyExecutionInput
   selected: VoyantGraphActionDeclaration
   targetId: string
-  idempotencyKey: string
+  executionKey: string
   fingerprint: string
   preflightActionId: string
-  approved: Awaited<ReturnType<typeof validateApproval>> | null
+  approved:
+    | Awaited<ReturnType<typeof validateApproval>>
+    | Awaited<ReturnType<typeof validateLegacyApproval>>
+    | null
   status: Extract<ActionLedgerEntry["status"], "succeeded" | "failed">
 }): Promise<void> {
   const actionName = input.selected.capabilityId ?? input.selected.id
@@ -445,7 +593,7 @@ async function appendExecutionResult(input: {
     idempotencyScope: input.approved
       ? `${input.approved.approval.id}:execution`
       : `${actionName}:${input.selected.version}:${input.targetId}:mcp-result`,
-    idempotencyKey: input.approved?.approval.id ?? input.idempotencyKey,
+    idempotencyKey: input.approved?.approval.id ?? input.executionKey,
     idempotencyFingerprint: input.fingerprint,
     mutationDetail: {
       summary: `MCP Tool ${input.execution.canonicalName} ${input.status}`,

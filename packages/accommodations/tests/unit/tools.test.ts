@@ -83,7 +83,11 @@ describe("accommodations tools", () => {
       expect(tool.capabilityId).toBe(
         `@voyant-travel/accommodations#tool.${tool.name.replaceAll("_", "-")}`,
       )
-      expect(tool.owner).toBe("@voyant-travel/accommodations")
+      expect(tool.owner).toBe(
+        tool.name === "get_accommodation_content"
+          ? "@voyant-travel/accommodations#content-extension"
+          : "@voyant-travel/accommodations",
+      )
       expect(tool.capabilityVersion).toBe("v1")
       expect(tool.outputSchema).not.toHaveProperty("x-voyant-schema-quality")
     }

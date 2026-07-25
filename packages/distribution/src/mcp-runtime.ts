@@ -1,13 +1,11 @@
 import {
   type ActionLedgerRequestContextValues,
-  buildCreatedTargetIdempotencyScope,
+  type ExecuteAdmittedCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandHandlers,
-  type ExecuteCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandResult,
-  executeCreatedTargetCommand,
+  executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
-import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   defineToolContextContribution,
@@ -17,10 +15,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
-import {
-  buildDistributionCreatedTargetFingerprint,
-  DISTRIBUTION_CREATED_TARGET_POLICIES,
-} from "./created-target-policy.js"
+import { DISTRIBUTION_CREATED_TARGET_POLICIES } from "./created-target-policy.js"
 import { externalRefsService } from "./external-refs/service.js"
 import { distributionService } from "./service.js"
 import { suppliersService } from "./suppliers/service.js"
@@ -167,8 +162,7 @@ type DistributionPolicy =
   (typeof DISTRIBUTION_CREATED_TARGET_POLICIES)[keyof typeof DISTRIBUTION_CREATED_TARGET_POLICIES]
 
 type DistributionCreatedCommandExecutor = (
-  db: PostgresJsDatabase,
-  input: ExecuteCreatedTargetCommandInput & { resultReferenceType: string },
+  input: ExecuteAdmittedCreatedTargetCommandInput<string>,
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
 
@@ -180,7 +174,7 @@ export async function executeDistributionCreate(
   commandInput: unknown,
   admitted: ToolHandlerActionPolicyContext,
   create: (tx: PostgresJsDatabase) => Promise<{ id: string }>,
-  executor: DistributionCreatedCommandExecutor = executeCreatedTargetCommand,
+  executor: DistributionCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
 ) {
   const principal = mapActionLedgerRequestContext(context)
   if (principal.principalId === "unknown_request") {
@@ -193,43 +187,18 @@ export async function executeDistributionCreate(
   ) {
     throw new TypeError("Distribution created-target command Tool identity drifted after admission")
   }
-  const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
-  const fingerprint = await buildDistributionCreatedTargetFingerprint(
-    policy,
-    admitted.actionPolicy,
-    idempotencyKey,
-    commandInput,
-  )
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: admitted.actionPolicy.capabilityId,
-    actionVersion: admitted.actionPolicy.version,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
+  admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
   return executor(
-    db,
     {
+      db,
       context,
-      actionName: admitted.actionPolicy.capabilityId,
-      actionVersion: admitted.actionPolicy.version,
-      actionKind: "create",
-      evaluatedRisk: policy.evaluatedRisk,
-      commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
+      admitted,
+      idempotencyKey: legacyIdempotencyKey,
+      commandTargetType: policy.commandTargetType,
       canonicalTargetType: policy.canonicalTargetType,
       resultReferenceType: policy.resultReferenceType,
-      capabilityId: admitted.actionPolicy.capabilityId,
-      capabilityVersion: admitted.actionPolicy.version,
-      approvalPolicy: policy.approvalPolicy,
-      approvalReasonCode: policy.approvalReasonCode,
       commandInput,
-      routeOrToolName: admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: {
-        scope,
-        key: idempotencyKey,
-        fingerprint,
-      },
+      evaluatedRisk: policy.evaluatedRisk,
     },
     {
       async create(tx) {

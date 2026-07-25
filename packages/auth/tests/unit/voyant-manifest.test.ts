@@ -137,6 +137,18 @@ describe("auth identity/access deployment manifests", () => {
       ),
     ).toBe(true)
     expect(
+      Object.fromEntries(
+        writes
+          .filter(({ id }) => id !== "@voyant-travel/auth#team.action.invite-member")
+          .map(({ id, commandTargetField }) => [id.split(".action.")[1], commandTargetField]),
+      ),
+    ).toEqual({
+      "activate-member": "memberId",
+      "deactivate-member": "memberId",
+      "revoke-invitation": "invitationId",
+      "update-member-role": "memberId",
+    })
+    expect(
       authTeamVoyantModule.actions?.find(
         ({ id }) => id === "@voyant-travel/auth#team.action.invite-member",
       ),

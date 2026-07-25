@@ -11,7 +11,7 @@ import {
   ActionLedgerCreatedCommandApprovalError,
   buildCreatedTargetCommandFingerprint,
   executeCreatedTargetCommand,
-} from "../../src/created-command.js"
+} from "../../src/created-command-internal.js"
 import {
   decideActionLedgerApproval,
   requestActionLedgerApproval,

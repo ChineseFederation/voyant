@@ -113,6 +113,13 @@ describe("inventory deployment manifests", () => {
         }),
       ]),
     )
+    for (const id of ["update-option-extra-config", "update-product-extra"]) {
+      expect(
+        inventoryExtrasVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/inventory#extras.action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 
   it("declares product navigation and route scopes", () => {
@@ -162,6 +169,18 @@ describe("inventory deployment manifests", () => {
         }),
       ]),
     )
+    for (const id of [
+      "archive-product",
+      "publish-product",
+      "unpublish-product",
+      "update-product",
+    ]) {
+      expect(
+        inventoryVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/inventory#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 
   it("owns the authoring and booking plugin surfaces", () => {

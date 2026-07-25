@@ -168,6 +168,9 @@ export const chartersVoyantModule = defineModule({
       version: "v1" as const,
       kind: "execute" as const,
       targetType: "charter",
+      ...(["update-charter-product", "update-charter-voyage", "update-charter-yacht"].includes(id)
+        ? { commandTargetField: "id" }
+        : {}),
       requiredScopes: ["charters:write"],
       risk: "medium" as const,
       ledger: "required" as const,

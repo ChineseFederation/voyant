@@ -16,7 +16,7 @@ import {
   executeAdmittedCreatedTargetCommand,
   executeAdmittedExistingTargetCommand,
   executeCreatedTargetCommand,
-} from "../../src/created-command.js"
+} from "../../src/created-command-internal.js"
 import { buildActionApprovalCommandFingerprint } from "../../src/fingerprint.js"
 import type {
   ActionLedgerEntry,
@@ -672,6 +672,119 @@ describe("created-target command protocol", () => {
       reason: "admitted_policy_mismatch",
     })
     expect(create).toHaveBeenCalledTimes(1)
+  })
+
+  it("replays a reservation claimed before the admitted-executor upgrade", async () => {
+    const harness = makeCreatedCommandDb()
+    const context = {
+      userId: "usr_1",
+      organizationId: "org_1",
+      actor: "staff",
+      callerType: "session",
+    }
+    const commandInput = {
+      bookingNumber: "BK-UPGRADE-000001",
+      sellCurrency: "EUR",
+      items: [{ availabilitySlotId: "slot_1", quantity: 1 }],
+    }
+    const command = {
+      actionName: "booking.reserve",
+      actionVersion: "v1",
+      commandTarget: {
+        type: "booking_reservation_command",
+        id: commandInput.bookingNumber,
+      },
+      canonicalTargetType: "booking",
+      resultReferenceType: "booking",
+      commandInput,
+      capabilityId: "bookings:reserve",
+      capabilityVersion: "v1",
+      evaluatedRisk: "high" as const,
+      approvalPolicy: "none" as const,
+      approvalReasonCode: null,
+    }
+    const fingerprint = await buildCreatedTargetCommandFingerprint(command)
+    const scope = await buildCreatedTargetIdempotencyScope({
+      actionName: command.actionName,
+      actionVersion: command.actionVersion,
+      principalType: "user",
+      principalId: "usr_1",
+      organizationId: "org_1",
+    })
+    ;(harness.db as AnyDrizzleDb & { __claimScope?: string }).__claimScope =
+      `${scope}:created-command-claim`
+
+    await executeCreatedTargetCommand(
+      harness.db,
+      {
+        context,
+        ...command,
+        routeOrToolName: "bookings.reserve_booking",
+        authorizationSource: "selected_graph_mcp_handler",
+        idempotency: { scope, key: "reserve-command-1", fingerprint },
+      },
+      {
+        async create() {
+          return { value: { id: "booking_1" }, targetId: "booking_1" }
+        },
+        async replay(_tx, completed) {
+          return { id: completed.reference.id }
+        },
+      },
+    )
+
+    const baseAdmitted = makeAdmittedCreatedTargetContext({ actionName: "booking.reserve" })
+    const admitted = {
+      ...baseAdmitted,
+      capabilityId: "@voyant-travel/bookings#tool.reserve-booking",
+      canonicalName: "reserve_booking",
+      actionPolicy: {
+        ...baseAdmitted.actionPolicy,
+        capabilityId: "bookings:reserve",
+        targetType: "booking",
+        createdTarget: {
+          commandTargetType: "booking_reservation_command",
+          resultReferenceType: "booking",
+          durability: "handler-command-claim-v1" as const,
+        },
+      },
+      invocation: { idempotencyKey: "reserve-command-1" },
+    }
+    const create = vi.fn()
+    await expect(
+      executeAdmittedCreatedTargetCommand(
+        {
+          db: harness.db,
+          context,
+          admitted,
+          commandTargetType: "booking_reservation_command",
+          commandTargetId: commandInput.bookingNumber,
+          routeOrToolName: "bookings.reserve_booking",
+          canonicalTargetType: "booking",
+          resultReferenceType: "booking",
+          commandInput,
+          evaluatedRisk: "high",
+        },
+        {
+          create,
+          async replay(_tx, completed) {
+            return { id: completed.reference.id }
+          },
+        },
+      ),
+    ).resolves.toMatchObject({
+      replayed: true,
+      value: { id: "booking_1" },
+    })
+    expect(create).not.toHaveBeenCalled()
+    expect(harness.entries).toHaveLength(2)
+    expect(harness.entries[0]).toMatchObject({
+      actionName: "booking.reserve",
+      targetType: "booking_reservation_command",
+      targetId: "BK-UPGRADE-000001",
+      routeOrToolName: "bookings.reserve_booking",
+      capabilityId: "bookings:reserve",
+    })
   })
 
   it.each([

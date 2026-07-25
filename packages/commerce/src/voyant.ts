@@ -95,6 +95,14 @@ function commerceToolAction(
     version: "v1",
     kind: write ? "execute" : "read",
     targetType: created?.targetType ?? resource,
+    ...([
+      "update-cancellation-policy",
+      "update-price-catalog",
+      "update-promotion",
+      "archive-promotion",
+    ].includes(suffix)
+      ? { commandTargetField: "id" }
+      : {}),
     ...(suffix === "create-promotion"
       ? {
           availability: { status: "available" as const },

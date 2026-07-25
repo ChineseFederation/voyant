@@ -67,14 +67,13 @@ describe("legal contract draft created-target command", () => {
     let capabilityVersion: string | undefined
     let createCalls = 0
     const executor: NonNullable<Parameters<typeof executeLegalContractDraftCreate>[4]> = async (
-      _db,
       command,
       handlers,
     ) => {
-      routeOrToolName = command.routeOrToolName
-      actionName = command.actionName
-      capabilityId = command.capabilityId
-      capabilityVersion = command.capabilityVersion
+      routeOrToolName = command.admitted.capabilityId
+      actionName = command.admitted.actionPolicy.capabilityId
+      capabilityId = command.admitted.actionPolicy.capabilityId
+      capabilityVersion = command.admitted.actionPolicy.version
       const mutation = await handlers.create(tx)
       return {
         replayed: false as const,

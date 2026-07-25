@@ -18,6 +18,27 @@ export const RISK_TIERS = ["read", "write", "sensitive", "destructive"] as const
  */
 export type RiskTier = (typeof RISK_TIERS)[number]
 
+export type ToolDeploymentRiskTier = "low" | "medium" | "high" | "critical"
+
+/**
+ * Return whether a graph-owned deployment risk can bind the declared Tool tier.
+ *
+ * Runtime registration and repository convergence checks share this predicate
+ * so incompatible metadata fails before an MCP deployment starts.
+ */
+export function isToolDeploymentRiskCompatible(
+  deploymentRisk: ToolDeploymentRiskTier,
+  tier: RiskTier,
+): boolean {
+  const compatibleTiers: Record<ToolDeploymentRiskTier, readonly RiskTier[]> = {
+    low: ["read"],
+    medium: ["write"],
+    high: ["write", "sensitive", "destructive"],
+    critical: ["write", "sensitive", "destructive"],
+  }
+  return compatibleTiers[deploymentRisk].includes(tier)
+}
+
 export const TOOL_SIDE_EFFECTS = [
   "payment",
   "refund",

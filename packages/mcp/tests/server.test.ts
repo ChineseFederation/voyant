@@ -273,7 +273,8 @@ function frameworkRuntime(input: {
   })
 }
 
-function conditionalFrameworkRuntime() {
+function conditionalFrameworkRuntime(options: { providerSelected?: boolean } = {}) {
+  const providerSelected = options.providerSelected ?? true
   const unitId = "@voyant-travel/test"
   const portId = "catalog.durable-echo"
   const toolId = "@voyant-travel/test#tool.echo"
@@ -282,7 +283,7 @@ function conditionalFrameworkRuntime() {
   const testProvider = vi.fn()
   const runtime = createVoyantGraphRuntime({
     graphHash: "sha256:mcp-conditional-test",
-    providerSelections: { catalog: "durable" },
+    providerSelections: providerSelected ? { catalog: "durable" } : {},
     accessCatalog,
     entries: {
       "@voyant-travel/catalog/provider": async () => ({
@@ -329,26 +330,30 @@ function conditionalFrameworkRuntime() {
             referenceId: "catalog-provider",
           },
         ],
-        provisionalReferences: [
-          {
-            id: "catalog-echo-runtime",
-            unitId,
-            facet: "tools.runtime",
-            entityId: toolId,
-            runtime: { entry: "./tools", export: "echoTool" },
-            importEntry: "@voyant-travel/catalog/tools",
-          },
-        ],
-        provisionalTools: [
-          {
-            id: toolId,
-            unitId,
-            name: "echo",
-            referenceId: "catalog-echo-runtime",
-            requiredScopes: ["catalog:read"],
-            risk: "low",
-          },
-        ],
+        provisionalReferences: providerSelected
+          ? [
+              {
+                id: "catalog-echo-runtime",
+                unitId,
+                facet: "tools.runtime",
+                entityId: toolId,
+                runtime: { entry: "./tools", export: "echoTool" },
+                importEntry: "@voyant-travel/catalog/tools",
+              },
+            ]
+          : [],
+        provisionalTools: providerSelected
+          ? [
+              {
+                id: toolId,
+                unitId,
+                name: "echo",
+                referenceId: "catalog-echo-runtime",
+                requiredScopes: ["catalog:read"],
+                risk: "low",
+              },
+            ]
+          : [],
         requiredPorts: [portId],
         runtimePorts: [portId],
         runtimePortConformance: [{ portId, referenceId: "catalog-port-conformance" }],
@@ -759,6 +764,23 @@ describe("createMcpApiRoutes", () => {
     }
     expect(manifest.tools.map(({ name }) => name)).toEqual(["echo"])
     expect(loadTool).toHaveBeenCalledOnce()
+  })
+
+  it("keeps a conditional Tool hidden when its optional provider is absent", async () => {
+    const { loadTool, runtime } = conditionalFrameworkRuntime({ providerSelected: false })
+
+    const routes = await createGraphMcpApiRoutes({
+      runtime,
+      buildContext: () => buildContext(),
+      providedContext: ["toolActionPolicy"],
+    })
+    const app = new Hono()
+    app.route("/", routes)
+    const manifest = (await (await app.request("/manifest")).json()) as {
+      tools: Array<{ name: string }>
+    }
+    expect(manifest.tools).toEqual([])
+    expect(loadTool).not.toHaveBeenCalled()
   })
 
   it("propagates created-target handler policy without advertising caller-owned target identity", async () => {
@@ -1228,6 +1250,9 @@ describe("createMcpApiRoutes", () => {
           confirmationRequired: true,
           sideEffects: ["email"],
         },
+        resolveActionTarget({ message }) {
+          return `notification:${message}`
+        },
         async handler() {
           handlerCalls += 1
           return { ok: true }
@@ -1291,13 +1316,9 @@ describe("createMcpApiRoutes", () => {
             enforcement: "generic",
             invocation: {
               controlField: "_voyant",
-              requiredFields: [
-                "confirmed",
-                "targetId",
-                "idempotencyKey",
-                "approvalId",
-                "idempotencyFingerprint",
-              ],
+              requiredFields: ["confirmed", "requestId"],
+              optionalFields: ["reasonCode", "approvalId"],
+              targetResolution: "package-resolver",
             },
           },
         },
@@ -1313,10 +1334,8 @@ describe("createMcpApiRoutes", () => {
             message: "hello",
             _voyant: {
               confirmed: true,
-              targetId: "notification_1",
-              idempotencyKey: "send-1",
+              requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
               approvalId: "approval_1",
-              idempotencyFingerprint: "sha256:exact",
             },
           },
         }),
@@ -1329,7 +1348,211 @@ describe("createMcpApiRoutes", () => {
     expect(gateCalls).toEqual([
       expect.objectContaining({
         commandInput: { message: "hello" },
-        invocation: expect.objectContaining({ approvalId: "approval_1" }),
+        resolvedTargetId: "notification:hello",
+        invocation: {
+          confirmed: true,
+          requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
+          approvalId: "approval_1",
+        },
+      }),
+    ])
+
+    const hostile = await readRpc(
+      await outer.request(
+        "/",
+        rpc("tools/call", {
+          name: "guarded_send",
+          arguments: {
+            message: "hello",
+            _voyant: {
+              confirmed: true,
+              requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
+              approvalId: "approval_1",
+              targetId: "attacker-controlled",
+              idempotencyFingerprint: "attacker-controlled",
+            },
+          },
+        }),
+      ),
+    )
+    expect(hostile.error ?? (hostile.result as { isError?: boolean })?.isError).toBeTruthy()
+    expect(JSON.stringify(hostile)).toContain("targetId")
+    expect(handlerCalls).toBe(1)
+  })
+
+  it("returns structured stable metadata when a declared command target is invalid", async () => {
+    const registry = createToolRegistry()
+    registry.register(
+      defineTool({
+        name: "unsafe_write",
+        description: "A ledgered write with a declared command target",
+        inputSchema: z.object({ recordId: z.string() }),
+        outputSchema: z.object({ ok: z.boolean() }),
+        requiredScopes: ["catalog:write"],
+        tier: "write",
+        riskPolicy: {
+          destructive: false,
+          reversible: true,
+          dryRunSupported: false,
+          confirmationRequired: true,
+          sideEffects: ["data-write"],
+        },
+        async handler() {
+          return { ok: true }
+        },
+      }),
+      {
+        capabilityId: "@voyant-travel/catalog#tool.unsafe-write",
+        owner: "@voyant-travel/catalog",
+        capabilityVersion: "v1",
+        deploymentRisk: "medium",
+        actionPolicy: {
+          id: "@voyant-travel/catalog#action.unsafe-write",
+          capabilityId: "@voyant-travel/catalog#action.unsafe-write",
+          version: "v1",
+          kind: "execute",
+          targetType: "record",
+          commandTargetField: "recordId",
+          risk: "medium",
+          ledger: "required",
+          approval: "never",
+        },
+      },
+    )
+    const mcp = createMcpApiRoutes({
+      accessCatalog,
+      registry,
+      buildContext: () => ({
+        ...buildContext(),
+        toolActionPolicy: { execute: async (_input, dispatch) => dispatch() },
+      }),
+    })
+    const outer = new Hono()
+    outer.use("*", async (c, next) => {
+      c.set("scopes", ["catalog:write"])
+      await next()
+    })
+    outer.route("/", mcp)
+
+    const called = await readRpc(
+      await outer.request(
+        "/",
+        rpc("tools/call", {
+          name: "unsafe_write",
+          arguments: {
+            recordId: " ",
+            _voyant: {
+              confirmed: true,
+              requestId: "6c0f3fb4-2c96-4c3a-a520-28166167fb18",
+            },
+          },
+        }),
+      ),
+    )
+
+    expect(called.result).toMatchObject({
+      isError: true,
+      _meta: {
+        "voyant.travel/error": {
+          contractVersion: "2026-07-25",
+          code: "ACTION_POLICY_REQUIRED",
+          meta: {
+            capabilityId: "@voyant-travel/catalog#tool.unsafe-write",
+            targetResolution: "command-target-field",
+            commandTargetField: "recordId",
+          },
+        },
+      },
+    })
+  })
+
+  it("keeps the existing invocation contract for an unmigrated generic execute", async () => {
+    const registry = createToolRegistry()
+    const gateCalls: unknown[] = []
+    registry.register(
+      defineTool({
+        name: "legacy_write",
+        description: "An execute awaiting package target migration",
+        inputSchema: z.object({ recordId: z.string() }),
+        outputSchema: z.object({ ok: z.boolean() }),
+        requiredScopes: ["catalog:write"],
+        tier: "write",
+        riskPolicy: {
+          destructive: false,
+          reversible: true,
+          dryRunSupported: false,
+          confirmationRequired: true,
+          sideEffects: ["data-write"],
+        },
+        async handler() {
+          return { ok: true }
+        },
+      }),
+      {
+        capabilityId: "@voyant-travel/catalog#tool.legacy-write",
+        owner: "@voyant-travel/catalog",
+        capabilityVersion: "v1",
+        deploymentRisk: "medium",
+        actionPolicy: {
+          id: "@voyant-travel/catalog#action.legacy-write",
+          capabilityId: "@voyant-travel/catalog#action.legacy-write",
+          version: "v1",
+          kind: "execute",
+          targetType: "record",
+          risk: "medium",
+          ledger: "required",
+          approval: "never",
+        },
+      },
+    )
+    const mcp = createMcpApiRoutes({
+      accessCatalog,
+      registry,
+      buildContext: () => ({
+        ...buildContext(),
+        toolActionPolicy: {
+          async execute(input, dispatch) {
+            gateCalls.push(input)
+            return dispatch()
+          },
+        },
+      }),
+    })
+    const outer = new Hono()
+    outer.use("*", async (c, next) => {
+      c.set("scopes", ["catalog:write"])
+      await next()
+    })
+    outer.route("/", mcp)
+
+    const called = await readRpc(
+      await outer.request(
+        "/",
+        rpc("tools/call", {
+          name: "legacy_write",
+          arguments: {
+            recordId: "record_1",
+            _voyant: {
+              confirmed: true,
+              targetId: "record_1",
+              idempotencyKey: "legacy-key",
+            },
+          },
+        }),
+      ),
+    )
+
+    expect((called.result as { structuredContent: unknown }).structuredContent).toEqual({
+      ok: true,
+    })
+    expect(gateCalls).toEqual([
+      expect.objectContaining({
+        commandInput: { recordId: "record_1" },
+        invocation: {
+          confirmed: true,
+          targetId: "record_1",
+          idempotencyKey: "legacy-key",
+        },
       }),
     ])
   })

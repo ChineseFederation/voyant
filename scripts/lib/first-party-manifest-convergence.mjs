@@ -1,5 +1,7 @@
 import path from "node:path"
 
+import { isToolDeploymentRiskCompatible } from "../../packages/tools/src/risk.ts"
+
 const PRIVILEGED_ACCESS_ACTIONS = new Set([
   "cancel",
   "delete",
@@ -28,6 +30,7 @@ export function inspectFirstPartyManifestConvergence({
   selections,
   workspacePackages,
   sources,
+  toolRuntimeDefinitions = new Map(),
 }) {
   const failures = []
   const expected = {
@@ -87,10 +90,26 @@ export function inspectFirstPartyManifestConvergence({
     inspectRuntimeReference(reference, workspacePackages, failures)
   }
 
-  inspectToolParity(graph, workspacePackages, sources, failures)
+  inspectToolParity(graph, workspacePackages, sources, toolRuntimeDefinitions, failures)
+  inspectCreatedTargetExecutorAuthority(sources, failures)
   inspectExecutableAccessAuthority(graph, failures)
   inspectWebhookParity(graph, failures)
   return failures.sort()
+}
+
+function inspectCreatedTargetExecutorAuthority(sources, failures) {
+  for (const [sourcePath, source] of sources) {
+    if (!/\bexecuteCreatedTargetCommand\b/.test(source)) continue
+    if (
+      sourcePath === "packages/action-ledger/src/created-command-internal.ts" ||
+      sourcePath.startsWith("packages/action-ledger/tests/")
+    ) {
+      continue
+    }
+    failures.push(
+      `${sourcePath}: raw created-target executor bypasses selected Tool admission authority`,
+    )
+  }
 }
 
 function inspectUnit(unit, kind, failures) {
@@ -302,8 +321,13 @@ function graphUnits(graph) {
   ]
 }
 
-function inspectToolParity(graph, workspacePackages, sources, failures) {
+function inspectToolParity(graph, workspacePackages, sources, toolRuntimeDefinitions, failures) {
   const units = graphUnits(graph)
+  const contributedContext = new Set(
+    [...toolRuntimeDefinitions.values()].flatMap(
+      (runtime) => runtime?.contextContribution?.context ?? [],
+    ),
+  )
   const declared = new Set(
     units.flatMap((unit) =>
       (unit.tools ?? []).map((tool) => `${tool.runtime.entry}#${tool.runtime.export ?? "default"}`),
@@ -332,6 +356,53 @@ function inspectToolParity(graph, workspacePackages, sources, failures) {
         failures.push(`${tool.id}: first-party tool must declare an explicit risk`)
       if (tool.risk !== "low" && !actionTools.has(tool.id)) {
         failures.push(`${tool.id}: ${tool.risk}-risk tool must bind to a graph action`)
+      }
+      const runtimeKey = `${tool.runtime.entry}#${tool.runtime.export ?? "default"}`
+      const runtime = toolRuntimeDefinitions.get(runtimeKey)
+      const definition = runtime?.definition ?? runtime
+      if (!runtime) {
+        failures.push(`${tool.id}: Tool runtime definition ${runtimeKey} was not loaded`)
+      } else if (runtime.error) {
+        failures.push(
+          `${tool.id}: Tool runtime definition ${runtimeKey} failed to load: ${runtime.error}`,
+        )
+      } else if (!nonEmpty(definition.tier)) {
+        failures.push(`${tool.id}: Tool runtime definition ${runtimeKey} must declare a tier`)
+      } else {
+        if (definition.name !== tool.name) {
+          failures.push(
+            `${tool.id}: graph name ${tool.name} does not match Tool name ${definition.name ?? "<missing>"} (${runtimeKey})`,
+          )
+        }
+        if (definition.capabilityId && definition.capabilityId !== tool.id) {
+          failures.push(
+            `${tool.id}: graph capability id does not match Tool capability id ${definition.capabilityId} (${runtimeKey})`,
+          )
+        }
+        if (definition.owner && definition.owner !== unit.id) {
+          failures.push(
+            `${tool.id}: graph unit owner ${unit.id} does not match Tool owner ${definition.owner} (${runtimeKey})`,
+          )
+        }
+        if (!sameStringSet(definition.requiredScopes, tool.requiredScopes)) {
+          failures.push(
+            `${tool.id}: graph scopes [${(tool.requiredScopes ?? []).join(", ")}] do not match Tool scopes [${(definition.requiredScopes ?? []).join(", ")}] (${runtimeKey})`,
+          )
+        }
+        if (nonEmpty(tool.risk) && !isToolDeploymentRiskCompatible(tool.risk, definition.tier)) {
+          failures.push(
+            `${tool.id}: graph risk ${tool.risk} is incompatible with Tool tier ${definition.tier} (${runtimeKey}, unit ${unit.id})`,
+          )
+        }
+      }
+      const requiredContext = tool.context ?? []
+      if (requiredContext.length > 0) {
+        const missingContext = requiredContext.filter((key) => !contributedContext.has(key))
+        if (missingContext.length > 0) {
+          failures.push(
+            `${tool.id}: selected Tool runtimes do not contribute required context [${missingContext.join(", ")}]`,
+          )
+        }
       }
     }
   }
@@ -439,6 +510,16 @@ function exportTarget(value) {
 
 function nonEmpty(value) {
   return typeof value === "string" && value.trim().length > 0
+}
+
+function sameStringSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false
+  const leftValues = [...new Set(left)].sort()
+  const rightValues = [...new Set(right)].sort()
+  return (
+    leftValues.length === rightValues.length &&
+    leftValues.every((value, index) => value === rightValues[index])
+  )
 }
 
 function firstPathSegment(value) {

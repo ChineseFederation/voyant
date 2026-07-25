@@ -40,6 +40,18 @@ type BookingExtensionToolSpec = readonly [
   allowedActorTypes?: readonly ("staff" | "customer")[],
 ]
 
+const BOOKING_EXTENSION_ID_TARGET_ACTIONS = new Set([
+  "update-booking-answer",
+  "update-booking-extra",
+  "update-booking-question-extra-trigger",
+  "update-booking-question-option",
+  "update-booking-question-option-trigger",
+  "update-booking-question-unit-trigger",
+  "update-option-booking-question",
+  "update-product-booking-question",
+  "update-product-contact-requirement",
+])
+
 function declareBookingExtensionTools(
   owner: string,
   context: string,
@@ -68,6 +80,7 @@ function declareBookingExtensionActions(owner: string, specs: readonly BookingEx
             ? ("sensitive-read" as const)
             : ("read" as const),
         targetType,
+        ...(BOOKING_EXTENSION_ID_TARGET_ACTIONS.has(slug) ? { commandTargetField: "id" } : {}),
         requiredScopes: [...requiredScopes],
         risk,
         ledger: write || risk === "high" ? ("required" as const) : ("optional" as const),
@@ -140,7 +153,7 @@ const BOOKING_REQUIREMENTS_TOOL_SPECS = [
         `create${exportStem}Tool`,
         targetType,
         ["bookings:write"],
-        "medium",
+        "high",
       ],
       [
         `update-${singularSlug}`,
@@ -148,7 +161,7 @@ const BOOKING_REQUIREMENTS_TOOL_SPECS = [
         `update${exportStem}Tool`,
         targetType,
         ["bookings:write"],
-        "medium",
+        "high",
       ],
     ] as const
   }),
@@ -174,7 +187,7 @@ const BOOKING_REQUIREMENTS_TOOL_SPECS = [
     "createBookingAnswerTool",
     "booking-answer",
     ["bookings:write"],
-    "medium",
+    "high",
   ],
   [
     "update-booking-answer",
@@ -182,7 +195,7 @@ const BOOKING_REQUIREMENTS_TOOL_SPECS = [
     "updateBookingAnswerTool",
     "booking-answer",
     ["bookings:write"],
-    "medium",
+    "high",
   ],
 ] as const satisfies readonly BookingExtensionToolSpec[]
 
@@ -210,7 +223,7 @@ const BOOKING_EXTRAS_TOOL_SPECS = [
     "createBookingExtraTool",
     "booking-extra",
     ["bookings:write"],
-    "medium",
+    "high",
   ],
   [
     "update-booking-extra",

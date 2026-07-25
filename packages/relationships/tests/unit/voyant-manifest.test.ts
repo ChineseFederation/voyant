@@ -142,6 +142,19 @@ describe("relationships deployment manifest", () => {
         })
       }
     }
+    for (const id of [
+      "update-organization",
+      "update-person",
+      "update-relationship-address",
+      "update-relationship-contact-method",
+      "update-relationship-note",
+    ]) {
+      expect(
+        relationshipsVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/relationships#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
     expectConcreteEventSchemas(relationshipsVoyantModule.events)
   })
 

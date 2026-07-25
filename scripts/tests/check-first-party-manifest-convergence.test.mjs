@@ -112,6 +112,12 @@ function fixture() {
         "export const getLoyaltyAccountTool = defineTool({ name: 'get_loyalty_account' })",
       ],
     ]),
+    toolRuntimeDefinitions: new Map([
+      [
+        "@acme/loyalty/tools#getLoyaltyAccountTool",
+        { name: "get_loyalty_account", requiredScopes: ["loyalty:read"], tier: "read" },
+      ],
+    ]),
   }
 }
 
@@ -166,6 +172,59 @@ describe("first-party manifest convergence", () => {
     assert.match(
       inspectFirstPartyManifestConvergence(input).join("\n"),
       /medium-risk tool must bind to a graph action/,
+    )
+  })
+
+  it("requires graph risk to match the loaded Tool tier", () => {
+    const input = fixture()
+    input.toolRuntimeDefinitions.get("@acme/loyalty/tools#getLoyaltyAccountTool").tier = "sensitive"
+
+    assert.match(
+      inspectFirstPartyManifestConvergence(input).join("\n"),
+      /graph risk low is incompatible with Tool tier sensitive/,
+    )
+  })
+
+  it("requires loaded Tool identity metadata to match graph package authority", () => {
+    const input = fixture()
+    const definition = input.toolRuntimeDefinitions.get("@acme/loyalty/tools#getLoyaltyAccountTool")
+    definition.owner = "@acme/other"
+    definition.capabilityId = "@acme/other#tool.get-account"
+    definition.requiredScopes = ["loyalty:write"]
+
+    const failures = inspectFirstPartyManifestConvergence(input).join("\n")
+    assert.match(failures, /graph unit owner @acme\/loyalty does not match Tool owner/)
+    assert.match(failures, /graph capability id does not match Tool capability id/)
+    assert.match(failures, /graph scopes.*do not match Tool scopes/)
+  })
+
+  it("requires the selected Tool runtime to contribute its declared context", () => {
+    const input = fixture()
+    input.graph.modules[0].tools[0].context = ["loyalty"]
+
+    assert.match(
+      inspectFirstPartyManifestConvergence(input).join("\n"),
+      /selected Tool runtimes do not contribute required context \[loyalty\]/,
+    )
+
+    const definition = input.toolRuntimeDefinitions.get("@acme/loyalty/tools#getLoyaltyAccountTool")
+    input.toolRuntimeDefinitions.set("@acme/loyalty/tools#getLoyaltyAccountTool", {
+      definition,
+      contextContribution: { context: ["loyalty"] },
+    })
+    assert.deepEqual(inspectFirstPartyManifestConvergence(input), [])
+  })
+
+  it("rejects raw created-target execution outside the action-ledger implementation", () => {
+    const input = fixture()
+    input.sources.set(
+      "packages/loyalty/src/bypass.ts",
+      "import { executeCreatedTargetCommand } from '@voyant-travel/action-ledger/created-command'",
+    )
+
+    assert.match(
+      inspectFirstPartyManifestConvergence(input).join("\n"),
+      /raw created-target executor bypasses selected Tool admission authority/,
     )
   })
 

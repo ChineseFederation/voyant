@@ -238,6 +238,9 @@ export const cruisesVoyantModule = defineModule({
       version: "v1" as const,
       kind: "execute" as const,
       targetType: "cruise",
+      ...(["update-cruise", "update-cruise-sailing", "update-cruise-ship"].includes(id)
+        ? { commandTargetField: "id" }
+        : {}),
       ...(id === "create-cruise"
         ? {
             availability: { status: "available" as const },

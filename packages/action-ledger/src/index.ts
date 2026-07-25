@@ -50,12 +50,10 @@ export {
   type ExecuteAdmittedExistingTargetCommandInput,
   type ExecuteAdmittedExistingTargetCommandResult,
   type ExecuteCreatedTargetCommandHandlers,
-  type ExecuteCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandResult,
   type ExistingTargetCommandPayload,
   executeAdmittedCreatedTargetCommand,
   executeAdmittedExistingTargetCommand,
-  executeCreatedTargetCommand,
 } from "./created-command.js"
 export {
   type BuildActionApprovalCommandFingerprintInput,

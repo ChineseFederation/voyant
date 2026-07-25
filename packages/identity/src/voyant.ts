@@ -216,6 +216,7 @@ export const identityVoyantModule = defineModule({
       version: "v1" as const,
       kind: "execute" as const,
       targetType,
+      commandTargetField: "id",
       requiredScopes: ["identity:write"],
       risk: "high" as const,
       ledger: "required" as const,

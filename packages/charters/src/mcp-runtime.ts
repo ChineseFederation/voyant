@@ -1,10 +1,9 @@
 import {
   type ActionLedgerRequestContextValues,
-  buildCreatedTargetIdempotencyScope,
+  type ExecuteAdmittedCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandHandlers,
-  type ExecuteCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandResult,
-  executeCreatedTargetCommand,
+  executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
@@ -18,10 +17,7 @@ import type {
   SourceRef,
 } from "./adapters/index.js"
 import { listCharterAdapters, resolveCharterAdapter } from "./adapters/registry.js"
-import {
-  buildChartersCreatedTargetFingerprint,
-  CHARTERS_CREATED_TARGET_POLICIES,
-} from "./created-target-policy.js"
+import { CHARTERS_CREATED_TARGET_POLICIES } from "./created-target-policy.js"
 import { parseUnifiedKey } from "./lib/key.js"
 import { chartersService } from "./service.js"
 import { chartersBookingService } from "./service-bookings.js"
@@ -131,8 +127,7 @@ type ChartersCreatedTargetPolicy =
   (typeof CHARTERS_CREATED_TARGET_POLICIES)[keyof typeof CHARTERS_CREATED_TARGET_POLICIES]
 
 type ChartersCreatedCommandExecutor = (
-  db: PostgresJsDatabase,
-  input: ExecuteCreatedTargetCommandInput & { resultReferenceType: string },
+  input: ExecuteAdmittedCreatedTargetCommandInput<string>,
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
 
@@ -144,52 +139,24 @@ export async function executeChartersCreate(
   commandInput: unknown,
   admitted: import("@voyant-travel/tools").ToolHandlerActionPolicyContext,
   create: (tx: PostgresJsDatabase) => Promise<{ id: string }>,
-  executor: ChartersCreatedCommandExecutor = executeCreatedTargetCommand,
+  executor: ChartersCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
 ) {
   const principal = mapActionLedgerRequestContext(context)
   if (principal.principalId === "unknown_request") {
     throw new TypeError("Charters created-target commands require a concrete principal")
   }
-  const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
-  const selectedActionName = admitted.actionPolicy.capabilityId
-  const selectedActionVersion = admitted.actionPolicy.version
-  const fingerprint = await buildChartersCreatedTargetFingerprint(
-    {
-      ...policy,
-      actionName: selectedActionName,
-      actionVersion: selectedActionVersion,
-      capabilityId: selectedActionName,
-      capabilityVersion: selectedActionVersion,
-    } as ChartersCreatedTargetPolicy,
-    idempotencyKey,
-    commandInput,
-  )
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: selectedActionName,
-    actionVersion: selectedActionVersion,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
+  admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
   return executor(
-    db,
     {
+      db,
       context,
-      actionName: selectedActionName,
-      actionVersion: selectedActionVersion,
-      actionKind: "create",
-      evaluatedRisk: policy.evaluatedRisk,
-      commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
+      admitted,
+      idempotencyKey: legacyIdempotencyKey,
+      commandTargetType: policy.commandTargetType,
       canonicalTargetType: policy.canonicalTargetType,
       resultReferenceType: policy.resultReferenceType,
-      capabilityId: selectedActionName,
-      capabilityVersion: selectedActionVersion,
-      approvalPolicy: policy.approvalPolicy,
-      approvalReasonCode: policy.approvalReasonCode,
       commandInput,
-      routeOrToolName: admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: { scope, key: idempotencyKey, fingerprint },
+      evaluatedRisk: policy.evaluatedRisk,
     },
     {
       async create(tx) {

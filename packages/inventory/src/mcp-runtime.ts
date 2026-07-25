@@ -1,8 +1,6 @@
 import {
   buildCreatedTargetCommandFingerprint,
-  buildCreatedTargetIdempotencyScope,
   executeAdmittedCreatedTargetCommand,
-  executeCreatedTargetCommand,
 } from "@voyant-travel/action-ledger/created-command"
 import {
   type ActionLedgerRequestContextValues,
@@ -305,7 +303,6 @@ export async function executeProductCreateCommand(input: {
 }) {
   const idempotencyKey = admittedCreatedCommandIdempotencyKey(input.admitted, input.idempotencyKey)
   const context = actionLedgerContext(input.c)
-  const principal = mapActionLedgerRequestContext(context)
   const command = {
     actionName: input.admitted.actionPolicy.capabilityId,
     actionVersion: input.admitted.actionPolicy.version,
@@ -320,25 +317,17 @@ export async function executeProductCreateCommand(input: {
     approvalReasonCode: null,
   }
   const fingerprint = await buildCreatedTargetCommandFingerprint(command)
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: command.actionName,
-    actionVersion: command.actionVersion,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
-  return executeCreatedTargetCommand(
-    input.db,
+  return executeAdmittedCreatedTargetCommand(
     {
+      db: input.db,
       context,
-      ...command,
-      routeOrToolName: input.admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: {
-        scope,
-        key: idempotencyKey,
-        fingerprint,
-      },
+      admitted: input.admitted,
+      idempotencyKey: input.idempotencyKey,
+      commandTargetType: "product-create-command",
+      canonicalTargetType: "product",
+      resultReferenceType: "product",
+      commandInput: input.input,
+      evaluatedRisk: "medium",
     },
     {
       async create(tx) {
@@ -374,7 +363,6 @@ async function executeProductComposeCommand(input: {
 }) {
   const idempotencyKey = admittedCreatedCommandIdempotencyKey(input.admitted, input.idempotencyKey)
   const context = actionLedgerContext(input.c)
-  const principal = mapActionLedgerRequestContext(context)
   const command = {
     actionName: input.admitted.actionPolicy.capabilityId,
     actionVersion: input.admitted.actionPolicy.version,
@@ -389,25 +377,17 @@ async function executeProductComposeCommand(input: {
     approvalReasonCode: null,
   }
   const fingerprint = await buildCreatedTargetCommandFingerprint(command)
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: command.actionName,
-    actionVersion: command.actionVersion,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
-  return executeCreatedTargetCommand(
-    input.db,
+  return executeAdmittedCreatedTargetCommand(
     {
+      db: input.db,
       context,
-      ...command,
-      routeOrToolName: input.admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: {
-        scope,
-        key: idempotencyKey,
-        fingerprint,
-      },
+      admitted: input.admitted,
+      idempotencyKey: input.idempotencyKey,
+      commandTargetType: "product-compose-command",
+      canonicalTargetType: "product",
+      resultReferenceType: "product",
+      commandInput: input.spec,
+      evaluatedRisk: "high",
     },
     {
       async create(tx) {

@@ -262,7 +262,7 @@ export const createBookingTool = defineTool<
   z.infer<typeof bookingCreateSummarySchema>,
   FinanceToolContext
 >({
-  owner: "@voyant-travel/finance",
+  owner: "@voyant-travel/finance#bookings-create-extension",
   capabilityId: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
   capabilityVersion: "v1",
   name: "create_booking",

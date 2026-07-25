@@ -186,6 +186,14 @@ describe("catalog deployment manifest", () => {
       },
       effectBoundary: "multistage",
     })
+    expect(catalogBookingEngineVoyantModule.tools).toEqual(
+      expect.arrayContaining([expect.objectContaining({ context: ["catalogBooking"] })]),
+    )
+    expect(
+      catalogBookingEngineVoyantModule.tools?.every(
+        ({ context }) => context?.length === 1 && context[0] === "catalogBooking",
+      ),
+    ).toBe(true)
 
     expect(catalogOffersVoyantPlugin).toMatchObject({
       schemaVersion: "voyant.extension.v1",

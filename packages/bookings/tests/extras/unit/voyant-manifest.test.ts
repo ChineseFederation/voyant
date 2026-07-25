@@ -54,6 +54,11 @@ describe("bookings extras deployment manifest", () => {
         reversible: false,
       }),
     )
+    expect(
+      bookingsExtrasVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/bookings#extras.action.update-booking-extra",
+      ),
+    ).toMatchObject({ commandTargetField: "id" })
   })
 
   it("uses its graph runtime factory to expose only the selected admin surface", async () => {

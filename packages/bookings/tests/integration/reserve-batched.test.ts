@@ -1,5 +1,6 @@
 import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
 import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
+import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
@@ -11,6 +12,7 @@ import {
   buildBookingReservationCommandFingerprint,
   buildLegacyBookingReservationCommandFingerprint,
 } from "../../src/service.js"
+import { RESERVE_BOOKING_HANDLER_POLICY } from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -18,6 +20,23 @@ let seq = 0
 function nextBookingNumber() {
   seq += 1
   return `BK-BATCH-${String(seq).padStart(6, "0")}`
+}
+
+function reservationAdmitted(idempotencyKey: string): ToolHandlerActionPolicyContext {
+  return {
+    capabilityId: RESERVE_BOOKING_HANDLER_POLICY.capabilityId,
+    capabilityVersion: RESERVE_BOOKING_HANDLER_POLICY.capabilityVersion,
+    canonicalName: RESERVE_BOOKING_HANDLER_POLICY.canonicalName,
+    actionPolicy: {
+      ...RESERVE_BOOKING_HANDLER_POLICY.actionPolicy,
+      enforcement: "handler",
+      invocation: {
+        requiredFields: ["confirmed"],
+        optionalFields: ["targetId", "idempotencyKey", "idempotencyFingerprint"],
+      },
+    },
+    invocation: { confirmed: true, idempotencyKey },
+  }
 }
 
 /**
@@ -419,18 +438,14 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
         },
       ],
     }
+    const expectedFingerprint = await buildBookingReservationCommandFingerprint(reservation)
     const runtime = {
       actionLedgerContext: {
         agentId: "agent_reserve",
         actor: "staff",
         callerType: "agent",
       },
-      actionLedgerAuthorizationSource: "selected_graph_mcp_handler",
-      actionLedgerIdempotencyScope: "bookings.reserve_booking",
-      actionLedgerIdempotencyKey: "reserve-command-1",
-      actionLedgerIdempotencyFingerprint:
-        await buildBookingReservationCommandFingerprint(reservation),
-      actionLedgerRouteOrToolName: "bookings.reserve_booking",
+      actionLedgerAdmitted: reservationAdmitted("reserve-command-1"),
     }
 
     const first = await bookingsService.reserveBooking(db, reservation, "usr_reserve", runtime)
@@ -475,7 +490,7 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
       approvalId: null,
       idempotencyScope: "bookings.reserve_booking:created-command-claim",
       idempotencyKey: "reserve-command-1",
-      idempotencyFingerprint: runtime.actionLedgerIdempotencyFingerprint,
+      idempotencyFingerprint: expectedFingerprint,
     })
     expect(completed).toMatchObject({
       actionName: "booking.reserve",
@@ -496,7 +511,7 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
       approvalId: null,
       idempotencyScope: "bookings.reserve_booking:created-command-result",
       idempotencyKey: "reserve-command-1",
-      idempotencyFingerprint: runtime.actionLedgerIdempotencyFingerprint,
+      idempotencyFingerprint: expectedFingerprint,
     })
 
     const conflictingReservation = { ...reservation, bookingNumber: nextBookingNumber() }
@@ -506,8 +521,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
       "usr_reserve",
       {
         ...runtime,
-        actionLedgerIdempotencyFingerprint:
-          await buildBookingReservationCommandFingerprint(conflictingReservation),
       },
     )
     expect(conflict).toMatchObject({
@@ -596,14 +609,9 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
 
     const runtime = {
       actionLedgerContext: context,
-      actionLedgerAuthorizationSource: "selected_graph_mcp_handler",
-      actionLedgerIdempotencyScope: "new-reservation-protocol-scope",
-      actionLedgerIdempotencyKey: idempotencyKey,
-      actionLedgerIdempotencyFingerprint:
-        await buildBookingReservationCommandFingerprint(reservation),
+      actionLedgerAdmitted: reservationAdmitted(idempotencyKey),
       actionLedgerLegacyIdempotencyScope: legacyScope,
       actionLedgerLegacyIdempotencyFingerprint: legacyFingerprint,
-      actionLedgerRouteOrToolName: "bookings.reserve_booking",
     }
     const replay = await bookingsService.reserveBooking(
       db,
@@ -635,8 +643,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings reserve — batched inserts", () => {
       "agent_legacy_reserve",
       {
         ...runtime,
-        actionLedgerIdempotencyFingerprint:
-          await buildBookingReservationCommandFingerprint(conflictingReservation),
         actionLedgerLegacyIdempotencyFingerprint:
           await buildLegacyBookingReservationCommandFingerprint(conflictingReservation),
       },

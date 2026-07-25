@@ -95,15 +95,14 @@ describe("distribution created-target commands", () => {
       capabilityVersion: string
     }> = []
     const executor: NonNullable<Parameters<typeof executeDistributionCreate>[7]> = async (
-      _db,
       input,
       handlers,
     ) => {
-      routes.push(input.routeOrToolName)
+      routes.push(input.admitted.capabilityId)
       ledgerIdentities.push({
-        actionName: input.actionName,
-        capabilityId: input.capabilityId,
-        capabilityVersion: input.capabilityVersion,
+        actionName: input.admitted.actionPolicy.capabilityId,
+        capabilityId: input.admitted.actionPolicy.capabilityId,
+        capabilityVersion: input.admitted.actionPolicy.version,
       })
       if (!createdId) {
         const mutation = await handlers.create(tx)

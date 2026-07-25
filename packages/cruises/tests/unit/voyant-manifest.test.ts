@@ -219,6 +219,13 @@ describe("cruises deployment manifest", () => {
       })
       expect(action.reversible).toBe(action.targetLifecycle !== "created")
     }
+    for (const id of ["update-cruise", "update-cruise-sailing", "update-cruise-ship"]) {
+      expect(
+        cruisesVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/cruises#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 
   it("declares the emitted cruise lifecycle payload", () => {

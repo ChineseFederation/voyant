@@ -60,9 +60,20 @@ agent.
 - **Selected action gate:** every graph Tool resolves to exactly one selected graph action.
   Graph composition and generic dispatch fail closed unless the action-ledger contribution is
   selected. The gate checks
-  actor, confirmation, target, idempotency key, exact command fingerprint, and any approved
-  principal-bound request before the domain handler runs. Required-ledger writes record a
-  preflight before dispatch and a terminal success/failure entry afterward.
+  actor, explicit confirmation, the package-resolved target, server-computed exact command
+  fingerprint, and any approved principal-bound request before the domain handler runs.
+  For migrated actions, generic clients provide an opaque UUID `_voyant.requestId`; they never
+  provide target ids or fingerprints. The registry resolves complex targets through an explicit Tool resolver,
+  existing targets through the graph action's `commandTargetField`, and read collections through
+  an authenticated organization/operator anchor. Migrated actions advertise that resolution and
+  reject client-authored targets, fingerprints, and idempotency keys. During the package rollout,
+  an execute without either package contract retains its previous discoverable invocation
+  contract; Max does not cut over until that temporary branch is removed. Approval-required
+  migrated calls create or replay the pending request without
+  dispatch and return the server-issued approval and requested-action ids in structured
+  `_meta["voyant.travel/error"]`. After approval, the client retries the exact input with that
+  `approvalId`. Required-ledger writes record a preflight before dispatch and a terminal
+  success/failure entry afterward.
   Created-target actions are never sent through this generic wrapper: graph discovery identifies
   their stable pre-create command target and canonical result-reference contract, registration
   requires handler-owned durable claim/replay, and `_voyant.targetId` is not exposed as a required
@@ -76,7 +87,8 @@ agent.
   identity/version, owner, aliases/deprecation, scopes, audience, and exact risk policy.
   Compatibility aliases remain callable and identify their canonical name in metadata.
   Selected action metadata also advertises the reserved `_voyant` invocation control field and
-  its required confirmation/target/idempotency/approval fields. Package-owned two-phase handlers
+  its required confirmation/request/approval fields and package target-resolution contract.
+  Package-owned two-phase handlers
   advertise `enforcement: "handler"`; MCP still requires their explicit confirmation control but
   does not wrap their domain approval or ledger workflow a second time.
 - **Graph-owned context:** selected tool runtime entries contribute only context keys

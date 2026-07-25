@@ -200,6 +200,23 @@ describe("bookings deployment manifest", () => {
       ],
     })
 
+    expect(
+      Object.fromEntries(
+        (bookingRequirementsVoyantModule.actions ?? [])
+          .filter(({ id }) => id.includes(".action.update-"))
+          .map(({ id, commandTargetField }) => [id.split(".action.")[1], commandTargetField]),
+      ),
+    ).toEqual({
+      "update-booking-answer": "id",
+      "update-booking-question-extra-trigger": "id",
+      "update-booking-question-option": "id",
+      "update-booking-question-option-trigger": "id",
+      "update-booking-question-unit-trigger": "id",
+      "update-option-booking-question": "id",
+      "update-product-booking-question": "id",
+      "update-product-contact-requirement": "id",
+    })
+
     expect(bookingsSupplierVoyantPlugin).toMatchObject({
       schemaVersion: "voyant.extension.v1",
       id: "@voyant-travel/bookings#booking-supplier-extension",

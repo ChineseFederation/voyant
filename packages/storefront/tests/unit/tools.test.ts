@@ -38,8 +38,16 @@ describe("storefront Tools", () => {
     expect(storefrontVerificationTools).toHaveLength(4)
     expect(manifest).toHaveLength(19)
     expect(new Set(manifest.map(({ capabilityId }) => capabilityId))).toHaveProperty("size", 19)
+    for (const tool of storefrontCustomerPortalTools) {
+      expect(tool.owner).toBe("@voyant-travel/storefront#customer-portal")
+    }
+    for (const tool of storefrontPaymentLinkTools) {
+      expect(tool.owner).toBe("@voyant-travel/storefront#payment-link")
+    }
+    for (const tool of storefrontVerificationTools) {
+      expect(tool.owner).toBe("@voyant-travel/storefront#verification")
+    }
     for (const tool of manifest) {
-      expect(tool.owner).toBe("@voyant-travel/storefront")
       expect(tool.capabilityVersion).toBe("v1")
       expect(tool.outputSchema).not.toHaveProperty("x-voyant-schema-quality")
     }

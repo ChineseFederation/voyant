@@ -13,7 +13,7 @@ import type { CatalogToolServices } from "./tools.js"
 export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
-  context: ["catalog"],
+  context: ["catalog", "catalogBooking"],
   async contribute({ request, resources }) {
     const provider = await Promise.resolve(
       requireService(

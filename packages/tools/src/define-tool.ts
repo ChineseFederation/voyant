@@ -61,6 +61,14 @@ export interface ToolDefinition<In, Out, Ctx extends ToolContext = ToolContext> 
   annotations?: ToolAnnotations
   /** Use only when the handler already enforces the selected action-ledger policy itself. */
   actionPolicyEnforcement?: ToolActionPolicyEnforcement
+  /**
+   * Resolve the durable action target from validated domain input.
+   *
+   * Use this for targets that cannot be selected by the graph action's
+   * `commandTargetField`. Transport callers never supply or override the
+   * resolved target.
+   */
+  resolveActionTarget?(args: In, ctx: Ctx): string | Promise<string>
   /** The implementation — receives parsed args + context, returns pure data. */
   handler(args: In, ctx: Ctx): Promise<Out>
 }

@@ -413,7 +413,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
         export: "quoteCatalogEntityTool",
       },
       requiredScopes: ["catalog:quote"],
-      context: ["catalog"],
+      context: ["catalogBooking"],
       risk: "medium",
     },
     {
@@ -424,7 +424,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
         export: "commitCatalogBookingTool",
       },
       requiredScopes: ["catalog:read", "bookings:write"],
-      context: ["catalog"],
+      context: ["catalogBooking"],
       risk: "critical",
     },
     {
@@ -435,7 +435,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
         export: "listCatalogOrdersTool",
       },
       requiredScopes: ["bookings:read"],
-      context: ["catalog"],
+      context: ["catalogBooking"],
       risk: "high",
     },
     {
@@ -446,7 +446,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
         export: "getCatalogOrderTool",
       },
       requiredScopes: ["bookings:read"],
-      context: ["catalog"],
+      context: ["catalogBooking"],
       risk: "high",
     },
   ],

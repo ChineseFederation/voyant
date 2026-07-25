@@ -148,6 +148,7 @@ describe("finance deployment manifest", () => {
     expect(financeVoyantModule.actions).toContainEqual(
       expect.objectContaining({
         id: "@voyant-travel/finance#action.void-invoice",
+        commandTargetField: "id",
         requiredScopes: ["finance:void"],
         risk: "critical",
         ledger: "required",

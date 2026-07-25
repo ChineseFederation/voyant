@@ -1,7 +1,6 @@
 import {
   type ActionLedgerRequestContextValues,
   buildActionLedgerApprovedExecutionFields,
-  buildCreatedTargetIdempotencyScope,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
@@ -20,11 +19,7 @@ import {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
-import {
-  bookingsService,
-  buildBookingReservationCommandFingerprint,
-  buildLegacyBookingReservationCommandFingerprint,
-} from "./service.js"
+import { bookingsService, buildLegacyBookingReservationCommandFingerprint } from "./service.js"
 import { authorizeBookingStatusMutation } from "./status-authorization.js"
 
 export * from "./tools.js"
@@ -78,24 +73,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 "INVALID_INPUT",
               )
             }
-            const actionName = admitted.actionPolicy.id
-            const actionVersion = admitted.actionPolicy.version
-            const idempotencyFingerprint = await buildBookingReservationCommandFingerprint(
-              input.reservation,
-              {
-                actionName,
-                actionVersion,
-                capabilityId: admitted.actionPolicy.capabilityId,
-                capabilityVersion: admitted.actionPolicy.version,
-              },
-            )
-            const idempotencyScope = await buildCreatedTargetIdempotencyScope({
-              actionName,
-              actionVersion,
-              principalType: principal.principalType,
-              principalId: principal.principalId,
-              organizationId: principal.organizationId,
-            })
             const legacyPrincipalId =
               c.get("userId") ??
               c.get("agentId") ??
@@ -115,18 +92,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
               {
                 eventBus: c.get("eventBus"),
                 actionLedgerContext: requestContext,
-                actionLedgerAuthorizationSource: "selected_graph_mcp_handler",
-                actionLedgerIdempotencyScope: idempotencyScope,
-                actionLedgerIdempotencyKey: idempotencyKey,
-                actionLedgerIdempotencyFingerprint: idempotencyFingerprint,
+                actionLedgerAdmitted: admitted,
                 actionLedgerLegacyIdempotencyScope: `bookings.reserve_booking:${legacyPrincipalId}`,
                 actionLedgerLegacyIdempotencyFingerprint:
                   await buildLegacyBookingReservationCommandFingerprint(input.reservation),
-                actionLedgerRouteOrToolName: admitted.capabilityId,
-                actionLedgerActionName: actionName,
-                actionLedgerActionVersion: actionVersion,
-                actionLedgerCapabilityId: admitted.actionPolicy.capabilityId,
-                actionLedgerCapabilityVersion: admitted.actionPolicy.version,
               },
             )
             if (result.status !== "ok" || !("booking" in result)) {

@@ -86,8 +86,13 @@ describe("quotes Tools", () => {
       "snapshot_and_send_quote",
       "snapshot_quote_version",
     ])
-    for (const tool of list) {
+    for (const tool of list.filter(({ name }) => name !== "snapshot_and_send_quote")) {
       expect(tool.owner).toBe("@voyant-travel/quotes")
+    }
+    expect(list.find(({ name }) => name === "snapshot_and_send_quote")?.owner).toBe(
+      "@voyant-travel/quotes#proposal-extension",
+    )
+    for (const tool of list) {
       expect(tool.capabilityVersion).toBe("v1")
       expect(tool.audience).toEqual({ source: "grant", allowed: ["staff"] })
       expect(tool.outputSchema).not.toHaveProperty("x-voyant-schema-quality")

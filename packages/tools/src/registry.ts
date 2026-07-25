@@ -12,6 +12,7 @@ import {
 import type { ToolContext } from "./context.js"
 import type { ToolDefinition } from "./define-tool.js"
 import { ToolError } from "./errors.js"
+import { isToolDeploymentRiskCompatible } from "./risk.js"
 
 // biome-ignore lint/suspicious/noExplicitAny: the registry is a heterogeneous container over each tool's distinct input/output/context types.
 type AnyToolDefinition = ToolDefinition<any, any, any>
@@ -39,6 +40,13 @@ export interface ToolRegistry {
   /** The discovery manifest — pure data for `tools/list` and remote consumers. */
   list(): ToolManifestEntry[]
   /**
+   * Parse domain input exactly once and resolve its action target inside the
+   * Tool-owning package. The returned value is admitted only to this registry.
+   */
+  prepareAction(name: string, args: unknown, ctx: ToolContext): Promise<PreparedToolAction>
+  /** Dispatch an action prepared by this exact registry without re-parsing it. */
+  dispatchPrepared<Out = unknown>(prepared: PreparedToolAction, ctx: ToolContext): Promise<Out>
+  /**
    * Dispatch a tool by name: validate args against `inputSchema`, run the
    * handler, validate the result against `outputSchema`, return pure data.
    * Throws {@link ToolError} on unknown tool / invalid input / invalid output /
@@ -51,6 +59,7 @@ export function createToolRegistry(): ToolRegistry {
   const tools = new Map<string, RegisteredTool>()
   const invocationNames = new Map<string, RegisteredTool>()
   const capabilities = new Map<string, RegisteredTool>()
+  const admittedPreparedActions = new WeakSet<PreparedToolAction>()
 
   return {
     register(def, binding = {}) {
@@ -97,48 +106,52 @@ export function createToolRegistry(): ToolRegistry {
     list() {
       return Array.from(tools.values()).map(({ manifest }) => manifest)
     },
+    async prepareAction(name, args, ctx) {
+      const registered = invocationNames.get(name)
+      if (!registered) {
+        throw unknownToolError(name, tools.keys())
+      }
+      const tool = registered.definition
+      const input = parseToolInput(tool, name, args)
+      const resolvedTargetId = await resolvePreparedActionTarget(registered, input, ctx, name)
+      const prepared: PreparedToolAction = {
+        invocationName: name,
+        commandInput: input,
+        ...(resolvedTargetId ? { resolvedTargetId } : {}),
+      }
+      admittedPreparedActions.add(prepared)
+      return prepared
+    },
+    async dispatchPrepared(prepared, ctx) {
+      if (!admittedPreparedActions.delete(prepared)) {
+        throw new ToolError(
+          "Prepared Tool action was not admitted by this registry or was already dispatched.",
+          "ACTION_POLICY_REQUIRED",
+        )
+      }
+      const registered = invocationNames.get(prepared.invocationName)
+      if (!registered) {
+        throw unknownToolError(prepared.invocationName, tools.keys())
+      }
+      return executeTool(registered.definition, prepared.invocationName, prepared.commandInput, ctx)
+    },
     async dispatch(name, args, ctx) {
       const registered = invocationNames.get(name)
       if (!registered) {
-        throw new ToolError(
-          `Tool "${name}" is not registered. Known tools: ${Array.from(tools.keys()).join(", ") || "(none)"}`,
-          "NOT_FOUND",
-          { name },
-        )
+        throw unknownToolError(name, tools.keys())
       }
       const tool = registered.definition
+      const input = parseToolInput(tool, name, args)
 
-      const input = tool.inputSchema.safeParse(args)
-      if (!input.success) {
-        throw new ToolError(
-          `Invalid input for tool "${name}": ${input.error.message}`,
-          "INVALID_INPUT",
-          {
-            issues: input.error.issues,
-          },
-        )
-      }
-
-      let result: unknown
-      try {
-        result = await tool.handler(input.data, ctx)
-      } catch (err) {
-        if (err instanceof ToolError) throw err
-        const message = err instanceof Error ? err.message : String(err)
-        throw new ToolError(`Tool "${name}" failed: ${message}`, "PROVIDER_ERROR")
-      }
-
-      const output = tool.outputSchema.safeParse(result)
-      if (!output.success) {
-        throw new ToolError(
-          `Tool "${name}" returned output that failed its outputSchema: ${output.error.message}`,
-          "INVALID_OUTPUT",
-          { issues: output.error.issues },
-        )
-      }
-      return output.data as never
+      return executeTool(tool, name, input, ctx)
     },
   }
+}
+
+export interface PreparedToolAction {
+  readonly invocationName: string
+  readonly commandInput: unknown
+  readonly resolvedTargetId?: string
 }
 
 interface RegisteredTool {
@@ -253,14 +266,37 @@ function deriveActionPolicy(
       `Tool "${tool.name}" action "${action.id}" declares createdTarget without targetLifecycle "created"`,
     )
   }
+  const targetResolution = genericTargetResolution(tool, action, enforcement)
+  const serverOwnedGenericTarget =
+    enforcement === "generic" && targetResolution.targetResolution !== undefined
   const requiredFields: ToolActionInvocationPolicy["requiredFields"][number][] = []
-  if (tool.riskPolicy.confirmationRequired) requiredFields.push("confirmed")
-  if (enforcement === "generic" && action.ledger === "required") requiredFields.push("targetId")
-  if (action.kind === "execute" && action.ledger === "required") {
-    requiredFields.push("idempotencyKey")
+  if (
+    tool.riskPolicy.confirmationRequired ||
+    (serverOwnedGenericTarget && action.approval === "required")
+  ) {
+    requiredFields.push("confirmed")
   }
-  if (action.approval === "required") {
-    requiredFields.push("approvalId", "idempotencyFingerprint")
+  if (enforcement === "generic") {
+    if (serverOwnedGenericTarget) {
+      if (action.kind === "execute" && action.ledger === "required") {
+        requiredFields.push("requestId")
+      }
+    } else {
+      if (action.ledger === "required") requiredFields.push("targetId")
+      if (action.kind === "execute" && action.ledger === "required") {
+        requiredFields.push("idempotencyKey")
+      }
+      if (action.approval === "required") {
+        requiredFields.push("approvalId", "idempotencyFingerprint")
+      }
+    }
+  } else {
+    if (action.kind === "execute" && action.ledger === "required") {
+      requiredFields.push("idempotencyKey")
+    }
+    if (action.approval === "required") {
+      requiredFields.push("approvalId", "idempotencyFingerprint")
+    }
   }
   return {
     ...action,
@@ -268,10 +304,140 @@ function deriveActionPolicy(
     invocation: {
       controlField: TOOL_ACTION_INVOCATION_FIELD,
       requiredFields,
-      optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+      optionalFields:
+        enforcement === "generic"
+          ? serverOwnedGenericTarget
+            ? ["reasonCode", "approvalId"]
+            : ["reasonCode", "approvalId", "idempotencyFingerprint"]
+          : ["reasonCode", "approvalId", "idempotencyFingerprint"],
       fingerprintAlgorithm: "action-ledger-command-v1",
+      ...targetResolution,
     },
   }
+}
+
+function genericTargetResolution(
+  tool: AnyToolDefinition,
+  action: ToolActionPolicyBinding,
+  enforcement: ToolActionPolicyManifest["enforcement"],
+): Pick<ToolActionInvocationPolicy, "targetResolution"> {
+  if (enforcement !== "generic" || action.ledger !== "required") return {}
+  if (tool.resolveActionTarget) return { targetResolution: "package-resolver" }
+  if (action.commandTargetField) return { targetResolution: "command-target-field" }
+  if (action.kind === "read" || action.kind === "sensitive-read") {
+    return { targetResolution: "authenticated-organization-collection" }
+  }
+  return {}
+}
+
+async function resolvePreparedActionTarget(
+  registered: RegisteredTool,
+  input: unknown,
+  ctx: ToolContext,
+  invocationName: string,
+): Promise<string | undefined> {
+  const { definition: tool, manifest } = registered
+  const resolution = manifest.actionPolicy?.invocation.targetResolution
+  let targetId: unknown
+
+  switch (resolution) {
+    case "package-resolver":
+      targetId = await tool.resolveActionTarget?.(input, ctx)
+      break
+    case "command-target-field":
+      targetId = commandTarget(input, manifest.actionPolicy?.commandTargetField)
+      break
+    case "authenticated-organization-collection":
+      targetId = (ctx.organizationId ?? ctx.tenantId).trim()
+        ? `${manifest.actionPolicy?.targetType}:${(ctx.organizationId ?? ctx.tenantId).trim()}`
+        : undefined
+      break
+    default:
+      // Standalone registries may prepare an unbound Tool directly.
+      if (tool.resolveActionTarget) targetId = await tool.resolveActionTarget(input, ctx)
+  }
+
+  if (resolution !== undefined && (typeof targetId !== "string" || !targetId.trim())) {
+    throw new ToolError(
+      `Tool "${invocationName}" could not resolve a valid server-owned action target.`,
+      "ACTION_POLICY_REQUIRED",
+      {
+        capabilityId: manifest.capabilityId,
+        targetResolution: resolution,
+        ...(resolution === "command-target-field"
+          ? { commandTargetField: manifest.actionPolicy?.commandTargetField }
+          : {}),
+      },
+    )
+  }
+  if (targetId === undefined) return undefined
+  if (typeof targetId !== "string" || !targetId.trim()) {
+    throw new ToolError(
+      `Tool "${invocationName}" returned an invalid action target.`,
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: manifest.capabilityId },
+    )
+  }
+  return targetId.trim()
+}
+
+function commandTarget(input: unknown, field: string | undefined): unknown {
+  if (!field || typeof input !== "object" || input === null || Array.isArray(input)) {
+    return undefined
+  }
+  return (input as Record<string, unknown>)[field]
+}
+
+function parseToolInput(
+  tool: AnyToolDefinition,
+  name: string,
+  args: unknown,
+): Parameters<AnyToolDefinition["handler"]>[0] {
+  const input = tool.inputSchema.safeParse(args)
+  if (!input.success) {
+    throw new ToolError(
+      `Invalid input for tool "${name}": ${input.error.message}`,
+      "INVALID_INPUT",
+      {
+        issues: input.error.issues,
+      },
+    )
+  }
+  return input.data
+}
+
+function unknownToolError(name: string, knownNames: Iterable<string>): ToolError {
+  return new ToolError(
+    `Tool "${name}" is not registered. Known tools: ${Array.from(knownNames).join(", ") || "(none)"}`,
+    "NOT_FOUND",
+    { name },
+  )
+}
+
+async function executeTool(
+  tool: AnyToolDefinition,
+  name: string,
+  input: unknown,
+  ctx: ToolContext,
+): Promise<never> {
+  let result: unknown
+  try {
+    result = await tool.handler(input, ctx)
+  } catch (err) {
+    if (err instanceof ToolError) throw err
+    const message = err instanceof Error ? err.message : String(err)
+    throw new ToolError(`Tool "${name}" failed: ${message}`, "PROVIDER_ERROR")
+  }
+
+  const output = tool.outputSchema.safeParse(result)
+  if (!output.success) {
+    throw new ToolError(
+      `Tool "${name}" returned output that failed its outputSchema: ${output.error.message}`,
+      "INVALID_OUTPUT",
+      { issues: output.error.issues },
+    )
+  }
+  return output.data as never
 }
 
 /**
@@ -348,13 +514,7 @@ function assertCompatibleRisk(
   tier: AnyToolDefinition["tier"],
   name: string,
 ): void {
-  const compatibleTiers: Record<NonNullable<ToolBindingMetadata["deploymentRisk"]>, string[]> = {
-    low: ["read"],
-    medium: ["write"],
-    high: ["write", "sensitive", "destructive"],
-    critical: ["write", "sensitive", "destructive"],
-  }
-  if (!compatibleTiers[deploymentRisk].includes(tier)) {
+  if (!isToolDeploymentRiskCompatible(deploymentRisk, tier)) {
     throw new Error(
       `Tool "${name}" tier "${tier}" is incompatible with graph risk "${deploymentRisk}"`,
     )

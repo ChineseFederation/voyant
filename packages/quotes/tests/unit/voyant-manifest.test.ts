@@ -192,6 +192,9 @@ describe("quotes deployment manifests", () => {
         quotesVoyantModule.actions?.find(({ id }) => id === `@voyant-travel/quotes#action.${name}`),
       ).toMatchObject({
         kind: "execute",
+        ...(name === "snapshot-quote-version"
+          ? { commandTargetField: "quoteId" }
+          : { commandTargetField: "quoteVersionId" }),
         resource: "quotes",
         action: "write",
         ledger: "required",

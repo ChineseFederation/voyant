@@ -26,6 +26,9 @@ import {
 import { storefrontVerificationChallengeRecordWireSchema } from "./verification/validation.js"
 
 const OWNER = "@voyant-travel/storefront"
+const CUSTOMER_PORTAL_OWNER = `${OWNER}#customer-portal`
+const PAYMENT_LINK_OWNER = `${OWNER}#payment-link`
+const VERIFICATION_OWNER = `${OWNER}#verification`
 const VERSION = "v1"
 const READ_SCOPES = ["storefront:read"] as const
 const WRITE_SCOPES = ["storefront:write"] as const
@@ -189,7 +192,7 @@ function verification(ctx: StorefrontToolContext) {
 }
 
 const customerRead = {
-  owner: OWNER,
+  owner: CUSTOMER_PORTAL_OWNER,
   capabilityVersion: VERSION,
   requiredScopes: READ_SCOPES,
   audience: CUSTOMER_AUDIENCE,
@@ -198,7 +201,7 @@ const customerRead = {
   annotations: { readOnlyHint: true, idempotentHint: true },
 }
 const customerWrite = {
-  owner: OWNER,
+  owner: CUSTOMER_PORTAL_OWNER,
   capabilityVersion: VERSION,
   requiredScopes: WRITE_SCOPES,
   audience: CUSTOMER_AUDIENCE,
@@ -341,7 +344,7 @@ export const setMyPrimaryCustomerPortalDocumentTool = defineTool({
 })
 
 const staffPaymentRead = {
-  owner: OWNER,
+  owner: PAYMENT_LINK_OWNER,
   capabilityVersion: VERSION,
   requiredScopes: READ_SCOPES,
   audience: STAFF_AUDIENCE,
@@ -359,7 +362,7 @@ export const getPaymentLinkTool = defineTool({
   handler: ({ sessionId }, ctx: StorefrontToolContext) => paymentLink(ctx).get(sessionId),
 })
 export const createInvoicePaymentLinkTool = defineTool({
-  owner: OWNER,
+  owner: PAYMENT_LINK_OWNER,
   capabilityVersion: VERSION,
   requiredScopes: WRITE_SCOPES,
   audience: STAFF_AUDIENCE,
@@ -381,7 +384,7 @@ export const createInvoicePaymentLinkTool = defineTool({
 })
 
 const verificationReadWrite = {
-  owner: OWNER,
+  owner: VERIFICATION_OWNER,
   capabilityVersion: VERSION,
   requiredScopes: WRITE_SCOPES,
   audience: CUSTOMER_AUDIENCE,

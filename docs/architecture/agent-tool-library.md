@@ -114,7 +114,16 @@ idempotency key, writes the requested and canonical `booking.reserve` ledger ent
 the same transaction, and returns the immutable booking reference on exact replay.
 
 Graph actions distinguish existing targets from handler-generated targets explicitly.
-Existing-target actions use the generic `_voyant.targetId` preflight unless they opt into
+Generic action preflight resolves targets through a deterministic server-owned ladder: a
+package-owned `resolveActionTarget` handles genuinely complex cases; otherwise
+`commandTargetField` selects the target from already validated domain input; and ledgered read
+collections use an authenticated `${targetType}:${tenantId}` organization/operator anchor.
+Migrated generic required-ledger executes advertise this resolution and reject client target ids
+and fingerprints. While packages move in bounded releases, executes without an explicit resolver
+or `commandTargetField` retain the prior discoverable invocation contract; Max cutover and global
+fail-closed registration wait until that temporary branch reaches zero.
+
+Handler-owned existing-target actions opt into
 `existingTarget.durability: "handler-command-result-v1"`. That opt-in requires a stable
 `commandTargetField`, required-ledger execute policy, non-conditional approval, and handler-owned
 enforcement. The action-ledger transaction binds the selected action, target, organization,
@@ -294,6 +303,14 @@ metadata under `_meta["voyant.travel/tool"]`. Aliases are registered as callable
 names with `aliasFor` metadata, while the canonical manifest contains one entry per
 capability. Consumers resolve capabilities by `capabilityId` plus an exact supported
 `capabilityVersion`; an unknown version is unsupported rather than silently coerced.
+For migrated generic ledgered actions, discovery advertises the chosen server-owned target resolution:
+`package-resolver`, `command-target-field`, or
+`authenticated-organization-collection`. The external invocation envelope contains only explicit
+confirmation, an opaque UUID request id, an optional server-issued approval id, and an optional
+reason code. For those actions the MCP adapter never accepts client-authored target ids or
+fingerprints. Approval preflight is server-owned and returns stable
+structured error metadata; an approved retry is admitted only after the action ledger matches the
+recomputed action, target, command, principal, organization, and request id.
 
 ## Migration status
 
@@ -301,6 +318,13 @@ The deterministic coverage report is the source of truth for current Tool and mo
 counts. Remaining coverage is tracked in voyant#3370 and is visible through
 `pnpm report:agent-tool-coverage`. A `planned` declaration records an uncovered
 surface; it is not a substitute for implementing the Tool.
+
+The first server-owned action-target release audits 140 available generic required-ledger Tools:
+57 use a package-declared command target (48 migrated in this release), 51 sensitive reads use the
+authenticated collection anchor, and 32 executes remain on the temporary compatibility contract.
+Those 32 are tracked as 13 resolver migrations, 16 created/upsert handler protocols, and 3
+package-specific conditional evaluators. Global strict registration and Max cutover wait for all
+three follow-up groups to reach zero.
 
 ## Reconciliation
 

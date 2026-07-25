@@ -1,10 +1,9 @@
 import {
   type ActionLedgerRequestContextValues,
-  buildCreatedTargetIdempotencyScope,
+  type ExecuteAdmittedCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandHandlers,
-  type ExecuteCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandResult,
-  executeCreatedTargetCommand,
+  executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
@@ -29,10 +28,7 @@ import type { ContractLifecycleRuntimeOptions } from "./contracts/lifecycle.js"
 import { buildContractsRouteRuntime } from "./contracts/route-runtime.js"
 import type { ContractAttachment, ContractTemplate } from "./contracts/schema.js"
 import { contractsService } from "./contracts/service.js"
-import {
-  buildLegalContractDraftFingerprint,
-  LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY,
-} from "./created-target-policy.js"
+import { LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY } from "./created-target-policy.js"
 import type { Policy, PolicyRule, PolicyVersion } from "./policies/schema.js"
 import { policiesService } from "./policies/service.js"
 import { legalRuntimePort } from "./runtime-port.js"
@@ -254,8 +250,7 @@ export function createLegalToolServices(
 }
 
 type LegalCreatedCommandExecutor = (
-  db: PostgresJsDatabase,
-  input: ExecuteCreatedTargetCommandInput & { resultReferenceType: string },
+  input: ExecuteAdmittedCreatedTargetCommandInput<string>,
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
 
@@ -264,7 +259,7 @@ export async function executeLegalContractDraftCreate(
   requestContext: ActionLedgerRequestContextValues,
   input: Parameters<LegalToolServices["createDraft"]>[0],
   admitted: ToolHandlerActionPolicyContext,
-  executor: LegalCreatedCommandExecutor = executeCreatedTargetCommand,
+  executor: LegalCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
   createContract: typeof contractsService.createContract = contractsService.createContract,
 ) {
   const { idempotencyKey: legacyIdempotencyKey, ...commandInput } = input
@@ -280,42 +275,18 @@ export async function executeLegalContractDraftCreate(
   ) {
     throw new TypeError("Legal created-target command Tool identity drifted after admission")
   }
-  const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
-  const fingerprint = await buildLegalContractDraftFingerprint(
-    admitted.actionPolicy,
-    idempotencyKey,
-    commandInput,
-  )
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: admitted.actionPolicy.capabilityId,
-    actionVersion: admitted.actionPolicy.version,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
+  admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
   return executor(
-    db,
     {
+      db,
       context: requestContext,
-      actionName: admitted.actionPolicy.capabilityId,
-      actionVersion: admitted.actionPolicy.version,
-      actionKind: "create",
-      evaluatedRisk: policy.evaluatedRisk,
-      commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
+      admitted,
+      idempotencyKey: legacyIdempotencyKey,
+      commandTargetType: policy.commandTargetType,
       canonicalTargetType: policy.canonicalTargetType,
       resultReferenceType: policy.resultReferenceType,
-      capabilityId: admitted.actionPolicy.capabilityId,
-      capabilityVersion: admitted.actionPolicy.version,
-      approvalPolicy: policy.approvalPolicy,
-      approvalReasonCode: policy.approvalReasonCode,
       commandInput,
-      routeOrToolName: admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: {
-        scope,
-        key: idempotencyKey,
-        fingerprint,
-      },
+      evaluatedRisk: policy.evaluatedRisk,
     },
     {
       async create(tx) {

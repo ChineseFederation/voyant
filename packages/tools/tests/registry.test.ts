@@ -4,6 +4,7 @@ import { z } from "zod"
 import {
   createToolRegistry,
   defineTool,
+  isToolDeploymentRiskCompatible,
   READ_ONLY_RISK,
   type ToolContext,
   ToolError,
@@ -34,6 +35,40 @@ const echoTool = defineTool({
   async handler({ text }) {
     return { text: `echo: ${text}` }
   },
+})
+
+describe("Tool deployment risk compatibility", () => {
+  it("shares the complete graph-risk to Tool-tier matrix", () => {
+    expect(
+      ["low", "medium", "high", "critical"].flatMap((risk) =>
+        ["read", "write", "sensitive", "destructive"].map((tier) => [
+          risk,
+          tier,
+          isToolDeploymentRiskCompatible(
+            risk as "low" | "medium" | "high" | "critical",
+            tier as "read" | "write" | "sensitive" | "destructive",
+          ),
+        ]),
+      ),
+    ).toEqual([
+      ["low", "read", true],
+      ["low", "write", false],
+      ["low", "sensitive", false],
+      ["low", "destructive", false],
+      ["medium", "read", false],
+      ["medium", "write", true],
+      ["medium", "sensitive", false],
+      ["medium", "destructive", false],
+      ["high", "read", false],
+      ["high", "write", true],
+      ["high", "sensitive", true],
+      ["high", "destructive", true],
+      ["critical", "read", false],
+      ["critical", "write", true],
+      ["critical", "sensitive", true],
+      ["critical", "destructive", true],
+    ])
+  })
 })
 
 describe("createToolRegistry", () => {
@@ -406,9 +441,15 @@ describe("createToolRegistry", () => {
     ).toThrow(/conditional approval is unsupported/)
   })
 
-  it("preserves generic targetId requirements when target lifecycle is omitted", () => {
+  it("advertises package target resolution without exposing client-owned target metadata", async () => {
     const registry = createToolRegistry()
-    registry.register(echoTool, {
+    const targetTool = defineTool({
+      ...echoTool,
+      resolveActionTarget({ text }) {
+        return `record:${text}`
+      },
+    })
+    registry.register(targetTool, {
       actionPolicy: {
         id: "action.read-record",
         capabilityId: "@voyant-travel/test#action.read-record",
@@ -424,9 +465,155 @@ describe("createToolRegistry", () => {
     expect(registry.list()[0]?.actionPolicy).toMatchObject({
       enforcement: "generic",
       invocation: {
-        requiredFields: ["targetId"],
+        requiredFields: [],
+        targetResolution: "package-resolver",
       },
     })
+    expect(registry.list()[0]?.actionPolicy?.invocation.requiredFields).not.toContain("targetId")
+    const prepared = await registry.prepareAction("echo", { text: "one" }, ctx)
+    expect(prepared).toMatchObject({
+      commandInput: { text: "one" },
+      resolvedTargetId: "record:one",
+    })
+    await expect(registry.dispatchPrepared(prepared, ctx)).resolves.toEqual({
+      text: "echo: one",
+    })
+    await expect(registry.dispatchPrepared(prepared, ctx)).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+    })
+  })
+
+  it("resolves a package-declared command target field from once-parsed input", async () => {
+    const registry = createToolRegistry()
+    registry.register(echoTool, {
+      actionPolicy: {
+        id: "action.update-record",
+        capabilityId: "@voyant-travel/test#action.update-record",
+        version: "v1",
+        kind: "execute",
+        targetType: "record",
+        commandTargetField: "text",
+        risk: "medium",
+        ledger: "required",
+        approval: "never",
+      },
+    })
+
+    expect(registry.list()[0]?.actionPolicy?.invocation.targetResolution).toBe(
+      "command-target-field",
+    )
+    await expect(
+      registry.prepareAction("echo", { text: " record-1 " }, ctx),
+    ).resolves.toMatchObject({
+      commandInput: { text: " record-1 " },
+      resolvedTargetId: "record-1",
+    })
+  })
+
+  it("uses an authenticated organization collection anchor for ledgered reads", async () => {
+    const registry = createToolRegistry()
+    registry.register(echoTool, {
+      actionPolicy: {
+        id: "action.inspect-records",
+        capabilityId: "@voyant-travel/test#action.inspect-records",
+        version: "v1",
+        kind: "sensitive-read",
+        targetType: "record",
+        risk: "high",
+        ledger: "required",
+        approval: "never",
+      },
+    })
+
+    expect(registry.list()[0]?.actionPolicy?.invocation.targetResolution).toBe(
+      "authenticated-organization-collection",
+    )
+    await expect(
+      registry.prepareAction("echo", { text: "ignored" }, { ...ctx, organizationId: "org-1" }),
+    ).resolves.toMatchObject({
+      resolvedTargetId: "record:org-1",
+    })
+    await expect(
+      registry.prepareAction("echo", { text: "ignored" }, { ...ctx, tenantId: " " }),
+    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
+  })
+
+  it("retains the compatibility invocation for an unmigrated generic execute", () => {
+    const registry = createToolRegistry()
+    registry.register(echoTool, {
+      actionPolicy: {
+        id: "action.update-record",
+        capabilityId: "@voyant-travel/test#action.update-record",
+        version: "v1",
+        kind: "execute",
+        targetType: "record",
+        risk: "medium",
+        ledger: "required",
+        approval: "never",
+      },
+    })
+
+    expect(registry.list()[0]?.actionPolicy?.invocation).toMatchObject({
+      requiredFields: ["targetId", "idempotencyKey"],
+    })
+    expect(registry.list()[0]?.actionPolicy?.invocation.targetResolution).toBeUndefined()
+  })
+
+  it("validates input before calling a package action target resolver", async () => {
+    const registry = createToolRegistry()
+    let resolverCalls = 0
+    registry.register(
+      defineTool({
+        ...echoTool,
+        resolveActionTarget({ text }) {
+          resolverCalls += 1
+          return text
+        },
+      }),
+    )
+
+    await expect(registry.prepareAction("echo", { text: 42 }, ctx)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    })
+    expect(resolverCalls).toBe(0)
+  })
+
+  it("uses the same once-parsed domain input for target resolution and dispatch", async () => {
+    const registry = createToolRegistry()
+    let parses = 0
+    const seen: string[] = []
+    registry.register(
+      defineTool({
+        name: "prepared_transform",
+        description: "Transform once before action policy",
+        inputSchema: z.object({ id: z.string() }).transform(({ id }) => {
+          parses += 1
+          return { id: id.toUpperCase() }
+        }),
+        outputSchema: z.object({ id: z.string() }),
+        requiredScopes: ["catalog:write"],
+        tier: "write",
+        riskPolicy: {
+          destructive: false,
+          reversible: true,
+          dryRunSupported: false,
+          sideEffects: ["data-write"],
+        },
+        resolveActionTarget({ id }) {
+          seen.push(`target:${id}`)
+          return id
+        },
+        async handler({ id }) {
+          seen.push(`handler:${id}`)
+          return { id }
+        },
+      }),
+    )
+
+    const prepared = await registry.prepareAction("prepared_transform", { id: "one" }, ctx)
+    await expect(registry.dispatchPrepared(prepared, ctx)).resolves.toEqual({ id: "ONE" })
+    expect(parses).toBe(1)
+    expect(seen).toEqual(["target:ONE", "handler:ONE"])
   })
 
   it("rejects canonical and alias collisions", () => {

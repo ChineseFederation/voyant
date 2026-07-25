@@ -38,15 +38,18 @@ function buildMcpBaseContext(c: Context): ToolContext {
     actor?: unknown
     audience?: unknown
     db?: unknown
+    organizationId?: unknown
   }
   const env = (c.env ?? {}) as Record<string, unknown>
   const actor = requireVisibility(request.actor, "actor")
   const audience = requireVisibility(request.audience, "audience")
+  const organizationId = stringValue(request.organizationId)
   return {
     db: request.db,
     actor,
     audience,
     tenantId: stringValue(env.TENANT_ID) ?? "default",
+    ...(organizationId ? { organizationId } : {}),
     resolverScope: {
       locale: stringValue(env.DEFAULT_LOCALE) ?? "en-GB",
       audience,

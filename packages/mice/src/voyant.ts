@@ -234,6 +234,7 @@ export const miceVoyantModule = defineModule({
       version: "v1",
       kind: "execute",
       targetType: "mice-program",
+      commandTargetField: "id",
       requiredScopes: ["mice:write"],
       risk: "medium",
       ledger: "required",

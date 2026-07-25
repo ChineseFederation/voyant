@@ -165,7 +165,7 @@ export const sendQuoteVersionTool = defineTool({
 })
 
 export const snapshotAndSendQuoteTool = defineTool({
-  owner: OWNER,
+  owner: `${OWNER}#proposal-extension`,
   capabilityId: `${OWNER}#proposal-extension.tool.snapshot-and-send-quote`,
   capabilityVersion: VERSION,
   name: "snapshot_and_send_quote",

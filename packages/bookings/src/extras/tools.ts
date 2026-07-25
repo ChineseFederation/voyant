@@ -254,7 +254,7 @@ export const CREATE_BOOKING_EXTRA_HANDLER_POLICY = {
       durability: "handler-command-claim-v1",
       parentAnchor: { targetType: "booking", targetIdField: "bookingId" },
     },
-    risk: "medium",
+    risk: "high",
     ledger: "required",
     approval: "never",
     reversible: false,

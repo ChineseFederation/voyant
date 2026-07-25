@@ -18,8 +18,8 @@
     "./api-runtime": "./src/api-runtime.ts",
     "./payment-integration": "./src/payment-integration.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
-    "./tools": "./src/tools.ts",
     "./mcp-runtime": "./src/mcp-runtime.ts",
+    "./tools": "./src/mcp-runtime.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/flights.json"
   },
@@ -136,12 +136,12 @@
         "import": "./dist/runtime-contributor.js",
         "default": "./dist/runtime-contributor.js"
       },
-      "./tools": {
-        "types": "./dist/tools.d.ts",
-        "import": "./dist/tools.js",
-        "default": "./dist/tools.js"
-      },
       "./mcp-runtime": {
+        "types": "./dist/mcp-runtime.d.ts",
+        "import": "./dist/mcp-runtime.js",
+        "default": "./dist/mcp-runtime.js"
+      },
+      "./tools": {
         "types": "./dist/mcp-runtime.d.ts",
         "import": "./dist/mcp-runtime.js",
         "default": "./dist/mcp-runtime.js"

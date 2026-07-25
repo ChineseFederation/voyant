@@ -321,6 +321,7 @@ export const getAccommodationContentTool = defineTool<
   AccommodationsToolContext
 >({
   ...discoveryReadMetadata,
+  owner: `${OWNER}#content-extension`,
   capabilityId: `${OWNER}#tool.get-accommodation-content`,
   name: "get_accommodation_content",
   description:

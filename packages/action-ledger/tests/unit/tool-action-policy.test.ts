@@ -6,6 +6,7 @@ import { buildActionApprovalCommandFingerprint } from "../../src/fingerprint.js"
 import { actionLedgerService } from "../../src/service.js"
 import { createToolActionPolicyGate } from "../../src/tool-action-policy.js"
 
+const requestId = "6c0f3fb4-2c96-4c3a-a520-28166167fb18"
 const requestContext = {
   actor: "staff",
   callerType: "agent",
@@ -16,35 +17,33 @@ const requestContext = {
 afterEach(() => vi.restoreAllMocks())
 
 describe("generic MCP action-policy gate", () => {
-  it("permits an optional-ledger read through the selected action", async () => {
+  it("permits an optional-ledger routine read without action invocation metadata", async () => {
     const selected = action({ kind: "read", ledger: "optional", risk: "low" })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
     const dispatch = vi.fn(async () => ({ ok: true }))
 
-    await expect(gate.execute(execution(selected, {}), dispatch)).resolves.toEqual({ ok: true })
+    await expect(gate(selected).execute(execution(selected, {}), dispatch)).resolves.toEqual({
+      ok: true,
+    })
     expect(dispatch).toHaveBeenCalledOnce()
   })
 
-  it("fails closed when a read action claims an unsupported approval policy", async () => {
-    const selected = action({ kind: "read", ledger: "optional", approval: "required" })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
+  it("fails closed when a ledgered action has no server-resolved target", async () => {
+    const selected = action()
     const dispatch = vi.fn(async () => ({ ok: true }))
 
-    await expect(gate.execute(execution(selected, {}), dispatch)).rejects.toMatchObject({
-      code: "APPROVAL_REQUIRED",
+    await expect(
+      gate(selected).execute(
+        execution(selected, { confirmed: true, requestId }, { value: 1 }, " "),
+        dispatch,
+      ),
+    ).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+      meta: { targetResolution: "package-resolver" },
     })
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("writes a required-ledger preflight before dispatch and records success", async () => {
+  it("writes a server-owned required-ledger preflight before dispatch and records success", async () => {
     const selected = action()
     const events: string[] = []
     let sequence = 0
@@ -53,18 +52,9 @@ describe("generic MCP action-policy gate", () => {
       sequence += 1
       return { entry: { id: `action_${sequence}`, ...input }, replayed: false } as never
     })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
 
-    const result = await gate.execute(
-      execution(selected, {
-        confirmed: true,
-        targetId: "target_1",
-        idempotencyKey: "command_1",
-      }),
+    const result = await gate(selected).execute(
+      execution(selected, { confirmed: true, requestId }),
       async () => {
         events.push("dispatch")
         return { ok: true }
@@ -73,148 +63,159 @@ describe("generic MCP action-policy gate", () => {
 
     expect(result).toEqual({ ok: true })
     expect(events).toEqual(["ledger:requested", "dispatch", "ledger:succeeded"])
+    expect(actionLedgerService.appendEntry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        targetId: "target_1",
+        idempotencyKey: requestId,
+      }),
+    )
   })
 
-  it("requires confirmation, approval, and a client-carried exact fingerprint", async () => {
-    const selected = action({ approval: "required" })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
+  it("retains the existing invocation contract for an unmigrated execute", async () => {
+    const selected = action()
+    vi.spyOn(actionLedgerService, "appendEntry")
+      .mockResolvedValueOnce({
+        entry: { id: "action_1", status: "requested" },
+        replayed: false,
+      } as never)
+      .mockResolvedValueOnce({
+        entry: { id: "action_2", status: "succeeded" },
+        replayed: false,
+      } as never)
+    const migrated = execution(selected, {
+      confirmed: true,
+      targetId: "target_1",
+      idempotencyKey: "legacy-key",
     })
+    const { targetResolution: _targetResolution, ...legacyInvocation } =
+      migrated.actionPolicy.invocation
+    const { resolvedTargetId: _resolvedTargetId, ...legacyExecutionBase } = migrated
+    const legacyExecution: ToolActionPolicyExecutionInput = {
+      ...legacyExecutionBase,
+      actionPolicy: {
+        ...migrated.actionPolicy,
+        invocation: legacyInvocation,
+      },
+    }
+
+    await expect(
+      gate(selected).execute(legacyExecution, async () => ({ ok: true })),
+    ).resolves.toEqual({ ok: true })
+    expect(actionLedgerService.appendEntry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        targetId: "target_1",
+        idempotencyKey: "legacy-key",
+      }),
+    )
+  })
+
+  it("requires explicit confirmation before creating an approval", async () => {
+    const selected = action({ approval: "required" })
+    const requestApproval = vi.spyOn(actionLedgerService, "requestApproval")
     const dispatch = vi.fn(async () => ({ ok: true }))
 
     await expect(
-      gate.execute(
-        execution(selected, { targetId: "target_1", idempotencyKey: "command_1" }),
-        dispatch,
-      ),
+      gate(selected).execute(execution(selected, { requestId }), dispatch),
     ).rejects.toMatchObject({ code: "CONFIRMATION_REQUIRED" })
-    await expect(
-      gate.execute(
-        execution(selected, {
-          confirmed: true,
-          targetId: "target_1",
-          idempotencyKey: "command_1",
-          idempotencyFingerprint: "sha256:present",
-        }),
-        dispatch,
-      ),
-    ).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" })
-    await expect(
-      gate.execute(
-        execution(selected, {
-          confirmed: true,
-          targetId: "target_1",
-          idempotencyKey: "command_1",
-          approvalId: "approval_1",
-        }),
-        dispatch,
-      ),
-    ).rejects.toMatchObject({ code: "ACTION_POLICY_REQUIRED" })
+    expect(requestApproval).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("rejects a wrong fingerprint and a principal-mismatched approval without dispatch", async () => {
+  it("creates and replays an approval preflight without dispatch", async () => {
     const selected = action({ approval: "required" })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
+    const requestApproval = vi.spyOn(actionLedgerService, "requestApproval")
+    requestApproval
+      .mockResolvedValueOnce(approvalRequest(false) as never)
+      .mockResolvedValueOnce(approvalRequest(true) as never)
     const dispatch = vi.fn(async () => ({ ok: true }))
+    const invoke = () =>
+      gate(selected).execute(execution(selected, { confirmed: true, requestId }), dispatch)
 
-    await expect(
-      gate.execute(
-        execution(selected, {
-          confirmed: true,
-          targetId: "target_1",
-          idempotencyKey: "command_1",
-          approvalId: "approval_1",
-          idempotencyFingerprint: "sha256:wrong",
-        }),
-        dispatch,
-      ),
-    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
-
-    const fingerprint = await exactFingerprint(selected, { value: 1 })
-    const validateApprovedAction = vi
-      .spyOn(actionLedgerService, "validateApprovedAction")
-      .mockResolvedValue({
-        ok: false,
-        reason: "principal_mismatch",
-      })
-    await expect(
-      gate.execute(
-        execution(
-          selected,
-          {
-            confirmed: true,
-            targetId: "target_1",
-            idempotencyKey: "command_1",
-            approvalId: "approval_1",
-            idempotencyFingerprint: fingerprint,
-          },
-          { value: 1 },
-        ),
-        dispatch,
-      ),
-    ).rejects.toMatchObject({
-      code: "AUTHORIZATION_DENIED",
-      meta: { reason: "principal_mismatch" },
+    await expect(invoke()).rejects.toMatchObject({
+      code: "APPROVAL_REQUIRED",
+      meta: {
+        approvalId: "approval_1",
+        requestedActionId: "requested_1",
+        status: "pending",
+        requestId,
+        replayed: false,
+      },
     })
-    expect(validateApprovedAction).toHaveBeenCalledWith(
+    await expect(invoke()).rejects.toMatchObject({
+      code: "APPROVAL_REQUIRED",
+      meta: { approvalId: "approval_1", requestId, replayed: true },
+    })
+    expect(requestApproval).toHaveBeenNthCalledWith(
+      1,
       expect.anything(),
-      expect.objectContaining({ organizationId: "org_1" }),
+      expect.objectContaining({
+        requestedAction: expect.objectContaining({
+          targetId: "target_1",
+          idempotencyKey: requestId,
+          idempotencyFingerprint: expect.stringMatching(/^sha256:/),
+        }),
+      }),
     )
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("rejects an approval from another organization without dispatch", async () => {
+  it("rejects tampered command, target, principal, and request id through server recomputation", async () => {
     const selected = action({ approval: "required" })
-    const commandInput = { value: 1 }
-    const fingerprint = await exactFingerprint(selected, commandInput)
-    vi.spyOn(actionLedgerService, "validateApprovedAction").mockResolvedValue({
-      ok: false,
-      reason: "organization_mismatch",
-    })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
+    const validateApprovedAction = vi
+      .spyOn(actionLedgerService, "validateApprovedAction")
+      .mockResolvedValueOnce({ ok: false, reason: "fingerprint_mismatch" })
+      .mockResolvedValueOnce({ ok: false, reason: "mismatched_action" })
+      .mockResolvedValueOnce({ ok: false, reason: "principal_mismatch" })
+      .mockResolvedValueOnce({
+        ok: true,
+        approval: { id: "approval_1" },
+        requestedAction: { id: "requested_1", idempotencyKey: "another-request" },
+      } as never)
     const dispatch = vi.fn(async () => ({ ok: true }))
-
-    await expect(
-      gate.execute(
+    const invoke = (commandInput: unknown, targetId = "target_1") =>
+      gate(selected).execute(
         execution(
           selected,
-          {
-            confirmed: true,
-            targetId: "target_1",
-            idempotencyKey: "command_1",
-            approvalId: "approval_1",
-            idempotencyFingerprint: fingerprint,
-          },
+          { confirmed: true, requestId, approvalId: "approval_1" },
           commandInput,
+          targetId,
         ),
         dispatch,
-      ),
-    ).rejects.toMatchObject({
-      code: "AUTHORIZATION_DENIED",
-      meta: { reason: "organization_mismatch" },
+      )
+
+    await expect(invoke({ value: "tampered" })).rejects.toMatchObject({
+      meta: { reason: "fingerprint_mismatch" },
     })
+    await expect(invoke({ value: 1 }, "target_2")).rejects.toMatchObject({
+      meta: { reason: "mismatched_action" },
+    })
+    await expect(invoke({ value: 1 })).rejects.toMatchObject({
+      meta: { reason: "principal_mismatch" },
+    })
+    await expect(invoke({ value: 1 })).rejects.toMatchObject({
+      meta: { reason: "request_id_mismatch" },
+    })
+    expect(validateApprovedAction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        organizationId: "org_1",
+        principalId: "agent_1",
+        idempotencyFingerprint: expect.stringMatching(/^sha256:/),
+      }),
+    )
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("executes the exact approved command once and records approved causation", async () => {
+  it("executes the exact approved command once without a client fingerprint", async () => {
     const selected = action({ approval: "required" })
     const commandInput = { value: 1 }
     const fingerprint = await exactFingerprint(selected, commandInput)
     vi.spyOn(actionLedgerService, "validateApprovedAction").mockResolvedValue({
       ok: true,
       approval: { id: "approval_1" },
-      requestedAction: { id: "requested_1", idempotencyKey: "command_1" },
+      requestedAction: { id: "requested_1", idempotencyKey: requestId },
       idempotencyFingerprint: fingerprint,
     } as never)
     const appended: unknown[] = []
@@ -222,26 +223,11 @@ describe("generic MCP action-policy gate", () => {
       appended.push(input)
       return { entry: { id: `entry_${appended.length}`, ...input }, replayed: false } as never
     })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
     const dispatch = vi.fn(async () => ({ ok: true }))
 
     await expect(
-      gate.execute(
-        execution(
-          selected,
-          {
-            confirmed: true,
-            targetId: "target_1",
-            idempotencyKey: "command_1",
-            approvalId: "approval_1",
-            idempotencyFingerprint: fingerprint,
-          },
-          commandInput,
-        ),
+      gate(selected).execute(
+        execution(selected, { confirmed: true, requestId, approvalId: "approval_1" }, commandInput),
         dispatch,
       ),
     ).resolves.toEqual({ ok: true })
@@ -257,104 +243,59 @@ describe("generic MCP action-policy gate", () => {
     ])
   })
 
-  it("does not dispatch when the required ledger preflight is unavailable", async () => {
-    const selected = action()
-    vi.spyOn(actionLedgerService, "appendEntry").mockRejectedValue(new Error("ledger unavailable"))
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
+  it("rejects a package-resolved target that conflicts with the declared command target", async () => {
+    const selected = action({ commandTargetField: "bookingId" })
     const dispatch = vi.fn(async () => ({ ok: true }))
 
     await expect(
-      gate.execute(
-        execution(selected, {
-          confirmed: true,
-          targetId: "target_1",
-          idempotencyKey: "command_1",
-        }),
-        dispatch,
-      ),
-    ).rejects.toThrow("ledger unavailable")
-    expect(dispatch).not.toHaveBeenCalled()
-  })
-
-  it("rejects a policy target that does not match the declared command target field", async () => {
-    const selected = action({ commandTargetField: "bookingId" })
-    const appendEntry = vi.spyOn(actionLedgerService, "appendEntry")
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
-    const dispatch = vi.fn(async () => ({ ok: true }))
-    const invoke = (commandInput: unknown) =>
-      gate.execute(
+      gate(selected).execute(
         execution(
           selected,
-          {
-            confirmed: true,
-            targetId: "booking_B",
-            idempotencyKey: "command_1",
-          },
-          commandInput,
+          { confirmed: true, requestId },
+          { bookingId: "booking_A" },
+          "booking_B",
         ),
         dispatch,
-      )
-
-    await expect(invoke({ bookingId: "booking_A" })).rejects.toMatchObject({
+      ),
+    ).rejects.toMatchObject({
       code: "ACTION_POLICY_REQUIRED",
       meta: {
-        actionId: selected.id,
         field: "bookingId",
         targetId: "booking_B",
         commandTarget: "booking_A",
       },
     })
-    await expect(invoke({ value: 1 })).rejects.toMatchObject({
-      code: "ACTION_POLICY_REQUIRED",
-      meta: { field: "bookingId", commandTarget: null },
-    })
-    expect(appendEntry).not.toHaveBeenCalled()
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("uses the declared command target for ledger admission", async () => {
-    const selected = action({ commandTargetField: "bookingId" })
-    const appended: unknown[] = []
-    vi.spyOn(actionLedgerService, "appendEntry").mockImplementation(async (_db, input) => {
-      appended.push(input)
-      return { entry: { id: `entry_${appended.length}`, ...input }, replayed: false } as never
-    })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
+  it("rejects a padded command target before dispatching a Commerce-like mutation", async () => {
+    const selected = action({ commandTargetField: "id" })
+    const dispatch = vi.fn(async () => ({ ok: true }))
 
     await expect(
-      gate.execute(
+      gate(selected).execute(
         execution(
           selected,
-          {
-            confirmed: true,
-            targetId: "booking_A",
-            idempotencyKey: "command_1",
-          },
-          { bookingId: "booking_A" },
+          { confirmed: true, requestId },
+          { id: " target_1 ", name: "Summer" },
+          "target_1",
         ),
-        async () => ({ ok: true }),
+        dispatch,
       ),
-    ).resolves.toEqual({ ok: true })
-    expect(appended).toEqual([
-      expect.objectContaining({ status: "requested", targetId: "booking_A" }),
-      expect.objectContaining({ status: "succeeded", targetId: "booking_A" }),
-    ])
+    ).rejects.toMatchObject({
+      code: "ACTION_POLICY_REQUIRED",
+      meta: {
+        field: "id",
+        targetId: "target_1",
+        commandTarget: " target_1 ",
+      },
+    })
+    expect(dispatch).not.toHaveBeenCalled()
   })
 
-  it("fails closed before dispatch for a handler-generated target", async () => {
-    const selected = action({
+  it("fails closed for conditional and handler-owned durable policies", async () => {
+    const conditional = action({ approval: "conditional" })
+    const created = action({
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "test-create-command",
@@ -362,61 +303,28 @@ describe("generic MCP action-policy gate", () => {
         durability: "handler-command-claim-v1",
       },
     })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
-    const dispatch = vi.fn(async () => ({ id: "generated_1" }))
+    const dispatch = vi.fn(async () => ({ ok: true }))
 
     await expect(
-      gate.execute(
-        execution(selected, {
-          confirmed: true,
-          idempotencyKey: "command_1",
-        }),
-        dispatch,
-      ),
+      gate(conditional).execute(execution(conditional, { confirmed: true, requestId }), dispatch),
+    ).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" })
+    await expect(
+      gate(created).execute(execution(created, { confirmed: true, requestId }), dispatch),
     ).rejects.toMatchObject({
       code: "ACTION_POLICY_REQUIRED",
       message: expect.stringContaining("handler-owned durable command claim"),
     })
     expect(dispatch).not.toHaveBeenCalled()
   })
-
-  it("does not replace generic preflight with replay handling without the explicit handler seam", async () => {
-    const selected = action({
-      commandTargetField: "targetId",
-      targetLifecycle: "existing",
-      existingTarget: { durability: "handler-command-result-v1" },
-    })
-    const gate = createToolActionPolicyGate({
-      db: {} as never,
-      selectedActions: [selected],
-      requestContext,
-    })
-    const dispatch = vi.fn(async () => ({ id: "target_1" }))
-
-    await expect(
-      gate.execute(
-        execution(
-          selected,
-          {
-            confirmed: true,
-            targetId: "target_1",
-            idempotencyKey: "command_1",
-          },
-          { targetId: "target_1" },
-        ),
-        dispatch,
-      ),
-    ).rejects.toMatchObject({
-      code: "ACTION_POLICY_REQUIRED",
-      message: expect.stringContaining("handler-owned replay resolution"),
-    })
-    expect(dispatch).not.toHaveBeenCalled()
-  })
 })
+
+function gate(selected: VoyantGraphActionDeclaration) {
+  return createToolActionPolicyGate({
+    db: {} as never,
+    selectedActions: [selected],
+    requestContext,
+  })
+}
 
 function action(
   overrides: Partial<VoyantGraphActionDeclaration> = {},
@@ -440,6 +348,7 @@ function execution(
   selected: VoyantGraphActionDeclaration,
   invocation: ToolActionPolicyExecutionInput["invocation"],
   commandInput: unknown = { value: 1 },
+  resolvedTargetId: string | undefined = "target_1",
 ): ToolActionPolicyExecutionInput {
   const actionPolicy: ToolActionPolicyManifest = {
     id: selected.id,
@@ -458,12 +367,12 @@ function execution(
     enforcement: "generic",
     invocation: {
       controlField: "_voyant",
-      requiredFields: [],
-      optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+      requiredFields: selected.kind === "execute" ? ["confirmed", "requestId"] : [],
+      optionalFields: ["reasonCode", "approvalId"],
       fingerprintAlgorithm: "action-ledger-command-v1",
+      targetResolution: "package-resolver",
     },
   }
-  if (selected.kind === "execute") actionPolicy.invocation.requiredFields = ["confirmed"]
   return {
     capabilityId: "@voyant-travel/test#tool.mutate",
     capabilityVersion: "v1",
@@ -471,6 +380,15 @@ function execution(
     actionPolicy,
     commandInput,
     invocation,
+    ...(resolvedTargetId ? { resolvedTargetId } : {}),
+  }
+}
+
+function approvalRequest(replayed: boolean) {
+  return {
+    requestedAction: { id: "requested_1" },
+    approval: { id: "approval_1", status: "pending" },
+    replayed,
   }
 }
 

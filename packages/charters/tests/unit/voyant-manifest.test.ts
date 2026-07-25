@@ -134,6 +134,13 @@ describe("charters deployment manifest", () => {
       })
       expect(action.reversible).toBe(action.targetLifecycle !== "created")
     }
+    for (const id of ["update-charter-product", "update-charter-voyage", "update-charter-yacht"]) {
+      expect(
+        chartersVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/charters#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 })
 

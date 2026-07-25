@@ -219,6 +219,18 @@ describe("commerce deployment manifest", () => {
         testReference: "packages/commerce/tests/integration/promotion-created-command.test.ts",
       },
     })
+    for (const id of [
+      "update-cancellation-policy",
+      "update-price-catalog",
+      "update-promotion",
+      "archive-promotion",
+    ]) {
+      expect(
+        commerceVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/commerce#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 
   it("owns the catalog checkout and booking maintenance bridges", () => {

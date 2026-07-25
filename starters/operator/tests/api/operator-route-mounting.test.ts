@@ -147,8 +147,39 @@ describe("operator composed route mounting (smoke)", () => {
 
   it("mounts the lazy MCP admin routes", async () => {
     // MCP is now a real MCP server: JSON-RPC at the mount root + a discovery manifest.
-    expect(await status("/v1/admin/mcp", "POST")).not.toBe(404)
-    expect(await status("/v1/admin/mcp/manifest")).not.toBe(404)
+    const app = await build()
+    const manifestResponse = await app.request("/v1/admin/mcp/manifest", {}, TEST_ENV, TEST_CTX)
+    expect(manifestResponse.status).toBe(200)
+    const manifest = (await manifestResponse.json()) as {
+      version?: unknown
+      tools?: unknown
+    }
+    const mcpResponse = await app.request(
+      "/v1/admin/mcp",
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-03-26",
+            capabilities: {},
+            clientInfo: { name: "operator-mcp-health", version: "1.0.0" },
+          },
+        }),
+      },
+      TEST_ENV,
+      TEST_CTX,
+    )
+
+    expect(manifest.version).toBeTypeOf("string")
+    expect(manifest.tools).toBeInstanceOf(Array)
+    expect(mcpResponse.status).not.toBe(500)
   })
 
   it("mounts package-owned invitations admin + public surfaces", async () => {

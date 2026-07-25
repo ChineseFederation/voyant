@@ -181,17 +181,6 @@ export async function createGraphMcpApiRoutes(
   options: GraphMcpApiRoutesOptions,
 ): Promise<OpenAPIHono> {
   assertVoyantGraphMcpRuntime(options.runtime)
-  if (
-    options.runtime.actions.some(
-      (action) =>
-        action.availability?.status === "unavailable" &&
-        action.availability.enableWhen !== undefined,
-    )
-  ) {
-    throw new Error(
-      "Conditional graph actions require the framework-owned activated runtime view before MCP registration.",
-    )
-  }
   const registry = createToolRegistry()
   const contributions = new Map<string, { contribution: ToolContextContribution; unitId: string }>()
   const requiredContext = new Set<string>()
@@ -451,14 +440,15 @@ interface McpOutputContract {
 
 const actionInvocationFields = {
   confirmed: z.boolean().optional(),
+  requestId: z.uuid().optional(),
+  approvalId: z.string().trim().min(1).optional(),
+  reasonCode: z.string().trim().min(1).optional(),
+  // Compatibility fields used by handler-owned policies and generic actions
+  // that have not yet declared server-owned target resolution.
   targetId: z.string().trim().min(1).optional(),
   idempotencyKey: z.string().trim().min(1).max(255).optional(),
-  approvalId: z.string().trim().min(1).optional(),
   idempotencyFingerprint: z.string().trim().min(1).optional(),
-  reasonCode: z.string().trim().min(1).optional(),
 } satisfies z.ZodRawShape
-
-const actionInvocationSchema = z.object(actionInvocationFields)
 
 type ZodCompositionDef = {
   type?: string
@@ -500,7 +490,7 @@ function actionInvocationSchemaFor(entry: ToolManifestEntry): z.ZodObject {
     ...(entry.actionPolicy?.invocation.requiredFields ?? []),
     ...(entry.actionPolicy?.invocation.optionalFields ?? []),
   ])
-  return z.object(
+  return z.strictObject(
     Object.fromEntries(
       Object.entries(actionInvocationFields).filter(([field]) =>
         fields.has(field as keyof typeof actionInvocationFields),
@@ -565,7 +555,7 @@ async function dispatchToResult(
 ): Promise<CallToolResult> {
   try {
     const { commandInput, invocation } = entry.actionPolicy
-      ? splitInvocation(args)
+      ? splitInvocation(args, entry)
       : { commandInput: args, invocation: {} }
     if (requireActionPolicy && !entry.actionPolicy && entry.deploymentRisk !== "low") {
       throw new ToolError(
@@ -590,17 +580,14 @@ async function dispatchToResult(
     }
     const data =
       entry.actionPolicy?.enforcement === "generic"
-        ? await requireActionGate(ctx).execute(
-            {
-              capabilityId: entry.capabilityId,
-              capabilityVersion: entry.capabilityVersion,
-              canonicalName: entry.name,
-              actionPolicy: entry.actionPolicy,
-              commandInput,
-              invocation,
-            },
-            dispatch,
-          )
+        ? await dispatchGenericAction({
+            registry,
+            invocationName: name,
+            entry,
+            commandInput,
+            invocation,
+            context: ctx,
+          })
         : await dispatch(
             entry.actionPolicy?.enforcement === "handler"
               ? handlerDispatchContext(baseDispatchContext, entry, invocation)
@@ -613,8 +600,78 @@ async function dispatchToResult(
   } catch (err) {
     const code = err instanceof ToolError ? err.code : "PROVIDER_ERROR"
     const message = err instanceof Error ? err.message : String(err)
-    return { isError: true, content: [{ type: "text", text: `[${code}] ${message}` }] }
+    const error = {
+      contractVersion: TOOL_CONTRACT_VERSION,
+      code,
+      message,
+      ...(err instanceof ToolError && err.meta ? { meta: err.meta } : {}),
+    }
+    return {
+      isError: true,
+      content: [{ type: "text", text: `[${code}] ${message}` }],
+      _meta: { "voyant.travel/error": error },
+    }
   }
+}
+
+async function dispatchGenericAction(input: {
+  registry: ToolRegistry
+  invocationName: string
+  entry: ToolManifestEntry
+  commandInput: unknown
+  invocation: ToolActionInvocationControl
+  context: ToolContext
+}): Promise<unknown> {
+  const actionPolicy = input.entry.actionPolicy
+  if (actionPolicy?.enforcement !== "generic") {
+    throw new ToolError(
+      "Generic action dispatch requires a generic action policy.",
+      "INVALID_INPUT",
+    )
+  }
+  const dispatchContext = withoutHandlerActionPolicy(input.context)
+  if (!actionPolicy.invocation.targetResolution) {
+    return requireActionGate(input.context).execute(
+      {
+        capabilityId: input.entry.capabilityId,
+        capabilityVersion: input.entry.capabilityVersion,
+        canonicalName: input.entry.name,
+        actionPolicy,
+        commandInput: input.commandInput,
+        invocation: input.invocation,
+      },
+      () => input.registry.dispatch(input.invocationName, input.commandInput, dispatchContext),
+    )
+  }
+  const prepared = await input.registry.prepareAction(
+    input.invocationName,
+    input.commandInput,
+    dispatchContext,
+  )
+  const needsTarget = actionPolicy.ledger === "required"
+  const resolvedTargetId = prepared.resolvedTargetId
+  if (needsTarget && !resolvedTargetId) {
+    throw new ToolError(
+      "This ledgered Tool has no valid server-owned action target; refusing dispatch.",
+      "ACTION_POLICY_REQUIRED",
+      {
+        capabilityId: input.entry.capabilityId,
+        targetResolution: actionPolicy.invocation.targetResolution ?? "missing",
+      },
+    )
+  }
+  return requireActionGate(input.context).execute(
+    {
+      capabilityId: input.entry.capabilityId,
+      capabilityVersion: input.entry.capabilityVersion,
+      canonicalName: input.entry.name,
+      actionPolicy,
+      commandInput: prepared.commandInput,
+      invocation: input.invocation,
+      ...(resolvedTargetId ? { resolvedTargetId } : {}),
+    },
+    () => input.registry.dispatchPrepared(prepared, dispatchContext),
+  )
 }
 
 function withoutHandlerActionPolicy(context: ToolContext): ToolContext {
@@ -672,7 +729,10 @@ function toStructuredContent(data: unknown, envelopeResult: boolean): Record<str
   )
 }
 
-function splitInvocation(args: unknown): {
+function splitInvocation(
+  args: unknown,
+  entry: ToolManifestEntry,
+): {
   commandInput: unknown
   invocation: ToolActionInvocationControl
 } {
@@ -683,7 +743,7 @@ function splitInvocation(args: unknown): {
     string,
     unknown
   >
-  const parsed = actionInvocationSchema.safeParse(rawInvocation ?? {})
+  const parsed = actionInvocationSchemaFor(entry).safeParse(rawInvocation ?? {})
   if (!parsed.success) {
     throw new ToolError("Invalid Voyant action invocation metadata.", "INVALID_INPUT", {
       issues: parsed.error.issues,

@@ -80,6 +80,13 @@ describe("distribution deployment manifests", () => {
         allowedActorTypes: ["staff"],
       }),
     )
+    for (const id of ["update-channel", "update-external-reference", "update-supplier"]) {
+      expect(
+        distributionVoyantModule.actions?.find(
+          ({ id: actionId }) => actionId === `@voyant-travel/distribution#action.${id}`,
+        ),
+      ).toMatchObject({ commandTargetField: "id" })
+    }
   })
 
   it("owns the booking and channel-push extensions", () => {

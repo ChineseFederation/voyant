@@ -67,6 +67,11 @@ describe("MICE deployment manifests", () => {
         { id: "@voyant-travel/mice#link.session-function-space" },
       ],
     })
+    expect(
+      miceVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/mice#action.update-program",
+      ),
+    ).toMatchObject({ commandTargetField: "id" })
   })
 
   it("owns the booking extension", () => {

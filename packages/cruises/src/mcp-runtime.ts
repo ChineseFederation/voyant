@@ -1,11 +1,9 @@
 import {
   type ActionLedgerRequestContextValues,
-  buildCreatedTargetCommandFingerprint,
-  buildCreatedTargetIdempotencyScope,
+  type ExecuteAdmittedCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandHandlers,
-  type ExecuteCreatedTargetCommandInput,
   type ExecuteCreatedTargetCommandResult,
-  executeCreatedTargetCommand,
+  executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
@@ -123,8 +121,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
 })
 
 type CruiseShipCreatedCommandExecutor = (
-  db: PostgresJsDatabase,
-  input: ExecuteCreatedTargetCommandInput & { resultReferenceType: string },
+  input: ExecuteAdmittedCreatedTargetCommandInput<string>,
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
 
@@ -140,55 +137,25 @@ export async function executeCruiseCreate(
     /** Test-only failure/concurrency seam inside the handler-owned transaction. */
     afterRequiredProjection?: (tx: PostgresJsDatabase, cruiseId: string) => Promise<void>
   },
-  executor: CruiseCreatedCommandExecutor = executeCreatedTargetCommand,
+  executor: CruiseCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
 ) {
   const principal = mapActionLedgerRequestContext(context)
   if (principal.principalId === "unknown_request") {
     throw new TypeError("Cruise created-target commands require a concrete principal")
   }
-  const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
+  admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
   const policy = CRUISE_CREATED_TARGET_POLICY
-  const selectedActionName = admitted.actionPolicy.capabilityId
-  const selectedActionVersion = admitted.actionPolicy.version
-  const fingerprint = await buildCreatedTargetCommandFingerprint({
-    actionName: selectedActionName,
-    actionVersion: selectedActionVersion,
-    commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
-    canonicalTargetType: policy.canonicalTargetType,
-    resultReferenceType: policy.resultReferenceType,
-    commandInput,
-    capabilityId: selectedActionName,
-    capabilityVersion: selectedActionVersion,
-    evaluatedRisk: policy.evaluatedRisk,
-    approvalPolicy: policy.approvalPolicy,
-    approvalReasonCode: policy.approvalReasonCode,
-  })
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: selectedActionName,
-    actionVersion: selectedActionVersion,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
   return executor(
-    db,
     {
+      db,
       context,
-      actionName: selectedActionName,
-      actionVersion: selectedActionVersion,
-      actionKind: "create",
-      evaluatedRisk: policy.evaluatedRisk,
-      commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
+      admitted,
+      idempotencyKey: legacyIdempotencyKey,
+      commandTargetType: policy.commandTargetType,
       canonicalTargetType: policy.canonicalTargetType,
       resultReferenceType: policy.resultReferenceType,
-      capabilityId: selectedActionName,
-      capabilityVersion: selectedActionVersion,
-      approvalPolicy: policy.approvalPolicy,
-      approvalReasonCode: policy.approvalReasonCode,
       commandInput,
-      routeOrToolName: admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: { scope, key: idempotencyKey, fingerprint },
+      evaluatedRisk: policy.evaluatedRisk,
     },
     {
       async create(tx) {
@@ -224,55 +191,25 @@ export async function executeCruiseShipCreate(
   commandInput: unknown,
   admitted: import("@voyant-travel/tools").ToolHandlerActionPolicyContext,
   create: (tx: PostgresJsDatabase) => Promise<{ id: string }>,
-  executor: CruiseShipCreatedCommandExecutor = executeCreatedTargetCommand,
+  executor: CruiseShipCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
 ) {
   const principal = mapActionLedgerRequestContext(context)
   if (principal.principalId === "unknown_request") {
     throw new TypeError("Cruise ship created-target commands require a concrete principal")
   }
-  const idempotencyKey = admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
+  admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
   const policy = CRUISE_SHIP_CREATED_TARGET_POLICY
-  const selectedActionName = admitted.actionPolicy.capabilityId
-  const selectedActionVersion = admitted.actionPolicy.version
-  const fingerprint = await buildCreatedTargetCommandFingerprint({
-    actionName: selectedActionName,
-    actionVersion: selectedActionVersion,
-    commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
-    canonicalTargetType: policy.canonicalTargetType,
-    resultReferenceType: policy.resultReferenceType,
-    commandInput,
-    capabilityId: selectedActionName,
-    capabilityVersion: selectedActionVersion,
-    evaluatedRisk: policy.evaluatedRisk,
-    approvalPolicy: policy.approvalPolicy,
-    approvalReasonCode: policy.approvalReasonCode,
-  })
-  const scope = await buildCreatedTargetIdempotencyScope({
-    actionName: selectedActionName,
-    actionVersion: selectedActionVersion,
-    principalType: principal.principalType,
-    principalId: principal.principalId,
-    organizationId: principal.organizationId,
-  })
   return executor(
-    db,
     {
+      db,
       context,
-      actionName: selectedActionName,
-      actionVersion: selectedActionVersion,
-      actionKind: "create",
-      evaluatedRisk: policy.evaluatedRisk,
-      commandTarget: { type: policy.commandTargetType, id: idempotencyKey },
+      admitted,
+      idempotencyKey: legacyIdempotencyKey,
+      commandTargetType: policy.commandTargetType,
       canonicalTargetType: policy.canonicalTargetType,
       resultReferenceType: policy.resultReferenceType,
-      capabilityId: selectedActionName,
-      capabilityVersion: selectedActionVersion,
-      approvalPolicy: policy.approvalPolicy,
-      approvalReasonCode: policy.approvalReasonCode,
       commandInput,
-      routeOrToolName: admitted.capabilityId,
-      authorizationSource: "selected_graph_mcp_handler",
-      idempotency: { scope, key: idempotencyKey, fingerprint },
+      evaluatedRisk: policy.evaluatedRisk,
     },
     {
       async create(tx) {

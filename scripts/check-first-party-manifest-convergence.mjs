@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import {
   inspectFirstPartyManifestConvergence,
@@ -30,11 +30,13 @@ for (const directory of workspaceDirectories(path.join(root, "packages"))) {
   collectSources(directory, sources)
 }
 
+const toolRuntimeDefinitions = await loadToolRuntimeDefinitions(graph, workspacePackages)
 const failures = inspectFirstPartyManifestConvergence({
   graph,
   selections: standardSelectionsFromPolicy(policySource),
   workspacePackages,
   sources,
+  toolRuntimeDefinitions,
 })
 
 if (failures.length > 0) {
@@ -74,4 +76,61 @@ function collectSources(directory, result) {
     else if (/\.(?:ts|tsx|json)$/.test(entry.name))
       result.set(relativePath(child), readFileSync(child, "utf8"))
   }
+}
+
+async function loadToolRuntimeDefinitions(deploymentGraph, packages) {
+  const result = new Map()
+  const units = [
+    ...(deploymentGraph.modules ?? []),
+    ...(deploymentGraph.extensions ?? []),
+    ...(deploymentGraph.plugins ?? []),
+    ...(deploymentGraph.adapters ?? []),
+    ...(deploymentGraph.providers ?? []),
+  ]
+  for (const tool of units.flatMap((unit) => unit.tools ?? [])) {
+    const exportName = tool.runtime.export ?? "default"
+    const key = `${tool.runtime.entry}#${exportName}`
+    if (result.has(key)) continue
+    try {
+      const owner = packageName(tool.runtime.entry)
+      const pkg = packages.get(owner)
+      const exportKey =
+        tool.runtime.entry === owner ? "." : `.${tool.runtime.entry.slice(owner.length)}`
+      const target = exportTarget(pkg?.manifest.exports?.[exportKey])
+      if (!pkg || !target) {
+        result.set(key, { error: `package export "${tool.runtime.entry}" is missing` })
+        continue
+      }
+      const namespace = await import(pathToFileURL(path.join(root, pkg.directory, target)).href)
+      const definition = namespace[exportName]
+      result.set(
+        key,
+        definition
+          ? {
+              definition,
+              contextContribution: namespace.voyantToolContextContribution,
+            }
+          : { error: `export "${exportName}" is missing` },
+      )
+    } catch (error) {
+      result.set(key, {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  return result
+}
+
+function packageName(specifier) {
+  return specifier.split("/").slice(0, 2).join("/")
+}
+
+function exportTarget(value) {
+  if (typeof value === "string") return value
+  if (!value || typeof value !== "object") return undefined
+  for (const condition of ["development", "import", "default", "types", "require"]) {
+    const target = exportTarget(value[condition])
+    if (target) return target
+  }
+  return Object.values(value).map(exportTarget).find(Boolean)
 }

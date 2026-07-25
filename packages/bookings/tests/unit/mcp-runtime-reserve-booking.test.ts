@@ -1,7 +1,3 @@
-import {
-  buildCreatedTargetCommandFingerprint,
-  buildCreatedTargetIdempotencyScope,
-} from "@voyant-travel/action-ledger"
 import type { ToolContext, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -80,7 +76,7 @@ async function bookingTools() {
 }
 
 describe("reserve_booking MCP runtime", () => {
-  it("passes the exact created-command policy fingerprint and returns an immutable reference", async () => {
+  it("passes the admitted created-command policy and returns an immutable reference", async () => {
     const booking = {
       id: "bk_1",
       bookingNumber: reservation.bookingNumber,
@@ -112,29 +108,6 @@ describe("reserve_booking MCP runtime", () => {
       replayed: false,
     })
 
-    const fingerprint = await buildCreatedTargetCommandFingerprint({
-      actionName: "booking.reserve",
-      actionVersion: "v1",
-      commandTarget: {
-        type: "booking_reservation_command",
-        id: reservation.bookingNumber,
-      },
-      canonicalTargetType: "booking",
-      resultReferenceType: "booking",
-      commandInput: reservation,
-      capabilityId: "bookings:reserve",
-      capabilityVersion: "v1",
-      evaluatedRisk: "high",
-      approvalPolicy: "none",
-      approvalReasonCode: null,
-    })
-    const scope = await buildCreatedTargetIdempotencyScope({
-      actionName: "booking.reserve",
-      actionVersion: "v1",
-      principalType: "agent",
-      principalId: "agent_1",
-      organizationId: null,
-    })
     const legacyFingerprint = await buildLegacyBookingReservationCommandFingerprint(reservation)
     expect(reserve).toHaveBeenCalledWith(db, reservation, "agent_1", {
       eventBus,
@@ -143,17 +116,9 @@ describe("reserve_booking MCP runtime", () => {
         callerType: "agent",
         actor: "staff",
       }),
-      actionLedgerAuthorizationSource: "selected_graph_mcp_handler",
-      actionLedgerIdempotencyScope: scope,
-      actionLedgerIdempotencyKey: "reserve-b-1002",
-      actionLedgerIdempotencyFingerprint: fingerprint,
+      actionLedgerAdmitted: admitted,
       actionLedgerLegacyIdempotencyScope: "bookings.reserve_booking:agent_1",
       actionLedgerLegacyIdempotencyFingerprint: legacyFingerprint,
-      actionLedgerRouteOrToolName: "@voyant-travel/bookings#tool.reserve-booking",
-      actionLedgerActionName: "booking.reserve",
-      actionLedgerActionVersion: "v1",
-      actionLedgerCapabilityId: "bookings:reserve",
-      actionLedgerCapabilityVersion: "v1",
     })
   })
 

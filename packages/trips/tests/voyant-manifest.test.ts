@@ -269,6 +269,7 @@ describe("trips deployment manifest", () => {
         }),
         expect.objectContaining({
           id: "@voyant-travel/trips#action.select-candidate",
+          commandTargetField: "requirementId",
           risk: "medium",
           ledger: "required",
           approval: "required",

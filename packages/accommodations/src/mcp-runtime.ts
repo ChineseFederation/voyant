@@ -1,8 +1,4 @@
-import {
-  buildCreatedTargetCommandFingerprint,
-  buildCreatedTargetIdempotencyScope,
-  executeCreatedTargetCommand,
-} from "@voyant-travel/action-ledger/created-command"
+import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import {
   type ActionLedgerRequestContextValues,
   mapActionLedgerRequestContext,
@@ -125,45 +121,19 @@ export const voyantToolContextContribution = defineToolContextContribution({
           admitted: Parameters<AccommodationsToolServices["createRoomBlock"]>[1],
         ) {
           const { idempotencyKey: legacyIdempotencyKey, ...input } = requestInput
-          const idempotencyKey = admittedCreatedCommandIdempotencyKey(
-            admitted,
-            legacyIdempotencyKey,
-          )
+          admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
           const requestContext = actionLedgerContext(request as Context)
-          const principal = mapActionLedgerRequestContext(requestContext)
-          const command = {
-            actionName: admitted.actionPolicy.capabilityId,
-            actionVersion: admitted.actionPolicy.version,
-            commandTarget: { type: "room-block-create-command", id: idempotencyKey },
-            canonicalTargetType: "room-block",
-            resultReferenceType: "room-block" as const,
-            commandInput: input,
-            capabilityId: admitted.actionPolicy.capabilityId,
-            capabilityVersion: admitted.actionPolicy.version,
-            evaluatedRisk: "medium" as const,
-            approvalPolicy: "none" as const,
-            approvalReasonCode: null,
-          }
-          const fingerprint = await buildCreatedTargetCommandFingerprint(command)
-          const scope = await buildCreatedTargetIdempotencyScope({
-            actionName: command.actionName,
-            actionVersion: command.actionVersion,
-            principalType: principal.principalType,
-            principalId: principal.principalId,
-            organizationId: principal.organizationId,
-          })
-          const result = await executeCreatedTargetCommand(
-            db,
+          const result = await executeAdmittedCreatedTargetCommand(
             {
+              db,
               context: requestContext,
-              ...command,
-              routeOrToolName: admitted.capabilityId,
-              authorizationSource: "selected_graph_mcp_handler",
-              idempotency: {
-                scope,
-                key: idempotencyKey,
-                fingerprint,
-              },
+              admitted,
+              idempotencyKey: legacyIdempotencyKey,
+              commandTargetType: "room-block-create-command",
+              canonicalTargetType: "room-block",
+              resultReferenceType: "room-block",
+              commandInput: input,
+              evaluatedRisk: "medium",
             },
             {
               async create(tx) {

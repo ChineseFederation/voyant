@@ -74,13 +74,28 @@ export interface ToolActionInvocationPolicy {
   controlField: typeof TOOL_ACTION_INVOCATION_FIELD
   requiredFields: readonly (
     | "confirmed"
+    | "requestId"
     | "targetId"
     | "idempotencyKey"
     | "approvalId"
     | "idempotencyFingerprint"
   )[]
-  optionalFields: readonly ("reasonCode" | "approvalId" | "idempotencyFingerprint")[]
+  optionalFields: readonly (
+    | "reasonCode"
+    | "approvalId"
+    | "targetId"
+    | "idempotencyKey"
+    | "idempotencyFingerprint"
+  )[]
   fingerprintAlgorithm: "action-ledger-command-v1"
+  /**
+   * Generic policy targets are resolved from server-owned state after domain
+   * input validation. The client never supplies the target.
+   */
+  targetResolution?:
+    | "package-resolver"
+    | "command-target-field"
+    | "authenticated-organization-collection"
 }
 
 export interface ToolActionPolicyManifest extends ToolActionPolicyBinding {
@@ -141,7 +156,7 @@ export interface ToolManifestEntry {
 }
 
 /** Version of the manifest contract, carried so consumers degrade gracefully. */
-export const TOOL_CONTRACT_VERSION = "2026-07-23" as const
+export const TOOL_CONTRACT_VERSION = "2026-07-25" as const
 
 /**
  * A tool reachable over a versioned remote protocol rather than dispatched

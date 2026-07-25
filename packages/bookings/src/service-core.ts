@@ -7,13 +7,14 @@ import {
   appendActionLedgerMutation,
   buildCreatedTargetCommandFingerprint,
   buildIdempotencyFingerprint,
-  executeCreatedTargetCommand,
+  executeAdmittedCreatedTargetCommand,
 } from "@voyant-travel/action-ledger"
 import { actionLedgerEntries, actionMutationDetails } from "@voyant-travel/action-ledger/schema"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { authUser } from "@voyant-travel/db/schema/iam"
+import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import {
   and,
   asc,
@@ -336,6 +337,7 @@ type OptionUnitReference = typeof optionUnitsRef.$inferSelect
 export interface BookingServiceRuntime {
   eventBus?: EventBus
   actionLedgerContext?: ActionLedgerRequestContextValues
+  actionLedgerAdmitted?: ToolHandlerActionPolicyContext
   actionLedgerAuthorizationSource?: string | null
   actionLedgerCausationActionId?: string | null
   actionLedgerApprovalId?: string | null
@@ -449,28 +451,21 @@ export function buildLegacyBookingReservationCommandFingerprint(
 
 interface BookingReservationLedgerRuntime {
   context: ActionLedgerRequestContextValues
-  authorizationSource: string
-  idempotencyScope: string
+  admitted: ToolHandlerActionPolicyContext
   idempotencyKey: string
-  idempotencyFingerprint: string
   legacyIdempotencyScope: string | null
   legacyIdempotencyFingerprint: string | null
-  routeOrToolName: string
-  actionIdentity: BookingReservationActionIdentity
 }
 
 function bookingReservationLedgerRuntime(
   runtime: BookingServiceRuntime,
 ): BookingReservationLedgerRuntime | null {
-  if (!runtime.actionLedgerContext) return null
-  if (
-    !runtime.actionLedgerIdempotencyScope ||
-    !runtime.actionLedgerIdempotencyKey ||
-    !runtime.actionLedgerIdempotencyFingerprint
-  ) {
+  if (!runtime.actionLedgerContext && !runtime.actionLedgerAdmitted) return null
+  const idempotencyKey = runtime.actionLedgerAdmitted?.invocation.idempotencyKey?.trim()
+  if (!runtime.actionLedgerContext || !runtime.actionLedgerAdmitted || !idempotencyKey) {
     throw new BookingServiceError(
       "missing_idempotency_key",
-      "Audited booking reservation requires complete idempotency metadata",
+      "Audited booking reservation requires an admitted Tool invocation",
     )
   }
   const hasLegacyScope = !!runtime.actionLedgerLegacyIdempotencyScope
@@ -483,27 +478,10 @@ function bookingReservationLedgerRuntime(
   }
   return {
     context: runtime.actionLedgerContext,
-    authorizationSource:
-      runtime.actionLedgerAuthorizationSource ?? "bookings.reserve_booking.handler",
-    idempotencyScope: runtime.actionLedgerIdempotencyScope,
-    idempotencyKey: runtime.actionLedgerIdempotencyKey,
-    idempotencyFingerprint: runtime.actionLedgerIdempotencyFingerprint,
+    admitted: runtime.actionLedgerAdmitted,
+    idempotencyKey,
     legacyIdempotencyScope: runtime.actionLedgerLegacyIdempotencyScope ?? null,
     legacyIdempotencyFingerprint: runtime.actionLedgerLegacyIdempotencyFingerprint ?? null,
-    routeOrToolName: runtime.actionLedgerRouteOrToolName ?? "bookings.reserve_booking",
-    actionIdentity: {
-      actionName:
-        runtime.actionLedgerActionName ?? DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY.actionName,
-      actionVersion:
-        runtime.actionLedgerActionVersion ??
-        DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY.actionVersion,
-      capabilityId:
-        runtime.actionLedgerCapabilityId ??
-        DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY.capabilityId,
-      capabilityVersion:
-        runtime.actionLedgerCapabilityVersion ??
-        DEFAULT_BOOKING_RESERVATION_ACTION_IDENTITY.capabilityVersion,
-    },
   }
 }
 
@@ -3372,25 +3350,21 @@ export const bookingsService = {
             ledger,
             data.bookingNumber,
           )
-          const execution = await executeCreatedTargetCommand<
+          const execution = await executeAdmittedCreatedTargetCommand<
             Booking,
             typeof BOOKING_RESERVATION_RESULT_REFERENCE_TYPE
           >(
-            tx,
             {
+              db: tx,
               context: ledger.context,
-              ...bookingReservationCommand(data, ledger.actionIdentity),
-              routeOrToolName: ledger.routeOrToolName,
-              authorizationSource: ledger.authorizationSource,
-              idempotency: {
-                scope: ledger.idempotencyScope,
-                key: ledger.idempotencyKey,
-                fingerprint: ledger.idempotencyFingerprint,
-              },
-              mutationDetail: {
-                summary: `Booking reservation ${data.bookingNumber} claimed`,
-                reversalKind: "none",
-              },
+              admitted: ledger.admitted,
+              commandTargetType: BOOKING_RESERVATION_COMMAND_TARGET_TYPE,
+              commandTargetId: data.bookingNumber,
+              routeOrToolName: "bookings.reserve_booking",
+              canonicalTargetType: BOOKING_RESERVATION_CANONICAL_TARGET_TYPE,
+              resultReferenceType: BOOKING_RESERVATION_RESULT_REFERENCE_TYPE,
+              commandInput: data,
+              evaluatedRisk: BOOKING_RESERVATION_EVALUATED_RISK,
             },
             {
               async create(commandTx) {

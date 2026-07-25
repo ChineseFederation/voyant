@@ -97,16 +97,15 @@ describe("commerce created-target commands", () => {
     const routes: Array<string | null | undefined> = []
     const actionIdentities: Array<[string, string, string, string]> = []
     const executor: NonNullable<Parameters<typeof executeCommerceCreate>[7]> = async (
-      _db,
       input,
       handlers,
     ) => {
-      routes.push(input.routeOrToolName)
+      routes.push(input.admitted.capabilityId)
       actionIdentities.push([
-        input.actionName,
-        input.actionVersion,
-        input.capabilityId,
-        input.capabilityVersion,
+        input.admitted.actionPolicy.capabilityId,
+        input.admitted.actionPolicy.version,
+        input.admitted.actionPolicy.capabilityId,
+        input.admitted.actionPolicy.version,
       ])
       if (!createdId) {
         const mutation = await handlers.create(tx)

@@ -24,6 +24,8 @@ export interface ToolContext {
   audience: Visibility
   /** Tenant / operator identifier — usually synthesized into provenance. */
   tenantId: string
+  /** Authenticated organization when the grant is organization-scoped. */
+  organizationId?: string
   /** Default resolver scope for tools that need locale / audience / market. */
   resolverScope: ResolverScope
   /** Optional runtime hook to keep the isolate alive for background work. */
@@ -40,11 +42,18 @@ export interface ToolContext {
 
 export interface ToolActionInvocationControl {
   confirmed?: boolean
+  /** Opaque client request identifier used as the server-owned idempotency key. */
+  requestId?: string
+  /** Server-issued approval identifier returned by an approval preflight. */
+  approvalId?: string
+  reasonCode?: string
+  /**
+   * Compatibility controls for handler-owned policies and generic actions
+   * awaiting server-owned target migration.
+   */
   targetId?: string
   idempotencyKey?: string
-  approvalId?: string
   idempotencyFingerprint?: string
-  reasonCode?: string
 }
 
 export interface ToolActionPolicyExecutionInput {
@@ -54,6 +63,8 @@ export interface ToolActionPolicyExecutionInput {
   actionPolicy: import("./binding.js").ToolActionPolicyManifest
   commandInput: unknown
   invocation: ToolActionInvocationControl
+  /** Package-owned target resolved from already validated command input. */
+  resolvedTargetId?: string
 }
 
 export type ToolHandlerActionPolicyContext = Readonly<

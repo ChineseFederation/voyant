@@ -434,6 +434,7 @@ export const financeVoyantModule = defineModule({
       version: "v1",
       kind: "execute",
       targetType: "invoice",
+      commandTargetField: "id",
       resource: "finance",
       action: "void",
       requiredScopes: ["finance:void"],
