@@ -18,12 +18,24 @@ import { z } from "zod"
 export { mediaAssetTypeSchema }
 export type MediaAssetType = z.infer<typeof mediaAssetTypeSchema>
 
+export const mediaAssetTranslationSchema = z.object({
+  assetId: z.string(),
+  languageTag: z.string(),
+  altText: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+export type MediaAssetTranslation = z.infer<typeof mediaAssetTranslationSchema>
+
 export const mediaAssetSchema = z.object({
   id: z.string(),
   type: mediaAssetTypeSchema,
   name: z.string(),
-  alt: z.string().nullable(),
+  altText: z.string().nullable(),
+  defaultLanguageTag: z.string(),
+  altTranslations: z.array(mediaAssetTranslationSchema),
   storageKey: z.string(),
+  url: z.string().nullable(),
   mimeType: z.string().nullable(),
   fileSize: z.number().nullable(),
   checksum: z.string(),
@@ -37,6 +49,41 @@ export const mediaAssetSchema = z.object({
   updatedAt: z.string(),
 })
 export type MediaAsset = z.infer<typeof mediaAssetSchema>
+
+/**
+ * Resolve localized alternative text with a deterministic fallback:
+ * requested language, caller-supplied fallback languages, then the asset's
+ * default-language text.
+ */
+export function resolveMediaAltText(
+  asset: Pick<MediaAsset, "altText" | "defaultLanguageTag" | "altTranslations">,
+  languageTag?: string | null,
+  fallbackLanguageTags: readonly string[] = [],
+): string | null {
+  const requested = [
+    ...new Set(
+      [languageTag, ...fallbackLanguageTags]
+        .filter((value): value is string => Boolean(value?.trim()))
+        .flatMap((value) => {
+          const normalized = value.trim().toLowerCase()
+          const base = normalized.split("-")[0]
+          return base && base !== normalized ? [normalized, base] : [normalized]
+        }),
+    ),
+  ]
+
+  for (const tag of requested) {
+    if (tag === asset.defaultLanguageTag.toLowerCase() && asset.altText) {
+      return asset.altText
+    }
+    const translation = asset.altTranslations.find(
+      (candidate) => candidate.languageTag.toLowerCase() === tag,
+    )
+    if (translation?.altText) return translation.altText
+  }
+
+  return asset.altText ?? asset.altTranslations[0]?.altText ?? null
+}
 
 export const mediaFolderSchema = z.object({
   id: z.string(),

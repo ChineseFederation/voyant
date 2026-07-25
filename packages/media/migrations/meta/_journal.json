@@ -8,6 +8,13 @@
       "when": 1784489413001,
       "tag": "20260719193013_media_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784960435888,
+      "tag": "20260725062035_media_alt_text_localization",
+      "breakpoints": true
     }
   ]
 }

@@ -17,7 +17,7 @@ import * as React from "react"
 
 import { useAssetUpload } from "../hooks/use-asset-upload.js"
 import { useMediaAssets } from "../hooks/use-media-assets.js"
-import { useMediaUiMessagesOrDefault } from "../i18n/provider.js"
+import { useMediaUiI18nOrDefault } from "../i18n/provider.js"
 import { useVoyantMediaContext } from "../provider.js"
 import type { MediaAssetsListFilters } from "../query-keys.js"
 import type { MediaAsset, MediaAssetType } from "../schemas.js"
@@ -54,7 +54,7 @@ export function MediaLibrary({
   pageSize = 60,
   className,
 }: MediaLibraryProps) {
-  const messages = useMediaUiMessagesOrDefault()
+  const { messages, locale } = useMediaUiI18nOrDefault()
   const library = messages.library
   const { baseUrl } = useVoyantMediaContext()
 
@@ -84,6 +84,7 @@ export function MediaLibrary({
         file,
         type: type ?? inferAssetType(file.type),
         name: file.name,
+        defaultLanguageTag: locale,
         mimeType: file.type || undefined,
         folderIds: folderId ? [folderId] : undefined,
       })
@@ -173,6 +174,7 @@ export function MediaLibrary({
                       asset={asset}
                       url={urlFor(asset)}
                       selected={asset.id === selectedId}
+                      languageTag={locale}
                       onSelect={() => setSelectedId(asset.id)}
                     />
                   ))}
@@ -191,7 +193,11 @@ export function MediaLibrary({
                         )}
                       >
                         <span className="size-10 shrink-0 overflow-hidden rounded-sm border">
-                          <MediaAssetThumbnail asset={asset} url={urlFor(asset)} />
+                          <MediaAssetThumbnail
+                            asset={asset}
+                            url={urlFor(asset)}
+                            languageTag={locale}
+                          />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{asset.name}</span>

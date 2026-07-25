@@ -20,7 +20,11 @@ export const ACCEPT_BY_TYPE: Record<MediaAssetType, string> = {
  * override via the `resolveAssetUrl` prop when their deployment serves media
  * from a different origin/CDN.
  */
-export function defaultAssetUrl(asset: Pick<MediaAsset, "storageKey">, baseUrl: string): string {
+export function defaultAssetUrl(
+  asset: Pick<MediaAsset, "storageKey" | "url">,
+  baseUrl: string,
+): string {
+  if (asset.url) return asset.url
   const trimmed = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
   return `${trimmed}/v1/admin/media/${asset.storageKey}`
 }

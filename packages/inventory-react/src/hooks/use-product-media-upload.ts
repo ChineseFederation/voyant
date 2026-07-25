@@ -15,6 +15,7 @@ import { useProductMediaMutation } from "./use-product-media-mutation.js"
  * the library must mirror it too.
  */
 function assetByteUrl(baseUrl: string, asset: MediaAsset): string {
+  if (asset.url) return asset.url
   const trimmed = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
   return `${trimmed}/v1/admin/media/${asset.storageKey}` // i18n-literal-ok byte-serving route
 }
@@ -83,7 +84,7 @@ export function useProductMediaUpload() {
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
-          altText: asset.alt,
+          altText: asset.altText,
           assetId: asset.id,
           sortOrder,
           isCover: resolvedType === "image" ? (isCover ?? false) : false,

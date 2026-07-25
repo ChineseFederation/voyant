@@ -22,12 +22,15 @@ import {
   createMediaAsset,
   createMediaFolder,
   deleteMediaAsset,
+  getMediaAsset,
   listAssetFolderIds,
   listAssetUsage,
+  listMediaAssets,
   MediaError,
   recordAssetUsage,
   removeAssetFromFolder,
   removeAssetUsage,
+  updateMediaAsset,
 } from "./service.js"
 
 const migrationsDir = fileURLToPath(new URL("../migrations/", import.meta.url))
@@ -41,7 +44,12 @@ function loadBaselineSql(): string {
 }
 
 /** Minimal metadata for an image asset under test. */
-const imageInput = { type: "image", name: "beach.jpg", mimeType: "image/jpeg" } as const
+const imageInput = {
+  type: "image",
+  name: "beach.jpg",
+  mimeType: "image/jpeg",
+  defaultLanguageTag: "en",
+} as const
 
 function bytesOf(text: string): Uint8Array {
   return new TextEncoder().encode(text)
@@ -66,7 +74,10 @@ describe("@voyant-travel/media service (pglite)", () => {
     client = new PGlite()
     await client.exec(loadBaselineSql())
     db = asServiceDb(drizzle(client, { schema }))
-    storage = createLocalStorageProvider({ name: "memory:media" })
+    storage = createLocalStorageProvider({
+      name: "memory:media",
+      baseUrl: "https://cdn.example.test/",
+    })
   })
 
   afterEach(async () => {
@@ -167,5 +178,53 @@ describe("@voyant-travel/media service (pglite)", () => {
     const products = await listAssetUsage(db, { entityType: "product", limit: 50, offset: 0 })
     expect(products.total).toBe(2)
     expect(products.data.every((row) => row.entityType === "product")).toBe(true)
+  })
+
+  it("persists a canonical delivery URL and localized alt text", async () => {
+    const { asset } = await createMediaAsset(
+      db,
+      storage,
+      {
+        ...imageInput,
+        altText: "Plaja la apus",
+        defaultLanguageTag: "ro",
+        altTranslations: [{ languageTag: "en", altText: "Beach at sunset" }],
+      },
+      bytesOf("localized-media"),
+    )
+
+    expect(asset.url).toBe(`https://cdn.example.test/${asset.storageKey}`)
+    expect(asset.altText).toBe("Plaja la apus")
+    expect(asset.defaultLanguageTag).toBe("ro")
+    expect(asset.altTranslations).toEqual([
+      expect.objectContaining({
+        assetId: asset.id,
+        languageTag: "en",
+        altText: "Beach at sunset",
+      }),
+    ])
+
+    const updated = await updateMediaAsset(db, asset.id, {
+      altTranslations: [
+        { languageTag: "en", altText: "Sunset beach" },
+        { languageTag: "de", altText: "Strand bei Sonnenuntergang" },
+      ],
+    })
+    expect(
+      updated?.altTranslations.map(({ languageTag, altText }) => ({ languageTag, altText })),
+    ).toEqual([
+      { languageTag: "de", altText: "Strand bei Sonnenuntergang" },
+      { languageTag: "en", altText: "Sunset beach" },
+    ])
+
+    expect((await getMediaAsset(db, asset.id))?.altTranslations).toHaveLength(2)
+    const listed = await listMediaAssets(db, { limit: 50, offset: 0 })
+    expect(listed.data[0]?.altTranslations).toHaveLength(2)
+
+    await expect(
+      updateMediaAsset(db, asset.id, {
+        defaultLanguageTag: "en",
+      }),
+    ).rejects.toMatchObject({ code: "invalid_alt_translation" })
   })
 })

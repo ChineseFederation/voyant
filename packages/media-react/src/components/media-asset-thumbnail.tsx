@@ -4,11 +4,12 @@ import { cn } from "@voyant-travel/ui/lib/utils"
 import { FileText, Film, ImageOff } from "lucide-react"
 import * as React from "react"
 
-import type { MediaAsset } from "../schemas.js"
+import { type MediaAsset, resolveMediaAltText } from "../schemas.js"
 
 export interface MediaAssetThumbnailProps {
   asset: MediaAsset
   url: string
+  languageTag?: string
   className?: string
 }
 
@@ -20,7 +21,12 @@ export interface MediaAssetThumbnailProps {
  * browser's broken-image glyph. Purely presentational — no user-facing copy (the
  * alt text comes from the asset).
  */
-export function MediaAssetThumbnail({ asset, url, className }: MediaAssetThumbnailProps) {
+export function MediaAssetThumbnail({
+  asset,
+  url,
+  languageTag,
+  className,
+}: MediaAssetThumbnailProps) {
   // Tiles are keyed by asset id, so a new asset remounts this component and
   // clears the error state — no reset effect needed.
   const [errored, setErrored] = React.useState(false)
@@ -29,7 +35,7 @@ export function MediaAssetThumbnail({ asset, url, className }: MediaAssetThumbna
     return (
       <img
         src={url}
-        alt={asset.alt ?? asset.name}
+        alt={resolveMediaAltText(asset, languageTag) ?? asset.name}
         className={cn("h-full w-full object-cover", className)}
         draggable={false}
         loading="lazy"

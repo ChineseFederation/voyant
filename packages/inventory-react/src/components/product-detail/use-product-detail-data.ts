@@ -158,13 +158,13 @@ export function useProductDetailData(productId: string): UseProductDetailDataRes
         await api.post(endpoint, {
           mediaType: asset.type,
           name: asset.name,
-          url: `/api/v1/admin/media/${asset.storageKey}`,
+          url: asset.url ?? `/api/v1/admin/media/${asset.storageKey}`,
           storageKey: asset.storageKey,
           mimeType: asset.mimeType,
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
-          altText: asset.alt,
+          altText: asset.altText,
           assetId: asset.id,
         })
       }

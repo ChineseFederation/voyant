@@ -124,6 +124,7 @@ export function ProductMediaSection({
   // Mirror `defaultAssetUrl` from media-react: raw asset bytes are served by
   // `@voyant-travel/storage` at `GET /v1/admin/media/{storageKey}`.
   const assetByteUrl = (asset: MediaAsset) => {
+    if (asset.url) return asset.url
     const trimmed = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
     return `${trimmed}/v1/admin/media/${asset.storageKey}` // i18n-literal-ok byte-serving route
   }
@@ -148,7 +149,7 @@ export function ProductMediaSection({
           fileSize: asset.fileSize,
           width: asset.width,
           height: asset.height,
-          altText: asset.alt,
+          altText: asset.altText,
           assetId: asset.id,
           sortOrder: media.length + offset,
           isCover: assignCover,

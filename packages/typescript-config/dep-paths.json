@@ -1365,6 +1365,7 @@
       "@voyant-travel/media-react/ui": ["../media-react/dist/ui.d.ts"],
       "@voyant-travel/media/graph-runtime": ["../media/dist/graph-runtime.d.ts"],
       "@voyant-travel/media/routes": ["../media/dist/routes.d.ts"],
+      "@voyant-travel/media/runtime-port": ["../media/dist/runtime-port.d.ts"],
       "@voyant-travel/media/schema": ["../media/dist/schema.d.ts"],
       "@voyant-travel/media/service": ["../media/dist/service.d.ts"],
       "@voyant-travel/media/validation": ["../media/dist/validation.d.ts"],

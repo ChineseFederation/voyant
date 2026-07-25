@@ -88,6 +88,7 @@ function MediaOverlayEditor({
   // Mirrors `defaultAssetUrl` in media-react: library bytes are served by
   // `@voyant-travel/storage` at `GET /v1/admin/media/{storageKey}`.
   const assetByteUrl = (asset: MediaAsset) => {
+    if (asset.url) return asset.url
     const trimmed = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
     return `${trimmed}/v1/admin/media/${asset.storageKey}` // i18n-literal-ok byte-serving route
   }
@@ -99,7 +100,7 @@ function MediaOverlayEditor({
         assets.map((asset) => ({
           url: assetByteUrl(asset),
           type: asset.type === "video" ? "video" : "image",
-          alt: asset.alt ?? null,
+          alt: asset.altText ?? null,
         })),
       )
     } else {

@@ -23,13 +23,13 @@ vi.mock("@voyant-travel/media-react/ui", () => ({
     onSelect,
   }: {
     open?: boolean
-    onSelect: (assets: Array<{ storageKey: string; type: string; alt: string | null }>) => void
+    onSelect: (assets: Array<{ storageKey: string; type: string; altText: string | null }>) => void
   }) =>
     open ? (
       <button
         type="button"
         data-testid="media-picker-open"
-        onClick={() => onSelect([{ storageKey: "asset_1.jpg", type: "image", alt: null }])}
+        onClick={() => onSelect([{ storageKey: "asset_1.jpg", type: "image", altText: null }])}
       >
         pick
       </button>

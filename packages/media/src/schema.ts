@@ -16,7 +16,15 @@
 
 import { typeId } from "@voyant-travel/db/lib/typeid-column"
 import { sql } from "drizzle-orm"
-import { integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
+import {
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core"
 
 /** The kind of asset stored in the library. */
 export type MediaAssetType = "image" | "video" | "document"
@@ -32,10 +40,14 @@ export const mediaAsset = pgTable(
     /** `image | video | document` — kept as text (no pg enum / CREATE TYPE). */
     type: text("type").$type<MediaAssetType>().notNull(),
     name: text("name").notNull(),
-    /** Accessible alternative text (images) — nullable. */
-    alt: text("alt"),
+    /** Accessible alternative text in `defaultLanguageTag` — nullable. */
+    altText: text("alt"),
+    /** Language of the base `altText`; localized alternatives live below. */
+    defaultLanguageTag: text("default_language_tag").notNull().default("en"),
     /** Object key inside the resolved `"media"` StorageProvider. */
     storageKey: text("storage_key").notNull(),
+    /** Stable public delivery URL returned by the selected storage provider. */
+    url: text("url"),
     mimeType: text("mime_type"),
     /** Size in bytes. */
     fileSize: integer("file_size"),
@@ -66,6 +78,33 @@ export const mediaAsset = pgTable(
 
 export type MediaAsset = typeof mediaAsset.$inferSelect
 export type NewMediaAsset = typeof mediaAsset.$inferInsert
+
+/**
+ * Localized alternative text for an asset. The base language stays on
+ * `media_asset` so existing consumers retain a cheap fallback; every additional
+ * language is keyed by `(assetId, languageTag)`.
+ */
+export const mediaAssetTranslation = pgTable(
+  "media_asset_translation",
+  {
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => mediaAsset.id, { onDelete: "cascade" }),
+    languageTag: text("language_tag").notNull(),
+    altText: text("alt_text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: "pk_media_asset_translation",
+      columns: [table.assetId, table.languageTag],
+    }),
+  ],
+)
+
+export type MediaAssetTranslation = typeof mediaAssetTranslation.$inferSelect
+export type NewMediaAssetTranslation = typeof mediaAssetTranslation.$inferInsert
 
 /**
  * A folder in the library tree. `parentId` is a plain self-referencing text id

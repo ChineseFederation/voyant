@@ -17,9 +17,11 @@ import {
   type AssetUsage,
   assetUsage,
   type MediaAsset,
+  type MediaAssetTranslation,
   type MediaFolder,
   type MediaFolderMember,
   mediaAsset,
+  mediaAssetTranslation,
   mediaFolder,
   mediaFolderMember,
 } from "./schema.js"
@@ -35,7 +37,7 @@ import type {
 } from "./validation.js"
 
 /** Stable, machine-readable failure codes surfaced by the service. */
-export type MediaErrorCode = "asset_in_use" | "not_found"
+export type MediaErrorCode = "asset_in_use" | "invalid_alt_translation" | "not_found"
 
 /** Domain error with a stable `code` the routes map to HTTP status codes. */
 export class MediaError extends Error {
@@ -49,8 +51,12 @@ export class MediaError extends Error {
 
 /** Result of {@link createMediaAsset}. `deduped` is true on a checksum hit. */
 export interface CreateMediaAssetResult {
-  asset: MediaAsset
+  asset: MediaAssetWithTranslations
   deduped: boolean
+}
+
+export type MediaAssetWithTranslations = MediaAsset & {
+  altTranslations: MediaAssetTranslation[]
 }
 
 /** All object keys minted by the library live under this servable prefix. */
@@ -101,9 +107,71 @@ export async function computeChecksum(body: StorageUploadBody): Promise<string> 
 async function findAssetByChecksum(
   db: PostgresJsDatabase,
   checksum: string,
-): Promise<MediaAsset | null> {
+): Promise<MediaAssetWithTranslations | null> {
   const [row] = await db.select().from(mediaAsset).where(eq(mediaAsset.checksum, checksum)).limit(1)
-  return row ?? null
+  return row ? attachTranslations(db, [row]).then((assets) => assets[0] ?? null) : null
+}
+
+async function attachTranslations(
+  db: PostgresJsDatabase,
+  assets: MediaAsset[],
+): Promise<MediaAssetWithTranslations[]> {
+  if (assets.length === 0) return []
+
+  const translations = await db
+    .select()
+    .from(mediaAssetTranslation)
+    .where(
+      inArray(
+        mediaAssetTranslation.assetId,
+        assets.map((asset) => asset.id),
+      ),
+    )
+    .orderBy(mediaAssetTranslation.languageTag)
+
+  const byAssetId = new Map<string, MediaAssetTranslation[]>()
+  for (const translation of translations) {
+    const current = byAssetId.get(translation.assetId) ?? []
+    current.push(translation)
+    byAssetId.set(translation.assetId, current)
+  }
+
+  return assets.map((asset) => ({
+    ...asset,
+    altTranslations: byAssetId.get(asset.id) ?? [],
+  }))
+}
+
+async function replaceAltTranslations(
+  db: PostgresJsDatabase,
+  assetId: string,
+  translations: CreateMediaAssetInput["altTranslations"],
+): Promise<void> {
+  await db.delete(mediaAssetTranslation).where(eq(mediaAssetTranslation.assetId, assetId))
+  if (!translations?.length) return
+
+  await db.insert(mediaAssetTranslation).values(
+    translations.map((translation) => ({
+      assetId,
+      languageTag: translation.languageTag,
+      altText: translation.altText,
+    })),
+  )
+}
+
+function assertAltTranslationsExcludeDefault(
+  defaultLanguageTag: string,
+  translations: readonly { languageTag: string }[] | undefined,
+): void {
+  const normalizedDefault = defaultLanguageTag.toLowerCase()
+  if (
+    translations?.some((translation) => translation.languageTag.toLowerCase() === normalizedDefault)
+  ) {
+    throw new MediaError(
+      "invalid_alt_translation",
+      "The default language belongs in altText, not altTranslations",
+    )
+  }
 }
 
 /**
@@ -118,6 +186,9 @@ export async function createMediaAsset(
   input: CreateMediaAssetInput,
   body: StorageUploadBody,
 ): Promise<CreateMediaAssetResult> {
+  const defaultLanguageTag = input.defaultLanguageTag ?? "en"
+  assertAltTranslationsExcludeDefault(defaultLanguageTag, input.altTranslations)
+
   const bytes = await toBytes(body)
   const checksum = await computeChecksum(bytes)
 
@@ -127,7 +198,7 @@ export async function createMediaAsset(
   }
 
   const storageKey = `${MEDIA_STORAGE_KEY_PREFIX}${checksum}${storageKeyExtension(input.mimeType)}`
-  await storage.upload(bytes, {
+  const stored = await storage.upload(bytes, {
     key: storageKey,
     ...(input.mimeType ? { contentType: input.mimeType } : {}),
   })
@@ -138,8 +209,10 @@ export async function createMediaAsset(
       .values({
         type: input.type,
         name: input.name,
-        alt: input.alt ?? null,
+        altText: input.altText ?? null,
+        defaultLanguageTag,
         storageKey,
+        url: stored.url || null,
         mimeType: input.mimeType ?? null,
         fileSize: bytes.byteLength,
         checksum,
@@ -157,8 +230,11 @@ export async function createMediaAsset(
     if (input.folderIds?.length) {
       await addAssetToFolders(db, created.id, input.folderIds)
     }
+    await replaceAltTranslations(db, created.id, input.altTranslations)
 
-    return { asset: created, deduped: false }
+    const [asset] = await attachTranslations(db, [created])
+    if (!asset) throw new MediaError("not_found", "Failed to load created media asset")
+    return { asset, deduped: false }
   } catch (error) {
     // Lost a race with a concurrent identical upload: the unique checksum index
     // rejected our insert. Fall back to the row the winner created.
@@ -171,9 +247,11 @@ export async function createMediaAsset(
 export async function getMediaAsset(
   db: PostgresJsDatabase,
   id: string,
-): Promise<MediaAsset | null> {
+): Promise<MediaAssetWithTranslations | null> {
   const [row] = await db.select().from(mediaAsset).where(eq(mediaAsset.id, id)).limit(1)
-  return row ?? null
+  if (!row) return null
+  const [asset] = await attachTranslations(db, [row])
+  return asset ?? null
 }
 
 /** Paginated list/search over assets. Filters combine with AND. */
@@ -207,7 +285,7 @@ export async function listMediaAssets(db: PostgresJsDatabase, query: ListMediaAs
     db.select({ count: sql<number>`count(*)::int` }).from(mediaAsset).where(where),
   ])
 
-  return listResponse(rows, {
+  return listResponse(await attachTranslations(db, rows), {
     total: counted?.count ?? 0,
     limit: query.limit,
     offset: query.offset,
@@ -222,16 +300,22 @@ export async function updateMediaAsset(
   db: PostgresJsDatabase,
   id: string,
   patch: UpdateMediaAssetInput,
-): Promise<MediaAsset | null> {
+): Promise<MediaAssetWithTranslations | null> {
   const existing = await getMediaAsset(db, id)
   if (!existing) return null
+  const defaultLanguageTag = patch.defaultLanguageTag ?? existing.defaultLanguageTag
+  const altTranslations = patch.altTranslations ?? existing.altTranslations
+  assertAltTranslationsExcludeDefault(defaultLanguageTag, altTranslations)
 
   const values: Partial<typeof mediaAsset.$inferInsert> = {}
   if (patch.name !== undefined) values.name = patch.name
-  if (patch.alt !== undefined) values.alt = patch.alt ?? null
+  if (patch.altText !== undefined) values.altText = patch.altText ?? null
+  if (patch.defaultLanguageTag !== undefined) {
+    values.defaultLanguageTag = patch.defaultLanguageTag
+  }
   if (patch.tags !== undefined) values.tags = patch.tags
 
-  let updated = existing
+  let updated: MediaAsset = existing
   if (Object.keys(values).length > 0) {
     const [row] = await db
       .update(mediaAsset)
@@ -244,8 +328,12 @@ export async function updateMediaAsset(
   if (patch.folderIds !== undefined) {
     await setAssetFolders(db, id, patch.folderIds)
   }
+  if (patch.altTranslations !== undefined) {
+    await replaceAltTranslations(db, id, patch.altTranslations)
+  }
 
-  return updated
+  const [asset] = await attachTranslations(db, [updated])
+  return asset ?? null
 }
 
 /**
@@ -257,7 +345,7 @@ export async function deleteMediaAsset(
   db: PostgresJsDatabase,
   storage: StorageProvider,
   id: string,
-): Promise<MediaAsset | null> {
+): Promise<MediaAssetWithTranslations | null> {
   const existing = await getMediaAsset(db, id)
   if (!existing) return null
 
@@ -270,9 +358,9 @@ export async function deleteMediaAsset(
   }
 
   await db.delete(mediaFolderMember).where(eq(mediaFolderMember.assetId, id))
-  const [deleted] = await db.delete(mediaAsset).where(eq(mediaAsset.id, id)).returning()
+  await db.delete(mediaAsset).where(eq(mediaAsset.id, id))
   await storage.delete(existing.storageKey)
-  return deleted ?? null
+  return existing
 }
 
 // ──────────────────────────────────────────────────────────────────

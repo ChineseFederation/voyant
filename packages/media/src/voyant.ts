@@ -10,6 +10,8 @@
 import { defineModule, requirePort } from "@voyant-travel/core/project"
 import { storageMediaRuntimePort } from "@voyant-travel/storage/runtime-port"
 
+import { mediaSiteClientAuthRuntimePort } from "./runtime-port.js"
+
 const schemaSource = "@voyant-travel/media/schema"
 
 /** Import-cheap deployment declaration owned by the media package. */
@@ -17,7 +19,10 @@ export const mediaVoyantModule = defineModule({
   id: "@voyant-travel/media",
   packageName: "@voyant-travel/media",
   localId: "media",
-  runtimePorts: [requirePort(storageMediaRuntimePort)],
+  runtimePorts: [
+    requirePort(storageMediaRuntimePort),
+    requirePort(mediaSiteClientAuthRuntimePort, { optional: true }),
+  ],
   api: [
     {
       id: "@voyant-travel/media#api.admin",

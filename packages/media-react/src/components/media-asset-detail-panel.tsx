@@ -42,7 +42,14 @@ export function MediaAssetDetailPanel({
   const usage = useAssetUsage(asset.id)
 
   const [name, setName] = React.useState(asset.name)
-  const [alt, setAlt] = React.useState(asset.alt ?? "")
+  const [altText, setAltText] = React.useState(asset.altText ?? "")
+  const [defaultLanguageTag, setDefaultLanguageTag] = React.useState(asset.defaultLanguageTag)
+  const [altTranslations, setAltTranslations] = React.useState(
+    asset.altTranslations.map(({ languageTag, altText: translatedAltText }) => ({
+      languageTag,
+      altText: translatedAltText,
+    })),
+  )
   const [tagsInput, setTagsInput] = React.useState(asset.tags.join(", "))
   const [status, setStatus] = React.useState<"idle" | "saved">("idle")
   const [errorText, setErrorText] = React.useState<string | null>(null)
@@ -52,7 +59,14 @@ export function MediaAssetDetailPanel({
   // Reset the form whenever a different asset is selected.
   React.useEffect(() => {
     setName(asset.name)
-    setAlt(asset.alt ?? "")
+    setAltText(asset.altText ?? "")
+    setDefaultLanguageTag(asset.defaultLanguageTag)
+    setAltTranslations(
+      asset.altTranslations.map(({ languageTag, altText: translatedAltText }) => ({
+        languageTag,
+        altText: translatedAltText,
+      })),
+    )
     setTagsInput(asset.tags.join(", "))
     setStatus("idle")
     setErrorText(null)
@@ -67,7 +81,14 @@ export function MediaAssetDetailPanel({
         assetId: asset.id,
         input: {
           name: name.trim() || asset.name,
-          alt: alt.trim() ? alt.trim() : null,
+          altText: altText.trim() ? altText.trim() : null,
+          defaultLanguageTag: defaultLanguageTag.trim(),
+          altTranslations: altTranslations
+            .map((translation) => ({
+              languageTag: translation.languageTag.trim(),
+              altText: translation.altText.trim(),
+            }))
+            .filter((translation) => translation.languageTag && translation.altText),
           tags: tagsInput
             .split(",")
             .map((tag) => tag.trim())
@@ -118,14 +139,94 @@ export function MediaAssetDetailPanel({
       </div>
 
       <div className="flex flex-col gap-1.5">
+        <Label htmlFor="media-asset-default-language">{detail.defaultLanguageLabel}</Label>
+        <Input
+          id="media-asset-default-language"
+          value={defaultLanguageTag}
+          placeholder={detail.languageTagPlaceholder}
+          onChange={(event) => setDefaultLanguageTag(event.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="media-asset-alt">{detail.altLabel}</Label>
         <Textarea
           id="media-asset-alt"
-          value={alt}
+          value={altText}
           rows={2}
           placeholder={detail.altPlaceholder}
-          onChange={(event) => setAlt(event.target.value)}
+          onChange={(event) => setAltText(event.target.value)}
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div>
+          <Label>{detail.translationsTitle}</Label>
+          <p className="text-xs text-muted-foreground">{detail.translationsHint}</p>
+        </div>
+        {altTranslations.map((translation, index) => (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: unsaved translation rows have no persistent id yet
+            key={index}
+            className="grid grid-cols-[7rem_1fr_auto] items-end gap-2"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`media-asset-alt-language-${index}`}>{detail.languageTagLabel}</Label>
+              <Input
+                id={`media-asset-alt-language-${index}`}
+                value={translation.languageTag}
+                placeholder={detail.languageTagPlaceholder}
+                onChange={(event) =>
+                  setAltTranslations((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, languageTag: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`media-asset-alt-translation-${index}`}>
+                {detail.translatedAltLabel}
+              </Label>
+              <Input
+                id={`media-asset-alt-translation-${index}`}
+                value={translation.altText}
+                onChange={(event) =>
+                  setAltTranslations((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, altText: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={detail.removeTranslation}
+              onClick={() =>
+                setAltTranslations((current) =>
+                  current.filter((_, itemIndex) => itemIndex !== index),
+                )
+              }
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="self-start"
+          onClick={() =>
+            setAltTranslations((current) => [...current, { languageTag: "", altText: "" }])
+          }
+        >
+          {detail.addTranslation}
+        </Button>
       </div>
 
       <div className="flex flex-col gap-1.5">

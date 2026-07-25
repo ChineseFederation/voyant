@@ -12,38 +12,101 @@ export const mediaAssetTypeSchema = z.enum(["image", "video", "document"])
 export type MediaAssetTypeInput = z.infer<typeof mediaAssetTypeSchema>
 
 const tagsSchema = z.array(z.string().trim().min(1).max(64)).max(64)
+export const mediaLanguageTagSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(35)
+  .regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/)
+
+export const mediaAltTranslationSchema = z.object({
+  languageTag: mediaLanguageTagSchema,
+  altText: z.string().trim().min(1).max(1_024),
+})
+export type MediaAltTranslationInput = z.infer<typeof mediaAltTranslationSchema>
+
+const mediaAltTranslationsSchema = z
+  .array(mediaAltTranslationSchema)
+  .max(64)
+  .superRefine((translations, context) => {
+    const seen = new Set<string>()
+    for (const [index, translation] of translations.entries()) {
+      const canonical = translation.languageTag.toLowerCase()
+      if (seen.has(canonical)) {
+        context.addIssue({
+          code: "custom",
+          message: "Language tags must be unique",
+          path: [index, "languageTag"],
+        })
+      }
+      seen.add(canonical)
+    }
+  })
 
 /**
  * Metadata supplied when creating an asset. The bytes themselves are passed to
  * the service out-of-band (multipart upload / buffer); dedup is computed from
  * the bytes, not from this metadata.
  */
-export const createMediaAssetSchema = z.object({
-  type: mediaAssetTypeSchema,
-  name: z.string().trim().min(1).max(255),
-  alt: z.string().max(1_024).nullish(),
-  mimeType: z.string().max(255).nullish(),
-  tags: tagsSchema.optional(),
-  width: z.number().int().positive().nullish(),
-  height: z.number().int().positive().nullish(),
-  durationMs: z.number().int().nonnegative().nullish(),
-  providerMeta: z.record(z.string(), z.unknown()).nullish(),
-  createdBy: z.string().max(255).nullish(),
-  /** Optional initial folder membership. */
-  folderIds: z.array(z.string().trim().min(1)).max(64).optional(),
-})
+export const createMediaAssetSchema = z
+  .object({
+    type: mediaAssetTypeSchema,
+    name: z.string().trim().min(1).max(255),
+    altText: z.string().trim().max(1_024).nullish(),
+    defaultLanguageTag: mediaLanguageTagSchema.default("en"),
+    altTranslations: mediaAltTranslationsSchema.optional(),
+    mimeType: z.string().max(255).nullish(),
+    tags: tagsSchema.optional(),
+    width: z.number().int().positive().nullish(),
+    height: z.number().int().positive().nullish(),
+    durationMs: z.number().int().nonnegative().nullish(),
+    providerMeta: z.record(z.string(), z.unknown()).nullish(),
+    createdBy: z.string().max(255).nullish(),
+    /** Optional initial folder membership. */
+    folderIds: z.array(z.string().trim().min(1)).max(64).optional(),
+  })
+  .superRefine((input, context) => {
+    const baseLanguage = input.defaultLanguageTag.toLowerCase()
+    const duplicateIndex = input.altTranslations?.findIndex(
+      (translation) => translation.languageTag.toLowerCase() === baseLanguage,
+    )
+    if (duplicateIndex !== undefined && duplicateIndex >= 0) {
+      context.addIssue({
+        code: "custom",
+        message: "The default language belongs in altText, not altTranslations",
+        path: ["altTranslations", duplicateIndex, "languageTag"],
+      })
+    }
+  })
 export type CreateMediaAssetInput = z.infer<typeof createMediaAssetSchema>
 
 /**
  * Editable asset fields. `folderIds`, when present, *replaces* the asset's
  * folder membership set.
  */
-export const updateMediaAssetSchema = z.object({
-  name: z.string().trim().min(1).max(255).optional(),
-  alt: z.string().max(1_024).nullish(),
-  tags: tagsSchema.optional(),
-  folderIds: z.array(z.string().trim().min(1)).max(64).optional(),
-})
+export const updateMediaAssetSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255).optional(),
+    altText: z.string().trim().max(1_024).nullish(),
+    defaultLanguageTag: mediaLanguageTagSchema.optional(),
+    altTranslations: mediaAltTranslationsSchema.optional(),
+    tags: tagsSchema.optional(),
+    folderIds: z.array(z.string().trim().min(1)).max(64).optional(),
+  })
+  .superRefine((input, context) => {
+    if (!input.defaultLanguageTag) return
+    const baseLanguage = input.defaultLanguageTag.toLowerCase()
+    const duplicateIndex = input.altTranslations?.findIndex(
+      (translation) => translation.languageTag.toLowerCase() === baseLanguage,
+    )
+    if (duplicateIndex !== undefined && duplicateIndex >= 0) {
+      context.addIssue({
+        code: "custom",
+        message: "The default language belongs in altText, not altTranslations",
+        path: ["altTranslations", duplicateIndex, "languageTag"],
+      })
+    }
+  })
 export type UpdateMediaAssetInput = z.infer<typeof updateMediaAssetSchema>
 
 /** Filters + pagination for the asset list/search endpoint. */

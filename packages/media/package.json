@@ -11,6 +11,7 @@
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
     "./graph-runtime": "./src/graph-runtime.ts",
+    "./runtime-port": "./src/runtime-port.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/media-library.json"
   },
@@ -19,8 +20,9 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
     "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "biome check src/",
+    "lint": "biome check src/ scripts/",
     "test": "vitest run --exclude='dist/**'",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts && biome format --write openapi/admin/media-library.json",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --prefix=timestamp --name=media_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
   "dependencies": {
@@ -80,6 +82,11 @@
         "types": "./dist/graph-runtime.d.ts",
         "import": "./dist/graph-runtime.js",
         "default": "./dist/graph-runtime.js"
+      },
+      "./runtime-port": {
+        "types": "./dist/runtime-port.d.ts",
+        "import": "./dist/runtime-port.js",
+        "default": "./dist/runtime-port.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",

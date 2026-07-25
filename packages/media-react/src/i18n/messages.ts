@@ -70,6 +70,14 @@ export type MediaUiMessages = {
       namePlaceholder: string
       altLabel: string
       altPlaceholder: string
+      defaultLanguageLabel: string
+      languageTagPlaceholder: string
+      translationsTitle: string
+      translationsHint: string
+      languageTagLabel: string
+      addTranslation: string
+      removeTranslation: string
+      translatedAltLabel: string
       tagsLabel: string
       tagsPlaceholder: string
       tagsHint: string

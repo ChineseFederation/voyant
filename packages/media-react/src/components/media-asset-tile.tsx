@@ -5,7 +5,7 @@ import { cn } from "@voyant-travel/ui/lib/utils"
 import { Check } from "lucide-react"
 
 import { useMediaUiMessagesOrDefault } from "../i18n/provider.js"
-import type { MediaAsset } from "../schemas.js"
+import { type MediaAsset, resolveMediaAltText } from "../schemas.js"
 import { MediaAssetThumbnail } from "./media-asset-thumbnail.js"
 
 export interface MediaAssetTileProps {
@@ -13,6 +13,7 @@ export interface MediaAssetTileProps {
   url: string
   selected?: boolean
   onSelect: () => void
+  languageTag?: string
   /** Show a selection check affordance (picker / multi-select surfaces). */
   selectable?: boolean
 }
@@ -23,10 +24,12 @@ export function MediaAssetTile({
   url,
   selected,
   onSelect,
+  languageTag,
   selectable,
 }: MediaAssetTileProps) {
   const messages = useMediaUiMessagesOrDefault()
   const typeLabel = messages.common.mediaTypeLabels[asset.type]
+  const altText = resolveMediaAltText(asset, languageTag)
 
   return (
     <button
@@ -40,7 +43,7 @@ export function MediaAssetTile({
       )}
     >
       <div className="relative aspect-video bg-muted">
-        <MediaAssetThumbnail asset={asset} url={url} />
+        <MediaAssetThumbnail asset={asset} url={url} languageTag={languageTag} />
         <Badge variant="secondary" className="absolute top-2 right-2 bg-background/90">
           {typeLabel}
         </Badge>
@@ -52,9 +55,7 @@ export function MediaAssetTile({
       </div>
       <div className="min-w-0 space-y-0.5 p-2.5">
         <div className="truncate text-sm font-medium">{asset.name}</div>
-        {asset.alt ? (
-          <div className="truncate text-xs text-muted-foreground">{asset.alt}</div>
-        ) : null}
+        {altText ? <div className="truncate text-xs text-muted-foreground">{altText}</div> : null}
       </div>
     </button>
   )

@@ -31,6 +31,7 @@ import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
+import type { MediaSiteClientAuthRuntime } from "./runtime-port.js"
 import {
   addAssetToFolder,
   createMediaAsset,
@@ -48,6 +49,7 @@ import {
   updateMediaAsset,
   updateMediaFolder,
 } from "./service.js"
+import { createMediaSiteBridgeRoutes } from "./site-bridge.js"
 import {
   createMediaAssetSchema,
   createMediaFolderSchema,
@@ -74,6 +76,7 @@ type Env = { Variables: { db: PostgresJsDatabase } }
  */
 export interface MediaLibraryRoutesOptions {
   resolveStorage(c: Context): StorageProvider | null
+  siteClientAuth?: MediaSiteClientAuthRuntime
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -84,12 +87,23 @@ export interface MediaLibraryRoutesOptions {
 const isoTimestamp = z.string()
 const opaqueJson = z.unknown().nullable()
 
+const mediaAssetTranslationRowSchema = z.object({
+  assetId: z.string(),
+  languageTag: z.string(),
+  altText: z.string(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
 const mediaAssetRowSchema = z.object({
   id: z.string(),
   type: mediaAssetTypeSchema,
   name: z.string(),
-  alt: z.string().nullable(),
+  altText: z.string().nullable(),
+  defaultLanguageTag: z.string(),
+  altTranslations: z.array(mediaAssetTranslationRowSchema),
   storageKey: z.string(),
+  url: z.string().nullable(),
   mimeType: z.string().nullable(),
   fileSize: z.number().nullable(),
   checksum: z.string(),
@@ -305,6 +319,15 @@ const recordUsageRoute = createRoute({
  */
 export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
   const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+  if (options.siteClientAuth) {
+    routes.route(
+      "/",
+      createMediaSiteBridgeRoutes({
+        auth: options.siteClientAuth,
+        resolveStorage: options.resolveStorage,
+      }),
+    )
+  }
 
   // --- Create (multipart upload → dedup → store → catalogue) ---
   routes.post("/v1/admin/media-library/assets", async (c) => {
@@ -340,7 +363,18 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
     const parsed = createMediaAssetSchema.safeParse({
       type: form.type,
       name: (typeof form.name === "string" && form.name.trim()) || file.name,
-      alt: typeof form.alt === "string" ? form.alt : undefined,
+      altText:
+        typeof form.altText === "string"
+          ? form.altText
+          : typeof form.alt === "string"
+            ? form.alt
+            : undefined,
+      defaultLanguageTag:
+        typeof form.defaultLanguageTag === "string" ? form.defaultLanguageTag : undefined,
+      altTranslations:
+        typeof form.altTranslations === "string"
+          ? parseMultipartJson(form.altTranslations)
+          : undefined,
       mimeType: (typeof form.mimeType === "string" && form.mimeType) || file.type || undefined,
       tags,
       folderIds,
@@ -350,8 +384,15 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
     }
 
     const bytes = new Uint8Array(await file.arrayBuffer())
-    const result = await createMediaAsset(c.get("db"), storage, parsed.data, bytes)
-    return c.json({ data: result.asset, deduped: result.deduped }, result.deduped ? 200 : 201)
+    try {
+      const result = await createMediaAsset(c.get("db"), storage, parsed.data, bytes)
+      return c.json({ data: result.asset, deduped: result.deduped }, result.deduped ? 200 : 201)
+    } catch (error) {
+      if (error instanceof MediaError && error.code === "invalid_alt_translation") {
+        return c.json({ error: error.message }, 400)
+      }
+      throw error
+    }
   })
 
   routes.openAPIRegistry.registerPath({
@@ -388,9 +429,16 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
       asRouteResponse(
         (async () => {
           const input = await parseJsonBody(c, updateMediaAssetSchema)
-          const asset = await updateMediaAsset(c.get("db"), c.req.valid("param").assetId, input)
-          if (!asset) return c.json({ error: "Media asset not found" }, 404)
-          return c.json({ data: asset }, 200)
+          try {
+            const asset = await updateMediaAsset(c.get("db"), c.req.valid("param").assetId, input)
+            if (!asset) return c.json({ error: "Media asset not found" }, 404)
+            return c.json({ data: asset }, 200)
+          } catch (error) {
+            if (error instanceof MediaError && error.code === "invalid_alt_translation") {
+              return c.json({ error: error.message }, 400)
+            }
+            throw error
+          }
         })(),
       ),
     )
@@ -498,6 +546,14 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
   return routes
 }
 
+function parseMultipartJson(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
 /**
  * Package-owned media-library ApiModule. A deployment mounts this lazily and
  * injects the resolved `"media"` StorageProvider via `options.resolveStorage`.
@@ -505,6 +561,11 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
 export function createMediaLibraryApiModule(options: MediaLibraryRoutesOptions): ApiModule {
   return {
     module: { name: "media-library" },
+    ...(options.siteClientAuth
+      ? {
+          clientAuthenticated: [{ method: "POST", path: "/site-bridge" }] as const,
+        }
+      : {}),
     lazyRoutes: {
       paths: MEDIA_LIBRARY_ROUTE_PATHS,
       load: async () => createMediaLibraryRoutes(options),

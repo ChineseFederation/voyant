@@ -12,6 +12,7 @@ import type {
   ListAssetUsageQuery,
   ListMediaAssetsQuery,
   ListMediaFoldersQuery,
+  MediaAltTranslationInput,
   UpdateMediaAssetInput,
   UpdateMediaFolderInput,
 } from "@voyant-travel/media/validation"
@@ -183,7 +184,9 @@ export interface UploadMediaAssetInput {
   file: File
   type: string
   name?: string
-  alt?: string
+  altText?: string
+  defaultLanguageTag?: string
+  altTranslations?: MediaAltTranslationInput[]
   mimeType?: string
   tags?: string[]
   folderIds?: string[]
@@ -198,7 +201,11 @@ export function uploadMediaAsset(
   form.set("file", input.file)
   form.set("type", input.type)
   if (input.name) form.set("name", input.name)
-  if (input.alt !== undefined) form.set("alt", input.alt)
+  if (input.altText !== undefined) form.set("altText", input.altText)
+  if (input.defaultLanguageTag) form.set("defaultLanguageTag", input.defaultLanguageTag)
+  if (input.altTranslations?.length) {
+    form.set("altTranslations", JSON.stringify(input.altTranslations))
+  }
   if (input.mimeType) form.set("mimeType", input.mimeType)
   if (input.tags?.length) form.set("tags", input.tags.join(","))
   if (input.folderIds?.length) form.set("folderIds", input.folderIds.join(","))

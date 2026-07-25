@@ -10,7 +10,7 @@ import * as React from "react"
 
 import { useAssetUpload } from "../hooks/use-asset-upload.js"
 import { useMediaAssets } from "../hooks/use-media-assets.js"
-import { useMediaUiMessagesOrDefault } from "../i18n/provider.js"
+import { useMediaUiI18nOrDefault } from "../i18n/provider.js"
 import { useVoyantMediaContext } from "../provider.js"
 import type { MediaAssetsListFilters } from "../query-keys.js"
 import type { MediaAsset, MediaAssetType } from "../schemas.js"
@@ -98,7 +98,7 @@ function MediaPickerBody({
   onDone,
   className,
 }: MediaPickerBodyProps) {
-  const messages = useMediaUiMessagesOrDefault()
+  const { messages, locale } = useMediaUiI18nOrDefault()
   const picker = messages.picker
   const { baseUrl } = useVoyantMediaContext()
 
@@ -141,6 +141,7 @@ function MediaPickerBody({
         file,
         type: type ?? inferAssetType(file.type),
         name: file.name,
+        defaultLanguageTag: locale,
         mimeType: file.type || undefined,
       })
       uploaded.push(result.data)
@@ -195,6 +196,7 @@ function MediaPickerBody({
               url={urlFor(asset)}
               selectable={multiple}
               selected={selected.has(asset.id)}
+              languageTag={locale}
               onSelect={() => pick(asset)}
             />
           ))}
