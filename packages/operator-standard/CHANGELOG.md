@@ -1,5 +1,22 @@
 # @voyant-travel/operator-standard
 
+## 0.15.10
+
+### Patch Changes
+
+- Updated dependencies [2cfce32]
+  - @voyant-travel/distribution@0.197.2
+  - @voyant-travel/operations@0.9.3
+  - @voyant-travel/catalog@0.205.2
+  - @voyant-travel/cruises@0.206.2
+  - @voyant-travel/trips@0.199.2
+  - @voyant-travel/accommodations@0.167.3
+  - @voyant-travel/action-ledger@0.115.2
+  - @voyant-travel/catalog-react@0.205.2
+  - @voyant-travel/cruises-react@0.206.2
+  - @voyant-travel/distribution-react@0.197.2
+  - @voyant-travel/trips-react@0.199.2
+
 ## 0.15.9
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @voyant-travel/operations
 
+## 0.9.3
+
+### Patch Changes
+
+- 2cfce32: Fix Max/MCP tool failures: ISO aggregate date params, journal catalog overlay nodes, cruise ORDER BY NULLS LAST syntax, trips approval policy names, room-block missing room-type NOT_FOUND, and APPROVAL_REQUIRED fingerprint echo.
+- Updated dependencies [2cfce32]
+  - @voyant-travel/catalog@0.205.2
+
 ## 0.9.2
 
 ### Patch Changes
