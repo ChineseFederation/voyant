@@ -277,39 +277,58 @@ async function releaseAvailabilityHoldsByToken(
 /**
  * Reaper helper — releases all holds past `expires_at` that haven't
  * already been released. Returns the count of newly-released holds.
+ *
+ * Locks slot-before-holds, matching `placeAvailabilityHold`. Taking the hold
+ * lock first (the obvious shape, since the holds are what the sweep selects)
+ * inverts that order, and a checkout placing a hold on the same slot while this
+ * runs deadlocks — Postgres then aborts one of them, either the sweep or a
+ * customer's checkout. The slot ids are therefore collected with an unlocked
+ * read, and each slot's holds are re-selected under its slot lock.
  */
 export async function releaseExpiredHolds(
   db: PostgresJsDatabase,
   cutoff: Date = new Date(),
 ): Promise<number> {
   return db.transaction(async (tx) => {
-    const expired = await tx
-      .select()
+    const expiredPredicate = and(
+      lt(availabilityHolds.expiresAt, cutoff),
+      isNull(availabilityHolds.releasedAt),
+      isNull(availabilityHolds.convertedAt),
+    )
+
+    // Unlocked probe purely to learn which slots are involved. Anything that
+    // changes between here and the slot lock is caught by re-reading below.
+    const candidates = await tx
+      .selectDistinct({ slotId: availabilityHolds.slotId })
       .from(availabilityHolds)
-      .where(
-        and(
-          lt(availabilityHolds.expiresAt, cutoff),
-          isNull(availabilityHolds.releasedAt),
-          isNull(availabilityHolds.convertedAt),
-        ),
-      )
-      .orderBy(asc(availabilityHolds.slotId), asc(availabilityHolds.createdAt))
-      .for("update")
+      .where(expiredPredicate)
+      .orderBy(asc(availabilityHolds.slotId))
 
-    if (expired.length === 0) return 0
+    if (candidates.length === 0) return 0
 
-    const paxBySlot = new Map<string, number>()
-    for (const hold of expired) {
-      paxBySlot.set(hold.slotId, (paxBySlot.get(hold.slotId) ?? 0) + hold.paxCount)
-    }
+    const now = new Date()
+    let released = 0
 
-    for (const [slotId, paxCount] of paxBySlot) {
+    // Ascending slot id keeps two sweeps (or a sweep and any other multi-slot
+    // writer) from taking the same pair of slot locks in opposite orders.
+    for (const { slotId } of candidates) {
       const [slot] = await tx
         .select({ unlimited: availabilitySlots.unlimited })
         .from(availabilitySlots)
         .where(eq(availabilitySlots.id, slotId))
         .for("update")
         .limit(1)
+
+      const expired = await tx
+        .select()
+        .from(availabilityHolds)
+        .where(and(expiredPredicate, eq(availabilityHolds.slotId, slotId)))
+        .orderBy(asc(availabilityHolds.createdAt))
+        .for("update")
+
+      if (expired.length === 0) continue
+
+      const paxCount = expired.reduce((total, hold) => total + hold.paxCount, 0)
 
       if (slot && !slot.unlimited) {
         await tx
@@ -321,20 +340,21 @@ export async function releaseExpiredHolds(
           })
           .where(eq(availabilitySlots.id, slotId))
       }
+
+      await tx
+        .update(availabilityHolds)
+        .set({ releasedAt: now, updatedAt: now })
+        .where(
+          inArray(
+            availabilityHolds.id,
+            expired.map((hold) => hold.id),
+          ),
+        )
+
+      released += expired.length
     }
 
-    const now = new Date()
-    await tx
-      .update(availabilityHolds)
-      .set({ releasedAt: now, updatedAt: now })
-      .where(
-        inArray(
-          availabilityHolds.id,
-          expired.map((hold) => hold.id),
-        ),
-      )
-
-    return expired.length
+    return released
   })
 }
 

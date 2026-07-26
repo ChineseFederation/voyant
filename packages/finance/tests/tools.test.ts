@@ -224,9 +224,11 @@ describe("finance tools", () => {
     const result = await registry.dispatch(
       "generate_booking_number",
       {},
-      ctx({ async generateBookingNumber() {
-        return { bookingNumber: "BK-2607-000123" }
-      } }),
+      ctx({
+        async generateBookingNumber() {
+          return { bookingNumber: "BK-2607-000123" }
+        },
+      }),
     )
 
     expect(result).toEqual({ bookingNumber: "BK-2607-000123" })

@@ -1,6 +1,8 @@
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort } from "@voyant-travel/core/project"
 
+import { operationsExpiredHoldsJobRuntimePort } from "./expired-holds-job-runtime-port.js"
+
 const operationsAdminRuntime = {
   entry: "@voyant-travel/operations-react/admin",
   export: "createOperationsAdminExtension",
@@ -31,8 +33,28 @@ export const operationsVoyantModule = defineModule({
   localId: "operations",
   provides: {
     capabilities: ["operations.data-owner"],
-    ports: [providePort(catalogOperationsRuntimeExtensionPort)],
+    ports: [
+      providePort(catalogOperationsRuntimeExtensionPort),
+      providePort(operationsExpiredHoldsJobRuntimePort),
+    ],
   },
+  jobs: [
+    {
+      id: "operations.release-expired-availability-holds",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/operations/expired-holds-job",
+        export: "runOperationsReleaseExpiredHoldsJob",
+      },
+    },
+  ],
   api: [
     {
       id: "@voyant-travel/operations#api.admin",

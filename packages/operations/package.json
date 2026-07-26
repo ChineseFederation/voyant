@@ -15,7 +15,8 @@
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/operations.json",
     "./catalog-runtime-extension": "./src/catalog-runtime-extension.ts",
-    "./runtime-contributor": "./src/runtime-contributor.ts"
+    "./runtime-contributor": "./src/runtime-contributor.ts",
+    "./expired-holds-job": "./src/expired-holds-job.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.typecheck.json",
@@ -111,6 +112,11 @@
         "types": "./dist/runtime-contributor.d.ts",
         "import": "./dist/runtime-contributor.js",
         "default": "./dist/runtime-contributor.js"
+      },
+      "./expired-holds-job": {
+        "types": "./dist/expired-holds-job.d.ts",
+        "import": "./dist/expired-holds-job.js",
+        "default": "./dist/expired-holds-job.js"
       }
     },
     "main": "./dist/index.js",

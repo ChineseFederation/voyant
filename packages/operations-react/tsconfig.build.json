@@ -1476,6 +1476,7 @@
         "../operations/dist/catalog-runtime-extension.d.ts"
       ],
       "@voyant-travel/operations/dashboard": ["../operations/dist/dashboard.d.ts"],
+      "@voyant-travel/operations/expired-holds-job": ["../operations/dist/expired-holds-job.d.ts"],
       "@voyant-travel/operations/linkables": ["../operations/dist/linkables.d.ts"],
       "@voyant-travel/operations/routes": ["../operations/dist/routes.d.ts"],
       "@voyant-travel/operations/runtime-contributor": [

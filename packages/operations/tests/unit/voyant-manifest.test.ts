@@ -7,7 +7,18 @@ describe("operations deployment manifest", () => {
       schemaVersion: "voyant.module.v1",
       id: "@voyant-travel/operations",
       packageName: "@voyant-travel/operations",
-      provides: { ports: [{ id: "catalog.extension.operations" }] },
+      provides: {
+        ports: [{ id: "catalog.extension.operations" }, { id: "operations.expired-holds-job" }],
+      },
+      jobs: [
+        {
+          id: "operations.release-expired-availability-holds",
+          runtime: {
+            entry: "@voyant-travel/operations/expired-holds-job",
+            export: "runOperationsReleaseExpiredHoldsJob",
+          },
+        },
+      ],
       api: [
         {
           id: "@voyant-travel/operations#api.admin",
