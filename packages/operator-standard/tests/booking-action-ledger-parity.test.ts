@@ -21,6 +21,20 @@ describe("standard booking action-ledger authority", () => {
         (action) => `${resource.resource}:${typeof action === "string" ? action : action.action}`,
       ),
     )
+    // Unavailable actions keep Tool bindings for first-party convergence, but
+    // runtime lowering must not select those Tools. Package-local admin cancel
+    // still uses BOOKING_STATUS_CAPABILITIES outside the graph-lowered registry.
+    const unavailableToolIds = new Set(
+      actions
+        .filter((action) => action.availability?.status === "unavailable")
+        .flatMap((action) => action.from?.tools ?? []),
+    )
+    const unavailableCapabilityIds = new Set(
+      actions
+        .filter((action) => action.availability?.status === "unavailable")
+        .map((action) => action.capabilityId)
+        .filter((id): id is string => typeof id === "string"),
+    )
     const runtime = createVoyantGraphRuntime({
       graphHash: "sha256:bookings-action-parity",
       accessCatalog: {
@@ -66,7 +80,9 @@ describe("standard booking action-ledger authority", () => {
           })),
           selectedIds: {
             routes: (bookingsVoyantModule.api ?? []).map(({ id }) => id),
-            tools: (bookingsVoyantModule.tools ?? []).map(({ id }) => id),
+            tools: (bookingsVoyantModule.tools ?? [])
+              .map(({ id }) => id)
+              .filter((id) => !unavailableToolIds.has(id)),
             events: (bookingsVoyantModule.events ?? []).map(({ id }) => id),
             webhooks: (bookingsVoyantModule.webhooks ?? []).map(({ id }) => id),
           },
@@ -77,9 +93,12 @@ describe("standard booking action-ledger authority", () => {
     })
 
     const lowered = lowerVoyantGraphActionsToActionLedgerRegistry(runtime).definitions
-    const canonical = [...bookingActionLedgerCapabilityRegistry.definitions].sort(
-      (left, right) => left.id.localeCompare(right.id) || left.version.localeCompare(right.version),
-    )
+    const canonical = [...bookingActionLedgerCapabilityRegistry.definitions]
+      .filter((definition) => !unavailableCapabilityIds.has(definition.id))
+      .sort(
+        (left, right) =>
+          left.id.localeCompare(right.id) || left.version.localeCompare(right.version),
+      )
 
     expect(lowered).toEqual(canonical)
   })

@@ -74,13 +74,23 @@ export const BOOKING_ACTION_DECLARATIONS = {
       graph: {
         ...bookingWriteCapability.graph,
         id: "booking.status.cancel",
-        // Keep cancel available for admin routes + action-ledger authorization.
-        // Do not bind the cancel Tool here: an available multistage Tool action
-        // would require tested durability, and marking the action unavailable
-        // would drop it from the graph-lowered action-ledger registry and break
-        // admin cancel. The Tool remains package-exported for direct callers;
-        // graph MCP selection follows action bindings.
-        from: adminRouteBinding,
+        // Quarantine the graph Tool surface: a same-key retry after the
+        // transition already committed hits
+        // `canTransitionBooking(cancelled, cancelled) === false` and throws
+        // `invalid_transition` instead of replaying success, and cancellation
+        // spans supplier/financial settlement. Admin cancel stays authorized
+        // via package `BOOKING_STATUS_CAPABILITIES` (not the graph-lowered
+        // ledger registry). Critical-risk Tool convergence still requires the
+        // Tool binding on this action.
+        availability: {
+          status: "unavailable",
+          reasonCode: "unsafe-nonidempotent-transition",
+        },
+        effectBoundary: "multistage",
+        from: {
+          ...adminRouteBinding,
+          tools: ["@voyant-travel/bookings#tool.cancel-booking"],
+        },
       },
     },
     start: {

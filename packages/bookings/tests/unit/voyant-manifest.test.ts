@@ -103,9 +103,15 @@ describe("bookings deployment manifest", () => {
         ledger: "required",
         approval: "conditional",
         reversible: false,
-        from: {
-          routes: ["@voyant-travel/bookings#api.admin"],
+        availability: {
+          status: "unavailable",
+          reasonCode: "unsafe-nonidempotent-transition",
         },
+        effectBoundary: "multistage",
+        from: expect.objectContaining({
+          routes: ["@voyant-travel/bookings#api.admin"],
+          tools: ["@voyant-travel/bookings#tool.cancel-booking"],
+        }),
       }),
     )
     expect(bookingsVoyantModule.admin?.routes).toEqual(
