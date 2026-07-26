@@ -1,5 +1,13 @@
 # @voyant-travel/flights-react
 
+## 0.207.1
+
+### Patch Changes
+
+- edbf937: Declare graph `policy` names on ticket/cancel flight Actions so handler-owned approval mint matches the Tool contract.
+- Updated dependencies [edbf937]
+  - @voyant-travel/flights@0.207.1
+
 ## 0.207.0
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.15.11
+
+### Patch Changes
+
+- Updated dependencies [edbf937]
+  - @voyant-travel/flights@0.207.1
+  - @voyant-travel/flights-react@0.207.1
+
 ## 0.15.10
 
 ### Patch Changes
