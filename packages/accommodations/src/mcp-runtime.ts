@@ -22,6 +22,7 @@ import {
   createRoomBlock,
   getRoomBlock,
   pickupRoomBlock,
+  RoomBlockRoomTypeNotFoundError,
   reverseRoomBlockPickup,
   setRoomBlockNights,
   summarizeRoomBlock,
@@ -137,8 +138,17 @@ export const voyantToolContextContribution = defineToolContextContribution({
             },
             {
               async create(tx) {
-                const block = await createRoomBlock(tx as PostgresJsDatabase, input)
-                return { value: { roomBlockId: block.id }, targetId: block.id }
+                try {
+                  const block = await createRoomBlock(tx as PostgresJsDatabase, input)
+                  return { value: { roomBlockId: block.id }, targetId: block.id }
+                } catch (error) {
+                  if (error instanceof RoomBlockRoomTypeNotFoundError) {
+                    throw new ToolError(error.message, "NOT_FOUND", {
+                      roomTypeId: error.roomTypeId,
+                    })
+                  }
+                  throw error
+                }
               },
               async replay(_tx, completed) {
                 return { roomBlockId: completed.reference.id }

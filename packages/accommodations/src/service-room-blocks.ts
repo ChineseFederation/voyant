@@ -23,6 +23,7 @@ import {
 import { and, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { roomTypes } from "./schema-inventory.js"
 import {
   type RoomBlock,
   type RoomBlockPickup,
@@ -58,9 +59,27 @@ export async function createRoomBlock(
   db: PostgresJsDatabase,
   input: CreateRoomBlockInput,
 ): Promise<RoomBlock> {
+  const [roomType] = await db
+    .select({ id: roomTypes.id })
+    .from(roomTypes)
+    .where(eq(roomTypes.id, input.roomTypeId))
+    .limit(1)
+  if (!roomType) {
+    throw new RoomBlockRoomTypeNotFoundError(input.roomTypeId)
+  }
   const [block] = await db.insert(roomBlocks).values(input).returning()
   if (!block) throw new Error("createRoomBlock: insert returned no rows")
   return block
+}
+
+export class RoomBlockRoomTypeNotFoundError extends Error {
+  readonly roomTypeId: string
+
+  constructor(roomTypeId: string) {
+    super(`Room type "${roomTypeId}" was not found.`)
+    this.name = "RoomBlockRoomTypeNotFoundError"
+    this.roomTypeId = roomTypeId
+  }
 }
 
 export async function getRoomBlock(

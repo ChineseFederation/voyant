@@ -33,10 +33,12 @@ export async function getSupplierAggregates(
   const toDate = options.to ? new Date(options.to) : undefined
 
   const rangeConditions = []
+  // Bind ISO strings — raw Date params stringify via Date#toString() and fail
+  // against timestamptz (same pattern as bookings/inventory/finance aggregates).
   // agent-quality: raw-sql reviewed -- owner: suppliers; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  if (fromDate) rangeConditions.push(sql`${suppliers.createdAt} >= ${fromDate}`)
+  if (fromDate) rangeConditions.push(sql`${suppliers.createdAt} >= ${fromDate.toISOString()}`)
   // agent-quality: raw-sql reviewed -- owner: suppliers; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  if (toDate) rangeConditions.push(sql`${suppliers.createdAt} < ${toDate}`)
+  if (toDate) rangeConditions.push(sql`${suppliers.createdAt} < ${toDate.toISOString()}`)
   const rangeWhere = rangeConditions.length ? and(...rangeConditions) : undefined
 
   const [[totalRow], statusRows, typeRows] = await Promise.all([

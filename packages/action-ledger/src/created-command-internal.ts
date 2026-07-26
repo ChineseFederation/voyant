@@ -3,6 +3,7 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { dbSupportsTransactions } from "@voyant-travel/db/transaction-capability"
 import {
   assertAuthenticHandlerActionPolicyContext,
+  ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { and, eq, sql } from "drizzle-orm"
@@ -17,6 +18,7 @@ import {
   type BuildActionLedgerMutationInput,
   buildActionLedgerMutationEntryInput,
   mapActionLedgerRequestContext,
+  requestActionLedgerApproval,
 } from "./request-context.js"
 import { type ActionLedgerEntry, actionLedgerEntries, actionMutationDetails } from "./schema.js"
 import { insertEntry } from "./service/entries.js"
@@ -529,6 +531,30 @@ export async function executeAdmittedExistingTargetCommand<TValue, TCommandPaylo
     principalId: principal.principalId,
     organizationId: principal.organizationId,
   })
+  if (
+    selected.approval === "never" &&
+    (input.admitted.invocation.approvalId || input.admitted.invocation.idempotencyFingerprint)
+  ) {
+    throw new ActionLedgerCreatedCommandProtocolError("forged_approval_linkage")
+  }
+  if (selected.approval === "required" && !input.admitted.invocation.approvalId?.trim()) {
+    await throwHandlerApprovalRequired({
+      db: input.db,
+      context: input.context,
+      principal,
+      actionName,
+      actionVersion: selected.version,
+      evaluatedRisk: selected.risk,
+      policyName: selected.policy,
+      targetType: selected.targetType,
+      targetId,
+      capabilityId: actionName,
+      routeOrToolName: input.admitted.capabilityId,
+      idempotencyKey,
+      fingerprint,
+      reasonCode: approvalReasonCode,
+    })
+  }
   const approvalControls =
     selected.approval === "required"
       ? {
@@ -538,12 +564,6 @@ export async function executeAdmittedExistingTargetCommand<TValue, TCommandPaylo
           reasonCode: input.admitted.invocation.reasonCode ?? null,
         }
       : undefined
-  if (
-    selected.approval === "never" &&
-    (input.admitted.invocation.approvalId || input.admitted.invocation.idempotencyFingerprint)
-  ) {
-    throw new ActionLedgerCreatedCommandProtocolError("forged_approval_linkage")
-  }
   const commandInput: ExecuteCreatedTargetCommandInput & { resultReferenceType: string } = {
     context: input.context,
     actionName,
@@ -1026,6 +1046,63 @@ async function prepareCommand<TReferenceType extends string>(
     resultReferenceType,
     idempotency: { scope, key, fingerprint },
   }
+}
+
+async function throwHandlerApprovalRequired(input: {
+  db: AnyDrizzleDb
+  context: ActionLedgerRequestContextValues
+  principal: ReturnType<typeof mapActionLedgerRequestContext>
+  actionName: string
+  actionVersion: string
+  evaluatedRisk: ActionLedgerCapabilityRisk
+  policyName: string | null | undefined
+  targetType: string
+  targetId: string
+  capabilityId: string
+  routeOrToolName: string
+  idempotencyKey: string
+  fingerprint: string
+  reasonCode: string | null
+}): Promise<never> {
+  const policyName = input.policyName?.trim()
+  if (!policyName) {
+    throw new ActionLedgerCreatedCommandProtocolError("invalid_approval_controls")
+  }
+  const result = await requestActionLedgerApproval(input.db, {
+    context: input.context,
+    actionName: input.actionName,
+    actionVersion: input.actionVersion,
+    actionKind: "execute",
+    evaluatedRisk: input.evaluatedRisk,
+    targetType: input.targetType,
+    targetId: input.targetId,
+    routeOrToolName: input.routeOrToolName,
+    capabilityId: input.capabilityId,
+    capabilityVersion: input.actionVersion,
+    authorizationSource: "selected_graph_mcp_handler_existing_target",
+    idempotencyScope: `${input.actionName}:${input.actionVersion}:handler-approval`,
+    idempotencyKey: input.idempotencyKey,
+    idempotencyFingerprint: input.fingerprint,
+    approval: {
+      requestedByPrincipalId: input.principal.principalId,
+      policyName,
+      policyVersion: input.actionVersion,
+      riskSnapshot: input.evaluatedRisk,
+      reasonCode: input.reasonCode,
+    },
+  })
+  throw new ToolError(
+    "This Tool action is awaiting approval. Approve the server-issued request, then retry the exact command.",
+    "APPROVAL_REQUIRED",
+    {
+      approvalId: result.approval.id,
+      requestedActionId: result.requestedAction.id,
+      status: result.approval.status,
+      requestId: input.idempotencyKey,
+      idempotencyFingerprint: input.fingerprint,
+      replayed: result.replayed,
+    },
+  )
 }
 
 function prepareApproval<TReferenceType extends string>(

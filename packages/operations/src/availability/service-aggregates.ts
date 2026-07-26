@@ -40,10 +40,13 @@ export async function getAvailabilityAggregates(
   // actually happens), not `created_at` — dashboard users think in terms of
   // the calendar, not when the slot was provisioned.
   const rangeConditions = []
+  // Bind ISO strings — raw Date params stringify via Date#toString() and fail
+  // against timestamptz (same pattern as bookings/inventory/finance aggregates).
   // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  if (fromDate) rangeConditions.push(sql`${availabilitySlots.startsAt} >= ${fromDate}`)
+  if (fromDate)
+    rangeConditions.push(sql`${availabilitySlots.startsAt} >= ${fromDate.toISOString()}`)
   // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  if (toDate) rangeConditions.push(sql`${availabilitySlots.startsAt} < ${toDate}`)
+  if (toDate) rangeConditions.push(sql`${availabilitySlots.startsAt} < ${toDate.toISOString()}`)
   const rangeWhere = rangeConditions.length ? and(...rangeConditions) : undefined
 
   const [totalRow] = await db

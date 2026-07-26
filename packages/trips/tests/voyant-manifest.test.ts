@@ -224,6 +224,7 @@ describe("trips deployment manifest", () => {
       risk: "critical",
       ledger: "required",
       approval: "required",
+      policy: "trips.reserve-trip.v1",
       reversible: false,
       from: { tools: ["@voyant-travel/trips#tool.reserve-trip"] },
     })
@@ -254,6 +255,7 @@ describe("trips deployment manifest", () => {
       risk: "high",
       ledger: "required",
       approval: "required",
+      policy: "trips.price-trip.v1",
       reversible: true,
       from: { tools: ["@voyant-travel/trips#tool.price-trip"] },
     })

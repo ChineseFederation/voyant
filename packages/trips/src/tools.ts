@@ -120,6 +120,9 @@ export const SOURCE_REQUIREMENT_CANDIDATES_HANDLER_POLICY = {
   },
 } as const satisfies HandlerActionPolicyExpectation
 
+export const PRICE_TRIP_APPROVAL_POLICY = "trips.price-trip.v1"
+export const RESERVE_TRIP_APPROVAL_POLICY = "trips.reserve-trip.v1"
+
 export const PRICE_TRIP_HANDLER_POLICY = {
   capabilityId: `${OWNER}#tool.price-trip`,
   capabilityVersion: DURABLE_TRIP_ACTION_VERSION,
@@ -136,6 +139,7 @@ export const PRICE_TRIP_HANDLER_POLICY = {
     risk: "high",
     ledger: "required",
     approval: "required",
+    policy: PRICE_TRIP_APPROVAL_POLICY,
     reversible: true,
   },
 } as const satisfies HandlerActionPolicyExpectation
@@ -156,6 +160,7 @@ export const RESERVE_TRIP_HANDLER_POLICY = {
     risk: "critical",
     ledger: "required",
     approval: "required",
+    policy: RESERVE_TRIP_APPROVAL_POLICY,
     reversible: false,
   },
 } as const satisfies HandlerActionPolicyExpectation

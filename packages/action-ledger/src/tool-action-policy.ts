@@ -554,6 +554,7 @@ async function requestApprovalPreflight(input: {
       requestedActionId: result.requestedAction.id,
       status: result.approval.status,
       requestId: input.requestId,
+      idempotencyFingerprint: input.fingerprint,
       replayed: result.replayed,
     },
   )

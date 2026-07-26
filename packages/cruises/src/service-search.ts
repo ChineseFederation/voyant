@@ -106,8 +106,10 @@ export const cruisesSearchService = {
         .where(where)
         .orderBy(
           asc(cruiseSearchIndex.earliestDeparture),
+          // NULLS LAST must follow ASC/DESC — `asc(sql\`… NULLS LAST\`)` emits
+          // `"col" NULLS LAST asc`, which Postgres rejects.
           // agent-quality: raw-sql reviewed -- owner: cruises; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-          asc(sql`${cruiseSearchIndex.lowestPriceCents} NULLS LAST`),
+          sql`${cruiseSearchIndex.lowestPriceCents} ASC NULLS LAST`,
           asc(cruiseSearchIndex.name),
         )
         .limit(query.limit)

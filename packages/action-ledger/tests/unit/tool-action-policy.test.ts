@@ -140,12 +140,18 @@ describe("generic MCP action-policy gate", () => {
         requestedActionId: "requested_1",
         status: "pending",
         requestId,
+        idempotencyFingerprint: expect.stringMatching(/^sha256:/),
         replayed: false,
       },
     })
     await expect(invoke()).rejects.toMatchObject({
       code: "APPROVAL_REQUIRED",
-      meta: { approvalId: "approval_1", requestId, replayed: true },
+      meta: {
+        approvalId: "approval_1",
+        requestId,
+        idempotencyFingerprint: expect.stringMatching(/^sha256:/),
+        replayed: true,
+      },
     })
     expect(requestApproval).toHaveBeenNthCalledWith(
       1,

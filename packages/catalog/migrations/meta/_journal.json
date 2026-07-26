@@ -29,6 +29,13 @@
       "when": 1784794175178,
       "tag": "0003_product_reindex_state",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784900000000,
+      "tag": "20260722070000_editorial_overlay_nodes",
+      "breakpoints": true
     }
   ]
 }
