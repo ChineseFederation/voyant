@@ -1,5 +1,19 @@
 # @voyant-travel/catalog
 
+## 0.205.1
+
+### Patch Changes
+
+- 560f7c3: Declare safety-contract metadata on `booking-engine#action.quote-catalog-entity`
+  and remove it from the legacy execute+tools allowlist. Each call persists a
+  fresh short-lived quote row (10-minute expiry) with no client-supplied
+  target id or claim-registry backing for a "created" contract, but a
+  duplicate quote from a blind retry is harmless, so it declares
+  `availability`, `effectBoundary: "local"`, and a lightweight
+  `targetLifecycle: "existing"`. No runtime changes.
+- Updated dependencies [560f7c3]
+  - @voyant-travel/bookings@0.207.1
+
 ## 0.205.0
 
 ### Patch Changes

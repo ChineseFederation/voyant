@@ -1,5 +1,15 @@
 # @voyant-travel/storefront-react
 
+## 0.209.2
+
+### Patch Changes
+
+- Updated dependencies [560f7c3]
+- Updated dependencies [560f7c3]
+  - @voyant-travel/accommodations@0.167.2
+  - @voyant-travel/storefront@0.209.2
+  - @voyant-travel/catalog-react@0.205.1
+
 ## 0.209.1
 
 ### Patch Changes

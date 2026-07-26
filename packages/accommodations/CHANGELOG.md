@@ -1,5 +1,21 @@
 # @voyant-travel/accommodations
 
+## 0.167.2
+
+### Patch Changes
+
+- 560f7c3: Quarantine `action.pickup-room-block` and remove it from the legacy
+  execute+tools allowlist. Dedup only applies when the optional
+  `stayBookingItemId` is supplied; a retry without it (or after a crash before
+  the caller learns the id) inserts a second pickup row against the same
+  inventory, so this is not yet crash-safe for an agent to retry blindly.
+  Declares `availability: { status: "unavailable", reasonCode:
+"unsafe-unclaimed-create-target" }`. No runtime changes.
+- Updated dependencies [560f7c3]
+- Updated dependencies [560f7c3]
+  - @voyant-travel/bookings@0.207.1
+  - @voyant-travel/catalog@0.205.1
+
 ## 0.167.1
 
 ### Patch Changes

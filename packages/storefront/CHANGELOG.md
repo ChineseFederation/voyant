@@ -1,5 +1,18 @@
 # @voyant-travel/storefront
 
+## 0.209.2
+
+### Patch Changes
+
+- 560f7c3: Quarantine `action.bootstrap-my-customer-portal` and remove it from the
+  legacy execute+tools allowlist: it can create the customer's `crm.people`
+  row on a branch that later fails, and a retry with no claim registry can
+  orphan that row rather than converging on the same profile. Declares
+  `availability: { status: "unavailable", reasonCode:
+"unsafe-unclaimed-create-target" }`. No runtime changes.
+- Updated dependencies [560f7c3]
+  - @voyant-travel/bookings@0.207.1
+
 ## 0.209.1
 
 ### Patch Changes
