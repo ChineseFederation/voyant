@@ -137,32 +137,60 @@ describe("flights deployment manifest", () => {
     expect(
       operations.every((operation) => operation["x-voyant-api-id"] === FLIGHTS_OPENAPI_API_ID),
     ).toBe(true)
-    for (const actionId of [
-      "@voyant-travel/flights#action.ticket-order",
-      "@voyant-travel/flights#action.cancel-order",
-    ]) {
-      expect(flightsVoyantModule.actions?.find(({ id }) => id === actionId)).toMatchObject({
-        version: "v2",
-        commandTargetField: "orderId",
-        targetLifecycle: "existing",
-        existingTarget: { durability: "handler-command-result-v1" },
-        availability: {
-          status: "unavailable",
-          reasonCode: "provider-idempotency-unavailable",
-          enableWhen: {
-            selectedProviderPorts: {
-              mode: "all",
-              ports: ["flights.durable-action-runtime"],
-            },
+    expect(
+      flightsVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/flights#action.ticket-order",
+      ),
+    ).toMatchObject({
+      version: "v2",
+      commandTargetField: "orderId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+      availability: {
+        status: "unavailable",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: ["flights.durable-action-runtime"],
           },
         },
-        effectBoundary: "external",
-        durability: {
-          strategy: "saga",
-          testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+      },
+      effectBoundary: "external",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+      },
+      approval: "required",
+      policy: "flight-ticket",
+    })
+    expect(
+      flightsVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/flights#action.cancel-order",
+      ),
+    ).toMatchObject({
+      version: "v2",
+      commandTargetField: "orderId",
+      targetLifecycle: "existing",
+      existingTarget: { durability: "handler-command-result-v1" },
+      availability: {
+        status: "unavailable",
+        reasonCode: "provider-idempotency-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: ["flights.durable-action-runtime"],
+          },
         },
-      })
-    }
+      },
+      effectBoundary: "external",
+      durability: {
+        strategy: "saga",
+        testReference: "packages/flights/tests/integration/durable-action-command.test.ts",
+      },
+      approval: "required",
+      policy: "flight-cancel",
+    })
   })
 
   it("owns runtime assembly and validates Node-host providers", async () => {
