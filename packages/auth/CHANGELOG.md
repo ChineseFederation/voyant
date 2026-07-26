@@ -1,5 +1,11 @@
 # @voyant-travel/auth
 
+## 0.143.8
+
+### Patch Changes
+
+- 36db91f: Keep org API-key MCP catalog composition available when team-management has no acting user, and project Date-bearing Tool input schemas to JSON Schema datetime strings so `tools/list` no longer fail-closes for Max discovery.
+
 ## 0.143.7
 
 ### Patch Changes
