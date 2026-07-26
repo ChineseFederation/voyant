@@ -1,5 +1,11 @@
 # @voyant-travel/inventory
 
+## 0.21.5
+
+### Patch Changes
+
+- fe4b14a: Resolve update_product_day from dayId without requiring product id, so Max does not invent id=unknown and trigger a default-itinerary insert.
+
 ## 0.21.4
 
 ### Patch Changes
