@@ -1,5 +1,11 @@
 # @voyant-travel/inventory
 
+## 0.21.6
+
+### Patch Changes
+
+- d6fb26a: Resolve update_product_day action target from dayId via package-resolver when product id is omitted.
+
 ## 0.21.5
 
 ### Patch Changes
