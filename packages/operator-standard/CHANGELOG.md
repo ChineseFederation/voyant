@@ -1,5 +1,20 @@
 # @voyant-travel/operator-standard
 
+## 0.15.5
+
+### Patch Changes
+
+- d4439ab: Re-bind `booking.status.cancel` to `@voyant-travel/bookings#tool.cancel-booking`
+  and quarantine the graph action as unavailable
+  (`unsafe-nonidempotent-transition`). Critical-risk Tool convergence requires the
+  binding; admin cancel continues to authorize through package
+  `BOOKING_STATUS_CAPABILITIES`. Update the operator-standard parity test so
+  unavailable Tool bindings are not selected and unavailable capabilities are
+  excluded from the graph-lowered ledger comparison.
+- Updated dependencies [d4439ab]
+  - @voyant-travel/bookings@0.207.2
+  - @voyant-travel/bookings-react@0.207.2
+
 ## 0.15.4
 
 ### Patch Changes
