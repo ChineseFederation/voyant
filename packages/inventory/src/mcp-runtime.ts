@@ -18,7 +18,7 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { and, eq } from "drizzle-orm"
+import { and, asc, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import type { z } from "zod"
@@ -29,7 +29,7 @@ import { emitProductContentChanged } from "./events.js"
 import { productExtras } from "./extras/schema.js"
 import { inventoryExtrasService } from "./extras/service.js"
 import type { InventoryExtrasToolServices } from "./extras-tools.js"
-import { productOptions, products } from "./schema.js"
+import { productOptions, products, productTranslations } from "./schema.js"
 import { productsService } from "./service.js"
 import { getProductContent } from "./service-content.js"
 import type {
@@ -43,6 +43,16 @@ export * from "./tools.js"
 
 type InventoryMcpEnv = { Variables: { eventBus?: EventBus; userId?: string } }
 type LedgerHttpContext = Pick<Context, "req"> & { var: object }
+
+/** Narrow the request DB into the action-ledger AnyDrizzleDb surface. */
+function asLedgerDb(db: PostgresJsDatabase): AnyDrizzleDb {
+  return db as AnyDrizzleDb
+}
+
+/** Narrow an action-ledger transaction back to the inventory Postgres client. */
+function asPostgresDb(tx: AnyDrizzleDb): PostgresJsDatabase {
+  return tx as PostgresJsDatabase
+}
 
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["inventory", "inventoryContent", "inventoryExtras", "inventoryAuthoring"],
@@ -91,7 +101,12 @@ export const voyantToolContextContribution = defineToolContextContribution({
     }
     const inventory: InventoryToolServices = {
       listProducts: (query) => productsService.listProducts(db, query),
-      getProductById: (id) => productsService.getProductById(db, id),
+      async getProductById(id) {
+        const row = await productsService.getProductById(db, id)
+        if (!row) return null
+        const slug = await primaryProductSlug(db, id)
+        return { ...row, slug }
+      },
       getProductAggregates: (query) => productsService.getProductAggregates(db, query),
       async createProduct({ idempotencyKey: legacyIdempotencyKey, ...input }, admitted) {
         const draft = insertProductSchema.parse({
@@ -102,18 +117,47 @@ export const voyantToolContextContribution = defineToolContextContribution({
         })
         const result = await executeProductCreateCommand({
           c,
-          db: db as unknown as AnyDrizzleDb,
+          db: asLedgerDb(db),
           idempotencyKey: legacyIdempotencyKey,
           input: draft,
           admitted,
         })
-        return result.value
+        const productId =
+          result.value &&
+          typeof result.value === "object" &&
+          "productId" in result.value &&
+          typeof result.value.productId === "string"
+            ? result.value.productId
+            : null
+        const slug = productId ? await primaryProductSlug(db, productId) : null
+        return productId ? { ...result.value, slug } : result.value
       },
       async updateProduct(id, input) {
         const row = await productsService.updateProduct(db, id, input)
         if (row) {
           await eventBus?.emit("product.updated", { id: row.id })
           await emitProductContentChanged(eventBus, { id: row.id, axis: "product" })
+          const slug = await primaryProductSlug(db, id)
+          return { ...row, slug }
+        }
+        return row
+      },
+      listProductDays: (productId) => productsService.listDays(db, productId),
+      async updateProductDay(input) {
+        const days = await productsService.listDays(db, input.id)
+        const day =
+          input.dayId != null
+            ? days.find((row) => row.id === input.dayId)
+            : days.find((row) => row.dayNumber === input.dayNumber)
+        if (!day) return null
+        const patch = {
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.location !== undefined ? { location: input.location } : {}),
+        }
+        const row = await productsService.updateDay(db, day.id, patch)
+        if (row) {
+          await emitProductContentChanged(eventBus, { id: input.id, axis: "day" })
         }
         return row
       },
@@ -126,7 +170,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
         try {
           result = await executeProductComposeCommand({
             c,
-            db: db as unknown as AnyDrizzleDb,
+            db: asLedgerDb(db),
             idempotencyKey: input.idempotencyKey,
             spec: input.spec,
             admitted,
@@ -137,10 +181,12 @@ export const voyantToolContextContribution = defineToolContextContribution({
           }
           throw error
         }
+        const productId = result.value.productId
         return {
           status: "created" as const,
-          productId: result.value.productId,
+          productId,
           reused: result.replayed,
+          slug: await primaryProductSlug(db, productId),
         }
       },
     }
@@ -160,7 +206,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           const { idempotencyKey, ...data } = input
           return executeInventoryGeneratedChild({
             c,
-            db: db as unknown as AnyDrizzleDb,
+            db: asLedgerDb(db),
             admitted,
             idempotencyKey,
             commandTargetType: "product-extra-create-command",
@@ -168,7 +214,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
             resultReferenceType: "product_extra",
             commandInput: data,
             async create(tx) {
-              const [parent] = await (tx as unknown as PostgresJsDatabase)
+              const [parent] = await asPostgresDb(tx)
                 .select({ id: products.id })
                 .from(products)
                 .where(eq(products.id, data.productId))
@@ -182,10 +228,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
                   },
                 )
               }
-              const row = await inventoryExtrasService.createProductExtra(
-                tx as unknown as PostgresJsDatabase,
-                data,
-              )
+              const row = await inventoryExtrasService.createProductExtra(asPostgresDb(tx), data)
               if (!row) throw new Error("Product extra insert did not return a row")
               return { value: { id: row.id, replayed: false }, targetId: row.id }
             },
@@ -209,7 +252,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           const { idempotencyKey, ...data } = input
           return executeInventoryGeneratedChild({
             c,
-            db: db as unknown as AnyDrizzleDb,
+            db: asLedgerDb(db),
             admitted,
             idempotencyKey,
             commandTargetType: "option-extra-config-create-command",
@@ -217,7 +260,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
             resultReferenceType: "option_extra_config",
             commandInput: data,
             async create(tx) {
-              const [anchor] = await (tx as unknown as PostgresJsDatabase)
+              const [anchor] = await asPostgresDb(tx)
                 .select({ productId: productExtras.productId })
                 .from(productExtras)
                 .innerJoin(
@@ -237,7 +280,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 )
               }
               const row = await inventoryExtrasService.createOptionExtraConfig(
-                tx as unknown as PostgresJsDatabase,
+                asPostgresDb(tx),
                 data,
               )
               if (!row) throw new Error("Option extra config insert did not return a row")
@@ -331,10 +374,7 @@ export async function executeProductCreateCommand(input: {
     },
     {
       async create(tx) {
-        const product = await productsService.createProduct(
-          tx as unknown as PostgresJsDatabase,
-          input.input,
-        )
+        const product = await productsService.createProduct(asPostgresDb(tx), input.input)
         await input.testHooks?.afterDomainCreate?.(tx, product.id)
         await insertOutboxEvents(tx, [
           {
@@ -391,11 +431,9 @@ async function executeProductComposeCommand(input: {
     },
     {
       async create(tx) {
-        const result = await composeProductInTransaction(
-          tx as unknown as PostgresJsDatabase,
-          input.spec,
-          { userId: (input.c.var as { userId?: string }).userId },
-        )
+        const result = await composeProductInTransaction(asPostgresDb(tx), input.spec, {
+          userId: (input.c.var as { userId?: string }).userId,
+        })
         await insertOutboxEvents(tx, [
           {
             name: "product.created",
@@ -476,4 +514,21 @@ async function optionalContentRuntime(value: unknown): Promise<CatalogContentRun
   if (resolved === undefined) return undefined
   await catalogContentRuntimePort.test(resolved as CatalogContentRuntime)
   return resolved as CatalogContentRuntime
+}
+
+/** Prefer the first non-empty translation slug for Max/catalog reporting. */
+async function primaryProductSlug(
+  db: PostgresJsDatabase,
+  productId: string,
+): Promise<string | null> {
+  const rows = await db
+    .select({ slug: productTranslations.slug })
+    .from(productTranslations)
+    .where(eq(productTranslations.productId, productId))
+    .orderBy(asc(productTranslations.updatedAt))
+  for (const row of rows) {
+    const slug = row.slug?.trim()
+    if (slug) return slug
+  }
+  return null
 }

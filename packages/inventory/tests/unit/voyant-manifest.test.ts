@@ -140,8 +140,10 @@ describe("inventory deployment manifests", () => {
     expect(inventoryVoyantModule.tools?.map(({ name }) => name)).toEqual([
       "list_products",
       "get_product",
+      "list_product_days",
       "create_product",
       "update_product",
+      "update_product_day",
       "publish_product",
       "unpublish_product",
       "archive_product",
@@ -174,6 +176,7 @@ describe("inventory deployment manifests", () => {
       "publish-product",
       "unpublish-product",
       "update-product",
+      "update-product-day",
     ]) {
       expect(
         inventoryVoyantModule.actions?.find(

@@ -106,10 +106,12 @@ describe("inventory tools", () => {
       "create_product",
       "get_product",
       "get_product_content",
+      "list_product_days",
       "list_products",
       "publish_product",
       "unpublish_product",
       "update_product",
+      "update_product_day",
     ])
     for (const tool of manifest.filter(({ tier }) => tier === "read")) {
       expect(tool.requiredScopes).toEqual(["products:read"])
@@ -142,6 +144,7 @@ describe("inventory tools", () => {
               status: "created",
               productId: "prod_1",
               reused: false,
+              slug: "cairo-discovery",
             }
           },
         },
@@ -152,7 +155,77 @@ describe("inventory tools", () => {
         },
       ),
     )
-    expect(result).toMatchObject({ status: "created", productId: "prod_1", reused: false })
+    expect(result).toMatchObject({
+      status: "created",
+      productId: "prod_1",
+      reused: false,
+      slug: "cairo-discovery",
+    })
+  })
+
+  it("lists and updates product itinerary days", async () => {
+    const day = {
+      id: "pday_1",
+      itineraryId: "itin_1",
+      dayNumber: 2,
+      title: "Alfama + viewpoints",
+      description: "Explore Alfama.",
+      location: "Lisbon",
+      createdAt: new Date("2026-07-15T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-15T10:00:00.000Z"),
+    }
+    let updated: unknown
+    const listed = await makeRegistry().dispatch<{ data: unknown[] }>(
+      "list_product_days",
+      { id: "prod_1" },
+      ctxWith(
+        {
+          async listProductDays(productId) {
+            expect(productId).toBe("prod_1")
+            return [day]
+          },
+        },
+        { actor: "staff", audience: "staff" },
+      ),
+    )
+    expect(listed.data).toEqual([
+      {
+        ...day,
+        createdAt: "2026-07-15T10:00:00.000Z",
+        updatedAt: "2026-07-15T10:00:00.000Z",
+      },
+    ])
+
+    const result = await makeRegistry().dispatch(
+      "update_product_day",
+      {
+        id: "prod_1",
+        dayNumber: 2,
+        description: "Morning at Miradouro da Senhora do Monte, then explore Alfama.",
+      },
+      ctxWith(
+        {
+          async updateProductDay(input) {
+            updated = input
+            return {
+              ...day,
+              description: "Morning at Miradouro da Senhora do Monte, then explore Alfama.",
+            }
+          },
+        },
+        { actor: "staff", audience: "staff" },
+      ),
+    )
+    expect(updated).toMatchObject({
+      id: "prod_1",
+      dayNumber: 2,
+      description: "Morning at Miradouro da Senhora do Monte, then explore Alfama.",
+    })
+    expect(result).toMatchObject({
+      id: "pday_1",
+      dayNumber: 2,
+      description: "Morning at Miradouro da Senhora do Monte, then explore Alfama.",
+    })
   })
 
   it("lists products through the injected service", async () => {

@@ -23,6 +23,11 @@ import { z } from "zod"
 
 import { productGraphSpecSchema } from "./authoring/spec.js"
 import {
+  listProductDaysTool as listProductDaysDefinition,
+  type UpdateProductDayInput,
+  updateProductDayTool as updateProductDayDefinition,
+} from "./day-tools.js"
+import {
   createOptionExtraConfigTool as createOptionExtraConfigDefinition,
   createProductExtraTool as createProductExtraDefinition,
   getOptionExtraConfigTool as getOptionExtraConfigDefinition,
@@ -115,12 +120,17 @@ const productToolSchema = z
     endDate: z.string().nullable(),
     pax: z.number().int().nullable(),
     productTypeId: z.string().nullable(),
+    /** Primary catalog slug when a product translation has one; otherwise null. */
+    slug: z.string().nullable().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
   .passthrough()
 const productListToolSchema = listResponseSchema(productToolSchema)
-const createProductResultSchema = z.object({ productId: z.string() })
+const createProductResultSchema = z.object({
+  productId: z.string(),
+  slug: z.string().nullable().optional(),
+})
 type ProductListToolResult = z.output<typeof productListToolSchema>
 
 const productContentToolSchema = z.object({
@@ -185,6 +195,8 @@ export interface InventoryToolServices {
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   updateProduct(id: string, input: z.output<typeof updateProductSchema>): Promise<unknown | null>
+  listProductDays(productId: string): Promise<unknown[]>
+  updateProductDay(input: UpdateProductDayInput): Promise<unknown | null>
 }
 
 export interface InventoryContentToolServices {
@@ -243,6 +255,7 @@ export const composeProductToolOutputSchema = z.discriminatedUnion("status", [
     status: z.literal("created"),
     productId: z.string(),
     reused: z.boolean(),
+    slug: z.string().nullable().optional(),
   }),
   z.object({ status: z.literal("invalid"), issues: z.array(authoringIssueSchema) }),
 ])
@@ -353,7 +366,7 @@ export const updateProductTool = defineTool({
   capabilityVersion: VERSION,
   name: "update_product",
   description:
-    "Update authored product identity, commercial configuration, dates, policy, and core content without changing publication lifecycle fields.",
+    "Update authored product identity, commercial configuration, dates, policy, and core content without changing publication lifecycle fields. Use sellAmountCents + sellCurrency for package selling price.",
   inputSchema: updateProductToolSchema.omit({
     status: true,
     visibility: true,
@@ -430,6 +443,9 @@ export const composeProductTool = defineTool({
   },
 })
 
+export const listProductDaysTool = defineTool(listProductDaysDefinition)
+export const updateProductDayTool = defineTool(updateProductDayDefinition)
+
 export const listProductExtrasTool = defineTool(listProductExtrasDefinition)
 export const getProductExtraTool = defineTool(getProductExtraDefinition)
 export const createProductExtraTool = defineTool(createProductExtraDefinition)
@@ -444,8 +460,10 @@ export const inventoryTools = [
   listProductsTool,
   getProductTool,
   getProductContentTool,
+  listProductDaysTool,
   createProductTool,
   updateProductTool,
+  updateProductDayTool,
   publishProductTool,
   unpublishProductTool,
   archiveProductTool,
