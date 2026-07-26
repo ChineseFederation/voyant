@@ -14,9 +14,12 @@ type TeamMcpContext = Context<{
 /**
  * The guarded team runtime uses a concrete acting user for authorization,
  * self-mutation prevention, and last-owner invariants. Organization identity is
- * not a user identity and must never be promoted into one. Until an MCP grant
- * carries an explicit delegated user or service principal understood by this
- * port, organization-only API keys fail closed here.
+ * not a user identity and must never be promoted into one.
+ *
+ * Organization-only API keys must still compose the MCP catalog (initialize /
+ * tools/list / non-team tools). Until a grant carries an explicit delegated
+ * user or service principal understood by this port, team-management services
+ * deny at Tool execution time instead of failing closed during contribution.
  */
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["teamManagement"],
@@ -32,10 +35,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const c = request as TeamMcpContext
     const userId = c.get("userId")
     if (!userId) {
-      throw new ToolError(
-        "Team management requires an authenticated acting user.",
-        "AUTHORIZATION_DENIED",
-      )
+      return { teamManagement: actingUserRequiredTeamManagement() }
     }
 
     const runtime = requireService(
@@ -60,3 +60,23 @@ export const voyantToolContextContribution = defineToolContextContribution({
     return { teamManagement }
   },
 })
+
+function actingUserRequiredTeamManagement(): TeamManagementToolServices {
+  const deny = async (): Promise<never> => {
+    throw new ToolError(
+      "Team management requires an authenticated acting user.",
+      "AUTHORIZATION_DENIED",
+    )
+  }
+  return {
+    getCapabilities: deny,
+    listMembers: deny,
+    listRoles: deny,
+    listInvitations: deny,
+    inviteMember: deny,
+    revokeInvitation: deny,
+    updateMemberRole: deny,
+    activateMember: deny,
+    deactivateMember: deny,
+  }
+}

@@ -179,13 +179,37 @@ describe("auth team-management tools", () => {
     })
   })
 
-  it("rejects MCP context enrichment when the grant has no acting user", async () => {
+  it("keeps MCP catalog composition available when the grant has no acting user", async () => {
+    const contribution = await voyantToolContextContribution.contribute({
+      request: { env: {}, get: () => undefined },
+      context: toolContext(),
+      resources: { [teamManagementRuntimePort.id]: services() },
+    })
+
+    expect(contribution).toHaveProperty("teamManagement")
     await expect(
-      voyantToolContextContribution.contribute({
-        request: { env: {}, get: () => undefined },
-        context: toolContext(),
-        resources: { [teamManagementRuntimePort.id]: services() },
-      }),
+      (contribution.teamManagement as TeamManagementToolServices).listMembers(),
+    ).rejects.toMatchObject({
+      code: "AUTHORIZATION_DENIED",
+      message: "Team management requires an authenticated acting user.",
+    })
+  })
+
+  it("denies team-management Tool dispatch when enrichment omitted an acting user", async () => {
+    const contribution = await voyantToolContextContribution.contribute({
+      request: { env: {}, get: () => undefined },
+      context: toolContext(),
+      resources: { [teamManagementRuntimePort.id]: services() },
+    })
+    const registry = createToolRegistry()
+    registry.registerAll(teamManagementTools)
+
+    await expect(
+      registry.dispatch(
+        "list_team_members",
+        {},
+        toolContext(contribution.teamManagement as TeamManagementToolServices),
+      ),
     ).rejects.toMatchObject({
       code: "AUTHORIZATION_DENIED",
       message: "Team management requires an authenticated acting user.",
