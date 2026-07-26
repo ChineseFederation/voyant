@@ -31,6 +31,7 @@ export interface SetupToolServices {
   initialize(input: InitializeSetupInput): Promise<InitializeSetupResult>
   complete(stepId: string): Promise<SetupStepState>
   skip(stepId: string): Promise<SetupStepState>
+  dismiss(): Promise<SetupState>
 }
 
 export type SetupToolContext = ToolContext & { setup?: SetupToolServices }
@@ -127,9 +128,32 @@ export const skipSetupStepTool = defineTool<{ stepId: string }, SetupStepState, 
   },
 })
 
+export const dismissSetupTool = defineTool<Record<string, never>, SetupState, SetupToolContext>({
+  name: "dismiss_setup",
+  aliases: ["hide_setup_guidance"],
+  description:
+    "Dismiss organization setup guidance from the dashboard. Progress is retained; the widget stays hidden.",
+  inputSchema: z.object({}),
+  outputSchema: setupStateSchema,
+  requiredScopes: ["setup:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: {
+    destructive: false,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: false,
+    sideEffects: ["data-write"],
+  },
+  async handler(_input, context) {
+    return setup(context).dismiss()
+  },
+})
+
 export const setupTools = [
   getSetupStateTool,
   initializeSetupTool,
   completeSetupStepTool,
   skipSetupStepTool,
+  dismissSetupTool,
 ] as const

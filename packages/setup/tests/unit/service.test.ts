@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { OrganizationSetup, OrganizationSetupStep } from "../../src/schema.js"
 import {
   completeSetupStep,
+  dismissSetup,
   getSetupState,
   initializeSetup,
   SETUP_LIFECYCLE_CHANGED_EVENT,
@@ -54,6 +55,11 @@ class MemorySetupStore implements SetupStore {
     this.steps.set(stepId, next)
     return next
   }
+  async markDismissed(dismissedAt: Date) {
+    if (!this.organization) throw new Error("Organization setup was not found.")
+    this.organization = { ...this.organization, dismissedAt }
+    return { ...this.organization }
+  }
   private requireStep(stepId: string) {
     const step = this.steps.get(stepId)
     if (!step) throw new Error(`Missing ${stepId}`)
@@ -87,13 +93,38 @@ describe("organization setup state", () => {
     expect(initial).toMatchObject({
       startedAt: first.toISOString(),
       firstRunOpenedAt: first.toISOString(),
+      dismissedAt: null,
       shouldRedirect: true,
     })
     expect(repeated).toMatchObject({
       startedAt: first.toISOString(),
       firstRunOpenedAt: first.toISOString(),
+      dismissedAt: null,
       shouldRedirect: false,
     })
+  })
+
+  it("persists dismissedAt and emits a dismissed lifecycle event", async () => {
+    const store = new MemorySetupStore()
+    const emit = vi.fn(async () => undefined)
+    const runtime = { eventBus: { emit } as EventBus }
+    await initializeSetup(
+      store,
+      { stepIds: ["acme.profile"], fresh: false },
+      [profileStep],
+      {},
+      runtime,
+    )
+    const dismissedAt = new Date("2026-07-15T08:30:00.000Z")
+    const state = await dismissSetup(store, [profileStep], {}, { ...runtime, now: dismissedAt })
+
+    expect(state.dismissedAt).toBe(dismissedAt.toISOString())
+    expect((await getSetupState(store, [profileStep]))?.dismissedAt).toBe(dismissedAt.toISOString())
+    expect(emit).toHaveBeenLastCalledWith(
+      SETUP_LIFECYCLE_CHANGED_EVENT,
+      { change: "dismissed", stepId: null },
+      { category: "internal", source: "service" },
+    )
   })
 
   it("never re-runs fresh inference after a non-fresh initialization", async () => {

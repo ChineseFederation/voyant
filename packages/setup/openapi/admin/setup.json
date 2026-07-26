@@ -37,6 +37,11 @@
                               "nullable": true,
                               "format": "date-time"
                             },
+                            "dismissedAt": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date-time"
+                            },
                             "steps": {
                               "type": "array",
                               "items": {
@@ -72,7 +77,13 @@
                               }
                             }
                           },
-                          "required": ["startedAt", "firstRunOpenedAt", "steps", "prefill"]
+                          "required": [
+                            "startedAt",
+                            "firstRunOpenedAt",
+                            "dismissedAt",
+                            "steps",
+                            "prefill"
+                          ]
                         },
                         "canManage": {
                           "type": "boolean"
@@ -168,6 +179,11 @@
                           "nullable": true,
                           "format": "date-time"
                         },
+                        "dismissedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
                         "steps": {
                           "type": "array",
                           "items": {
@@ -209,6 +225,7 @@
                       "required": [
                         "startedAt",
                         "firstRunOpenedAt",
+                        "dismissedAt",
                         "steps",
                         "prefill",
                         "shouldRedirect"
@@ -419,6 +436,132 @@
                         }
                       },
                       "required": ["stepId", "firstSeenAt", "completedAt", "skippedAt"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authorization required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/setup/dismiss": {
+      "post": {
+        "operationId": "dismissSetup",
+        "x-voyant-api-id": "@voyant-travel/setup#api.admin",
+        "responses": {
+          "200": {
+            "description": "Dismissed setup guidance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "startedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "firstRunOpenedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "dismissedAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "format": "date-time"
+                        },
+                        "steps": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "stepId": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 200
+                              },
+                              "firstSeenAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "completedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              },
+                              "skippedAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date-time"
+                              }
+                            },
+                            "required": ["stepId", "firstSeenAt", "completedAt", "skippedAt"]
+                          }
+                        },
+                        "prefill": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "nullable": true
+                          }
+                        }
+                      },
+                      "required": [
+                        "startedAt",
+                        "firstRunOpenedAt",
+                        "dismissedAt",
+                        "steps",
+                        "prefill"
+                      ]
                     }
                   },
                   "required": ["data"]

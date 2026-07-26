@@ -7,9 +7,7 @@ export interface SetupMessages {
   skipped: string
   pending: string
   skip: string
-  back: string
+  dismiss: string
   loading: string
   loadFailed: string
-  allDoneTitle: string
-  allDoneDescription: string
 }

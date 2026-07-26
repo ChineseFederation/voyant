@@ -11,6 +11,7 @@ import type { SetupStepDefinition } from "./contracts.js"
 import {
   completeSetupStep,
   createDrizzleSetupStore,
+  dismissSetup,
   getSetupState,
   initializeSetup,
   SetupSelectionError,
@@ -55,6 +56,10 @@ export function createSetupToolServices(input: CreateSetupToolServicesInput): Se
     skip: (stepId) =>
       selectionRequest(() =>
         skipSetupStep(input.store, input.selectedSteps, stepId, mutationOptions),
+      ),
+    dismiss: () =>
+      selectionRequest(() =>
+        dismissSetup(input.store, input.selectedSteps, prefill, mutationOptions),
       ),
   }
 }

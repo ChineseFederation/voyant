@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   completeSetupStepTool,
+  dismissSetupTool,
   getSetupStateTool,
   initializeSetupTool,
   type SetupToolContext,
@@ -43,6 +44,7 @@ describe("setup Tools", () => {
     const initialized = {
       startedAt: "2026-07-15T08:00:00.000Z",
       firstRunOpenedAt: null,
+      dismissedAt: null,
       steps: [step],
       prefill: { profile: { name: "Example" } },
       shouldRedirect: false,
@@ -56,6 +58,11 @@ describe("setup Tools", () => {
       initialize: vi.fn().mockResolvedValue(initialized),
       complete: vi.fn().mockResolvedValue({ ...step, completedAt: step.firstSeenAt }),
       skip: vi.fn().mockResolvedValue({ ...step, skippedAt: step.firstSeenAt }),
+      dismiss: vi.fn().mockResolvedValue({
+        ...initialized,
+        dismissedAt: step.firstSeenAt,
+        shouldRedirect: undefined,
+      }),
     }
     const context: SetupToolContext = { ...baseContext, setup: services }
 
@@ -63,11 +70,13 @@ describe("setup Tools", () => {
     await initializeSetupTool.handler({ stepIds: ["profile"], fresh: false }, context)
     await completeSetupStepTool.handler({ stepId: "profile" }, context)
     await skipSetupStepTool.handler({ stepId: "profile" }, context)
+    await dismissSetupTool.handler({}, context)
 
     expect(services.get).toHaveBeenCalledOnce()
     expect(services.initialize).toHaveBeenCalledWith({ stepIds: ["profile"], fresh: false })
     expect(services.complete).toHaveBeenCalledWith("profile")
     expect(services.skip).toHaveBeenCalledWith("profile")
+    expect(services.dismiss).toHaveBeenCalledOnce()
   })
 
   it("fails closed when the package service contribution is missing", async () => {

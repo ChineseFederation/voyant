@@ -6,7 +6,6 @@ import {
   type AdminRouteLoaderContext,
   type AdminRouteRuntime,
   type AdminSetupStepContribution,
-  adminRoutePageModule,
   createAdminSetupPrefillHref,
   defineAdminExtension,
   resolveAdminSetupSteps,
@@ -27,10 +26,15 @@ import {
   CardTitle,
   Progress,
 } from "@voyant-travel/ui/components"
-import { ArrowLeft, Check, ClipboardCheck, ExternalLink, Loader2, Minus } from "lucide-react"
+import { Check, ExternalLink, Loader2, Minus, X } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { getSetupStateClient, initializeSetupClient, updateSetupStepClient } from "./client.js"
+import {
+  dismissSetupClient,
+  getSetupStateClient,
+  initializeSetupClient,
+  updateSetupStepClient,
+} from "./client.js"
 import { resolveSetupMessages } from "./i18n/index.js"
 
 const setupQueryKey = (stepIds: readonly string[]) => ["organization-setup", ...stepIds] as const
@@ -39,11 +43,11 @@ export async function initializeSelectedSetup(
   context: AdminRouteLoaderContext,
   input: { stepIds: readonly string[]; fresh: boolean },
 ) {
-  const state = await initializeSetupClient(context.runtime, {
+  await initializeSetupClient(context.runtime, {
     stepIds: [...input.stepIds],
     fresh: input.fresh,
   })
-  return state.shouldRedirect ? { redirectTo: "/setup" } : {}
+  return {}
 }
 
 export async function canInitializeSelectedSetup(context: AdminRouteLoaderContext) {
@@ -63,9 +67,8 @@ export async function loadSelectedSetupState(
 }
 
 export function createSelectedSetupAdminExtension({
-  navMessages,
+  navMessages: _navMessages,
 }: SelectedAdminExtensionFactoryContext): AdminExtension {
-  const title = navMessages.setup ?? "Setup"
   return defineAdminExtension({
     id: "setup",
     setupFlow: {
@@ -73,26 +76,18 @@ export function createSelectedSetupAdminExtension({
       canInitialize: canInitializeSelectedSetup,
       initialize: initializeSelectedSetup,
     },
-    navigation: [
+    widgets: [
       {
-        order: 1000,
-        items: [{ id: "setup", title, url: "/setup", icon: ClipboardCheck }],
-      },
-    ],
-    routes: [
-      {
-        id: "setup-index",
-        path: "/setup",
-        title,
-        ssr: "data-only",
-        page: () =>
-          import("./setup-page.js").then((module) => adminRoutePageModule(module.SetupPage)),
+        id: "setup-dashboard-checklist",
+        slot: "dashboard.header",
+        order: 10,
+        component: SetupDashboardWidget,
       },
     ],
   })
 }
 
-export function SetupPage() {
+export function SetupDashboardWidget() {
   const extensions = useAdminExtensions()
   const steps = useMemo(() => resolveAdminSetupSteps(extensions), [extensions])
   const stepIds = useMemo(() => steps.map((step) => step.id), [steps])
@@ -101,6 +96,7 @@ export function SetupPage() {
   const { resolvedLocale } = useLocale()
   const messages = resolveSetupMessages(resolvedLocale)
   const [predicateError, setPredicateError] = useState(false)
+  const [dismissing, setDismissing] = useState(false)
   const checked = useRef(new Set<string>())
   const query = useQuery({
     queryKey: setupQueryKey(stepIds),
@@ -110,6 +106,7 @@ export function SetupPage() {
 
   useEffect(() => {
     if (query.isFetching || !query.data?.canManage || !query.data.state) return
+    if (query.data.state.dismissedAt) return
     const states = new Map(query.data.state.steps.map((state) => [state.stepId, state]))
     const pending = steps.filter((step) => {
       const state = states.get(step.id)
@@ -135,80 +132,91 @@ export function SetupPage() {
 
   if (query.isPending) {
     return (
-      <div className="flex min-h-80 items-center justify-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
         {messages.loading}
       </div>
     )
   }
-  if (query.isError || !query.data) {
-    return <div className="p-6 text-sm text-destructive">{messages.loadFailed}</div>
+  if (query.isError || !query.data?.state) {
+    return null
   }
 
   const state = query.data.state
-  const canManage = query.data.canManage && !query.isFetching
-  const states = new Map(state?.steps.map((step) => [step.stepId, step]) ?? [])
+  if (state.dismissedAt) return null
+
+  const canManage = Boolean(query.data.canManage) && !query.isFetching
+  const states = new Map(state.steps.map((step) => [step.stepId, step]))
   const completed = steps.filter((step) => states.get(step.id)?.completedAt).length
   const terminal = steps.filter((step) => {
-    const state = states.get(step.id)
-    return state?.completedAt || state?.skippedAt
+    const stepState = states.get(step.id)
+    return stepState?.completedAt || stepState?.skippedAt
   }).length
 
+  if (steps.length > 0 && terminal === steps.length) return null
+
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-      <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <Card className="rounded-md shadow-none">
+      <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">{messages.title}</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">{messages.description}</p>
+          <CardTitle className="text-lg">{messages.title}</CardTitle>
+          <CardDescription>{messages.description}</CardDescription>
         </div>
-        <a href="/" className={buttonVariants({ variant: "outline" })}>
-          <ArrowLeft className="size-4" />
-          {messages.back}
-        </a>
-      </header>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span>
-            {messages.progress
-              .replace("{complete}", String(completed))
-              .replace("{total}", String(steps.length))}
-          </span>
-          <span className="text-muted-foreground">
-            {Math.round((terminal / Math.max(steps.length, 1)) * 100)}%
-          </span>
-        </div>
-        <Progress value={(terminal / Math.max(steps.length, 1)) * 100} />
-      </div>
-
-      {predicateError ? (
-        <p className="text-sm text-muted-foreground">{messages.loadFailed}</p>
-      ) : null}
-
-      <div className="grid gap-3">
-        {steps.map((step) => (
-          <SetupStepCard
-            key={step.id}
-            step={step}
-            state={states.get(step.id)}
-            prefill={state?.prefill[step.id]}
-            locale={resolvedLocale}
-            canManage={canManage}
-            onSkip={async () => {
-              await updateSetupStepClient(runtime, step.id, "skip")
-              await query.refetch()
+        {canManage ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={dismissing}
+            onClick={() => {
+              setDismissing(true)
+              void dismissSetupClient(runtime)
+                .then(() => query.refetch())
+                .finally(() => setDismissing(false))
             }}
-          />
-        ))}
-      </div>
-
-      {steps.length > 0 && terminal === steps.length ? (
-        <div className="border-t pt-6">
-          <h2 className="text-base font-semibold">{messages.allDoneTitle}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{messages.allDoneDescription}</p>
+          >
+            {dismissing ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />}
+            {messages.dismiss}
+          </Button>
+        ) : null}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span>
+              {messages.progress
+                .replace("{complete}", String(completed))
+                .replace("{total}", String(steps.length))}
+            </span>
+            <span className="text-muted-foreground">
+              {Math.round((terminal / Math.max(steps.length, 1)) * 100)}%
+            </span>
+          </div>
+          <Progress value={(terminal / Math.max(steps.length, 1)) * 100} />
         </div>
-      ) : null}
-    </div>
+
+        {predicateError ? (
+          <p className="text-sm text-muted-foreground">{messages.loadFailed}</p>
+        ) : null}
+
+        <div className="grid gap-3">
+          {steps.map((step) => (
+            <SetupStepCard
+              key={step.id}
+              step={step}
+              state={states.get(step.id)}
+              prefill={state.prefill[step.id]}
+              locale={resolvedLocale}
+              canManage={canManage}
+              onSkip={async () => {
+                await updateSetupStepClient(runtime, step.id, "skip")
+                await query.refetch()
+              }}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

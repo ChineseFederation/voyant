@@ -6,6 +6,7 @@ export const organizationSetup = pgTable("organization_setup", {
   id: text("id").primaryKey(),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   firstRunOpenedAt: timestamp("first_run_opened_at", { withTimezone: true }),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
 })
 
 export const organizationSetupSteps = pgTable("organization_setup_steps", {

@@ -11,15 +11,23 @@ import {
   createSelectedSetupAdminExtension,
   initializeSelectedSetup,
   loadSelectedSetupState,
+  SetupDashboardWidget,
 } from "../src/admin.js"
 
 describe("selected setup admin extension", () => {
-  it("owns the setup route and flow controller", () => {
+  it("owns the setup flow and dashboard widget without a nav route", () => {
     const extension = createSelectedSetupAdminExtension({ navMessages: { setup: "Configurare" } })
-    expect(extension.routes?.[0]?.path).toBe("/setup")
-    expect(extension.routes?.[0]?.title).toBe("Configurare")
+    expect(extension.navigation).toBeUndefined()
+    expect(extension.routes).toBeUndefined()
     expect(extension.setupFlow?.id).toBe("@voyant-travel/setup#flow.organization-setup")
     expect(extension.setupFlow?.canInitialize).toBe(canInitializeSelectedSetup)
+    expect(extension.widgets).toEqual([
+      expect.objectContaining({
+        id: "setup-dashboard-checklist",
+        slot: "dashboard.header",
+        component: SetupDashboardWidget,
+      }),
+    ])
   })
 
   it.each([
@@ -37,7 +45,7 @@ describe("selected setup admin extension", () => {
     expect(fetcher).toHaveBeenCalledWith("/api/v1/admin/setup", { method: "GET" })
   })
 
-  it("redirects only when the persisted initialize response requests it", async () => {
+  it("never redirects after initialize", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(response(true)), { status: 200 }))
@@ -48,9 +56,9 @@ describe("selected setup admin extension", () => {
       params: {},
     }
 
-    await expect(initializeSelectedSetup(context, { stepIds: [], fresh: true })).resolves.toEqual({
-      redirectTo: "/setup",
-    })
+    await expect(initializeSelectedSetup(context, { stepIds: [], fresh: true })).resolves.toEqual(
+      {},
+    )
     await expect(initializeSelectedSetup(context, { stepIds: [], fresh: true })).resolves.toEqual(
       {},
     )
@@ -124,6 +132,7 @@ function setupState() {
   return {
     startedAt: "2026-07-15T08:00:00.000Z",
     firstRunOpenedAt: null,
+    dismissedAt: null,
     steps: [],
     prefill: {},
   }

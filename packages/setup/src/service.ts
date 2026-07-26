@@ -24,6 +24,7 @@ export interface SetupStore {
   listSteps(): Promise<OrganizationSetupStep[]>
   markCompleted(stepId: string, at: Date): Promise<OrganizationSetupStep>
   markSkipped(stepId: string, at: Date): Promise<OrganizationSetupStep>
+  markDismissed(at: Date): Promise<OrganizationSetup>
 }
 
 export interface InitializeSetupResult extends SetupState {
@@ -33,7 +34,7 @@ export interface InitializeSetupResult extends SetupState {
 export const SETUP_LIFECYCLE_CHANGED_EVENT = "setup.lifecycle.changed" as const
 
 export interface SetupLifecycleChangedEventPayload {
-  change: "initialized" | "step_completed" | "step_skipped"
+  change: "initialized" | "step_completed" | "step_skipped" | "dismissed"
   stepId: string | null
 }
 
@@ -63,6 +64,7 @@ export async function initializeSetup(
       id: ORGANIZATION_SETUP_ID,
       startedAt: now,
       firstRunOpenedAt: input.fresh ? now : null,
+      dismissedAt: null,
     })
     let addedStep = false
     for (const step of selectedSteps) {
@@ -123,6 +125,18 @@ export async function skipSetupStep(
   return result
 }
 
+export async function dismissSetup(
+  store: SetupStore,
+  selectedSteps: readonly SetupStepDefinition[],
+  prefill: Readonly<Record<string, unknown>> = {},
+  options: SetupMutationOptions = {},
+): Promise<SetupState> {
+  const now = options.now ?? new Date()
+  const organization = await store.markDismissed(now)
+  await emitSetupLifecycleChanged(options, { change: "dismissed", stepId: null })
+  return serializeState(organization, await store.listSteps(), selectedSteps, prefill)
+}
+
 async function emitSetupLifecycleChanged(
   options: SetupMutationOptions,
   payload: SetupLifecycleChangedEventPayload,
@@ -136,9 +150,7 @@ async function emitSetupLifecycleChanged(
 export function createDrizzleSetupStore(db: VoyantDb): SetupStore {
   return {
     async transaction(run) {
-      return db.transaction((transaction) =>
-        run(createDrizzleSetupStore(transaction as unknown as VoyantDb)),
-      )
+      return db.transaction((transaction) => run(createDrizzleSetupStore(transaction as VoyantDb)))
     },
     async createOrganization(input) {
       const rows = await db
@@ -185,6 +197,15 @@ export function createDrizzleSetupStore(db: VoyantDb): SetupStore {
       if (!row) throw new Error(`Setup step "${stepId}" was not found.`)
       return row
     },
+    async markDismissed(at) {
+      const [row] = await db
+        .update(organizationSetup)
+        .set({ dismissedAt: at })
+        .where(eq(organizationSetup.id, ORGANIZATION_SETUP_ID))
+        .returning()
+      if (!row) throw new Error("Organization setup was not found.")
+      return row
+    },
   }
 }
 
@@ -198,6 +219,7 @@ function serializeState(
   return {
     startedAt: organization.startedAt.toISOString(),
     firstRunOpenedAt: organization.firstRunOpenedAt?.toISOString() ?? null,
+    dismissedAt: organization.dismissedAt?.toISOString() ?? null,
     steps: selectedSteps.flatMap((selected) => {
       const step = stepById.get(selected.id)
       return step ? [serializeStep(step)] : []

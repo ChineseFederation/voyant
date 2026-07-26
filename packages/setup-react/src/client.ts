@@ -39,6 +39,12 @@ export async function updateSetupStepClient(
   ).then(({ data }) => data)
 }
 
+export async function dismissSetupClient(runtime: AdminRouteRuntime): Promise<SetupState> {
+  return setupRequest<{ data: SetupState }>(runtime, "/v1/admin/setup/dismiss", {
+    method: "POST",
+  }).then(({ data }) => data)
+}
+
 async function setupRequest<T>(
   runtime: AdminRouteRuntime,
   path: string,

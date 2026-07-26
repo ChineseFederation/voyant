@@ -12,11 +12,18 @@ const store = {
     id: "organization",
     startedAt: new Date("2026-07-15T08:00:00.000Z"),
     firstRunOpenedAt: null,
+    dismissedAt: null,
   })),
   ensureStep: vi.fn(async () => true),
   listSteps: vi.fn(async () => []),
   markCompleted: vi.fn(),
   markSkipped: vi.fn(),
+  markDismissed: vi.fn(async (at: Date) => ({
+    id: "organization",
+    startedAt: new Date("2026-07-15T08:00:00.000Z"),
+    firstRunOpenedAt: null,
+    dismissedAt: at,
+  })),
 } satisfies SetupStore
 
 function app(userId?: string, scopes = userId ? ["*"] : undefined) {
@@ -124,5 +131,22 @@ describe("setup routes", () => {
     expect(required.status).toBe(400)
     expect(store.markCompleted).not.toHaveBeenCalled()
     expect(store.markSkipped).not.toHaveBeenCalled()
+  })
+
+  it("dismisses setup guidance for an authenticated manager", async () => {
+    const response = await app("user_1").request("/v1/admin/setup/dismiss", { method: "POST" })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      data: { dismissedAt: expect.any(String) },
+    })
+    expect(store.markDismissed).toHaveBeenCalledOnce()
+  })
+
+  it("forbids dismiss without setup write scope", async () => {
+    const response = await app("user_1", ["*:read"]).request("/v1/admin/setup/dismiss", {
+      method: "POST",
+    })
+    expect(response.status).toBe(403)
+    expect(store.markDismissed).not.toHaveBeenCalled()
   })
 })

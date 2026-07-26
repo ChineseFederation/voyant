@@ -9,9 +9,7 @@ export const setupEn: SetupMessages = {
   skipped: "Skipped",
   pending: "Not started",
   skip: "Skip for now",
-  back: "Back to dashboard",
+  dismiss: "Dismiss",
   loading: "Loading setup progress...",
   loadFailed: "Setup progress could not be loaded.",
-  allDoneTitle: "You're all set",
-  allDoneDescription: "Head to your dashboard to start creating products.",
 }

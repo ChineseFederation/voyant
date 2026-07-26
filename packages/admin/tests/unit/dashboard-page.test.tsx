@@ -133,20 +133,18 @@ afterEach(() => {
 })
 
 describe("DashboardPage empty states", () => {
-  it("renders first-run onboarding when every aggregate is empty", async () => {
+  it("renders the KPI dashboard with section empty states when every aggregate is empty", async () => {
     renderDashboard()
 
     await waitFor(() => {
-      expect(screen.getByText("Welcome to Voyant.")).not.toBeNull()
+      expect(screen.getByText("No revenue in the selected window yet.")).not.toBeNull()
     })
-    expect(screen.getByText("Create your first product")).not.toBeNull()
-    expect(screen.getByText("Add a supplier")).not.toBeNull()
-    expect(screen.getByText("Import customers")).not.toBeNull()
-    expect(screen.getByText("Create a booking")).not.toBeNull()
-    expect(screen.getByRole("link", { name: /Import customers/ }).getAttribute("href")).toBe(
-      "/contacts",
-    )
-    expect(screen.queryByText("Revenue Trend")).toBeNull()
+    expect(screen.getByText("Revenue Trend")).not.toBeNull()
+    expect(screen.getByText("No bookings to break down.")).not.toBeNull()
+    expect(screen.getByText("No bookings created in the last 6 months.")).not.toBeNull()
+    expect(screen.getByText("No upcoming departures in the next 30 days")).not.toBeNull()
+    expect(screen.getByText("All invoices settled — nothing outstanding.")).not.toBeNull()
+    expect(screen.queryByText("Welcome to Voyant.")).toBeNull()
   })
 
   it("renders section empty states for sparse tenants instead of blank charts", async () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { setupVoyantModule } from "../../src/voyant.js"
 
 describe("setup package manifest", () => {
-  it("owns API, access, schema, migrations, events, and admin route", () => {
+  it("owns API, access, schema, migrations, events, and admin composition", () => {
     expect(setupVoyantModule.api).toHaveLength(1)
     expect(setupVoyantModule.schema).toHaveLength(1)
     expect(setupVoyantModule.migrations).toHaveLength(1)
@@ -21,18 +21,21 @@ describe("setup package manifest", () => {
         }),
       }),
     ])
-    expect(setupVoyantModule.admin?.routes?.[0]?.path).toBe("/setup")
+    expect(setupVoyantModule.admin?.routes).toBeUndefined()
+    expect(setupVoyantModule.admin?.runtime?.export).toBe("createSelectedSetupAdminExtension")
     expect(setupVoyantModule.tools?.map(({ id, risk }) => ({ id, risk }))).toEqual([
       { id: "@voyant-travel/setup#tool.get-setup-state", risk: "low" },
       { id: "@voyant-travel/setup#tool.initialize-setup", risk: "medium" },
       { id: "@voyant-travel/setup#tool.complete-setup-step", risk: "medium" },
       { id: "@voyant-travel/setup#tool.skip-setup-step", risk: "medium" },
+      { id: "@voyant-travel/setup#tool.dismiss-setup", risk: "medium" },
     ])
     expect(setupVoyantModule.actions?.map((action) => action.from.tools)).toEqual([
       ["@voyant-travel/setup#tool.get-setup-state"],
       ["@voyant-travel/setup#tool.initialize-setup"],
       ["@voyant-travel/setup#tool.complete-setup-step"],
       ["@voyant-travel/setup#tool.skip-setup-step"],
+      ["@voyant-travel/setup#tool.dismiss-setup"],
     ])
     for (const id of ["complete-setup-step", "skip-setup-step"]) {
       expect(

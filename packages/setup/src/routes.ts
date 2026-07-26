@@ -11,6 +11,7 @@ import {
 import { hasApiKeyPermission, permissionStringsToPermissions } from "@voyant-travel/types/api-keys"
 
 import {
+  dismissSetupResponseSchema,
   initializeSetupInputSchema,
   initializeSetupResponseSchema,
   setupStateResponseSchema,
@@ -20,6 +21,7 @@ import {
 import {
   completeSetupStep,
   createDrizzleSetupStore,
+  dismissSetup,
   getSetupState,
   initializeSetup,
   SetupSelectionError,
@@ -96,6 +98,16 @@ const skipRoute = createRoute({
   request: { params: stepParams },
   responses: { 200: jsonContent(setupStepResponseSchema, "Skipped setup step"), ...errors },
 })
+const dismissRoute = createRoute({
+  method: "post",
+  path: "/v1/admin/setup/dismiss",
+  operationId: "dismissSetup",
+  "x-voyant-api-id": apiId,
+  responses: {
+    200: jsonContent(dismissSetupResponseSchema, "Dismissed setup guidance"),
+    ...errors,
+  },
+})
 
 export function createSetupRoutes(options: CreateSetupRoutesOptions = {}) {
   const app = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
@@ -163,6 +175,18 @@ export function createSetupRoutes(options: CreateSetupRoutesOptions = {}) {
             eventBus: c.get("eventBus"),
           }),
         ),
+      },
+      200,
+    )
+  })
+  app.openapi(dismissRoute, async (c) => {
+    requireUserId(c)
+    requireSetupWrite(c.get("scopes"))
+    return c.json(
+      {
+        data: await dismissSetup(store(c.get("db")), steps, prefill, {
+          eventBus: c.get("eventBus"),
+        }),
       },
       200,
     )

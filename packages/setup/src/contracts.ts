@@ -22,12 +22,17 @@ export const setupStepStateSchema = z.object({
 export const setupStateSchema = z.object({
   startedAt: z.string().datetime(),
   firstRunOpenedAt: z.string().datetime().nullable(),
+  dismissedAt: z.string().datetime().nullable(),
   steps: z.array(setupStepStateSchema),
   prefill: z.record(z.string(), z.unknown()),
 })
 
 export const initializeSetupResponseSchema = z.object({
   data: setupStateSchema.extend({ shouldRedirect: z.boolean() }),
+})
+
+export const dismissSetupResponseSchema = z.object({
+  data: setupStateSchema,
 })
 
 export const setupStateSnapshotSchema = z.object({

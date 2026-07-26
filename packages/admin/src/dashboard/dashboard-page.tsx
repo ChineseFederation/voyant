@@ -17,7 +17,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@voyant-travel/ui/components/chart"
-import { CalendarCheck, CalendarPlus, DollarSign, Package, PackagePlus, Users } from "lucide-react"
+import { CalendarCheck, DollarSign, Package, Users } from "lucide-react"
 import {
   Area,
   AreaChart,
@@ -40,8 +40,6 @@ import {
   DashboardEmptyState,
   type DashboardEmptyStateConfig,
   type DashboardEmptyStateKey,
-  DashboardOnboardingEmptyState,
-  OnboardingAction,
 } from "./dashboard-empty-states.js"
 import { KpiCard } from "./dashboard-kpi-card.js"
 import {
@@ -174,14 +172,6 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
   const hasMonthlyBookingsData = monthlyBookings.some((entry) => entry.count > 0)
   const hasBookingStatusData = localizedStatusBreakdown.length > 0
   const hasOutstandingInvoices = outstandingInvoiceCount > 0 || outstandingTopN.length > 0
-  const allAggregatesLoaded =
-    !bookingsPending && !productsPending && !suppliersPending && !financePending
-  const isBrandNewTenant =
-    allAggregatesLoaded &&
-    (bookings?.total ?? 0) === 0 &&
-    (products?.total ?? 0) === 0 &&
-    (suppliers?.total ?? 0) === 0 &&
-    (finance?.total ?? 0) === 0
 
   const resolvedEmptyStates = buildDashboardEmptyStates(messages, emptyStates)
 
@@ -207,352 +197,299 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
   return (
     <div className="flex flex-col gap-6">
       <AdminWidgetSlotRenderer slot="dashboard.header" props={widgetProps} />
-      {isBrandNewTenant ? (
-        <>
-          <DashboardOnboardingEmptyState emptyState={resolvedEmptyStates.onboarding}>
-            <OnboardingAction
-              href="/products"
-              icon={<PackagePlus className="size-4" />}
-              title={messages.dashboard.onboardingProductsTitle}
-              description={messages.dashboard.onboardingProductsDescription}
-              actionLabel={messages.dashboard.onboardingProductsAction}
-            />
-            <OnboardingAction
-              href="/suppliers"
-              icon={<Users className="size-4" />}
-              title={messages.dashboard.onboardingSuppliersTitle}
-              description={messages.dashboard.onboardingSuppliersDescription}
-              actionLabel={messages.dashboard.onboardingSuppliersAction}
-            />
-            <OnboardingAction
-              href="/contacts"
-              icon={<Users className="size-4" />}
-              title={messages.dashboard.onboardingCustomersTitle}
-              description={messages.dashboard.onboardingCustomersDescription}
-              actionLabel={messages.dashboard.onboardingCustomersAction}
-            />
-            <OnboardingAction
-              href="/bookings"
-              icon={<CalendarPlus className="size-4" />}
-              title={messages.dashboard.onboardingBookingsTitle}
-              description={messages.dashboard.onboardingBookingsDescription}
-              actionLabel={messages.dashboard.onboardingBookingsAction}
-            />
-          </DashboardOnboardingEmptyState>
-          <AdminWidgetSlotRenderer slot="dashboard.footer" props={widgetProps} />
-        </>
-      ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              title={messages.dashboard.totalRevenueTitle}
-              value={formatCurrency(totalRevenueCents, defaultCurrency)}
-              description={messages.dashboard.totalRevenueDescription}
-              icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-              trend={revenueTrend}
-              trendLabel={messages.dashboard.trendVsLastMonth}
-              empty={!hasRevenueData}
-              emptyLabel={messages.dashboard.metricUnavailable}
-              isLoading={bookingsPending}
-            />
-            <KpiCard
-              title={messages.dashboard.activeBookingsTitle}
-              value={confirmedBookings.toString()}
-              description={formatMessage(messages.dashboard.activeBookingsDescription, {
-                count: bookings?.total ?? 0,
-              })}
-              icon={<CalendarCheck className="h-4 w-4 text-muted-foreground" />}
-              trend={bookingTrend}
-              trendLabel={messages.dashboard.trendVsLastMonth}
-              empty={(bookings?.total ?? 0) === 0}
-              emptyLabel={messages.dashboard.metricUnavailable}
-              isLoading={bookingsPending}
-            />
-            <KpiCard
-              title={messages.dashboard.totalTravelersTitle}
-              value={totalPax.toLocaleString(resolvedLocale)}
-              description={messages.dashboard.totalTravelersDescription}
-              icon={<Users className="h-4 w-4 text-muted-foreground" />}
-              empty={totalPax === 0 && (bookings?.total ?? 0) === 0}
-              emptyLabel={messages.dashboard.metricUnavailable}
-              isLoading={bookingsPending}
-            />
-            <KpiCard
-              title={messages.dashboard.activeProductsTitle}
-              value={activeProducts.toString()}
-              description={formatMessage(messages.dashboard.activeProductsDescription, {
-                products: totalProducts,
-                suppliers: totalSuppliers,
-              })}
-              icon={<Package className="h-4 w-4 text-muted-foreground" />}
-              empty={activeProducts === 0 && totalProducts === 0}
-              emptyLabel={messages.dashboard.metricUnavailable}
-              isLoading={productsPending || suppliersPending}
-            />
-          </div>
-          <AdminWidgetSlotRenderer slot="dashboard.after-kpis" props={widgetProps} />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={messages.dashboard.totalRevenueTitle}
+          value={formatCurrency(totalRevenueCents, defaultCurrency)}
+          description={messages.dashboard.totalRevenueDescription}
+          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+          trend={revenueTrend}
+          trendLabel={messages.dashboard.trendVsLastMonth}
+          empty={!hasRevenueData}
+          emptyLabel={messages.dashboard.metricUnavailable}
+          isLoading={bookingsPending}
+        />
+        <KpiCard
+          title={messages.dashboard.activeBookingsTitle}
+          value={confirmedBookings.toString()}
+          description={formatMessage(messages.dashboard.activeBookingsDescription, {
+            count: bookings?.total ?? 0,
+          })}
+          icon={<CalendarCheck className="h-4 w-4 text-muted-foreground" />}
+          trend={bookingTrend}
+          trendLabel={messages.dashboard.trendVsLastMonth}
+          empty={(bookings?.total ?? 0) === 0}
+          emptyLabel={messages.dashboard.metricUnavailable}
+          isLoading={bookingsPending}
+        />
+        <KpiCard
+          title={messages.dashboard.totalTravelersTitle}
+          value={totalPax.toLocaleString(resolvedLocale)}
+          description={messages.dashboard.totalTravelersDescription}
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+          empty={totalPax === 0 && (bookings?.total ?? 0) === 0}
+          emptyLabel={messages.dashboard.metricUnavailable}
+          isLoading={bookingsPending}
+        />
+        <KpiCard
+          title={messages.dashboard.activeProductsTitle}
+          value={activeProducts.toString()}
+          description={formatMessage(messages.dashboard.activeProductsDescription, {
+            products: totalProducts,
+            suppliers: totalSuppliers,
+          })}
+          icon={<Package className="h-4 w-4 text-muted-foreground" />}
+          empty={activeProducts === 0 && totalProducts === 0}
+          emptyLabel={messages.dashboard.metricUnavailable}
+          isLoading={productsPending || suppliersPending}
+        />
+      </div>
+      <AdminWidgetSlotRenderer slot="dashboard.after-kpis" props={widgetProps} />
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{messages.dashboard.revenueTrendTitle}</CardTitle>
-              <CardDescription>{messages.dashboard.revenueTrendDescription}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {bookingsPending ? (
-                <DashboardAreaChartSkeleton />
-              ) : !hasRevenueData ? (
-                <DashboardEmptyState emptyState={resolvedEmptyStates.revenueTrend} />
-              ) : (
-                <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
-                  <AreaChart
-                    data={monthlyRevenue}
-                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
-                    />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value) =>
-                            typeof value === "number"
-                              ? formatCurrency(value * 100, defaultCurrency)
-                              : String(value)
-                          }
-                        />
+      <Card>
+        <CardHeader>
+          <CardTitle>{messages.dashboard.revenueTrendTitle}</CardTitle>
+          <CardDescription>{messages.dashboard.revenueTrendDescription}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {bookingsPending ? (
+            <DashboardAreaChartSkeleton />
+          ) : !hasRevenueData ? (
+            <DashboardEmptyState emptyState={resolvedEmptyStates.revenueTrend} />
+          ) : (
+            <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
+              <AreaChart data={monthlyRevenue} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) =>
+                        typeof value === "number"
+                          ? formatCurrency(value * 100, defaultCurrency)
+                          : String(value)
                       }
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="var(--chart-1)"
-                      fill="url(#fillRevenue)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
-              )}
-            </CardContent>
-          </Card>
+                  }
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="var(--chart-1)"
+                  fill="url(#fillRevenue)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>{messages.dashboard.monthlyBookingsTitle}</CardTitle>
-                <CardDescription>{messages.dashboard.monthlyBookingsDescription}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bookingsPending ? (
-                  <DashboardBarChartSkeleton />
-                ) : !hasMonthlyBookingsData ? (
-                  <DashboardEmptyState emptyState={resolvedEmptyStates.monthlyBookings} compact />
-                ) : (
-                  <ChartContainer config={monthlyBookingsConfig} className="h-[250px] w-full">
-                    <BarChart
-                      data={monthlyBookings}
-                      margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid vertical={false} />
-                      <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
-                        allowDecimals={false}
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>{messages.dashboard.bookingStatusTitle}</CardTitle>
-                <CardDescription>{messages.dashboard.bookingStatusDescription}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {bookingsPending ? (
-                  <DashboardPieChartSkeleton />
-                ) : !hasBookingStatusData ? (
-                  <DashboardEmptyState emptyState={resolvedEmptyStates.bookingStatus} />
-                ) : (
-                  <ChartContainer config={bookingStatusConfig} className="mx-auto h-[300px] w-full">
-                    <PieChart>
-                      <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
-                      <Pie
-                        data={localizedStatusBreakdown}
-                        dataKey="count"
-                        nameKey="status"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={2}
-                      >
-                        {localizedStatusBreakdown.map((entry) => (
-                          <Cell key={entry.status} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <ChartLegend content={<ChartLegendContent nameKey="status" />} />
-                    </PieChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>{messages.dashboard.upcomingDeparturesTitle}</CardTitle>
-                  <CardDescription>
-                    {messages.dashboard.upcomingDeparturesDescription}
-                  </CardDescription>
-                </div>
-                <a href="/bookings" className="text-sm text-primary hover:underline">
-                  {messages.dashboard.viewAll}
-                </a>
-              </CardHeader>
-              <CardContent>
-                {bookingsPending ? (
-                  <DashboardUpcomingListSkeleton />
-                ) : upcoming.length === 0 ? (
-                  <DashboardEmptyState
-                    emptyState={resolvedEmptyStates.upcomingDepartures}
-                    compact
-                  />
-                ) : (
-                  <div className="space-y-3">
-                    {upcoming.map((booking) => (
-                      <a
-                        key={booking.id}
-                        href={`/bookings/${encodeURIComponent(booking.id)}`}
-                        className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-medium">
-                            {booking.bookingNumber ?? booking.id.slice(0, 8)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {booking.startDate
-                              ? new Date(booking.startDate).toLocaleDateString(resolvedLocale, {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })
-                              : messages.dashboard.noDate}
-                            {booking.pax
-                              ? ` · ${formatMessage(messages.dashboard.paxCount, {
-                                  count: booking.pax,
-                                })}`
-                              : ""}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {booking.sellAmountCents != null && (
-                            <span className="text-sm font-medium tabular-nums">
-                              {formatCurrency(
-                                booking.sellAmountCents,
-                                booking.sellCurrency ?? defaultCurrency,
-                              )}
-                            </span>
-                          )}
-                          <Badge variant="outline" className="capitalize">
-                            {booking.status.replace(/_/g, " ")}
-                          </Badge>
-                        </div>
-                      </a>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{messages.dashboard.monthlyBookingsTitle}</CardTitle>
+            <CardDescription>{messages.dashboard.monthlyBookingsDescription}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {bookingsPending ? (
+              <DashboardBarChartSkeleton />
+            ) : !hasMonthlyBookingsData ? (
+              <DashboardEmptyState emptyState={resolvedEmptyStates.monthlyBookings} compact />
+            ) : (
+              <ChartContainer config={monthlyBookingsConfig} className="h-[250px] w-full">
+                <BarChart
+                  data={monthlyBookings}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{messages.dashboard.bookingStatusTitle}</CardTitle>
+            <CardDescription>{messages.dashboard.bookingStatusDescription}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {bookingsPending ? (
+              <DashboardPieChartSkeleton />
+            ) : !hasBookingStatusData ? (
+              <DashboardEmptyState emptyState={resolvedEmptyStates.bookingStatus} />
+            ) : (
+              <ChartContainer config={bookingStatusConfig} className="mx-auto h-[300px] w-full">
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
+                  <Pie
+                    data={localizedStatusBreakdown}
+                    dataKey="count"
+                    nameKey="status"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={2}
+                  >
+                    {localizedStatusBreakdown.map((entry) => (
+                      <Cell key={entry.status} fill={entry.fill} />
                     ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>{messages.dashboard.outstandingInvoicesTitle}</CardTitle>
-                <CardDescription>
-                  {messages.dashboard.outstandingInvoicesDescription}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {financePending ? (
-                  <DashboardOutstandingInvoicesSkeleton />
-                ) : !hasOutstandingInvoices ? (
-                  <DashboardEmptyState emptyState={resolvedEmptyStates.outstandingInvoices} />
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {messages.dashboard.outstandingTotalTitle}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatMessage(messages.dashboard.outstandingInvoicesDue, {
-                            count: outstandingInvoiceCount,
-                          })}
-                        </p>
-                      </div>
-                      <p className="text-lg font-semibold">
-                        {formatCurrency(outstandingAmount, outstandingPrimaryCurrency)}
-                      </p>
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent nameKey="status" />} />
+                </PieChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>{messages.dashboard.upcomingDeparturesTitle}</CardTitle>
+              <CardDescription>{messages.dashboard.upcomingDeparturesDescription}</CardDescription>
+            </div>
+            <a href="/bookings" className="text-sm text-primary hover:underline">
+              {messages.dashboard.viewAll}
+            </a>
+          </CardHeader>
+          <CardContent>
+            {bookingsPending ? (
+              <DashboardUpcomingListSkeleton />
+            ) : upcoming.length === 0 ? (
+              <DashboardEmptyState emptyState={resolvedEmptyStates.upcomingDepartures} compact />
+            ) : (
+              <div className="space-y-3">
+                {upcoming.map((booking) => (
+                  <a
+                    key={booking.id}
+                    href={`/bookings/${encodeURIComponent(booking.id)}`}
+                    className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium">
+                        {booking.bookingNumber ?? booking.id.slice(0, 8)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {booking.startDate
+                          ? new Date(booking.startDate).toLocaleDateString(resolvedLocale, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : messages.dashboard.noDate}
+                        {booking.pax
+                          ? ` · ${formatMessage(messages.dashboard.paxCount, {
+                              count: booking.pax,
+                            })}`
+                          : ""}
+                      </span>
                     </div>
-                    {outstandingTopN.map((invoice) => (
-                      <div
-                        key={invoice.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-medium">
-                            {invoice.invoiceNumber ?? invoice.id.slice(0, 8)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {invoice.dueDate
-                              ? new Date(invoice.dueDate).toLocaleDateString(resolvedLocale, {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })
-                              : invoice.issueDate
-                                ? new Date(invoice.issueDate).toLocaleDateString(resolvedLocale, {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                  })
-                                : messages.dashboard.noIssueDate}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {formatCurrency(invoice.balanceDueCents, invoice.currency)}
-                          </span>
-                          <Badge variant="secondary" className="capitalize">
-                            {invoice.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="flex items-center gap-2">
+                      {booking.sellAmountCents != null && (
+                        <span className="text-sm font-medium tabular-nums">
+                          {formatCurrency(
+                            booking.sellAmountCents,
+                            booking.sellCurrency ?? defaultCurrency,
+                          )}
+                        </span>
+                      )}
+                      <Badge variant="outline" className="capitalize">
+                        {booking.status.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>{messages.dashboard.outstandingInvoicesTitle}</CardTitle>
+            <CardDescription>{messages.dashboard.outstandingInvoicesDescription}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {financePending ? (
+              <DashboardOutstandingInvoicesSkeleton />
+            ) : !hasOutstandingInvoices ? (
+              <DashboardEmptyState emptyState={resolvedEmptyStates.outstandingInvoices} />
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {messages.dashboard.outstandingTotalTitle}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatMessage(messages.dashboard.outstandingInvoicesDue, {
+                        count: outstandingInvoiceCount,
+                      })}
+                    </p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          <AdminWidgetSlotRenderer slot="dashboard.footer" props={widgetProps} />
-        </>
-      )}
+                  <p className="text-lg font-semibold">
+                    {formatCurrency(outstandingAmount, outstandingPrimaryCurrency)}
+                  </p>
+                </div>
+                {outstandingTopN.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-medium">
+                        {invoice.invoiceNumber ?? invoice.id.slice(0, 8)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {invoice.dueDate
+                          ? new Date(invoice.dueDate).toLocaleDateString(resolvedLocale, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : invoice.issueDate
+                            ? new Date(invoice.issueDate).toLocaleDateString(resolvedLocale, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            : messages.dashboard.noIssueDate}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        {formatCurrency(invoice.balanceDueCents, invoice.currency)}
+                      </span>
+                      <Badge variant="secondary" className="capitalize">
+                        {invoice.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <AdminWidgetSlotRenderer slot="dashboard.footer" props={widgetProps} />
     </div>
   )
 }
