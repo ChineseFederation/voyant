@@ -197,6 +197,7 @@ export interface InventoryToolServices {
   updateProduct(id: string, input: z.output<typeof updateProductSchema>): Promise<unknown | null>
   listProductDays(productId: string): Promise<unknown[]>
   updateProductDay(input: UpdateProductDayInput): Promise<unknown | null>
+  resolveProductIdForDay(dayId: string): Promise<string | null>
 }
 
 export interface InventoryContentToolServices {

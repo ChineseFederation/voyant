@@ -62,6 +62,20 @@ function ctxWith(
   }
 }
 
+const UPDATE_PRODUCT_DAY_ACTION_POLICY = {
+  id: "@voyant-travel/inventory#action.update-product-day",
+  capabilityId: "@voyant-travel/inventory#action.update-product-day",
+  version: "v1",
+  kind: "execute" as const,
+  targetType: "product",
+  commandTargetField: "id",
+  risk: "medium" as const,
+  ledger: "required" as const,
+  approval: "never" as const,
+  reversible: true,
+  allowedActorTypes: ["staff" as const],
+}
+
 function makeRegistry() {
   const registry = createToolRegistry()
   for (const tool of inventoryTools) {
@@ -69,6 +83,8 @@ function makeRegistry() {
       registry.register(tool, { actionPolicy: CREATE_PRODUCT_HANDLER_POLICY.actionPolicy })
     } else if (tool.name === "compose_product") {
       registry.register(tool, { actionPolicy: COMPOSE_PRODUCT_HANDLER_POLICY.actionPolicy })
+    } else if (tool.name === "update_product_day") {
+      registry.register(tool, { actionPolicy: UPDATE_PRODUCT_DAY_ACTION_POLICY })
     } else {
       registry.register(tool)
     }
@@ -236,6 +252,10 @@ describe("inventory tools", () => {
       },
       ctxWith(
         {
+          async resolveProductIdForDay(dayId) {
+            expect(dayId).toBe("pday_1")
+            return "prod_1"
+          },
           async updateProductDay(input) {
             dayIdOnly = input
             return { ...day, title: "Alfama viewpoints + stress-test" }

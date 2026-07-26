@@ -80,6 +80,8 @@ export type UpdateProductDayInput = z.output<typeof updateProductDayArgs>
 export interface InventoryDayToolServices {
   listProductDays(productId: string): Promise<unknown[]>
   updateProductDay(input: UpdateProductDayInput): Promise<unknown | null>
+  /** Resolve the owning product id for a day (`pday_*`) when Max omits product id. */
+  resolveProductIdForDay(dayId: string): Promise<string | null>
 }
 
 type InventoryDayToolContext = ToolContext & {
@@ -113,7 +115,7 @@ export const updateProductDayTool = defineTool({
   capabilityVersion: VERSION,
   name: "update_product_day",
   description:
-    "Update an existing itinerary day's title, description, and/or location on a product. Resolve the day with `list_product_days` first. Does not create days — rebuild the itinerary with `compose_product` when the day structure is missing.",
+    "Update an existing itinerary day's title, description, and/or location on a product. Resolve the day with `list_product_days` first. Prefer dayId from that list; product id is optional when dayId is set. Does not create days — rebuild the itinerary with `compose_product` when the day structure is missing.",
   inputSchema: updateProductDayArgs,
   outputSchema: productDayToolSchema.nullable(),
   requiredScopes: ["products:write"],
@@ -121,6 +123,11 @@ export const updateProductDayTool = defineTool({
   tier: "write",
   riskPolicy: PRODUCT_WRITE_RISK,
   annotations: { idempotentHint: true },
+  async resolveActionTarget(input, ctx: InventoryDayToolContext) {
+    if (input.id) return input.id
+    if (!input.dayId) return ""
+    return (await inventory(ctx).resolveProductIdForDay(input.dayId)) ?? ""
+  },
   async handler(input, ctx: InventoryDayToolContext) {
     updateDaySchema.parse({
       title: input.title,

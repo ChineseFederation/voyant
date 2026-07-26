@@ -143,6 +143,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
         return row
       },
       listProductDays: (productId) => productsService.listDays(db, productId),
+      async resolveProductIdForDay(dayId) {
+        const day = await productsService.getDayForProductMutation(db, dayId)
+        return day?.productId ?? null
+      },
       async updateProductDay(input) {
         const patch = {
           ...(input.title !== undefined ? { title: input.title } : {}),
