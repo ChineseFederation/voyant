@@ -1,5 +1,11 @@
 # @voyant-travel/inventory
 
+## 0.21.4
+
+### Patch Changes
+
+- 0738c93: Add list_product_days and update_product_day MCP tools, and return product slug from compose_product / get_product for Max catalog editing.
+
 ## 0.21.3
 
 ### Patch Changes
