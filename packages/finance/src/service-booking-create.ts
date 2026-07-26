@@ -2,7 +2,10 @@
 
 import type { CreatedTargetMutationLease } from "@voyant-travel/action-ledger"
 import { bookingGroupsService } from "@voyant-travel/bookings"
-import { settleBookingCreateDomain } from "@voyant-travel/bookings/booking-create-command-domain"
+import {
+  BookingItemsUnresolvedError,
+  settleBookingCreateDomain,
+} from "@voyant-travel/bookings/booking-create-command-domain"
 import {
   type BookingDraftMismatch,
   type PricingAssignmentUnit,
@@ -337,7 +340,17 @@ const bookingCreateBaseSchema = z.object({
   slotId: z.string().optional().nullable(),
   /** Pre-booking availability hold converted inside the create transaction. */
   availabilityHoldToken: z.string().min(1).optional(),
-  bookingNumber: z.string().min(1),
+  /**
+   * Immutable booking reference and idempotency anchor for the durable create.
+   * Allocate it with `generate_booking_number` (or `allocateBookingNumber`) and
+   * replay the same value on retries — a fresh reference mints a second booking.
+   */
+  bookingNumber: z
+    .string()
+    .min(1)
+    .describe(
+      "Booking reference allocated by `generate_booking_number`. Never invent one and never derive it from traveller or client details. Pass the same value again when retrying the same create.",
+    ),
   personId: z.string().optional().nullable(),
   organizationId: z.string().optional().nullable(),
   pax: z.number().int().positive().optional().nullable(),
@@ -453,6 +466,13 @@ export type BookingCreateOutcome =
       shortfall: number
     }
   | { status: "duplicate_booking"; existingBooking: DuplicateBookingMatch }
+  | {
+      status: "booking_items_unresolved"
+      productId: string
+      optionId: string | null
+      candidateUnitCount: number
+      message: string
+    }
   | { status: "product_not_found" }
   | { status: "travel_credit_not_found" }
   | { status: "travel_credit_inactive" }
@@ -486,6 +506,30 @@ class BookingCreateAbort extends Error {
   constructor(readonly outcome: Exclude<BookingCreateOutcome, { status: "ok" }>) {
     super(`create aborted: ${outcome.status}`)
     this.name = "BookingCreateAbort"
+  }
+}
+
+/**
+ * The domain refuses to create a booking that would hold nothing. Translate that
+ * into the create outcome union so the caller gets the actionable reason instead
+ * of an opaque throw.
+ */
+async function settleBookingCreateWithItemGuard(
+  ...args: Parameters<typeof settleBookingCreateDomain>
+): Promise<Awaited<ReturnType<typeof settleBookingCreateDomain>>> {
+  try {
+    return await settleBookingCreateDomain(...args)
+  } catch (error) {
+    if (error instanceof BookingItemsUnresolvedError) {
+      throw new BookingCreateAbort({
+        status: "booking_items_unresolved",
+        productId: error.productId,
+        optionId: error.optionId,
+        candidateUnitCount: error.candidateUnitCount,
+        message: error.message,
+      })
+    }
+    throw error
   }
 }
 
@@ -1156,7 +1200,7 @@ export async function createBookingMutation(
         throw new BookingCreateAbort(roomOccupancyIssue)
       }
       // 1. Booking from product
-      const booking = await settleBookingCreateDomain(
+      const booking = await settleBookingCreateWithItemGuard(
         lease,
         tx,
         commandIdempotencyKey,

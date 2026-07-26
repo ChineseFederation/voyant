@@ -137,6 +137,10 @@ function bookingCreateCommandError(
     case "travel_credit_not_found":
     case "group_not_found":
       return new ToolError("A booking-create dependency was not found.", "NOT_FOUND", { outcome })
+    case "booking_items_unresolved":
+      // Surfaced verbatim to the operator, so it has to read as a next step
+      // rather than an internal failure.
+      return new ToolError(outcome.message, "INVALID_INPUT", { outcome })
     case "duplicate_booking":
     case "travel_credit_inactive":
     case "travel_credit_not_started":

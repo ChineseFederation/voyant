@@ -515,6 +515,11 @@ describe("finance deployment manifest", () => {
         id: "@voyant-travel/finance#bookings-create-extension",
         tools: [
           expect.objectContaining({
+            id: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
+            name: "generate_booking_number",
+            requiredScopes: ["bookings:write"],
+          }),
+          expect.objectContaining({
             id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
             name: "create_booking",
             requiredScopes: ["bookings:write", "finance:write"],

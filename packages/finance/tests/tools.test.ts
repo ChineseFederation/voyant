@@ -206,9 +206,37 @@ describe("finance tools", () => {
     ).toMatchObject({ status: "approval_required", approval: { id: "apr_invoice_1" } })
   })
 
+  it("allocates the booking reference through a Tool instead of leaving it to the caller", async () => {
+    const registry = createToolRegistry()
+    const tool = financeBookingsCreateTools.find(
+      (entry) => entry.name === "generate_booking_number",
+    )
+    if (!tool) throw new Error("generate_booking_number is missing")
+    registry.register(tool, {
+      capabilityId: tool.capabilityId,
+      owner: tool.owner,
+      capabilityVersion: tool.capabilityVersion,
+      name: tool.name,
+      requiredScopes: tool.requiredScopes,
+      deploymentRisk: "low",
+    })
+
+    const result = await registry.dispatch(
+      "generate_booking_number",
+      {},
+      ctx({ async generateBookingNumber() {
+        return { bookingNumber: "BK-2607-000123" }
+      } }),
+    )
+
+    expect(result).toEqual({ bookingNumber: "BK-2607-000123" })
+    // Read-tier so allocating a reference never needs an approval round-trip.
+    expect(tool.tier).toBe("read")
+  })
+
   it("creates a booking through the composing Finance extension Tool", async () => {
     const registry = createToolRegistry()
-    const [tool] = financeBookingsCreateTools
+    const tool = financeBookingsCreateTools.find((entry) => entry.name === "create_booking")
     const [action] = financeBookingsCreateVoyantPlugin.actions ?? []
     if (!tool || !action) throw new Error("Finance booking-create graph declarations are missing")
     registry.register(tool, {

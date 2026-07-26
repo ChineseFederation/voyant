@@ -3,9 +3,11 @@ import {
   buildActionLedgerApprovedExecutionFields,
 } from "@voyant-travel/action-ledger"
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
 import { executeFinanceBookingCreateCommand } from "./booking-create-command.js"
+import { allocateBookingNumber } from "./booking-number.js"
 import {
   authorizeFinanceInvoiceIssue,
   FINANCE_INVOICE_ISSUE_ACTION_NAME,
@@ -39,6 +41,9 @@ export const voyantToolContextContribution = defineToolContextContribution({
           financeService.getFinanceAggregates(db, query),
         voidInvoice: (id: string, input: { reason?: string }) =>
           financeService.voidInvoice(db, id, input),
+        generateBookingNumber: async () => ({
+          bookingNumber: await allocateBookingNumber(db as PostgresJsDatabase),
+        }),
         createBooking: (
           input: Parameters<typeof executeFinanceBookingCreateCommand>[0]["commandInput"],
           admitted: Parameters<typeof executeFinanceBookingCreateCommand>[0]["admitted"],

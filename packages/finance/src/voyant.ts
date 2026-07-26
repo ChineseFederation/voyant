@@ -557,6 +557,14 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   localId: "finance.bookings-create-extension",
   tools: [
     {
+      id: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
+      name: "generate_booking_number",
+      runtime: { entry: "@voyant-travel/finance/tools", export: "generateBookingNumberTool" },
+      requiredScopes: ["bookings:write"],
+      context: ["finance"],
+      risk: "low",
+    },
+    {
       id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
       name: "create_booking",
       runtime: { entry: "@voyant-travel/finance/tools", export: "createBookingTool" },

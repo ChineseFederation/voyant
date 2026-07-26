@@ -270,6 +270,31 @@ function bookingAllowsItemMutation(status: BookingStatus) {
   return status !== "cancelled"
 }
 
+/**
+ * Raised when a product booking would end up with no items at all — the caller
+ * sent no `itemLines` and the resolved option has no single obvious unit to seed
+ * (several optional units, or none). Creating the booking anyway yields a shell
+ * that holds no inventory and carries no price, so the create fails closed and
+ * the caller is told to name the units it wants.
+ */
+export class BookingItemsUnresolvedError extends Error {
+  readonly productId: string
+  readonly optionId: string | null
+  readonly candidateUnitCount: number
+
+  constructor(productId: string, optionId: string | null, candidateUnitCount: number) {
+    super(
+      candidateUnitCount === 0
+        ? "This product has no bookable units on the selected option, so the booking would reserve nothing."
+        : "Several units are available and none is required, so the booking would reserve nothing. Choose which units to book.",
+    )
+    this.name = "BookingItemsUnresolvedError"
+    this.productId = productId
+    this.optionId = optionId
+    this.candidateUnitCount = candidateUnitCount
+  }
+}
+
 /** Product data needed for convertProductToBooking — supplied by the caller (template). */
 export interface ConvertProductData {
   product: {
@@ -2441,6 +2466,22 @@ const bookingsServiceInternal = {
       return null
     }
 
+    const unitsToSeed =
+      selectedUnits.filter((unit) => unit.isRequired).length > 0
+        ? selectedUnits.filter((unit) => unit.isRequired)
+        : selectedUnits.length === 1
+          ? selectedUnits
+          : []
+
+    // A booking with no items reserves nothing: it holds no inventory, carries
+    // no price, and cannot be invoiced. That used to be created silently
+    // whenever the resolved option had several optional units and the caller
+    // sent no `itemLines` — the caller got a booking id back and believed the
+    // places were held. Refuse instead, before anything is written.
+    if (requestedItemLines.length === 0 && unitsToSeed.length === 0) {
+      throw new BookingItemsUnresolvedError(product.id, option?.id ?? null, selectedUnits.length)
+    }
+
     const initialStatus = data.initialStatus ?? "draft"
     const bookingPax = Object.hasOwn(data, "pax") ? (data.pax ?? null) : product.pax
     // Map the booking lifecycle status onto the booking-item lifecycle.
@@ -2527,13 +2568,6 @@ const bookingsServiceInternal = {
         })),
       )
     }
-
-    const unitsToSeed =
-      selectedUnits.filter((unit) => unit.isRequired).length > 0
-        ? selectedUnits.filter((unit) => unit.isRequired)
-        : selectedUnits.length === 1
-          ? selectedUnits
-          : []
 
     // Slot-derived columns + catalog snapshot. `availabilitySlotId`
     // and `departureLabelSnapshot` carry the departure forward so the

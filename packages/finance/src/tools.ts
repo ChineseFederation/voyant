@@ -60,6 +60,7 @@ export interface FinanceToolServices {
     idempotencyKey: string
     approvalId?: string
   }): Promise<unknown>
+  generateBookingNumber(): Promise<{ bookingNumber: string }>
   createBooking(
     input: z.infer<typeof bookingCreateSchema>,
     admitted: ReturnType<typeof admitHandlerActionPolicy>,
@@ -258,7 +259,37 @@ export const createBookingTool = defineTool({
   },
 })
 
-export const financeBookingsCreateTools = [createBookingTool] as const
+const generateBookingNumberArgs = z.object({})
+
+const generateBookingNumberResultSchema = z.object({
+  bookingNumber: z
+    .string()
+    .describe("The allocated booking reference. Pass it to `create_booking` unchanged."),
+})
+
+export const generateBookingNumberTool = defineTool<
+  z.infer<typeof generateBookingNumberArgs>,
+  z.infer<typeof generateBookingNumberResultSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance#bookings-create-extension",
+  capabilityId: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
+  capabilityVersion: "v1",
+  name: "generate_booking_number",
+  description:
+    "Allocate the booking reference for a new booking. Call this before `create_booking` and pass the result through as `bookingNumber`. Never invent a reference and never build one out of the traveller's or client's details — the reference is shown to travellers and printed on invoices. Re-use the same allocated value when retrying the same create so the retry resolves the original booking instead of making a second one.",
+  inputSchema: generateBookingNumberArgs,
+  outputSchema: generateBookingNumberResultSchema,
+  requiredScopes: ["bookings:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  async handler(_args, ctx) {
+    return generateBookingNumberResultSchema.parse(await finance(ctx).generateBookingNumber())
+  },
+})
+
+export const financeBookingsCreateTools = [createBookingTool, generateBookingNumberTool] as const
 
 export const issueInvoiceFromBookingToolInputSchema = z.object({
   command: invoiceFromBookingSchema.describe("The exact invoice or proforma issue command."),
