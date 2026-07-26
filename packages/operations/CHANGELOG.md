@@ -1,5 +1,13 @@
 # @voyant-travel/operations
 
+## 0.9.4
+
+### Patch Changes
+
+- 486044e: Schedule the abandoned-checkout hold reaper.
+
+  `availability_holds` decrement `availability_slots.remaining_pax` as soon as a checkout reserves seats, and only `releaseExpiredHolds` gives that capacity back. That reaper shipped with no caller, so every abandoned checkout ate into a departure permanently. `operations.release-expired-availability-holds` now runs it on the same cadence as the booking-hold expiry job.
+
 ## 0.9.3
 
 ### Patch Changes
