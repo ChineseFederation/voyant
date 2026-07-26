@@ -289,6 +289,17 @@ function assertCommandTargetMatches(
     typeof commandInput === "object" && commandInput !== null && !Array.isArray(commandInput)
       ? (commandInput as Record<string, unknown>)[field]
       : undefined
+  // A package resolver derives the target from server-owned state, so the
+  // command may legitimately omit the declared target field (e.g. addressing an
+  // itinerary day by `dayId` instead of the owning product `id`). There is no
+  // caller-named target to cross-check, and nothing to spoof. When the caller
+  // does name one it still has to match exactly.
+  if (
+    commandTarget === undefined &&
+    execution.actionPolicy.invocation.targetResolution === "package-resolver"
+  ) {
+    return
+  }
   if (typeof commandTarget !== "string" || !commandTarget.trim() || commandTarget !== targetId) {
     throw new ToolError(
       `Tool action targetId must exactly match command input field "${field}".`,

@@ -274,6 +274,32 @@ describe("generic MCP action-policy gate", () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
+  it("accepts a package-resolved target when the command omits the declared target field", async () => {
+    const selected = action({ commandTargetField: "id" })
+    const events: string[] = []
+    let sequence = 0
+    vi.spyOn(actionLedgerService, "appendEntry").mockImplementation(async (_db, input) => {
+      events.push(`ledger:${input.status}`)
+      sequence += 1
+      return { entry: { id: `action_${sequence}`, ...input }, replayed: false } as never
+    })
+
+    const result = await gate(selected).execute(
+      execution(selected, { confirmed: true, requestId }, { dayId: "pday_1", title: "Alfama" }),
+      async () => {
+        events.push("dispatch")
+        return { ok: true }
+      },
+    )
+
+    expect(result).toEqual({ ok: true })
+    expect(events).toEqual(["ledger:requested", "dispatch", "ledger:succeeded"])
+    expect(actionLedgerService.appendEntry).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ targetId: "target_1" }),
+    )
+  })
+
   it("rejects a padded command target before dispatching a Commerce-like mutation", async () => {
     const selected = action({ commandTargetField: "id" })
     const dispatch = vi.fn(async () => ({ ok: true }))
