@@ -1,5 +1,11 @@
 # @voyant-travel/finance
 
+## 0.207.2
+
+### Patch Changes
+
+- fd59cb6: Link a proforma invoice onto schedule-targeted card checkout sessions so paid status can project.
+
 ## 0.207.1
 
 ### Patch Changes
