@@ -144,17 +144,31 @@ export const voyantToolContextContribution = defineToolContextContribution({
       },
       listProductDays: (productId) => productsService.listDays(db, productId),
       async updateProductDay(input) {
-        const days = await productsService.listDays(db, input.id)
-        const day =
-          input.dayId != null
-            ? days.find((row) => row.id === input.dayId)
-            : days.find((row) => row.dayNumber === input.dayNumber)
-        if (!day) return null
         const patch = {
           ...(input.title !== undefined ? { title: input.title } : {}),
           ...(input.description !== undefined ? { description: input.description } : {}),
           ...(input.location !== undefined ? { location: input.location } : {}),
         }
+        // Prefer dayId: resolve the owning product from the day row so Max can
+        // omit product id (and never call listDays("unknown") which would try
+        // to create a default itinerary for a fake product).
+        if (input.dayId != null) {
+          const existing = await productsService.getDayForProductMutation(db, input.dayId)
+          if (!existing) return null
+          if (input.id != null && input.id !== existing.productId) return null
+          const row = await productsService.updateDay(db, existing.id, patch)
+          if (row) {
+            await emitProductContentChanged(eventBus, {
+              id: existing.productId,
+              axis: "day",
+            })
+          }
+          return row
+        }
+        if (input.id == null) return null
+        const days = await productsService.listDays(db, input.id)
+        const day = days.find((row) => row.dayNumber === input.dayNumber)
+        if (!day) return null
         const row = await productsService.updateDay(db, day.id, patch)
         if (row) {
           await emitProductContentChanged(eventBus, { id: input.id, axis: "day" })

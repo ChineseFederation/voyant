@@ -226,6 +226,29 @@ describe("inventory tools", () => {
       dayNumber: 2,
       description: "Morning at Miradouro da Senhora do Monte, then explore Alfama.",
     })
+
+    let dayIdOnly: unknown
+    await makeRegistry().dispatch(
+      "update_product_day",
+      {
+        dayId: "pday_1",
+        title: "Alfama viewpoints + stress-test",
+      },
+      ctxWith(
+        {
+          async updateProductDay(input) {
+            dayIdOnly = input
+            return { ...day, title: "Alfama viewpoints + stress-test" }
+          },
+        },
+        { actor: "staff", audience: "staff" },
+      ),
+    )
+    expect(dayIdOnly).toMatchObject({
+      dayId: "pday_1",
+      title: "Alfama viewpoints + stress-test",
+    })
+    expect(dayIdOnly).not.toHaveProperty("id")
   })
 
   it("lists products through the injected service", async () => {

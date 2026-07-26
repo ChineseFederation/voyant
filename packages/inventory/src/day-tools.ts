@@ -36,7 +36,13 @@ const listProductDaysArgs = z.object({
 })
 export const updateProductDayArgs = z
   .object({
-    id: z.string().min(1).describe("The product id that owns the itinerary day."),
+    id: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Product id that owns the itinerary day. Required with dayNumber; optional when dayId is set (resolved from the day).",
+      ),
     dayId: z
       .string()
       .min(1)
@@ -47,7 +53,7 @@ export const updateProductDayArgs = z
       .int()
       .positive()
       .optional()
-      .describe("1-based day number when dayId is unknown."),
+      .describe("1-based day number when dayId is unknown (requires product id)."),
     title: z.string().max(255).nullable().optional(),
     description: z.string().nullable().optional(),
     location: z.string().max(255).nullable().optional(),
@@ -55,6 +61,10 @@ export const updateProductDayArgs = z
   .refine((value) => value.dayId != null || value.dayNumber != null, {
     message: "Provide dayId or dayNumber.",
     path: ["dayId"],
+  })
+  .refine((value) => value.dayId != null || value.id != null, {
+    message: "Provide product id when updating by dayNumber.",
+    path: ["id"],
   })
   .refine(
     (value) =>
