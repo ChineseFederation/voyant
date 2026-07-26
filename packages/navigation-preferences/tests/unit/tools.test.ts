@@ -1,9 +1,12 @@
-import type { ToolContext } from "@voyant-travel/tools"
+import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 
+import { voyantToolContextContribution } from "../../src/mcp-runtime.js"
 import {
   getNavigationPreferencesTool,
   type NavigationPreferencesToolContext,
+  type NavigationPreferencesToolServices,
+  navigationPreferencesTools,
   setMyNavigationPreferencesTool,
   setOrganizationNavigationPreferencesTool,
 } from "../../src/tools.js"
@@ -55,6 +58,38 @@ describe("navigation preference Tools", () => {
   it("fails closed when the package service contribution is missing", async () => {
     await expect(getNavigationPreferencesTool.handler({}, baseContext)).rejects.toMatchObject({
       code: "MISSING_SERVICE",
+    })
+  })
+
+  it("keeps MCP catalog composition available when the grant has no acting member", async () => {
+    const contribution = await voyantToolContextContribution.contribute({
+      request: { var: {} },
+      context: baseContext,
+      resources: {},
+    })
+
+    expect(contribution).toHaveProperty("navigationPreferences")
+    await expect(
+      (contribution.navigationPreferences as NavigationPreferencesToolServices).get(),
+    ).rejects.toMatchObject({
+      code: "AUTHORIZATION_DENIED",
+      message: "Navigation preference Tools require an authenticated member.",
+    })
+
+    const registry = createToolRegistry()
+    registry.registerAll(navigationPreferencesTools)
+    await expect(
+      registry.dispatch(
+        "get_navigation_preferences",
+        {},
+        {
+          ...baseContext,
+          navigationPreferences:
+            contribution.navigationPreferences as NavigationPreferencesToolServices,
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "AUTHORIZATION_DENIED",
     })
   })
 })
