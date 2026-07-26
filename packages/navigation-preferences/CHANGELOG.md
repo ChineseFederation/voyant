@@ -1,5 +1,11 @@
 # @voyant-travel/navigation-preferences
 
+## 0.17.2
+
+### Patch Changes
+
+- f45db1c: Keep MCP catalog composition available for organization API keys when navigation preference Tools have no acting member.
+
 ## 0.17.1
 
 ### Patch Changes

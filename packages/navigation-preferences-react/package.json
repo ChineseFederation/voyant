@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/navigation-preferences-react",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "description": "React admin settings for Voyant navigation visibility preferences.",
   "license": "Apache-2.0",
   "type": "module",

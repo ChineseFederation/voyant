@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.15.8
+
+### Patch Changes
+
+- Updated dependencies [f45db1c]
+  - @voyant-travel/navigation-preferences@0.17.2
+  - @voyant-travel/navigation-preferences-react@0.17.2
+
 ## 0.15.7
 
 ### Patch Changes
