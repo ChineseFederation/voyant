@@ -13,6 +13,8 @@ export async function markCloudAuthSessionRevalidated(
     userId: string
     now: Date
     revalidateAfterSeconds: number
+    /** Current runtime deployment id — retargets links after deploy cutover. */
+    deploymentId: string
   },
 ): Promise<void> {
   const revalidateAfter = new Date(input.now.getTime() + input.revalidateAfterSeconds * 1000)
@@ -20,6 +22,7 @@ export async function markCloudAuthSessionRevalidated(
     db
       .update(cloudAuthSessionLinks)
       .set({
+        deploymentId: input.deploymentId,
         lastRevalidatedAt: input.now,
         revalidateAfter,
         revokedAt: null,
@@ -29,6 +32,7 @@ export async function markCloudAuthSessionRevalidated(
     db
       .update(cloudAuthUserLinks)
       .set({
+        deploymentId: input.deploymentId,
         lastRevalidatedAt: input.now,
         revokedAt: null,
         updatedAt: input.now,
@@ -83,11 +87,14 @@ export async function markCloudAuthUserRevalidated(
   input: {
     userId: string
     now: Date
+    /** Current runtime deployment id — retargets links after deploy cutover. */
+    deploymentId: string
   },
 ): Promise<void> {
   await db
     .update(cloudAuthUserLinks)
     .set({
+      deploymentId: input.deploymentId,
       lastRevalidatedAt: input.now,
       revokedAt: null,
       updatedAt: input.now,

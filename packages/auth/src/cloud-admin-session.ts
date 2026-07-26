@@ -197,7 +197,28 @@ export async function revalidateVoyantCloudAdminAuthSession({
     return { ok: false, status: "revoked", reason: "missing_or_revoked_session" }
   }
 
-  if (sessionLink.revalidateAfter > now) {
+  const currentDeploymentId = config.deploymentId.trim()
+  const [userLink] = await db
+    .select({
+      deploymentId: cloudAuthUserLinks.deploymentId,
+      revokedAt: cloudAuthUserLinks.revokedAt,
+    })
+    .from(cloudAuthUserLinks)
+    .where(eq(cloudAuthUserLinks.userId, sessionLink.userId))
+    .limit(1)
+
+  // Staff access binds to cloud_auth_user_links.deployment_id. After a managed
+  // deploy cutover that advances VOYANT_CLOUD_DEPLOYMENT_ID, a still-valid
+  // session can be cached against the previous deployment id and strand
+  // /v1/admin/* with 401 while /auth/me keeps working. Skip the revalidation
+  // cache whenever either link still points at a different deployment so we
+  // confirm platform access for the active runtime before retargeting.
+  const deploymentDrifted =
+    Boolean(currentDeploymentId) &&
+    (sessionLink.deploymentId !== currentDeploymentId ||
+      (userLink != null && !userLink.revokedAt && userLink.deploymentId !== currentDeploymentId))
+
+  if (sessionLink.revalidateAfter > now && !deploymentDrifted) {
     return { ok: true, status: "cached" }
   }
 
@@ -213,6 +234,7 @@ export async function revalidateVoyantCloudAdminAuthSession({
       userId: sessionLink.userId,
       now,
       revalidateAfterSeconds,
+      deploymentId: currentDeploymentId,
     })
     // Refresh the cached RBAC scopes so a permission change applied while the
     // member is signed in takes effect at the next revalidation, not only at
@@ -258,10 +280,14 @@ export async function revalidateVoyantCloudAdminAuthUser({
     return { ok: false, status: "revoked", reason: "missing_or_revoked_user" }
   }
 
+  const currentDeploymentId = config.deploymentId.trim()
+  const deploymentDrifted =
+    Boolean(currentDeploymentId) && userLink.deploymentId !== currentDeploymentId
+
   const nextRevalidationAt = userLink.lastRevalidatedAt
     ? new Date(userLink.lastRevalidatedAt.getTime() + revalidateAfterSeconds * 1000)
     : null
-  if (nextRevalidationAt && nextRevalidationAt > now) {
+  if (nextRevalidationAt && nextRevalidationAt > now && !deploymentDrifted) {
     return { ok: true, status: "cached" }
   }
 
@@ -275,6 +301,7 @@ export async function revalidateVoyantCloudAdminAuthUser({
     await markCloudAuthUserRevalidated(db, {
       userId: userLink.userId,
       now,
+      deploymentId: currentDeploymentId,
     })
     return { ok: true, status: "active" }
   }
