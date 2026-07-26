@@ -34,6 +34,7 @@ import {
   invoiceNumberSeries,
   invoices,
   type PaymentSession,
+  paymentSessions,
 } from "./schema.js"
 import { financeService } from "./service.js"
 
@@ -262,6 +263,11 @@ async function createCollectionInvoice(
   notes?: string | null,
 ) {
   const amountCents = plan.amountCents
+  const currency = plan.currency
+  // Base FX columns only make sense when the document is in the booking sell
+  // currency. Schedule-targeted collections may charge a different currency;
+  // leave base amounts null rather than stamping an incorrect FX equivalent.
+  const alignsWithBookingSell = currency === context.booking.sellCurrency
   const issueDate = new Date().toISOString().slice(0, 10)
   const dueDate = plan.selectedSchedule?.dueDate ?? issueDate
   const documentType = plan.documentType ?? "invoice"
@@ -281,19 +287,19 @@ async function createCollectionInvoice(
       organizationId: context.booking.organizationId,
       invoiceType: documentType,
       status: "issued",
-      currency: context.booking.sellCurrency,
-      baseCurrency: context.booking.baseCurrency,
+      currency,
+      baseCurrency: alignsWithBookingSell ? context.booking.baseCurrency : null,
       fxRateSetId: null,
       subtotalCents: amountCents,
-      baseSubtotalCents: context.booking.baseSellAmountCents,
+      baseSubtotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
       taxCents: 0,
       baseTaxCents: null,
       totalCents: amountCents,
-      baseTotalCents: context.booking.baseSellAmountCents,
+      baseTotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
       paidCents: 0,
-      basePaidCents: context.booking.baseCurrency == null ? null : 0,
+      basePaidCents: alignsWithBookingSell && context.booking.baseCurrency != null ? 0 : null,
       balanceDueCents: amountCents,
-      baseBalanceDueCents: context.booking.baseSellAmountCents,
+      baseBalanceDueCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
       commissionAmountCents: null,
       issueDate,
       dueDate,
@@ -415,6 +421,8 @@ export async function initiateCheckoutCollection(
       throw new Error("No outstanding payment schedule available for collection")
     }
 
+    // Create (or reuse) the schedule session first so idempotent retries return
+    // the existing row before we materialize any new proforma.
     paymentSession = await financeService.createPaymentSessionFromBookingSchedule(
       db,
       plan.selectedSchedule.id,
@@ -426,6 +434,41 @@ export async function initiateCheckoutCollection(
 
     if (!paymentSession) {
       throw new Error("Failed to create payment session from booking schedule")
+    }
+
+    if (paymentSession.invoiceId) {
+      const [existingInvoice] = await db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, paymentSession.invoiceId))
+        .limit(1)
+      if (!existingInvoice) {
+        throw new Error(
+          `Payment session ${paymentSession.id} references missing invoice ${paymentSession.invoiceId}`,
+        )
+      }
+      invoice = existingInvoice
+    } else {
+      // Card settlement completion requires an outstanding booking invoice even
+      // when the session is schedule-targeted. Materialize a proforma in the
+      // schedule currency so status refresh can project paid without FX drift.
+      invoice = await createCollectionInvoice(
+        db,
+        context,
+        {
+          ...plan,
+          documentType: plan.documentType ?? "proforma",
+          currency: plan.selectedSchedule.currency,
+        },
+        input.notes ?? null,
+      )
+
+      const [linkedSession] = await db
+        .update(paymentSessions)
+        .set({ invoiceId: invoice.id, updatedAt: new Date() })
+        .where(eq(paymentSessions.id, paymentSession.id))
+        .returning()
+      paymentSession = linkedSession ?? { ...paymentSession, invoiceId: invoice.id }
     }
 
     if (

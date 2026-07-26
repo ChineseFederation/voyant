@@ -11,6 +11,7 @@ import {
   invoiceLineItems,
   invoiceNumberSeries,
   invoices,
+  paymentSessions,
 } from "../../src/schema.js"
 import { financeService } from "../../src/service.js"
 
@@ -81,7 +82,13 @@ describe("finance checkout service", () => {
   })
 
   it("uses only the deployment-selected payment adapter", async () => {
-    const db = createCheckoutDb({ insertedInvoices: [] })
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const linkedSessions: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      linkedSessions,
+      linkSessionId: "ps_selected",
+    })
     const paymentSession = {
       id: "ps_selected",
       invoiceId: null,
@@ -101,7 +108,10 @@ describe("finance checkout service", () => {
     vi.spyOn(financeService, "createPaymentSessionFromBookingSchedule").mockResolvedValue(
       paymentSession as never,
     )
-    vi.spyOn(financeService, "getPaymentSessionById").mockResolvedValue(paymentSession as never)
+    vi.spyOn(financeService, "getPaymentSessionById").mockResolvedValue({
+      ...paymentSession,
+      invoiceId: "inv_collection",
+    } as never)
 
     const result = await initiateCheckoutCollection(
       db as never,
@@ -128,9 +138,142 @@ describe("finance checkout service", () => {
 
     expect(selectedPaymentStarter).toHaveBeenCalledOnce()
     expect(legacyPaymentStarter).not.toHaveBeenCalled()
+    expect(insertedInvoices).toHaveLength(1)
+    expect(insertedInvoices[0]?.invoiceType).toBe("proforma")
+    expect(linkedSessions).toEqual([{ id: "ps_selected", invoiceId: "inv_collection" }])
     expect(result?.providerStart).toMatchObject({
       provider: "connected-adapter",
       redirectUrl: "https://payments.example/checkout",
+    })
+  })
+
+  it("links a proforma invoice onto schedule-targeted card payment sessions", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const linkedSessions: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      linkedSessions,
+      linkSessionId: "ps_schedule",
+    })
+    const paymentSession = {
+      id: "ps_schedule",
+      invoiceId: null,
+      targetType: "booking_payment_schedule",
+      bookingPaymentScheduleId: "schedule_123",
+    }
+
+    vi.spyOn(financeService, "createPaymentSessionFromBookingSchedule").mockResolvedValue(
+      paymentSession as never,
+    )
+
+    const result = await initiateCheckoutCollection(db as never, "booking_123", {
+      method: "card",
+      stage: "initial",
+      amountCents: 5_000,
+    })
+
+    expect(insertedInvoices).toHaveLength(1)
+    expect(insertedInvoices[0]).toMatchObject({
+      invoiceType: "proforma",
+      currency: "EUR",
+      totalCents: 5_000,
+    })
+    expect(linkedSessions).toEqual([{ id: "ps_schedule", invoiceId: "inv_collection" }])
+    expect(result?.invoice?.id).toBe("inv_collection")
+    expect(result?.paymentSession).toMatchObject({
+      id: "ps_schedule",
+      invoiceId: "inv_collection",
+    })
+    expect(financeService.createPaymentSessionFromBookingSchedule).toHaveBeenCalledWith(
+      db,
+      "schedule_123",
+      { notes: null },
+    )
+  })
+
+  it("stamps schedule-card proformas with the schedule currency", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const linkedSessions: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      linkedSessions,
+      linkSessionId: "ps_schedule",
+      schedule: { currency: "USD", amountCents: 5_000 },
+    })
+    const paymentSession = {
+      id: "ps_schedule",
+      invoiceId: null,
+      targetType: "booking_payment_schedule",
+      bookingPaymentScheduleId: "schedule_123",
+      currency: "USD",
+      amountCents: 5_000,
+    }
+
+    vi.spyOn(financeService, "createPaymentSessionFromBookingSchedule").mockResolvedValue(
+      paymentSession as never,
+    )
+
+    await initiateCheckoutCollection(db as never, "booking_123", {
+      method: "card",
+      stage: "initial",
+      amountCents: 5_000,
+    })
+
+    expect(insertedInvoices).toHaveLength(1)
+    expect(insertedInvoices[0]).toMatchObject({
+      invoiceType: "proforma",
+      currency: "USD",
+      totalCents: 5_000,
+      baseCurrency: null,
+      baseSubtotalCents: null,
+      baseTotalCents: null,
+      basePaidCents: null,
+      baseBalanceDueCents: null,
+    })
+    expect(linkedSessions).toEqual([{ id: "ps_schedule", invoiceId: "inv_collection" }])
+  })
+
+  it("reuses an existing linked invoice on idempotent schedule session retries", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const linkedSessions: Array<Record<string, unknown>> = []
+    const existingInvoice = {
+      id: "inv_existing",
+      invoiceType: "proforma",
+      status: "issued",
+      currency: "EUR",
+      totalCents: 5_000,
+      balanceDueCents: 5_000,
+    }
+    const db = createCheckoutDb({
+      insertedInvoices,
+      linkedSessions,
+      linkSessionId: "ps_schedule",
+      existingInvoices: [existingInvoice],
+    })
+    const paymentSession = {
+      id: "ps_schedule",
+      invoiceId: "inv_existing",
+      targetType: "booking_payment_schedule",
+      bookingPaymentScheduleId: "schedule_123",
+    }
+
+    vi.spyOn(financeService, "createPaymentSessionFromBookingSchedule").mockResolvedValue(
+      paymentSession as never,
+    )
+
+    const result = await initiateCheckoutCollection(db as never, "booking_123", {
+      method: "card",
+      stage: "initial",
+      amountCents: 5_000,
+      paymentSession: { idempotencyKey: "checkout-retry-1" },
+    })
+
+    expect(insertedInvoices).toHaveLength(0)
+    expect(linkedSessions).toHaveLength(0)
+    expect(result?.invoice).toMatchObject({ id: "inv_existing" })
+    expect(result?.paymentSession).toMatchObject({
+      id: "ps_schedule",
+      invoiceId: "inv_existing",
     })
   })
 
@@ -197,7 +340,8 @@ describe("finance checkout service", () => {
   })
 
   it("does not use keyed starters without a selected adapter", async () => {
-    const db = createCheckoutDb({ insertedInvoices: [] })
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({ insertedInvoices })
     const paymentSession = {
       id: "ps_legacy",
       invoiceId: null,
@@ -242,6 +386,7 @@ describe("finance checkout service", () => {
     ).rejects.toThrow("No payment adapter is selected for card collection")
 
     expect(legacyPaymentStarter).not.toHaveBeenCalled()
+    expect(insertedInvoices).toHaveLength(0)
   })
 
   it("keeps base paid cents null when creating a collection invoice without base currency", async () => {
@@ -288,9 +433,17 @@ describe("finance checkout service", () => {
 
 function createCheckoutDb({
   insertedInvoices,
+  linkedSessions = [],
+  linkSessionId = "ps_schedule",
+  existingInvoices = [],
+  schedule: scheduleOverrides = {},
   booking: bookingOverrides = {},
 }: {
   insertedInvoices: Array<Record<string, unknown>>
+  linkedSessions?: Array<Record<string, unknown>>
+  linkSessionId?: string
+  existingInvoices?: Array<Record<string, unknown>>
+  schedule?: Partial<Record<string, unknown>>
   booking?: Partial<Record<string, unknown>>
 }) {
   const booking = {
@@ -305,24 +458,24 @@ function createCheckoutDb({
     ...bookingOverrides,
   }
 
+  const schedule = {
+    id: "schedule_123",
+    bookingId: "booking_123",
+    bookingItemId: null,
+    scheduleType: "deposit",
+    status: "pending",
+    amountCents: 5_000,
+    currency: "EUR",
+    dueDate: "2026-06-30",
+    notes: null,
+    createdAt: new Date("2026-06-01T00:00:00.000Z"),
+    ...scheduleOverrides,
+  }
+
   const rowsFor = (table: unknown) => {
     if (table === invoiceNumberSeries) return []
-    if (table === bookingPaymentSchedules) {
-      return [
-        {
-          id: "schedule_123",
-          bookingId: "booking_123",
-          bookingItemId: null,
-          scheduleType: "deposit",
-          status: "pending",
-          amountCents: 5_000,
-          dueDate: "2026-06-30",
-          notes: null,
-          createdAt: new Date("2026-06-01T00:00:00.000Z"),
-        },
-      ]
-    }
-    if (table === invoices) return []
+    if (table === bookingPaymentSchedules) return [schedule]
+    if (table === invoices) return existingInvoices
     return []
   }
 
@@ -342,7 +495,14 @@ function createCheckoutDb({
           return Promise.resolve(rowsFor(selectedTable))
         },
         limit() {
-          return Promise.resolve(selectedTable === invoiceNumberSeries ? [] : [booking])
+          if (selectedTable === invoiceNumberSeries) return Promise.resolve([])
+          if (selectedTable === invoices) {
+            return Promise.resolve(existingInvoices.slice(0, 1))
+          }
+          if (selectedTable === bookingPaymentSchedules) {
+            return Promise.resolve([schedule])
+          }
+          return Promise.resolve([booking])
         },
       }
       return query
@@ -362,6 +522,30 @@ function createCheckoutDb({
             return Promise.resolve(undefined)
           }
           return Promise.resolve(undefined)
+        },
+      }
+    },
+    update(table: unknown) {
+      return {
+        set(values: Record<string, unknown>) {
+          return {
+            where() {
+              return {
+                returning() {
+                  if (table !== paymentSessions) {
+                    return Promise.resolve([])
+                  }
+                  const row = {
+                    id: linkSessionId,
+                    invoiceId: values.invoiceId,
+                    targetType: "booking_payment_schedule",
+                  }
+                  linkedSessions.push({ id: row.id, invoiceId: row.invoiceId })
+                  return Promise.resolve([row])
+                },
+              }
+            },
+          }
         },
       }
     },
