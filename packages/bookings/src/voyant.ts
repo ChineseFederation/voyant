@@ -54,6 +54,32 @@ const BOOKING_EXTENSION_ID_TARGET_ACTIONS = new Set([
   "update-product-contact-requirement",
 ])
 
+// These requirements "create-*" actions are plain unguarded inserts (no
+// natural-key dedup, no idempotency claim), so a blind agent retry after a
+// timeout would create a duplicate row. Quarantined pending a real
+// created-target claim; "create-booking-extra" is handled separately below
+// because it already has one.
+const BOOKING_EXTENSION_UNCLAIMED_CREATE_ACTIONS = new Set([
+  "create-booking-answer",
+  "create-booking-question-extra-trigger",
+  "create-booking-question-option",
+  "create-booking-question-option-trigger",
+  "create-booking-question-unit-trigger",
+  "create-option-booking-question",
+  "create-product-booking-question",
+  "create-product-contact-requirement",
+])
+
+// These slot-extra actions dedupe on the (bookingId, travelerId,
+// productExtraId) unique index via `onConflictDoUpdate` and fully overwrite
+// on a matching retry. They have no client-supplied selection-row id, but are
+// anchored to the existing departure slot they mutate.
+const BOOKING_EXTENSION_LOCAL_UPSERT_ACTIONS = new Set([
+  "set-slot-extra-selection",
+  "bulk-set-slot-extra-selections",
+  "bulk-update-slot-extra-collections",
+])
+
 function declareBookingExtensionTools(
   owner: string,
   context: string,
@@ -82,7 +108,30 @@ function declareBookingExtensionActions(owner: string, specs: readonly BookingEx
             ? ("sensitive-read" as const)
             : ("read" as const),
         targetType,
-        ...(BOOKING_EXTENSION_ID_TARGET_ACTIONS.has(slug) ? { commandTargetField: "id" } : {}),
+        ...(BOOKING_EXTENSION_ID_TARGET_ACTIONS.has(slug)
+          ? {
+              commandTargetField: "id",
+              availability: { status: "available" as const },
+              effectBoundary: "local" as const,
+              targetLifecycle: "existing" as const,
+            }
+          : {}),
+        ...(BOOKING_EXTENSION_UNCLAIMED_CREATE_ACTIONS.has(slug)
+          ? {
+              availability: {
+                status: "unavailable" as const,
+                reasonCode: "unsafe-unclaimed-create-target",
+              },
+            }
+          : {}),
+        ...(BOOKING_EXTENSION_LOCAL_UPSERT_ACTIONS.has(slug)
+          ? {
+              commandTargetField: "slotId",
+              availability: { status: "available" as const },
+              effectBoundary: "local" as const,
+              targetLifecycle: "existing" as const,
+            }
+          : {}),
         requiredScopes: [...requiredScopes],
         risk,
         ledger: write || risk === "high" ? ("required" as const) : ("optional" as const),
@@ -594,6 +643,8 @@ export const bookingsExtrasVoyantModule = defineModule({
         ? {
             ...action,
             capabilityId: action.id,
+            availability: { status: "available" as const },
+            effectBoundary: "local" as const,
             targetLifecycle: "created" as const,
             createdTarget: {
               commandTargetType: "booking-extra-create-command",

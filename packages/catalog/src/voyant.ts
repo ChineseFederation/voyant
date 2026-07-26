@@ -472,6 +472,13 @@ export const catalogBookingEngineVoyantModule = defineModule({
       ledger: "required",
       approval: "never",
       reversible: true,
+      // Each call persists a fresh short-lived quote row (10-minute expiry);
+      // there is no client-supplied target id or claim registry backing a
+      // "created" contract, but a duplicate quote from a blind retry is
+      // harmless, so this is exposed as a lightweight "existing" target.
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
       from: {
         tools: ["@voyant-travel/catalog#booking-engine#tool.quote-catalog-entity"],
       },

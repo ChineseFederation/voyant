@@ -309,6 +309,10 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["customer"],
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-unclaimed-create-target",
+      },
       from: { tools: ["@voyant-travel/storefront#tool.bootstrap-my-customer-portal"] },
     },
     {

@@ -12,6 +12,8 @@ interface BookingActionDeclaration extends ActionLedgerCapabilityDefinition {
     policy?: string
     targetLifecycle?: VoyantGraphActionDeclaration["targetLifecycle"]
     createdTarget?: VoyantGraphActionDeclaration["createdTarget"]
+    availability?: VoyantGraphActionDeclaration["availability"]
+    effectBoundary?: VoyantGraphActionDeclaration["effectBoundary"]
   }
 }
 
@@ -72,10 +74,13 @@ export const BOOKING_ACTION_DECLARATIONS = {
       graph: {
         ...bookingWriteCapability.graph,
         id: "booking.status.cancel",
-        from: {
-          ...adminRouteBinding,
-          tools: ["@voyant-travel/bookings#tool.cancel-booking"],
-        },
+        // Keep cancel available for admin routes + action-ledger authorization.
+        // Do not bind the cancel Tool here: an available multistage Tool action
+        // would require tested durability, and marking the action unavailable
+        // would drop it from the graph-lowered action-ledger registry and break
+        // admin cancel. The Tool remains package-exported for direct callers;
+        // graph MCP selection follows action bindings.
+        from: adminRouteBinding,
       },
     },
     start: {

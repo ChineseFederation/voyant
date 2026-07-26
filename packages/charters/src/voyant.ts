@@ -161,8 +161,22 @@ export const chartersVoyantModule = defineModule({
       kind: "execute" as const,
       targetType: "charter",
       ...(["update-charter-product", "update-charter-voyage", "update-charter-yacht"].includes(id)
-        ? { commandTargetField: "id" }
-        : {}),
+        ? {
+            commandTargetField: "id",
+            availability: { status: "available" as const },
+            effectBoundary: "local" as const,
+            targetLifecycle: "existing" as const,
+          }
+        : {
+            // "upsert-charter-voyage" dedupes on the (productId, departureDate,
+            // yachtId) unique index and fully overwrites on a matching retry.
+            // It has no client-supplied row id, but is anchored to the existing
+            // charter product it belongs to.
+            commandTargetField: "productId",
+            availability: { status: "available" as const },
+            effectBoundary: "local" as const,
+            targetLifecycle: "existing" as const,
+          }),
       requiredScopes: ["charters:write"],
       risk: "medium" as const,
       ledger: "required" as const,
@@ -192,6 +206,8 @@ export const chartersVoyantModule = defineModule({
       approval: "never" as const,
       reversible: false,
       allowedActorTypes: ["staff" as const],
+      availability: { status: "available" as const },
+      effectBoundary: "local" as const,
       targetLifecycle: "created" as const,
       createdTarget: {
         commandTargetType,

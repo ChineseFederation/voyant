@@ -248,6 +248,10 @@ export const accommodationsVoyantModule = defineModule({
       ledger: "required",
       approval: "required",
       reversible: true,
+      availability: {
+        status: "unavailable",
+        reasonCode: "unsafe-unclaimed-create-target",
+      },
       from: { tools: ["@voyant-travel/accommodations#tool.pickup-room-block"] },
     },
     {

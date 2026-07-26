@@ -231,7 +231,12 @@ export const cruisesVoyantModule = defineModule({
       kind: "execute" as const,
       targetType: "cruise",
       ...(["update-cruise", "update-cruise-sailing", "update-cruise-ship"].includes(id)
-        ? { commandTargetField: "id" }
+        ? {
+            commandTargetField: "id",
+            availability: { status: "available" as const },
+            effectBoundary: "local" as const,
+            targetLifecycle: "existing" as const,
+          }
         : {}),
       ...(id === "create-cruise"
         ? {
@@ -248,7 +253,17 @@ export const cruisesVoyantModule = defineModule({
               testReference: "tests/integration/created-target-tools.test.ts",
             },
           }
-        : {}),
+        : id === "upsert-cruise-sailing"
+          ? {
+              // Dedupes on the (cruiseId, departureDate, shipId) unique index and
+              // fully overwrites on a matching retry. It has no client-supplied
+              // row id, but is anchored to the existing cruise it belongs to.
+              commandTargetField: "cruiseId",
+              availability: { status: "available" as const },
+              effectBoundary: "local" as const,
+              targetLifecycle: "existing" as const,
+            }
+          : {}),
       requiredScopes: ["cruises:write"],
       risk: "medium" as const,
       ledger: "required" as const,
@@ -268,6 +283,8 @@ export const cruisesVoyantModule = defineModule({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
       targetLifecycle: "created",
       createdTarget: {
         commandTargetType: "cruise_ship_create_command",
