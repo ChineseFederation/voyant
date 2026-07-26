@@ -1,5 +1,13 @@
 # @voyant-travel/admin
 
+## 0.129.2
+
+### Patch Changes
+
+- 63baa7c: Fold organization setup into a dismissible dashboard widget and remove the dedicated Setup page/nav.
+
+  Caller migration for `@voyant-travel/setup-react`: the public `SetupPage` export and `/setup` route are removed. Use the `SetupDashboardWidget` contribution on `dashboard.header` (via `createSelectedSetupAdminExtension`) instead of mounting a Setup page or linking to `/setup`.
+
 ## 0.129.1
 
 ### Patch Changes
