@@ -23,7 +23,7 @@ function createStorage(): Storage {
   }
 }
 
-if (typeof window !== "undefined" && typeof window.localStorage.clear !== "function") {
+if (typeof window !== "undefined" && typeof window.localStorage?.clear !== "function") {
   Object.defineProperty(window, "localStorage", {
     configurable: true,
     value: createStorage(),

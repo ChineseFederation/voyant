@@ -33,6 +33,27 @@ interface ActivatedRuntimeState {
   attestations: ReadonlyMap<string, unknown>
 }
 
+/**
+ * Realm-shared attestation facade. Vite SSR `noExternal` for `@voyant-travel/*`
+ * can bundle a second copy of this module into the host while MCP still loads
+ * from `node_modules`. Module-local WeakMaps/WeakSets then diverge and MCP
+ * fail-closes with NOT_FRAMEWORK_OWNED / NOT_ACTIVATED.
+ *
+ * Install one frozen API on `globalThis` under `Symbol.for`. The WeakSet /
+ * WeakMap stay closed over inside the first installer — callers only get
+ * mark/is/get/set methods, never the mutable stores.
+ */
+const GRAPH_RUNTIME_ATTESTATION_KEY = Symbol.for(
+  "@voyant-travel/framework:graph-runtime-attestation",
+)
+
+interface GraphRuntimeAttestationApi {
+  readonly markOwned: (runtime: object) => void
+  readonly isOwned: (runtime: object) => boolean
+  readonly setActivatedState: (runtime: VoyantGraphRuntime, state: ActivatedRuntimeState) => void
+  readonly getActivatedState: (runtime: VoyantGraphRuntime) => ActivatedRuntimeState | undefined
+}
+
 const provisionalUnits = new WeakMap<
   VoyantGraphRuntime,
   ReadonlyMap<string, VoyantGraphConditionalActionProvisionalUnit>
@@ -42,13 +63,41 @@ const conditionalPortPreflights = new WeakMap<
   Map<string, ConditionalPortPreflight>
 >()
 const conditionalPortAttestations = new WeakMap<VoyantGraphRuntime, Map<string, unknown>>()
-const activatedRuntimeStates = new WeakMap<VoyantGraphRuntime, ActivatedRuntimeState>()
 const activatedRuntimeViews = new WeakMap<VoyantGraphRuntime, VoyantGraphActivatedRuntime>()
-const frameworkOwnedRuntimes = new WeakSet<VoyantGraphRuntime>()
+
+function realmAttestationApi(): GraphRuntimeAttestationApi {
+  const bag = globalThis as Record<symbol, GraphRuntimeAttestationApi | undefined>
+  const existing = bag[GRAPH_RUNTIME_ATTESTATION_KEY]
+  if (existing) return existing
+
+  const ownedRuntimes = new WeakSet<object>()
+  const activatedStates = new WeakMap<VoyantGraphRuntime, ActivatedRuntimeState>()
+  const api: GraphRuntimeAttestationApi = Object.freeze({
+    markOwned(runtime: object) {
+      ownedRuntimes.add(runtime)
+    },
+    isOwned(runtime: object) {
+      return ownedRuntimes.has(runtime)
+    },
+    setActivatedState(runtime: VoyantGraphRuntime, state: ActivatedRuntimeState) {
+      activatedStates.set(runtime, state)
+    },
+    getActivatedState(runtime: VoyantGraphRuntime) {
+      return activatedStates.get(runtime)
+    },
+  })
+  Object.defineProperty(globalThis, GRAPH_RUNTIME_ATTESTATION_KEY, {
+    value: api,
+    enumerable: false,
+    configurable: false,
+    writable: false,
+  })
+  return api
+}
 
 /** Record a runtime minted by a framework-owned construction boundary. */
 function registerFrameworkOwnedRuntime(runtime: VoyantGraphRuntime): void {
-  frameworkOwnedRuntimes.add(runtime)
+  realmAttestationApi().markOwned(runtime)
 }
 
 /**
@@ -76,7 +125,7 @@ export function assertVoyantGraphMcpRuntime(
   if (
     typeof runtime !== "object" ||
     runtime === null ||
-    !frameworkOwnedRuntimes.has(runtime as VoyantGraphRuntime)
+    !realmAttestationApi().isOwned(runtime as VoyantGraphRuntime)
   ) {
     throw new Error(
       "VOYANT_GRAPH_RUNTIME_NOT_FRAMEWORK_OWNED: MCP registration requires a runtime created by the framework.",
@@ -222,7 +271,10 @@ export function activateConditionalActionRuntime(
     }),
   )
   const exactAttestations = new Map(attestations)
-  activatedRuntimeStates.set(activated, { base: runtime, attestations: exactAttestations })
+  realmAttestationApi().setActivatedState(activated, {
+    base: runtime,
+    attestations: exactAttestations,
+  })
   activatedRuntimeViews.set(runtime, activated)
   return activated
 }
@@ -236,7 +288,7 @@ export function assertConditionalActionRuntimeActivated(
   ports?: VoyantGraphRuntimePorts,
   requireBoundPorts = false,
 ): asserts runtime is VoyantGraphActivatedRuntime {
-  const activated = activatedRuntimeStates.get(runtime)
+  const activated = realmAttestationApi().getActivatedState(runtime)
   if (!activated) {
     if (conditionalPortRequirements(runtime).length === 0) return
     throw new Error(
@@ -364,7 +416,7 @@ function assertTypedPortConformance(
 }
 
 function baseRuntime(runtime: VoyantGraphRuntime): VoyantGraphRuntime {
-  return activatedRuntimeStates.get(runtime)?.base ?? runtime
+  return realmAttestationApi().getActivatedState(runtime)?.base ?? runtime
 }
 
 function sortedUnique(values: readonly string[]): string[] {
