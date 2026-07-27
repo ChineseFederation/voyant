@@ -1,5 +1,12 @@
 # @voyant-travel/operator-standard
 
+## 0.15.26
+
+### Patch Changes
+
+- Updated dependencies [9713e4b]
+  - @voyant-travel/tools@0.7.1
+
 ## 0.15.25
 
 ### Patch Changes
