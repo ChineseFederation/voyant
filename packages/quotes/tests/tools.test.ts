@@ -1,3 +1,4 @@
+import assert from "node:assert/strict"
 import {
   createToolRegistry,
   type ToolContext,
@@ -6,6 +7,11 @@ import {
 import { describe, expect, it } from "vitest"
 
 import {
+  QUOTES_CREATED_TARGET_POLICIES,
+  quotesHandlerActionPolicyExpectation,
+} from "../src/created-target-policy.js"
+import {
+  createQuoteTool,
   type QuoteDeliveryToolServices,
   type QuotesToolServices,
   quotesTools,
@@ -17,6 +23,7 @@ function ctx(
   services?: Partial<QuotesToolServices>,
   actor: ToolContext["actor"] = "staff",
   delivery?: QuoteDeliveryToolServices,
+  handlerActionPolicy: ToolHandlerActionPolicyContext = snapshotSendActionPolicy(),
 ): ToolContext & { quotes?: QuotesToolServices; quoteDelivery?: QuoteDeliveryToolServices } {
   return {
     db: {},
@@ -24,9 +31,37 @@ function ctx(
     audience: actor,
     tenantId: "default",
     resolverScope: { locale: "en-GB", audience: actor, market: "default", actor },
-    handlerActionPolicy: snapshotSendActionPolicy(),
+    handlerActionPolicy,
     quotes: services as QuotesToolServices | undefined,
     quoteDelivery: delivery,
+  }
+}
+
+/** The admitted context the create handler must have produced. */
+function assertAdmitted(admitted: ToolHandlerActionPolicyContext) {
+  assert.equal(admitted.canonicalName, "create_quote")
+  assert.equal(admitted.actionPolicy.targetLifecycle, "created")
+  assert.equal(admitted.actionPolicy.createdTarget?.durability, "handler-command-claim-v1")
+}
+
+/** Admitted policy for the created-target quote command. */
+function createQuoteActionPolicy(key = "quote-create-1"): ToolHandlerActionPolicyContext {
+  const expectation = quotesHandlerActionPolicyExpectation(QUOTES_CREATED_TARGET_POLICIES.quote)
+  return {
+    capabilityId: expectation.capabilityId,
+    capabilityVersion: expectation.capabilityVersion,
+    canonicalName: expectation.canonicalName,
+    actionPolicy: {
+      ...expectation.actionPolicy,
+      enforcement: "handler",
+      invocation: {
+        controlField: "_voyant",
+        requiredFields: ["idempotencyKey"],
+        optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        fingerprintAlgorithm: "action-ledger-command-v1",
+      },
+    },
+    invocation: { idempotencyKey: key },
   }
 }
 
@@ -59,6 +94,11 @@ function registry() {
     if (tool === snapshotAndSendQuoteTool) {
       registry.register(tool, {
         actionPolicy: SNAPSHOT_AND_SEND_QUOTE_HANDLER_POLICY.actionPolicy,
+      })
+    } else if (tool === createQuoteTool) {
+      registry.register(tool, {
+        actionPolicy: quotesHandlerActionPolicyExpectation(QUOTES_CREATED_TARGET_POLICIES.quote)
+          .actionPolicy,
       })
     } else {
       registry.register(tool)
@@ -121,8 +161,12 @@ describe("quotes Tools", () => {
     const list = registry().list()
     expect(list.map((tool) => tool.name).sort()).toEqual([
       "accept_quote_version",
+      "add_quote_product",
+      "create_quote",
       "decline_quote_version",
       "get_quote",
+      "list_quote_pipelines",
+      "list_quote_stages",
       "list_quotes",
       "send_quote_version",
       "snapshot_and_send_quote",
@@ -144,6 +188,8 @@ describe("quotes Tools", () => {
       "send_quote_version",
       "accept_quote_version",
       "decline_quote_version",
+      "create_quote",
+      "add_quote_product",
     ]) {
       expect(list.find((tool) => tool.name === name)).toMatchObject({
         tier: "write",
@@ -270,6 +316,118 @@ describe("quotes Tools", () => {
     ])
   })
 
+  it("authors a quote end to end: pipeline, stage, quote, priced line", async () => {
+    // The lifecycle Tools could send and accept a quote that nothing could
+    // build. This is the path an operator actually takes when a customer asks
+    // for a price: find where quotes are filed, open one, put a line on it.
+    const toolRegistry = registry()
+    const services: Partial<QuotesToolServices> = {
+      async listPipelines() {
+        return {
+          data: [
+            {
+              id: "pipe_1",
+              entityType: "quote",
+              name: "Sales",
+              isDefault: true,
+              sortOrder: 0,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ],
+          total: 1,
+          limit: 50,
+          offset: 0,
+        }
+      },
+      async listStages() {
+        return {
+          data: [
+            {
+              id: "stge_1",
+              pipelineId: "pipe_1",
+              name: "New enquiry",
+              sortOrder: 0,
+              probability: 10,
+              isClosed: false,
+              isWon: false,
+              isLost: false,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            },
+          ],
+          total: 1,
+          limit: 50,
+          offset: 0,
+        }
+      },
+      async createQuote(input, admitted) {
+        // The handler must admit the created-target policy before the service
+        // is reached, or a retry could open a second quote.
+        assertAdmitted(admitted)
+        return { ...quote, ...input, id: "quot_new", status: "open" }
+      },
+      async addQuoteProduct(quoteId, line) {
+        return {
+          id: "qprd_1",
+          quoteId,
+          productId: null,
+          supplierServiceId: null,
+          description: null,
+          unitPriceAmountCents: null,
+          costAmountCents: null,
+          currency: null,
+          discountAmountCents: null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          ...line,
+        }
+      },
+    }
+
+    const pipelines = (await toolRegistry.dispatch("list_quote_pipelines", {}, ctx(services))) as {
+      data: { id: string; isDefault: boolean }[]
+    }
+    const pipelineId = pipelines.data.find((p) => p.isDefault)?.id
+    expect(pipelineId).toBe("pipe_1")
+
+    const stages = (await toolRegistry.dispatch(
+      "list_quote_stages",
+      { pipelineId },
+      ctx(services),
+    )) as { data: { id: string }[] }
+    const stageId = stages.data[0]?.id
+
+    const created = (await toolRegistry.dispatch(
+      "create_quote",
+      { title: "Coastal Day Cruise — Ana Ionescu", pipelineId, stageId, paxCount: 4 },
+      ctx(services, "staff", undefined, createQuoteActionPolicy()),
+    )) as { id: string; title: string; paxCount: number }
+    expect(created).toMatchObject({ id: "quot_new", paxCount: 4 })
+
+    const line = (await toolRegistry.dispatch(
+      "add_quote_product",
+      {
+        quoteId: created.id,
+        nameSnapshot: "Coastal Day Cruise",
+        quantity: 4,
+        unitPriceAmountCents: 40_000,
+        currency: "EUR",
+      },
+      ctx(services),
+    )) as { quoteId: string; nameSnapshot: string; quantity: number }
+    // quoteId addresses the quote; it must not leak into the line payload as a
+    // column, and the customer-facing name is captured on the line.
+    expect(line).toMatchObject({
+      quoteId: "quot_new",
+      nameSnapshot: "Coastal Day Cruise",
+      quantity: 4,
+      unitPriceAmountCents: 40_000,
+    })
+    // Dates serialize, matching every other Tool in this package.
+    expect(typeof (line as unknown as { createdAt: unknown }).createdAt).toBe("string")
+  })
+
   it("fails closed for non-staff grants and missing services", async () => {
     const toolRegistry = registry()
     await expect(toolRegistry.dispatch("list_quotes", {}, ctx(undefined))).rejects.toMatchObject({
@@ -277,6 +435,21 @@ describe("quotes Tools", () => {
     })
     await expect(
       toolRegistry.dispatch("get_quote", { id: quote.id }, ctx(undefined, "customer")),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    // Authoring is staff-only too, or a customer grant could open quotes.
+    await expect(
+      toolRegistry.dispatch(
+        "create_quote",
+        { title: "x", pipelineId: "pipe_1", stageId: "stge_1" },
+        ctx(undefined, "customer", undefined, createQuoteActionPolicy()),
+      ),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    await expect(
+      toolRegistry.dispatch(
+        "add_quote_product",
+        { quoteId: quote.id, nameSnapshot: "x" },
+        ctx(undefined, "customer"),
+      ),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
   })
 })

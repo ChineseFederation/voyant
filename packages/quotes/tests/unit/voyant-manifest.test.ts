@@ -178,6 +178,10 @@ describe("quotes deployment manifests", () => {
     expect(quotesVoyantModule.tools?.map(({ name }) => name)).toEqual([
       "list_quotes",
       "get_quote",
+      "list_quote_pipelines",
+      "list_quote_stages",
+      "create_quote",
+      "add_quote_product",
       "snapshot_quote_version",
       "send_quote_version",
       "accept_quote_version",
