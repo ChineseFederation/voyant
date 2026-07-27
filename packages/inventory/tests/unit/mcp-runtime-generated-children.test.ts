@@ -23,6 +23,15 @@ afterEach(() => {
   executeAdmittedCreatedTargetCommand.mockReset()
 })
 
+/**
+ * A real admission always carries its action policy, and the executor compares
+ * its `risk` against the `evaluatedRisk` the caller passes — a bare `{}` here
+ * hid that coupling and let a risk mismatch reach production undetected.
+ */
+function admittedWithRisk(risk: "low" | "medium" | "high"): ToolHandlerActionPolicyContext {
+  return { actionPolicy: { risk } } as unknown as ToolHandlerActionPolicyContext
+}
+
 describe("inventory generated-child runtime", () => {
   it("checks related option membership and inserts on the admitted transaction", async () => {
     const tx = anchorLookup([{ productId: "product_1" }])
@@ -41,7 +50,7 @@ describe("inventory generated-child runtime", () => {
           productExtraId: "extra_1",
           optionId: "option_1",
         },
-        {} as ToolHandlerActionPolicyContext,
+        admittedWithRisk("high"),
       ),
     ).resolves.toEqual({ id: "config_1", replayed: false })
     expect(create).toHaveBeenCalledWith(
@@ -65,7 +74,7 @@ describe("inventory generated-child runtime", () => {
           productExtraId: "extra_1",
           optionId: "option_other_product",
         },
-        {} as ToolHandlerActionPolicyContext,
+        admittedWithRisk("high"),
       ),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" })
     expect(create).not.toHaveBeenCalled()
