@@ -470,7 +470,8 @@ type ZodCompositionDef = {
  * Wire clients send ISO strings; before registry dispatch those strings are
  * revived to `Date` wherever the domain schema expects a date node.
  */
-function toMcpInputSchema(schema: z.ZodType, entry: ToolManifestEntry): z.ZodObject {
+/** Exported for tests: the double-parse hazard it guards is not observable from outside. */
+export function toMcpInputSchema(schema: z.ZodType, entry: ToolManifestEntry): z.ZodObject {
   const shape =
     schema instanceof z.ZodObject
       ? schema.shape
@@ -501,6 +502,22 @@ function projectShapeForMcpDiscovery(shape: z.ZodRawShape): z.ZodRawShape {
   )
 }
 
+/**
+ * Pick the schema REGISTERED with the MCP SDK — which both advertises the tool
+ * and parses the caller's arguments before the callback runs.
+ *
+ * Do NOT "fix" this the way the registry manifest was fixed, by asking for
+ * `io: "input"` so a transform-bearing schema passes and is returned as-is.
+ * That schema would then execute domain transforms during the SDK's parse, and
+ * `dispatchToResult` re-parses the result through the registry's original
+ * schema: `booleanQueryParam` is `z.enum(["true","false","1","0"]).transform()`,
+ * so `active: "true"` becomes `true` and the second parse rejects a boolean
+ * against a string enum with INVALID_INPUT.
+ *
+ * The projection below replaces a transform with its INPUT side, which is both
+ * what the wire actually carries and safe to parse twice. The output-direction
+ * probe is what routes transforms here, so it is deliberate.
+ */
 function projectSchemaForMcpDiscovery(schema: z.ZodType): z.ZodType {
   try {
     z.toJSONSchema(schema)

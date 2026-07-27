@@ -497,9 +497,23 @@ async function executeTool(
 }
 
 /**
- * Serialize a tool schema to JSON Schema via zod v4's native
- * `z.toJSONSchema`. A non-serializable schema (e.g. a top-level transform)
- * is labelled as runtime-only rather than breaking the whole manifest.
+ * Serialize a tool schema to JSON Schema via zod v4's native `z.toJSONSchema`.
+ *
+ * The `io` direction is load-bearing, not a detail. `z.toJSONSchema` defaults
+ * to `io: "output"`, and a schema containing a transform has no statically
+ * known output type — so zod threw `Transforms cannot be represented in JSON
+ * Schema`, this function fell into the catch below, and the tool was published
+ * with a description-only stub carrying NO parameter names, types or required
+ * list. An agent could then only guess field names, and every guess came back
+ * as a -32602 it could not learn from.
+ *
+ * That silently degraded 26 of 284 Tools, including every `list_*` whose query
+ * schema coerces a boolean query param (`active`, `activated`, `isPrimary`) and
+ * every write that trims a string (`website`, `taxId`, `currency`).
+ *
+ * An input schema must serialize as `io: "input"` — what the caller SENDS —
+ * which is both correct and representable through a transform. Output schemas
+ * describe what the tool RETURNS, so they stay `io: "output"`.
  */
 function toJsonSchema(
   schema: z.ZodType,
@@ -507,7 +521,9 @@ function toJsonSchema(
   name: string,
 ): Record<string, unknown> {
   try {
-    const serialized = z.toJSONSchema(schema) as Record<string, unknown>
+    const serialized = z.toJSONSchema(schema, {
+      io: direction === "Input" ? "input" : "output",
+    }) as Record<string, unknown>
     const meaningfulKeys = Object.keys(serialized).filter((key) => key !== "$schema")
     if (meaningfulKeys.length > 0) return serialized
     return {
