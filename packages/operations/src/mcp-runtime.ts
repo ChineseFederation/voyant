@@ -10,6 +10,12 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const db = context.db as Parameters<typeof availabilityService.listSlots>[0]
     return {
       operations: {
+        createDeparture: (input: Parameters<typeof availabilityService.createSlot>[1]) =>
+          availabilityService.createSlot(db, input),
+        updateDeparture: (
+          id: string,
+          patch: Parameters<typeof availabilityService.updateSlot>[2],
+        ) => availabilityService.updateSlot(db, id, patch),
         getAvailabilityOverview: (
           query: Parameters<typeof availabilityService.getAvailabilityOverview>[1],
         ) => availabilityService.getAvailabilityOverview(db, query),

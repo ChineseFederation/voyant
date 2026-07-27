@@ -6,12 +6,18 @@ import type {
   availabilityCloseoutListQuerySchema,
   availabilityOverviewQuerySchema,
   availabilityRuleListQuerySchema,
+  availabilitySlotCoreSchema,
   availabilitySlotListQuerySchema,
   availabilityStartTimeListQuerySchema,
 } from "./availability/validation.js"
 
-/** Read-only availability services contributed by an Operations runtime. */
+/** Availability services contributed by an Operations runtime. */
 export interface OperationsToolServices {
+  createDeparture(input: z.infer<typeof availabilitySlotCoreSchema>): Promise<unknown>
+  updateDeparture(
+    id: string,
+    patch: Partial<z.infer<typeof availabilitySlotCoreSchema>>,
+  ): Promise<unknown>
   getAvailabilityOverview(query: z.infer<typeof availabilityOverviewQuerySchema>): Promise<unknown>
   getAvailabilityAggregates(
     query: z.infer<typeof availabilityAggregatesQuerySchema>,

@@ -7,6 +7,7 @@ import {
   availabilityCloseoutListQuerySchema,
   availabilityOverviewQuerySchema,
   availabilityRuleListQuerySchema,
+  availabilitySlotCoreSchema,
   availabilitySlotListQuerySchema,
   availabilitySlotStatusSchema,
   availabilityStartTimeListQuerySchema,
@@ -183,6 +184,76 @@ const commonMetadata = {
   annotations: { idempotentHint: true },
 }
 
+const WRITE_SCOPES = ["operations:write"] as const
+
+/**
+ * Departures are the difference between a product that exists and a product
+ * that can be sold, so writing them is reversible and low-drama: a wrong date
+ * is edited or closed out, not compensated. Everything still lands in the
+ * action ledger.
+ */
+const DEPARTURE_WRITE_RISK = {
+  destructive: false,
+  reversible: true,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write"],
+} as const
+
+const createDepartureArgs = availabilitySlotCoreSchema
+
+const updateDepartureArgs = availabilitySlotCoreSchema.partial().extend({
+  id: z.string().min(1).describe("The departure id (`avsl_*`) to update."),
+})
+
+export const createDepartureTool = defineTool<
+  z.infer<typeof createDepartureArgs>,
+  { departure: z.infer<typeof availabilitySlotSchema> | null },
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.create-departure`,
+  name: "create_departure",
+  description:
+    "Create one dated departure on a product so it can be sold. `compose_product` deliberately does not create departures, so a newly composed product has none until this runs. Repeat it per date for a recurring schedule (one call per Saturday, for instance). Requires the product's `timezone`; `startsAt` is an ISO datetime with offset.",
+  inputSchema: createDepartureArgs,
+  outputSchema: departureOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: DEPARTURE_WRITE_RISK,
+  async handler(input, ctx) {
+    return parseJsonResult(departureOutputSchema, {
+      departure: await operations(ctx).createDeparture(input),
+    })
+  },
+})
+
+export const updateDepartureTool = defineTool<
+  z.infer<typeof updateDepartureArgs>,
+  { departure: z.infer<typeof availabilitySlotSchema> | null },
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.update-departure`,
+  name: "update_departure",
+  description:
+    "Update an existing departure — its capacity, status (open/closed/cancelled), times, or notes. Use `list_departures` first to resolve the departure id. Reducing capacity below what is already booked is rejected.",
+  inputSchema: updateDepartureArgs,
+  outputSchema: departureOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: DEPARTURE_WRITE_RISK,
+  async handler({ id, ...patch }, ctx) {
+    return parseJsonResult(departureOutputSchema, {
+      departure: await operations(ctx).updateDeparture(id, patch),
+    })
+  },
+})
+
 export const getAvailabilityOverviewTool = defineTool<
   OverviewQuery,
   z.infer<typeof availabilityOverviewSchema>,
@@ -348,6 +419,8 @@ export const listAvailabilityCloseoutsTool = defineTool<
     )
   },
 })
+
+export const operationsWriteTools = [createDepartureTool, updateDepartureTool] as const
 
 export const operationsTools = [
   getAvailabilityOverviewTool,

@@ -131,9 +131,10 @@ describe("operations deployment manifest", () => {
   it("binds every read-only Operations tool to a read action", () => {
     const tools = operationsVoyantModule.tools ?? []
     const actions = operationsVoyantModule.actions ?? []
-    expect(tools).toHaveLength(8)
-    expect(actions).toHaveLength(8)
-    for (const tool of tools) {
+    const readTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:read"))
+    expect(readTools).toHaveLength(8)
+    expect(actions).toHaveLength(10)
+    for (const tool of readTools) {
       expect(tool).toMatchObject({
         requiredScopes: ["operations:read"],
         context: ["operations"],
@@ -147,6 +148,36 @@ describe("operations deployment manifest", () => {
         risk: "low",
         ledger: "optional",
       })
+    }
+  })
+
+  it("binds the departure write tools to ledgered execute actions", () => {
+    // The package declared `operations:write` long before anything used it, so
+    // an operator could read availability through Max but never create a
+    // departure — a composed product stayed unsellable.
+    const tools = operationsVoyantModule.tools ?? []
+    const actions = operationsVoyantModule.actions ?? []
+    const writeTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:write"))
+
+    expect(writeTools.map((tool) => tool.name).sort()).toEqual([
+      "create_departure",
+      "update_departure",
+    ])
+
+    for (const tool of writeTools) {
+      expect(tool).toMatchObject({ context: ["operations"], risk: "medium" })
+      const action = actions.find((candidate) => candidate.from?.tools?.includes(tool.id))
+      expect(action).toMatchObject({
+        version: "v1",
+        kind: "execute",
+        requiredScopes: ["operations:write"],
+        ledger: "required",
+        approval: "never",
+        reversible: true,
+        targetLifecycle: "existing",
+      })
+      // Every execute action needs a command field to anchor its ledger target.
+      expect(action?.commandTargetField).toBeTruthy()
     }
   })
 
