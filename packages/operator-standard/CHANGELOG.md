@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.15.20
+
+### Patch Changes
+
+- Updated dependencies [9c6ca9d]
+  - @voyant-travel/notifications@0.141.0
+  - @voyant-travel/notifications-react@0.141.0
+
 ## 0.15.19
 
 ### Patch Changes
