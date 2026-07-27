@@ -4,6 +4,25 @@ import { ZodError, type ZodType } from "zod"
 
 import { DEFAULT_REQUEST_BODY_LIMIT_BYTES } from "./middleware/body-size.js"
 
+/**
+ * Cross-realm brand for {@link ApiHttpError}.
+ *
+ * `instanceof` compares class identity, which only holds when thrower and
+ * catcher loaded the SAME module instance. The managed operator runtime breaks
+ * that assumption: `ssr.noExternal: [/^@voyant-travel\//]` inlines a copy of
+ * this file into the SSR bundle, while modules composed at runtime resolve
+ * their own copy from `node_modules`. Two `ApiHttpError` classes then exist,
+ * `instanceof` is false across them, and `normalizeValidationError` returns
+ * `undefined` — so every validation failure surfaced as a bare
+ * `500 Internal Server Error` instead of the `400 invalid_request` contract
+ * (an empty POST body to any `.openapi()` route reproduced it).
+ *
+ * `Symbol.for` resolves through the global symbol registry, which IS shared
+ * across module copies in the same realm, so the brand matches regardless of
+ * how many times this file was bundled.
+ */
+const API_HTTP_ERROR_BRAND = Symbol.for("voyant.hono.ApiHttpError")
+
 export class ApiHttpError extends Error {
   readonly status: number
   readonly code?: string
@@ -22,7 +41,56 @@ export class ApiHttpError extends Error {
     this.status = options.status
     this.code = options.code
     this.details = options.details
+    // Non-enumerable so the brand never leaks into a serialized error body.
+    Object.defineProperty(this, API_HTTP_ERROR_BRAND, {
+      value: true,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
   }
+}
+
+/**
+ * Identifies an {@link ApiHttpError} across module copies. Prefer this over
+ * `error instanceof ApiHttpError` anywhere the error may have been thrown by a
+ * different bundle of `@voyant-travel/hono` — notably any framework-wide error
+ * boundary. Subclasses inherit the brand through `super()`.
+ */
+export function isApiHttpError(error: unknown): error is ApiHttpError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as Record<PropertyKey, unknown>)[API_HTTP_ERROR_BRAND] === true
+  )
+}
+
+/**
+ * `ZodError` and `HTTPException` reach the boundary from whichever copy the
+ * throwing module loaded, so they need the same treatment. Neither class is
+ * ours to brand, so match on the shape each one is uniquely identified by:
+ * a `ZodError` always carries an `issues` array, and an `HTTPException` always
+ * pairs a numeric `status` with a `getResponse()` method (it does not set
+ * `name`, so that is not a usable discriminator).
+ */
+function isZodError(error: unknown): error is ZodError {
+  if (error instanceof ZodError) return true
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as Error).name === "ZodError" &&
+    Array.isArray((error as ZodError).issues)
+  )
+}
+
+function isHttpException(error: unknown): error is HTTPException {
+  if (error instanceof HTTPException) return true
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    typeof (error as HTTPException).status === "number" &&
+    typeof (error as HTTPException).getResponse === "function"
+  )
 }
 
 export class RequestValidationError extends ApiHttpError {
@@ -62,7 +130,9 @@ function toValidationError(
 ): RequestValidationError {
   return new RequestValidationError(error.issues[0]?.message ?? fallbackMessage, {
     issues: error.issues,
-    fields: error.flatten(),
+    // `isZodError` admits a cross-copy instance, which still carries `flatten`;
+    // the guard only covers a shape-compatible object that does not.
+    fields: typeof error.flatten === "function" ? error.flatten() : undefined,
   })
 }
 
@@ -145,15 +215,15 @@ export function parseQuery<T>(
 }
 
 export function normalizeValidationError(error: unknown): ApiHttpError | undefined {
-  if (error instanceof ApiHttpError) {
+  if (isApiHttpError(error)) {
     return error
   }
 
-  if (error instanceof ZodError) {
+  if (isZodError(error)) {
     return toValidationError(error)
   }
 
-  if (error instanceof HTTPException) {
+  if (isHttpException(error)) {
     // Hono's request validators throw HTTPException before our validation hook
     // runs — most notably HTTPException(400, "Malformed JSON in request body")
     // from the JSON body parser on `.openapi()` routes. Map it onto the

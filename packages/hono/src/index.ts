@@ -130,6 +130,7 @@ export type {
 export {
   ApiHttpError,
   ForbiddenApiError,
+  isApiHttpError,
   normalizeValidationError,
   parseJsonBody,
   parseOptionalJsonBody,

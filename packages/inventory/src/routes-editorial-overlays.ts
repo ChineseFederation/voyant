@@ -4,7 +4,7 @@ import type { SourceAdapterRegistry } from "@voyant-travel/catalog/booking-engin
 import { OVERLAY_DEFAULT_SCOPE } from "@voyant-travel/catalog/overlay/schema"
 import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { ApiHttpError, openApiValidationHook, requireUserId } from "@voyant-travel/hono"
+import { isApiHttpError, openApiValidationHook, requireUserId } from "@voyant-travel/hono"
 import type { Context } from "hono"
 
 import {
@@ -202,7 +202,7 @@ export function createProductEditorialOverlayRoutes(
             409,
           )
         }
-        if (err instanceof ApiHttpError) {
+        if (isApiHttpError(err)) {
           throw err
         }
         return c.json({ error: "invalid_editorial_overlay", detail: errorMessage(err) }, 400)
