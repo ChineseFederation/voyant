@@ -1,5 +1,16 @@
 # @voyant-travel/inventory
 
+## 0.21.11
+
+### Patch Changes
+
+- 0173b70: Identify `ApiHttpError` by a registry symbol instead of `instanceof`, so
+  validation failures keep returning `400 invalid_request` when the throwing
+  module and the error boundary loaded different copies of `@voyant-travel/hono`.
+  `ZodError` and `HTTPException` are matched structurally for the same reason.
+- Updated dependencies [0173b70]
+  - @voyant-travel/hono@0.134.7
+
 ## 0.21.10
 
 ### Patch Changes
