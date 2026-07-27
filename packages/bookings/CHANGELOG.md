@@ -1,5 +1,7 @@
 # @voyant-travel/bookings
 
+## 0.212.0
+
 ## 0.211.0
 
 ## 0.210.0

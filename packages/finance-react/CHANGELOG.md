@@ -1,5 +1,15 @@
 # @voyant-travel/finance-react
 
+## 0.212.0
+
+### Patch Changes
+
+- @voyant-travel/bookings-react@0.212.0
+- @voyant-travel/distribution-react@0.202.0
+- @voyant-travel/operations-react@0.93.0
+- @voyant-travel/inventory-react@0.94.0
+- @voyant-travel/finance@0.212.0
+
 ## 0.211.1
 
 ### Patch Changes
