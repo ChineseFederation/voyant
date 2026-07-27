@@ -213,7 +213,16 @@ function assertToolAudience(ctx: TripsToolContext, audience: Visibility): void {
 }
 
 const createTripArgs = createTripEnvelopeSchema.extend({
-  components: z.array(createTripComponentBodySchema).default([]),
+  components: z
+    .array(createTripComponentBodySchema)
+    .default([])
+    .describe(
+      "Components to add. Two rules are enforced on write and are not expressible in the schema: " +
+        "a `manual_placeholder` component whose metadata.template is `manual` must set " +
+        "`metadata.manualService.name`; and a `catalog_booking` component referencing the " +
+        "accommodations module must set `metadata.bookingDraftV1.configure.dateRange` with " +
+        "`checkIn` and `checkOut` as YYYY-MM-DD, checkOut strictly after checkIn.",
+    ),
 })
 export type CreateTripArgs = z.infer<typeof createTripArgs>
 
@@ -242,7 +251,16 @@ export const createTripTool = defineTool<CreateTripArgs, CreateTripResult, Trips
 
 const reviseTripArgs = z.object({
   envelopeId: z.string().min(1),
-  addComponents: z.array(createTripComponentBodySchema).default([]),
+  addComponents: z
+    .array(createTripComponentBodySchema)
+    .default([])
+    .describe(
+      "Components to add. Two rules are enforced on write and are not expressible in the schema: " +
+        "a `manual_placeholder` component whose metadata.template is `manual` must set " +
+        "`metadata.manualService.name`; and a `catalog_booking` component referencing the " +
+        "accommodations module must set `metadata.bookingDraftV1.configure.dateRange` with " +
+        "`checkIn` and `checkOut` as YYYY-MM-DD, checkOut strictly after checkIn.",
+    ),
   removeComponentIds: z.array(z.string().min(1)).default([]),
 })
 export type ReviseTripArgs = z.infer<typeof reviseTripArgs>
