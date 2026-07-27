@@ -94,6 +94,16 @@ export interface SyncSourcesOptions {
    * from catalog search slices. Failed adapter passes never prune.
    */
   pruneMissing?: boolean
+  /**
+   * Isolate per-connection failures: a `discover()` rejection is recorded on
+   * that connection's summary and the fan-out continues with the remaining
+   * connections, instead of aborting the whole pass. A failed connection
+   * never prunes, so its existing rows survive untouched.
+   *
+   * Off by default — one-shot callers that want the first failure to surface
+   * (the cruise refresh, a CLI) keep the throwing behaviour.
+   */
+  continueOnError?: boolean
 }
 
 export interface SyncProgressEvent {
@@ -105,6 +115,8 @@ export interface SyncProgressEvent {
 
 export interface SyncAdapterSummary {
   adapter: string
+  /** Registry key this pass ran under — a real connection id, or `default:<kind>`. */
+  connectionId: string
   pages: number
   projectionsSynced: number
   /**
@@ -136,11 +148,25 @@ export interface SyncAdapterSummary {
    * discovery pass, marked withdrawn and removed from search slices.
    */
   withdrawnProjections: number
+  /**
+   * Set when `continueOnError` isolated a `discover()` rejection for this
+   * connection. Partial results already written stay written; pruning is
+   * skipped so a failed pass never withdraws rows.
+   */
+  error?: string
 }
 
 export interface SyncSourcesSummary {
   adapters: SyncAdapterSummary[]
   totalProjections: number
+  /**
+   * Connections skipped before running. Currently the unscoped `default:<kind>`
+   * fallback for a kind that also has connection-scoped registrations — see
+   * `syncSources` for why discovering through it is never correct.
+   */
+  skippedConnections: Array<{ connectionId: string; adapter: string; reason: string }>
+  /** Connections whose pass failed under `continueOnError`. */
+  failures: Array<{ connectionId: string; adapter: string; error: string }>
 }
 
 /**
@@ -154,7 +180,7 @@ export async function syncSources(options: SyncSourcesOptions): Promise<SyncSour
   // connections of the same kind each get their own discovery pass.
   // Skip adapters that don't implement `discover` (outbound-only
   // channel-push adapters).
-  const entries = options.registry
+  const candidates = options.registry
     .connections()
     .map((connectionId) => ({
       connectionId,
@@ -166,6 +192,33 @@ export async function syncSources(options: SyncSourcesOptions): Promise<SyncSour
         !verticalFilter ||
         e.adapter.capabilities.verticals.some((vertical) => verticalFilter.has(vertical)),
     )
+  const skippedConnections: SyncSourcesSummary["skippedConnections"] = []
+  const failures: SyncSourcesSummary["failures"] = []
+  const entries = candidates.filter((entry) => {
+    if (!isUnscopedRegistration(entry.connectionId, entry.adapter.kind)) return true
+    // A kind registered both unscoped and per-connection (the Voyant Connect
+    // cold-window fallback plus its warmed connections) would otherwise run a
+    // pass keyed by the synthetic `default:<kind>` id. Adapters forward that id
+    // upstream as a real connection id, and it lands in provenance as
+    // `source_connection_id` on any projection missing one — which then fails
+    // to resolve on the live-book path. The scoped registrations cover the same
+    // upstream, so the fallback pass is dropped.
+    if (
+      !candidates.some(
+        (other) =>
+          !isUnscopedRegistration(other.connectionId, other.adapter.kind) &&
+          other.adapter.kind === entry.adapter.kind,
+      )
+    ) {
+      return true
+    }
+    skippedConnections.push({
+      connectionId: entry.connectionId,
+      adapter: entry.adapter.kind,
+      reason: "unscoped-fallback-superseded-by-connection-scoped-adapter",
+    })
+    return false
+  })
   const adapterSummaries: SyncAdapterSummary[] = []
   let totalProjections = 0
 
@@ -175,6 +228,7 @@ export async function syncSources(options: SyncSourcesOptions): Promise<SyncSour
     }
     const summary: SyncAdapterSummary = {
       adapter: adapter.kind,
+      connectionId,
       pages: 0,
       projectionsSynced: 0,
       verticalsTouched: [],
@@ -186,93 +240,110 @@ export async function syncSources(options: SyncSourcesOptions): Promise<SyncSour
     const verticals = new Set<string>()
     const seenBySource = new Map<string, SourcedSeenSet>()
 
-    let cursor: string | undefined
-    do {
-      // `discover` is optional in the contract; the filter above
-      // ensures we only iterate adapters that implement it.
-      const page = await adapter.discover?.(adapterCtx, cursor)
-      if (!page) break
-      summary.pages += 1
-      options.onProgress?.({
-        adapter: adapter.kind,
-        page: summary.pages,
-        pageSize: page.projections.length,
-        totalSoFar: summary.projectionsSynced + page.projections.length,
-      })
-
-      for (const projection of page.projections) {
-        if (verticalFilter && !verticalFilter.has(projection.entity_module)) {
-          continue
-        }
-        const registry = options.fieldPolicyRegistries.get(projection.entity_module)
-        if (!registry) {
-          summary.skippedNoRegistry += 1
-          continue
-        }
-
-        verticals.add(projection.entity_module)
-
-        // Durable sourced-entry capture (sourced-content §2.5.2).
-        // Owned projections skip — they live in the vertical's owned
-        // schema. Sourced projections upsert before the indexer write so
-        // the sourced-entry store is the canonical local copy of what
-        // discover() said for downstream synthesizer reads.
-        if (isOwned(projection.provenance)) {
-          summary.ownedProjections += 1
-        } else if (options.db) {
-          await upsertSourcedEntry(options.db, { projection })
-          summary.sourcedEntriesUpserted += 1
-          if (options.pruneMissing) {
-            trackSeenSourcedProjection(seenBySource, {
-              entityModule: projection.entity_module,
-              entityId: projection.entity_id,
-              sourceKind: projection.provenance.source_kind,
-              sourceConnectionId: projection.provenance.source_connection_id,
-            })
-          }
-        }
-
-        const projectionMap = toProjectionMap(projection.fields)
-        const baseBuilder: DocumentBuilder = async (
-          _entityId: string,
-          slice: IndexerSlice,
-        ): Promise<IndexerDocument | null> =>
-          buildIndexerDocument(registry, projectionMap, slice, projection.entity_id)
-        const builder = options.wrapBuilder ? options.wrapBuilder(baseBuilder) : baseBuilder
-
-        await options.indexerService.reindexEntity(
-          projection.entity_module,
-          projection.entity_id,
-          builder,
-        )
-        summary.projectionsSynced += 1
-        totalProjections += 1
-      }
-
-      cursor = page.next_cursor
-    } while (cursor)
-
-    if (options.pruneMissing && options.db) {
-      ensureAdapterVerticalPruneScopes(seenBySource, adapter, connectionId, verticalFilter)
-      for (const seen of seenBySource.values()) {
-        const withdrawn = await markMissingSourcedEntriesWithdrawn(options.db, {
-          entityModule: seen.entityModule,
-          sourceKind: seen.sourceKind,
-          sourceConnectionId: seen.sourceConnectionId,
-          seenEntityIds: seen.entityIds,
+    try {
+      let cursor: string | undefined
+      do {
+        // `discover` is optional in the contract; the filter above
+        // ensures we only iterate adapters that implement it.
+        const page = await adapter.discover?.(adapterCtx, cursor)
+        if (!page) break
+        summary.pages += 1
+        options.onProgress?.({
+          adapter: adapter.kind,
+          page: summary.pages,
+          pageSize: page.projections.length,
+          totalSoFar: summary.projectionsSynced + page.projections.length,
         })
-        for (const row of withdrawn) {
-          await options.indexerService.deleteEntity(row.entity_module, row.entity_id)
+
+        for (const projection of page.projections) {
+          if (verticalFilter && !verticalFilter.has(projection.entity_module)) {
+            continue
+          }
+          const registry = options.fieldPolicyRegistries.get(projection.entity_module)
+          if (!registry) {
+            summary.skippedNoRegistry += 1
+            continue
+          }
+
+          verticals.add(projection.entity_module)
+
+          // Durable sourced-entry capture (sourced-content §2.5.2).
+          // Owned projections skip — they live in the vertical's owned
+          // schema. Sourced projections upsert before the indexer write so
+          // the sourced-entry store is the canonical local copy of what
+          // discover() said for downstream synthesizer reads.
+          if (isOwned(projection.provenance)) {
+            summary.ownedProjections += 1
+          } else if (options.db) {
+            await upsertSourcedEntry(options.db, { projection })
+            summary.sourcedEntriesUpserted += 1
+            if (options.pruneMissing) {
+              trackSeenSourcedProjection(seenBySource, {
+                entityModule: projection.entity_module,
+                entityId: projection.entity_id,
+                sourceKind: projection.provenance.source_kind,
+                sourceConnectionId: projection.provenance.source_connection_id,
+              })
+            }
+          }
+
+          const projectionMap = toProjectionMap(projection.fields)
+          const baseBuilder: DocumentBuilder = async (
+            _entityId: string,
+            slice: IndexerSlice,
+          ): Promise<IndexerDocument | null> =>
+            buildIndexerDocument(registry, projectionMap, slice, projection.entity_id)
+          const builder = options.wrapBuilder ? options.wrapBuilder(baseBuilder) : baseBuilder
+
+          await options.indexerService.reindexEntity(
+            projection.entity_module,
+            projection.entity_id,
+            builder,
+          )
+          summary.projectionsSynced += 1
+          totalProjections += 1
         }
-        summary.withdrawnProjections += withdrawn.length
+
+        cursor = page.next_cursor
+      } while (cursor)
+
+      if (options.pruneMissing && options.db) {
+        ensureAdapterVerticalPruneScopes(seenBySource, adapter, connectionId, verticalFilter)
+        for (const seen of seenBySource.values()) {
+          const withdrawn = await markMissingSourcedEntriesWithdrawn(options.db, {
+            entityModule: seen.entityModule,
+            sourceKind: seen.sourceKind,
+            sourceConnectionId: seen.sourceConnectionId,
+            seenEntityIds: seen.entityIds,
+          })
+          for (const row of withdrawn) {
+            await options.indexerService.deleteEntity(row.entity_module, row.entity_id)
+          }
+          summary.withdrawnProjections += withdrawn.length
+        }
       }
+    } catch (error) {
+      if (!options.continueOnError) throw error
+      // Partial writes stay written; pruning above is skipped for this
+      // connection so a failed pass never withdraws its existing rows.
+      const message = error instanceof Error ? error.message : String(error)
+      summary.error = message
+      failures.push({ connectionId, adapter: adapter.kind, error: message })
     }
 
     summary.verticalsTouched = [...verticals]
     adapterSummaries.push(summary)
   }
 
-  return { adapters: adapterSummaries, totalProjections }
+  return { adapters: adapterSummaries, totalProjections, skippedConnections, failures }
+}
+
+/**
+ * True for the registry's synthetic key for an adapter registered without a
+ * connection record (`register(adapter)` stores `default:<kind>`).
+ */
+function isUnscopedRegistration(connectionId: string, kind: string): boolean {
+  return connectionId === `default:${kind}`
 }
 
 function toProjectionMap(fields: Record<string, unknown>): ReadonlyMap<string, unknown> {

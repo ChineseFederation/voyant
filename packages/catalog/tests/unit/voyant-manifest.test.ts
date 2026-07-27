@@ -27,6 +27,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.runtime-services" },
           { id: "catalog.draft-reaper-job" },
           { id: "catalog.reindex-products-job" },
+          { id: "catalog.sources-sync-job" },
           { id: "cruises.routes-runtime" },
         ],
       },
@@ -108,6 +109,7 @@ describe("catalog deployment manifest", () => {
       { id: "catalog.booking-snapshot-runtime" },
       { id: "catalog.draft-reaper-job" },
       { id: "catalog.reindex-products-job" },
+      { id: "catalog.sources-sync-job" },
     ])
     expect(catalogVoyantModule.tools).toEqual(
       expect.arrayContaining([
@@ -137,6 +139,21 @@ describe("catalog deployment manifest", () => {
         runtime: {
           entry: "@voyant-travel/catalog/draft-reaper-job",
           export: "runCatalogDraftReaperJob",
+        },
+      },
+      {
+        id: "catalog.sync-sources",
+        wakeup: true,
+        schedule: { cron: "20 * * * *", overlap: "skip" },
+        scheduling: {
+          profiles: {
+            eager: { cron: "*/20 * * * *", overlap: "skip" },
+            economical: { cron: "20 */6 * * *", overlap: "skip" },
+          },
+        },
+        runtime: {
+          entry: "@voyant-travel/catalog/sources-sync-job",
+          export: "runCatalogSourcesSyncJob",
         },
       },
     ])

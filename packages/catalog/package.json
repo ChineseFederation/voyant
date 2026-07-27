@@ -56,6 +56,7 @@
     "./runtime-port": "./src/content-runtime-port.ts",
     "./draft-reaper-job": "./src/draft-reaper-job.ts",
     "./reindex-job": "./src/reindex-job.ts",
+    "./sources-sync-job": "./src/sources-sync-job.ts",
     "./graph-runtime": "./src/graph-runtime.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./voyant": "./src/voyant.ts",
@@ -367,6 +368,11 @@
         "types": "./dist/reindex-job.d.ts",
         "import": "./dist/reindex-job.js",
         "default": "./dist/reindex-job.js"
+      },
+      "./sources-sync-job": {
+        "types": "./dist/sources-sync-job.d.ts",
+        "import": "./dist/sources-sync-job.js",
+        "default": "./dist/sources-sync-job.js"
       },
       "./graph-runtime": {
         "types": "./dist/graph-runtime.d.ts",

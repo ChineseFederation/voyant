@@ -26,6 +26,7 @@ import {
   catalogOperationsRuntimeExtensionPort,
   catalogRuntimeServicesPort,
 } from "./runtime-contracts.js"
+import { catalogSourcesSyncJobRuntimePort } from "./sources-sync-job-runtime-port.js"
 import {
   catalogBookingSnapshotRuntimePort,
   catalogProjectionRuntimePort,
@@ -84,6 +85,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogRuntimeServicesPort),
       providePort(catalogDraftReaperJobRuntimePort),
       providePort(catalogReindexJobRuntimePort),
+      providePort(catalogSourcesSyncJobRuntimePort),
       cruisesRoutesRuntimePortReference,
     ],
   },
@@ -93,6 +95,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogBookingSnapshotRuntimePort),
     requirePort(catalogDraftReaperJobRuntimePort),
     requirePort(catalogReindexJobRuntimePort),
+    requirePort(catalogSourcesSyncJobRuntimePort),
   ],
   api: [
     {
@@ -267,6 +270,24 @@ export const catalogVoyantModule = defineModule({
       runtime: {
         entry: "@voyant-travel/catalog/draft-reaper-job",
         export: "runCatalogDraftReaperJob",
+      },
+    },
+    {
+      // Sourced inventory only reaches catalog browse through a discovery
+      // pass; the live book path resolves adapters on its own. Wakeable so a
+      // newly added Connect connection can index without waiting for the tick.
+      id: "catalog.sync-sources",
+      wakeup: true,
+      schedule: { cron: "20 * * * *", overlap: "skip" },
+      scheduling: {
+        profiles: {
+          eager: { cron: "*/20 * * * *", overlap: "skip" },
+          economical: { cron: "20 */6 * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/catalog/sources-sync-job",
+        export: "runCatalogSourcesSyncJob",
       },
     },
   ],

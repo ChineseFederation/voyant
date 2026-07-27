@@ -468,6 +468,7 @@
         "../catalog/dist/services/sourced-entry-service.d.ts"
       ],
       "@voyant-travel/catalog/snapshot/schema": ["../catalog/dist/snapshot/schema.d.ts"],
+      "@voyant-travel/catalog/sources-sync-job": ["../catalog/dist/sources-sync-job.d.ts"],
       "@voyant-travel/catalog/subscriber-runtime-ports": [
         "../catalog/dist/subscriber-runtime-ports.d.ts"
       ],

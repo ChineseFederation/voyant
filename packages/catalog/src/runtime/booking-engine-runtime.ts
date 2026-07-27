@@ -105,6 +105,25 @@ export async function ensureBookingEngineRegistry(
 }
 
 /**
+ * Re-enumerate Connect connections and register the current set, discarding the
+ * memoized warm first.
+ *
+ * `warmBookingEngineConnectSources` keeps its fulfilled promise for the life of
+ * the isolate, which is right for request paths — but it means a resident Node
+ * deployment that warmed once never sees a connection added later. Batch entry
+ * points whose whole purpose is to pick up new connections (the discovery sync,
+ * on its schedule or on a connection-add wakeup) must refresh instead of reusing
+ * that warm. Registration is keyed by connection id and replaces in place, so a
+ * refresh that overlaps an in-flight warm converges on the same registry.
+ */
+export async function refreshBookingEngineConnectSources(
+  env: BookingEngineEnv,
+): Promise<SourceAdapterRegistry> {
+  _connectWarm = undefined
+  return ensureBookingEngineRegistry(env)
+}
+
+/**
  * Returns the (lazy-initialized) owned-handler registry. Phase A registers
  * products plus retained resale verticals such as accommodations and cruises.
  */
