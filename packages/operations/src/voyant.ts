@@ -1,5 +1,5 @@
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
-import { defineModule, providePort } from "@voyant-travel/core/project"
+import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 
 import { operationsExpiredHoldsJobRuntimePort } from "./expired-holds-job-runtime-port.js"
 
@@ -38,6 +38,12 @@ export const operationsVoyantModule = defineModule({
       providePort(operationsExpiredHoldsJobRuntimePort),
     ],
   },
+  // The reaper resolves this port at run time, so the module has to declare it
+  // as a requirement as well as provide it. Providing alone composes fine and
+  // then fails only when the job actually fires:
+  // `composeVoyantGraphRuntime: module "@voyant-travel/operations" requested
+  // undeclared port "operations.expired-holds-job"`.
+  runtimePorts: [requirePort(operationsExpiredHoldsJobRuntimePort)],
   jobs: [
     {
       id: "operations.release-expired-availability-holds",

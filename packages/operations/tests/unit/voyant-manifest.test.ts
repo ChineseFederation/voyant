@@ -10,6 +10,9 @@ describe("operations deployment manifest", () => {
       provides: {
         ports: [{ id: "catalog.extension.operations" }, { id: "operations.expired-holds-job" }],
       },
+      // Required as well as provided — the job resolves the port at run time and
+      // composition rejects an undeclared request.
+      runtimePorts: [{ id: "operations.expired-holds-job" }],
       jobs: [
         {
           id: "operations.release-expired-availability-holds",
