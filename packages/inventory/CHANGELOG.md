@@ -1,5 +1,25 @@
 # @voyant-travel/inventory
 
+## 0.22.0
+
+### Minor Changes
+
+- 9d84e82: Add Tools for product options and their bookable units (`list_product_options`,
+  `get_product_option`, `create_product_option`, `update_product_option`,
+  `list_option_units`, `get_option_unit`, `create_option_unit`,
+  `update_option_unit`). The admin API already exposed this CRUD; without the
+  Tools an agent could create a product but never make it sellable.
+
+### Patch Changes
+
+- @voyant-travel/bookings@0.213.0
+- @voyant-travel/catalog@0.211.0
+- @voyant-travel/finance@0.213.0
+- @voyant-travel/commerce@0.44.11
+- @voyant-travel/relationships@0.132.9
+- @voyant-travel/operations@0.10.4
+- @voyant-travel/operator-settings@0.15.8
+
 ## 0.21.12
 
 ### Patch Changes

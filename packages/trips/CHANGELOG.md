@@ -1,5 +1,23 @@
 # @voyant-travel/trips
 
+## 0.205.0
+
+### Patch Changes
+
+- f50ab57: State the manual-service and accommodation date-range rules for trip components
+  in the `components` / `addComponents` descriptions. Both are enforced by a Zod
+  refinement over a free-form `metadata` record, and refinements do not serialize
+  into JSON Schema, so an agent could not see them when choosing arguments.
+- Updated dependencies [9d84e82]
+  - @voyant-travel/inventory@0.22.0
+  - @voyant-travel/storefront@0.215.0
+  - @voyant-travel/bookings@0.213.0
+  - @voyant-travel/catalog@0.211.0
+  - @voyant-travel/finance@0.213.0
+  - @voyant-travel/flights@0.213.0
+  - @voyant-travel/commerce@0.44.11
+  - @voyant-travel/operator-settings@0.15.8
+
 ## 0.204.0
 
 ### Patch Changes
