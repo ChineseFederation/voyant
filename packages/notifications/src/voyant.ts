@@ -246,6 +246,22 @@ export const notificationsVoyantModule = defineModule({
       risk: "low",
     },
     {
+      id: "@voyant-travel/notifications#tool.list-templates",
+      name: "list_notification_templates",
+      runtime: { entry: "@voyant-travel/notifications/tools", export: "listTemplatesTool" },
+      requiredScopes: ["notifications:read"],
+      context: ["notifications"],
+      risk: "low",
+    },
+    {
+      id: "@voyant-travel/notifications#tool.get-template",
+      name: "get_notification_template",
+      runtime: { entry: "@voyant-travel/notifications/tools", export: "getTemplateTool" },
+      requiredScopes: ["notifications:read"],
+      context: ["notifications"],
+      risk: "low",
+    },
+    {
       id: "@voyant-travel/notifications#tool.send-notification",
       name: "send_notification",
       runtime: {

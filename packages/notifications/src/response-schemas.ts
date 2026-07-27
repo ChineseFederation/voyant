@@ -4,6 +4,7 @@ import {
   notificationChannelSchema,
   notificationDeliveryStatusSchema,
   notificationTargetTypeSchema,
+  notificationTemplateStatusSchema,
 } from "./validation.js"
 
 const isoTimestamp = z.string()
@@ -38,4 +39,31 @@ export const notificationDeliverySchema = z.object({
   failedAt: isoTimestamp.nullable(),
   createdAt: isoTimestamp,
   updatedAt: isoTimestamp,
+})
+
+/**
+ * Notification-template metadata without the message bodies. A list can return
+ * up to 200 rows, and template bodies are unbounded HTML — returning them per
+ * row would let a lookup meant to find a slug exhaust the response budget
+ * before the caller ever reaches {@link notificationTemplateDetailSchema}.
+ */
+export const notificationTemplateSummarySchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  channel: notificationChannelSchema,
+  provider: z.string().nullable(),
+  status: notificationTemplateStatusSchema,
+  fromAddress: z.string().nullable(),
+  isSystem: z.boolean(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
+/** One notification template including the copy a recipient actually sees. */
+export const notificationTemplateDetailSchema = notificationTemplateSummarySchema.extend({
+  subjectTemplate: z.string().nullable(),
+  htmlTemplate: z.string().nullable(),
+  textTemplate: z.string().nullable(),
+  metadata: jsonMetadata.nullable(),
 })

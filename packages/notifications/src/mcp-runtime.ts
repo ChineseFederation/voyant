@@ -5,6 +5,7 @@ import {
   type DurableNotificationProviderRuntime,
   durableNotificationProviderPort,
 } from "./durable-provider-port.js"
+import type { NotificationTemplate } from "./schema.js"
 import { notificationsService } from "./service.js"
 import { executeDurableNotificationSendCommand } from "./service-durable-send.js"
 import { createNotificationService } from "./service-shared.js"
@@ -22,6 +23,14 @@ export const voyantToolContextContribution = defineToolContextContribution({
     const notifications: NotificationsToolServices = {
       listDeliveries: (query) => notificationsService.listDeliveries(c.var.db, query),
       getDeliveryById: (id) => notificationsService.getDeliveryById(c.var.db, id),
+      async listTemplates(query) {
+        const result = await notificationsService.listTemplates(c.var.db, query)
+        // Drop the bodies here rather than relying on schema stripping: a page
+        // of 200 unbounded HTML templates should never reach the Tool layer.
+        return { ...result, data: result.data.map(templateSummary) }
+      },
+      getTemplateById: (id) => notificationsService.getTemplateById(c.var.db, id),
+      getTemplateBySlug: (slug) => notificationsService.getTemplateBySlug(c.var.db, slug),
       async sendTemplated(input, admitted) {
         const selectedRuntime = requireService(durableRuntime, durableNotificationProviderPort.id)
         const result = await executeDurableNotificationSendCommand({
@@ -54,5 +63,21 @@ function actionLedgerContext(c: Context): ActionLedgerRequestContextValues {
     workflowRunId: (vars.workflowRunId as string | undefined) ?? null,
     workflowStepId: (vars.workflowStepId as string | undefined) ?? null,
     correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+  }
+}
+
+/** Template metadata only — the message bodies stay out of list responses. */
+function templateSummary(row: NotificationTemplate) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    channel: row.channel,
+    provider: row.provider,
+    status: row.status,
+    fromAddress: row.fromAddress,
+    isSystem: row.isSystem,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   }
 }

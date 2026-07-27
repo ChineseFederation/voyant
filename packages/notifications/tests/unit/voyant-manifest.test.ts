@@ -102,6 +102,8 @@ describe("notifications deployment manifest", () => {
     expect(notificationsVoyantModule.tools?.map((tool) => [tool.name, tool.risk])).toEqual([
       ["list_notification_deliveries", "low"],
       ["get_notification_delivery", "low"],
+      ["list_notification_templates", "low"],
+      ["get_notification_template", "low"],
       ["send_notification", "high"],
     ])
     expect(notificationsVoyantModule.actions).toContainEqual(
