@@ -2702,6 +2702,24 @@ const bookingsServiceInternal = {
             ]
 
     const insertedItems = await db.insert(bookingItems).values(itemRows).returning()
+    // `availability_slots.remaining_pax` is passenger-denominated, and a slot
+    // allocation's quantity is what gets subtracted from it. For a person-typed
+    // unit the line quantity already *is* the traveller count, but for a room or
+    // vehicle it is a count of units, so passing it through spent the wrong
+    // currency: a 2-traveller booking on a "Double" room whose `minQuantity` is 3
+    // took 3 seats off the departure. The hold-conversion branch below has always
+    // used `paxCount` for exactly this reason.
+    //
+    // Only the auto-seeded single line is corrected here. When the caller supplied
+    // explicit `itemLines` it chose the units and quantities deliberately, and
+    // second-guessing that would change committed booking behaviour.
+    const seededSingleUnit =
+      requestedItemLines.length === 0 && unitsToSeed.length === 1 ? unitsToSeed[0] : null
+    const slotAllocationQuantity = (item: (typeof insertedItems)[number]): number => {
+      if (!seededSingleUnit || seededSingleUnit.unitType === "person") return item.quantity
+      if (!bookingPax || bookingPax <= 0) return item.quantity
+      return bookingPax
+    }
     const allocationRows = insertedItems
       .filter((item) => item.availabilitySlotId)
       .map((item) => ({
@@ -2712,7 +2730,7 @@ const bookingsServiceInternal = {
         optionUnitId: item.optionUnitId ?? null,
         pricingCategoryId: item.pricingCategoryId ?? null,
         availabilitySlotId: item.availabilitySlotId,
-        quantity: item.quantity,
+        quantity: slotAllocationQuantity(item),
         allocationType: "unit" as const,
         status: allocationStatusForBookingItemStatus(item.status),
         holdExpiresAt: null,
