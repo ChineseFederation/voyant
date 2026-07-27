@@ -1,5 +1,18 @@
 # @voyant-travel/trips
 
+## 0.201.0
+
+### Patch Changes
+
+- @voyant-travel/inventory@0.21.8
+- @voyant-travel/storefront@0.211.0
+- @voyant-travel/bookings@0.209.0
+- @voyant-travel/catalog@0.207.0
+- @voyant-travel/finance@0.209.0
+- @voyant-travel/flights@0.209.0
+- @voyant-travel/commerce@0.44.7
+- @voyant-travel/operator-settings@0.15.4
+
 ## 0.200.0
 
 ### Patch Changes

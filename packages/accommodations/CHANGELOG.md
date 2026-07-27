@@ -1,5 +1,17 @@
 # @voyant-travel/accommodations
 
+## 0.169.0
+
+### Patch Changes
+
+- Updated dependencies [8abbdd6]
+  - @voyant-travel/operations@0.10.0
+  - @voyant-travel/mice@0.65.0
+  - @voyant-travel/bookings@0.209.0
+  - @voyant-travel/catalog@0.207.0
+  - @voyant-travel/distribution@0.199.0
+  - @voyant-travel/finance@0.209.0
+
 ## 0.168.0
 
 ### Patch Changes

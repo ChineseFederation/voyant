@@ -1,5 +1,18 @@
 # @voyant-travel/operations
 
+## 0.10.0
+
+### Minor Changes
+
+- 8abbdd6: Add `create_departure` and `update_departure` agent tools.
+
+  Operations shipped eight tools, all read-only, while its manifest declared `operations:write` and `operations:delete` scopes that nothing consumed. `compose_product` deliberately leaves departures out, so an agent could compose a product and then had no way to make it sellable — asked for "a tour running every Saturday in September", it created the product and reported that it had no tool for the departures. Both actions are ledgered and reversible.
+
+### Patch Changes
+
+- @voyant-travel/catalog@0.207.0
+- @voyant-travel/identity@0.209.0
+
 ## 0.9.5
 
 ### Patch Changes
