@@ -1,5 +1,15 @@
 # @voyant-travel/hono
 
+## 0.134.8
+
+### Patch Changes
+
+- 9a5fb10: Recognise unbranded `ApiHttpError` instances thrown by a pre-brand copy of this
+  package, so validation failures return `400 invalid_request` in a partly
+  upgraded dependency graph instead of waiting for every module package to be
+  re-released. Matched by class name plus a numeric status — never by status
+  alone, which would reflect internal messages.
+
 ## 0.134.7
 
 ### Patch Changes
