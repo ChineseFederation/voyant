@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.15.29
+
+### Patch Changes
+
+- Updated dependencies [91f1c80]
+  - @voyant-travel/inventory-react@0.95.1
+  - @voyant-travel/i18n@0.118.1
+
 ## 0.15.28
 
 ### Patch Changes
