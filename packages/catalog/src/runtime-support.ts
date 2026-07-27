@@ -16,6 +16,7 @@ import type {
 import type { FieldPolicyRegistry, Visibility } from "./contract.js"
 import type { EmbeddingProvider } from "./embeddings/contract.js"
 import { createGeminiEmbeddingProvider } from "./embeddings/gemini.js"
+import { createOpenAIEmbeddingProvider } from "./embeddings/openai.js"
 import type {
   CatalogOffersIndexFields,
   CatalogOffersSearchDestination,
@@ -164,6 +165,22 @@ export interface CatalogRuntimeEnv {
   VOYANT_API_KEY?: string
   VOYANT_CLOUD_API_KEY?: string
   VOYANT_CLOUD_API_URL?: string
+  /**
+   * Embedding backend the catalog authenticates through the Voyant Cloud AI
+   * gateway. Both are adapters over the same `/ai/v1/{provider}` proxy shape;
+   * defaults to `gemini` for compatibility. Managed runtimes set `openai`.
+   *
+   * Switching provider switches the embedding MODEL (and its vector
+   * dimensionality), so — like any model change — it is a deliberate
+   * `bulkReindex` operation, not a hot swap. The Postgres indexer is safe to
+   * flip in place: its `search_embedding` column is an unsized `vector` and
+   * rows are keyed by `embedding_model_id`, so old/new dimensions coexist and
+   * search reads only the active model. The Typesense indexer pins `num_dim`
+   * at collection creation and `ensureCollection` does not migrate it, so a
+   * Typesense-backed deployment must recreate/migrate the vector field before
+   * enabling a provider whose model dimension differs.
+   */
+  CATALOG_EMBEDDING_PROVIDER?: "openai" | "gemini"
 }
 
 export function buildCatalogEmbeddingProvider(
@@ -172,6 +189,14 @@ export function buildCatalogEmbeddingProvider(
   const apiKey = env.VOYANT_API_KEY ?? env.VOYANT_CLOUD_API_KEY
   if (!apiKey) return undefined
   const cloudBase = (env.VOYANT_CLOUD_API_URL ?? "https://api.voyant.travel").replace(/\/$/, "")
+  if (env.CATALOG_EMBEDDING_PROVIDER === "openai") {
+    // `createOpenAIEmbeddingProvider` POSTs `${baseUrl}/embeddings` with a
+    // Bearer key — matching the Voyant Cloud `/ai/v1/openai/embeddings` proxy.
+    return createOpenAIEmbeddingProvider({
+      apiKey,
+      baseUrl: `${cloudBase}/ai/v1/openai`,
+    })
+  }
   return createGeminiEmbeddingProvider({
     apiKey,
     auth: "bearer",
