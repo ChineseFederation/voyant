@@ -1,5 +1,14 @@
 # @voyant-travel/crm
 
+## 0.135.4
+
+### Patch Changes
+
+- cf9e63b: Seed a default "Sales" quote pipeline and its six stages. `quotes.pipeline_id`
+  and `quotes.stage_id` are both NOT NULL and nothing created a pipeline, so
+  `create_quote` could not succeed on a fresh operator. Guarded on the table being
+  empty, so an operator with their own pipeline is untouched.
+
 ## 0.135.3
 
 ### Patch Changes
