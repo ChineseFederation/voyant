@@ -29,6 +29,13 @@
       "when": 1784970000000,
       "tag": "0002_durable_quote_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785182400000,
+      "tag": "20260727200000_default_quote_pipeline",
+      "breakpoints": true
     }
   ]
 }
