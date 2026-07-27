@@ -5,6 +5,7 @@ import { MediaPicker } from "@voyant-travel/media-react/ui"
 import { confirmDialog } from "@voyant-travel/ui/components"
 import { Badge } from "@voyant-travel/ui/components/badge"
 import { Button } from "@voyant-travel/ui/components/button"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { ImageIcon, Loader2, Pencil, Plus, Star, Trash2, Upload } from "lucide-react"
 import * as React from "react"
 import { useProductsUiMessagesOrDefault } from "../i18n/provider.js"
@@ -112,7 +113,7 @@ export function ProductDayMediaTray({ productId, dayId, emptyState }: ProductDay
           {media.map((item) => (
             <div key={item.id} className="w-36 shrink-0 rounded-md border bg-background">
               {item.mediaType === "image" ? (
-                <img
+                <MediaImage
                   src={item.url}
                   alt={item.altText ?? item.name}
                   className="h-20 w-full rounded-t-md object-cover"

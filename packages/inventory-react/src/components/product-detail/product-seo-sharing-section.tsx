@@ -13,6 +13,7 @@ import {
   SelectValue,
   Textarea,
 } from "@voyant-travel/ui/components"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { Loader2, Plus, Upload } from "lucide-react"
 import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react"
 import {
@@ -70,6 +71,9 @@ export function ProductSeoSharingSection({
   const uploadInput = useRef<HTMLInputElement>(null)
   const titleId = useId()
   const descriptionId = useId()
+  const localeId = useId()
+  const newLocaleId = useId()
+  const openGraphId = useId()
 
   const selectedTranslation = translations.find((item) => item.languageTag === languageTag) ?? null
   const images = media.filter(
@@ -162,11 +166,11 @@ export function ProductSeoSharingSection({
         <p className="text-sm text-muted-foreground">{t.description}</p>
 
         <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>{t.locale}</Label>
+              <Label htmlFor={localeId}>{t.locale}</Label>
               <Select value={languageTag} onValueChange={(value) => setLanguageTag(value ?? "")}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id={localeId} className="w-full">
                   <SelectValue placeholder={t.selectLocale} />
                 </SelectTrigger>
                 <SelectContent>
@@ -178,26 +182,29 @@ export function ProductSeoSharingSection({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end gap-2">
-              <Input
-                aria-label={t.newLocale}
-                value={newLanguageTag}
-                placeholder={t.localePlaceholder}
-                onChange={(event) => setNewLanguageTag(event.target.value)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  const normalized = normalizeLanguageTag(newLanguageTag)
-                  if (!normalized) return
-                  setLanguageTag(normalized)
-                  setNewLanguageTag("")
-                }}
-              >
-                <Plus className="mr-1.5 size-4" aria-hidden="true" />
-                {t.addLocale}
-              </Button>
+            <div className="space-y-1.5">
+              <Label htmlFor={newLocaleId}>{t.newLocale}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id={newLocaleId}
+                  value={newLanguageTag}
+                  placeholder={t.localePlaceholder}
+                  onChange={(event) => setNewLanguageTag(event.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const normalized = normalizeLanguageTag(newLanguageTag)
+                    if (!normalized) return
+                    setLanguageTag(normalized)
+                    setNewLanguageTag("")
+                  }}
+                >
+                  <Plus className="mr-1.5 size-4" aria-hidden="true" />
+                  {t.addLocale}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -260,14 +267,14 @@ export function ProductSeoSharingSection({
 
         <div className="space-y-3 border-t pt-5">
           <div>
-            <Label>{t.openGraphImage}</Label>
+            <Label htmlFor={openGraphId}>{t.openGraphImage}</Label>
             <p className="mt-1 text-xs text-muted-foreground">{t.imageGuidance}</p>
           </div>
           <Select
             value={selectedMediaId}
             onValueChange={(value) => setSelectedMediaId(value ?? FALLBACK_MEDIA_VALUE)}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger id={openGraphId} className="w-full">
               <SelectValue placeholder={t.selectImage} />
             </SelectTrigger>
             <SelectContent>
@@ -327,7 +334,7 @@ export function ProductSeoSharingSection({
           </Preview>
           <Preview title={t.socialPreview}>
             {selectedImage ? (
-              <img
+              <MediaImage
                 src={selectedImage.url}
                 alt={selectedImage.altText ?? ""}
                 className="aspect-[1.91/1] w-full rounded-t border-b object-cover"
@@ -372,7 +379,7 @@ function Preview({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
       <p className="mb-2 text-xs font-medium text-muted-foreground">{title}</p>
-      <div className="overflow-hidden rounded-md border bg-background p-3 [&:has(img)]:p-0">
+      <div className="overflow-hidden rounded-md border bg-background p-3 [&:has(img)]:p-0 [&:has([data-slot=image-fallback])]:p-0">
         {children}
       </div>
     </div>

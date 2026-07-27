@@ -1,5 +1,6 @@
 "use client"
 
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import * as React from "react"
 
@@ -83,7 +84,7 @@ function ValueBody({
       <ul className="flex flex-wrap gap-2">
         {urls.map((url) => (
           <li key={url}>
-            <img
+            <MediaImage
               src={url}
               alt=""
               className="h-16 w-24 rounded border object-cover"

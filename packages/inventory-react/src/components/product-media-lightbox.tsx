@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogTitle } from "@voyant-travel/ui/components/dialog"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { ChevronLeft, ChevronRight, FileText, X } from "lucide-react"
 import * as React from "react"
 import { useProductsUiMessagesOrDefault } from "../i18n/provider.js"
@@ -75,10 +76,12 @@ export function MediaLightbox({
             ) : null}
 
             {item.mediaType === "image" ? (
-              <img
+              <MediaImage
                 src={item.url}
                 alt={item.altText ?? item.name}
                 className="max-h-[95vh] max-w-[95vw] object-contain"
+                fallbackClassName="size-64 rounded-lg"
+                iconClassName="size-10"
               />
             ) : item.mediaType === "video" ? (
               // biome-ignore lint/a11y/useMediaCaption: Admin preview renders uploaded product media and the current model does not provide caption tracks. -- owner: inventory-react; existing suppression is intentional pending typed cleanup.

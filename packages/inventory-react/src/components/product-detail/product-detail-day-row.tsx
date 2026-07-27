@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { formatMessage } from "@voyant-travel/i18n"
 import { Badge, DropdownMenuItem, DropdownMenuSeparator } from "@voyant-travel/ui/components"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { ChevronDown, ChevronRight, Image as ImageIcon, Pencil, Plus, Trash2 } from "lucide-react"
 import { useProductDetailApi, useProductDetailMessages } from "./host.js"
 import { ActionMenu } from "./product-detail-sections.js"
@@ -80,10 +81,11 @@ export function ProductDetailDayRow({
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
         {cover?.mediaType === "image" ? (
-          <img
+          <MediaImage
             src={cover.url}
             alt={cover.altText ?? cover.name}
             className="h-10 w-14 flex-shrink-0 rounded object-cover"
+            iconClassName="size-4"
           />
         ) : (
           <div className="flex h-10 w-14 flex-shrink-0 items-center justify-center rounded border bg-muted/50 text-muted-foreground">

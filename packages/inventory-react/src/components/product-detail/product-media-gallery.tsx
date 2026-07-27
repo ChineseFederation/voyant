@@ -14,6 +14,7 @@ import {
   CarouselPrevious,
 } from "@voyant-travel/ui/components/carousel"
 import { Dialog, DialogContent, DialogTitle } from "@voyant-travel/ui/components/dialog"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import {
   ChevronLeft,
@@ -236,10 +237,11 @@ export function ProductMediaGallery({
                   )}
                 >
                   {item.mediaType === "image" ? (
-                    <img
+                    <MediaImage
                       src={item.url}
                       alt={item.altText ?? item.name}
                       className="h-full w-full object-cover"
+                      iconClassName="size-4"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-muted text-[9px] uppercase text-muted-foreground">
@@ -298,7 +300,7 @@ function MediaPreview({
     <div className="group relative aspect-[16/9] w-full overflow-hidden rounded-lg border bg-muted">
       {item.mediaType === "image" ? (
         <button type="button" onClick={onOpen} className="h-full w-full">
-          <img
+          <MediaImage
             src={item.url}
             alt={item.altText ?? item.name}
             className="h-full w-full cursor-zoom-in object-cover"
@@ -381,7 +383,7 @@ function ReorderGrid({
           whileDrag={{ scale: 1.05, zIndex: 10 }}
         >
           {item.mediaType === "image" ? (
-            <img
+            <MediaImage
               src={item.url}
               alt={item.altText ?? item.name}
               draggable={false}
@@ -476,10 +478,12 @@ function Lightbox({
               </button>
             ) : null}
             {item.mediaType === "image" ? (
-              <img
+              <MediaImage
                 src={item.url}
                 alt={item.altText ?? item.name}
                 className="max-h-[95vh] max-w-[95vw] object-contain"
+                fallbackClassName="size-64 rounded-lg"
+                iconClassName="size-10"
               />
             ) : item.mediaType === "video" ? (
               // biome-ignore lint/a11y/useMediaCaption: Admin preview renders uploaded product media and the current model does not provide caption tracks. -- owner: inventory-react; existing suppression is intentional pending typed cleanup.

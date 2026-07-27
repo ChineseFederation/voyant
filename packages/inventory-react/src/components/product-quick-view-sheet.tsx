@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@voyant-travel/ui/components"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { ArrowRight, Calendar, ImageIcon, Layers, MapPin, Route, Tag } from "lucide-react"
 import type { ReactNode } from "react"
 import { useProductsUiI18nOrDefault, useProductsUiMessagesOrDefault } from "../i18n/provider.js"
@@ -133,7 +134,11 @@ function QuickViewBody({ product, locale }: { product: ProductRecord; locale: st
     <div className="flex flex-col gap-4">
       {cover ? (
         <div className="overflow-hidden rounded-md border bg-muted">
-          <img src={cover.url} alt={product.name} className="aspect-video w-full object-cover" />
+          <MediaImage
+            src={cover.url}
+            alt={product.name}
+            className="aspect-video w-full object-cover"
+          />
         </div>
       ) : (
         <div className="flex aspect-video w-full items-center justify-center rounded-md border bg-muted text-muted-foreground">

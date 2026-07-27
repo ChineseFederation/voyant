@@ -1,5 +1,6 @@
 import { Badge } from "@voyant-travel/ui/components/badge"
 import { Button } from "@voyant-travel/ui/components/button"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import { FileText, GripVertical, Pencil, Star, Trash2 } from "lucide-react"
 import type * as React from "react"
@@ -64,7 +65,7 @@ export function MediaTile({
             disabled={reorderMode}
             aria-label={sectionMessages.actions.openPreview}
           >
-            <img
+            <MediaImage
               src={item.url}
               alt={item.altText ?? item.name}
               className="h-full w-full object-cover"

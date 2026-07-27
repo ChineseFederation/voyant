@@ -1,6 +1,7 @@
 "use client"
 
 import { formatMessage } from "@voyant-travel/i18n"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import * as React from "react"
 
 import type { EditorialEffectiveContent, EditorialMessages } from "./types.js"
@@ -38,7 +39,7 @@ export function EditorialOverlayPreview({
         </p>
       </div>
       {product.hero_image_url ? (
-        <img
+        <MediaImage
           src={product.hero_image_url}
           alt=""
           className="h-40 w-full rounded object-cover sm:w-80"

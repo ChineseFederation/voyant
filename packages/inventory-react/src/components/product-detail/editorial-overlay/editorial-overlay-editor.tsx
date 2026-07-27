@@ -3,6 +3,7 @@
 import type { MediaAsset } from "@voyant-travel/media-react"
 import { MediaPicker } from "@voyant-travel/media-react/ui"
 import { Button } from "@voyant-travel/ui/components/button"
+import { Image as MediaImage } from "@voyant-travel/ui/components/image"
 import { Input } from "@voyant-travel/ui/components/input"
 import { Textarea } from "@voyant-travel/ui/components/textarea"
 import { Trash2 } from "lucide-react"
@@ -115,7 +116,7 @@ function MediaOverlayEditor({
         <ul className="flex flex-wrap gap-2">
           {urls.map((url) => (
             <li key={url}>
-              <img
+              <MediaImage
                 src={url}
                 alt={messages.mediaPreviewAlt}
                 className="h-16 w-24 rounded border object-cover"
