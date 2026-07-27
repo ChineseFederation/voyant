@@ -1,5 +1,17 @@
 # @voyant-travel/crm
 
+## 0.135.0
+
+### Minor Changes
+
+- d5492ed: Add `list_quote_pipelines`, `list_quote_stages`, `create_quote` and `add_quote_product`. The package advertised the whole lifecycle of a quote that already exists — snapshot, send, accept, decline — but nothing to open one or put a line on it, so an agent could send and accept a quote it had no way to build. `create_quote` needs a pipeline and stage, and neither was discoverable either, so the two reads ship alongside it. Both writes are staff-only, `quotes:write`, and confirmation-gated; the existing `snapshot_quote_version` still owns freezing lines into an immutable proposal.
+
+### Patch Changes
+
+- @voyant-travel/trips@0.202.0
+- @voyant-travel/relationships@0.132.6
+- @voyant-travel/operator-settings@0.15.5
+
 ## 0.134.8
 
 ### Patch Changes
