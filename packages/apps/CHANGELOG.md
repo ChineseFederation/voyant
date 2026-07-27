@@ -1,5 +1,12 @@
 # @voyant-travel/apps
 
+## 0.12.12
+
+### Patch Changes
+
+- Updated dependencies [1873611]
+  - @voyant-travel/admin@0.130.0
+
 ## 0.12.11
 
 ### Patch Changes

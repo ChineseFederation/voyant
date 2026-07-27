@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/quotes",
-  "version": "0.134.6",
+  "version": "0.134.7",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

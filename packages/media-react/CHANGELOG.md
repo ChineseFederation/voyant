@@ -1,5 +1,13 @@
 # @voyant-travel/media-react
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [1873611]
+  - @voyant-travel/admin@0.130.0
+  - @voyant-travel/i18n@0.118.0
+
 ## 0.5.0
 
 ### Minor Changes
