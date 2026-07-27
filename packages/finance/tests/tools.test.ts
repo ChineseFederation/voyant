@@ -319,4 +319,47 @@ describe("finance tools", () => {
       code: "MISSING_SERVICE",
     })
   })
+
+  it("advertises the billing-party requirement in the create_booking contract", () => {
+    // ProTravel hit this in production: Max resolved the client, then called
+    // create_booking without personId and looped on
+    // "Select a billing person or organization". personId and organizationId
+    // are both structurally optional (either satisfies the rule), and the
+    // requirement lived only in a superRefine, which does not serialize into
+    // the JSON Schema a Tool caller reads. The contract has to state it.
+    const tool = financeBookingsCreateTools.find((entry) => entry.name === "create_booking")
+    if (!tool) throw new Error("create_booking is missing")
+
+    expect(tool.description).toMatch(/personId/)
+    expect(tool.description).toMatch(/organizationId/)
+
+    // Assert on the same carrier `bookingNumber` already relies on to reach a
+    // caller, so this pins the description actually shipping, not a doc comment.
+    const shape = (
+      tool.inputSchema as {
+        shape?: Record<string, { shape?: Record<string, { description?: string }> }>
+      }
+    ).shape?.booking?.shape
+    if (!shape) throw new Error("create_booking input schema has no booking shape")
+
+    expect(shape.personId?.description).toMatch(/required unless .*organizationId/i)
+    expect(shape.organizationId?.description).toMatch(/required unless .*personId/i)
+
+    // Each branch must name the lookup that can actually return that id.
+    // Pointing the organization branch at `list_people` leaves a caller unable
+    // to obtain the id and repeating the workflow that failed.
+    expect(shape.personId?.description).toMatch(/list_people/)
+    expect(shape.personId?.description).not.toMatch(/list_organizations/)
+    expect(shape.organizationId?.description).toMatch(/list_organizations/)
+    expect(shape.organizationId?.description).not.toMatch(/list_people/)
+
+    // "at least one", never "exactly one": createBookingMutation stores both,
+    // for a traveller billed through their company, and no rule forbids it.
+    for (const description of [shape.personId?.description, shape.organizationId?.description]) {
+      expect(description).not.toMatch(/exactly one/i)
+    }
+    // The proven-effective precedent in this schema; if it ever stops carrying
+    // a description the mechanism this test relies on has changed.
+    expect(shape.bookingNumber?.description).toBeTruthy()
+  })
 })

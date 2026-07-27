@@ -234,7 +234,7 @@ export const createBookingTool = defineTool({
   capabilityVersion: "v1",
   name: "create_booking",
   description:
-    "Durably create one booking from a product or slot. Exact retries resolve the original immutable booking reference.",
+    "Durably create one booking from a product or slot. Requires a billing party: set `personId` for a private client (find it with `list_people`), or `organizationId` for a company booking (find it with `list_organizations`) — at least one is mandatory. Exact retries resolve the original immutable booking reference.",
   inputSchema: createBookingToolInputSchema,
   outputSchema: durableBookingCreateResultSchema,
   requiredScopes: ["bookings:write", "finance:write"],

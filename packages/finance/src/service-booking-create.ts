@@ -204,7 +204,11 @@ function requireCompleteBookingParty(
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["personId"],
-      message: "Select a billing person or organization",
+      // Names the fields, so a Tool caller that hit this can fix the call
+      // rather than retrying it unchanged. "Select…" reads as dialog copy and
+      // gives an agent nothing to act on.
+      message:
+        "A booking needs a billing party: set personId (or organizationId for a company booking).",
     })
   }
 
@@ -351,8 +355,32 @@ const bookingCreateBaseSchema = z.object({
     .describe(
       "Booking reference allocated by `generate_booking_number`. Never invent one and never derive it from traveller or client details. Pass the same value again when retrying the same create.",
     ),
-  personId: z.string().optional().nullable(),
-  organizationId: z.string().optional().nullable(),
+  /**
+   * Who is billed. At least one of `personId` / `organizationId` is required.
+   *
+   * Both are structurally optional because either satisfies the requirement, so
+   * the JSON Schema a Tool caller reads cannot express "one of these". Without
+   * these descriptions an agent sees two optional fields, omits both, and gets
+   * a validation error it had no way to predict from the contract — then
+   * retries the same call. Same failure mode `bookingNumber` above documents.
+   *
+   * Deliberately "at least one", not "exactly one": both may be set for a
+   * traveller billed to their company, and `createBookingMutation` stores both.
+   */
+  personId: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      "Id of the person billed for this booking. Required unless `organizationId` is set — a booking needs a billing party. Resolve it with `list_people`, or create the client first with `create_person`. May be combined with `organizationId` when a person is billed through their company.",
+    ),
+  organizationId: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      "Id of the organization billed for this booking, for a company or agency booking. Required unless `personId` is set — a booking needs a billing party. Resolve it with `list_organizations`, or create it first with `create_organization`.",
+    ),
   pax: z.number().int().positive().optional().nullable(),
   internalNotes: z.string().optional().nullable(),
   /**
