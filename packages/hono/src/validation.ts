@@ -58,10 +58,53 @@ export class ApiHttpError extends Error {
  * boundary. Subclasses inherit the brand through `super()`.
  */
 export function isApiHttpError(error: unknown): error is ApiHttpError {
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as Record<PropertyKey, unknown>
+    if (candidate[API_HTTP_ERROR_BRAND] === true) return true
+    return isPreBrandApiHttpError(candidate)
+  }
+  return false
+}
+
+const LEGACY_API_HTTP_ERROR_NAMES = new Set([
+  "ApiHttpError",
+  "RequestValidationError",
+  "UnauthorizedApiError",
+  "ForbiddenApiError",
+])
+
+/**
+ * Recognise an `ApiHttpError` thrown by a copy published before the brand.
+ *
+ * A partly-upgraded graph is the normal case, not an edge case: the error
+ * boundary resolves the newest `@voyant-travel/hono` while ~30 module packages
+ * still pin exact older versions until each is re-released. Without this the
+ * brand fixes nothing in production.
+ *
+ * The check reconstructs the *full* invariant of the pre-brand class rather
+ * than a couple of convenient fields, because `handleApiError` reflects an
+ * accepted error's `message` and `details` to the client — a loose predicate is
+ * a confidentiality hole, not just a wrong status.
+ *
+ * A genuine instance satisfies all four, verified against published 0.128.x:
+ * it is a real `Error` (`Error` is a realm intrinsic, so `instanceof` holds
+ * across module copies); its `name` is one of exactly four classes, all
+ * declared in this file; its `status` is numeric; and the constructor assigns
+ * `status`, `code` and `details` unconditionally, so all three are own
+ * properties even when the value is `undefined`.
+ *
+ * Notably this rejects `Object.assign(new Error(...), { status: 400 })` and any
+ * bare object literal wearing a familiar `name`.
+ */
+function isPreBrandApiHttpError(candidate: Record<PropertyKey, unknown>): boolean {
   return (
-    typeof error === "object" &&
-    error !== null &&
-    (error as Record<PropertyKey, unknown>)[API_HTTP_ERROR_BRAND] === true
+    candidate instanceof Error &&
+    typeof candidate.name === "string" &&
+    LEGACY_API_HTTP_ERROR_NAMES.has(candidate.name) &&
+    typeof candidate.status === "number" &&
+    Object.hasOwn(candidate, "status") &&
+    Object.hasOwn(candidate, "code") &&
+    Object.hasOwn(candidate, "details")
   )
 }
 

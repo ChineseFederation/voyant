@@ -2,7 +2,37 @@ import { Hono } from "hono"
 import { describe, expect, it } from "vitest"
 
 import { handleApiError } from "../../src/middleware/error-boundary.js"
-import { RequestValidationError } from "../../src/validation.js"
+import { isApiHttpError, RequestValidationError } from "../../src/validation.js"
+
+/**
+ * The pre-brand `RequestValidationError`, transcribed from published
+ * `@voyant-travel/hono@0.128.1` `dist/validation.js`. Declaring the fields (not
+ * just assigning them) is what makes `status`/`code`/`details` own properties
+ * even when undefined — the invariant the fallback matches on.
+ */
+class PreBrandApiHttpError extends Error {
+  status: number
+  code?: string
+  details?: Record<string, unknown>
+
+  constructor(
+    message: string,
+    options: { status: number; code?: string; details?: Record<string, unknown> },
+  ) {
+    super(message)
+    this.name = "ApiHttpError"
+    this.status = options.status
+    this.code = options.code
+    this.details = options.details
+  }
+}
+
+class PreBrandRequestValidationError extends PreBrandApiHttpError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, { status: 400, code: "invalid_request", details })
+    this.name = "RequestValidationError"
+  }
+}
 
 describe("handleApiError", () => {
   it("does not reflect generic thrown status messages or details", async () => {
@@ -66,6 +96,73 @@ describe("handleApiError", () => {
     expect(response.status).toBe(400)
     expect(body.error).toBe("Invalid input")
     expect(body.code).toBe("invalid_request")
+  })
+
+  // The brand only helps once BOTH copies carry it. In a partly-upgraded graph
+  // the boundary is new while the throwing module still pins a pre-brand
+  // `@voyant-travel/hono`, which is the shape production actually runs.
+  it("reflects an unbranded error from a pre-brand copy", async () => {
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.get("/bad", () => {
+      throw new PreBrandRequestValidationError("dateLocal is required", { field: "dateLocal" })
+    })
+
+    const response = await app.request("/bad")
+    const body = (await response.json()) as { error: string; code?: string; details?: unknown }
+
+    expect(response.status).toBe(400)
+    expect(body.error).toBe("dateLocal is required")
+    expect(body.code).toBe("invalid_request")
+    expect(body.details).toEqual({ field: "dateLocal" })
+  })
+
+  // `handleApiError` reflects an accepted error's message and details, so a
+  // loose predicate leaks internals rather than merely mis-statusing. Each of
+  // these satisfies part of the pre-brand shape and must still be rejected.
+  it.each([
+    [
+      "a generic error carrying a status",
+      () => Object.assign(new Error("database hostname leaked"), { status: 400, code: "nope" }),
+    ],
+    [
+      "a generic error wearing a familiar name",
+      () =>
+        Object.assign(new Error("database hostname leaked"), {
+          name: "RequestValidationError",
+          status: 400,
+        }),
+    ],
+  ])("hides %s", async (_label, make) => {
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.get("/bad", () => {
+      throw make()
+    })
+
+    const response = await app.request("/bad")
+    const body = (await response.json()) as { error: string; details?: unknown }
+
+    expect(response.status).toBe(500)
+    expect(body.error).toBe("Internal Server Error")
+    expect(body.details).toBeUndefined()
+  })
+
+  // Hono rethrows non-Error values rather than routing them to `onError`, so a
+  // bare object never reaches the boundary — assert the predicate directly.
+  it("does not accept a bare object wearing the full pre-brand field set", () => {
+    expect(
+      isApiHttpError({
+        name: "RequestValidationError",
+        status: 400,
+        code: "invalid_request",
+        details: undefined,
+        message: "database hostname leaked",
+      }),
+    ).toBe(false)
+
+    expect(isApiHttpError(new PreBrandRequestValidationError("real"))).toBe(true)
+    expect(isApiHttpError(new RequestValidationError("real"))).toBe(true)
   })
 
   it("reflects a ZodError thrown by a duplicate zod copy", async () => {
