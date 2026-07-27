@@ -82,15 +82,17 @@ export function ProductDeparturesSection({
                 <td className="py-2.5 pl-6 pr-3">
                   <div className="font-mono text-xs">{slot.dateLocal}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatSlotTime(slot.startsAt)}
+                    {formatSlotTime(slot.startsAt, slot.timezone)}
                   </div>
                 </td>
                 <td className="px-3 py-2.5">
                   {slot.endsAt ? (
                     <>
-                      <div className="font-mono text-xs">{formatSlotDate(slot.endsAt)}</div>
+                      <div className="font-mono text-xs">
+                        {formatSlotDate(slot.endsAt, slot.timezone)}
+                      </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatSlotTime(slot.endsAt)}
+                        {formatSlotTime(slot.endsAt, slot.timezone)}
                       </div>
                     </>
                   ) : (

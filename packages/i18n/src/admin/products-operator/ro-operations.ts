@@ -34,6 +34,7 @@ export const operatorAdminProductsMessagesRoOperations = {
     endTimeLabel: "Ora sfarsit",
     endTimeOptional: "(optional)",
     datePlaceholder: "Alege o data",
+    nonexistentLocalTime: "Aceasta ora nu exista in ziua si fusul orar selectate.",
     timezoneLabel: "Fus orar",
     timezoneSearchPlaceholder: "Cauta fusuri orare…",
     timezoneEmpty: "Nu a fost gasit niciun fus orar.",

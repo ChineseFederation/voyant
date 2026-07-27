@@ -1,4 +1,5 @@
 import { queryOptions } from "@tanstack/react-query"
+import { instantToSlotLocal, type SlotLocalDateTime } from "@voyant-travel/operations/scheduling"
 import type { ProductRecord } from "../../index.js"
 import type { ProductDetailApi, ProductMessagesRoot } from "./host.js"
 
@@ -177,14 +178,30 @@ export function formatMargin(percent: number | null): string {
   return `${percent.toFixed(0)}%`
 }
 
-export function formatSlotTime(iso: string): string {
-  const date = new Date(iso)
-  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`
+/**
+ * A slot's `startsAt`/`endsAt` are true UTC instants — the server validates
+ * `dateLocal` by converting `startsAt` through the slot's `timezone` (see
+ * `availabilitySlotCoreSchema` in `@voyant-travel/operations`). Rendering the
+ * UTC clock reads as the departure time to an operator, so every instant on
+ * this page has to be resolved in the slot's own zone.
+ *
+ * A malformed zone would otherwise throw straight through a render, so fall
+ * back to UTC rather than blanking the page.
+ */
+function slotLocal(iso: string, timezone: string): SlotLocalDateTime {
+  try {
+    return instantToSlotLocal(iso, timezone)
+  } catch {
+    return instantToSlotLocal(iso, "UTC")
+  }
 }
 
-export function formatSlotDate(iso: string): string {
-  const date = new Date(iso)
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`
+export function formatSlotTime(iso: string, timezone: string): string {
+  return slotLocal(iso, timezone).time
+}
+
+export function formatSlotDate(iso: string, timezone: string): string {
+  return slotLocal(iso, timezone).date
 }
 
 export function formatDuration(slot: DepartureSlot): string {
@@ -201,8 +218,10 @@ export function formatDuration(slot: DepartureSlot): string {
   if (diffMs <= 0) return "-"
   const hours = diffMs / 3_600_000
   if (hours < 24) return `${hours.toFixed(hours % 1 === 0 ? 0 : 1)}h`
-  const startDate = formatSlotDate(slot.startsAt)
-  const endDate = formatSlotDate(slot.endsAt)
+  // Count nights across local calendar days: a UTC-day count miscounts any
+  // itinerary whose start or end sits on the far side of midnight locally.
+  const startDate = formatSlotDate(slot.startsAt, slot.timezone)
+  const endDate = formatSlotDate(slot.endsAt, slot.timezone)
   const nights = Math.round(
     (new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) /
       86_400_000,

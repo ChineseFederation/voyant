@@ -33,6 +33,7 @@ export const operatorAdminProductsMessagesEnOperations = {
     endTimeLabel: "End time",
     endTimeOptional: "(optional)",
     datePlaceholder: "Pick a date",
+    nonexistentLocalTime: "That clock time does not exist on this date in the selected timezone.",
     timezoneLabel: "Timezone",
     timezoneSearchPlaceholder: "Search timezones…",
     timezoneEmpty: "No timezone found.",

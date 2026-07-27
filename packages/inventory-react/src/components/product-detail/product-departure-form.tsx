@@ -2,6 +2,11 @@
 
 import { formatMessage } from "@voyant-travel/i18n"
 import {
+  instantToSlotLocal,
+  localToInstant,
+  type SlotLocalDateTime,
+} from "@voyant-travel/operations/scheduling"
+import {
   Button,
   Input,
   Label,
@@ -105,33 +110,40 @@ export interface DepartureFormProps {
   onCancel?: () => void
 }
 
-function combineLocalToIso(date: string, time: string): string {
-  const iso = new Date(`${date}T${time}:00Z`).toISOString()
-  return iso
+/**
+ * The operator picks a wall-clock time and a timezone; the slot stores a true
+ * UTC instant. `localToInstant` resolves the two DST-safely and rejects a local
+ * time that does not exist (the spring-forward gap), which `onSubmit` surfaces
+ * as a field error rather than writing a silently shifted instant.
+ */
+function combineLocalToIso(date: string, time: string, timezone: string): string {
+  return localToInstant({ date, time, timezone })
 }
 
-function isoToLocalDate(iso: string): string {
-  const d = new Date(iso)
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0")
-  const day = String(d.getUTCDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
+/** Reading back is total — fall back to UTC so a bad zone can't break the dialog. */
+function slotLocal(iso: string, timezone: string): SlotLocalDateTime {
+  try {
+    return instantToSlotLocal(iso, timezone)
+  } catch {
+    return instantToSlotLocal(iso, "UTC")
+  }
 }
 
-function isoToLocalTime(iso: string): string {
-  const d = new Date(iso)
-  const hh = String(d.getUTCHours()).padStart(2, "0")
-  const mm = String(d.getUTCMinutes()).padStart(2, "0")
-  return `${hh}:${mm}`
+function isoToLocalDate(iso: string, timezone: string): string {
+  return slotLocal(iso, timezone).date
+}
+
+function isoToLocalTime(iso: string, timezone: string): string {
+  return slotLocal(iso, timezone).time
 }
 
 function initialValues(slot: DepartureSlot | undefined, defaultTz: string): DepartureFormValues {
   if (slot) {
     return {
       startDate: slot.dateLocal,
-      startTime: isoToLocalTime(slot.startsAt),
-      endDate: slot.endsAt ? isoToLocalDate(slot.endsAt) : "",
-      endTime: slot.endsAt ? isoToLocalTime(slot.endsAt) : "",
+      startTime: isoToLocalTime(slot.startsAt, slot.timezone),
+      endDate: slot.endsAt ? isoToLocalDate(slot.endsAt, slot.timezone) : "",
+      endTime: slot.endsAt ? isoToLocalTime(slot.endsAt, slot.timezone) : "",
       itineraryId: slot.itineraryId ?? "",
       optionId: slot.optionId ?? "",
       timezone: slot.timezone,
@@ -255,7 +267,16 @@ export function DepartureForm({ productId, slot, onSuccess, onCancel }: Departur
   }, [defaultOption, form])
 
   const onSubmit = async (values: DepartureFormOutput) => {
-    const startsAt = combineLocalToIso(values.startDate, values.startTime)
+    let startsAt: string
+    try {
+      startsAt = combineLocalToIso(values.startDate, values.startTime, values.timezone)
+    } catch {
+      form.setError("startTime", {
+        type: "manual",
+        message: departureMessages.nonexistentLocalTime,
+      })
+      return
+    }
 
     const effectiveEndDate =
       values.endDate && typeof values.endDate === "string" && values.endDate.length > 0
@@ -266,10 +287,22 @@ export function DepartureForm({ productId, slot, onSuccess, onCancel }: Departur
     const hasExplicitEndDate =
       values.endDate && typeof values.endDate === "string" && values.endDate.length > 0
 
-    const endsAt =
-      hasEndTime || hasExplicitEndDate
-        ? combineLocalToIso(effectiveEndDate, hasEndTime ? (values.endTime as string) : "18:00")
-        : null
+    let endsAt: string | null = null
+    if (hasEndTime || hasExplicitEndDate) {
+      try {
+        endsAt = combineLocalToIso(
+          effectiveEndDate,
+          hasEndTime ? (values.endTime as string) : "18:00",
+          values.timezone,
+        )
+      } catch {
+        form.setError("endTime", {
+          type: "manual",
+          message: departureMessages.nonexistentLocalTime,
+        })
+        return
+      }
+    }
 
     const initialPax =
       !values.unlimited && typeof values.initialPax === "number" ? values.initialPax : null
