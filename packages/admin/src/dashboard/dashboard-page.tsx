@@ -5,10 +5,12 @@ import { useVoyantReactContext } from "@voyant-travel/react"
 import {
   Badge,
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  SegmentedControl,
 } from "@voyant-travel/ui/components"
 import {
   ChartContainer,
@@ -18,6 +20,7 @@ import {
   ChartTooltipContent,
 } from "@voyant-travel/ui/components/chart"
 import { CalendarCheck, DollarSign, Package, Users } from "lucide-react"
+import { useState } from "react"
 import {
   Area,
   AreaChart,
@@ -43,7 +46,15 @@ import {
 } from "./dashboard-empty-states.js"
 import { KpiCard } from "./dashboard-kpi-card.js"
 import {
+  DASHBOARD_CHART_SHORT,
+  DASHBOARD_CHART_TALL,
+  DASHBOARD_LIST_MIN,
+} from "./dashboard-layout.js"
+import {
   buildMonthSeries,
+  DASHBOARD_RANGE_MONTHS,
+  type DashboardRangeMonths,
+  DEFAULT_DASHBOARD_RANGE_MONTHS,
   formatCurrency,
   getDashboardBookingsAggregatesQueryOptions,
   getDashboardFinanceAggregatesQueryOptions,
@@ -74,8 +85,11 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
   const client = useVoyantReactContext()
   const messages = useOperatorAdminMessages()
   const { resolvedLocale } = useLocale()
+  const [rangeMonths, setRangeMonths] = useState<DashboardRangeMonths>(
+    DEFAULT_DASHBOARD_RANGE_MONTHS,
+  )
   const { data: bookingsAggregates, isPending: bookingsPending } = useQuery(
-    getDashboardBookingsAggregatesQueryOptions(client),
+    getDashboardBookingsAggregatesQueryOptions(client, rangeMonths),
   )
   const { data: productsAggregates, isPending: productsPending } = useQuery(
     getDashboardProductsAggregatesQueryOptions(client),
@@ -84,15 +98,21 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
     getDashboardSuppliersAggregatesQueryOptions(client),
   )
   const { data: financeAggregates, isPending: financePending } = useQuery(
-    getDashboardFinanceAggregatesQueryOptions(client),
+    getDashboardFinanceAggregatesQueryOptions(client, rangeMonths),
   )
+
+  const rangeLabels: Record<DashboardRangeMonths, string> = {
+    3: messages.dashboard.range3Months,
+    6: messages.dashboard.range6Months,
+    12: messages.dashboard.range12Months,
+  }
 
   const bookings = bookingsAggregates?.data
   const products = productsAggregates?.data
   const suppliers = suppliersAggregates?.data
   const finance = financeAggregates?.data
 
-  const monthSeries = buildMonthSeries()
+  const monthSeries = buildMonthSeries(rangeMonths)
   const defaultCurrency = pickPrimaryCurrency(bookings?.monthlyRevenue ?? [])
 
   const monthlyRevenue = monthSeries.map((entry) => {
@@ -173,7 +193,18 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
   const hasBookingStatusData = localizedStatusBreakdown.length > 0
   const hasOutstandingInvoices = outstandingInvoiceCount > 0 || outstandingTopN.length > 0
 
-  const resolvedEmptyStates = buildDashboardEmptyStates(messages, emptyStates)
+  const resolvedEmptyStates = buildDashboardEmptyStates(messages, {
+    ...emptyStates,
+    // The monthly-bookings empty copy names a window, so it has to follow the
+    // selector rather than stay pinned to six months. An explicit caller
+    // override still wins.
+    monthlyBookings: {
+      title: formatMessage(messages.dashboard.monthlyBookingsRangeEmptyTitle, {
+        range: rangeLabels[rangeMonths],
+      }),
+      ...emptyStates.monthlyBookings,
+    },
+  })
 
   const dashboardMetrics = {
     totalRevenueCents,
@@ -197,11 +228,34 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
   return (
     <div className="flex flex-col gap-6">
       <AdminWidgetSlotRenderer slot="dashboard.header" props={widgetProps} />
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
+            {messages.dashboard.title}
+          </h1>
+          <p className="text-sm text-muted-foreground">{messages.dashboard.description}</p>
+        </div>
+        <SegmentedControl
+          aria-label={messages.dashboard.rangeLabel}
+          value={String(rangeMonths)}
+          onValueChange={(next) => setRangeMonths(Number(next) as DashboardRangeMonths)}
+          options={DASHBOARD_RANGE_MONTHS.map((months) => ({
+            value: String(months),
+            label: rangeLabels[months],
+          }))}
+        />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           title={messages.dashboard.totalRevenueTitle}
           value={formatCurrency(totalRevenueCents, defaultCurrency)}
-          description={messages.dashboard.totalRevenueDescription}
+          // The total is summed from the ranged aggregate response, so the
+          // copy has to name the range rather than claim "all-time".
+          description={formatMessage(messages.dashboard.totalRevenueRangeDescription, {
+            range: rangeLabels[rangeMonths],
+          })}
           icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
           trend={revenueTrend}
           trendLabel={messages.dashboard.trendVsLastMonth}
@@ -246,85 +300,71 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
       </div>
       <AdminWidgetSlotRenderer slot="dashboard.after-kpis" props={widgetProps} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{messages.dashboard.revenueTrendTitle}</CardTitle>
-          <CardDescription>{messages.dashboard.revenueTrendDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {bookingsPending ? (
-            <DashboardAreaChartSkeleton />
-          ) : !hasRevenueData ? (
-            <DashboardEmptyState emptyState={resolvedEmptyStates.revenueTrend} />
-          ) : (
-            <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
-              <AreaChart data={monthlyRevenue} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) =>
-                        typeof value === "number"
-                          ? formatCurrency(value * 100, defaultCurrency)
-                          : String(value)
-                      }
-                    />
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="var(--chart-1)"
-                  fill="url(#fillRevenue)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>{messages.dashboard.monthlyBookingsTitle}</CardTitle>
-            <CardDescription>{messages.dashboard.monthlyBookingsDescription}</CardDescription>
+            <CardTitle>{messages.dashboard.revenueTrendTitle}</CardTitle>
+            <CardDescription>
+              {formatMessage(messages.dashboard.revenueTrendRangeDescription, {
+                range: rangeLabels[rangeMonths],
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {bookingsPending ? (
-              <DashboardBarChartSkeleton />
-            ) : !hasMonthlyBookingsData ? (
-              <DashboardEmptyState emptyState={resolvedEmptyStates.monthlyBookings} compact />
+              <DashboardAreaChartSkeleton />
+            ) : !hasRevenueData ? (
+              <DashboardEmptyState
+                className={DASHBOARD_CHART_TALL}
+                emptyState={resolvedEmptyStates.revenueTrend}
+              />
             ) : (
-              <ChartContainer config={monthlyBookingsConfig} className="h-[250px] w-full">
-                <BarChart
-                  data={monthlyBookings}
+              <ChartContainer
+                config={revenueChartConfig}
+                className={`${DASHBOARD_CHART_TALL} w-full`}
+              >
+                <AreaChart
+                  data={monthlyRevenue}
                   margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
+                  <defs>
+                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value) =>
+                          typeof value === "number"
+                            ? formatCurrency(value * 100, defaultCurrency)
+                            : String(value)
+                        }
+                      />
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="var(--chart-1)"
+                    fill="url(#fillRevenue)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
               </ChartContainer>
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>{messages.dashboard.bookingStatusTitle}</CardTitle>
             <CardDescription>{messages.dashboard.bookingStatusDescription}</CardDescription>
@@ -333,9 +373,15 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
             {bookingsPending ? (
               <DashboardPieChartSkeleton />
             ) : !hasBookingStatusData ? (
-              <DashboardEmptyState emptyState={resolvedEmptyStates.bookingStatus} />
+              <DashboardEmptyState
+                className={DASHBOARD_CHART_TALL}
+                emptyState={resolvedEmptyStates.bookingStatus}
+              />
             ) : (
-              <ChartContainer config={bookingStatusConfig} className="mx-auto h-[300px] w-full">
+              <ChartContainer
+                config={bookingStatusConfig}
+                className={`mx-auto ${DASHBOARD_CHART_TALL} w-full`}
+              >
                 <PieChart>
                   <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
                   <Pie
@@ -360,22 +406,59 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{messages.dashboard.upcomingDeparturesTitle}</CardTitle>
-              <CardDescription>{messages.dashboard.upcomingDeparturesDescription}</CardDescription>
-            </div>
-            <a href="/bookings" className="text-sm text-primary hover:underline">
-              {messages.dashboard.viewAll}
-            </a>
+      <div className="grid gap-4 lg:grid-cols-7">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>{messages.dashboard.monthlyBookingsTitle}</CardTitle>
+            <CardDescription>{messages.dashboard.monthlyBookingsDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             {bookingsPending ? (
+              <DashboardBarChartSkeleton />
+            ) : !hasMonthlyBookingsData ? (
+              <DashboardEmptyState
+                className={DASHBOARD_CHART_SHORT}
+                emptyState={resolvedEmptyStates.monthlyBookings}
+                compact
+              />
+            ) : (
+              <ChartContainer
+                config={monthlyBookingsConfig}
+                className={`${DASHBOARD_CHART_SHORT} w-full`}
+              >
+                <BarChart
+                  data={monthlyBookings}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                  <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>{messages.dashboard.upcomingDeparturesTitle}</CardTitle>
+            <CardDescription>{messages.dashboard.upcomingDeparturesDescription}</CardDescription>
+            <CardAction>
+              <a href="/bookings" className="text-sm text-primary hover:underline">
+                {messages.dashboard.viewAll}
+              </a>
+            </CardAction>
+          </CardHeader>
+          <CardContent className={DASHBOARD_LIST_MIN}>
+            {bookingsPending ? (
               <DashboardUpcomingListSkeleton />
             ) : upcoming.length === 0 ? (
-              <DashboardEmptyState emptyState={resolvedEmptyStates.upcomingDepartures} compact />
+              <DashboardEmptyState
+                className={DASHBOARD_LIST_MIN}
+                emptyState={resolvedEmptyStates.upcomingDepartures}
+                compact
+              />
             ) : (
               <div className="space-y-3">
                 {upcoming.map((booking) => (
@@ -422,16 +505,22 @@ export function DashboardPage({ emptyStates = {} }: DashboardPageProps = {}) {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>{messages.dashboard.outstandingInvoicesTitle}</CardTitle>
             <CardDescription>{messages.dashboard.outstandingInvoicesDescription}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className={DASHBOARD_LIST_MIN}>
             {financePending ? (
               <DashboardOutstandingInvoicesSkeleton />
             ) : !hasOutstandingInvoices ? (
-              <DashboardEmptyState emptyState={resolvedEmptyStates.outstandingInvoices} />
+              <DashboardEmptyState
+                className={DASHBOARD_LIST_MIN}
+                emptyState={resolvedEmptyStates.outstandingInvoices}
+              />
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between rounded-lg border border-dashed p-4">

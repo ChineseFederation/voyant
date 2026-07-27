@@ -141,7 +141,9 @@ describe("DashboardPage empty states", () => {
     })
     expect(screen.getByText("Revenue Trend")).not.toBeNull()
     expect(screen.getByText("No bookings to break down.")).not.toBeNull()
-    expect(screen.getByText("No bookings created in the last 6 months.")).not.toBeNull()
+    expect(
+      screen.getByText("No bookings created in the selected period (Last 6 months)."),
+    ).not.toBeNull()
     expect(screen.getByText("No upcoming departures in the next 30 days")).not.toBeNull()
     expect(screen.getByText("All invoices settled — nothing outstanding.")).not.toBeNull()
     expect(screen.queryByText("Welcome to Voyant.")).toBeNull()
@@ -159,7 +161,9 @@ describe("DashboardPage empty states", () => {
       expect(screen.getByText("No revenue in the selected window yet.")).not.toBeNull()
     })
     expect(screen.getByText("No bookings to break down.")).not.toBeNull()
-    expect(screen.getByText("No bookings created in the last 6 months.")).not.toBeNull()
+    expect(
+      screen.getByText("No bookings created in the selected period (Last 6 months)."),
+    ).not.toBeNull()
     expect(screen.getByText("No upcoming departures in the next 30 days")).not.toBeNull()
     expect(screen.getByText("All invoices settled — nothing outstanding.")).not.toBeNull()
     expect(screen.getByRole("link", { name: /View invoices/ }).getAttribute("href")).toBe(

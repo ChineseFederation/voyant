@@ -23,6 +23,7 @@
     "./components/operator-admin-user-menu": "./src/components/operator-admin-user-menu.tsx",
     "./dashboard": "./src/dashboard/dashboard-page.tsx",
     "./dashboard/query-options": "./src/dashboard/dashboard-query-options.ts",
+    "./dashboard/layout": "./src/dashboard/dashboard-layout.ts",
     "./dashboard/skeleton": "./src/dashboard/dashboard-skeleton.tsx",
     "./extensions": "./src/extensions.ts",
     "./navigation/destinations": "./src/navigation/destinations.tsx",
@@ -175,6 +176,11 @@
         "types": "./dist/dashboard/dashboard-query-options.d.ts",
         "import": "./dist/dashboard/dashboard-query-options.js",
         "default": "./dist/dashboard/dashboard-query-options.js"
+      },
+      "./dashboard/layout": {
+        "types": "./dist/dashboard/dashboard-layout.d.ts",
+        "import": "./dist/dashboard/dashboard-layout.js",
+        "default": "./dist/dashboard/dashboard-layout.js"
       },
       "./dashboard/skeleton": {
         "types": "./dist/dashboard/dashboard-skeleton.d.ts",

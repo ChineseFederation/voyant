@@ -96,16 +96,22 @@ export function buildDashboardEmptyStates(
 }
 
 export function DashboardEmptyState({
+  className,
   compact = false,
   emptyState,
 }: {
+  /**
+   * Height override so an empty card occupies the same box as the chart or
+   * list it stands in for — see `dashboard-layout.ts`.
+   */
+  className?: string
   compact?: boolean
   emptyState: DashboardEmptyStateConfig
 }) {
   const action = emptyState.action ?? null
 
   return (
-    <Empty className={cn("min-h-[250px] border", compact && "min-h-[180px] p-8")}>
+    <Empty className={cn("min-h-[250px] border", compact && "min-h-[180px] p-8", className)}>
       <EmptyHeader>
         {emptyState.icon ? <EmptyMedia variant="icon">{emptyState.icon}</EmptyMedia> : null}
         {emptyState.title ? <EmptyTitle>{emptyState.title}</EmptyTitle> : null}

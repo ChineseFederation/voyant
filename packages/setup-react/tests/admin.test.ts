@@ -12,6 +12,7 @@ import {
   initializeSelectedSetup,
   loadSelectedSetupState,
   SetupDashboardWidget,
+  setupQueryKey,
 } from "../src/admin.js"
 
 describe("selected setup admin extension", () => {
@@ -97,6 +98,79 @@ describe("selected setup admin extension", () => {
     })
   })
 
+  it("resolves in one round trip when the snapshot already covers every selected step", async () => {
+    const state = setupState(["selected.one", "selected.two"])
+    const fetcher = vi.fn(async () => Response.json({ data: { state, canManage: true } }))
+
+    await expect(
+      loadSelectedSetupState({ baseUrl: "/api", fetcher }, ["selected.one", "selected.two"]),
+    ).resolves.toEqual({ state, canManage: true })
+
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/admin/setup")
+  })
+
+  it("seeds the dashboard widget's cache so the strip renders on first paint", async () => {
+    const fetcher = vi.fn(
+      async () => new Response(JSON.stringify(response(false)), { status: 200 }),
+    )
+    const queryClient = new QueryClient()
+
+    await initializeSelectedSetup(
+      { queryClient, runtime: { baseUrl: "/api", fetcher }, params: {} },
+      { stepIds: ["acme.step"], fresh: false },
+    )
+
+    expect(queryClient.getQueryData(setupQueryKey(["acme.step"]))).toEqual({
+      state: { ...setupState(), shouldRedirect: false },
+      canManage: true,
+    })
+  })
+
+  it("reuses the canInitialize snapshot instead of a second serial round trip", async () => {
+    const state = setupState(["acme.step"])
+    const fetcher = vi.fn(async () => Response.json({ data: { state, canManage: true } }))
+    const context = {
+      queryClient: new QueryClient(),
+      runtime: { baseUrl: "/api", fetcher },
+      params: {},
+    }
+
+    await expect(canInitializeSelectedSetup(context)).resolves.toBe(true)
+    await expect(
+      initializeSelectedSetup(context, { stepIds: ["acme.step"], fresh: false }),
+    ).resolves.toEqual({})
+
+    // Only the GET ran — the covering snapshot means the skipped POST could not
+    // have redirected (`shouldRedirect` is `created && fresh`).
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/admin/setup")
+    expect(context.queryClient.getQueryData(setupQueryKey(["acme.step"]))).toEqual({
+      state,
+      canManage: true,
+    })
+  })
+
+  it("still initializes when an extension contributes a step the snapshot lacks", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ data: { state: setupState(["acme.step"]), canManage: true } }),
+      )
+      .mockResolvedValueOnce(Response.json(response(false)))
+    const context = {
+      queryClient: new QueryClient(),
+      runtime: { baseUrl: "/api", fetcher },
+      params: {},
+    }
+
+    await canInitializeSelectedSetup(context)
+    await initializeSelectedSetup(context, { stepIds: ["acme.step", "acme.new"], fresh: false })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/v1/admin/setup/initialize")
+  })
+
   it("hands opaque prefill to an href-backed package form without putting it in the URL", () => {
     const values = new Map<string, string>()
     const storage = {
@@ -128,12 +202,17 @@ function response(shouldRedirect: boolean) {
   }
 }
 
-function setupState() {
+function setupState(stepIds: readonly string[] = []) {
   return {
     startedAt: "2026-07-15T08:00:00.000Z",
     firstRunOpenedAt: null,
     dismissedAt: null,
-    steps: [],
+    steps: stepIds.map((stepId) => ({
+      stepId,
+      firstSeenAt: "2026-07-15T08:00:00.000Z",
+      completedAt: null,
+      skippedAt: null,
+    })),
     prefill: {},
   }
 }

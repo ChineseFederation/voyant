@@ -24,7 +24,6 @@ import {
   type OperatorAdminMessages,
   OperatorAdminMessagesProvider,
   useOperatorAdminMessages,
-  useOptionalOperatorAdminMessages,
 } from "../providers/operator-admin-messages.js"
 import type { AdminUser } from "../types.js"
 import type { AdminAuthRuntime, AdminBootstrapStatus } from "./auth-runtime.js"
@@ -210,8 +209,6 @@ export function AdminWorkspaceShell<TUser extends AdminWorkspaceShellUser>({
   mapUser = defaultAdminWorkspaceUser,
   children,
 }: AdminWorkspaceShellProps<TUser>) {
-  const messages = useOptionalOperatorAdminMessages()
-
   return (
     <OperatorAdminBootstrapGate
       user={user}

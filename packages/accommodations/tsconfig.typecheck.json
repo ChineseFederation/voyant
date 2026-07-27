@@ -90,6 +90,7 @@
         "../admin/dist/components/operator-admin-user-menu.d.ts"
       ],
       "@voyant-travel/admin/dashboard": ["../admin/dist/dashboard/dashboard-page.d.ts"],
+      "@voyant-travel/admin/dashboard/layout": ["../admin/dist/dashboard/dashboard-layout.d.ts"],
       "@voyant-travel/admin/dashboard/query-options": [
         "../admin/dist/dashboard/dashboard-query-options.d.ts"
       ],

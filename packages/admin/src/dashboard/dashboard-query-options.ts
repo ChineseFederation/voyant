@@ -81,10 +81,23 @@ export const dashboardQueryKeys = {
   financeAggregates: (from: string) => ["dashboard-finance-aggregates", from] as const,
 }
 
-export function buildDashboardSixMonthWindow() {
+/** Selectable dashboard windows, in months. The default matches the prefetch. */
+export const DASHBOARD_RANGE_MONTHS = [3, 6, 12] as const
+export type DashboardRangeMonths = (typeof DASHBOARD_RANGE_MONTHS)[number]
+export const DEFAULT_DASHBOARD_RANGE_MONTHS: DashboardRangeMonths = 6
+
+export function buildDashboardWindow(
+  months: DashboardRangeMonths = DEFAULT_DASHBOARD_RANGE_MONTHS,
+) {
   const now = new Date()
-  const fromDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1, 0, 0, 0, 0))
+  const fromDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1, 0, 0, 0, 0),
+  )
   return { from: fromDate.toISOString() }
+}
+
+export function buildDashboardSixMonthWindow() {
+  return buildDashboardWindow(6)
 }
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -133,8 +146,11 @@ async function fetchDashboardJson<T>(client: DashboardQueryClient, path: string)
   return body as T
 }
 
-export function getDashboardBookingsAggregatesQueryOptions(client: DashboardQueryClient) {
-  const { from } = buildDashboardSixMonthWindow()
+export function getDashboardBookingsAggregatesQueryOptions(
+  client: DashboardQueryClient,
+  months: DashboardRangeMonths = DEFAULT_DASHBOARD_RANGE_MONTHS,
+) {
+  const { from } = buildDashboardWindow(months)
   return queryOptions({
     queryKey: dashboardQueryKeys.bookingsAggregates(from),
     queryFn: () =>
@@ -164,8 +180,11 @@ export function getDashboardSuppliersAggregatesQueryOptions(client: DashboardQue
   })
 }
 
-export function getDashboardFinanceAggregatesQueryOptions(client: DashboardQueryClient) {
-  const { from } = buildDashboardSixMonthWindow()
+export function getDashboardFinanceAggregatesQueryOptions(
+  client: DashboardQueryClient,
+  months: DashboardRangeMonths = DEFAULT_DASHBOARD_RANGE_MONTHS,
+) {
+  const { from } = buildDashboardWindow(months)
   return queryOptions({
     queryKey: dashboardQueryKeys.financeAggregates(from),
     queryFn: () =>
@@ -238,10 +257,10 @@ export const monthlyBookingsConfig = {
   },
 } satisfies ChartConfig
 
-export function buildMonthSeries() {
+export function buildMonthSeries(months: number = DEFAULT_DASHBOARD_RANGE_MONTHS) {
   const now = new Date()
-  return Array.from({ length: 6 }, (_, idx) => {
-    const offset = 5 - idx
+  return Array.from({ length: months }, (_, idx) => {
+    const offset = months - 1 - idx
     const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1))
     return {
       yearMonth: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
