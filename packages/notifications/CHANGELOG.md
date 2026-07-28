@@ -1,5 +1,11 @@
 # @voyant-travel/notifications
 
+## 0.142.3
+
+### Patch Changes
+
+- eb3db03: Expose deployment-provided customer portal URLs in notification template data.
+
 ## 0.142.2
 
 ### Patch Changes
