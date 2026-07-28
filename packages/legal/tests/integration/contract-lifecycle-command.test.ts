@@ -10,7 +10,10 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-import { recordBookingContractDeliveryStatus } from "../../src/booking-contract-review.js"
+import {
+  bookingContractContentFingerprint,
+  recordBookingContractDeliveryStatus,
+} from "../../src/booking-contract-review.js"
 import {
   executeLegalContractLifecycleCommand,
   legalContractLifecycleEventId,
@@ -44,6 +47,7 @@ type CommandInput = {
   recipient?: string
   channel?: "email" | "sms" | "whatsapp"
   revision?: number
+  contentFingerprint?: string
   notificationsSuppressed?: boolean
   reason?: string
   acknowledgedConsequences?: true
@@ -372,11 +376,13 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
 
   it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
     const contract = await insertContract("draft", "Review-first contract")
+    const contentFingerprint = await bookingContractContentFingerprint(contract)
     const send = await approvedCommand("send", "send-reviewed-revision", {
       contractId: contract.id,
       recipient: "traveller@example.com",
       channel: "email",
       revision: 1,
+      contentFingerprint,
       notificationsSuppressed: false,
       subject: "Your agreement",
       message: "Please review and sign.",
@@ -418,6 +424,15 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         externalReference: "delivery_1",
       }),
     ).resolves.toEqual({ status: "recorded", replayed: true })
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: new Date("2026-07-29T12:05:00.000Z"),
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: true })
 
     const voidCommand = await approvedCommand("void", "void-reviewed-revision", {
       contractId: contract.id,
@@ -433,6 +448,28 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       "contract.sent",
       "contract.voided",
     ])
+  })
+
+  it("rejects an approved revision when its reviewed content changed", async () => {
+    const contract = await insertContract("draft", "Reviewed title")
+    const command = await approvedCommand("send", "send-content-drift", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+    })
+    await db
+      .update(contracts)
+      .set({ title: "Changed after review" })
+      .where(eq(contracts.id, contract.id))
+
+    await expect(executeCommand(command)).rejects.toMatchObject({ code: "INVALID_INPUT" })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "draft", title: "Changed after review" })],
+    )
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
   })
 
   async function insertContract(status: ContractStatus, title: string) {
@@ -633,11 +670,20 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       }
     }
     if (transition !== "send") return { contractId: input.contractId }
+    if (!input.contentFingerprint) {
+      return {
+        contractId: input.contractId,
+        recipientEmail: input.recipient ?? null,
+        subject: input.subject ?? null,
+        message: input.message ?? null,
+      }
+    }
     return {
       contractId: input.contractId,
       recipient: input.recipient ?? "traveller@example.com",
       channel: input.channel ?? "email",
       revision: input.revision ?? 1,
+      contentFingerprint: input.contentFingerprint,
       notificationsSuppressed: input.notificationsSuppressed ?? false,
       subject: input.subject ?? null,
       message: input.message ?? null,

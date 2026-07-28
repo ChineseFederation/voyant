@@ -8,6 +8,7 @@ import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { bookingContractContentFingerprint } from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
 import {
   appendContractStageHistory,
@@ -39,7 +40,14 @@ type LifecycleCommandPayload =
       recipient: string
       channel: "email" | "sms" | "whatsapp"
       revision: number
+      contentFingerprint: string
       notificationsSuppressed: boolean
+      subject: string | null
+      message: string | null
+    }
+  | {
+      contractId: string
+      recipientEmail: string | null
       subject: string | null
       message: string | null
     }
@@ -59,9 +67,11 @@ export interface ExecuteLegalContractLifecycleCommandInput {
   transition: LifecycleTransition
   commandInput: {
     contractId: string
+    recipientEmail?: string | null
     recipient?: string
     channel?: "email" | "sms" | "whatsapp"
     revision?: number
+    contentFingerprint?: string
     notificationsSuppressed?: boolean
     reason?: string
     acknowledgedConsequences?: true
@@ -219,7 +229,7 @@ async function applyLifecycleTransition(
     case "issue":
       return issueContract(db, contract)
     case "send":
-      if (contract.status === "draft") {
+      if (contract.status === "draft" && "contentFingerprint" in payload) {
         const issued = await issueContract(db, contract)
         return sendContract(db, issued.contract, payload)
       }
@@ -242,7 +252,12 @@ async function issueContract(
   }
 
   let contractNumber = contract.contractNumber
-  if (!contractNumber && contract.seriesId) {
+  const metadata =
+    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
+      ? (contract.metadata as Record<string, unknown>)
+      : {}
+  const immutableReviewedRevision = !!metadata.bookingContractWorkflow
+  if (!immutableReviewedRevision && !contractNumber && contract.seriesId) {
     const allocated = await allocateContractNumber(db, contract.seriesId)
     if (allocated) contractNumber = allocated.number
   }
@@ -252,7 +267,7 @@ async function issueContract(
     : baseVariables
   let renderedBody = contract.renderedBody
   let renderedBodyFormat = contract.renderedBodyFormat
-  if (contract.templateVersionId) {
+  if (!immutableReviewedRevision && contract.templateVersionId) {
     const [version] = await db
       .select()
       .from(contractTemplateVersions)
@@ -315,7 +330,24 @@ async function sendContract(
       ? (metadata.bookingContractWorkflow as Record<string, unknown>)
       : {}
   const expectedRevision = typeof workflow.revision === "number" ? workflow.revision : 1
-  if (delivery.revision !== expectedRevision) {
+  const managedRevision = Object.keys(workflow).length > 0
+  if (managedRevision && !("contentFingerprint" in payload)) {
+    throw new ToolError(
+      "Booking contract revisions require an exact review content fingerprint.",
+      "INVALID_INPUT",
+    )
+  }
+  if ("contentFingerprint" in payload) {
+    const currentFingerprint = await bookingContractContentFingerprint(contract)
+    if (payload.contentFingerprint !== currentFingerprint) {
+      throw new ToolError(
+        "The approved contract content is no longer the reviewed content.",
+        "INVALID_INPUT",
+        { contractId: contract.id, currentFingerprint },
+      )
+    }
+  }
+  if ("revision" in payload && delivery.revision !== expectedRevision) {
     throw new ToolError(
       "The approved contract revision is no longer the selected revision.",
       "INVALID_INPUT",
@@ -465,6 +497,17 @@ async function voidContract(
 function sendDelivery(
   payload: ExistingTargetCommandPayload<LifecycleCommandPayload>,
 ): NonNullable<ContractLifecycleEvent["delivery"]> {
+  if ("recipientEmail" in payload) {
+    return {
+      recipientEmail: payload.recipientEmail,
+      recipient: payload.recipientEmail,
+      channel: payload.recipientEmail ? "email" : null,
+      revision: null,
+      notificationsSuppressed: false,
+      subject: payload.subject,
+      message: payload.message,
+    }
+  }
   if (
     !("recipient" in payload) ||
     !("channel" in payload) ||
@@ -499,11 +542,23 @@ function normalizeCommandInput(
     }
   }
   if (transition !== "send") return { contractId: commandInput.contractId }
+  if (!("recipient" in commandInput) || !commandInput.contentFingerprint) {
+    return {
+      contractId: commandInput.contractId,
+      recipientEmail:
+        "recipientEmail" in commandInput
+          ? (commandInput.recipientEmail ?? null)
+          : (commandInput.recipient ?? null),
+      subject: "subject" in commandInput ? (commandInput.subject ?? null) : null,
+      message: "message" in commandInput ? (commandInput.message ?? null) : null,
+    }
+  }
   return {
     contractId: commandInput.contractId,
     recipient: commandInput.recipient as string,
     channel: commandInput.channel as "email" | "sms" | "whatsapp",
     revision: commandInput.revision as number,
+    contentFingerprint: commandInput.contentFingerprint as string,
     notificationsSuppressed: commandInput.notificationsSuppressed ?? false,
     subject: "subject" in commandInput ? (commandInput.subject ?? null) : null,
     message: "message" in commandInput ? (commandInput.message ?? null) : null,

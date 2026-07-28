@@ -228,6 +228,7 @@ const createDraftInputSchema = z.object({
   personId: z.string().optional(),
   organizationId: z.string().optional(),
   supplierId: z.string().optional(),
+  channelId: z.string().optional(),
   templateVersionId: z.string().optional(),
   seriesId: z.string().optional(),
   expiresAt: z.string().datetime().optional(),
@@ -250,6 +251,7 @@ const bookingContractTemplateCandidateSchema = contractTemplateSummarySchema.ext
 
 export const bookingContractReviewSchema = z.object({
   contract: legalContractDetailSchema,
+  contentFingerprint: z.string().startsWith("booking-contract-content:v1:sha256:"),
   effectiveStatus: bookingContractEffectiveStatusSchema,
   revision: z.number().int().positive(),
   previousRevisionId: z.string().nullable(),
@@ -359,14 +361,24 @@ const listTermsInputSchema = z.object({
 })
 const listAttachmentsInputSchema = z.object({ contractId: z.string().trim().min(1) })
 const transitionContractInputSchema = z.object({ contractId: z.string().trim().min(1) })
-const sendContractInputSchema = transitionContractInputSchema.extend({
+const legacySendContractInputSchema = transitionContractInputSchema.extend({
+  recipientEmail: z.string().email().nullable().optional(),
+  subject: z.string().max(500).nullable().optional(),
+  message: z.string().max(10_000).nullable().optional(),
+})
+const bookingContractSendInputSchema = transitionContractInputSchema.extend({
   recipient: z.string().trim().min(3).max(320),
   channel: z.enum(["email", "sms", "whatsapp"]),
   revision: z.number().int().positive(),
+  contentFingerprint: z.string().startsWith("booking-contract-content:v1:sha256:"),
   notificationsSuppressed: z.boolean().default(false),
   subject: z.string().max(500).nullable().optional(),
   message: z.string().max(10_000).nullable().optional(),
 })
+const sendContractInputSchema = z.union([
+  bookingContractSendInputSchema,
+  legacySendContractInputSchema,
+])
 const voidContractInputSchema = transitionContractInputSchema.extend({
   revision: z.number().int().positive(),
   reason: z.string().trim().min(3).max(2_000),
@@ -801,7 +813,7 @@ export const sendLegalContractTool = defineTool({
   capabilityId: `${OWNER}#tool.send-contract`,
   name: "send_legal_contract",
   description:
-    "Approve and send one exact booking-contract revision. The approval preview names recipient, channel, revision, notification suppression, and the external communication effect. A draft is issued atomically before delivery; duplicate approval clicks replay the same durable result.",
+    "Send a contract with explicit approval. Booking-contract revisions require recipient, channel, revision, and the contentFingerprint returned by get_booking_contract_review; legacy issued contracts retain recipientEmail compatibility. A reviewed draft is issued atomically before delivery and duplicate approval clicks replay the same durable result.",
   inputSchema: sendContractInputSchema,
   outputSchema: legalContractDetailSchema,
   riskPolicy: {

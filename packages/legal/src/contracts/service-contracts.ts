@@ -179,6 +179,24 @@ export const contractRecordsService = {
     const { status: _status, ...update } = data as UpdateContractInput & {
       status?: never
     }
+    const [existing] = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1)
+    if (!existing) return null
+    if (existing.status !== "draft") {
+      throw new RequestValidationError(
+        "Issued, sent, signed, executed, expired, and void contract revisions are immutable.",
+      )
+    }
+    const metadata =
+      existing.metadata &&
+      typeof existing.metadata === "object" &&
+      !Array.isArray(existing.metadata)
+        ? (existing.metadata as Record<string, unknown>)
+        : {}
+    if (metadata.bookingContractWorkflow) {
+      throw new RequestValidationError(
+        "Booking contract revisions are immutable; create a new revision instead of patching.",
+      )
+    }
     await assertContractPartiesExist(db, update)
     const [row] = await db
       .update(contracts)
@@ -188,9 +206,12 @@ export const contractRecordsService = {
         expiresAt: update.expiresAt === undefined ? undefined : toTimestamp(update.expiresAt),
         updatedAt: new Date(),
       })
-      .where(eq(contracts.id, id))
+      .where(and(eq(contracts.id, id), eq(contracts.status, "draft")))
       .returning()
-    return row ?? null
+    if (!row) {
+      throw new RequestValidationError("The contract changed state and can no longer be patched.")
+    }
+    return row
   },
   async deleteContract(db: PostgresJsDatabase, id: string) {
     const [existing] = await db

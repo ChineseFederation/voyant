@@ -443,6 +443,35 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     )
   })
 
+  it("refuses PATCH mutation of managed drafts and every non-draft revision", async () => {
+    const [managedDraft] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed revision",
+        scope: "customer",
+        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: true } },
+      })
+      .returning()
+    const managedPatch = await adminApp.request(`/${managedDraft!.id}`, {
+      method: "PATCH",
+      ...json({ title: "Mutated revision" }),
+    })
+    expect(managedPatch.status).toBe(400)
+
+    const [sent] = await db
+      .insert(contracts)
+      .values({ title: "Sent revision", scope: "customer", status: "sent" })
+      .returning()
+    const sentPatch = await adminApp.request(`/${sent!.id}`, {
+      method: "PATCH",
+      ...json({ variables: { commercial: { totalAmountCents: 1 } } }),
+    })
+    expect(sentPatch.status).toBe(400)
+    await expect(db.select().from(contracts).where(eq(contracts.id, sent!.id))).resolves.toEqual([
+      expect.objectContaining({ title: "Sent revision", variables: null }),
+    ])
+  })
+
   it("replays contract creates with the same idempotency key", async () => {
     const input = {
       title: "Idempotent contract",

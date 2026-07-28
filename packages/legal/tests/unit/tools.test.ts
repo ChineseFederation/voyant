@@ -68,14 +68,21 @@ describe("legal Tools", () => {
       }).success,
     ).toBe(true)
     expect(sendLegalContractTool.inputSchema.safeParse({ contractId: "contract_1" }).success).toBe(
-      false,
+      true,
     )
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipientEmail: "legacy@example.com",
+      }).success,
+    ).toBe(true)
     expect(
       sendLegalContractTool.inputSchema.safeParse({
         contractId: "contract_1",
         recipient: "traveller@example.com",
         channel: "email",
         revision: 2,
+        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
         notificationsSuppressed: false,
       }).success,
     ).toBe(true)

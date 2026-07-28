@@ -6,6 +6,7 @@ import {
   executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
+import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
@@ -17,6 +18,7 @@ import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
+  bookingContractPrerequisites,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
 } from "./booking-contract-review.js"
@@ -201,10 +203,17 @@ export function createLegalToolServices(
       }
       return legalContractDetail(result.contract)
     },
-    async sendContract({ contractId, recipient, channel, ...delivery }) {
+    async sendContract(input) {
+      const { contractId, ...delivery } = input
       const result = await contractsService.sendContract(db, contractId, lifecycleRuntime, {
-        ...delivery,
-        recipientEmail: channel === "email" ? recipient : null,
+        subject: delivery.subject ?? null,
+        message: delivery.message ?? null,
+        recipientEmail:
+          "recipient" in delivery
+            ? delivery.channel === "email"
+              ? delivery.recipient
+              : null
+            : (delivery.recipientEmail ?? null),
       })
       if (result.status === "not_found") {
         throw new ToolError(`Contract "${contractId}" was not found.`, "NOT_FOUND", { contractId })
@@ -369,6 +378,49 @@ export async function executeLegalContractDraftCreate(
             "NOT_FOUND",
           )
         }
+        const bookingId = requestedInput.bookingId ?? previous?.bookingId ?? null
+        if (bookingId && templateVersion) {
+          const [booking] = await transaction
+            .select()
+            .from(bookings)
+            .where(eq(bookings.id, bookingId))
+            .limit(1)
+          if (!booking) {
+            throw new ToolError(`Booking "${bookingId}" was not found.`, "NOT_FOUND", {
+              bookingId,
+            })
+          }
+          const template = await contractsService.getTemplateById(
+            transaction,
+            templateVersion.templateId,
+          )
+          const expectedLanguage = requestedInput.language ?? previous?.language ?? "en"
+          const expectedChannelId = requestedInput.channelId ?? previous?.channelId ?? null
+          const templateApplicable =
+            template?.active === true &&
+            template.scope === "customer" &&
+            template.currentVersionId === templateVersion.id &&
+            template.language === expectedLanguage &&
+            (!expectedChannelId || !template.channelId || template.channelId === expectedChannelId)
+          const itemCount = await transaction
+            .select({ id: bookingItems.id })
+            .from(bookingItems)
+            .where(eq(bookingItems.bookingId, bookingId))
+            .limit(1)
+          const missingPrerequisites = bookingContractPrerequisites({
+            templateApplicable,
+            customerEmail: booking.contactEmail,
+            totalAmountCents: booking.sellAmountCents,
+            itemCount: itemCount.length,
+          })
+          if (missingPrerequisites.length > 0) {
+            throw new ToolError(
+              `Contract prerequisites are missing: ${missingPrerequisites.join(", ")}.`,
+              "INVALID_INPUT",
+              { missingPrerequisites },
+            )
+          }
+        }
         const missingVariables = validateTemplateVariables(
           templateVersion?.variableSchema,
           variables ?? {},
@@ -396,6 +448,7 @@ export async function executeLegalContractDraftCreate(
           personId: requestedInput.personId ?? previous?.personId ?? null,
           organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,
           supplierId: requestedInput.supplierId ?? previous?.supplierId ?? null,
+          channelId: requestedInput.channelId ?? previous?.channelId ?? null,
           templateVersionId,
           seriesId: requestedInput.seriesId ?? previous?.seriesId ?? null,
           expiresAt: requestedInput.expiresAt ?? null,

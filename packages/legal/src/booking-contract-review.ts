@@ -1,3 +1,4 @@
+import { sha256 } from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -7,6 +8,27 @@ import { contracts, contractTemplates, contractTemplateVersions } from "./contra
 import type { bookingContractReviewSchema } from "./tools.js"
 
 type BookingContractReview = z.infer<typeof bookingContractReviewSchema>
+
+export async function bookingContractContentFingerprint(contract: {
+  id: string
+  bookingId: string | null
+  title: string
+  language: string
+  templateVersionId: string | null
+  variables: unknown
+  renderedBody: string | null
+}): Promise<string> {
+  const digest = await sha256({
+    contractId: contract.id,
+    bookingId: contract.bookingId,
+    title: contract.title,
+    language: contract.language,
+    templateVersionId: contract.templateVersionId,
+    variables: contract.variables,
+    renderedBody: contract.renderedBody,
+  })
+  return `booking-contract-content:v1:sha256:${digest}`
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -23,6 +45,22 @@ function requiredVariables(schema: unknown): string[] {
 
 function valueAtPath(value: unknown, path: string): unknown {
   return path.split(".").reduce<unknown>((current, segment) => record(current)[segment], value)
+}
+
+export function bookingContractPrerequisites(input: {
+  templateApplicable: boolean
+  customerEmail: string | null
+  totalAmountCents: number | null
+  itemCount: number
+  missingRequiredVariables?: readonly string[]
+}): string[] {
+  return [
+    ...(input.templateApplicable ? [] : ["template.applicableCurrentVersion"]),
+    ...(input.customerEmail ? [] : ["customer.email"]),
+    ...(input.totalAmountCents == null ? ["commercial.totalAmountCents"] : []),
+    ...(input.itemCount > 0 ? [] : ["booking.items"]),
+    ...(input.missingRequiredVariables ?? []),
+  ].filter((value, index, values) => values.indexOf(value) === index)
 }
 
 export async function listApplicableBookingContractTemplates(
@@ -94,13 +132,15 @@ export async function listApplicableBookingContractTemplates(
               .then(([row]) => row ?? null)
           : null
         const required = requiredVariables(version?.variableSchema ?? template.variableSchema)
-        const missing = [
-          ...(template.currentVersionId ? [] : ["template.currentVersion"]),
-          ...(booking.contactEmail ? [] : ["customer.email"]),
-          ...(booking.sellAmountCents == null ? ["commercial.totalAmountCents"] : []),
-          ...(bookingProductRows.length === 0 ? ["booking.items"] : []),
-          ...required.filter((path) => valueAtPath(bookingVariables, path) == null),
-        ].filter((value, index, values) => values.indexOf(value) === index)
+        const missing = bookingContractPrerequisites({
+          templateApplicable: !!version,
+          customerEmail: booking.contactEmail,
+          totalAmountCents: booking.sellAmountCents,
+          itemCount: bookingProductRows.length,
+          missingRequiredVariables: required.filter(
+            (path) => valueAtPath(bookingVariables, path) == null,
+          ),
+        })
         return {
           id: template.id,
           name: template.name,
@@ -166,6 +206,7 @@ export async function getBookingContractReview(
 
   return {
     contract: legalContractDetail(row.contract),
+    contentFingerprint: await bookingContractContentFingerprint(row.contract),
     effectiveStatus,
     revision: typeof workflow.revision === "number" ? workflow.revision : 1,
     previousRevisionId:
@@ -251,7 +292,14 @@ export async function recordBookingContractDeliveryStatus(
     const history = Array.isArray(workflow.deliveryHistory) ? workflow.deliveryHistory : []
     const timestamp = input.occurredAt.toISOString()
     const field = input.status === "viewed" ? "viewedAt" : "declinedAt"
-    if (delivery[field] === timestamp) return { status: "recorded" as const, replayed: true }
+    const replayed = history.some((entry) => {
+      const candidate = record(entry)
+      if (candidate.status !== input.status || candidate.provider !== input.provider) return false
+      return input.externalReference
+        ? candidate.externalReference === input.externalReference
+        : candidate.occurredAt === timestamp
+    })
+    if (replayed) return { status: "recorded" as const, replayed: true }
     await tx
       .update(contracts)
       .set({
