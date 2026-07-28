@@ -30,12 +30,17 @@ import { productExtras } from "./extras/schema.js"
 import { inventoryExtrasService } from "./extras/service.js"
 import type { InventoryExtrasToolServices } from "./extras-tools.js"
 import type { InventoryOptionToolServices } from "./option-tools.js"
+import {
+  applyProductUnitConfiguration,
+  previewProductUnitConfiguration,
+} from "./product-unit-configuration.js"
 import { productOptions, products, productTranslations } from "./schema.js"
 import { productsService } from "./service.js"
 import { getProductContent } from "./service-content.js"
 import { optionProductsService } from "./service-options.js"
 import type {
   InventoryAuthoringToolServices,
+  InventoryConfigurationToolServices,
   InventoryContentToolServices,
   InventoryToolServices,
 } from "./tools.js"
@@ -63,6 +68,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
     "inventoryExtras",
     "inventoryOptions",
     "inventoryAuthoring",
+    "inventoryConfiguration",
   ],
   contribute: ({ request, context, resources }) => {
     const c = request as Context<InventoryMcpEnv>
@@ -216,10 +222,31 @@ export const voyantToolContextContribution = defineToolContextContribution({
         }
       },
     }
+    const inventoryConfiguration: InventoryConfigurationToolServices = {
+      previewProductUnitConfiguration: (input) => previewProductUnitConfiguration(db, input),
+      async applyProductUnitConfiguration(input) {
+        const result = await applyProductUnitConfiguration(db, input)
+        // Emit on exact replay too: if a prior request committed and then lost
+        // its projection event, the retry repairs visibility without another write.
+        await emitProductContentChanged(eventBus, { id: result.productId, axis: "option" })
+        await eventBus?.emit(
+          "pricing.rule.changed",
+          {
+            productId: result.productId,
+            ruleId: result.optionPriceRuleId,
+            kind: "option-unit-rule",
+            source: "updated",
+          },
+          { category: "domain", source: "service" },
+        )
+        return result
+      },
+    }
     return {
       inventory,
       inventoryContent,
       inventoryAuthoring,
+      inventoryConfiguration,
       inventoryExtras: {
         listProductExtras: (
           input: Parameters<typeof inventoryExtrasService.listProductExtras>[1],

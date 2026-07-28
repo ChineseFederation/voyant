@@ -200,6 +200,10 @@ export function formatSlotTime(iso: string, timezone: string): string {
   return slotLocal(iso, timezone).time
 }
 
+export function formatSlotTimeWithTimezone(iso: string, timezone: string): string {
+  return `${formatSlotTime(iso, timezone)} · ${timezone}`
+}
+
 export function formatSlotDate(iso: string, timezone: string): string {
   return slotLocal(iso, timezone).date
 }

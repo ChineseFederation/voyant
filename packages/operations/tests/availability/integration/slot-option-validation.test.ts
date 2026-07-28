@@ -87,6 +87,51 @@ describe.skipIf(!DB_AVAILABLE)("availability slot option validation", () => {
     expect(slot?.remainingPax).toBe(20)
   })
 
+  it("creates and updates one Bucharest departure without losing operator fields", async () => {
+    const productId = await seedProduct("Bucharest rooms")
+    const created = await createSlot(db, {
+      productId,
+      dateLocal: "2026-10-12",
+      startsAt: "2026-10-12T06:30:00.000Z",
+      endsAt: "2026-10-14T15:00:00.000Z",
+      timezone: "Europe/Bucharest",
+      status: "open",
+      unlimited: false,
+      initialPax: 20,
+      remainingPax: 17,
+      nights: 2,
+      days: 3,
+      notes: "Meet at the station",
+    })
+    if (!created) throw new Error("failed to create Bucharest departure")
+
+    const updated = await updateSlot(db, created.id, {
+      initialPax: 25,
+      endsAt: "2026-10-15T15:00:00.000Z",
+      nights: 3,
+      days: 4,
+      status: "closed",
+      notes: "Meet at the station - platform 2",
+      timezone: "Europe/Bucharest",
+    })
+
+    expect(updated).toMatchObject({
+      id: created.id,
+      dateLocal: "2026-10-12",
+      startsAt: new Date("2026-10-12T06:30:00.000Z"),
+      endsAt: new Date("2026-10-15T15:00:00.000Z"),
+      timezone: "Europe/Bucharest",
+      status: "closed",
+      initialPax: 25,
+      // Three places were consumed before the capacity increase, so the
+      // derived remainder grows from 17 to 22 instead of resetting to 25.
+      remainingPax: 22,
+      nights: 3,
+      days: 4,
+      notes: "Meet at the station - platform 2",
+    })
+  })
+
   it("leaves remaining pax null for an unlimited slot", async () => {
     const productId = await seedProduct("Unlimited trip")
 

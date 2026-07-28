@@ -143,6 +143,8 @@ describe("inventory deployment manifests", () => {
       "list_product_days",
       "create_product",
       "update_product",
+      "preview_product_unit_configuration",
+      "apply_product_unit_configuration",
       "update_product_day",
       "publish_product",
       "unpublish_product",
@@ -173,6 +175,13 @@ describe("inventory deployment manifests", () => {
         expect.objectContaining({
           id: "@voyant-travel/inventory#action.publish-product",
           risk: "high",
+          ledger: "required",
+          approval: "required",
+          allowedActorTypes: ["staff"],
+        }),
+        expect.objectContaining({
+          id: "@voyant-travel/inventory#action.apply-product-unit-configuration",
+          commandTargetField: "productId",
           ledger: "required",
           approval: "required",
           allowedActorTypes: ["staff"],

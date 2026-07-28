@@ -5,6 +5,7 @@ import {
   COMPOSE_PRODUCT_HANDLER_POLICY,
   CREATE_PRODUCT_HANDLER_POLICY,
   type InventoryAuthoringToolServices,
+  type InventoryConfigurationToolServices,
   type InventoryContentToolServices,
   type InventoryToolServices,
   inventoryTools,
@@ -33,13 +34,17 @@ function admitted(
 
 function ctxWith(
   services?: Partial<
-    InventoryToolServices & InventoryContentToolServices & InventoryAuthoringToolServices
+    InventoryToolServices &
+      InventoryContentToolServices &
+      InventoryAuthoringToolServices &
+      InventoryConfigurationToolServices
   >,
   overrides: Partial<ToolContext> = {},
 ): ToolContext & {
   inventory?: InventoryToolServices
   inventoryContent?: InventoryContentToolServices
   inventoryAuthoring?: InventoryAuthoringToolServices
+  inventoryConfiguration?: InventoryConfigurationToolServices
 } {
   const actor = overrides.actor ?? "customer"
   const audience = overrides.audience ?? actor
@@ -59,6 +64,7 @@ function ctxWith(
     inventory: services as InventoryToolServices | undefined,
     inventoryContent: services as InventoryContentToolServices | undefined,
     inventoryAuthoring: services as InventoryAuthoringToolServices | undefined,
+    inventoryConfiguration: services as InventoryConfigurationToolServices | undefined,
   }
 }
 
@@ -117,6 +123,7 @@ describe("inventory tools", () => {
   it("registers product reads, authoring, and lifecycle tools with exact posture", () => {
     const manifest = makeRegistry().list()
     expect(manifest.map((t) => t.name).sort()).toEqual([
+      "apply_product_unit_configuration",
       "archive_product",
       "compose_product",
       "create_product",
@@ -124,22 +131,88 @@ describe("inventory tools", () => {
       "get_product_content",
       "list_product_days",
       "list_products",
+      "preview_product_unit_configuration",
       "publish_product",
       "unpublish_product",
       "update_product",
       "update_product_day",
     ])
     for (const tool of manifest.filter(({ tier }) => tier === "read")) {
-      expect(tool.requiredScopes).toEqual(["products:read"])
+      expect(tool.requiredScopes).toEqual(
+        tool.name === "preview_product_unit_configuration"
+          ? ["products:read", "pricing:read"]
+          : ["products:read"],
+      )
     }
     for (const tool of manifest.filter(({ tier }) => tier === "write")) {
-      expect(tool.requiredScopes).toEqual(["products:write"])
+      expect(tool.requiredScopes).toEqual(
+        tool.name === "apply_product_unit_configuration"
+          ? ["products:write", "pricing:write"]
+          : ["products:write"],
+      )
       expect(tool.audience.allowed).toEqual(["staff"])
     }
     expect(manifest.find(({ name }) => name === "publish_product")?.riskPolicy).toMatchObject({
       confirmationRequired: true,
       reversible: true,
     })
+    expect(
+      manifest.find(({ name }) => name === "apply_product_unit_configuration")?.riskPolicy,
+    ).toMatchObject({ confirmationRequired: true, reversible: true })
+  })
+
+  it("passes an exhaustive unit configuration plan unchanged from preview to confirmed apply", async () => {
+    const plan = {
+      status: "ready" as const,
+      productId: "prod_1",
+      optionId: "opt_1",
+      optionPriceRuleId: "oprule_1",
+      currencyCode: "EUR",
+      beforeRevision: "before",
+      afterRevision: "after",
+      units: [
+        {
+          unitId: "unit_double",
+          unitPriceRuleId: "uprice_double",
+          name: "Double",
+          changed: false,
+          before: { maxQuantity: 4, sellAmountCents: 52_000 },
+          after: { maxQuantity: 4, sellAmountCents: 52_000 },
+        },
+        {
+          unitId: "unit_twin",
+          unitPriceRuleId: "uprice_twin",
+          name: "Twin",
+          changed: true,
+          before: { maxQuantity: 3, sellAmountCents: 52_000 },
+          after: { maxQuantity: 2, sellAmountCents: 54_000 },
+        },
+      ],
+    }
+    const services = {
+      async previewProductUnitConfiguration() {
+        return plan
+      },
+      async applyProductUnitConfiguration(input: unknown) {
+        expect(input).toEqual(plan)
+        return { ...plan, status: "applied" }
+      },
+    }
+    const ctx = ctxWith(services, { actor: "staff", audience: "staff" })
+    await expect(
+      makeRegistry().dispatch(
+        "preview_product_unit_configuration",
+        {
+          productId: "prod_1",
+          optionPriceRuleId: "oprule_1",
+          changes: [{ unitId: "unit_twin", maxQuantity: 2, sellAmountCents: 54_000 }],
+        },
+        ctx,
+      ),
+    ).resolves.toEqual(plan)
+    await expect(
+      makeRegistry().dispatch("apply_product_unit_configuration", plan, ctx),
+    ).resolves.toMatchObject({ status: "applied", units: plan.units })
   })
 
   it("composes an atomic product graph through the authoring service", async () => {

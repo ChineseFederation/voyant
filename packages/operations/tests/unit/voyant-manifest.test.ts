@@ -172,12 +172,27 @@ describe("operations deployment manifest", () => {
         kind: "execute",
         requiredScopes: ["operations:write"],
         ledger: "required",
-        approval: "never",
-        reversible: true,
-        targetLifecycle: "existing",
       })
-      // Every execute action needs a command field to anchor its ledger target.
-      expect(action?.commandTargetField).toBeTruthy()
+      if (tool.name === "create_departure") {
+        expect(action).toMatchObject({
+          approval: "never",
+          reversible: false,
+          targetLifecycle: "created",
+          createdTarget: {
+            commandTargetType: "departure-create-command",
+            resultReferenceType: "departure",
+            durability: "handler-command-claim-v1",
+            parentAnchor: { targetType: "product", targetIdField: "productId" },
+          },
+        })
+      } else {
+        expect(action).toMatchObject({
+          approval: "required",
+          targetLifecycle: "existing",
+          commandTargetField: "id",
+          reversible: true,
+        })
+      }
     }
   })
 

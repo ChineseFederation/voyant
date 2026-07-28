@@ -47,6 +47,12 @@ import {
   updateOptionUnitTool as updateOptionUnitDefinition,
   updateProductOptionTool as updateProductOptionDefinition,
 } from "./option-tools.js"
+import {
+  appliedProductUnitConfigurationSchema,
+  applyProductUnitConfigurationInputSchema,
+  previewProductUnitConfigurationInputSchema,
+  productUnitConfigurationPreviewSchema,
+} from "./product-unit-configuration.js"
 import { insertProductSchema, productListQuerySchema, updateProductSchema } from "./validation.js"
 
 const OWNER = "@voyant-travel/inventory"
@@ -224,11 +230,21 @@ export interface InventoryAuthoringToolServices {
   ): Promise<unknown>
 }
 
+export interface InventoryConfigurationToolServices {
+  previewProductUnitConfiguration(
+    input: z.input<typeof previewProductUnitConfigurationInputSchema>,
+  ): Promise<unknown>
+  applyProductUnitConfiguration(
+    input: z.input<typeof applyProductUnitConfigurationInputSchema>,
+  ): Promise<unknown>
+}
+
 /** Tool context with the inventory service injected. */
 export type InventoryToolContext = ToolContext & {
   inventory?: InventoryToolServices
   inventoryContent?: InventoryContentToolServices
   inventoryAuthoring?: InventoryAuthoringToolServices
+  inventoryConfiguration?: InventoryConfigurationToolServices
 }
 
 function inventory(ctx: InventoryToolContext): InventoryToolServices {
@@ -241,6 +257,10 @@ function inventoryContent(ctx: InventoryToolContext): InventoryContentToolServic
 
 function inventoryAuthoring(ctx: InventoryToolContext): InventoryAuthoringToolServices {
   return requireService(ctx.inventoryAuthoring, "inventoryAuthoring")
+}
+
+function inventoryConfiguration(ctx: InventoryToolContext): InventoryConfigurationToolServices {
+  return requireService(ctx.inventoryConfiguration, "inventoryConfiguration")
 }
 
 export const composeProductToolInputSchema = z.object({
@@ -454,6 +474,56 @@ export const composeProductTool = defineTool({
   },
 })
 
+export const previewProductUnitConfigurationTool = defineTool({
+  capabilityId: `${OWNER}#tool.preview-product-unit-configuration`,
+  capabilityVersion: VERSION,
+  name: "preview_product_unit_configuration",
+  description:
+    "Prevalidate a room/unit quantity and price edit and return an exhaustive approval plan. " +
+    "The plan includes exact before/after values for every unit, including untouched units. " +
+    "Pass the returned ready plan unchanged to apply_product_unit_configuration.",
+  inputSchema: previewProductUnitConfigurationInputSchema,
+  outputSchema: productUnitConfigurationPreviewSchema,
+  requiredScopes: ["products:read", "pricing:read"],
+  audience: STAFF_AUDIENCE,
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  annotations: { readOnlyHint: true, idempotentHint: true },
+  async handler(input, ctx: InventoryToolContext) {
+    return productUnitConfigurationPreviewSchema.parse(
+      await inventoryConfiguration(ctx).previewProductUnitConfiguration(input),
+    )
+  },
+})
+
+export const applyProductUnitConfigurationTool = defineTool({
+  capabilityId: `${OWNER}#tool.apply-product-unit-configuration`,
+  capabilityVersion: VERSION,
+  name: "apply_product_unit_configuration",
+  description:
+    "Atomically apply an unchanged preview_product_unit_configuration plan. Requires confirmation " +
+    "because the full input is the operator's exact before/after approval record. Stale plans fail " +
+    "without writing; exact retries return replayed.",
+  inputSchema: applyProductUnitConfigurationInputSchema,
+  outputSchema: appliedProductUnitConfigurationSchema,
+  requiredScopes: ["products:write", "pricing:write"],
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: {
+    destructive: false,
+    reversible: true,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  annotations: { idempotentHint: true },
+  async handler(input, ctx: InventoryToolContext) {
+    return appliedProductUnitConfigurationSchema.parse(
+      await inventoryConfiguration(ctx).applyProductUnitConfiguration(input),
+    )
+  },
+})
+
 // Product options and their bookable units live in their own file; re-declare
 // them through `defineTool` here so the manifest's single
 // `@voyant-travel/inventory/tools` entry points at a defineTool export, as the
@@ -492,6 +562,8 @@ export const inventoryTools = [
   unpublishProductTool,
   archiveProductTool,
   composeProductTool,
+  previewProductUnitConfigurationTool,
+  applyProductUnitConfigurationTool,
 ] as const
 
 function productLifecycleToolDefinition(input: {

@@ -326,25 +326,27 @@ export const operationsVoyantModule = defineModule({
       from: { tools: ["@voyant-travel/operations#tool.list-departures"] },
     },
     {
-      // Targets the product rather than the departure: the departure does not
-      // exist yet, and the product is the thing an operator recognises in the
-      // ledger.
       id: "@voyant-travel/operations#action.create-departure",
       version: "v1",
       kind: "execute",
-      targetType: "product",
-      commandTargetField: "productId",
+      targetType: "departure",
       resource: "operations",
       action: "write",
       requiredScopes: ["operations:write"],
       risk: "medium",
       ledger: "required",
       approval: "never",
-      reversible: true,
+      reversible: false,
       allowedActorTypes: ["staff"],
       availability: { status: "available" },
       effectBoundary: "local",
-      targetLifecycle: "existing",
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "departure-create-command",
+        resultReferenceType: "departure",
+        durability: "handler-command-claim-v1",
+        parentAnchor: { targetType: "product", targetIdField: "productId" },
+      },
       from: { tools: ["@voyant-travel/operations#tool.create-departure"] },
     },
     {
@@ -358,7 +360,7 @@ export const operationsVoyantModule = defineModule({
       requiredScopes: ["operations:write"],
       risk: "medium",
       ledger: "required",
-      approval: "never",
+      approval: "required",
       reversible: true,
       allowedActorTypes: ["staff"],
       availability: { status: "available" },

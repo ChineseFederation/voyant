@@ -32,9 +32,19 @@ import {
 } from "./service-validation.js"
 import { slotEndDateLocal } from "./slot-timezone.js"
 
-type AvailabilitySlotWithEndDateLocal = AvailabilitySlot & {
+export type AvailabilitySlotWithEndDateLocal = AvailabilitySlot & {
   productName?: string | null
   endDateLocal: string | null
+}
+
+export class AvailabilitySlotRevisionConflictError extends Error {
+  constructor(
+    readonly expectedUpdatedAt: string,
+    readonly current: AvailabilitySlotWithEndDateLocal,
+  ) {
+    super("Availability slot changed after it was read")
+    this.name = "AvailabilitySlotRevisionConflictError"
+  }
 }
 
 function withSlotEndDateLocal<TSlot extends AvailabilitySlot & { productName?: string | null }>(
@@ -310,6 +320,11 @@ export interface SlotMutationRuntime {
    * attribute drift correctly.
    */
   source?: AvailabilitySlotChangedEvent["source"]
+  /** Test-only seams for deterministic concurrent-update coverage. */
+  testHooks?: {
+    beforeSlotSnapshot?: (db: PostgresJsDatabase) => Promise<void>
+    afterSlotSnapshot?: () => Promise<void>
+  }
 }
 
 /**
@@ -385,93 +400,133 @@ export async function createSlot(
 export async function updateSlot(
   db: PostgresJsDatabase,
   id: string,
-  data: UpdateAvailabilitySlotInput,
+  data: UpdateAvailabilitySlotInput & { updatedAt?: string },
   runtime: SlotMutationRuntime = {},
 ) {
-  const [current] = await db
-    .select({
-      productId: availabilitySlots.productId,
-      optionId: availabilitySlots.optionId,
-      dateLocal: availabilitySlots.dateLocal,
-      startsAt: availabilitySlots.startsAt,
-      endsAt: availabilitySlots.endsAt,
-      timezone: availabilitySlots.timezone,
-      unlimited: availabilitySlots.unlimited,
-      initialPax: availabilitySlots.initialPax,
-      remainingPax: availabilitySlots.remainingPax,
-    })
-    .from(availabilitySlots)
-    .where(eq(availabilitySlots.id, id))
-    .limit(1)
-  if (!current) return null
+  const row = await db.transaction(async (tx) => {
+    const transactionalDb = tx as PostgresJsDatabase
+    await runtime.testHooks?.beforeSlotSnapshot?.(transactionalDb)
+    // The lock makes the authoritative timing snapshot and the partial patch
+    // one serialized operation. A concurrent writer validates only after the
+    // prior writer commits, so two independently-valid patches cannot combine
+    // into an invalid dateLocal / startsAt / endsAt / timezone state.
+    const [current] = await tx
+      .select()
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, id))
+      .for("update")
+      .limit(1)
+    if (!current) return null
+    await runtime.testHooks?.afterSlotSnapshot?.()
 
-  const nextProductId = data.productId ?? current.productId
-  await assertProductAllowsStaticAvailability(db, nextProductId, "slot")
+    if (data.updatedAt !== undefined) {
+      const expectedUpdatedAt = new Date(data.updatedAt)
+      if (Number.isNaN(expectedUpdatedAt.getTime())) {
+        throw new RequestValidationError(
+          "Availability slot updatedAt precondition must be a valid instant",
+          { updatedAt: data.updatedAt },
+        )
+      }
+      if (expectedUpdatedAt.getTime() !== current.updatedAt.getTime()) {
+        throw new AvailabilitySlotRevisionConflictError(
+          data.updatedAt,
+          withSlotEndDateLocal(current),
+        )
+      }
+    }
 
-  if (data.productId !== undefined || data.optionId !== undefined) {
-    const nextOptionId = data.optionId === undefined ? current.optionId : data.optionId
-    if (nextOptionId) {
-      await assertSlotOptionBelongsToProduct(db, {
-        productId: nextProductId,
-        optionId: nextOptionId,
+    if (data.productId !== undefined && data.productId !== current.productId) {
+      throw new RequestValidationError("Availability slot product ownership is immutable", {
+        slotId: id,
+        productId: current.productId,
+        requestedProductId: data.productId,
       })
     }
-  }
+    await assertProductAllowsStaticAvailability(transactionalDb, current.productId, "slot")
 
-  assertSlotTimingAndCapacity({
-    dateLocal: data.dateLocal ?? current.dateLocal,
-    startsAt: data.startsAt ?? current.startsAt,
-    endsAt: data.endsAt === undefined ? current.endsAt : data.endsAt,
-    timezone: data.timezone ?? current.timezone,
-    unlimited: data.unlimited ?? current.unlimited,
-    initialPax: data.initialPax === undefined ? current.initialPax : data.initialPax,
-    remainingPax: undefined,
+    if (data.optionId !== undefined) {
+      const nextOptionId = data.optionId
+      if (nextOptionId) {
+        await assertSlotOptionBelongsToProduct(transactionalDb, {
+          productId: current.productId,
+          optionId: nextOptionId,
+        })
+      }
+    }
+
+    assertSlotTimingAndCapacity({
+      dateLocal: data.dateLocal ?? current.dateLocal,
+      startsAt: data.startsAt ?? current.startsAt,
+      endsAt: data.endsAt === undefined ? current.endsAt : data.endsAt,
+      timezone: data.timezone ?? current.timezone,
+      unlimited: data.unlimited ?? current.unlimited,
+      initialPax: data.initialPax === undefined ? current.initialPax : data.initialPax,
+      remainingPax: undefined,
+    })
+
+    // Full read-modify-write snapshots remain valid public inputs, but these
+    // fields are service-owned projections of bookings, resources, and the
+    // booking window. Never let an operator's stale snapshot write them back.
+    const {
+      productId: _ignoredProductId,
+      updatedAt: _expectedUpdatedAt,
+      remainingPax: _ignoredRemainingPax,
+      remainingPickups: _ignoredRemainingPickups,
+      remainingResources: _ignoredRemainingResources,
+      pastCutoff: _ignoredPastCutoff,
+      tooEarly: _ignoredTooEarly,
+      ...rest
+    } = data
+    const patch: Record<string, unknown> = {
+      ...rest,
+      startsAt: data.startsAt === undefined ? undefined : new Date(data.startsAt),
+      endsAt: data.endsAt === undefined ? undefined : toDateOrNull(data.endsAt),
+      // Keep the optimistic revision monotonic even when two writes land in
+      // the same application-clock millisecond.
+      updatedAt: sql`GREATEST(
+        clock_timestamp(),
+        ${availabilitySlots.updatedAt} + interval '1 millisecond'
+      )`,
+    }
+
+    // `remaining_pax` is a derived value the service owns — concurrent flows
+    // (holds, bookings, refunds) update it atomically while a form is open,
+    // so we never trust a client-supplied snapshot (#1087 and #1088).
+    // Recompute here using the row's *current* state inside the same
+    // UPDATE statement so the capacity-change rebalance is race-free.
+    //
+    //   - Switching to unlimited → NULL (no cap).
+    //   - Changing initialPax with a finite cap → preserve the consumed
+    //     delta: `new_initial - (old_initial - old_remaining)`, clamped to
+    //     [0, new_initial]. If consumed > new_initial (capacity dropped
+    //     below what's already booked) the slot lands at 0; the operator
+    //     can release allocations to recover headroom.
+    //   - Leaving capacity alone → don't touch remaining_pax.
+    if (data.unlimited === true) {
+      patch.remainingPax = null
+    } else if (data.initialPax !== undefined && data.initialPax !== null) {
+      const newInitial = data.initialPax
+      patch.remainingPax = sql`GREATEST(
+        0,
+        LEAST(
+          ${newInitial}::int,
+          ${newInitial}::int
+            - GREATEST(
+                0,
+                COALESCE(${availabilitySlots.initialPax}, ${newInitial}::int)
+                  - COALESCE(${availabilitySlots.remainingPax}, ${newInitial}::int)
+              )
+        )
+      )::int`
+    }
+
+    const [updated] = await tx
+      .update(availabilitySlots)
+      .set(patch)
+      .where(eq(availabilitySlots.id, id))
+      .returning()
+    return updated ?? null
   })
-
-  const { remainingPax: _ignoredRemainingPax, ...rest } = data
-  const patch: Record<string, unknown> = {
-    ...rest,
-    startsAt: data.startsAt === undefined ? undefined : new Date(data.startsAt),
-    endsAt: data.endsAt === undefined ? undefined : toDateOrNull(data.endsAt),
-    updatedAt: new Date(),
-  }
-
-  // `remaining_pax` is a derived value the service owns — concurrent flows
-  // (holds, bookings, refunds) update it atomically while a form is open,
-  // so we never trust a client-supplied snapshot (#1087, Codex review on
-  // #1088). Recompute here using the row's *current* state inside the same
-  // UPDATE statement so the capacity-change rebalance is race-free.
-  //
-  //   - Switching to unlimited → NULL (no cap).
-  //   - Changing initialPax with a finite cap → preserve the consumed
-  //     delta: `new_initial - (old_initial - old_remaining)`, clamped to
-  //     [0, new_initial]. If consumed > new_initial (capacity dropped
-  //     below what's already booked) the slot lands at 0; the operator
-  //     can release allocations to recover headroom.
-  //   - Leaving capacity alone → don't touch remaining_pax.
-  if (data.unlimited === true) {
-    patch.remainingPax = null
-  } else if (data.initialPax !== undefined && data.initialPax !== null) {
-    const newInitial = data.initialPax
-    patch.remainingPax = sql`GREATEST(
-      0,
-      LEAST(
-        ${newInitial}::int,
-        ${newInitial}::int
-          - GREATEST(
-              0,
-              COALESCE(${availabilitySlots.initialPax}, ${newInitial}::int)
-                - COALESCE(${availabilitySlots.remainingPax}, ${newInitial}::int)
-            )
-      )
-    )::int`
-  }
-
-  const [row] = await db
-    .update(availabilitySlots)
-    .set(patch)
-    .where(eq(availabilitySlots.id, id))
-    .returning()
   if (!row) return null
 
   // Emit on every successful update — subscribers decide what to do with

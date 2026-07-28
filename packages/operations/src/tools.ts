@@ -1,4 +1,10 @@
-import { defineTool, READ_ONLY_RISK, requireService } from "@voyant-travel/tools"
+import {
+  admitHandlerActionPolicy,
+  defineTool,
+  type HandlerActionPolicyExpectation,
+  READ_ONLY_RISK,
+  requireService,
+} from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
@@ -188,9 +194,9 @@ const WRITE_SCOPES = ["operations:write"] as const
 
 /**
  * Departures are the difference between a product that exists and a product
- * that can be sold, so writing them is reversible and low-drama: a wrong date
- * is edited or closed out, not compensated. Everything still lands in the
- * action ledger.
+ * that can be sold. Existing departures are reversible because a wrong date
+ * is edited or closed out; creation itself is recorded as an irreversible,
+ * idempotent created-target command. Everything lands in the action ledger.
  */
 const DEPARTURE_WRITE_RISK = {
   destructive: false,
@@ -200,15 +206,62 @@ const DEPARTURE_WRITE_RISK = {
   sideEffects: ["data-write"],
 } as const
 
-const createDepartureArgs = availabilitySlotCoreSchema
+export const CREATE_DEPARTURE_HANDLER_POLICY = {
+  capabilityId: `${OWNER}#tool.create-departure`,
+  capabilityVersion: VERSION,
+  canonicalName: "create_departure",
+  actionPolicy: {
+    id: `${OWNER}#action.create-departure`,
+    capabilityId: `${OWNER}#action.create-departure`,
+    version: VERSION,
+    kind: "execute",
+    targetType: "departure",
+    targetLifecycle: "created",
+    createdTarget: {
+      commandTargetType: "departure-create-command",
+      resultReferenceType: "departure",
+      durability: "handler-command-claim-v1",
+      parentAnchor: { targetType: "product", targetIdField: "productId" },
+    },
+    risk: "medium",
+    ledger: "required",
+    approval: "never",
+    reversible: false,
+    allowedActorTypes: ["staff"],
+  },
+} as const satisfies HandlerActionPolicyExpectation
 
+const createDepartureArgs = availabilitySlotCoreSchema
+  .extend({
+    idempotencyKey: z
+      .string()
+      .trim()
+      .min(1)
+      .max(255)
+      .optional()
+      .describe("Stable retry key. Must match the admitted Tool invocation idempotency key."),
+  })
+  .strict()
+
+// Preserve the original update Tool contract: callers commonly round-trip a
+// get_departure snapshot, so known compatibility fields remain accepted and
+// unrelated output metadata is stripped by Zod's default object behavior.
+// updatedAt is retained as an optional revision; the service owns remainingPax
+// and product ownership enforcement.
 const updateDepartureArgs = availabilitySlotCoreSchema.partial().extend({
   id: z.string().min(1).describe("The departure id (`avsl_*`) to update."),
+  updatedAt: z
+    .string()
+    .datetime()
+    .optional()
+    .describe(
+      "Optional revision from get_departure/list_departures. Stale full snapshots are rejected with the current departure.",
+    ),
 })
 
 export const createDepartureTool = defineTool<
   z.infer<typeof createDepartureArgs>,
-  { departure: z.infer<typeof availabilitySlotSchema> | null },
+  { departure: z.infer<typeof availabilitySlotSchema> | null; replayed: boolean },
   OperationsToolContext
 >({
   owner: OWNER,
@@ -218,15 +271,19 @@ export const createDepartureTool = defineTool<
   description:
     "Create one dated departure on a product so it can be sold. `compose_product` deliberately does not create departures, so a newly composed product has none until this runs. Repeat it per date for a recurring schedule (one call per Saturday, for instance). Requires the product's `timezone`; `startsAt` is an ISO datetime with offset.",
   inputSchema: createDepartureArgs,
-  outputSchema: departureOutputSchema,
+  outputSchema: departureOutputSchema.extend({ replayed: z.boolean() }),
   requiredScopes: WRITE_SCOPES,
   audience: STAFF_AUDIENCE,
   tier: "write",
-  riskPolicy: DEPARTURE_WRITE_RISK,
+  riskPolicy: { ...DEPARTURE_WRITE_RISK, reversible: false },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
   async handler(input, ctx) {
-    return parseJsonResult(departureOutputSchema, {
-      departure: await operations(ctx).createDeparture(input),
-    })
+    const admitted = admitHandlerActionPolicy(ctx, CREATE_DEPARTURE_HANDLER_POLICY)
+    return parseJsonResult(
+      departureOutputSchema.extend({ replayed: z.boolean() }),
+      await operations(ctx).createDeparture(input, admitted),
+    )
   },
 })
 
