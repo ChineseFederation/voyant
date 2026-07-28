@@ -1,5 +1,11 @@
 # @voyant-travel/i18n
 
+## 0.118.2
+
+### Patch Changes
+
+- 6c76de3: Rename the first-party processor to Voyant Pay while accepting legacy provider identifiers, and add readiness-aware active processor selection to managed payment settings.
+
 ## 0.118.1
 
 ### Patch Changes

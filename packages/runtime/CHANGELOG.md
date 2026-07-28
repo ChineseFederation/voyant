@@ -1,5 +1,13 @@
 # @voyant-travel/runtime
 
+## 0.18.15
+
+### Patch Changes
+
+- Updated dependencies [6c76de3]
+  - @voyant-travel/framework@0.64.18
+  - @voyant-travel/admin-host@0.65.0
+
 ## 0.18.14
 
 ### Patch Changes

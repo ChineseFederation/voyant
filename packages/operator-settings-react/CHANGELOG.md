@@ -1,5 +1,17 @@
 # @voyant-travel/operator-settings-react
 
+## 0.70.0
+
+### Minor Changes
+
+- 6c76de3: Rename the first-party processor to Voyant Pay while accepting legacy provider identifiers, and add readiness-aware active processor selection to managed payment settings.
+
+### Patch Changes
+
+- @voyant-travel/finance@0.215.0
+- @voyant-travel/finance-react@0.215.0
+- @voyant-travel/admin-app@0.107.0
+
 ## 0.69.0
 
 ### Patch Changes
