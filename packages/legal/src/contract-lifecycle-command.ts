@@ -36,9 +36,18 @@ type LifecycleCommandPayload =
   | { contractId: string }
   | {
       contractId: string
-      recipientEmail: string | null
+      recipient: string
+      channel: "email" | "sms" | "whatsapp"
+      revision: number
+      notificationsSuppressed: boolean
       subject: string | null
       message: string | null
+    }
+  | {
+      contractId: string
+      revision: number
+      reason: string
+      acknowledgedConsequences: true
     }
 
 type InsertOutbox = typeof insertOutboxEvents
@@ -50,7 +59,12 @@ export interface ExecuteLegalContractLifecycleCommandInput {
   transition: LifecycleTransition
   commandInput: {
     contractId: string
-    recipientEmail?: string | null
+    recipient?: string
+    channel?: "email" | "sms" | "whatsapp"
+    revision?: number
+    notificationsSuppressed?: boolean
+    reason?: string
+    acknowledgedConsequences?: true
     subject?: string | null
     message?: string | null
   }
@@ -205,7 +219,13 @@ async function applyLifecycleTransition(
     case "issue":
       return issueContract(db, contract)
     case "send":
+      if (contract.status === "draft") {
+        const issued = await issueContract(db, contract)
+        return sendContract(db, issued.contract, payload)
+      }
       return sendContract(db, contract, payload)
+    case "void":
+      return voidContract(db, contract, payload)
     case "execute":
       return executeContract(db, contract)
   }
@@ -284,6 +304,28 @@ async function sendContract(
     })
   }
   const delivery = sendDelivery(payload)
+  const metadata =
+    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
+      ? (contract.metadata as Record<string, unknown>)
+      : {}
+  const workflow =
+    metadata.bookingContractWorkflow &&
+    typeof metadata.bookingContractWorkflow === "object" &&
+    !Array.isArray(metadata.bookingContractWorkflow)
+      ? (metadata.bookingContractWorkflow as Record<string, unknown>)
+      : {}
+  const expectedRevision = typeof workflow.revision === "number" ? workflow.revision : 1
+  if (delivery.revision !== expectedRevision) {
+    throw new ToolError(
+      "The approved contract revision is no longer the selected revision.",
+      "INVALID_INPUT",
+      {
+        contractId: contract.id,
+        expectedRevision,
+        approvedRevision: delivery.revision,
+      },
+    )
+  }
   const now = new Date()
   const stageHistory = appendContractStageHistory(
     contract.stageHistory,
@@ -295,7 +337,25 @@ async function sendContract(
   )
   const [updated] = await db
     .update(contracts)
-    .set({ status: "sent", stageHistory, sentAt: now, updatedAt: now })
+    .set({
+      status: "sent",
+      stageHistory,
+      sentAt: now,
+      metadata: {
+        ...metadata,
+        bookingContractWorkflow: {
+          ...workflow,
+          reviewOnly: false,
+          delivery: {
+            recipient: delivery.recipient,
+            channel: delivery.channel,
+            revision: delivery.revision,
+            notificationsSuppressed: delivery.notificationsSuppressed,
+          },
+        },
+      },
+      updatedAt: now,
+    })
     .where(eq(contracts.id, contract.id))
     .returning()
   if (!updated) throw new Error("Contract send transition did not return a row")
@@ -335,14 +395,92 @@ async function executeContract(
   }
 }
 
+async function voidContract(
+  db: PostgresJsDatabase,
+  contract: Contract,
+  payload: ExistingTargetCommandPayload<LifecycleCommandPayload>,
+): Promise<{ contract: Contract; event: ContractLifecycleEvent }> {
+  if (contract.status === "void") {
+    throw new ToolError("Contract is already void.", "INVALID_INPUT", { contractId: contract.id })
+  }
+  if (
+    !("revision" in payload) ||
+    !("reason" in payload) ||
+    !("acknowledgedConsequences" in payload) ||
+    payload.acknowledgedConsequences !== true
+  ) {
+    throw new LegalContractLifecycleCommandError("result_identity_mismatch")
+  }
+  const metadata =
+    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
+      ? (contract.metadata as Record<string, unknown>)
+      : {}
+  const workflow =
+    metadata.bookingContractWorkflow &&
+    typeof metadata.bookingContractWorkflow === "object" &&
+    !Array.isArray(metadata.bookingContractWorkflow)
+      ? (metadata.bookingContractWorkflow as Record<string, unknown>)
+      : {}
+  const expectedRevision = typeof workflow.revision === "number" ? workflow.revision : 1
+  if (payload.revision !== expectedRevision) {
+    throw new ToolError(
+      "The approved contract revision is no longer the selected revision.",
+      "INVALID_INPUT",
+    )
+  }
+  const now = new Date()
+  const stageHistory = appendContractStageHistory(
+    contract.stageHistory,
+    createContractStageHistoryEntry("void", {
+      previousStage: contract.status,
+      transition: "voided",
+      enteredAt: now,
+    }),
+  )
+  const [updated] = await db
+    .update(contracts)
+    .set({
+      status: "void",
+      stageHistory,
+      voidedAt: now,
+      metadata: {
+        ...metadata,
+        bookingContractWorkflow: {
+          ...workflow,
+          voidReason: payload.reason,
+          voidedRevision: payload.revision,
+        },
+      },
+      updatedAt: now,
+    })
+    .where(eq(contracts.id, contract.id))
+    .returning()
+  if (!updated) throw new Error("Contract void transition did not return a row")
+  return {
+    contract: updated,
+    event: buildContractLifecycleEvent(updated, contract.status, "void", "voided", now),
+  }
+}
+
 function sendDelivery(
   payload: ExistingTargetCommandPayload<LifecycleCommandPayload>,
 ): NonNullable<ContractLifecycleEvent["delivery"]> {
-  if (!("recipientEmail" in payload) || !("subject" in payload) || !("message" in payload)) {
+  if (
+    !("recipient" in payload) ||
+    !("channel" in payload) ||
+    !("revision" in payload) ||
+    !("notificationsSuppressed" in payload) ||
+    !("subject" in payload) ||
+    !("message" in payload)
+  ) {
     throw new LegalContractLifecycleCommandError("result_identity_mismatch")
   }
   return {
-    recipientEmail: payload.recipientEmail,
+    recipientEmail: payload.channel === "email" ? payload.recipient : null,
+    recipient: payload.recipient,
+    channel: payload.channel,
+    revision: payload.revision,
+    notificationsSuppressed: payload.notificationsSuppressed,
     subject: payload.subject,
     message: payload.message,
   }
@@ -352,10 +490,21 @@ function normalizeCommandInput(
   transition: LifecycleTransition,
   commandInput: ExecuteLegalContractLifecycleCommandInput["commandInput"],
 ): LifecycleCommandPayload {
+  if (transition === "void") {
+    return {
+      contractId: commandInput.contractId,
+      revision: commandInput.revision as number,
+      reason: commandInput.reason as string,
+      acknowledgedConsequences: commandInput.acknowledgedConsequences as true,
+    }
+  }
   if (transition !== "send") return { contractId: commandInput.contractId }
   return {
     contractId: commandInput.contractId,
-    recipientEmail: "recipientEmail" in commandInput ? (commandInput.recipientEmail ?? null) : null,
+    recipient: commandInput.recipient as string,
+    channel: commandInput.channel as "email" | "sms" | "whatsapp",
+    revision: commandInput.revision as number,
+    notificationsSuppressed: commandInput.notificationsSuppressed ?? false,
     subject: "subject" in commandInput ? (commandInput.subject ?? null) : null,
     message: "message" in commandInput ? (commandInput.message ?? null) : null,
   }

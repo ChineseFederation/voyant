@@ -13,8 +13,13 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
+import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import {
+  getBookingContractReview,
+  listApplicableBookingContractTemplates,
+} from "./booking-contract-review.js"
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
 import type { ContractDocumentRoutesOptions } from "./contract-document-routes.js"
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
@@ -26,8 +31,8 @@ import {
 } from "./contracts/document-artifact-provider.js"
 import type { ContractLifecycleRuntimeOptions } from "./contracts/lifecycle.js"
 import { buildContractsRouteRuntime } from "./contracts/route-runtime.js"
-import type { ContractAttachment, ContractTemplate } from "./contracts/schema.js"
-import { contractsService } from "./contracts/service.js"
+import { type ContractAttachment, type ContractTemplate, contracts } from "./contracts/schema.js"
+import { contractsService, validateTemplateVariables } from "./contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY } from "./created-target-policy.js"
 import type { Policy, PolicyRule, PolicyVersion } from "./policies/schema.js"
 import { policiesService } from "./policies/service.js"
@@ -127,6 +132,12 @@ export function createLegalToolServices(
       const result = await contractsService.listTemplates(db, query)
       return { data: result.data.map(templateSummary), meta: pageMeta(result) }
     },
+    listApplicableBookingTemplates(input) {
+      return listApplicableBookingContractTemplates(db, input)
+    },
+    getBookingContractReview({ contractId }) {
+      return getBookingContractReview(db, contractId)
+    },
     async getTemplate(id) {
       const row = await contractsService.getTemplateById(db, id)
       return row ? templateDetail(row) : null
@@ -190,8 +201,11 @@ export function createLegalToolServices(
       }
       return legalContractDetail(result.contract)
     },
-    async sendContract({ contractId, ...delivery }) {
-      const result = await contractsService.sendContract(db, contractId, lifecycleRuntime, delivery)
+    async sendContract({ contractId, recipient, channel, ...delivery }) {
+      const result = await contractsService.sendContract(db, contractId, lifecycleRuntime, {
+        ...delivery,
+        recipientEmail: channel === "email" ? recipient : null,
+      })
       if (result.status === "not_found") {
         throw new ToolError(`Contract "${contractId}" was not found.`, "NOT_FOUND", { contractId })
       }
@@ -246,6 +260,16 @@ export function createLegalToolServices(
       })
       return result.value
     },
+    async voidContractCommand(commandInput, admitted) {
+      const result = await executeLegalContractLifecycleCommand({
+        db,
+        context: requestContext,
+        admitted,
+        transition: "void",
+        commandInput,
+      })
+      return result.value
+    },
   }
 }
 
@@ -290,20 +314,108 @@ export async function executeLegalContractDraftCreate(
     },
     {
       async create(tx) {
-        const row = await createContract(tx as PostgresJsDatabase, {
-          ...commandInput,
+        const transaction = tx as PostgresJsDatabase
+        const { revisionOfContractId, ...requestedInput } = commandInput
+        const previous = revisionOfContractId
+          ? await contractsService.getContractById(transaction, revisionOfContractId)
+          : null
+        if (revisionOfContractId && !previous) {
+          throw new ToolError(
+            `Contract revision "${revisionOfContractId}" was not found.`,
+            "NOT_FOUND",
+            { revisionOfContractId },
+          )
+        }
+        if (
+          previous &&
+          requestedInput.bookingId &&
+          requestedInput.bookingId !== previous.bookingId
+        ) {
+          throw new ToolError(
+            "A contract revision must remain attached to the same booking.",
+            "INVALID_INPUT",
+          )
+        }
+        const priorWorkflow =
+          previous?.metadata &&
+          typeof previous.metadata === "object" &&
+          !Array.isArray(previous.metadata)
+            ? (previous.metadata as Record<string, unknown>).bookingContractWorkflow
+            : null
+        const priorRevision =
+          priorWorkflow && typeof priorWorkflow === "object" && !Array.isArray(priorWorkflow)
+            ? (priorWorkflow as Record<string, unknown>).revision
+            : null
+        const revision = typeof priorRevision === "number" ? priorRevision + 1 : previous ? 2 : 1
+        const variables =
+          requestedInput.variables ??
+          (previous?.variables as Record<string, unknown> | null) ??
+          undefined
+        const templateVersionId =
+          requestedInput.templateVersionId ?? previous?.templateVersionId ?? null
+        if ((requestedInput.bookingId ?? previous?.bookingId) && !templateVersionId) {
+          throw new ToolError(
+            "Booking contract drafts require an applicable template version.",
+            "INVALID_INPUT",
+            { missingPrerequisites: ["template.currentVersion"] },
+          )
+        }
+        const templateVersion = templateVersionId
+          ? await contractsService.getTemplateVersionById(transaction, templateVersionId)
+          : null
+        if (templateVersionId && !templateVersion) {
+          throw new ToolError(
+            `Contract template version "${templateVersionId}" was not found.`,
+            "NOT_FOUND",
+          )
+        }
+        const missingVariables = validateTemplateVariables(
+          templateVersion?.variableSchema,
+          variables ?? {},
+        )
+        if (missingVariables.length > 0) {
+          throw new ToolError(
+            `Contract prerequisites are missing: ${missingVariables.join(", ")}.`,
+            "INVALID_INPUT",
+            { missingPrerequisites: missingVariables },
+          )
+        }
+        const metadata = {
+          ...((previous?.metadata as Record<string, unknown> | null) ?? {}),
+          ...(requestedInput.metadata ?? {}),
+          bookingContractWorkflow: {
+            revision,
+            previousRevisionId: previous?.id ?? null,
+            reviewOnly: true,
+          },
+        }
+        const row = await createContract(transaction, {
+          ...requestedInput,
           status: "draft",
-          bookingId: commandInput.bookingId ?? null,
-          personId: commandInput.personId ?? null,
-          organizationId: commandInput.organizationId ?? null,
-          supplierId: commandInput.supplierId ?? null,
-          templateVersionId: commandInput.templateVersionId ?? null,
-          seriesId: commandInput.seriesId ?? null,
-          expiresAt: commandInput.expiresAt ?? null,
-          variables: commandInput.variables ?? null,
-          metadata: commandInput.metadata ?? null,
+          bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
+          personId: requestedInput.personId ?? previous?.personId ?? null,
+          organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,
+          supplierId: requestedInput.supplierId ?? previous?.supplierId ?? null,
+          templateVersionId,
+          seriesId: requestedInput.seriesId ?? previous?.seriesId ?? null,
+          expiresAt: requestedInput.expiresAt ?? null,
+          variables: variables ?? null,
+          metadata,
         })
         if (!row) throw new Error("Contract draft creation did not return a row")
+        if (templateVersion) {
+          await transaction
+            .update(contracts)
+            .set({
+              renderedBody: contractsService.renderPreview({
+                body: templateVersion.body,
+                variables: variables ?? {},
+              }),
+              renderedBodyFormat: "html",
+              updatedAt: new Date(),
+            })
+            .where(eq(contracts.id, row.id))
+        }
         return { value: { id: row.id }, targetId: row.id }
       },
       async replay(_tx, completed) {

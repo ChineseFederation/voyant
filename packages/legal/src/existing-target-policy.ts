@@ -6,10 +6,14 @@ export const LEGAL_CONTRACT_LIFECYCLE_APPROVAL_POLICY = "legal.contract-lifecycl
 export const LEGAL_CONTRACT_LIFECYCLE_POLICIES = {
   issue: lifecyclePolicy("issue", "high"),
   send: lifecyclePolicy("send", "high"),
+  void: lifecyclePolicy("void", "critical"),
   execute: lifecyclePolicy("execute", "critical"),
 } as const
 
-function lifecyclePolicy(transition: "issue" | "send" | "execute", risk: "high" | "critical") {
+function lifecyclePolicy(
+  transition: "issue" | "send" | "void" | "execute",
+  risk: "high" | "critical",
+) {
   const actionName = `${OWNER}#action.${transition}-contract` as const
   const toolCapabilityId = `${OWNER}#tool.${transition}-contract` as const
   return {
@@ -53,5 +57,6 @@ export function legalContractLifecycleHandlerExpectation(
 export const LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS = {
   issue: legalContractLifecycleHandlerExpectation(LEGAL_CONTRACT_LIFECYCLE_POLICIES.issue),
   send: legalContractLifecycleHandlerExpectation(LEGAL_CONTRACT_LIFECYCLE_POLICIES.send),
+  void: legalContractLifecycleHandlerExpectation(LEGAL_CONTRACT_LIFECYCLE_POLICIES.void),
   execute: legalContractLifecycleHandlerExpectation(LEGAL_CONTRACT_LIFECYCLE_POLICIES.execute),
 } as const

@@ -5,12 +5,16 @@ import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "../../src/existin
 import { createLegalContractDocumentToolServices } from "../../src/mcp-runtime.js"
 import {
   createContractTemplateTool,
+  createLegalContractDraftTool,
   generateBookingContractDocumentTool,
+  getBookingContractReviewTool,
   issueLegalContractTool,
   legalContractDocumentTools,
   legalTools,
+  listApplicableBookingContractTemplatesTool,
   resolveContractDocumentDeliveryTool,
   sendLegalContractTool,
+  voidLegalContractTool,
 } from "../../src/tools.js"
 
 function baseContext(): ToolContext {
@@ -30,7 +34,7 @@ function baseContext(): ToolContext {
 
 describe("legal Tools", () => {
   it("publishes unique typed capabilities for both selected legal units", () => {
-    expect(legalTools).toHaveLength(18)
+    expect(legalTools).toHaveLength(21)
     expect(legalContractDocumentTools).toHaveLength(3)
     const tools = [...legalTools, ...legalContractDocumentTools]
     expect(new Set(tools.map((tool) => tool.capabilityId)).size).toBe(tools.length)
@@ -50,8 +54,39 @@ describe("legal Tools", () => {
       destructive: false,
       reversible: false,
       confirmationRequired: true,
-      sideEffects: ["data-write", "email"],
+      sideEffects: ["data-write", "email", "sms"],
     })
+  })
+
+  it("advertises the bounded review-first booking contract workflow", () => {
+    expect(listApplicableBookingContractTemplatesTool.description).toContain("missing prerequisite")
+    expect(getBookingContractReviewTool.description).toContain("exact template version")
+    expect(
+      createLegalContractDraftTool.inputSchema.safeParse({
+        title: "Revised agreement",
+        revisionOfContractId: "contract_1",
+      }).success,
+    ).toBe(true)
+    expect(sendLegalContractTool.inputSchema.safeParse({ contractId: "contract_1" }).success).toBe(
+      false,
+    )
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "traveller@example.com",
+        channel: "email",
+        revision: 2,
+        notificationsSuppressed: false,
+      }).success,
+    ).toBe(true)
+    expect(
+      voidLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        revision: 2,
+        reason: "Booking cancelled",
+        acknowledgedConsequences: false,
+      }).success,
+    ).toBe(false)
   })
 
   it("uses admitted lifecycle command methods", async () => {
@@ -94,6 +129,7 @@ describe("legal Tools", () => {
       issueContract,
       issueContractCommand,
       sendContractCommand: vi.fn(),
+      voidContractCommand: vi.fn(),
       executeContractCommand: vi.fn(),
     } as never
     const expected = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.issue

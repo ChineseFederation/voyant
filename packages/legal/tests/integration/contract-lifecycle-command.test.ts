@@ -10,7 +10,7 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-
+import { recordBookingContractDeliveryStatus } from "../../src/booking-contract-review.js"
 import {
   executeLegalContractLifecycleCommand,
   legalContractLifecycleEventId,
@@ -31,6 +31,7 @@ import {
   type LegalLifecycleCommandToolServices,
   type LegalToolServices,
   sendLegalContractTool,
+  voidLegalContractTool,
 } from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -40,7 +41,12 @@ type ClosableTestDb = PostgresJsDatabase & {
 type Transition = keyof typeof LEGAL_CONTRACT_LIFECYCLE_POLICIES
 type CommandInput = {
   contractId: string
-  recipientEmail?: string | null
+  recipient?: string
+  channel?: "email" | "sms" | "whatsapp"
+  revision?: number
+  notificationsSuppressed?: boolean
+  reason?: string
+  acknowledgedConsequences?: true
   subject?: string | null
   message?: string | null
 }
@@ -64,7 +70,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Original title")
     const commandInput = {
       contractId: contract.id,
-      recipientEmail: "traveller@example.com",
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Your exact contract subject",
       message: "The operator's exact delivery message.",
     }
@@ -100,7 +109,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
           contractId: contract.id,
           transition: "sent",
           delivery: {
-            recipientEmail: commandInput.recipientEmail,
+            recipientEmail: commandInput.recipient,
             subject: commandInput.subject,
             message: commandInput.message,
           },
@@ -125,7 +134,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Concurrent send")
     const command = await approvedCommand("send", "send-contract-concurrent", {
       contractId: contract.id,
-      recipientEmail: null,
+      recipient: "+40700000000",
+      channel: "sms",
+      revision: 1,
+      notificationsSuppressed: true,
       subject: null,
       message: null,
     })
@@ -172,13 +184,19 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Concurrent target")
     const firstCommand = await approvedCommand("send", "send-target-first", {
       contractId: contract.id,
-      recipientEmail: "first@example.com",
+      recipient: "first@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "First",
       message: "First",
     })
     const secondCommand = await approvedCommand("send", "send-target-second", {
       contractId: contract.id,
-      recipientEmail: "second@example.com",
+      recipient: "second@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Second",
       message: "Second",
     })
@@ -226,7 +244,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const otherContract = await insertContract("issued", "Conflict target")
     const originalInput = {
       contractId: contract.id,
-      recipientEmail: "original@example.com",
+      recipient: "original@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Original",
       message: "Original",
     }
@@ -289,7 +310,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const idempotencyKey = "send-contract-rollback"
     const command = await approvedCommand("send", idempotencyKey, {
       contractId: contract.id,
-      recipientEmail: "rollback@example.com",
+      recipient: "rollback@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Rollback",
       message: "Rollback",
     })
@@ -346,6 +370,71 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(2)
   })
 
+  it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
+    const contract = await insertContract("draft", "Review-first contract")
+    const send = await approvedCommand("send", "send-reviewed-revision", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
+      subject: "Your agreement",
+      message: "Please review and sign.",
+    })
+    await expect(executeCommand(send)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "sent" },
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toEqual([
+      expect.objectContaining({
+        status: "sent",
+        metadata: expect.objectContaining({
+          bookingContractWorkflow: expect.objectContaining({
+            delivery: expect.objectContaining({
+              recipient: "traveller@example.com",
+              channel: "email",
+              revision: 1,
+            }),
+          }),
+        }),
+      }),
+    ])
+    const viewedAt = new Date("2026-07-29T12:00:00.000Z")
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: viewedAt,
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: false })
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: viewedAt,
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: true })
+
+    const voidCommand = await approvedCommand("void", "void-reviewed-revision", {
+      contractId: contract.id,
+      revision: 1,
+      reason: "Booking cancelled by customer",
+      acknowledgedConsequences: true,
+    })
+    await expect(executeCommand(voidCommand)).resolves.toMatchObject({
+      replayed: false,
+      value: { status: "void" },
+    })
+    expect((await db.select().from(eventOutboxTable)).map(({ name }) => name).sort()).toEqual([
+      "contract.sent",
+      "contract.voided",
+    ])
+  })
+
   async function insertContract(status: ContractStatus, title: string) {
     const [row] = await db
       .insert(contracts)
@@ -366,6 +455,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const toolByTransition = {
       issue: issueLegalContractTool,
       send: sendLegalContractTool,
+      void: voidLegalContractTool,
       execute: executeLegalContractTool,
     } as const
     const tool = toolByTransition[command.transition]
@@ -384,6 +474,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const lifecycleServices = {
       issueContractCommand: (_input, admitted) => run("issue", admitted),
       sendContractCommand: (_input, admitted) => run("send", admitted),
+      voidContractCommand: (_input, admitted) => run("void", admitted),
       executeContractCommand: (_input, admitted) => run("execute", admitted),
     } satisfies LegalLifecycleCommandToolServices
     await registry.dispatch(tool.name, command.commandInput, {
@@ -533,10 +624,21 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
   }
 
   function normalizeInput(transition: Transition, input: CommandInput) {
+    if (transition === "void") {
+      return {
+        contractId: input.contractId,
+        revision: input.revision ?? 1,
+        reason: input.reason ?? "Operator voided contract",
+        acknowledgedConsequences: true as const,
+      }
+    }
     if (transition !== "send") return { contractId: input.contractId }
     return {
       contractId: input.contractId,
-      recipientEmail: input.recipientEmail ?? null,
+      recipient: input.recipient ?? "traveller@example.com",
+      channel: input.channel ?? "email",
+      revision: input.revision ?? 1,
+      notificationsSuppressed: input.notificationsSuppressed ?? false,
       subject: input.subject ?? null,
       message: input.message ?? null,
     }

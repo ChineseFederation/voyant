@@ -434,6 +434,20 @@ export const legalVoyantModule = defineModule({
         "high",
       ],
       [
+        "list-applicable-booking-contract-templates",
+        "list_applicable_booking_contract_templates",
+        "listApplicableBookingContractTemplatesTool",
+        "legal:read",
+        "high",
+      ],
+      [
+        "get-booking-contract-review",
+        "get_booking_contract_review",
+        "getBookingContractReviewTool",
+        "legal:read",
+        "high",
+      ],
+      [
         "get-contract-template",
         "get_contract_template",
         "getContractTemplateTool",
@@ -482,6 +496,7 @@ export const legalVoyantModule = defineModule({
       ],
       ["issue-contract", "issue_legal_contract", "issueLegalContractTool", "legal:write", "high"],
       ["send-contract", "send_legal_contract", "sendLegalContractTool", "legal:write", "high"],
+      ["void-contract", "void_legal_contract", "voidLegalContractTool", "legal:write", "critical"],
       [
         "execute-contract",
         "execute_legal_contract",
@@ -559,6 +574,8 @@ export const legalVoyantModule = defineModule({
           "@voyant-travel/legal#tool.list-contract-templates",
           "@voyant-travel/legal#tool.get-contract-template",
           "@voyant-travel/legal#tool.preview-contract-template",
+          "@voyant-travel/legal#tool.list-applicable-booking-contract-templates",
+          "@voyant-travel/legal#tool.get-booking-contract-review",
         ],
       },
     },
@@ -641,6 +658,7 @@ export const legalVoyantModule = defineModule({
       [
         ["issue", "issue-contract", "high"],
         ["send", "send-contract", "high"],
+        ["void", "void-contract", "critical"],
         ["execute", "execute-contract", "critical"],
       ] as const
     ).map(([transition, tool, risk]) => ({

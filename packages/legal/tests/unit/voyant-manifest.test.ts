@@ -101,7 +101,7 @@ describe("legal deployment manifest", () => {
       "contract.voided",
       "contract.document.generated",
     ])
-    expect(legalVoyantModule.tools).toHaveLength(21)
+    expect(legalVoyantModule.tools).toHaveLength(24)
     expect(legalVoyantModule.actions?.flatMap((action) => action.from?.tools ?? [])).toEqual(
       expect.arrayContaining(legalVoyantModule.tools?.map((tool) => tool.id) ?? []),
     )
@@ -165,7 +165,7 @@ describe("legal deployment manifest", () => {
   })
 
   it("owns the contract-document actions in the selected Legal graph unit", () => {
-    expect(legalVoyantModule.tools).toHaveLength(21)
+    expect(legalVoyantModule.tools).toHaveLength(24)
     expect(
       legalVoyantModule.tools
         ?.filter((tool) => tool.context?.includes("legalContractDocument"))

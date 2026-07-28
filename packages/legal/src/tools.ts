@@ -20,6 +20,14 @@ const READ_SCOPES = ["legal:read"] as const
 const WRITE_SCOPES = ["legal:write"] as const
 const scopeSchema = z.enum(["customer", "supplier", "partner", "channel", "other"])
 const statusSchema = z.enum(["draft", "issued", "sent", "signed", "executed", "expired", "void"])
+const bookingContractEffectiveStatusSchema = z.enum([
+  "draft",
+  "sent",
+  "viewed",
+  "signed",
+  "declined",
+  "void",
+])
 const policyKindSchema = z.enum([
   "cancellation",
   "payment",
@@ -225,6 +233,63 @@ const createDraftInputSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   variables: z.record(z.string(), z.json()).optional(),
   metadata: z.record(z.string(), z.json()).optional(),
+  revisionOfContractId: z.string().trim().min(1).optional(),
+})
+const bookingContractInputSchema = z.object({
+  bookingId: z.string().trim().min(1),
+  language: z.string().trim().min(2).max(10).optional(),
+  channelId: z.string().trim().min(1).optional(),
+})
+const bookingContractReviewInputSchema = z.object({ contractId: z.string().trim().min(1) })
+
+const bookingContractTemplateCandidateSchema = contractTemplateSummarySchema.extend({
+  applicable: z.boolean(),
+  missingPrerequisites: z.array(z.string()),
+  requiredVariables: z.array(z.string()),
+})
+
+export const bookingContractReviewSchema = z.object({
+  contract: legalContractDetailSchema,
+  effectiveStatus: bookingContractEffectiveStatusSchema,
+  revision: z.number().int().positive(),
+  previousRevisionId: z.string().nullable(),
+  booking: z.object({
+    id: z.string(),
+    reference: z.string(),
+    customerName: z.string().nullable(),
+    customerEmail: z.string().nullable(),
+    language: z.string(),
+    currency: z.string(),
+    totalAmountCents: z.number().int().nullable(),
+    startDate: z.string().nullable(),
+    endDate: z.string().nullable(),
+  }),
+  products: z.array(
+    z.object({
+      title: z.string(),
+      quantity: z.number().int().positive(),
+      amountCents: z.number().int().nullable(),
+      currency: z.string(),
+    }),
+  ),
+  template: z.object({
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string(),
+    version: z.number().int().positive(),
+    language: z.string(),
+  }),
+  commercialTerms: z.record(z.string(), z.json()),
+  delivery: z.object({
+    recipient: z.string().nullable(),
+    channel: z.enum(["email", "sms", "whatsapp"]).nullable(),
+    sentRevision: z.number().int().positive().nullable(),
+    sentAt: z.string().datetime().nullable(),
+    viewedAt: z.string().datetime().nullable(),
+    declinedAt: z.string().datetime().nullable(),
+    notificationsSuppressed: z.boolean(),
+  }),
+  voidConsequences: z.array(z.string()),
 })
 const listTemplatesInputSchema = z.object({
   scope: scopeSchema.optional(),
@@ -295,9 +360,17 @@ const listTermsInputSchema = z.object({
 const listAttachmentsInputSchema = z.object({ contractId: z.string().trim().min(1) })
 const transitionContractInputSchema = z.object({ contractId: z.string().trim().min(1) })
 const sendContractInputSchema = transitionContractInputSchema.extend({
-  recipientEmail: z.string().email().nullable().optional(),
+  recipient: z.string().trim().min(3).max(320),
+  channel: z.enum(["email", "sms", "whatsapp"]),
+  revision: z.number().int().positive(),
+  notificationsSuppressed: z.boolean().default(false),
   subject: z.string().max(500).nullable().optional(),
   message: z.string().max(10_000).nullable().optional(),
+})
+const voidContractInputSchema = transitionContractInputSchema.extend({
+  revision: z.number().int().positive(),
+  reason: z.string().trim().min(3).max(2_000),
+  acknowledgedConsequences: z.literal(true),
 })
 const resolveContractDocumentDeliveryInputSchema = z.object({
   attachmentId: z.string().trim().min(1),
@@ -345,6 +418,13 @@ export interface LegalToolServices {
   listTemplates(
     input: z.infer<typeof listTemplatesInputSchema>,
   ): Promise<{ data: ContractTemplateSummary[]; meta: z.infer<typeof pageSchema> }>
+  listApplicableBookingTemplates(input: z.infer<typeof bookingContractInputSchema>): Promise<{
+    bookingFound: boolean
+    data: z.infer<typeof bookingContractTemplateCandidateSchema>[]
+  }>
+  getBookingContractReview(
+    input: z.infer<typeof bookingContractReviewInputSchema>,
+  ): Promise<z.infer<typeof bookingContractReviewSchema> | null>
   getTemplate(id: string): Promise<ContractTemplateDetail | null>
   previewTemplate(input: z.infer<typeof previewTemplateInputSchema>): Promise<{ rendered: string }>
   createTemplate(
@@ -387,6 +467,10 @@ export interface LegalLifecycleCommandToolServices {
     input: z.infer<typeof transitionContractInputSchema>,
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<LegalContractDetail>
+  voidContractCommand(
+    input: z.infer<typeof voidContractInputSchema>,
+    admitted: ToolHandlerActionPolicyContext,
+  ): Promise<LegalContractDetail>
 }
 
 export interface LegalContractDocumentToolServices {
@@ -423,6 +507,7 @@ function legalLifecycleCommands(ctx: LegalToolContext): LegalLifecycleCommandToo
   if (
     !service.issueContractCommand ||
     !service.sendContractCommand ||
+    !service.voidContractCommand ||
     !service.executeContractCommand
   ) {
     throw new ToolError(
@@ -495,7 +580,8 @@ export const createLegalContractDraftTool = defineTool({
   riskPolicy: { ...writeMetadata.riskPolicy, reversible: false },
   capabilityId: `${OWNER}#tool.create-contract-draft`,
   name: "create_legal_contract_draft",
-  description: "Create a draft contract only. Lifecycle status cannot be supplied or spoofed.",
+  description:
+    "Create a review-only booking contract draft without sending or signing it. Supply bookingId, an exact templateVersionId, customer/commercial variables, and an idempotency key. To edit conversationally, call again with revisionOfContractId; the prior revision remains immutable.",
   inputSchema: createDraftInputSchema,
   outputSchema: z.object({
     status: z.literal("created"),
@@ -517,6 +603,33 @@ export const listContractTemplatesTool = defineTool({
   inputSchema: listTemplatesInputSchema,
   outputSchema: z.object({ data: z.array(contractTemplateSummarySchema), meta: pageSchema }),
   handler: (input, ctx: LegalToolContext) => legal(ctx).listTemplates(input),
+})
+export const listApplicableBookingContractTemplatesTool = defineTool({
+  ...readMetadata,
+  capabilityId: `${OWNER}#tool.list-applicable-booking-contract-templates`,
+  name: "list_applicable_booking_contract_templates",
+  description:
+    "For one booking, list active customer-contract templates and state every missing prerequisite. This read never creates, sends, signs, or changes a contract.",
+  inputSchema: bookingContractInputSchema,
+  outputSchema: z.object({
+    bookingFound: z.boolean(),
+    data: z.array(bookingContractTemplateCandidateSchema),
+  }),
+  handler: (input, ctx: LegalToolContext) => legal(ctx).listApplicableBookingTemplates(input),
+})
+export const getBookingContractReviewTool = defineTool({
+  ...readMetadata,
+  capabilityId: `${OWNER}#tool.get-booking-contract-review`,
+  name: "get_booking_contract_review",
+  description:
+    "Open the durable review surface for one booking-contract revision: booking, customer, products, commercial terms, exact template version/language, delivery state, and void consequences.",
+  inputSchema: bookingContractReviewInputSchema,
+  outputSchema: bookingContractReviewSchema,
+  async handler(input, ctx: LegalToolContext) {
+    const result = await legal(ctx).getBookingContractReview(input)
+    if (!result) throw new ToolError(`Contract "${input.contractId}" was not found.`, "NOT_FOUND")
+    return result
+  },
 })
 export const getContractTemplateTool = defineTool({
   ...readMetadata,
@@ -688,12 +801,12 @@ export const sendLegalContractTool = defineTool({
   capabilityId: `${OWNER}#tool.send-contract`,
   name: "send_legal_contract",
   description:
-    "Transition an issued contract to sent and emit its delivery event. This can send external communication and requires explicit confirmation and selected approval.",
+    "Approve and send one exact booking-contract revision. The approval preview names recipient, channel, revision, notification suppression, and the external communication effect. A draft is issued atomically before delivery; duplicate approval clicks replay the same durable result.",
   inputSchema: sendContractInputSchema,
   outputSchema: legalContractDetailSchema,
   riskPolicy: {
     ...lifecycleWriteMetadata.riskPolicy,
-    sideEffects: ["data-write", "email"],
+    sideEffects: ["data-write", "email", "sms"],
   },
   annotations: { idempotentHint: true },
   actionPolicyEnforcement: "handler",
@@ -717,6 +830,22 @@ export const executeLegalContractTool = defineTool({
     legalLifecycleCommands(ctx).executeContractCommand(
       input,
       admitHandlerActionPolicy(ctx, LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.execute),
+    ),
+})
+export const voidLegalContractTool = defineTool({
+  ...lifecycleWriteMetadata,
+  capabilityId: `${OWNER}#tool.void-contract`,
+  name: "void_legal_contract",
+  description:
+    "Void one exact contract revision after reviewing that delivery cannot be recalled, signing is disabled, and immutable lifecycle/revision audit history is retained. Requires explicit approval and a reason.",
+  inputSchema: voidContractInputSchema,
+  outputSchema: legalContractDetailSchema,
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  handler: (input, ctx: LegalToolContext) =>
+    legalLifecycleCommands(ctx).voidContractCommand(
+      input,
+      admitHandlerActionPolicy(ctx, LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.void),
     ),
 })
 
@@ -789,6 +918,8 @@ export const legalTools = [
   getLegalContractTool,
   createLegalContractDraftTool,
   listContractTemplatesTool,
+  listApplicableBookingContractTemplatesTool,
+  getBookingContractReviewTool,
   getContractTemplateTool,
   previewContractTemplateTool,
   createContractTemplateTool,
@@ -802,6 +933,7 @@ export const legalTools = [
   listContractAttachmentsTool,
   issueLegalContractTool,
   sendLegalContractTool,
+  voidLegalContractTool,
   executeLegalContractTool,
 ] as const
 
