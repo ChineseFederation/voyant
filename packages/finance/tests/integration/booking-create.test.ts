@@ -24,6 +24,7 @@ import {
   availabilityHoldsRef as availabilityHolds,
   availabilitySlotsRef as availabilitySlots,
 } from "../../../bookings/src/availability-ref.js"
+import { loadBookingStatusConsequencePreview } from "../../../bookings/src/mcp-runtime.js"
 import {
   executeFinanceBookingCreateCommand,
   financeBookingCreatedEventId,
@@ -117,6 +118,13 @@ async function resetTables(
     "travel_credit_redemptions",
     "travel_credits",
     "payment_instruments",
+    "extra_price_rules",
+    "option_unit_tiers",
+    "option_unit_price_rules",
+    "option_price_rules",
+    "price_catalogs",
+    "option_extra_configs",
+    "product_extras",
     "booking_payment_schedules",
     "booking_allocations",
     "booking_item_tax_lines",
@@ -443,6 +451,72 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     return slot
   }
 
+  async function seedPersistedPricing(input: {
+    productId: string
+    optionId: string
+    unitId: string
+    unitAmountCents: number
+    unitPricingMode?: "per_unit" | "per_person" | "per_booking"
+    extra?: {
+      productExtraId: string
+      optionExtraConfigId: string
+      amountCents: number
+      pricingMode: "per_person" | "per_booking"
+    }
+  }) {
+    const catalogId = `pcat_bc_${productSeq}`
+    const optionPriceRuleId = `oprl_bc_${productSeq}`
+    await db.execute(sql`
+      INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
+      VALUES (${catalogId}, ${`PUBLIC-${productSeq}`}, 'Public', 'EUR', 'public', true, true)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode, is_default, active
+      ) VALUES (
+        ${optionPriceRuleId}, ${input.productId}, ${input.optionId}, ${catalogId},
+        'Persisted booking rate', 'per_booking', true, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}`}, ${optionPriceRuleId}, ${input.optionId}, ${input.unitId},
+        ${input.unitPricingMode ?? "per_unit"}, ${input.unitAmountCents}, true
+      )
+    `)
+    if (input.extra) {
+      await db.execute(sql`
+        INSERT INTO product_extras (
+          id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
+        ) VALUES (
+          ${input.extra.productExtraId}, ${input.productId}, 'Airport transfer',
+          ${input.extra.pricingMode}, ${input.extra.pricingMode === "per_person"}, 'booking_total', true
+        )
+      `)
+      await db.execute(sql`
+        INSERT INTO option_extra_configs (
+          id, option_id, product_extra_id, pricing_mode, priced_per_person, active
+        ) VALUES (
+          ${input.extra.optionExtraConfigId}, ${input.optionId}, ${input.extra.productExtraId},
+          ${input.extra.pricingMode}, ${input.extra.pricingMode === "per_person"}, true
+        )
+      `)
+      await db.execute(sql`
+        INSERT INTO extra_price_rules (
+          id, option_price_rule_id, option_id, product_extra_id, option_extra_config_id,
+          pricing_mode, sell_amount_cents, active
+        ) VALUES (
+          ${`expr_bc_${productSeq}`}, ${optionPriceRuleId}, ${input.optionId},
+          ${input.extra.productExtraId}, ${input.extra.optionExtraConfigId},
+          ${input.extra.pricingMode}, ${input.extra.amountCents}, true
+        )
+      `)
+    }
+    return { catalogId, optionPriceRuleId }
+  }
+
   function bookingParty() {
     return {
       personId: "pers_booking_create",
@@ -496,6 +570,43 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .from(bookings)
       .where(eq(bookings.id, outcome.result.booking.id))
     expect(bookingRow?.pax).toBe(2)
+  })
+
+  it.each([
+    null,
+    1,
+  ] as const)("does not let explicit pax %s undercount two travelers or occupants", async (explicitPax) => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const slot = await seedSlot({ productId, optionId, capacity: 10 })
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      pax: explicitPax,
+      ...bookingParty(),
+      travelers: [
+        ...bookingParty().travelers,
+        {
+          clientTravelerKey: "trav:occupant",
+          firstName: "Bob",
+          lastName: "Occupant",
+          participantType: "occupant",
+        },
+      ],
+      itemLines: [{ optionUnitId: unitId, quantity: 2 }],
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.pax).toBe(2)
+    expect(await bookingsService.listAllocations(db, outcome.result.booking.id)).toEqual([
+      expect.objectContaining({ quantity: 2 }),
+    ])
+    const [slotAfter] = await db
+      .select({ remainingPax: availabilitySlots.remainingPax })
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, slot.id))
+    expect(slotAfter?.remainingPax).toBe(8)
   })
 
   it("atomically converts a live availability hold into one on-hold pax allocation", async () => {
@@ -1095,6 +1206,58 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(paymentRows).toHaveLength(1)
   })
 
+  it("previews exact paid invoice settlement consequences before cancellation", async () => {
+    const { productId } = await seedProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "confirmed",
+      ...bookingParty(),
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "paid",
+          dueDate: "2026-06-15",
+          currency: "EUR",
+          amountCents: 50_000,
+          notes: JSON.stringify({
+            alreadyPaid: true,
+            paymentDate: "2026-06-10",
+            paymentMethod: "bank_transfer",
+            paymentReference: "BT-CANCEL-1",
+          }),
+        },
+      ],
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const preview = await loadBookingStatusConsequencePreview(
+      db,
+      outcome.result.booking.id,
+      "cancel",
+      false,
+      true,
+    )
+    expect(preview.financialSettlement).toMatchObject({
+      actionRequired: true,
+      consequence:
+        "Paid invoices remain paid; an operator must record a refund, credit note, or explicit no-refund decision.",
+      settlementRecorderAvailable: true,
+      requiredDecisionOptions: ["refund", "credit_note", "no_refund"],
+      paidByCurrency: { EUR: 50_000 },
+      schedulesToClose: [],
+      paidInvoices: [
+        expect.objectContaining({
+          invoiceNumber: outcome.result.invoice?.invoiceNumber,
+          currency: "EUR",
+          paidCents: 50_000,
+          status: "paid",
+        }),
+      ],
+    })
+  })
+
   it("requests an invoice rendition only when invoice document generation is enabled", async () => {
     const { productId } = await seedProduct()
 
@@ -1206,7 +1369,19 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
   })
 
   it("links explicit item and per-person extra lines to travelers", async () => {
-    const { productId, unitId } = await seedProduct()
+    const { productId, optionId, unitId } = await seedProduct()
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 25_000,
+      extra: {
+        productExtraId: "lunch",
+        optionExtraConfigId: `oexc_lunch_${productSeq}`,
+        amountCents: 1_000,
+        pricingMode: "per_person",
+      },
+    })
 
     const outcome = await createBooking(db, {
       productId,
@@ -1273,7 +1448,21 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
   })
 
   it("links item and extra lines to reordered travelers through stable keys", async () => {
-    const { productId, unitId, childUnitId } = await seedProduct({ ageBandedUnits: true })
+    const { productId, optionId, unitId, childUnitId } = await seedProduct({
+      ageBandedUnits: true,
+    })
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 25_000,
+      extra: {
+        productExtraId: "lunch",
+        optionExtraConfigId: `oexc_lunch_${productSeq}`,
+        amountCents: 1_000,
+        pricingMode: "per_person",
+      },
+    })
 
     const outcome = await createBooking(db, {
       productId,
@@ -1581,7 +1770,102 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
   })
 
-  it("rolls cancellation back when confirmed capacity cannot be restored", async () => {
+  it("prices selected units and extras from persisted rules and keeps invoice totals aligned", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const productExtraId = `pex_bc_${productSeq}`
+    const optionExtraConfigId = `oexc_bc_${productSeq}`
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 12_000,
+      unitPricingMode: "per_unit",
+      extra: {
+        productExtraId,
+        optionExtraConfigId,
+        amountCents: 3_000,
+        pricingMode: "per_person",
+      },
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      pax: 1,
+      ...bookingParty(),
+      travelers: [
+        ...bookingParty().travelers,
+        {
+          clientTravelerKey: "trav:companion",
+          firstName: "Bob",
+          lastName: "Companion",
+          participantType: "traveler",
+        },
+      ],
+      itemLines: [
+        {
+          optionUnitId: unitId,
+          quantity: 2,
+          unitSellAmountCents: 1,
+          totalSellAmountCents: 2,
+        },
+      ],
+      extraLines: [
+        {
+          productExtraId,
+          optionExtraConfigId,
+          name: "Caller-supplied extra name",
+          pricingMode: "per_booking",
+          pricedPerPerson: false,
+          quantity: 1,
+          sellCurrency: "EUR",
+          unitSellAmountCents: 1,
+          totalSellAmountCents: 1,
+        },
+      ],
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          currency: "EUR",
+          amountCents: 30_000,
+          dueDate: "2026-08-15",
+        },
+      ],
+      documentGeneration: { invoiceDocument: true },
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    expect(outcome.result.booking).toMatchObject({ pax: 2, sellAmountCents: 30_000 })
+    const pricedItems = await db
+      .select({
+        itemType: bookingItems.itemType,
+        unitSellAmountCents: bookingItems.unitSellAmountCents,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+      .orderBy(asc(bookingItems.itemType))
+    expect(pricedItems).toEqual([
+      { itemType: "unit", unitSellAmountCents: 12_000, totalSellAmountCents: 24_000 },
+      { itemType: "extra", unitSellAmountCents: 3_000, totalSellAmountCents: 6_000 },
+    ])
+    expect(outcome.result.paymentSchedules).toEqual([
+      expect.objectContaining({ amountCents: 30_000, currency: "EUR" }),
+    ])
+    expect(outcome.result.invoice).toMatchObject({
+      subtotalCents: 30_000,
+      taxCents: 0,
+      totalCents: 30_000,
+    })
+  })
+
+  it.each([
+    "on_hold",
+    "confirmed",
+  ] as const)("cancels a %s allocation on a closed departure and restores capacity exactly once", async (initialStatus) => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const slot = await seedSlot({ productId, optionId, capacity: 12 })
     const outcome = await createBooking(db, {
@@ -1589,7 +1873,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       optionId,
       slotId: slot.id,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "confirmed",
+      initialStatus,
       pax: 2,
       ...bookingParty(),
       itemLines: [{ optionUnitId: roomUnitId, quantity: 1 }],
@@ -1604,16 +1888,34 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const cancelled = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
-      { note: "cannot restore" },
+      { note: "closed departure cancellation" },
       "user_qa",
     )
-    expect(cancelled.status).toBe("slot_unavailable")
+    expect(cancelled.status).toBe("ok")
     expect(await bookingsService.getBookingById(db, outcome.result.booking.id)).toMatchObject({
-      status: "confirmed",
+      status: "cancelled",
     })
     expect(await bookingsService.listAllocations(db, outcome.result.booking.id)).toEqual([
-      expect.objectContaining({ status: "confirmed", quantity: 2 }),
+      expect.objectContaining({ status: "cancelled", quantity: 2 }),
     ])
+    const [slotAfter] = await db
+      .select({ status: availabilitySlots.status, remainingPax: availabilitySlots.remainingPax })
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, slot.id))
+    expect(slotAfter).toEqual({ status: "closed", remainingPax: 12 })
+
+    const replay = await bookingsService.cancelBooking(
+      db,
+      outcome.result.booking.id,
+      { note: "closed departure cancellation" },
+      "user_qa",
+    )
+    expect(replay.status).toBe("invalid_transition")
+    const [slotAfterReplay] = await db
+      .select({ status: availabilitySlots.status, remainingPax: availabilitySlots.remainingPax })
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.id, slot.id))
+    expect(slotAfterReplay).toEqual({ status: "closed", remainingPax: 12 })
   })
 
   it("rejects selected room units that cannot seat the booking pax", async () => {

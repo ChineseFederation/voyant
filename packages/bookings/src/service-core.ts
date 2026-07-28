@@ -1440,13 +1440,16 @@ async function adjustSlotCapacity(
   slotId: string,
   delta: number,
   source: SlotChangeSource = "booking",
+  options: { allowClosedCapacityRelease?: boolean } = {},
 ) {
   const locked = await lockAvailabilitySlot(db, slotId)
   if (!locked) {
     return { status: "slot_not_found" as const }
   }
 
-  if (locked.status !== "open" && locked.status !== "sold_out") {
+  const closedCapacityRelease =
+    options.allowClosedCapacityRelease === true && locked.status === "closed" && delta >= 0
+  if (locked.status !== "open" && locked.status !== "sold_out" && !closedCapacityRelease) {
     return { status: "slot_unavailable" as const, slot: locked }
   }
 
@@ -1799,6 +1802,7 @@ async function releaseAllocationCapacity(
     allocation.availabilitySlotId,
     allocation.quantity,
     source,
+    { allowClosedCapacityRelease: source === "cancel" },
   )
   if (result.status !== "ok") {
     throw new BookingServiceError(result.status)

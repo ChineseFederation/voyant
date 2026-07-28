@@ -6,4 +6,4 @@
 "@voyant-travel/action-ledger": patch
 ---
 
-Make agent-driven booking create, confirmation, cancellation, passenger capacity, pricing overrides, immediate reads, idempotent lifecycle replay, and notification suppression coherent.
+Make agent-driven booking create, confirmation, cancellation, passenger capacity, persisted option/unit/extra pricing, invoice reconciliation, approval admission, paid-settlement previews, immediate reads, idempotent lifecycle replay, and notification suppression coherent.

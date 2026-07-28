@@ -11,6 +11,7 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
+import { sql } from "drizzle-orm"
 import type { Context } from "hono"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
 import {
@@ -77,7 +78,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
               note?: string
               suppressNotifications?: boolean
               idempotencyKey: string
-              approvalId?: string
             },
             admitted: ToolHandlerActionPolicyContext,
           ) {
@@ -96,7 +96,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
               note?: string
               suppressNotifications?: boolean
               idempotencyKey: string
-              approvalId?: string
             },
             admitted: ToolHandlerActionPolicyContext,
           ) {
@@ -134,12 +133,15 @@ async function executeBookingStatusToolCommand(input: {
     note?: string
     suppressNotifications?: boolean
     idempotencyKey: string
-    approvalId?: string
   }
   admitted: ToolHandlerActionPolicyContext
   loadBookingDetail: (id: string) => Promise<unknown>
 }) {
-  const preview = await bookingStatusConsequencePreviewForAdmission(input)
+  const routeRuntime = getBookingToolRouteRuntime(input.c)
+  const preview = await bookingStatusConsequencePreviewForAdmission({
+    ...input,
+    settlementHookAvailable: Boolean(routeRuntime.recordCancellationFinancialSettlement),
+  })
   const previewJson = canonicalJson(preview)
   const bufferedEvents: BufferedEvent[] = []
   const bufferingEventBus = {
@@ -150,7 +152,6 @@ async function executeBookingStatusToolCommand(input: {
       return { unsubscribe() {} }
     },
   } as EventBus
-  const routeRuntime = getBookingToolRouteRuntime(input.c)
   const result = await executeAdmittedExistingTargetCommand(
     {
       db: input.db,
@@ -179,6 +180,7 @@ async function executeBookingStatusToolCommand(input: {
           input.input.id,
           input.action,
           input.input.suppressNotifications === true,
+          Boolean(routeRuntime.recordCancellationFinancialSettlement),
         )
         if (canonicalJson(currentPreview) !== previewJson) {
           throw new ToolError(
@@ -262,6 +264,7 @@ async function bookingStatusConsequencePreviewForAdmission(input: {
   c: Context<Env>
   input: { id: string; suppressNotifications?: boolean }
   admitted: ToolHandlerActionPolicyContext
+  settlementHookAvailable: boolean
 }) {
   const approvalId = input.admitted.invocation.approvalId?.trim()
   if (approvalId) {
@@ -289,14 +292,16 @@ async function bookingStatusConsequencePreviewForAdmission(input: {
     input.input.id,
     input.action,
     input.input.suppressNotifications === true,
+    input.settlementHookAvailable,
   )
 }
 
-async function loadBookingStatusConsequencePreview(
+export async function loadBookingStatusConsequencePreview(
   db: Parameters<typeof bookingsService.getBookingById>[0],
   bookingId: string,
   action: BookingStatusToolAction,
   suppressNotifications: boolean,
+  settlementHookAvailable: boolean,
 ) {
   const booking = await bookingsService.getBookingById(db, bookingId)
   if (!booking) {
@@ -306,6 +311,10 @@ async function loadBookingStatusConsequencePreview(
     })
   }
   const allocations = await bookingsService.listAllocations(db, bookingId)
+  const financialSettlement =
+    action === "cancel"
+      ? await loadCancellationFinancialConsequences(db, bookingId, settlementHookAvailable)
+      : null
   return {
     action,
     bookingId,
@@ -319,7 +328,7 @@ async function loadBookingStatusConsequencePreview(
     holdExpiresAt: toIsoString(booking.holdExpiresAt),
     notificationsSuppressed: booking.notificationsSuppressed || suppressNotifications === true,
     closesPaymentSchedules: action === "cancel",
-    recordsFinancialSettlement: action === "cancel",
+    financialSettlement,
     allocations: allocations.map((allocation) => ({
       id: allocation.id,
       status: allocation.status,
@@ -332,6 +341,99 @@ async function loadBookingStatusConsequencePreview(
         ["held", "confirmed", "fulfilled"].includes(allocation.status),
     })),
   }
+}
+
+async function loadCancellationFinancialConsequences(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+  bookingId: string,
+  settlementHookAvailable: boolean,
+) {
+  try {
+    const paidInvoices = rowsFromExecute<{
+      id: string
+      invoiceNumber: string
+      currency: string
+      paidCents: number
+      status: string
+    }>(
+      await db.execute(sql`
+        SELECT
+          id,
+          invoice_number AS "invoiceNumber",
+          currency,
+          paid_cents AS "paidCents",
+          status
+        FROM invoices
+        WHERE booking_id = ${bookingId}
+          AND paid_cents > 0
+          AND status <> 'void'
+        ORDER BY created_at ASC, id ASC
+      `),
+    )
+    const schedulesToClose = rowsFromExecute<{
+      currency: string
+      amountCents: number
+      status: string
+    }>(
+      await db.execute(sql`
+        SELECT
+          currency,
+          amount_cents AS "amountCents",
+          status
+        FROM booking_payment_schedules
+        WHERE booking_id = ${bookingId}
+          AND status IN ('pending', 'due')
+        ORDER BY created_at ASC, id ASC
+      `),
+    )
+    const paidByCurrency = paidInvoices.reduce<Record<string, number>>((totals, invoice) => {
+      totals[invoice.currency] = (totals[invoice.currency] ?? 0) + invoice.paidCents
+      return totals
+    }, {})
+    return {
+      actionRequired: paidInvoices.length > 0,
+      consequence:
+        paidInvoices.length > 0
+          ? "Paid invoices remain paid; an operator must record a refund, credit note, or explicit no-refund decision."
+          : "No paid invoice settlement action is currently required.",
+      settlementRecorderAvailable: settlementHookAvailable,
+      requiredDecisionOptions:
+        paidInvoices.length > 0 ? ["refund", "credit_note", "no_refund"] : [],
+      paidInvoices,
+      paidByCurrency,
+      schedulesToClose,
+    }
+  } catch (error) {
+    if (isUndefinedTableError(error)) {
+      return {
+        actionRequired: false,
+        consequence: "Finance invoice data is not installed for this deployment.",
+        settlementRecorderAvailable: settlementHookAvailable,
+        requiredDecisionOptions: [],
+        paidInvoices: [],
+        paidByCurrency: {},
+        schedulesToClose: [],
+      }
+    }
+    throw error
+  }
+}
+
+function rowsFromExecute<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[]
+  if (result && typeof result === "object" && Array.isArray((result as { rows?: unknown }).rows)) {
+    return (result as { rows: T[] }).rows
+  }
+  return []
+}
+
+function isUndefinedTableError(error: unknown) {
+  return (
+    error != null &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "42P01"
+  )
 }
 
 function bookingStatusConsequenceSummary(
@@ -351,7 +453,26 @@ function bookingStatusConsequenceSummary(
     : "customer notifications enabled"
   return action === "confirm"
     ? `Confirm booking ${String(preview.bookingNumber)} for ${String(preview.sellCurrency)} ${String(preview.sellAmountCents)}; pax ${String(preview.pax)}; ${allocations.length} allocation(s); ${notificationText}.`
-    : `Cancel booking ${String(preview.bookingNumber)} from ${String(preview.currentStatus)}; restore ${restored} slot capacity; close payment schedules and record financial settlement; ${notificationText}.`
+    : cancellationConsequenceSummary(preview, restored, notificationText)
+}
+
+function cancellationConsequenceSummary(
+  preview: Record<string, unknown>,
+  restored: number,
+  notificationText: string,
+) {
+  const settlement = isRecord(preview.financialSettlement) ? preview.financialSettlement : null
+  const paidByCurrency =
+    settlement && isRecord(settlement.paidByCurrency)
+      ? Object.entries(settlement.paidByCurrency)
+          .map(([currency, amount]) => `${currency} ${String(amount)}`)
+          .join(", ")
+      : "none"
+  const settlementText =
+    settlement?.actionRequired === true
+      ? `paid invoice settlement action required (${paidByCurrency}: refund, credit note, or no-refund decision)`
+      : "no paid invoice settlement action currently required"
+  return `Cancel booking ${String(preview.bookingNumber)} from ${String(preview.currentStatus)}; restore ${restored} slot capacity; close pending payment schedules; ${settlementText}; ${notificationText}.`
 }
 
 function bookingStatusCommandError(

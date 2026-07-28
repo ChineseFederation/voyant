@@ -146,12 +146,6 @@ export const cancelBookingToolInputSchema = z.object({
     .trim()
     .min(1)
     .describe("Stable key used when requesting approval and replaying the command."),
-  approvalId: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe("Approval id returned after the prior request is approved."),
 })
 
 const completedConfirmedBookingActionSchema = z.object({
@@ -233,12 +227,6 @@ export const confirmBookingToolInputSchema = z.object({
     .trim()
     .min(1)
     .describe("Stable key used when requesting approval and replaying the command."),
-  approvalId: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe("Approval id returned after the prior request is approved."),
 })
 
 export const confirmBookingToolOutputSchema = completedConfirmedBookingActionSchema

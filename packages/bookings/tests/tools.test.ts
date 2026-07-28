@@ -109,6 +109,24 @@ describe("bookings tools", () => {
       requiredScopes: ["bookings:write"],
       riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
     })
+    expect(
+      bookingsTools
+        .find((tool) => tool.name === "cancel_booking")
+        ?.inputSchema.parse({
+          id: "bk_1",
+          idempotencyKey: "cancel-bk-1",
+          approvalId: "dead-top-level-field",
+        }),
+    ).not.toHaveProperty("approvalId")
+    expect(
+      bookingsTools
+        .find((tool) => tool.name === "confirm_booking")
+        ?.inputSchema.parse({
+          id: "bk_1",
+          idempotencyKey: "confirm-bk-1",
+          approvalId: "dead-top-level-field",
+        }),
+    ).not.toHaveProperty("approvalId")
   })
 
   it("passes authentic cancellation policy admission to the injected service", async () => {
@@ -133,11 +151,19 @@ describe("bookings tools", () => {
     })
     const result = await registry.dispatch(
       "cancel_booking",
-      { id: "bk_1", note: "operator request", idempotencyKey: "cancel-bk-1" },
+      {
+        id: "bk_1",
+        note: "operator request",
+        idempotencyKey: "cancel-bk-1",
+        approvalId: "dead-top-level-field",
+      },
       ctx(
         {
           async cancelBooking(_input, admitted) {
+            expect(_input).not.toHaveProperty("approvalId")
             expect(admitted.invocation.idempotencyKey).toBe("cancel-bk-1")
+            expect(admitted.invocation.approvalId).toBe("approval-reserved")
+            expect(admitted.invocation.idempotencyFingerprint).toBe("sha256:reserved")
             return {
               status: "cancelled",
               booking: bookingDetail("bk_1", "cancelled"),
@@ -157,7 +183,12 @@ describe("bookings tools", () => {
               optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
             },
           },
-          invocation: { confirmed: true, idempotencyKey: "cancel-bk-1" },
+          invocation: {
+            confirmed: true,
+            idempotencyKey: "cancel-bk-1",
+            approvalId: "approval-reserved",
+            idempotencyFingerprint: "sha256:reserved",
+          },
         },
       ),
     )
