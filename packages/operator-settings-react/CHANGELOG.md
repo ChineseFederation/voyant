@@ -1,5 +1,11 @@
 # @voyant-travel/operator-settings-react
 
+## 0.71.1
+
+### Patch Changes
+
+- 8f0cc0d: Allow operators to configure Voyant Pay Sandbox and Live connections independently.
+
 ## 0.71.0
 
 ### Patch Changes

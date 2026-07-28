@@ -1,5 +1,12 @@
 # @voyant-travel/operator-standard
 
+## 0.15.35
+
+### Patch Changes
+
+- Updated dependencies [8f0cc0d]
+  - @voyant-travel/operator-settings-react@0.71.1
+
 ## 0.15.34
 
 ### Patch Changes
