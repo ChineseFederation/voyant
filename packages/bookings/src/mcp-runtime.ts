@@ -1,9 +1,16 @@
 import {
   type ActionLedgerRequestContextValues,
-  buildActionLedgerApprovedExecutionFields,
+  actionLedgerService,
+  canonicalJson,
+  executeAdmittedExistingTargetCommand,
 } from "@voyant-travel/action-ledger"
+import type { EventBus } from "@voyant-travel/core"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
-import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
+import {
+  defineToolContextContribution,
+  ToolError,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import type { Context } from "hono"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
 import {
@@ -19,7 +26,6 @@ import {
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { bookingsService } from "./service.js"
-import { authorizeBookingStatusMutation } from "./status-authorization.js"
 
 export * from "./tools.js"
 
@@ -65,197 +71,43 @@ export const voyantToolContextContribution = defineToolContextContribution({
           getBookingAggregates: (
             query: Parameters<typeof bookingsService.getBookingAggregates>[1],
           ) => bookingsService.getBookingAggregates(db, query),
-          async cancelBooking(input: {
-            id: string
-            note?: string
-            suppressNotifications?: boolean
-            idempotencyKey: string
-            approvalId?: string
-          }) {
-            const requestContext = bookingToolActionLedgerContext(c)
-            const authorization = await authorizeBookingStatusMutation({
+          async cancelBooking(
+            input: {
+              id: string
+              note?: string
+              suppressNotifications?: boolean
+              idempotencyKey: string
+              approvalId?: string
+            },
+            admitted: ToolHandlerActionPolicyContext,
+          ) {
+            return executeBookingStatusToolCommand({
+              action: "cancel",
               db,
-              key: "cancel",
-              actionName: "booking.status.cancel",
-              routeOrToolName: "bookings.cancel_booking",
-              bookingId: input.id,
-              commandInput: {
-                note: input.note ?? null,
-                suppressNotifications: input.suppressNotifications === true,
-              },
-              actor: c.get("actor"),
-              callerType: c.get("callerType"),
-              scopes: c.get("scopes"),
-              isInternalRequest: c.get("isInternalRequest"),
-              requestContext,
-              conditionalApprovalRequired: true,
-              approvalReasonCode: "cancel_requested_by_agent",
-              approvalId: input.approvalId ?? null,
-              idempotencyKey: input.idempotencyKey,
+              c,
+              input,
+              admitted,
+              loadBookingDetail,
             })
-
-            if (authorization.status === "approval_required") {
-              return {
-                status: "approval_required" as const,
-                requestedAction: {
-                  id: authorization.requestedAction.id,
-                  status: authorization.requestedAction.status,
-                  actionName: authorization.requestedAction.actionName,
-                  targetType: authorization.requestedAction.targetType,
-                  targetId: authorization.requestedAction.targetId,
-                },
-                approval: {
-                  id: authorization.approval.id,
-                  status: authorization.approval.status,
-                  requestedActionId: authorization.approval.requestedActionId,
-                  policyName: authorization.approval.policyName,
-                  policyVersion: authorization.approval.policyVersion,
-                  riskSnapshot: authorization.approval.riskSnapshot,
-                  reasonCode: authorization.approval.reasonCode,
-                  expiresAt: toIsoString(authorization.approval.expiresAt),
-                  createdAt: toIsoString(authorization.approval.createdAt),
-                },
-                replayed: authorization.replayed,
-              }
-            }
-            if (authorization.status === "already_executed") {
-              const booking = await loadBookingDetail(authorization.bookingId)
-              if (!booking) {
-                throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
-              }
-              return { status: "cancelled" as const, booking, replayed: true }
-            }
-
-            if (authorization.status !== "authorized") {
-              throw bookingAuthorizationToolError(authorization)
-            }
-            if (!authorization.approvedAction) {
-              throw new ToolError(
-                "Booking cancellation requires an approved action.",
-                "AUTHORIZATION_DENIED",
-              )
-            }
-
-            const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
-            const routeRuntime = getBookingToolRouteRuntime(c)
-            const result = await bookingsService.cancelBooking(
-              db,
-              input.id,
-              {
-                note: input.note,
-                suppressNotifications: input.suppressNotifications,
-              },
-              c.get("userId") ?? c.get("agentId") ?? "agent",
-              {
-                eventBus: c.get("eventBus"),
-                closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
-                recordCancellationFinancialSettlement:
-                  routeRuntime.recordCancellationFinancialSettlement,
-                actionLedgerContext: requestContext,
-                actionLedgerAuthorizationSource: authorization.access.authorizationSource,
-                actionLedgerCausationActionId: approved.causationActionId,
-                actionLedgerApprovalId: approved.approvalId,
-                actionLedgerIdempotencyScope: approved.idempotencyScope,
-                actionLedgerIdempotencyKey: approved.idempotencyKey,
-                actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
-                actionLedgerRouteOrToolName: "bookings.cancel_booking",
-              },
-            )
-            if (result.status === "not_found") {
-              throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND", {
-                bookingId: input.id,
-              })
-            }
-            if (result.status !== "ok" || !("booking" in result) || !result.booking) {
-              throw new ToolError(
-                `Booking "${input.id}" cannot transition to cancelled.`,
-                "INVALID_INPUT",
-                { bookingId: input.id, status: result.status },
-              )
-            }
-            const booking = await loadBookingDetail(result.booking.id)
-            if (!booking) throw new ToolError("Cancelled booking could not be read.", "NOT_FOUND")
-            return { status: "cancelled" as const, booking, replayed: false }
           },
-          async confirmBooking(input: {
-            id: string
-            note?: string
-            suppressNotifications?: boolean
-            idempotencyKey: string
-            approvalId?: string
-          }) {
-            const requestContext = bookingToolActionLedgerContext(c)
-            const authorization = await authorizeBookingStatusMutation({
+          async confirmBooking(
+            input: {
+              id: string
+              note?: string
+              suppressNotifications?: boolean
+              idempotencyKey: string
+              approvalId?: string
+            },
+            admitted: ToolHandlerActionPolicyContext,
+          ) {
+            return executeBookingStatusToolCommand({
+              action: "confirm",
               db,
-              key: "confirm",
-              actionName: "booking.status.confirm",
-              routeOrToolName: "bookings.confirm_booking",
-              bookingId: input.id,
-              commandInput: {
-                note: input.note ?? null,
-                suppressNotifications: input.suppressNotifications === true,
-              },
-              actor: c.get("actor"),
-              callerType: c.get("callerType"),
-              scopes: c.get("scopes"),
-              isInternalRequest: c.get("isInternalRequest"),
-              requestContext,
-              conditionalApprovalRequired: true,
-              approvalReasonCode: "confirm_requested_by_agent",
-              approvalId: input.approvalId ?? null,
-              idempotencyKey: input.idempotencyKey,
+              c,
+              input,
+              admitted,
+              loadBookingDetail,
             })
-            if (authorization.status === "approval_required") {
-              return pendingBookingApprovalResult(authorization)
-            }
-            if (authorization.status === "already_executed") {
-              const booking = await loadBookingDetail(authorization.bookingId)
-              if (!booking) throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
-              return { status: "confirmed" as const, booking, replayed: true }
-            }
-            if (authorization.status !== "authorized") {
-              throw bookingAuthorizationToolError(authorization)
-            }
-            if (!authorization.approvedAction) {
-              throw new ToolError(
-                "Booking confirmation requires an approved action.",
-                "AUTHORIZATION_DENIED",
-              )
-            }
-            const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
-            const result = await bookingsService.confirmBooking(
-              db,
-              input.id,
-              {
-                note: input.note,
-                suppressNotifications: input.suppressNotifications,
-              },
-              c.get("userId") ?? c.get("agentId") ?? "agent",
-              {
-                eventBus: c.get("eventBus"),
-                actionLedgerContext: requestContext,
-                actionLedgerAuthorizationSource: authorization.access.authorizationSource,
-                actionLedgerCausationActionId: approved.causationActionId,
-                actionLedgerApprovalId: approved.approvalId,
-                actionLedgerIdempotencyScope: approved.idempotencyScope,
-                actionLedgerIdempotencyKey: approved.idempotencyKey,
-                actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
-                actionLedgerRouteOrToolName: "bookings.confirm_booking",
-              },
-            )
-            if (result.status === "not_found") {
-              throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
-            }
-            if (result.status !== "ok" || !("booking" in result) || !result.booking) {
-              throw new ToolError(
-                `Booking "${input.id}" cannot transition to confirmed.`,
-                "INVALID_INPUT",
-                { bookingId: input.id, status: result.status },
-              )
-            }
-            const booking = await loadBookingDetail(result.booking.id)
-            if (!booking) throw new ToolError("Confirmed booking could not be read.", "NOT_FOUND")
-            return { status: "confirmed" as const, booking, replayed: false }
           },
         },
       },
@@ -264,6 +116,271 @@ export const voyantToolContextContribution = defineToolContextContribution({
     )
   },
 })
+
+type BookingStatusToolAction = "confirm" | "cancel"
+type BufferedEvent = {
+  event: string
+  data: unknown
+  metadata?: unknown
+  options?: unknown
+}
+
+async function executeBookingStatusToolCommand(input: {
+  action: BookingStatusToolAction
+  db: Parameters<typeof bookingsService.getBookingById>[0]
+  c: Context<Env>
+  input: {
+    id: string
+    note?: string
+    suppressNotifications?: boolean
+    idempotencyKey: string
+    approvalId?: string
+  }
+  admitted: ToolHandlerActionPolicyContext
+  loadBookingDetail: (id: string) => Promise<unknown>
+}) {
+  const preview = await bookingStatusConsequencePreviewForAdmission(input)
+  const previewJson = canonicalJson(preview)
+  const bufferedEvents: BufferedEvent[] = []
+  const bufferingEventBus = {
+    async emit(event: string, data: unknown, metadata?: unknown, options?: unknown) {
+      bufferedEvents.push({ event, data, metadata, options })
+    },
+    subscribe() {
+      return { unsubscribe() {} }
+    },
+  } as EventBus
+  const routeRuntime = getBookingToolRouteRuntime(input.c)
+  const result = await executeAdmittedExistingTargetCommand(
+    {
+      db: input.db,
+      context: bookingToolActionLedgerContext(input.c),
+      admitted: input.admitted,
+      commandInput: {
+        id: input.input.id,
+        note: input.input.note ?? null,
+        suppressNotifications: input.input.suppressNotifications === true,
+        consequencePreview: preview,
+      },
+      evaluatedRisk: input.action === "confirm" ? "high" : "critical",
+      idempotencyKey: input.input.idempotencyKey,
+      targetId: input.input.id,
+      approvalMutationDetail: {
+        commandInputRef: previewJson,
+        summary: bookingStatusConsequenceSummary(input.action, preview),
+        reversalKind: "none",
+      },
+      approvalErrorMetadata: { consequencePreview: preview },
+    },
+    {
+      async prepare(tx) {
+        const currentPreview = await loadBookingStatusConsequencePreview(
+          tx as Parameters<typeof bookingsService.getBookingById>[0],
+          input.input.id,
+          input.action,
+          input.input.suppressNotifications === true,
+        )
+        if (canonicalJson(currentPreview) !== previewJson) {
+          throw new ToolError(
+            `Booking ${input.action} consequences changed after approval; request a new approval.`,
+            "INVALID_INPUT",
+            { bookingId: input.input.id, reason: "consequence_drift" },
+          )
+        }
+        const userId = input.c.get("userId") ?? input.c.get("agentId") ?? "agent"
+        const statusResult =
+          input.action === "confirm"
+            ? await bookingsService.confirmBooking(
+                tx as Parameters<typeof bookingsService.confirmBooking>[0],
+                input.input.id,
+                {
+                  note: input.input.note,
+                  suppressNotifications: input.input.suppressNotifications,
+                },
+                userId,
+                { eventBus: bufferingEventBus },
+              )
+            : await bookingsService.cancelBooking(
+                tx as Parameters<typeof bookingsService.cancelBooking>[0],
+                input.input.id,
+                {
+                  note: input.input.note,
+                  suppressNotifications: input.input.suppressNotifications,
+                },
+                userId,
+                {
+                  eventBus: bufferingEventBus,
+                  closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
+                  recordCancellationFinancialSettlement:
+                    routeRuntime.recordCancellationFinancialSettlement,
+                },
+              )
+        if (statusResult.status !== "ok" || !("booking" in statusResult) || !statusResult.booking) {
+          throw bookingStatusCommandError(input.action, input.input.id, statusResult.status)
+        }
+      },
+      async execute() {
+        return requiredBookingStatusDetail(input)
+      },
+      async replay() {
+        return requiredBookingStatusDetail(input)
+      },
+    },
+  )
+  if (!result.replayed) {
+    const eventBus = input.c.get("eventBus")
+    for (const event of bufferedEvents) {
+      await eventBus?.emit(event.event, event.data, event.metadata as never, event.options as never)
+    }
+  }
+  return {
+    status: input.action === "confirm" ? ("confirmed" as const) : ("cancelled" as const),
+    booking: result.value,
+    replayed: result.replayed,
+  }
+}
+
+async function requiredBookingStatusDetail(input: {
+  action: BookingStatusToolAction
+  input: { id: string }
+  loadBookingDetail: (id: string) => Promise<unknown>
+}) {
+  const detail = await input.loadBookingDetail(input.input.id)
+  if (!detail) {
+    throw new ToolError(
+      `${input.action === "confirm" ? "Confirmed" : "Cancelled"} booking could not be read.`,
+      "NOT_FOUND",
+      { bookingId: input.input.id, action: input.action },
+    )
+  }
+  return detail
+}
+
+async function bookingStatusConsequencePreviewForAdmission(input: {
+  action: BookingStatusToolAction
+  db: Parameters<typeof bookingsService.getBookingById>[0]
+  c: Context<Env>
+  input: { id: string; suppressNotifications?: boolean }
+  admitted: ToolHandlerActionPolicyContext
+}) {
+  const approvalId = input.admitted.invocation.approvalId?.trim()
+  if (approvalId) {
+    const approved = await actionLedgerService.getApproval(input.db, approvalId)
+    const stored = approved?.requestedAction?.mutationDetail?.commandInputRef
+    if (!stored) {
+      throw new ToolError("The approved booking consequence preview is missing.", "INVALID_INPUT", {
+        bookingId: input.input.id,
+        action: input.action,
+        approvalId,
+      })
+    }
+    try {
+      return JSON.parse(stored) as Record<string, unknown>
+    } catch {
+      throw new ToolError("The approved booking consequence preview is invalid.", "INVALID_INPUT", {
+        bookingId: input.input.id,
+        action: input.action,
+        approvalId,
+      })
+    }
+  }
+  return loadBookingStatusConsequencePreview(
+    input.db,
+    input.input.id,
+    input.action,
+    input.input.suppressNotifications === true,
+  )
+}
+
+async function loadBookingStatusConsequencePreview(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+  bookingId: string,
+  action: BookingStatusToolAction,
+  suppressNotifications: boolean,
+) {
+  const booking = await bookingsService.getBookingById(db, bookingId)
+  if (!booking) {
+    throw new ToolError(`Booking "${bookingId}" was not found.`, "NOT_FOUND", {
+      bookingId,
+      action,
+    })
+  }
+  const allocations = await bookingsService.listAllocations(db, bookingId)
+  return {
+    action,
+    bookingId,
+    bookingNumber: booking.bookingNumber,
+    currentStatus: booking.status,
+    resultingStatus: action === "confirm" ? "confirmed" : "cancelled",
+    pax: booking.pax,
+    sellCurrency: booking.sellCurrency,
+    sellAmountCents: booking.sellAmountCents,
+    costAmountCents: booking.costAmountCents,
+    holdExpiresAt: toIsoString(booking.holdExpiresAt),
+    notificationsSuppressed: booking.notificationsSuppressed || suppressNotifications === true,
+    closesPaymentSchedules: action === "cancel",
+    recordsFinancialSettlement: action === "cancel",
+    allocations: allocations.map((allocation) => ({
+      id: allocation.id,
+      status: allocation.status,
+      availabilitySlotId: allocation.availabilitySlotId,
+      quantity: allocation.quantity,
+      resultingStatus: action === "confirm" ? "confirmed" : "cancelled",
+      restoresCapacity:
+        action === "cancel" &&
+        allocation.availabilitySlotId !== null &&
+        ["held", "confirmed", "fulfilled"].includes(allocation.status),
+    })),
+  }
+}
+
+function bookingStatusConsequenceSummary(
+  action: BookingStatusToolAction,
+  preview: Record<string, unknown>,
+) {
+  const allocations = Array.isArray(preview.allocations) ? preview.allocations : []
+  const restored = allocations.reduce(
+    (sum, allocation) =>
+      isRecord(allocation) && allocation.restoresCapacity === true
+        ? sum + (typeof allocation.quantity === "number" ? allocation.quantity : 0)
+        : sum,
+    0,
+  )
+  const notificationText = preview.notificationsSuppressed
+    ? "customer notifications suppressed"
+    : "customer notifications enabled"
+  return action === "confirm"
+    ? `Confirm booking ${String(preview.bookingNumber)} for ${String(preview.sellCurrency)} ${String(preview.sellAmountCents)}; pax ${String(preview.pax)}; ${allocations.length} allocation(s); ${notificationText}.`
+    : `Cancel booking ${String(preview.bookingNumber)} from ${String(preview.currentStatus)}; restore ${restored} slot capacity; close payment schedules and record financial settlement; ${notificationText}.`
+}
+
+function bookingStatusCommandError(
+  action: BookingStatusToolAction,
+  bookingId: string,
+  status: string,
+) {
+  if (status === "not_found") {
+    return new ToolError(`Booking "${bookingId}" was not found for ${action}.`, "NOT_FOUND", {
+      bookingId,
+      action,
+      status,
+    })
+  }
+  const detail =
+    status === "slot_not_found" || status === "slot_unavailable"
+      ? "Capacity restoration could not complete; the booking remains unchanged and may be retried."
+      : `Booking cannot transition to ${action === "confirm" ? "confirmed" : "cancelled"}.`
+  return new ToolError(
+    `${action === "confirm" ? "Confirmation" : "Cancellation"} failed. ${detail}`,
+    "INVALID_INPUT",
+    {
+      bookingId,
+      action,
+      status,
+      retryable: status === "slot_not_found" || status === "slot_unavailable",
+    },
+  )
+}
 
 function bookingToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues {
   return {
@@ -283,36 +400,6 @@ function bookingToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestCon
   }
 }
 
-function pendingBookingApprovalResult(
-  authorization: Extract<
-    Awaited<ReturnType<typeof authorizeBookingStatusMutation>>,
-    { status: "approval_required" }
-  >,
-) {
-  return {
-    status: "approval_required" as const,
-    requestedAction: {
-      id: authorization.requestedAction.id,
-      status: authorization.requestedAction.status,
-      actionName: authorization.requestedAction.actionName,
-      targetType: authorization.requestedAction.targetType,
-      targetId: authorization.requestedAction.targetId,
-    },
-    approval: {
-      id: authorization.approval.id,
-      status: authorization.approval.status,
-      requestedActionId: authorization.approval.requestedActionId,
-      policyName: authorization.approval.policyName,
-      policyVersion: authorization.approval.policyVersion,
-      riskSnapshot: authorization.approval.riskSnapshot,
-      reasonCode: authorization.approval.reasonCode,
-      expiresAt: toIsoString(authorization.approval.expiresAt),
-      createdAt: toIsoString(authorization.approval.createdAt),
-    },
-    replayed: authorization.replayed,
-  }
-}
-
 function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
   try {
     return (
@@ -321,35 +408,6 @@ function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
     )
   } catch {
     return buildBookingRouteRuntime(c.env)
-  }
-}
-
-function bookingAuthorizationToolError(
-  result: Exclude<
-    Awaited<ReturnType<typeof authorizeBookingStatusMutation>>,
-    { status: "authorized" | "approval_required" | "already_executed" }
-  >,
-) {
-  switch (result.status) {
-    case "denied":
-      return new ToolError("Booking cancellation is not authorized.", "AUTHORIZATION_DENIED", {
-        reason: result.access.reason,
-      })
-    case "missing_idempotency_key":
-      return new ToolError("Booking cancellation requires an idempotency key.", "INVALID_INPUT")
-    case "idempotency_conflict":
-      return new ToolError(result.message, "INVALID_INPUT", {
-        existingActionId: result.existingActionId,
-      })
-    case "invalid_approval":
-      return new ToolError(
-        "The approval does not authorize this exact booking cancellation.",
-        "INVALID_INPUT",
-        {
-          reason: result.validation.reason,
-          approvalId: result.validation.approval?.id,
-        },
-      )
   }
 }
 

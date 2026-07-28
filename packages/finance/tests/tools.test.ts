@@ -420,5 +420,34 @@ describe("finance tools", () => {
     expect(shape.catalogSellAmountCents).toBeUndefined()
     expect(shape.confirmedSellAmountCents).toBeUndefined()
     expect(shape.priceOverrideReason).toBeUndefined()
+
+    const parsed = tool.inputSchema.parse({
+      booking: {
+        productId: "product_1",
+        bookingNumber: "B-PRICE-GUARD",
+        personId: "person_1",
+        contactFirstName: "Ada",
+        contactLastName: "Lovelace",
+        contactEmail: "ada@example.com",
+        travelers: [
+          {
+            clientTravelerKey: "traveler_1",
+            firstName: "Ada",
+            lastName: "Lovelace",
+            isPrimary: true,
+          },
+        ],
+        itemLines: [
+          {
+            optionUnitId: "unit_1",
+            quantity: 2,
+            unitSellAmountCents: 1,
+            totalSellAmountCents: 2,
+          },
+        ],
+      },
+    }) as { booking: { itemLines?: Array<Record<string, unknown>> } }
+    expect(parsed.booking.itemLines?.[0]).not.toHaveProperty("unitSellAmountCents")
+    expect(parsed.booking.itemLines?.[0]).not.toHaveProperty("totalSellAmountCents")
   })
 })

@@ -8,6 +8,7 @@ import {
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { newId } from "@voyant-travel/db/lib/typeid"
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { authUser } from "@voyant-travel/db/schema/iam"
 import {
   and,
@@ -1799,7 +1800,10 @@ async function releaseAllocationCapacity(
     allocation.quantity,
     source,
   )
-  return result.status === "ok" ? result.slotChange : undefined
+  if (result.status !== "ok") {
+    throw new BookingServiceError(result.status)
+  }
+  return result.slotChange
 }
 
 async function autoIssueFulfillmentsForBooking(
@@ -3109,12 +3113,31 @@ const bookingsServiceInternal = {
 
         await appendBookingStatusMutationLedger(tx as PostgresJsDatabase, runtime, {
           actionName: "booking.status.confirm",
-          routeOrToolName: "bookings.confirm",
+          routeOrToolName: runtime.actionLedgerRouteOrToolName ?? "bookings.confirm",
           capabilityId: BOOKING_STATUS_CAPABILITIES.confirm.id,
           bookingId: id,
           fromStatus: booking.status,
           toStatus: "confirmed",
         })
+
+        if (row) {
+          await insertOutboxEvents(tx as PostgresJsDatabase, [
+            {
+              name: "booking.confirmed",
+              data: {
+                bookingId: row.id,
+                bookingNumber: row.bookingNumber,
+                actorId: userId ?? null,
+                suppressNotifications: row.notificationsSuppressed,
+              } satisfies BookingConfirmedEvent,
+              metadata: {
+                category: "domain",
+                source: "service",
+                eventId: `evt_booking_confirmed_${row.id}`,
+              },
+            },
+          ])
+        }
 
         return { status: "ok" as const, booking: row ?? null }
       })
@@ -3131,7 +3154,11 @@ const bookingsServiceInternal = {
             actorId: userId ?? null,
             suppressNotifications: result.booking.notificationsSuppressed,
           } satisfies BookingConfirmedEvent,
-          { category: "domain", source: "service" },
+          {
+            category: "domain",
+            source: "service",
+            eventId: `evt_booking_confirmed_${result.booking.id}`,
+          },
         )
       }
 
@@ -3672,6 +3699,27 @@ const bookingsServiceInternal = {
           evaluatedRisk: "critical",
         })
 
+        if (row) {
+          await insertOutboxEvents(tx as PostgresJsDatabase, [
+            {
+              name: "booking.cancelled",
+              data: {
+                bookingId: row.id,
+                bookingNumber: row.bookingNumber,
+                previousStatus,
+                reason: cancellationReason,
+                actorId: userId ?? null,
+                suppressNotifications: row.notificationsSuppressed,
+              } satisfies BookingCancelledEvent,
+              metadata: {
+                category: "domain",
+                source: "service",
+                eventId: `evt_booking_cancelled_${row.id}`,
+              },
+            },
+          ])
+        }
+
         return { status: "ok" as const, booking: row ?? null, previousStatus }
       })
 
@@ -3686,7 +3734,11 @@ const bookingsServiceInternal = {
             actorId: userId ?? null,
             suppressNotifications: result.booking.notificationsSuppressed,
           } satisfies BookingCancelledEvent,
-          { category: "domain", source: "service" },
+          {
+            category: "domain",
+            source: "service",
+            eventId: `evt_booking_cancelled_${result.booking.id}`,
+          },
         )
         await emitSlotChanges(runtime, slotChanges)
       }

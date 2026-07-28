@@ -17,7 +17,7 @@ import {
   defineTool,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { and, eq, sql } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { z } from "zod"
 import {
@@ -944,7 +944,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome.issues).toContainEqual({
       path: ["paymentSchedules"],
       message:
-        "paymentSchedules amountCents sum (16500) must equal confirmedSellAmountCents (33000)",
+        "paymentSchedules amountCents sum (16500) must equal the persisted booking total (33000)",
     })
 
     const bookingsRows = await db.select().from(bookings)
@@ -1458,6 +1458,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     }
     expect(await remaining()).toBe(10)
 
+    const confirmed = await bookingsService.confirmBooking(
+      db,
+      outcome.result.booking.id,
+      { note: "QA confirmation", suppressNotifications: true },
+      "user_qa",
+    )
+    expect(confirmed.status).toBe("ok")
+    expect(await remaining()).toBe(10)
+
     const cancelled = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
@@ -1475,6 +1484,21 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     )
     expect(replay.status).toBe("invalid_transition")
     expect(await remaining()).toBe(12)
+    expect(
+      await db
+        .select({ name: eventOutboxTable.name, payload: eventOutboxTable.payload })
+        .from(eventOutboxTable)
+        .orderBy(asc(eventOutboxTable.createdAt)),
+    ).toEqual([
+      {
+        name: "booking.confirmed",
+        payload: expect.objectContaining({ suppressNotifications: true }),
+      },
+      {
+        name: "booking.cancelled",
+        payload: expect.objectContaining({ suppressNotifications: true }),
+      },
+    ])
   })
 
   it("uses persisted catalog pricing unless the current request explicitly overrides it", async () => {
@@ -1500,6 +1524,32 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           amountCents: 42_000,
           reason: "Current-request loyalty adjustment",
         },
+        itemLines: [
+          {
+            optionUnitId: secondProduct.unitId,
+            quantity: 2,
+            unitSellAmountCents: 1,
+            totalSellAmountCents: 2,
+          },
+        ],
+        taxLines: [
+          {
+            name: "VAT",
+            currency: "EUR",
+            amountCents: 2_000,
+            includedInPrice: true,
+          },
+        ],
+        paymentSchedules: [
+          {
+            scheduleType: "balance",
+            status: "pending",
+            currency: "EUR",
+            amountCents: 42_000,
+            dueDate: "2026-08-15",
+          },
+        ],
+        documentGeneration: { invoiceDocument: true },
       },
       { userId: "user_price_override" },
     )
@@ -1513,6 +1563,57 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       reason: "Current-request loyalty adjustment",
       overriddenBy: "user_price_override",
     })
+    const pricedItems = await db
+      .select({
+        unitSellAmountCents: bookingItems.unitSellAmountCents,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, overridden.result.booking.id))
+    expect(pricedItems).toEqual([{ unitSellAmountCents: 21_000, totalSellAmountCents: 42_000 }])
+    expect(overridden.result.paymentSchedules).toEqual([
+      expect.objectContaining({ amountCents: 42_000, currency: "EUR" }),
+    ])
+    expect(overridden.result.invoice).toMatchObject({
+      subtotalCents: 40_000,
+      taxCents: 2_000,
+      totalCents: 42_000,
+    })
+  })
+
+  it("rolls cancellation back when confirmed capacity cannot be restored", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const slot = await seedSlot({ productId, optionId, capacity: 12 })
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "confirmed",
+      pax: 2,
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: roomUnitId, quantity: 1 }],
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    await db
+      .update(availabilitySlots)
+      .set({ status: "closed" })
+      .where(eq(availabilitySlots.id, slot.id))
+
+    const cancelled = await bookingsService.cancelBooking(
+      db,
+      outcome.result.booking.id,
+      { note: "cannot restore" },
+      "user_qa",
+    )
+    expect(cancelled.status).toBe("slot_unavailable")
+    expect(await bookingsService.getBookingById(db, outcome.result.booking.id)).toMatchObject({
+      status: "confirmed",
+    })
+    expect(await bookingsService.listAllocations(db, outcome.result.booking.id)).toEqual([
+      expect.objectContaining({ status: "confirmed", quantity: 2 }),
+    ])
   })
 
   it("rejects selected room units that cannot seat the booking pax", async () => {

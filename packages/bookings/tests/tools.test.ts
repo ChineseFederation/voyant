@@ -1,9 +1,20 @@
-import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
+import {
+  createToolRegistry,
+  type ToolContext,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
-import { type BookingsToolServices, bookingsTools } from "../src/tools.js"
+import {
+  type BookingsToolServices,
+  bookingsTools,
+  CANCEL_BOOKING_HANDLER_POLICY,
+} from "../src/tools.js"
 
-function ctx(services?: Partial<BookingsToolServices>): ToolContext & {
+function ctx(
+  services?: Partial<BookingsToolServices>,
+  handlerActionPolicy?: ToolHandlerActionPolicyContext,
+): ToolContext & {
   bookings?: BookingsToolServices
 } {
   return {
@@ -13,6 +24,61 @@ function ctx(services?: Partial<BookingsToolServices>): ToolContext & {
     tenantId: "default",
     resolverScope: { locale: "en-GB", audience: "staff", market: "default", actor: "staff" },
     bookings: services as BookingsToolServices | undefined,
+    ...(handlerActionPolicy ? { handlerActionPolicy } : {}),
+  }
+}
+
+function bookingDetail(id: string, status: "draft" | "cancelled") {
+  return {
+    id,
+    bookingNumber: "B-1001",
+    status,
+    personId: null,
+    organizationId: null,
+    sourceType: "manual" as const,
+    externalBookingRef: null,
+    communicationLanguage: null,
+    contactFirstName: null,
+    contactLastName: null,
+    contactPartyType: null,
+    contactTaxId: null,
+    contactEmail: null,
+    contactPhone: null,
+    contactPreferredLanguage: null,
+    contactCountry: null,
+    contactRegion: null,
+    contactCity: null,
+    contactAddressLine1: null,
+    contactAddressLine2: null,
+    contactPostalCode: null,
+    sellCurrency: "EUR",
+    baseCurrency: null,
+    fxRateSetId: null,
+    sellAmountCents: null,
+    baseSellAmountCents: null,
+    costAmountCents: null,
+    baseCostAmountCents: null,
+    marginPercent: null,
+    startDate: null,
+    endDate: null,
+    pax: null,
+    internalNotes: null,
+    notificationsSuppressed: false,
+    customerPaymentPolicy: null,
+    priceOverride: null,
+    customFields: {},
+    holdExpiresAt: null,
+    confirmedAt: null,
+    expiredAt: null,
+    cancelledAt: status === "cancelled" ? "2026-07-15T11:00:00.000Z" : null,
+    completedAt: null,
+    awaitingPaymentAt: null,
+    paidAt: null,
+    redeemedAt: null,
+    createdAt: "2026-07-15T10:00:00.000Z",
+    updatedAt: "2026-07-15T10:00:00.000Z",
+    items: [],
+    travelers: [],
   }
 }
 
@@ -45,40 +111,57 @@ describe("bookings tools", () => {
     })
   })
 
-  it("returns a pending approval without executing cancellation", async () => {
+  it("passes authentic cancellation policy admission to the injected service", async () => {
     const registry = createToolRegistry()
-    registry.registerAll(bookingsTools)
+    const tool = bookingsTools.find((entry) => entry.name === "cancel_booking")
+    if (!tool) throw new Error("cancel_booking is missing")
+    registry.register(tool, {
+      capabilityId: tool.capabilityId,
+      owner: tool.owner,
+      capabilityVersion: tool.capabilityVersion,
+      name: tool.name,
+      requiredScopes: tool.requiredScopes,
+      deploymentRisk: "critical",
+      actionPolicy: {
+        ...CANCEL_BOOKING_HANDLER_POLICY.actionPolicy,
+        enforcement: "handler",
+        invocation: {
+          requiredFields: ["confirmed", "idempotencyKey"],
+          optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+        },
+      },
+    })
     const result = await registry.dispatch(
       "cancel_booking",
       { id: "bk_1", note: "operator request", idempotencyKey: "cancel-bk-1" },
-      ctx({
-        async cancelBooking() {
-          return {
-            status: "approval_required",
-            requestedAction: {
-              id: "act_1",
-              status: "awaiting_approval",
-              actionName: "booking.status.cancel",
-              targetType: "booking",
-              targetId: "bk_1",
-            },
-            approval: {
-              id: "apr_1",
-              status: "pending",
-              requestedActionId: "act_1",
-              policyName: "bookings-status-approval-v1",
-              policyVersion: "v1",
-              riskSnapshot: "critical",
-              reasonCode: "cancel_requested_by_agent",
-              expiresAt: null,
-              createdAt: "2026-07-15T10:00:00.000Z",
-            },
-            replayed: false,
-          }
+      ctx(
+        {
+          async cancelBooking(_input, admitted) {
+            expect(admitted.invocation.idempotencyKey).toBe("cancel-bk-1")
+            return {
+              status: "cancelled",
+              booking: bookingDetail("bk_1", "cancelled"),
+              replayed: false,
+            }
+          },
         },
-      }),
+        {
+          capabilityId: CANCEL_BOOKING_HANDLER_POLICY.capabilityId,
+          capabilityVersion: CANCEL_BOOKING_HANDLER_POLICY.capabilityVersion,
+          canonicalName: CANCEL_BOOKING_HANDLER_POLICY.canonicalName,
+          actionPolicy: {
+            ...CANCEL_BOOKING_HANDLER_POLICY.actionPolicy,
+            enforcement: "handler",
+            invocation: {
+              requiredFields: ["confirmed", "idempotencyKey"],
+              optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+            },
+          },
+          invocation: { confirmed: true, idempotencyKey: "cancel-bk-1" },
+        },
+      ),
     )
-    expect(result).toMatchObject({ status: "approval_required", approval: { id: "apr_1" } })
+    expect(result).toMatchObject({ status: "cancelled", booking: { id: "bk_1" } })
   })
 
   it("dispatches through the injected service", async () => {
@@ -92,57 +175,7 @@ describe("bookings tools", () => {
           return { data: [] }
         },
         async getBookingById(id) {
-          return {
-            id,
-            bookingNumber: "B-1001",
-            status: "draft",
-            personId: null,
-            organizationId: null,
-            sourceType: "manual",
-            externalBookingRef: null,
-            communicationLanguage: null,
-            contactFirstName: null,
-            contactLastName: null,
-            contactPartyType: null,
-            contactTaxId: null,
-            contactEmail: null,
-            contactPhone: null,
-            contactPreferredLanguage: null,
-            contactCountry: null,
-            contactRegion: null,
-            contactCity: null,
-            contactAddressLine1: null,
-            contactAddressLine2: null,
-            contactPostalCode: null,
-            sellCurrency: "EUR",
-            baseCurrency: null,
-            fxRateSetId: null,
-            sellAmountCents: null,
-            baseSellAmountCents: null,
-            costAmountCents: null,
-            baseCostAmountCents: null,
-            marginPercent: null,
-            startDate: null,
-            endDate: null,
-            pax: null,
-            internalNotes: null,
-            notificationsSuppressed: false,
-            customerPaymentPolicy: null,
-            priceOverride: null,
-            customFields: {},
-            holdExpiresAt: null,
-            confirmedAt: null,
-            expiredAt: null,
-            cancelledAt: null,
-            completedAt: null,
-            awaitingPaymentAt: null,
-            paidAt: null,
-            redeemedAt: null,
-            createdAt: "2026-07-15T10:00:00.000Z",
-            updatedAt: "2026-07-15T10:00:00.000Z",
-            items: [],
-            travelers: [],
-          }
+          return bookingDetail(id, "draft")
         },
       }),
     )

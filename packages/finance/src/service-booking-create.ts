@@ -478,6 +478,14 @@ export const bookingCreateToolSchema = bookingCreateBaseSchema
     confirmedSellAmountCents: true,
     priceOverrideReason: true,
   })
+  .extend({
+    itemLines: z
+      .array(itemLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
+      .optional(),
+    extraLines: z
+      .array(extraLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
+      .optional(),
+  })
   .superRefine(requireCompleteBookingParty)
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
@@ -517,6 +525,7 @@ export type BookingCreateOutcome =
   | { status: "ok"; result: BookingCreateResult }
   | { status: "invalid_payment_schedules"; issues: BookingCreateValidationIssue[] }
   | { status: "invalid_tax_lines"; issues: BookingCreateValidationIssue[] }
+  | { status: "invalid_pricing"; issues: BookingCreateValidationIssue[] }
   | { status: "payload_resolver_mismatch"; mismatches: BookingDraftMismatch[] }
   | {
       status: "room_occupancy_insufficient"
@@ -1121,17 +1130,72 @@ function validatePaymentSchedules(
     }
   })
 
-  if (typeof input.confirmedSellAmountCents === "number") {
+  if (typeof booking.sellAmountCents === "number") {
     const sum = schedules.reduce((total, schedule) => total + schedule.amountCents, 0)
-    if (sum !== input.confirmedSellAmountCents) {
+    if (sum !== booking.sellAmountCents) {
       issues.push({
         path: ["paymentSchedules"],
-        message: `paymentSchedules amountCents sum (${sum}) must equal confirmedSellAmountCents (${input.confirmedSellAmountCents})`,
+        message: `paymentSchedules amountCents sum (${sum}) must equal the persisted booking total (${booking.sellAmountCents})`,
       })
     }
   }
 
   return issues
+}
+
+async function reconcileBookingCreatePricing(
+  tx: PostgresJsDatabase,
+  booking: Booking,
+  taxLines: BookingCreateInput["taxLines"],
+): Promise<BookingCreateValidationIssue[]> {
+  const items = await tx
+    .select({ id: bookingItems.id, quantity: bookingItems.quantity })
+    .from(bookingItems)
+    .where(eq(bookingItems.bookingId, booking.id))
+    .orderBy(asc(bookingItems.createdAt), asc(bookingItems.id))
+  if (items.length === 0) {
+    return [{ path: ["itemLines"], message: "A priced booking requires at least one item." }]
+  }
+
+  const bookingTotal = booking.sellAmountCents ?? 0
+  const excludedTaxTotal = (taxLines ?? []).reduce((sum, taxLine) => {
+    const included = taxLine.includedInPrice ?? taxLine.scope === "included"
+    return taxLine.scope === "withheld" || included ? sum : sum + taxLine.amountCents
+  }, 0)
+  const includedTaxTotal = (taxLines ?? []).reduce((sum, taxLine) => {
+    const included = taxLine.includedInPrice ?? taxLine.scope === "included"
+    return taxLine.scope === "withheld" || !included ? sum : sum + taxLine.amountCents
+  }, 0)
+  const itemGrossTarget = bookingTotal - excludedTaxTotal
+  if (itemGrossTarget < 0 || includedTaxTotal > itemGrossTarget) {
+    return [
+      {
+        path: ["taxLines"],
+        message: `Tax lines cannot be reconciled to the persisted booking total (${bookingTotal}).`,
+      },
+    ]
+  }
+
+  const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0)
+  let remaining = itemGrossTarget
+  for (const [index, item] of items.entries()) {
+    const quantity = Math.max(1, item.quantity)
+    const totalSellAmountCents =
+      index === items.length - 1
+        ? remaining
+        : Math.floor((itemGrossTarget * quantity) / totalQuantity)
+    remaining -= totalSellAmountCents
+    await tx
+      .update(bookingItems)
+      .set({
+        sellCurrency: booking.sellCurrency,
+        unitSellAmountCents: Math.floor(totalSellAmountCents / quantity),
+        totalSellAmountCents,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookingItems.id, item.id))
+  }
+  return []
 }
 
 function validateTaxLines(
@@ -1302,21 +1366,6 @@ export async function createBookingMutation(
         // rolls back any writes the convert helper may have made.
         throw new BookingCreateAbort({ status: "product_not_found" })
       }
-      const paymentScheduleIssues = validatePaymentSchedules(input, booking)
-      if (paymentScheduleIssues.length > 0) {
-        throw new BookingCreateAbort({
-          status: "invalid_payment_schedules",
-          issues: paymentScheduleIssues,
-        })
-      }
-      const taxLineIssues = validateTaxLines(input, booking)
-      if (taxLineIssues.length > 0) {
-        throw new BookingCreateAbort({
-          status: "invalid_tax_lines",
-          issues: taxLineIssues,
-        })
-      }
-
       if (input.extraLines?.length) {
         await tx.insert(bookingItems).values(
           input.extraLines.map((line) => {
@@ -1355,6 +1404,25 @@ export async function createBookingMutation(
             }
           }),
         )
+      }
+
+      const pricingIssues = await reconcileBookingCreatePricing(tx, booking, input.taxLines)
+      if (pricingIssues.length > 0) {
+        throw new BookingCreateAbort({ status: "invalid_pricing", issues: pricingIssues })
+      }
+      const paymentScheduleIssues = validatePaymentSchedules(input, booking)
+      if (paymentScheduleIssues.length > 0) {
+        throw new BookingCreateAbort({
+          status: "invalid_payment_schedules",
+          issues: paymentScheduleIssues,
+        })
+      }
+      const taxLineIssues = validateTaxLines(input, booking)
+      if (taxLineIssues.length > 0) {
+        throw new BookingCreateAbort({
+          status: "invalid_tax_lines",
+          issues: taxLineIssues,
+        })
       }
 
       // 2. Travelers. Per-traveler item linkage is expressed through
