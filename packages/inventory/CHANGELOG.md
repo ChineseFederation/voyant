@@ -1,5 +1,22 @@
 # @voyant-travel/inventory
 
+## 0.23.0
+
+### Minor Changes
+
+- d3f16d5: Add exhaustive atomic product unit-configuration previews and confirmed applies, make departure creation durably idempotent with immediate projection signals, serialize partial departure timing updates with optional stale-snapshot conflicts while preserving patch compatibility, keep departure product ownership immutable, and label departure times with their configured timezone.
+
+### Patch Changes
+
+- Updated dependencies [d3f16d5]
+  - @voyant-travel/operations@0.11.0
+  - @voyant-travel/bookings@0.217.0
+  - @voyant-travel/catalog@0.215.0
+  - @voyant-travel/finance@0.217.0
+  - @voyant-travel/commerce@0.44.16
+  - @voyant-travel/relationships@0.132.13
+  - @voyant-travel/operator-settings@0.16.2
+
 ## 0.22.5
 
 ### Patch Changes

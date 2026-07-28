@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/commerce",
-  "version": "0.44.15",
+  "version": "0.44.16",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
