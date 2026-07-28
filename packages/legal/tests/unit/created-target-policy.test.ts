@@ -7,7 +7,9 @@ import {
 } from "../../src/created-target-policy.js"
 import {
   executeLegalContractDraftCreate,
+  resolveLegalContractDraftExpiration,
   resolveLegalContractDraftLanguage,
+  resolveLegalContractDraftMetadata,
 } from "../../src/mcp-runtime.js"
 import { createLegalContractDraftTool } from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
@@ -19,6 +21,46 @@ describe("legal contract draft created-target command", () => {
     )
     expect(resolveLegalContractDraftLanguage(undefined, "ro")).toBe("ro")
     expect(resolveLegalContractDraftLanguage("en", "ro")).toBe("en")
+  })
+
+  it("preserves revision expiration unless the operator explicitly replaces it", () => {
+    expect(
+      resolveLegalContractDraftExpiration(undefined, new Date("2026-12-31T23:59:59.000Z")),
+    ).toBe("2026-12-31T23:59:59.000Z")
+    expect(
+      resolveLegalContractDraftExpiration(
+        "2027-01-31T23:59:59.000Z",
+        new Date("2026-12-31T23:59:59.000Z"),
+      ),
+    ).toBe("2027-01-31T23:59:59.000Z")
+  })
+
+  it("marks only booking drafts as managed booking revisions", () => {
+    expect(
+      resolveLegalContractDraftMetadata(
+        { note: "generic" },
+        { bookingContractWorkflow: { revision: 1 }, retained: true },
+        { bookingId: null, revision: 2, previousRevisionId: "cont_1" },
+      ),
+    ).toEqual({ note: "generic", retained: true })
+    expect(
+      resolveLegalContractDraftMetadata(
+        undefined,
+        { retained: true },
+        {
+          bookingId: "book_1",
+          revision: 2,
+          previousRevisionId: "cont_1",
+        },
+      ),
+    ).toEqual({
+      retained: true,
+      bookingContractWorkflow: {
+        revision: 2,
+        previousRevisionId: "cont_1",
+        reviewOnly: true,
+      },
+    })
   })
   it("binds the create tool to a handler-owned durable graph action", () => {
     expect(createLegalContractDraftTool.actionPolicyEnforcement).toBe("handler")

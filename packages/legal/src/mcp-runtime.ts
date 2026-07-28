@@ -294,6 +294,39 @@ export function resolveLegalContractDraftLanguage(
   return requestedLanguage ?? previousLanguage ?? "en"
 }
 
+export function resolveLegalContractDraftExpiration(
+  requestedExpiresAt: string | undefined,
+  previousExpiresAt: Date | string | null | undefined,
+): string | null {
+  if (requestedExpiresAt) return requestedExpiresAt
+  if (previousExpiresAt instanceof Date) return previousExpiresAt.toISOString()
+  return previousExpiresAt ?? null
+}
+
+export function resolveLegalContractDraftMetadata(
+  requestedMetadata: Record<string, unknown> | undefined,
+  previousMetadata: Record<string, unknown> | null | undefined,
+  input: {
+    bookingId: string | null
+    revision: number
+    previousRevisionId: string | null
+  },
+): Record<string, unknown> {
+  const merged = { ...(previousMetadata ?? {}), ...(requestedMetadata ?? {}) }
+  if (!input.bookingId) {
+    const { bookingContractWorkflow: _workflow, ...genericMetadata } = merged
+    return genericMetadata
+  }
+  return {
+    ...merged,
+    bookingContractWorkflow: {
+      revision: input.revision,
+      previousRevisionId: input.previousRevisionId,
+      reviewOnly: true,
+    },
+  }
+}
+
 export async function executeLegalContractDraftCreate(
   db: PostgresJsDatabase,
   requestContext: ActionLedgerRequestContextValues,
@@ -439,15 +472,15 @@ export async function executeLegalContractDraftCreate(
             { missingPrerequisites: missingVariables },
           )
         }
-        const metadata = {
-          ...((previous?.metadata as Record<string, unknown> | null) ?? {}),
-          ...(requestedInput.metadata ?? {}),
-          bookingContractWorkflow: {
+        const metadata = resolveLegalContractDraftMetadata(
+          requestedInput.metadata,
+          previous?.metadata as Record<string, unknown> | null,
+          {
+            bookingId,
             revision,
             previousRevisionId: previous?.id ?? null,
-            reviewOnly: true,
           },
-        }
+        )
         const row = await createContract(transaction, {
           ...requestedInput,
           status: "draft",
@@ -459,7 +492,10 @@ export async function executeLegalContractDraftCreate(
           channelId: requestedInput.channelId ?? previous?.channelId ?? null,
           templateVersionId,
           seriesId: requestedInput.seriesId ?? previous?.seriesId ?? null,
-          expiresAt: requestedInput.expiresAt ?? null,
+          expiresAt: resolveLegalContractDraftExpiration(
+            requestedInput.expiresAt,
+            previous?.expiresAt,
+          ),
           variables: variables ?? null,
           metadata,
         })
