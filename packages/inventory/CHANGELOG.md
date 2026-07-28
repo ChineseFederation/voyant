@@ -1,5 +1,15 @@
 # @voyant-travel/inventory
 
+## 0.22.5
+
+### Patch Changes
+
+- 71b2b0b: Keep edited base itinerary-day content authoritative for a product's default
+  language instead of allowing stale or unrelated translation rows to shadow it.
+- Updated dependencies [7b60cf5]
+  - @voyant-travel/core@0.136.1
+  - @voyant-travel/hono@0.134.9
+
 ## 0.22.4
 
 ### Patch Changes

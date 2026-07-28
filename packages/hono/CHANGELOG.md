@@ -1,5 +1,16 @@
 # @voyant-travel/hono
 
+## 0.134.9
+
+### Patch Changes
+
+- 7b60cf5: Attribute trusted managed Max writes to the approving staff user while retaining
+  Max provenance in the request context and keeping internal credential scopes as
+  a hard authorization cap. Resolve the asserted cloud identity to its
+  deployment-local mirror user before exposing it to handlers.
+- Updated dependencies [7b60cf5]
+  - @voyant-travel/core@0.136.1
+
 ## 0.134.8
 
 ### Patch Changes
