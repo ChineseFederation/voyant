@@ -2295,6 +2295,39 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome).toMatchObject({ status: "invalid_pricing" })
   })
 
+  it("persists notification suppression on a confirmed status override", async () => {
+    const { productId } = await seedProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const overridden = await bookingsService.overrideBookingStatus(
+      db,
+      outcome.result.booking.id,
+      {
+        status: "confirmed",
+        reason: "Silent operator correction",
+        suppressNotifications: true,
+      },
+      "user_qa",
+    )
+
+    expect(overridden).toMatchObject({
+      status: "ok",
+      booking: {
+        status: "confirmed",
+        notificationsSuppressed: true,
+      },
+    })
+    await expect(
+      bookingsService.getBookingById(db, outcome.result.booking.id),
+    ).resolves.toMatchObject({ notificationsSuppressed: true })
+  })
+
   it.each([
     ["on_hold", "closed", 12],
     ["confirmed", "closed", 12],

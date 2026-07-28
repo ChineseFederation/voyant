@@ -3994,6 +3994,9 @@ const bookingsServiceInternal = {
           confirmedAt: confirmedAtForStatus(data.status, null, now),
           updatedAt: now,
         }
+        if (data.suppressNotifications === true) {
+          updates.notificationsSuppressed = true
+        }
         if (data.status === "expired") updates.expiredAt = now
         if (data.status === "cancelled") updates.cancelledAt = now
         if (data.status === "completed") updates.completedAt = now
