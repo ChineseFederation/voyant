@@ -1,5 +1,35 @@
 # @voyant-travel/inventory-react
 
+## 0.96.0
+
+### Patch Changes
+
+- bf20d76: Add an `Image` component that renders a neutral placeholder icon when a source
+  is missing or fails to load, instead of the browser's broken-image glyph and
+  leaked file name. Layout classes are applied to the placeholder as well, so a
+  missing asset no longer collapses or shifts the surrounding grid.
+
+  Product media surfaces in the admin — the media gallery, tiles, lightbox, day
+  media tray, day rows, quick view, editorial overlay previews, and the SEO
+  sharing social preview — now render through it.
+
+- bf20d76: Align the SEO & sharing locale row on the product detail page. The content
+  locale select and the add-locale field now sit in an even two-column grid that
+  spans the section width, so the row lines up with the SEO title, SEO
+  description, and Open Graph fields below it instead of stopping short. The
+  add-locale input also gains a visible label, and the locale and Open Graph
+  labels are now associated with their controls.
+- Updated dependencies [bf20d76]
+  - @voyant-travel/ui@0.110.0
+  - @voyant-travel/admin@0.131.0
+  - @voyant-travel/catalog-react@0.212.0
+  - @voyant-travel/finance-react@0.214.0
+  - @voyant-travel/media-react@0.7.0
+  - @voyant-travel/storefront-react@0.216.0
+  - @voyant-travel/finance@0.214.0
+  - @voyant-travel/inventory@0.22.1
+  - @voyant-travel/operations@0.10.5
+
 ## 0.95.1
 
 ### Patch Changes

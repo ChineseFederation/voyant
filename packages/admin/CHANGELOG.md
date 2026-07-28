@@ -1,5 +1,12 @@
 # @voyant-travel/admin
 
+## 0.131.0
+
+### Patch Changes
+
+- Updated dependencies [bf20d76]
+  - @voyant-travel/ui@0.110.0
+
 ## 0.130.0
 
 ### Minor Changes

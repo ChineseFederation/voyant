@@ -1,5 +1,7 @@
 # @voyant-travel/navigation-preferences
 
+## 0.19.0
+
 ## 0.18.0
 
 ## 0.17.2
