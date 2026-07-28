@@ -86,6 +86,7 @@ async function insertBookingCreatedOutbox(
         },
         createdByUserId: context.userId ?? null,
         occurredAt: new Date(),
+        suppressNotifications: command.suppressNotifications === true ? true : undefined,
       },
       metadata: {
         category: "domain",

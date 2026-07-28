@@ -57,7 +57,7 @@ import {
   updateProductBookingQuestionTool as updateProductBookingQuestionDefinition,
   updateProductContactRequirementTool as updateProductContactRequirementDefinition,
 } from "./requirements/tools.js"
-import { bookingToolSchema } from "./tool-output-schemas.js"
+import { bookingToolDetailSchema, bookingToolSchema } from "./tool-output-schemas.js"
 import { bookingListQuerySchema } from "./validation.js"
 
 export interface BookingsToolServices {
@@ -68,9 +68,17 @@ export interface BookingsToolServices {
     to?: string
     upcomingLimit?: number
   }): Promise<unknown>
+  confirmBooking(input: {
+    id: string
+    note?: string
+    suppressNotifications?: boolean
+    idempotencyKey: string
+    approvalId?: string
+  }): Promise<unknown>
   cancelBooking(input: {
     id: string
     note?: string
+    suppressNotifications?: boolean
     idempotencyKey: string
     approvalId?: string
   }): Promise<unknown>
@@ -112,18 +120,25 @@ export const getBookingTool = defineTool<
   name: "get_booking",
   description: "Read a single booking's non-PII state by id. Read-only.",
   inputSchema: getBookingArgs,
-  outputSchema: bookingToolSchema.nullable(),
+  outputSchema: bookingToolDetailSchema.nullable(),
   requiredScopes: ["bookings:read"],
   tier: "read",
   riskPolicy: READ_ONLY_RISK,
   async handler({ id }, ctx) {
-    return parseJsonResult(bookingToolSchema.nullable(), await bookings(ctx).getBookingById(id))
+    return parseJsonResult(
+      bookingToolDetailSchema.nullable(),
+      await bookings(ctx).getBookingById(id),
+    )
   },
 })
 
 export const cancelBookingToolInputSchema = z.object({
   id: z.string().min(1).describe("The booking id to cancel."),
   note: z.string().trim().min(1).optional().describe("Reason recorded on the cancellation."),
+  suppressNotifications: z
+    .boolean()
+    .optional()
+    .describe("Keep customer email and SMS suppressed for this booking lifecycle."),
   idempotencyKey: z
     .string()
     .trim()
@@ -137,7 +152,7 @@ export const cancelBookingToolInputSchema = z.object({
     .describe("Approval id returned after the prior request is approved."),
 })
 
-const pendingBookingCancellationSchema = z.object({
+const pendingBookingStatusActionSchema = z.object({
   status: z.literal("approval_required"),
   requestedAction: z.object({
     id: z.string(),
@@ -160,20 +175,15 @@ const pendingBookingCancellationSchema = z.object({
   replayed: z.boolean(),
 })
 
-const cancelledBookingSchema = z.object({
-  status: z.literal("cancelled"),
-  booking: z.object({
-    id: z.string(),
-    bookingNumber: z.string(),
-    status: z.literal("cancelled"),
-    cancelledAt: z.string().datetime().nullable(),
-    updatedAt: z.string().datetime(),
-  }),
+const completedBookingStatusActionSchema = z.object({
+  status: z.enum(["confirmed", "cancelled"]),
+  booking: bookingToolDetailSchema,
+  replayed: z.boolean(),
 })
 
 export const cancelBookingToolOutputSchema = z.union([
-  pendingBookingCancellationSchema,
-  cancelledBookingSchema,
+  pendingBookingStatusActionSchema,
+  completedBookingStatusActionSchema,
 ])
 
 export const cancelBookingTool = defineTool<
@@ -206,7 +216,67 @@ export const cancelBookingTool = defineTool<
   },
 })
 
-export const bookingsTools = [listBookingsTool, getBookingTool, cancelBookingTool] as const
+export const confirmBookingToolInputSchema = z.object({
+  id: z.string().min(1).describe("The on-hold booking id to confirm."),
+  note: z.string().trim().min(1).optional().describe("Optional confirmation audit note."),
+  suppressNotifications: z
+    .boolean()
+    .optional()
+    .describe("Keep customer email and SMS suppressed for this booking lifecycle."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Stable key used when requesting approval and replaying the command."),
+  approvalId: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("Approval id returned after the prior request is approved."),
+})
+
+export const confirmBookingToolOutputSchema = z.union([
+  pendingBookingStatusActionSchema,
+  completedBookingStatusActionSchema,
+])
+
+export const confirmBookingTool = defineTool<
+  z.infer<typeof confirmBookingToolInputSchema>,
+  z.infer<typeof confirmBookingToolOutputSchema>,
+  BookingsToolContext
+>({
+  owner: "@voyant-travel/bookings",
+  capabilityId: "@voyant-travel/bookings#tool.confirm-booking",
+  capabilityVersion: "v1",
+  name: "confirm_booking",
+  description:
+    "Request approval to confirm the exact on-hold booking, including its amount and notification consequence, or replay the exact approved confirmation.",
+  inputSchema: confirmBookingToolInputSchema,
+  outputSchema: confirmBookingToolOutputSchema,
+  requiredScopes: ["bookings:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write", "external-booking"],
+  },
+  annotations: { idempotentHint: true },
+  actionPolicyEnforcement: "handler",
+  async handler(input, ctx) {
+    return confirmBookingToolOutputSchema.parse(await bookings(ctx).confirmBooking(input))
+  },
+})
+
+export const bookingsTools = [
+  listBookingsTool,
+  getBookingTool,
+  confirmBookingTool,
+  cancelBookingTool,
+] as const
 
 // Extension Tools are wrapped at the package's canonical `./tools` entry so
 // deployment graph selection, MCP discovery, and manifest convergence all use

@@ -561,7 +561,7 @@ async function authorizeBookingStatusMutation(
   return bookingStatusAuthorizationRouteResult(c, result)
 }
 
-function bookingStatusAuthorizationRouteResult(
+async function bookingStatusAuthorizationRouteResult(
   c: Context<Env>,
   result: BookingStatusAuthorizationResult,
 ) {
@@ -605,6 +605,19 @@ function bookingStatusAuthorizationRouteResult(
           202,
         ),
       }
+    case "already_executed": {
+      const booking = await bookingsService.getBookingById(c.get("db"), result.bookingId)
+      if (!booking) {
+        return {
+          allowed: false as const,
+          response: c.json({ error: "Booking not found" }, 404),
+        }
+      }
+      return {
+        allowed: false as const,
+        response: c.json({ data: booking, replayed: true }, 200),
+      }
+    }
     case "denied":
       return {
         allowed: false as const,
@@ -1293,6 +1306,7 @@ const bookingSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   internalNotes: z.string().nullable(),
+  notificationsSuppressed: z.boolean(),
   customerPaymentPolicy: z.unknown().nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,

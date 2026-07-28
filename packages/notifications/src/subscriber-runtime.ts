@@ -54,6 +54,7 @@ interface BookingCancelledPayload extends Record<string, unknown> {
   bookingNumber: string
   previousStatus: "draft" | "on_hold" | "confirmed" | "in_progress"
   actorId: string | null
+  suppressNotifications?: boolean
 }
 
 interface BookingExpiredPayload extends Record<string, unknown> {
@@ -87,6 +88,7 @@ export function createBookingConfirmedReminderSubscriberRuntime(
     eventType: "booking.confirmed",
     register: ({ bindings, container, eventBus }) => {
       eventBus.subscribe<BookingConfirmedPayload>("booking.confirmed", async ({ data }) => {
+        if (data.suppressNotifications === true) return
         try {
           const runtime = resolveRuntime(container)
           await dispatchReminderRules(
@@ -160,6 +162,7 @@ export function createBookingCancelledReminderSubscriberRuntime(
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "cancelled")
+          if (data.suppressNotifications === true) return
           if (data.previousStatus !== "on_hold") return
           await dispatchReminderRules(
             db,

@@ -392,6 +392,24 @@ const bookingCreateBaseSchema = z.object({
   catalogSellAmountCents: z.number().int().min(0).optional().nullable(),
   confirmedSellAmountCents: z.number().int().min(0).optional().nullable(),
   priceOverrideReason: z.string().trim().min(1).max(1000).optional().nullable(),
+  manualPriceOverride: z
+    .object({
+      amountCents: z
+        .number()
+        .int()
+        .min(0)
+        .describe("Exact manual booking total in minor currency units."),
+      reason: z
+        .string()
+        .trim()
+        .min(1)
+        .max(1000)
+        .describe("Audit reason for overriding the persisted catalog price."),
+    })
+    .optional()
+    .describe(
+      "Current-request manual price override. Omit this object to book at the persisted catalog price.",
+    ),
 
   /**
    * Initial lifecycle status to seat the booking in — defaults to `draft`.
@@ -449,6 +467,17 @@ const bookingCreateBaseSchema = z.object({
 
 export const bookingCreateSchema = bookingCreateBaseSchema
   .superRefine(requirePriceOverrideReason)
+  .superRefine(requireCompleteBookingParty)
+  .superRefine(requireUniqueClientTravelerKeys)
+  .superRefine(requireKnownTravelerKeys)
+
+export const bookingCreateToolSchema = bookingCreateBaseSchema
+  .omit({
+    sellAmountCentsOverride: true,
+    catalogSellAmountCents: true,
+    confirmedSellAmountCents: true,
+    priceOverrideReason: true,
+  })
   .superRefine(requireCompleteBookingParty)
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
@@ -1247,7 +1276,9 @@ export async function createBookingMutation(
           catalogSellAmountCents: input.catalogSellAmountCents ?? null,
           confirmedSellAmountCents: input.confirmedSellAmountCents ?? null,
           priceOverrideReason: input.priceOverrideReason ?? null,
+          manualPriceOverride: input.manualPriceOverride,
           initialStatus: input.initialStatus,
+          suppressNotifications: input.suppressNotifications,
           contactFirstName: input.contactFirstName ?? null,
           contactLastName: input.contactLastName ?? null,
           contactPartyType: input.contactPartyType ?? null,

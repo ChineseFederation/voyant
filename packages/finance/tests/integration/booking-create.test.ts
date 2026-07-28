@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: finance; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
 import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger"
 import { actionLedgerEntries } from "@voyant-travel/action-ledger/schema"
+import { bookingsService } from "@voyant-travel/bookings"
 import {
   bookingActivityLog,
   bookingAllocations,
@@ -397,7 +398,11 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     return group!
   }
 
-  async function seedSlot(input: { productId: string; optionId?: string | null }) {
+  async function seedSlot(input: {
+    productId: string
+    optionId?: string | null
+    capacity?: number
+  }) {
     const slotId = `avsl_bc_${productSeq}_${Date.now()}`
     const rows = await db.execute<{ id: string }>(sql`
       INSERT INTO availability_slots (
@@ -425,8 +430,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         'Europe/Bucharest',
         'open',
         false,
-        10,
-        10,
+        ${input.capacity ?? 10},
+        ${input.capacity ?? 10},
         now(),
         now()
       )
@@ -1403,6 +1408,111 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .from(bookingItemTravelers)
       .where(eq(bookingItemTravelers.bookingItemId, itemRows[0]!.id))
     expect(links).toHaveLength(2)
+  })
+
+  it("holds and restores passenger capacity for one two-traveler room item (12 -> 10 -> 12)", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const slot = await seedSlot({ productId, optionId, capacity: 12 })
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "on_hold",
+      pax: 2,
+      ...bookingParty(),
+      travelers: [
+        {
+          clientTravelerKey: "trav:lead",
+          firstName: "Alice",
+          lastName: "Lead",
+          email: "alice@example.com",
+          participantType: "traveler",
+          isPrimary: true,
+        },
+        {
+          clientTravelerKey: "trav:companion",
+          firstName: "Bob",
+          lastName: "Companion",
+          participantType: "traveler",
+        },
+      ],
+      itemLines: [
+        {
+          optionUnitId: roomUnitId,
+          quantity: 1,
+          title: "DBL room",
+          travelerKeys: ["trav:lead", "trav:companion"],
+        },
+      ],
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const remaining = async () => {
+      const [row] = await db
+        .select({ remainingPax: availabilitySlots.remainingPax })
+        .from(availabilitySlots)
+        .where(eq(availabilitySlots.id, slot.id))
+      return row?.remainingPax
+    }
+    expect(await remaining()).toBe(10)
+
+    const cancelled = await bookingsService.cancelBooking(
+      db,
+      outcome.result.booking.id,
+      { note: "QA lifecycle", suppressNotifications: true },
+      "user_qa",
+    )
+    expect(cancelled.status).toBe("ok")
+    expect(await remaining()).toBe(12)
+
+    const replay = await bookingsService.cancelBooking(
+      db,
+      outcome.result.booking.id,
+      { note: "QA lifecycle", suppressNotifications: true },
+      "user_qa",
+    )
+    expect(replay.status).toBe("invalid_transition")
+    expect(await remaining()).toBe(12)
+  })
+
+  it("uses persisted catalog pricing unless the current request explicitly overrides it", async () => {
+    const firstProduct = await seedProduct()
+    const persisted = await createBooking(db, {
+      productId: firstProduct.productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+    })
+    expect(persisted.status).toBe("ok")
+    if (persisted.status !== "ok") return
+    expect(persisted.result.booking.sellAmountCents).toBe(50_000)
+    expect(persisted.result.booking.priceOverride).toBeNull()
+
+    const secondProduct = await seedProduct()
+    const overridden = await createBooking(
+      db,
+      {
+        productId: secondProduct.productId,
+        bookingNumber: nextBookingNumber(),
+        ...bookingParty(),
+        manualPriceOverride: {
+          amountCents: 42_000,
+          reason: "Current-request loyalty adjustment",
+        },
+      },
+      { userId: "user_price_override" },
+    )
+    expect(overridden.status).toBe("ok")
+    if (overridden.status !== "ok") return
+    expect(overridden.result.booking.sellAmountCents).toBe(42_000)
+    expect(overridden.result.booking.priceOverride).toMatchObject({
+      isManual: true,
+      originalAmountCents: 50_000,
+      overriddenAmountCents: 42_000,
+      reason: "Current-request loyalty adjustment",
+      overriddenBy: "user_price_override",
+    })
   })
 
   it("rejects selected room units that cannot seat the booking pax", async () => {

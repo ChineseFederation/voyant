@@ -425,6 +425,8 @@ async function appendBookingStatusMutationLedger(
     idempotencyKey: runtime.actionLedgerIdempotencyKey ?? null,
     idempotencyFingerprint: runtime.actionLedgerIdempotencyFingerprint ?? null,
     mutationDetail: {
+      commandInputRef: `booking:${input.bookingId}:status:${input.toStatus}`,
+      commandResultRef: `booking:${input.bookingId}`,
       summary: `Booking status changed from ${input.fromStatus} to ${input.toStatus}`,
       reversalKind: "none",
     },
@@ -504,6 +506,7 @@ export interface BookingCancelledEvent {
   previousStatus: "draft" | "on_hold" | "awaiting_payment" | "confirmed" | "in_progress"
   reason?: string | null
   actorId: string | null
+  suppressNotifications?: boolean
 }
 
 /**
@@ -2426,15 +2429,20 @@ const bookingsServiceInternal = {
     // engine pass the promotion-discounted base through to the booking
     // row so the customer is charged the post-discount amount, not the
     // product's list price. Per docs/architecture/promotions-architecture.md §7.1.
-    const confirmedSellAmountCents = data.confirmedSellAmountCents ?? null
-    const catalogSellAmountCents = data.catalogSellAmountCents ?? product.sellAmountCents
+    const explicitManualPriceOverride = data.manualPriceOverride
+    const confirmedSellAmountCents =
+      explicitManualPriceOverride?.amountCents ?? data.confirmedSellAmountCents ?? null
+    const catalogSellAmountCents = explicitManualPriceOverride
+      ? product.sellAmountCents
+      : (data.catalogSellAmountCents ?? product.sellAmountCents)
     const effectiveSellAmountCents =
       confirmedSellAmountCents != null
         ? confirmedSellAmountCents
         : data.sellAmountCentsOverride != null
           ? data.sellAmountCentsOverride
           : product.sellAmountCents
-    const priceOverrideReason = data.priceOverrideReason?.trim() ?? null
+    const priceOverrideReason =
+      explicitManualPriceOverride?.reason.trim() ?? data.priceOverrideReason?.trim() ?? null
     const isManualPriceOverride =
       confirmedSellAmountCents != null && confirmedSellAmountCents !== catalogSellAmountCents
     const priceOverride = isManualPriceOverride
@@ -2549,6 +2557,7 @@ const bookingsServiceInternal = {
         endDate,
         pax: bookingPax,
         internalNotes: data.internalNotes ?? null,
+        notificationsSuppressed: data.suppressNotifications === true,
       })
       .returning()
 
@@ -2715,8 +2724,13 @@ const bookingsServiceInternal = {
     // second-guessing that would change committed booking behaviour.
     const seededSingleUnit =
       requestedItemLines.length === 0 && unitsToSeed.length === 1 ? unitsToSeed[0] : null
+    const singleSelectedUnit =
+      insertedItems.length === 1
+        ? (selectedUnits.find((unit) => unit.id === insertedItems[0]?.optionUnitId) ?? null)
+        : null
     const slotAllocationQuantity = (item: (typeof insertedItems)[number]): number => {
-      if (!seededSingleUnit || seededSingleUnit.unitType === "person") return item.quantity
+      const unit = seededSingleUnit ?? singleSelectedUnit
+      if (!unit || unit.unitType === "person") return item.quantity
       if (!bookingPax || bookingPax <= 0) return item.quantity
       return bookingPax
     }
@@ -3014,7 +3028,7 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, hold_expires_at
+          sql`SELECT id, booking_number, status, hold_expires_at, notifications_suppressed
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
@@ -3024,6 +3038,7 @@ const bookingsServiceInternal = {
           booking_number: string
           status: BookingStatus
           hold_expires_at: Date | null
+          notifications_suppressed: boolean
         }>(rows)[0]
 
         if (!booking) {
@@ -3045,6 +3060,8 @@ const bookingsServiceInternal = {
         }
 
         const patch = transitionBooking(booking.status, "confirmed")
+        const suppressNotifications =
+          booking.notifications_suppressed || data.suppressNotifications === true
 
         await tx
           .update(bookingAllocations)
@@ -3067,6 +3084,7 @@ const bookingsServiceInternal = {
           .set({
             ...patch,
             holdExpiresAt: null,
+            notificationsSuppressed: suppressNotifications,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -3111,7 +3129,7 @@ const bookingsServiceInternal = {
             bookingId: result.booking.id,
             bookingNumber: result.booking.bookingNumber,
             actorId: userId ?? null,
-            suppressNotifications: data.suppressNotifications === true,
+            suppressNotifications: result.booking.notificationsSuppressed,
           } satisfies BookingConfirmedEvent,
           { category: "domain", source: "service" },
         )
@@ -3517,14 +3535,17 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, status, booking_number
+          sql`SELECT id, status, booking_number, notifications_suppressed
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
         )
-        const booking = toRows<{ id: string; status: BookingStatus; booking_number: string }>(
-          rows,
-        )[0]
+        const booking = toRows<{
+          id: string
+          status: BookingStatus
+          booking_number: string
+          notifications_suppressed: boolean
+        }>(rows)[0]
 
         if (!booking) {
           throw new BookingServiceError("not_found")
@@ -3536,6 +3557,8 @@ const bookingsServiceInternal = {
         const patch = transitionBooking(booking.status, "cancelled")
         const previousStatus = booking.status as BookingCancelledEvent["previousStatus"]
         const cancellationReason = data.note?.trim() || null
+        const suppressNotifications =
+          booking.notifications_suppressed || data.suppressNotifications === true
 
         const allocations = await tx
           .select()
@@ -3587,6 +3610,7 @@ const bookingsServiceInternal = {
           .set({
             ...patch,
             holdExpiresAt: null,
+            notificationsSuppressed: suppressNotifications,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -3660,6 +3684,7 @@ const bookingsServiceInternal = {
             previousStatus: result.previousStatus,
             reason: data.note?.trim() || null,
             actorId: userId ?? null,
+            suppressNotifications: result.booking.notificationsSuppressed,
           } satisfies BookingCancelledEvent,
           { category: "domain", source: "service" },
         )

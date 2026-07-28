@@ -23,6 +23,60 @@ function ctx(
   }
 }
 
+function bookingDetail(id = "booking_1") {
+  return {
+    id,
+    bookingNumber: "B-1",
+    status: "on_hold" as const,
+    personId: "person_1",
+    organizationId: null,
+    sourceType: "manual" as const,
+    externalBookingRef: null,
+    communicationLanguage: null,
+    contactFirstName: "Ada",
+    contactLastName: "Lovelace",
+    contactPartyType: "individual",
+    contactTaxId: null,
+    contactEmail: "ada@example.com",
+    contactPhone: null,
+    contactPreferredLanguage: null,
+    contactCountry: null,
+    contactRegion: null,
+    contactCity: null,
+    contactAddressLine1: null,
+    contactAddressLine2: null,
+    contactPostalCode: null,
+    sellCurrency: "EUR",
+    baseCurrency: null,
+    fxRateSetId: null,
+    sellAmountCents: 50_000,
+    baseSellAmountCents: null,
+    costAmountCents: 30_000,
+    baseCostAmountCents: null,
+    marginPercent: 40,
+    startDate: "2026-08-01",
+    endDate: "2026-08-01",
+    pax: 1,
+    internalNotes: null,
+    notificationsSuppressed: false,
+    customerPaymentPolicy: null,
+    priceOverride: null,
+    customFields: {},
+    holdExpiresAt: null,
+    confirmedAt: null,
+    expiredAt: null,
+    cancelledAt: null,
+    completedAt: null,
+    awaitingPaymentAt: null,
+    paidAt: null,
+    redeemedAt: null,
+    createdAt: "2026-07-15T10:00:00.000Z",
+    updatedAt: "2026-07-15T10:00:00.000Z",
+    items: [],
+    travelers: [],
+  }
+}
+
 describe("finance tools", () => {
   it("registers read tools and destructive finance actions", () => {
     const registry = createToolRegistry()
@@ -266,7 +320,7 @@ describe("finance tools", () => {
     const services = {
       async createBooking(_input: unknown, admitted: ToolHandlerActionPolicyContext) {
         expect(admitted.invocation.idempotencyKey).toBe("booking-create-1")
-        return { bookingId: "booking_1", replayed: false }
+        return { bookingId: "booking_1", replayed: false, booking: bookingDetail() }
       },
     }
     const result = await registry.dispatch(
@@ -361,5 +415,10 @@ describe("finance tools", () => {
     // The proven-effective precedent in this schema; if it ever stops carrying
     // a description the mechanism this test relies on has changed.
     expect(shape.bookingNumber?.description).toBeTruthy()
+    expect(shape.manualPriceOverride?.description).toMatch(/manual price override/i)
+    expect(shape.sellAmountCentsOverride).toBeUndefined()
+    expect(shape.catalogSellAmountCents).toBeUndefined()
+    expect(shape.confirmedSellAmountCents).toBeUndefined()
+    expect(shape.priceOverrideReason).toBeUndefined()
   })
 })

@@ -69,6 +69,12 @@ export const bookings = pgTable(
     pax: integer("pax"),
     internalNotes: text("internal_notes"),
     /**
+     * Durable customer-message opt-out for this booking lifecycle. Once set,
+     * create/confirm/cancel events continue to carry suppression even when a
+     * later command does not repeat the flag.
+     */
+    notificationsSuppressed: boolean("notifications_suppressed").notNull().default(false),
+    /**
      * Booking-level customer payment policy override. When set, this
      * booking's payment schedule uses these terms instead of the
      * cascade default. Wins over listing / category / supplier /

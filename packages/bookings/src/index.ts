@@ -114,6 +114,7 @@ export {
   type ExpireStaleBookingHoldsResult,
   expireStaleBookingHolds,
 } from "./tasks/index.js"
+export { bookingToolDetailSchema } from "./tool-output-schemas.js"
 
 export const bookingsModule: Module = {
   name: "bookings",

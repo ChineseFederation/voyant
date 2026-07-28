@@ -6,7 +6,11 @@ import { isStaffRbacEnforced } from "@voyant-travel/hono"
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { Context } from "hono"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
-import { redactBookingContact, shouldRevealBookingPii } from "./pii-redaction.js"
+import {
+  redactBookingContact,
+  redactTravelerIdentity,
+  shouldRevealBookingPii,
+} from "./pii-redaction.js"
 import { contributeBookingRequirementsToolContext } from "./requirements/mcp-runtime.js"
 import {
   BOOKING_ROUTE_RUNTIME_CONTAINER_KEY,
@@ -32,6 +36,21 @@ export const voyantToolContextContribution = defineToolContextContribution({
       isInternalRequest: c.var.isInternalRequest,
       enforceRbac: isStaffRbacEnforced(c.env),
     })
+    const loadBookingDetail = async (id: string) => {
+      const row = await bookingsService.getBookingById(db, id)
+      if (!row) return null
+      const [items, travelers] = await Promise.all([
+        bookingsService.listItems(db, id),
+        bookingsService.listTravelers(db, id),
+      ])
+      return {
+        ...(reveal ? row : redactBookingRow(row)),
+        items,
+        travelers: reveal
+          ? travelers
+          : travelers.map((traveler) => redactTravelerIdentity(traveler)),
+      }
+    }
     return Object.assign(
       {
         bookings: {
@@ -41,8 +60,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
             return { ...result, data: result.data.map(redactBookingRow) }
           },
           async getBookingById(id: string) {
-            const row = await bookingsService.getBookingById(db, id)
-            return reveal ? row : redactBookingRow(row)
+            return loadBookingDetail(id)
           },
           getBookingAggregates: (
             query: Parameters<typeof bookingsService.getBookingAggregates>[1],
@@ -50,6 +68,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           async cancelBooking(input: {
             id: string
             note?: string
+            suppressNotifications?: boolean
             idempotencyKey: string
             approvalId?: string
           }) {
@@ -60,7 +79,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
               actionName: "booking.status.cancel",
               routeOrToolName: "bookings.cancel_booking",
               bookingId: input.id,
-              commandInput: { note: input.note ?? null },
+              commandInput: {
+                note: input.note ?? null,
+                suppressNotifications: input.suppressNotifications === true,
+              },
               actor: c.get("actor"),
               callerType: c.get("callerType"),
               scopes: c.get("scopes"),
@@ -96,6 +118,13 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 replayed: authorization.replayed,
               }
             }
+            if (authorization.status === "already_executed") {
+              const booking = await loadBookingDetail(authorization.bookingId)
+              if (!booking) {
+                throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
+              }
+              return { status: "cancelled" as const, booking, replayed: true }
+            }
 
             if (authorization.status !== "authorized") {
               throw bookingAuthorizationToolError(authorization)
@@ -112,7 +141,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
             const result = await bookingsService.cancelBooking(
               db,
               input.id,
-              { note: input.note },
+              {
+                note: input.note,
+                suppressNotifications: input.suppressNotifications,
+              },
               c.get("userId") ?? c.get("agentId") ?? "agent",
               {
                 eventBus: c.get("eventBus"),
@@ -134,23 +166,96 @@ export const voyantToolContextContribution = defineToolContextContribution({
                 bookingId: input.id,
               })
             }
-            if (result.status !== "ok" || !result.booking) {
+            if (result.status !== "ok" || !("booking" in result) || !result.booking) {
               throw new ToolError(
                 `Booking "${input.id}" cannot transition to cancelled.`,
                 "INVALID_INPUT",
                 { bookingId: input.id, status: result.status },
               )
             }
-            return {
-              status: "cancelled" as const,
-              booking: {
-                id: result.booking.id,
-                bookingNumber: result.booking.bookingNumber,
-                status: "cancelled" as const,
-                cancelledAt: toIsoString(result.booking.cancelledAt),
-                updatedAt: toIsoString(result.booking.updatedAt),
+            const booking = await loadBookingDetail(result.booking.id)
+            if (!booking) throw new ToolError("Cancelled booking could not be read.", "NOT_FOUND")
+            return { status: "cancelled" as const, booking, replayed: false }
+          },
+          async confirmBooking(input: {
+            id: string
+            note?: string
+            suppressNotifications?: boolean
+            idempotencyKey: string
+            approvalId?: string
+          }) {
+            const requestContext = bookingToolActionLedgerContext(c)
+            const authorization = await authorizeBookingStatusMutation({
+              db,
+              key: "confirm",
+              actionName: "booking.status.confirm",
+              routeOrToolName: "bookings.confirm_booking",
+              bookingId: input.id,
+              commandInput: {
+                note: input.note ?? null,
+                suppressNotifications: input.suppressNotifications === true,
               },
+              actor: c.get("actor"),
+              callerType: c.get("callerType"),
+              scopes: c.get("scopes"),
+              isInternalRequest: c.get("isInternalRequest"),
+              requestContext,
+              conditionalApprovalRequired: true,
+              approvalReasonCode: "confirm_requested_by_agent",
+              approvalId: input.approvalId ?? null,
+              idempotencyKey: input.idempotencyKey,
+            })
+            if (authorization.status === "approval_required") {
+              return pendingBookingApprovalResult(authorization)
             }
+            if (authorization.status === "already_executed") {
+              const booking = await loadBookingDetail(authorization.bookingId)
+              if (!booking) throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
+              return { status: "confirmed" as const, booking, replayed: true }
+            }
+            if (authorization.status !== "authorized") {
+              throw bookingAuthorizationToolError(authorization)
+            }
+            if (!authorization.approvedAction) {
+              throw new ToolError(
+                "Booking confirmation requires an approved action.",
+                "AUTHORIZATION_DENIED",
+              )
+            }
+            const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
+            const result = await bookingsService.confirmBooking(
+              db,
+              input.id,
+              {
+                note: input.note,
+                suppressNotifications: input.suppressNotifications,
+              },
+              c.get("userId") ?? c.get("agentId") ?? "agent",
+              {
+                eventBus: c.get("eventBus"),
+                actionLedgerContext: requestContext,
+                actionLedgerAuthorizationSource: authorization.access.authorizationSource,
+                actionLedgerCausationActionId: approved.causationActionId,
+                actionLedgerApprovalId: approved.approvalId,
+                actionLedgerIdempotencyScope: approved.idempotencyScope,
+                actionLedgerIdempotencyKey: approved.idempotencyKey,
+                actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
+                actionLedgerRouteOrToolName: "bookings.confirm_booking",
+              },
+            )
+            if (result.status === "not_found") {
+              throw new ToolError(`Booking "${input.id}" was not found.`, "NOT_FOUND")
+            }
+            if (result.status !== "ok" || !("booking" in result) || !result.booking) {
+              throw new ToolError(
+                `Booking "${input.id}" cannot transition to confirmed.`,
+                "INVALID_INPUT",
+                { bookingId: input.id, status: result.status },
+              )
+            }
+            const booking = await loadBookingDetail(result.booking.id)
+            if (!booking) throw new ToolError("Confirmed booking could not be read.", "NOT_FOUND")
+            return { status: "confirmed" as const, booking, replayed: false }
           },
         },
       },
@@ -178,6 +283,36 @@ function bookingToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestCon
   }
 }
 
+function pendingBookingApprovalResult(
+  authorization: Extract<
+    Awaited<ReturnType<typeof authorizeBookingStatusMutation>>,
+    { status: "approval_required" }
+  >,
+) {
+  return {
+    status: "approval_required" as const,
+    requestedAction: {
+      id: authorization.requestedAction.id,
+      status: authorization.requestedAction.status,
+      actionName: authorization.requestedAction.actionName,
+      targetType: authorization.requestedAction.targetType,
+      targetId: authorization.requestedAction.targetId,
+    },
+    approval: {
+      id: authorization.approval.id,
+      status: authorization.approval.status,
+      requestedActionId: authorization.approval.requestedActionId,
+      policyName: authorization.approval.policyName,
+      policyVersion: authorization.approval.policyVersion,
+      riskSnapshot: authorization.approval.riskSnapshot,
+      reasonCode: authorization.approval.reasonCode,
+      expiresAt: toIsoString(authorization.approval.expiresAt),
+      createdAt: toIsoString(authorization.approval.createdAt),
+    },
+    replayed: authorization.replayed,
+  }
+}
+
 function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
   try {
     return (
@@ -192,7 +327,7 @@ function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
 function bookingAuthorizationToolError(
   result: Exclude<
     Awaited<ReturnType<typeof authorizeBookingStatusMutation>>,
-    { status: "authorized" | "approval_required" }
+    { status: "authorized" | "approval_required" | "already_executed" }
   >,
 ) {
   switch (result.status) {

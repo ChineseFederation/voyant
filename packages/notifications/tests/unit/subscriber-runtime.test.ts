@@ -77,6 +77,21 @@ describe("Notifications subscriber runtime descriptors", () => {
     )
   })
 
+  it("does not dispatch a suppressed booking confirmation", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness()
+    createBookingConfirmedReminderSubscriberRuntime({ dispatchReminderRules }).register(harness)
+
+    await harness.eventBus.emit("booking.confirmed", {
+      bookingId: "book_silent",
+      bookingNumber: "BK-SILENT",
+      actorId: null,
+      suppressNotifications: true,
+    })
+
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
+  })
+
   it("dispatches payment rules only when the booking is paid in full", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
     const isPaidInFull = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
@@ -138,6 +153,23 @@ describe("Notifications subscriber runtime descriptors", () => {
       }),
       { documentAttachmentResolver: attachmentResolver },
     )
+  })
+
+  it("clears queued reminders but does not dispatch a suppressed cancellation", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness()
+    createBookingCancelledReminderSubscriberRuntime({ dispatchReminderRules }).register(harness)
+
+    await harness.eventBus.emit("booking.cancelled", {
+      bookingId: "book_silent",
+      bookingNumber: "BK-SILENT",
+      previousStatus: "on_hold",
+      actorId: null,
+      suppressNotifications: true,
+    })
+
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
+    expect(db.update).toHaveBeenCalled()
   })
 
   it("maps booking expiry to non-payment cancellation rules", async () => {

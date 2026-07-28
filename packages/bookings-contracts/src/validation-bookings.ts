@@ -76,6 +76,7 @@ const bookingCoreSchema = z.object({
   endDate: z.string().optional().nullable(),
   pax: z.number().int().positive().optional().nullable(),
   internalNotes: z.string().optional().nullable(),
+  notificationsSuppressed: z.boolean().optional(),
   customerPaymentPolicy: bookingCustomerPaymentPolicySchema.optional().nullable(),
   priceOverride: bookingPriceOverrideSchema.optional().nullable(),
   // Values are always `customFields[namespace][key]`; definitions and scalar
@@ -210,6 +211,19 @@ export const convertProductSchema = z
      */
     confirmedSellAmountCents: z.number().int().min(0).optional().nullable(),
     priceOverrideReason: z.string().trim().min(1).max(1000).optional().nullable(),
+    manualPriceOverride: z
+      .object({
+        amountCents: z.number().int().min(0),
+        reason: z.string().trim().min(1).max(1000),
+      })
+      .optional()
+      .describe(
+        "Explicit manual price override requested for this booking. Omit it to use persisted catalog pricing.",
+      ),
+    suppressNotifications: z
+      .boolean()
+      .optional()
+      .describe("Persistently suppress customer-facing messages for this booking lifecycle."),
     /**
      * Initial status to insert with — defaults to `draft`. Lets the booking-
      * create flow commit straight to `confirmed` or `awaiting_payment` in
@@ -316,6 +330,8 @@ export const confirmBookingSchema = z.object({
 
 export const cancelBookingSchema = z.object({
   note: z.string().optional().nullable(),
+  /** Persistently suppress customer-facing cancellation messages. */
+  suppressNotifications: z.boolean().optional(),
 })
 
 export const expireBookingSchema = z.object({

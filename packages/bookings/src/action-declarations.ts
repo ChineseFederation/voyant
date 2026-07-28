@@ -10,10 +10,14 @@ interface BookingActionDeclaration extends ActionLedgerCapabilityDefinition {
     kind: VoyantGraphActionDeclaration["kind"]
     from: VoyantGraphActionBindings
     policy?: string
+    approval?: VoyantGraphActionDeclaration["approval"]
+    commandTargetField?: VoyantGraphActionDeclaration["commandTargetField"]
     targetLifecycle?: VoyantGraphActionDeclaration["targetLifecycle"]
     createdTarget?: VoyantGraphActionDeclaration["createdTarget"]
+    existingTarget?: VoyantGraphActionDeclaration["existingTarget"]
     availability?: VoyantGraphActionDeclaration["availability"]
     effectBoundary?: VoyantGraphActionDeclaration["effectBoundary"]
+    durability?: VoyantGraphActionDeclaration["durability"]
   }
 }
 
@@ -57,7 +61,25 @@ export const BOOKING_ACTION_DECLARATIONS = {
       ...bookingWriteCapability,
       id: "bookings:status:confirm",
       action: "confirm",
-      graph: { ...bookingWriteCapability.graph, id: "booking.status.confirm" },
+      risk: "high",
+      approvalPolicy: "conditional",
+      graph: {
+        ...bookingWriteCapability.graph,
+        id: "booking.status.confirm",
+        approval: "required",
+        commandTargetField: "id",
+        targetLifecycle: "existing",
+        existingTarget: { durability: "handler-command-result-v1" },
+        effectBoundary: "multistage",
+        durability: {
+          strategy: "transactional",
+          testReference: "packages/finance/tests/integration/booking-create.test.ts",
+        },
+        from: {
+          ...adminRouteBinding,
+          tools: ["@voyant-travel/bookings#tool.confirm-booking"],
+        },
+      },
     },
     expire: {
       ...bookingWriteCapability,
@@ -74,19 +96,16 @@ export const BOOKING_ACTION_DECLARATIONS = {
       graph: {
         ...bookingWriteCapability.graph,
         id: "booking.status.cancel",
-        // Quarantine the graph Tool surface: a same-key retry after the
-        // transition already committed hits
-        // `canTransitionBooking(cancelled, cancelled) === false` and throws
-        // `invalid_transition` instead of replaying success, and cancellation
-        // spans supplier/financial settlement. Admin cancel stays authorized
-        // via package `BOOKING_STATUS_CAPABILITIES` (not the graph-lowered
-        // ledger registry). Critical-risk Tool convergence still requires the
-        // Tool binding on this action.
-        availability: {
-          status: "unavailable",
-          reasonCode: "unsafe-nonidempotent-transition",
-        },
+        approval: "required",
+        commandTargetField: "id",
+        targetLifecycle: "existing",
+        existingTarget: { durability: "handler-command-result-v1" },
+        availability: { status: "available" },
         effectBoundary: "multistage",
+        durability: {
+          strategy: "transactional",
+          testReference: "packages/finance/tests/integration/booking-create.test.ts",
+        },
         from: {
           ...adminRouteBinding,
           tools: ["@voyant-travel/bookings#tool.cancel-booking"],

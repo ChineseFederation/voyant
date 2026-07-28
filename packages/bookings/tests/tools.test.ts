@@ -23,14 +23,22 @@ describe("bookings tools", () => {
     const list = registry.list()
     expect(list.map((t) => t.name).sort()).toEqual([
       "cancel_booking",
+      "confirm_booking",
       "get_booking",
       "list_bookings",
     ])
-    for (const t of list.filter((tool) => tool.name !== "cancel_booking")) {
+    for (const t of list.filter(
+      (tool) => tool.name !== "cancel_booking" && tool.name !== "confirm_booking",
+    )) {
       expect(t.tier).toBe("read")
       expect(t.requiredScopes).toEqual(["bookings:read"])
     }
     expect(list.find((tool) => tool.name === "cancel_booking")).toMatchObject({
+      tier: "destructive",
+      requiredScopes: ["bookings:write"],
+      riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
+    })
+    expect(list.find((tool) => tool.name === "confirm_booking")).toMatchObject({
       tier: "destructive",
       requiredScopes: ["bookings:write"],
       riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
@@ -118,6 +126,7 @@ describe("bookings tools", () => {
             endDate: null,
             pax: null,
             internalNotes: null,
+            notificationsSuppressed: false,
             customerPaymentPolicy: null,
             priceOverride: null,
             customFields: {},
@@ -131,6 +140,8 @@ describe("bookings tools", () => {
             redeemedAt: null,
             createdAt: "2026-07-15T10:00:00.000Z",
             updatedAt: "2026-07-15T10:00:00.000Z",
+            items: [],
+            travelers: [],
           }
         },
       }),
