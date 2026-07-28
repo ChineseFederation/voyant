@@ -97,14 +97,69 @@ export interface PaymentConnectionRequirement {
 }
 
 /**
+ * Stable identity of one processor connection: the catalog provider plus the
+ * opaque, immutable connection reference the managed control plane assigns (or
+ * an environment-derived pseudo-reference in self-host). Structurally aligned
+ * with `PaymentProcessorIdentity` on the checkout contract (`./index.js`), so a
+ * connection selected here can be threaded onto initiation/callback events.
+ */
+export interface PaymentConnectionIdentity {
+  providerId: string
+  connectionId: string
+}
+
+/**
+ * Whether a known connection is complete enough to be made the active default.
+ * `ready` maps to the `connected` lifecycle state; every other state (pending,
+ * restricted, error, disconnected) is `not_ready`. `unknown` is reserved for
+ * connections a registry cannot currently classify.
+ */
+export type PaymentConnectionReadiness = "ready" | "not_ready" | "unknown"
+
+/**
+ * A deliberately non-sensitive summary of one known connection. It carries the
+ * connection identity, lifecycle/readiness, and whether it is the active
+ * default — never processor secrets, submitted credentials, KMS references, or
+ * platform tokens. Managed deployments may list several; self-host lists at
+ * most the single environment-pinned connection.
+ */
+export interface PaymentConnectionSummary {
+  providerId: string
+  connectionId: string
+  /** Human label for the connection (usually the provider display name). */
+  displayName?: string
+  state: PaymentConnectionState
+  readiness: PaymentConnectionReadiness
+  mode: PaymentAdapterMode | null
+  /** True when this connection is the active default used at checkout. */
+  active: boolean
+  requirements?: readonly PaymentConnectionRequirement[]
+  /** ISO-8601. Last successful `health()` check, if any. */
+  lastHealthAt?: string | null
+  lastError?: string | null
+  /** True when this connection cannot be changed here (env-pinned self-host). */
+  readOnly?: boolean
+}
+
+/**
  * The current connection, independent of which transport backs it. `mode` is
  * `null` until a provider is connected. In self-host/pinned deployments this is
  * derived read-only from the environment-configured adapter.
+ *
+ * `activeProviderId`/`status`/`mode` describe the *active default* connection
+ * (retained for existing callers). `activeConnectionId` + `connections` model
+ * the independent facts — which known connections exist and how ready each is —
+ * separately from which one is active. Both new fields are optional so existing
+ * producers and consumers keep working unchanged.
  */
 export interface PaymentConnectionStatus {
   activeProviderId: string | null
   status: PaymentConnectionState
   mode: PaymentAdapterMode | null
+  /** Opaque reference of the active connection, paired with `activeProviderId`. */
+  activeConnectionId?: string | null
+  /** Non-sensitive summaries of every known connection + its readiness. */
+  connections?: readonly PaymentConnectionSummary[]
   /** ISO-8601. Last successful `health()` check, if any. */
   lastHealthAt?: string | null
   lastError?: string | null
@@ -130,6 +185,41 @@ export interface PaymentConnectResult {
   ok: boolean
   status: PaymentConnectionStatus
   error?: string
+}
+
+/**
+ * Input to make an already-known connection the active default. Activation is a
+ * distinct step from connecting: a deployment may hold several ready
+ * connections and promote one. Both fields are required — activation targets an
+ * exact `{ providerId, connectionId }` identity, never "the provider's latest".
+ */
+export interface PaymentActivationInput {
+  providerId: string
+  connectionId: string
+}
+
+/**
+ * Result of an activation attempt. `ok` reports success/failure explicitly;
+ * callers must not treat the absence of an error as success. `activated` echoes
+ * the identity that became active only when `ok` is true.
+ */
+export interface PaymentActivationResult {
+  ok: boolean
+  status: PaymentConnectionStatus
+  activated?: PaymentConnectionIdentity
+  error?: string
+}
+
+/** Map a lifecycle state to activation readiness. Only `connected` is ready. */
+export function paymentConnectionReadiness(
+  state: PaymentConnectionState,
+): PaymentConnectionReadiness {
+  return state === "connected" ? "ready" : "not_ready"
+}
+
+/** True when a connection in this state may be made the active default. */
+export function isPaymentConnectionReady(state: PaymentConnectionState): boolean {
+  return paymentConnectionReadiness(state) === "ready"
 }
 
 /** Input that begins or resumes a hosted provider's embedded onboarding. */
@@ -176,6 +266,16 @@ export interface PaymentProviderRegistry {
   getConnection(): Promise<PaymentConnectionStatus>
   connect(input: PaymentConnectInput): Promise<PaymentConnectResult>
   beginOnboarding(input: PaymentOnboardingSetupInput): Promise<PaymentOnboardingSetupResult>
+  /**
+   * Promote an already-known, ready connection to the active default.
+   *
+   * Optional so existing registry implementations keep satisfying the contract
+   * without change; callers that support activation must treat an absent method
+   * as "activation unsupported" and fail closed rather than assume success.
+   * Implementations must reject a not-ready connection and never report `ok`
+   * for an activation they did not actually perform.
+   */
+  activate?(input: PaymentActivationInput): Promise<PaymentActivationResult>
   disconnect(): Promise<void>
 }
 

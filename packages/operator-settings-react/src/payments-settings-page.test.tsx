@@ -1,10 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it, vi } from "vitest"
 import {
+  canActivatePaymentConnection,
   canConfigurePaymentProvider,
   canDisconnectPaymentProvider,
   PaymentEmbeddedOnboardingBoundary,
   type PaymentEmbeddedOnboardingClientProps,
+  paymentActivationControlState,
   paymentConnectionStatusLabel,
   requestPaymentOnboardingSession,
 } from "./payments-settings-page.js"
@@ -103,7 +105,7 @@ describe("payments settings contract", () => {
         data: {
           ok: true,
           status: {
-            activeProviderId: "voyant-payments",
+            activeProviderId: "voyant-pay",
             status: "pending_requirements",
             mode: "sandbox",
           },
@@ -120,7 +122,7 @@ describe("payments settings contract", () => {
     const result = await requestPaymentOnboardingSession(
       fetcher,
       "/api",
-      "voyant-payments",
+      "voyant-pay",
       "sandbox",
       "Failed",
     )
@@ -128,7 +130,7 @@ describe("payments settings contract", () => {
     expect(fetcher).toHaveBeenCalledWith("/api/v1/admin/settings/payments/onboarding", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ providerId: "voyant-payments", mode: "sandbox" }),
+      body: JSON.stringify({ providerId: "voyant-pay", mode: "sandbox" }),
     })
     expect(fetcher.mock.calls[0]?.[0]).not.toContain("ephemeral_secret")
     expect(result.session?.clientSecret).toBe("ephemeral_secret")
@@ -146,7 +148,7 @@ describe("payments settings contract", () => {
       requestPaymentOnboardingSession(
         fetcher,
         "/api",
-        "voyant-payments",
+        "voyant-pay",
         "sandbox",
         "Safe generic failure",
       ),
@@ -197,5 +199,63 @@ describe("payments settings contract", () => {
         connectionMethod: "credentials",
       }),
     ).toBe(true)
+  })
+
+  it("only enables activation for ready, inactive, writable connections", () => {
+    // Ready + inactive → the one activatable case.
+    expect(
+      canActivatePaymentConnection({ readiness: "ready", active: false, readOnly: false }),
+    ).toBe(true)
+    // Already the active default → no activation offered.
+    expect(
+      canActivatePaymentConnection({ readiness: "ready", active: true, readOnly: false }),
+    ).toBe(false)
+    // Not ready → gated off even when inactive.
+    expect(
+      canActivatePaymentConnection({ readiness: "not_ready", active: false, readOnly: false }),
+    ).toBe(false)
+    expect(
+      canActivatePaymentConnection({ readiness: "unknown", active: false, readOnly: false }),
+    ).toBe(false)
+    // Env-pinned (read-only) connections cannot be re-activated here.
+    expect(
+      canActivatePaymentConnection({ readiness: "ready", active: false, readOnly: true }),
+    ).toBe(false)
+  })
+
+  it("resolves the activation control to distinct active/activating/activatable/gated states", () => {
+    const ready = { connectionId: "c1", readiness: "ready" as const, readOnly: false }
+
+    // Already active → shows the default marker, no button.
+    expect(paymentActivationControlState({ summary: { ...ready, active: true } })).toBe("active")
+
+    // Ready + inactive, nothing pending → an actionable button.
+    expect(paymentActivationControlState({ summary: { ...ready, active: false } })).toBe(
+      "activatable",
+    )
+
+    // This connection's request is in flight → pending state (spinner).
+    expect(
+      paymentActivationControlState({
+        summary: { ...ready, active: false },
+        activatingConnectionId: "c1",
+      }),
+    ).toBe("activating")
+
+    // A different connection is activating → this one stays activatable (the
+    // component disables it to prevent duplicate concurrent submits).
+    expect(
+      paymentActivationControlState({
+        summary: { ...ready, active: false },
+        activatingConnectionId: "c2",
+      }),
+    ).toBe("activatable")
+
+    // Not ready → gated (disabled control + reason).
+    expect(
+      paymentActivationControlState({
+        summary: { connectionId: "c3", readiness: "not_ready", active: false, readOnly: false },
+      }),
+    ).toBe("gated")
   })
 })

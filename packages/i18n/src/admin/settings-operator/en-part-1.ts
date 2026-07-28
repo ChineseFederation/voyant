@@ -402,5 +402,17 @@ export const operatorAdminSettingsMessagesEnPart1 = {
     loadFailed: "Could not load payment providers.",
     loading: "Loading payment providers",
     tryAgainLater: "Try again in a moment.",
+    connectionsTitle: "Connections",
+    connectionsDescription:
+      "Each connected processor and whether it is ready to be made the active default.",
+    activeBadge: "Active",
+    defaultBadge: "Default",
+    readyBadge: "Ready",
+    notReadyBadge: "Not ready",
+    makeActive: "Make active",
+    activating: "Activating…",
+    makeActiveNotReady: "This connection isn't ready to be made active yet.",
+    activatedToast: "{provider} is now the active payment processor.",
+    activateFailed: "Could not make this connection active.",
   },
 }

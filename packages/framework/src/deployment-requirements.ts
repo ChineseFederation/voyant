@@ -1,8 +1,9 @@
-import type {
-  VoyantDeploymentEnvRequirement,
-  VoyantDeploymentProviderRole,
-  VoyantDeploymentProviders,
-  VoyantDeploymentResourceRequirement,
+import {
+  canonicalDeploymentProvider,
+  type VoyantDeploymentEnvRequirement,
+  type VoyantDeploymentProviderRole,
+  type VoyantDeploymentProviders,
+  type VoyantDeploymentResourceRequirement,
 } from "./deployment-types.js"
 
 export function resourceRequirementsFor(
@@ -16,6 +17,7 @@ export function resourceRequirementsForProvider(
   role: VoyantDeploymentProviderRole,
   provider: string,
 ): VoyantDeploymentResourceRequirement[] {
+  provider = canonicalDeploymentProvider(role, provider)
   if (provider === "none") {
     return [
       {
@@ -296,15 +298,10 @@ function envForProvider(
         ),
       ]
     }
-    if (provider === "voyant-payments") {
+    if (provider === "voyant-pay") {
       return [
-        secret("VOYANT_PAYMENTS_API_KEY", "Voyant Payments API key."),
-        variable(
-          "VOYANT_PAYMENTS_API_URL",
-          "Optional Voyant Payments API base URL.",
-          false,
-          "http-url",
-        ),
+        secret("VOYANT_PAYMENTS_API_KEY", "Voyant Pay API key."),
+        variable("VOYANT_PAYMENTS_API_URL", "Optional Voyant Pay API base URL.", false, "http-url"),
       ]
     }
     if (provider === "netopia") {

@@ -85,10 +85,27 @@ interface ConnectionRequirement {
   deadlineAt?: string | null
 }
 
+type ConnectionReadiness = "ready" | "not_ready" | "unknown"
+
+interface ConnectionSummary {
+  providerId: string
+  connectionId: string
+  displayName?: string
+  state: ConnectionState
+  readiness: ConnectionReadiness
+  mode: ProviderMode | null
+  active: boolean
+  requirements?: ConnectionRequirement[]
+  lastError?: string | null
+  readOnly?: boolean
+}
+
 interface ConnectionStatus {
   activeProviderId: string | null
   status: ConnectionState
   mode: ProviderMode | null
+  activeConnectionId?: string | null
+  connections?: ConnectionSummary[]
   requirements?: ConnectionRequirement[]
   lastError?: string | null
   readOnly?: boolean
@@ -97,6 +114,13 @@ interface ConnectionStatus {
 interface ConnectResult {
   ok: boolean
   status: ConnectionStatus
+  error?: string
+}
+
+interface ActivationResult {
+  ok: boolean
+  status: ConnectionStatus
+  activated?: { providerId: string; connectionId: string }
   error?: string
 }
 
@@ -248,6 +272,44 @@ export function canConfigurePaymentProvider(
   provider: Pick<ProviderDescriptor, "availability" | "connectionMethod">,
 ): boolean {
   return provider.availability === "available" && provider.connectionMethod !== "read_only"
+}
+
+/**
+ * A connection can be made the active default only when it is ready (its
+ * lifecycle reached `connected`) and it is not already the active one. This
+ * gates the "Make active" control so a not-ready or already-active connection
+ * never offers activation.
+ */
+export function canActivatePaymentConnection(
+  connection: Pick<ConnectionSummary, "readiness" | "active" | "readOnly">,
+): boolean {
+  return connection.readiness === "ready" && !connection.active && !connection.readOnly
+}
+
+/**
+ * The four mutually-exclusive states the per-connection activation control can
+ * be in. Pure so the pending/duplicate-prevention behavior is testable without
+ * a DOM harness and stays in sync with what the component renders:
+ * - `active` — this connection is already the default; no action.
+ * - `activating` — this connection's activation request is in flight.
+ * - `activatable` — ready + inactive; the "Make active" button is offered
+ *   (disabled while any activation is pending, preventing duplicate submits).
+ * - `gated` — not ready / read-only; a disabled control + reason are shown.
+ */
+export type PaymentActivationControl = "active" | "activating" | "activatable" | "gated"
+
+export function paymentActivationControlState(input: {
+  summary: Pick<ConnectionSummary, "readiness" | "active" | "readOnly" | "connectionId">
+  activatingConnectionId?: string | null
+}): PaymentActivationControl {
+  if (input.summary.active) return "active"
+  if (
+    input.activatingConnectionId != null &&
+    input.activatingConnectionId === input.summary.connectionId
+  ) {
+    return "activating"
+  }
+  return canActivatePaymentConnection(input.summary) ? "activatable" : "gated"
 }
 
 /** Hosted disconnect is fail-closed until the managed control plane exposes it. */
@@ -444,6 +506,32 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
     onError: (error) => toast.error(error instanceof Error ? error.message : t.connectFailed),
   })
 
+  const activate = useMutation({
+    mutationFn: async (summary: ConnectionSummary): Promise<ActivationResult> => {
+      const response = await fetcher(`${baseUrl}/v1/admin/settings/payments/activate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          providerId: summary.providerId,
+          connectionId: summary.connectionId,
+        }),
+      })
+      if (!response.ok) throw new Error(await responseError(response, t.activateFailed))
+      return ((await response.json()) as { data: ActivationResult }).data
+    },
+    onSuccess: (result, summary) => {
+      if (result.ok) {
+        toast.success(
+          t.activatedToast.replace("{provider}", summary.displayName ?? summary.providerId),
+        )
+        invalidateConnection()
+      } else {
+        toast.error(result.error ?? t.activateFailed)
+      }
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : t.activateFailed),
+  })
+
   if (providersQuery.isPending || connectionQuery.isPending) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -584,6 +672,92 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                 )}
               </CardFooter>
             </Card>
+          ) : null}
+
+          {connection?.connections?.length ? (
+            <section className="flex flex-col gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground">
+                  {t.connectionsTitle}
+                </h2>
+                <p className="text-sm text-muted-foreground">{t.connectionsDescription}</p>
+              </div>
+              <ul className="flex list-none flex-col gap-3">
+                {connection.connections.map((summary) => {
+                  const summaryStatusLabel = statusLabels[summary.state]
+                  const control = paymentActivationControlState({
+                    summary,
+                    activatingConnectionId: activate.isPending
+                      ? (activate.variables?.connectionId ?? null)
+                      : null,
+                  })
+                  return (
+                    <li key={`${summary.providerId}:${summary.connectionId}`}>
+                      <Card>
+                        <CardHeader>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CreditCard aria-hidden="true" />
+                            <CardTitle>{summary.displayName ?? summary.providerId}</CardTitle>
+                            {summary.active ? <Badge>{t.activeBadge}</Badge> : null}
+                            <Badge
+                              variant={summary.readiness === "ready" ? "secondary" : "outline"}
+                            >
+                              {summary.readiness === "ready" ? t.readyBadge : t.notReadyBadge}
+                            </Badge>
+                            <Badge variant={summary.state === "error" ? "destructive" : "outline"}>
+                              {summaryStatusLabel}
+                            </Badge>
+                            {summary.mode ? (
+                              <Badge variant="outline">{modeLabel(summary.mode, modeLabels)}</Badge>
+                            ) : null}
+                          </div>
+                        </CardHeader>
+                        <CardFooter className="flex flex-wrap items-center gap-3">
+                          {control === "active" ? (
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {t.defaultBadge}
+                            </span>
+                          ) : control === "activating" ? (
+                            <Button size="sm" disabled aria-busy="true">
+                              <Spinner data-icon="inline-start" />
+                              {t.activating}
+                            </Button>
+                          ) : control === "activatable" ? (
+                            <Button
+                              size="sm"
+                              // Disabling on any in-flight activation prevents
+                              // duplicate/concurrent "make active" submissions.
+                              disabled={activate.isPending}
+                              onClick={() => activate.mutate(summary)}
+                            >
+                              {t.makeActive}
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                aria-disabled="true"
+                                aria-describedby={`activate-hint-${summary.connectionId}`}
+                              >
+                                {t.makeActive}
+                              </Button>
+                              <span
+                                id={`activate-hint-${summary.connectionId}`}
+                                className="text-sm text-muted-foreground"
+                              >
+                                {t.makeActiveNotReady}
+                              </span>
+                            </>
+                          )}
+                        </CardFooter>
+                      </Card>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
           ) : null}
 
           <section className="flex flex-col gap-3">

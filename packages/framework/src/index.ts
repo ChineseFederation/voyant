@@ -24,6 +24,7 @@ export {
   type FrameworkProviders,
 } from "./create-app.js"
 export {
+  canonicalDeploymentProvider,
   DEFAULT_MANAGED_CLOUD_PROVIDERS,
   DEPLOYMENT_PROVIDER_CONTRACTS,
   DEPLOYMENT_PROVIDER_ROLES,

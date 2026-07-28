@@ -178,7 +178,7 @@ describe("control-plane remote payment transport", () => {
             status: "degraded",
             checkedAt,
             message: "Hosted payment account has outstanding requirements.",
-            details: { providerId: "voyant-payments" },
+            details: { providerId: "voyant-pay" },
           },
         },
       }),
@@ -200,7 +200,7 @@ describe("control-plane remote payment transport", () => {
     ).resolves.toMatchObject({
       status: "degraded",
       checkedAt,
-      details: { providerId: "voyant-payments" },
+      details: { providerId: "voyant-pay" },
     })
     expect(fetchImpl).toHaveBeenCalledWith(
       "https://control.example/admin-runtime/payments/health",

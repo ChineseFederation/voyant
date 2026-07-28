@@ -30,7 +30,14 @@ export interface VoyantDeploymentProviders {
   realtime: "voyant-cloud" | "local" | "custom" | "none"
   scheduledJobs: "cloud-scheduler" | "node-cron" | "none"
   outboundWebhooks: "postgres" | "host" | "none"
-  payments: "managed" | "voyant-payments" | "netopia" | "custom" | "none"
+  payments:
+    | "managed"
+    | "voyant-pay"
+    /** @deprecated Legacy deployment value; normalized to `voyant-pay`. */
+    | "voyant-payments"
+    | "netopia"
+    | "custom"
+    | "none"
 }
 
 export type VoyantDeploymentEnvValueFormat = "postgres-url" | "redis-url" | "http-url"
@@ -84,8 +91,16 @@ export const DEPLOYMENT_PROVIDER_CONTRACTS = {
   realtime: ["voyant-cloud", "local", "custom", "none"],
   scheduledJobs: ["cloud-scheduler", "node-cron", "none"],
   outboundWebhooks: ["postgres", "host", "none"],
-  payments: ["managed", "voyant-payments", "netopia", "custom", "none"],
+  payments: ["managed", "voyant-pay", "voyant-payments", "netopia", "custom", "none"],
 } as const satisfies Record<VoyantDeploymentProviderRole, readonly string[]>
+
+/** Normalize legacy provider values at deployment input boundaries. */
+export function canonicalDeploymentProvider(
+  role: VoyantDeploymentProviderRole | string,
+  provider: string,
+): string {
+  return role === "payments" && provider === "voyant-payments" ? "voyant-pay" : provider
+}
 
 export const DEPLOYMENT_PROVIDER_ROLES = Object.keys(
   DEPLOYMENT_PROVIDER_CONTRACTS,

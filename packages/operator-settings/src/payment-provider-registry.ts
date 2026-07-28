@@ -11,13 +11,18 @@
  */
 
 import {
+  canonicalPaymentProviderId,
   defaultPaymentProviderCatalog,
   findPaymentProviderDescriptor,
+  type PaymentActivationInput,
+  type PaymentActivationResult,
   type PaymentConnectInput,
   type PaymentConnectionStatus,
+  type PaymentConnectionSummary,
   type PaymentConnectResult,
   type PaymentProviderDescriptor,
   type PaymentProviderRegistry,
+  paymentConnectionReadiness,
   validatePaymentCredentials,
 } from "@voyant-travel/payments"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -63,6 +68,42 @@ const disconnected: PaymentConnectionStatus = {
   activeProviderId: null,
   status: "disconnected",
   mode: null,
+  activeConnectionId: null,
+  connections: [],
+}
+
+/**
+ * Derive the independent connections/readiness projection from an active
+ * selection. The default registry tracks at most one connection (the active
+ * default), so it emits a single summary; managed registries may list several.
+ * Never includes credentials, connection secrets, or platform tokens.
+ */
+function withConnectionsProjection(
+  status: PaymentConnectionStatus,
+  input: {
+    connectionId: string
+    catalog: readonly PaymentProviderDescriptor[]
+    readOnly?: boolean
+  },
+): PaymentConnectionStatus {
+  if (!status.activeProviderId) {
+    return { ...status, activeConnectionId: null, connections: [] }
+  }
+  const descriptor = findPaymentProviderDescriptor(status.activeProviderId, input.catalog)
+  const summary: PaymentConnectionSummary = {
+    providerId: status.activeProviderId,
+    connectionId: input.connectionId,
+    displayName: descriptor?.displayName,
+    state: status.status,
+    readiness: paymentConnectionReadiness(status.status),
+    mode: status.mode,
+    active: true,
+    requirements: status.requirements,
+    lastHealthAt: status.lastHealthAt,
+    lastError: status.lastError,
+    readOnly: input.readOnly,
+  }
+  return { ...status, activeConnectionId: input.connectionId, connections: [summary] }
 }
 
 export function createDefaultPaymentProviderRegistry(
@@ -83,23 +124,30 @@ export function createDefaultPaymentProviderRegistry(
       if (!managed) {
         const pinned = detectPinnedProvider(env)
         if (!pinned) return { ...disconnected, readOnly: true }
-        return {
-          activeProviderId: pinned.providerId,
-          status: "connected",
-          mode: pinned.mode,
-          readOnly: true,
-        }
+        return withConnectionsProjection(
+          {
+            activeProviderId: pinned.providerId,
+            status: "connected",
+            mode: pinned.mode,
+            readOnly: true,
+          },
+          { connectionId: "environment", catalog, readOnly: true },
+        )
       }
 
       const row = await getPaymentProviderConfig(db)
       if (!row?.activeProviderId) return disconnected
-      return {
-        activeProviderId: row.activeProviderId,
-        status: (row.status as PaymentProviderConnectionState) ?? "disconnected",
-        mode: (row.mode as PaymentConnectionStatus["mode"]) ?? null,
-        lastHealthAt: row.lastHealthAt ? row.lastHealthAt.toISOString() : null,
-        lastError: row.lastError ?? null,
-      }
+      const activeProviderId = canonicalPaymentProviderId(row.activeProviderId)
+      return withConnectionsProjection(
+        {
+          activeProviderId,
+          status: (row.status as PaymentProviderConnectionState) ?? "disconnected",
+          mode: (row.mode as PaymentConnectionStatus["mode"]) ?? null,
+          lastHealthAt: row.lastHealthAt ? row.lastHealthAt.toISOString() : null,
+          lastError: row.lastError ?? null,
+        },
+        { connectionId: row.connectionRef ?? activeProviderId, catalog },
+      )
     },
 
     async connect(input: PaymentConnectInput): Promise<PaymentConnectResult> {
@@ -202,6 +250,41 @@ export function createDefaultPaymentProviderRegistry(
         ok: false,
         status: current,
         error: "Managed payment onboarding is not yet available.",
+      }
+    },
+
+    async activate(input: PaymentActivationInput): Promise<PaymentActivationResult> {
+      const current = await this.getConnection()
+
+      // Self-host pins its processor through the environment; there is no second
+      // connection to promote and nothing here may change it.
+      if (!managed) {
+        return {
+          ok: false,
+          status: current,
+          error:
+            "Payment provider is configured via environment variables and cannot be changed here.",
+        }
+      }
+
+      const descriptor = findPaymentProviderDescriptor(input.providerId, catalog)
+      if (!descriptor) {
+        return {
+          ok: false,
+          status: current,
+          error: `Unknown payment provider "${input.providerId}".`,
+        }
+      }
+
+      // Activation promotes a control-plane-brokered connection to the active
+      // default. The default registry has no authority over managed connection
+      // records, so it fails closed instead of pretending the switch happened.
+      // The managed control-plane registry (separate platform repo) owns the
+      // real readiness gate and the atomic one-active-per-org switch.
+      return {
+        ok: false,
+        status: current,
+        error: "Managed payments activation is not yet available.",
       }
     },
 

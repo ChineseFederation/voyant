@@ -272,14 +272,22 @@ export type {
 } from "./conformance.js"
 export { runPaymentAdapterConformance } from "./conformance.js"
 export {
+  canonicalPaymentProviderId,
   defaultPaymentProviderCatalog,
   findPaymentProviderDescriptor,
+  LEGACY_VOYANT_PAYMENTS_PROVIDER_ID,
+  VOYANT_PAY_PROVIDER_ID,
 } from "./default-catalog.js"
 export type {
+  PaymentActivationInput,
+  PaymentActivationResult,
   PaymentConnectInput,
+  PaymentConnectionIdentity,
+  PaymentConnectionReadiness,
   PaymentConnectionRequirement,
   PaymentConnectionState,
   PaymentConnectionStatus,
+  PaymentConnectionSummary,
   PaymentConnectResult,
   PaymentCredentialField,
   PaymentCredentialFieldError,
@@ -294,7 +302,11 @@ export type {
   PaymentProviderDescriptor,
   PaymentProviderRegistry,
 } from "./provider-catalog.js"
-export { validatePaymentCredentials } from "./provider-catalog.js"
+export {
+  isPaymentConnectionReady,
+  paymentConnectionReadiness,
+  validatePaymentCredentials,
+} from "./provider-catalog.js"
 export type {
   RemotePaymentAdapterOptions,
   RemotePaymentCall,

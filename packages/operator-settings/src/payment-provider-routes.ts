@@ -2,12 +2,15 @@
  * Settings → Payments admin routes.
  *
  * `/v1/admin/settings/payments/*` — list the provider catalog, read the current
- * connection, connect a provider (managed), and disconnect. Mounted onto the
+ * connection, connect a provider (managed), activate an already-connected ready
+ * connection as the active default, and disconnect. Mounted onto the
  * operator-settings OpenAPIHono chain (see `routes.ts`), so it inherits the
  * shared validation hook and `/v1/admin/settings/*` lazy matcher.
  *
- * No processor credentials are persisted here; connect delegates to the
+ * No processor credentials are persisted here; connect/activate delegate to the
  * `PaymentProviderRegistry` (managed → control plane; self-host → read-only).
+ * Activation delegates generically: a registry that does not implement
+ * `activate()` fails closed rather than reporting a switch that never happened.
  */
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
@@ -98,28 +101,45 @@ const providerDescriptorSchema = z.object({
   modes: z.array(z.enum(["sandbox", "test", "live"])),
 })
 
-const connectionStatusSchema = z.object({
-  activeProviderId: z.string().nullable(),
-  status: z.enum([
-    "pending_requirements",
-    "pending_verification",
-    "connected",
-    "restricted",
-    "error",
-    "disconnected",
-  ]),
+const connectionStateSchema = z.enum([
+  "pending_requirements",
+  "pending_verification",
+  "connected",
+  "restricted",
+  "error",
+  "disconnected",
+])
+
+const requirementSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  deadlineAt: z.string().nullable().optional(),
+})
+
+/** Non-sensitive per-connection summary. No credentials or platform secrets. */
+const connectionSummarySchema = z.object({
+  providerId: z.string(),
+  connectionId: z.string(),
+  displayName: z.string().optional(),
+  state: connectionStateSchema,
+  readiness: z.enum(["ready", "not_ready", "unknown"]),
   mode: z.enum(["sandbox", "test", "live"]).nullable(),
+  active: z.boolean(),
+  requirements: z.array(requirementSchema).optional(),
   lastHealthAt: z.string().nullable().optional(),
   lastError: z.string().nullable().optional(),
-  requirements: z
-    .array(
-      z.object({
-        code: z.string(),
-        message: z.string(),
-        deadlineAt: z.string().nullable().optional(),
-      }),
-    )
-    .optional(),
+  readOnly: z.boolean().optional(),
+})
+
+const connectionStatusSchema = z.object({
+  activeProviderId: z.string().nullable(),
+  status: connectionStateSchema,
+  mode: z.enum(["sandbox", "test", "live"]).nullable(),
+  activeConnectionId: z.string().nullable().optional(),
+  connections: z.array(connectionSummarySchema).optional(),
+  lastHealthAt: z.string().nullable().optional(),
+  lastError: z.string().nullable().optional(),
+  requirements: z.array(requirementSchema).optional(),
   readOnly: z.boolean().optional(),
 })
 
@@ -132,6 +152,18 @@ const connectRequestSchema = z.object({
 const connectResultSchema = z.object({
   ok: z.boolean(),
   status: connectionStatusSchema,
+  error: z.string().optional(),
+})
+
+const activateRequestSchema = z.object({
+  providerId: z.string().min(1),
+  connectionId: z.string().min(1),
+})
+
+const activationResultSchema = z.object({
+  ok: z.boolean(),
+  status: connectionStatusSchema,
+  activated: z.object({ providerId: z.string(), connectionId: z.string() }).optional(),
   error: z.string().optional(),
 })
 
@@ -196,6 +228,15 @@ const connectRoute = createRoute({
   },
 })
 
+const activateRoute = createRoute({
+  method: "post",
+  path: "/v1/admin/settings/payments/activate",
+  request: { body: jsonBody(activateRequestSchema) },
+  responses: {
+    200: jsonContent(dataEnvelope(activationResultSchema), "The activation attempt result"),
+  },
+})
+
 const beginOnboardingRoute = createRoute({
   method: "post",
   path: "/v1/admin/settings/payments/onboarding",
@@ -240,6 +281,30 @@ export function mountPaymentProviderRoutes(hono: OpenApiMountTarget): void {
         (async () => {
           const registry = await resolveRegistry(c)
           return c.json({ data: await registry.connect(c.req.valid("json")) }, 200)
+        })(),
+      ),
+    )
+    .openapi(activateRoute, (c) =>
+      asRouteResponse(
+        (async () => {
+          const registry = await resolveRegistry(c)
+          const input = c.req.valid("json")
+          // Generic delegation: the deployment-injected registry owns the real
+          // readiness gate and switch. A registry that does not implement
+          // activation fails closed here instead of faking success.
+          if (typeof registry.activate !== "function") {
+            return c.json(
+              {
+                data: {
+                  ok: false,
+                  status: await registry.getConnection(),
+                  error: "Payment activation is not supported by this deployment.",
+                },
+              },
+              200,
+            )
+          }
+          return c.json({ data: await registry.activate(input) }, 200)
         })(),
       ),
     )

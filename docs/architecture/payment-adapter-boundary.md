@@ -8,12 +8,16 @@ The deployment selects one active adapter through
 `deployment.providers.payments`. The provider values are:
 
 - `managed`
-- `voyant-payments`
+- `voyant-pay`
 - `netopia`
 - `custom`
 - `none`
 
-For the pinned values (`voyant-payments`, `netopia`, `custom`), environment
+The legacy `voyant-payments` value remains accepted at deployment input
+boundaries and is normalized to the canonical `voyant-pay` value in generated
+deployment output.
+
+For the pinned values (`voyant-pay`, `netopia`, `custom`), environment
 variables configure the selected adapter; their presence never selects a
 processor. This is the self-host path: one in-process adapter package, pinned by
 the graph, configured through the environment.
@@ -46,7 +50,15 @@ matching provider facets for a concrete selected adapter.
 - idempotency and retry expectations;
 - health diagnostics and sandbox/test-mode declaration;
 - conformance helpers for money handling, state transitions, duplicate/replay
-  callbacks, signature failure, idempotency, and failure posture.
+  callbacks, signature failure, idempotency, and failure posture;
+- the provider selection/connection layer: `PaymentProviderDescriptor`,
+  `PaymentProviderRegistry`, connection identity/summary/readiness types, and
+  the `activate` contract for explicit processor activation (see
+  [ADR 0015 §5a](../adr/0015-payment-adapter-transports-and-managed-connect.md)).
+  Connected/ready and active/default are independent facts; only a ready
+  connection may be made the active default, and the authoritative registry
+  enforces that gate. The default/self-host registry is read-only for activation
+  and fails closed.
 
 The existing finance `CardPaymentStarter` seam remains as the checkout bridge.
 Deployments can adapt a selected `PaymentAdapter` through

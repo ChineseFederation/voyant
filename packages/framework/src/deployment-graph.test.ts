@@ -2311,6 +2311,19 @@ describe("deployment graph v1", () => {
     expect(second).toEqual(first)
   })
 
+  it("normalizes the legacy Voyant Payments deployment selector in output", () => {
+    const deployment = defineDeployment({
+      project: defineProject({ modules: [] }),
+      target: "node",
+      providers: { payments: "voyant-payments" },
+    })
+
+    expect(deployment.providers.payments).toBe("voyant-pay")
+    expect(deployment.requirements.resources).toEqual([
+      expect.objectContaining({ provider: "voyant-pay", resourceKey: "payments:voyant-pay" }),
+    ])
+  })
+
   it("normalizes deployment resource requirements before hashing", async () => {
     const project = defineProject({
       modules: [],

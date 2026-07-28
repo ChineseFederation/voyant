@@ -21,7 +21,7 @@ already exists in `@voyant-travel/payments` (`PaymentAdapter`,
 payment, and checkout state.
 
 Today a deployment **hard-selects one adapter at build time** through
-`deployment.providers.payments` (`voyant-payments` | `netopia` | `custom` |
+`deployment.providers.payments` (`voyant-pay` | `netopia` | `custom` |
 `none`) and **configures it with environment variables**. There is no way for an
 operator to browse available processors and connect one from the admin UI; the
 provider is fixed by the deployment graph and its credentials are baked into the
@@ -34,7 +34,7 @@ Two forces make that insufficient:
    way they manage every other integration. Not by editing environment
    variables and redeploying.
 2. **Scale of the connector catalog.** We (Voyant) will build and maintain
-   *first-party* adapters for Voyant Payments, Netopia, Stripe, Adyen, Razorpay,
+   *first-party* adapters for Voyant Pay, Netopia, Stripe, Adyen, Razorpay,
    and a long tail of country-specific processors — potentially tens of them.
    Bundling every adapter's SDK and code into every Operator build is
    unacceptable bloat, most of it dead weight for any single deployment.
@@ -75,12 +75,16 @@ how many processors the catalog offers.
   it through the remote transport and the voyant-cloud provider registry. Used
   by Voyant Cloud deployments. Requires a control-plane endpoint + trust token,
   not per-processor secrets.
-- `voyant-payments` | `netopia` | `custom` — unchanged. A self-hosted deployment
+- `voyant-pay` | `netopia` | `custom` — unchanged. A self-hosted deployment
   pins one in-process adapter and configures it with environment variables, as
   today. `custom` remains for operator-owned adapters that pass the conformance
   kit.
 - `none` — unchanged; valid only for deployments without payment-capable graph
   units.
+
+The legacy `voyant-payments` deployment value remains accepted at input
+boundaries for existing configurations and is normalized to `voyant-pay` in
+canonical deployment output.
 
 Exactly one active adapter per deployment/org is enforced. In `managed` mode
 this is a single active configuration row; in the pinned modes it is the graph
@@ -100,7 +104,7 @@ Self-host and managed differ **only** in credential custody:
   connect form posts credentials **directly to the voyant-cloud control
   plane** — they are KMS-encrypted at rest there and decrypted by the
   **stateless** processor worker at call time.
-- **Managed hosted-account providers** such as Voyant Payments do not ask the
+- **Managed hosted-account providers** such as Voyant Pay do not ask the
   operator for a processor API key. Voyant Cloud owns the platform Stripe
   credentials and creates an organization-scoped connected account. Settings
   renders short-lived embedded onboarding and account-management sessions
@@ -143,7 +147,7 @@ The Operator exposes the catalog and connection state under
 
 ### 5. Connect flow
 
-1. Settings → Payments shows the catalog (Netopia `available`, Voyant Payments
+1. Settings → Payments shows the catalog (Netopia `available`, Voyant Pay
    `coming_soon` at launch).
 2. Operator selects a provider.
 3. For `credentials`, Settings renders `credentialFieldSchema`, submits
@@ -165,10 +169,66 @@ The Operator exposes the catalog and connection state under
    previous provider is retired as an immutable connection revision, preserving
    the identity required by existing sessions and callbacks.
 
-Voyant Payments must use `embedded_onboarding`; its catalog entry must not
+Voyant Pay must use `embedded_onboarding`; its catalog entry must not
 declare a fake API-key credential. It remains `coming_soon` until the cloud
 adapter, embedded components, callback transport, sandbox conformance run, and
 operational launch gates are complete.
+
+### 5a. Connected is not active — explicit activation
+
+*Connected/ready* and *active/default* are modeled as independent facts. A
+deployment may hold several known connections (across providers, or successive
+revisions of one provider) each carrying its own lifecycle/readiness, while at
+most one is the **active default** used at checkout. Connecting or completing
+onboarding does not silently make a connection active.
+
+The contract additions on `@voyant-travel/payments` (all backward compatible —
+existing fields and callers are unchanged):
+
+- `PaymentConnectionIdentity { providerId, connectionId }` — the stable identity
+  of one connection, structurally aligned with `PaymentProcessorIdentity` so a
+  selected connection threads onto initiation/callback events.
+- `PaymentConnectionSummary` — a deliberately **non-sensitive** per-connection
+  projection: identity, `state`, `readiness` (`ready | not_ready | unknown`),
+  `mode`, `active`, non-secret `requirements`, and `readOnly`. It never carries
+  credentials, KMS references, or platform tokens.
+- `PaymentConnectionStatus` gains optional `activeConnectionId` and
+  `connections: PaymentConnectionSummary[]`, so the active default and the list
+  of known connections + readiness are reported separately.
+- `paymentConnectionReadiness(state)` / `isPaymentConnectionReady(state)` — the
+  single readiness rule: only the `connected` lifecycle state is `ready`.
+- `PaymentProviderRegistry.activate?(input): PaymentActivationResult` — an
+  **optional** method that promotes an already-known, ready connection to the
+  active default. `activate` requires an exact `{ providerId, connectionId }`
+  identity (never "the provider's latest") and reports success/failure
+  explicitly via `ok`; the absence of an error is not success.
+
+The Operator exposes this as `POST /v1/admin/settings/payments/activate`
+(validated `{ providerId, connectionId }`), which delegates generically to the
+resolved registry.
+
+**Behavior by transport:**
+
+- **Self-host (default registry):** activation is **read-only** and fails closed
+  — the processor is pinned via environment variables and there is no second
+  connection to promote. The route/registry never reports `ok: true` for a
+  switch it did not perform.
+- **Managed default (this repo, no live control plane yet):** activation fails
+  closed with "not yet available"; the default registry has no authority over
+  managed connection records and must not invent an activation.
+- **Managed control plane (separate platform repo):** owns the real
+  implementation — it enforces the readiness gate server-side (rejecting a
+  not-ready connection regardless of any client gating), performs the atomic
+  one-active-per-org switch, retires the previous connection as an immutable
+  revision (preserving the identity existing sessions/callbacks depend on), and
+  returns the updated `PaymentConnectionStatus`. A registry that does not
+  implement `activate` is treated as "activation unsupported" and fails closed
+  at the route.
+
+Readiness gating is enforced in depth: the UI only offers "Make active" for
+ready, inactive, writable connections, and the authoritative registry re-checks
+readiness before switching. Client gating is a convenience, never the security
+boundary.
 
 ### 6. Runtime resolution seam
 
@@ -259,7 +319,7 @@ id conflicts with the stored session identity.
   port); Operator payments settings surface (config row: active provider,
   status, mode, connection reference — no secrets; service; `/v1/admin/settings/
   payments/*` routes); Settings → Payments page + i18n (en + ro), with Netopia
-  `available` and Voyant Payments `coming_soon`; `managed` provider value in the
+  `available` and Voyant Pay `coming_soon`; `managed` provider value in the
   framework deployment types + requirements. The registry/connect calls are
   wired against the `PaymentProviderRegistry` port with a first-party catalog so
   the UI is real; live voyant-cloud wiring is Phase 2.
@@ -267,7 +327,7 @@ id conflicts with the stored session identity.
   (Netopia), the provider registry endpoint, KMS-backed credential storage
   reusing `connect-utils`, dispatcher routing, and signed callback forwarding —
   making managed connect function end to end.
-- **Phase 3:** the Voyant Payments worker, then Stripe / Adyen / Razorpay and
+- **Phase 3:** the Voyant Pay worker, then Stripe / Adyen / Razorpay and
   country-specific processors as pure worker + registry-entry additions with no
   Operator bundle change.
 
@@ -299,7 +359,7 @@ id conflicts with the stored session identity.
 - Contract: `createRemotePaymentAdapter(...)` satisfies `paymentAdapterRuntimePort`
   conformance.
 - Self-host regression: pinned `netopia` continues to resolve from environment
-  variables with no DB credential storage; a fake Voyant Payments API key does
+  variables with no DB credential storage; a fake Voyant Pay API key does
   not invent a hosted-account connection.
 - Credential connect flow: selecting a credential provider and submitting valid
   credentials runs `health()` and transitions to `connected`; invalid

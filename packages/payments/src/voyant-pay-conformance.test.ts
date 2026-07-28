@@ -10,22 +10,22 @@ import {
 import { createControlPlaneRemotePaymentTransport } from "./remote-transport.js"
 
 const identity = {
-  providerId: "voyant-payments",
+  providerId: "voyant-pay",
   connectionId: "pacc_conformance",
 }
 const money = { amountMinor: 10_000, currency: "RON" }
 
-describe("Voyant Payments public adapter acceptance", () => {
+describe("Voyant Pay public adapter acceptance", () => {
   it("passes the public kit with the real hosted capability advertisement", async () => {
     // This is the concrete OSS managed adapter plus its concrete HTTP
     // transport, exercised against an in-process platform contract harness.
     // It is intentionally not presented as a deployed Stripe integration run.
-    const platform = createVoyantPaymentsPlatformHarness()
-    const descriptor = findPaymentProviderDescriptor("voyant-payments")
+    const platform = createVoyantPayPlatformHarness()
+    const descriptor = findPaymentProviderDescriptor("voyant-pay")
     expect(descriptor).toBeDefined()
     const adapter = createRemotePaymentAdapter({
-      id: "voyant-payments",
-      label: "Voyant Payments",
+      id: "voyant-pay",
+      label: "Voyant Pay",
       mode: "sandbox",
       capabilities: descriptor!.capabilities,
       connectionRef: identity.connectionId,
@@ -76,7 +76,7 @@ describe("Voyant Payments public adapter acceptance", () => {
   })
 })
 
-function createVoyantPaymentsPlatformHarness() {
+function createVoyantPayPlatformHarness() {
   const idempotency = new Map<string, { fingerprint: string; result: unknown }>()
   const paths: string[] = []
 
@@ -112,7 +112,7 @@ function createVoyantPaymentsPlatformHarness() {
           result: {
             status: "ok",
             checkedAt: "2026-07-25T08:00:00.000Z",
-            details: { providerId: "voyant-payments" },
+            details: { providerId: "voyant-pay" },
           },
         },
       })

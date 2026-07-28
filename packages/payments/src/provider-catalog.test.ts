@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest"
 
 import { defaultPaymentProviderCatalog, findPaymentProviderDescriptor } from "./default-catalog.js"
 import { paymentAdapterRuntimePort } from "./index.js"
-import { validatePaymentCredentials } from "./provider-catalog.js"
+import {
+  isPaymentConnectionReady,
+  type PaymentConnectionState,
+  paymentConnectionReadiness,
+  validatePaymentCredentials,
+} from "./provider-catalog.js"
 import { createRemotePaymentAdapter, PAYMENT_REMOTE_NOT_IMPLEMENTED } from "./remote-adapter.js"
 
 const netopia = findPaymentProviderDescriptor("netopia")
@@ -62,14 +67,17 @@ describe("default payment provider catalog", () => {
     })
   })
 
-  it("ships Netopia as available and Voyant Payments as coming soon", () => {
+  it("ships Netopia as available and Voyant Pay as coming soon", () => {
     expect(netopia?.availability).toBe("available")
-    expect(findPaymentProviderDescriptor("voyant-payments")?.availability).toBe("coming_soon")
+    expect(findPaymentProviderDescriptor("voyant-pay")?.availability).toBe("coming_soon")
   })
 
   it("declares explicit connection methods without fake hosted-account credentials", () => {
     expect(netopia?.connectionMethod).toBe("credentials")
-    expect(findPaymentProviderDescriptor("voyant-payments")).toMatchObject({
+    expect(findPaymentProviderDescriptor("voyant-pay")).toMatchObject({
+      id: "voyant-pay",
+      displayName: "Voyant Pay",
+      logoRef: "voyant-pay",
       availability: "coming_soon",
       connectionMethod: "embedded_onboarding",
       credentialFieldSchema: [],
@@ -77,7 +85,11 @@ describe("default payment provider catalog", () => {
   })
 
   it("does not advertise a hosted refund without acting-user approval claims", () => {
-    expect(findPaymentProviderDescriptor("voyant-payments")?.capabilities.refund).toBe(false)
+    expect(findPaymentProviderDescriptor("voyant-pay")?.capabilities.refund).toBe(false)
+  })
+
+  it("accepts the legacy Voyant Payments id but returns the canonical descriptor", () => {
+    expect(findPaymentProviderDescriptor("voyant-payments")?.id).toBe("voyant-pay")
   })
 
   it("declares only signature-verified callbacks", () => {
@@ -122,6 +134,27 @@ describe("createRemotePaymentAdapter", () => {
         capabilities: { ...netopia!.capabilities, callbackSignatureVerification: false },
       }),
     ).toThrow()
+  })
+})
+
+describe("payment connection readiness", () => {
+  it("treats only a connected connection as ready", () => {
+    expect(paymentConnectionReadiness("connected")).toBe("ready")
+    expect(isPaymentConnectionReady("connected")).toBe(true)
+  })
+
+  it("gates every non-connected state as not ready", () => {
+    const notReady: PaymentConnectionState[] = [
+      "pending_requirements",
+      "pending_verification",
+      "restricted",
+      "error",
+      "disconnected",
+    ]
+    for (const state of notReady) {
+      expect(paymentConnectionReadiness(state)).toBe("not_ready")
+      expect(isPaymentConnectionReady(state)).toBe(false)
+    }
   })
 })
 

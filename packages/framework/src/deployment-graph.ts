@@ -64,7 +64,7 @@ import type {
   VoyantDeploymentProviderRole,
   VoyantDeploymentResourceRequirement,
 } from "./deployment-types.js"
-import { DEPLOYMENT_PROVIDER_ROLES } from "./deployment-types.js"
+import { canonicalDeploymentProvider, DEPLOYMENT_PROVIDER_ROLES } from "./deployment-types.js"
 import type { VoyantScheduledJob } from "./scheduled-jobs.js"
 
 export const VOYANT_GRAPH_DEPLOYMENT_SCHEMA_VERSION = "voyant.deployment.v1" as const
@@ -575,15 +575,16 @@ export function defineDeployment(input: DefineVoyantGraphDeploymentInput): Voyan
     throw new Error('defineDeployment: target must be "node".')
   }
 
+  const providers = canonicalDeploymentProviders(input.providers)
   const deployment = {
     schemaVersion: input.schemaVersion ?? VOYANT_GRAPH_DEPLOYMENT_SCHEMA_VERSION,
     project: input.project,
     target: input.target,
-    providers: { ...(input.providers ?? {}) },
+    providers,
     ...(input.migrations?.length ? { migrations: [...input.migrations] } : {}),
     ...(input.mode ? { mode: input.mode } : {}),
     requirements: normalizeDeploymentRequirements(
-      input.requirements ?? deriveDeploymentRequirements(input.providers),
+      input.requirements ?? deriveDeploymentRequirements(providers),
     ),
     ...(input.meta ? { meta: input.meta } : {}),
   } satisfies VoyantGraphDeployment
@@ -607,6 +608,17 @@ export function deriveDeploymentRequirements(
         : []
     }),
   })
+}
+
+function canonicalDeploymentProviders(
+  providers: Partial<Record<VoyantDeploymentProviderRole | string, string>> = {},
+): Partial<Record<VoyantDeploymentProviderRole | string, string>> {
+  return Object.fromEntries(
+    Object.entries(providers).map(([role, provider]) => [
+      role,
+      typeof provider === "string" ? canonicalDeploymentProvider(role, provider) : provider,
+    ]),
+  )
 }
 
 export function validateGraphUnitManifest(
@@ -720,7 +732,7 @@ export async function resolveDeploymentGraph(
     throw new Error('resolveDeploymentGraph: target must be "node".')
   }
   const mode = input.mode ?? input.deployment?.mode
-  const deploymentProviders = { ...(input.deployment?.providers ?? {}) }
+  const deploymentProviders = canonicalDeploymentProviders(input.deployment?.providers)
   const requirements = normalizeDeploymentRequirements(input.deployment?.requirements)
   const migrations = input.deployment?.migrations ?? input.project.deployment?.migrations
   const selectionConfigById = new Map(
@@ -4361,7 +4373,10 @@ function providerDeclarationIsSelected(
   selections: Partial<Record<VoyantDeploymentProviderRole | string, string>>,
 ): boolean {
   const selection = declaration.selection
-  return selection !== undefined && selections[selection.role] === selection.value
+  return (
+    selection !== undefined &&
+    selections[selection.role] === canonicalDeploymentProvider(selection.role, selection.value)
+  )
 }
 
 function validatePaymentProviderSelection(
@@ -4383,7 +4398,7 @@ function validatePaymentProviderSelection(
         facet: "deployment.providers.payments",
         message:
           "Payment-capable graphs must explicitly select one active deployment.providers.payments adapter.",
-        hint: 'Set deployment.providers.payments to "voyant-payments", "netopia", or "custom"; environment variables never select a payment processor.',
+        hint: 'Set deployment.providers.payments to "voyant-pay", "netopia", or "custom"; environment variables never select a payment processor.',
       }),
     ]
   }
@@ -4394,7 +4409,8 @@ function validatePaymentProviderSelection(
     (unit.providers ?? [])
       .filter(
         (provider) =>
-          provider.selection?.role === "payments" && provider.selection.value === selected,
+          provider.selection?.role === "payments" &&
+          canonicalDeploymentProvider("payments", provider.selection.value) === selected,
       )
       .map((provider) => ({ unitId: unit.id, providerId: provider.id })),
   )

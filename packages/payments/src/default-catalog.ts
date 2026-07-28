@@ -3,7 +3,7 @@
  *
  * The static set of Voyant-built processors an operator can browse in
  * Settings → Payments before the managed control plane serves a live registry.
- * Phase 1 ships Netopia (`available`) and Voyant Payments (`coming_soon`).
+ * Phase 1 ships Netopia (`available`) and Voyant Pay (`coming_soon`).
  *
  * These descriptors are catalog *data* (served to the admin UI as JSON), not
  * in-code UI copy. Field labels are English defaults; the page chrome
@@ -26,7 +26,7 @@ const redirectProcessorCapabilities: PaymentAdapterCapabilities = {
   retrySafeInitiation: true,
 }
 
-const voyantPaymentsCapabilities: PaymentAdapterCapabilities = {
+const voyantPayCapabilities: PaymentAdapterCapabilities = {
   ...redirectProcessorCapabilities,
   // Hosted refunds are deliberately unavailable until the control plane can
   // prove a member/role approval, not just a deployment checkout credential.
@@ -79,13 +79,24 @@ const netopia: PaymentProviderDescriptor = {
   ],
 }
 
-/** Voyant Payments — the first-party processor, announced but not yet live. */
-const voyantPayments: PaymentProviderDescriptor = {
-  id: "voyant-payments",
-  displayName: "Voyant Payments",
+/** Canonical id for the first-party Voyant Pay processor. */
+export const VOYANT_PAY_PROVIDER_ID = "voyant-pay"
+
+/** @deprecated Legacy persisted/request identity accepted during the Voyant Pay cutover. */
+export const LEGACY_VOYANT_PAYMENTS_PROVIDER_ID = "voyant-payments"
+
+/** Normalize known legacy provider identities before lookup or output. */
+export function canonicalPaymentProviderId(id: string): string {
+  return id === LEGACY_VOYANT_PAYMENTS_PROVIDER_ID ? VOYANT_PAY_PROVIDER_ID : id
+}
+
+/** Voyant Pay — the first-party processor, announced but not yet live. */
+const voyantPay: PaymentProviderDescriptor = {
+  id: VOYANT_PAY_PROVIDER_ID,
+  displayName: "Voyant Pay",
   description: "The Voyant-native payment processor. Coming soon.",
-  logoRef: "voyant-payments",
-  capabilities: voyantPaymentsCapabilities,
+  logoRef: "voyant-pay",
+  capabilities: voyantPayCapabilities,
   connectionMethod: "embedded_onboarding",
   availability: "coming_soon",
   modes: ["sandbox", "live"],
@@ -94,7 +105,7 @@ const voyantPayments: PaymentProviderDescriptor = {
 
 export const defaultPaymentProviderCatalog: readonly PaymentProviderDescriptor[] = [
   netopia,
-  voyantPayments,
+  voyantPay,
 ]
 
 /** Look up a catalog entry by id. */
@@ -102,5 +113,12 @@ export function findPaymentProviderDescriptor(
   id: string,
   catalog: readonly PaymentProviderDescriptor[] = defaultPaymentProviderCatalog,
 ): PaymentProviderDescriptor | undefined {
-  return catalog.find((provider) => provider.id === id)
+  const canonicalId = canonicalPaymentProviderId(id)
+  const provider = catalog.find(
+    (candidate) => canonicalPaymentProviderId(candidate.id) === canonicalId,
+  )
+  if (provider?.id === LEGACY_VOYANT_PAYMENTS_PROVIDER_ID) {
+    return { ...provider, id: VOYANT_PAY_PROVIDER_ID }
+  }
+  return provider
 }

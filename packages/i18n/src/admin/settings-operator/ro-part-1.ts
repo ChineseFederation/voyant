@@ -409,5 +409,17 @@ export const operatorAdminSettingsMessagesRoPart1 = {
     loadFailed: "Nu s-au putut incarca procesatoarele de plati.",
     loading: "Se incarca procesatoarele de plati",
     tryAgainLater: "Incearca din nou in cateva momente.",
+    connectionsTitle: "Conexiuni",
+    connectionsDescription:
+      "Fiecare procesator conectat si daca este pregatit sa devina cel activ implicit.",
+    activeBadge: "Activ",
+    defaultBadge: "Implicit",
+    readyBadge: "Pregatit",
+    notReadyBadge: "Nepregatit",
+    makeActive: "Fa activ",
+    activating: "Se activeaza…",
+    makeActiveNotReady: "Aceasta conexiune nu este inca pregatita pentru a fi activata.",
+    activatedToast: "{provider} este acum procesatorul de plati activ.",
+    activateFailed: "Nu s-a putut activa aceasta conexiune.",
   },
 }
