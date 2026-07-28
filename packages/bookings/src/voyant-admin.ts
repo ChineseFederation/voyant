@@ -37,7 +37,7 @@ export const bookingsVoyantAdmin = {
     {
       id: "@voyant-travel/bookings#admin.route.new",
       path: "/bookings/new",
-      requiredScopes: ["bookings:write"],
+      requiredScopes: ["bookings:write", "finance:write"],
       runtime: bookingsAdminRuntime,
     },
     {

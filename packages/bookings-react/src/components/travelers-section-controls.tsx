@@ -225,6 +225,7 @@ export function createTravelerFromPerson(person: PersonRecord, role: TravelerRol
     dateOfBirth,
     pricingUnitId: null,
     pricingCategoryId: null,
+    pricingCategorySource: "auto",
     inventoryUnitId: null,
     pricingUnitSource: "auto",
     inventoryUnitSource: "auto",

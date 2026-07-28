@@ -20,6 +20,7 @@ export type BookingsUiBaseMessages = {
   bookingsPage: {
     title: string
     description: string
+    newBooking: string
   }
   bookingCreatePage: {
     title: string

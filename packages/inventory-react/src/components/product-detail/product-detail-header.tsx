@@ -1,5 +1,5 @@
 import { Badge, Button, DropdownMenuItem } from "@voyant-travel/ui/components"
-import { Copy, Pencil, Trash2 } from "lucide-react"
+import { Copy, Pencil, ReceiptText, Trash2 } from "lucide-react"
 import { useEffect } from "react"
 import { useProductDetailHost, useProductDetailMessages } from "./host.js"
 
@@ -12,6 +12,7 @@ export interface ProductDetailHeaderProps {
   isDuplicating: boolean
   isDeleting: boolean
   onEdit: () => void
+  onBookingCreate?: () => void
   onDuplicate: () => void
   onDelete: () => void
 }
@@ -21,6 +22,7 @@ export function ProductDetailHeader({
   isDuplicating,
   isDeleting,
   onEdit,
+  onBookingCreate,
   onDuplicate,
   onDelete,
 }: ProductDetailHeaderProps) {
@@ -42,6 +44,12 @@ export function ProductDetailHeader({
         </Badge>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {onBookingCreate ? (
+          <Button size="sm" onClick={onBookingCreate}>
+            <ReceiptText data-icon="inline-start" aria-hidden="true" />
+            {productMessages.addBooking}
+          </Button>
+        ) : null}
         <Button variant="outline" size="sm" onClick={onEdit}>
           <Pencil className="h-4 w-4" />
           {productMessages.edit}

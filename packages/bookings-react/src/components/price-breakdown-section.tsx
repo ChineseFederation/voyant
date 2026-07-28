@@ -453,7 +453,10 @@ export function PriceBreakdownSection({
       {flat ? null : <Label>{merged.heading}</Label>}
       <div className="flex flex-col gap-1.5">
         {lines.map((line) => (
-          <div key={line.unitId} className="flex items-baseline justify-between text-sm">
+          <div
+            key={`${line.unitId}:${line.pricingCategoryId ?? "default"}`}
+            className="flex items-baseline justify-between text-sm"
+          >
             <div className="flex items-baseline gap-2">
               <span className="tabular-nums">{formatNumber(line.quantity)}x</span>
               <span>{line.label}</span>

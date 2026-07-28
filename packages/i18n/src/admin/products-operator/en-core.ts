@@ -102,7 +102,7 @@ export const operatorAdminProductsMessagesEnCore = {
   deleteServiceConfirm: "Delete this service?",
   uploadFailed: "Upload failed",
   breadcrumbProducts: "Products",
-  addBooking: "Add Booking",
+  addBooking: "Create booking",
   duplicate: "Duplicate",
   delete: "Delete",
   edit: "Edit",

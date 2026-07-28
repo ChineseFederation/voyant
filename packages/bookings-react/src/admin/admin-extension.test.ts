@@ -10,6 +10,7 @@ import {
   BookingsListSkeleton,
   bookingDetailPaymentControllerSlot,
   bookingDetailSearchSchema,
+  bookingNewSearchSchema,
   bookingsFiltersToSearch,
   bookingsIndexSearchSchema,
   bookingsListHeaderActionsSlot,
@@ -25,13 +26,14 @@ describe("createBookingsAdminExtension", () => {
     expect(extension.navigation).toBeUndefined()
   })
 
-  it("describes the retained booking routes with unique ids and paths", () => {
+  it("describes the booking routes with unique ids and paths", () => {
     const extension = createBookingsAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(3)
-    expect(new Set(routes.map((route) => route.id)).size).toBe(3)
+    expect(routes).toHaveLength(4)
+    expect(new Set(routes.map((route) => route.id)).size).toBe(4)
     expect(routes.map((route) => route.path)).toEqual([
       "/bookings",
+      "/bookings/new",
       "/bookings/$id",
       "/bookings/compose",
     ])
@@ -47,6 +49,9 @@ describe("createBookingsAdminExtension", () => {
     expect(index?.title).toBe("Rezervări")
     const detail = extension.routes?.find((route) => route.id === "bookings-detail")
     expect(detail?.path).toBe("/reservations/$id")
+    const create = extension.routes?.find((route) => route.id === "bookings-new")
+    expect(create?.path).toBe("/reservations/new")
+    expect(create?.destination).toBe("booking.create")
     const compose = extension.routes?.find((route) => route.id === "bookings-compose")
     expect(compose?.path).toBe("/reservations/compose")
   })
@@ -60,6 +65,12 @@ describe("createBookingsAdminExtension", () => {
     })
     const detail = extension.routes?.find((route) => route.id === "bookings-detail")
     expect(detail?.validateSearch?.({ tab: "finance" })).toMatchObject({ tab: "finance" })
+    const create = extension.routes?.find((route) => route.id === "bookings-new")
+    expect(create?.validateSearch?.({ productId: "prod_1", slotId: "slot_1" })).toEqual({
+      productId: "prod_1",
+      slotId: "slot_1",
+    })
+    expect(bookingNewSearchSchema.safeParse({ productId: "" }).success).toBe(false)
   })
 
   it("carries full route implementations as lazy pages (RFC §4.8)", () => {
@@ -70,7 +81,7 @@ describe("createBookingsAdminExtension", () => {
     // per-route SSR mode.
     const extension = createBookingsAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(3)
+    expect(routes).toHaveLength(4)
     for (const route of routes) {
       expect(route.component).toBeUndefined()
       expect(typeof route.page).toBe("function")

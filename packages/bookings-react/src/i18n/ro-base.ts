@@ -26,6 +26,7 @@ export const bookingsUiRoBase = {
   bookingsPage: {
     title: "Rezervari",
     description: "Administreaza rezervarile, confirmarile si calatorii.",
+    newBooking: "Rezervare noua",
   },
   bookingCreatePage: {
     title: "Rezervare noua",

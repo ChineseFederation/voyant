@@ -48,6 +48,8 @@ declare module "@voyant-travel/admin" {
     "productCategory.list": Record<string, never>
     /** An availability slot's detail page. */
     "availabilitySlot.detail": { slotId: string }
+    /** Manual booking creation with an optional owned product preselection. */
+    "booking.create": { productId?: string; slotId?: string }
   }
 }
 

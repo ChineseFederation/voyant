@@ -1,6 +1,87 @@
 import type { BookingsUiCreateListMessages } from "./messages-create-list.js"
 
 export const bookingsUiEnCreateList = {
+  manualBookingCreate: {
+    sections: {
+      bookingItem: "Booking item",
+      billing: "Billing and contact",
+      payment: "Payment schedule",
+    },
+    fields: {
+      departure: "Departure",
+      sellAmount: "Sell amount",
+      currency: "Currency",
+      initialStatus: "Initial status",
+      contactFirstName: "Contact first name or organization",
+      contactLastName: "Contact last name",
+      contactEmail: "Contact email",
+      contactPhone: "Contact phone",
+      addPayment: "Add an initial payment schedule",
+      notes: "Internal notes",
+    },
+    placeholders: {
+      departure: "Select an optional departure",
+      departureEmpty: "No upcoming open departures",
+      notes: "Notes visible only to operators",
+    },
+    hints: {
+      departureOptional: "Leave empty for an open-dated booking.",
+      payment: "The scheduled total must match the booking sell amount.",
+    },
+    validation: {
+      product: "Select a product.",
+      departure: "Select a departure.",
+      units: "Select at least one option.",
+      person: "Select the individual being billed.",
+      organization: "Select the organization being billed.",
+      contact: "Add a contact name for the booking.",
+      email: "Enter a valid contact email.",
+      travelers: "Add at least one traveler.",
+      travelerNames: "Each traveler needs a first and last name.",
+      leadTraveler: "Choose exactly one lead traveler.",
+      amount: "Enter a valid sell amount.",
+      pricingPending: "Wait a moment while we calculate the total.",
+      overrideReason: "Add a reason for the manual total.",
+      payment: "Complete the payment schedule and make its total match the sell amount.",
+      paidPaymentDate: "Payment date is required when Already paid is checked.",
+      sharedRoomGroup: "Select a shared room to join.",
+      create: "The booking could not be created.",
+    },
+    promotion: {
+      heading: "Promotion code",
+      code: "Code",
+      placeholder: "Enter a promotion code",
+      checking: "Checking promotion...",
+      valid: "Promotion applied. New total: {amount}.",
+      invalid: "This promotion code is not valid for this booking.",
+      unavailable: "We couldn't check this promotion code. Try again.",
+    },
+    permissions: {
+      checking: "Checking permissions…",
+      denied: "You need Bookings write and Finance write permissions to create a booking.",
+      error: "Booking creation permissions could not be checked. Refresh and try again.",
+    },
+    actions: {
+      create: "Create booking",
+      confirmCreate: "Confirm and create",
+    },
+    confirm: {
+      title: "Create this booking?",
+      description:
+        "Create an irreversible booking for {product}, totaling {amount}, with {travelers} traveler(s)?",
+    },
+    summary: {
+      title: "Booking summary",
+      product: "Product",
+      departure: "Departure",
+      billing: "Billed to",
+      travelers: "Travelers",
+      total: "Sell total",
+      missing: "Not selected",
+      openDated: "Open dated",
+    },
+    priceOverrideReason: "Manual operator sell amount",
+  },
   bookingDialog: {
     editTitle: "Edit booking",
     fields: {

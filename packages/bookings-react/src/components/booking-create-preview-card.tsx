@@ -163,16 +163,19 @@ export function BookingPreviewCard({
                   .filter((part) => part.trim().length > 0)
                   .join(" ")
                   .trim()
+                const categoryLabel = traveler.pricingCategoryId
+                  ? pricingCategoryLabels[traveler.pricingCategoryId]
+                  : null
                 return (
                   <li
-                    key={traveler.personId ?? `traveler-${idx}`}
+                    key={traveler.clientTravelerKey ?? traveler.personId ?? `traveler-${idx}`}
                     className="flex items-center justify-between gap-3"
                   >
                     <span className="truncate text-muted-foreground">
                       {name || previewMessages.travelerUnnamed}
                     </span>
                     <span className="shrink-0 text-xs uppercase tracking-wider text-muted-foreground">
-                      {traveler.role}
+                      {categoryLabel ?? traveler.role}
                     </span>
                   </li>
                 )

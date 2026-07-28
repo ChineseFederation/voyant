@@ -48,6 +48,8 @@ export interface TravelerEntry {
   pricingUnitId: string | null
   /** pricing_category_id selected from the product's traveler price matrix, when applicable. */
   pricingCategoryId: string | null
+  /** Operator intent for `pricingCategoryId`; preserves an explicit category across CRM edits. */
+  pricingCategorySource?: TravelerUnitAssignmentSource
   /** option_unit_id of the room/vehicle this traveler occupies, when applicable. */
   inventoryUnitId: string | null
   /** Operator intent for `pricingUnitId`; defaults to `auto` when omitted. */
@@ -84,10 +86,46 @@ export function createBlankTraveler(role: TravelerRole = "adult"): TravelerEntry
     dateOfBirth: null,
     pricingUnitId: null,
     pricingCategoryId: null,
+    pricingCategorySource: "auto",
     inventoryUnitId: null,
     pricingUnitSource: "auto",
     inventoryUnitSource: "auto",
   }
+}
+
+function isBlankTraveler(traveler: TravelerEntry): boolean {
+  return (
+    traveler.personId === null &&
+    !traveler.firstName.trim() &&
+    !traveler.lastName.trim() &&
+    !traveler.email.trim() &&
+    !traveler.phone.trim()
+  )
+}
+
+export function insertPersonTraveler(
+  travelers: TravelerEntry[],
+  traveler: TravelerEntry,
+): TravelerEntry[] {
+  const blankIndex = travelers.findIndex(isBlankTraveler)
+  if (blankIndex === -1) return [...travelers, traveler]
+  return travelers.map((existing, index) =>
+    index === blankIndex
+      ? {
+          ...traveler,
+          clientTravelerKey: existing.clientTravelerKey ?? traveler.clientTravelerKey,
+          role: existing.role,
+          ...(existing.pricingCategorySource === "manual"
+            ? {
+                pricingCategoryId: existing.pricingCategoryId,
+                pricingCategorySource: "manual" as const,
+                pricingUnitId: existing.pricingUnitId,
+                pricingUnitSource: existing.pricingUnitSource,
+              }
+            : {}),
+        }
+      : existing,
+  )
 }
 
 // Re-export `computeAgeYears` from the canonical assignment module so
@@ -165,6 +203,25 @@ export function matchPricingCategoryForTraveler(
     pool[0]?.categoryId ??
     null
   )
+}
+
+export function applyTravelerPricingCategory(
+  traveler: TravelerEntry,
+  category: TravelerPricingCategoryOption,
+): Partial<TravelerEntry> {
+  const pricingUnitId =
+    category.unitIds.find((unitId) => unitId === traveler.pricingUnitId) ??
+    category.unitIds[0] ??
+    traveler.pricingUnitId
+  return {
+    pricingCategoryId: category.categoryId,
+    pricingCategorySource: "manual",
+    ...(pricingUnitId ? { pricingUnitId, pricingUnitSource: "manual" as const } : {}),
+    role:
+      traveler.role === "lead" && roleFromPricingCategoryType(category.categoryType) === "adult"
+        ? "lead"
+        : roleFromPricingCategoryType(category.categoryType),
+  }
 }
 
 /**
@@ -337,6 +394,14 @@ export function TravelersSection({
     onChange({ travelers: next })
   }
 
+  const pickPricingCategoryAt = (
+    index: number,
+    traveler: TravelerEntry,
+    category: TravelerPricingCategoryOption,
+  ) => {
+    updateAt(index, applyTravelerPricingCategory(traveler, category))
+  }
+
   const removeAt = (index: number) => {
     onChange({ travelers: value.travelers.filter((_, i) => i !== index) })
   }
@@ -436,6 +501,7 @@ export function TravelersSection({
           ...blank,
           ...pickAssignmentsForNewTraveler(null, role),
           pricingUnitSource: "auto",
+          pricingCategorySource: "auto",
           inventoryUnitSource: "auto",
         },
       ],
@@ -444,34 +510,34 @@ export function TravelersSection({
 
   const addBillingPerson = () => {
     if (!billingPerson.data) return
-    const role: TravelerRole = value.travelers.length === 0 ? "lead" : "adult"
+    const blankTraveler = value.travelers.find(isBlankTraveler)
+    const role: TravelerRole =
+      blankTraveler?.role ?? (value.travelers.length === 0 ? "lead" : "adult")
     const traveler = createTravelerFromPerson(billingPerson.data, role)
     onChange({
-      travelers: [
-        ...value.travelers,
-        {
-          ...traveler,
-          ...pickAssignmentsForNewTraveler(traveler.dateOfBirth, role),
-          pricingUnitSource: "auto",
-          inventoryUnitSource: "auto",
-        },
-      ],
+      travelers: insertPersonTraveler(value.travelers, {
+        ...traveler,
+        ...pickAssignmentsForNewTraveler(traveler.dateOfBirth, role),
+        pricingUnitSource: "auto",
+        pricingCategorySource: "auto",
+        inventoryUnitSource: "auto",
+      }),
     })
   }
 
   const addRelatedPersonTraveler = (person: PersonRecord) => {
-    const role: TravelerRole = value.travelers.length === 0 ? "lead" : "adult"
+    const blankTraveler = value.travelers.find(isBlankTraveler)
+    const role: TravelerRole =
+      blankTraveler?.role ?? (value.travelers.length === 0 ? "lead" : "adult")
     const traveler = createTravelerFromPerson(person, role)
     onChange({
-      travelers: [
-        ...value.travelers,
-        {
-          ...traveler,
-          ...pickAssignmentsForNewTraveler(traveler.dateOfBirth, role),
-          pricingUnitSource: "auto",
-          inventoryUnitSource: "auto",
-        },
-      ],
+      travelers: insertPersonTraveler(value.travelers, {
+        ...traveler,
+        ...pickAssignmentsForNewTraveler(traveler.dateOfBirth, role),
+        pricingUnitSource: "auto",
+        pricingCategorySource: "auto",
+        inventoryUnitSource: "auto",
+      }),
     })
   }
 
@@ -592,12 +658,17 @@ export function TravelersSection({
                           ),
                           pricingUnitSource: "auto" as const,
                         }),
-                    pricingCategoryId: matchPricingCategoryForTraveler(
-                      pricingCategories,
-                      person.dateOfBirth ?? null,
-                      traveler.role,
-                      traveler.inventoryUnitId,
-                    ),
+                    ...(traveler.pricingCategorySource === "manual"
+                      ? {}
+                      : {
+                          pricingCategoryId: matchPricingCategoryForTraveler(
+                            pricingCategories,
+                            person.dateOfBirth ?? null,
+                            traveler.role,
+                            traveler.inventoryUnitId,
+                          ),
+                          pricingCategorySource: "auto" as const,
+                        }),
                     ...(traveler.inventoryUnitSource === "manual" ||
                     traveler.inventoryUnitSource === "none"
                       ? {}
@@ -630,12 +701,17 @@ export function TravelersSection({
                           ),
                           pricingUnitSource: "auto" as const,
                         }),
-                    pricingCategoryId: matchPricingCategoryForTraveler(
-                      pricingCategories,
-                      null,
-                      traveler.role,
-                      traveler.inventoryUnitId,
-                    ),
+                    ...(traveler.pricingCategorySource === "manual"
+                      ? {}
+                      : {
+                          pricingCategoryId: matchPricingCategoryForTraveler(
+                            pricingCategories,
+                            null,
+                            traveler.role,
+                            traveler.inventoryUnitId,
+                          ),
+                          pricingCategorySource: "auto" as const,
+                        }),
                     ...(traveler.inventoryUnitSource === "manual" ||
                     traveler.inventoryUnitSource === "none"
                       ? {}
@@ -654,16 +730,7 @@ export function TravelersSection({
                     traveler={traveler}
                     categories={pricingCategories}
                     label={merged.category}
-                    onPickCategory={(category) =>
-                      updateAt(index, {
-                        pricingCategoryId: category.categoryId,
-                        role:
-                          traveler.role === "lead" &&
-                          roleFromPricingCategoryType(category.categoryType) === "adult"
-                            ? "lead"
-                            : roleFromPricingCategoryType(category.categoryType),
-                      })
-                    }
+                    onPickCategory={(category) => pickPricingCategoryAt(index, traveler, category)}
                   />
                 ) : (
                   <TravelerCategoryButtons
@@ -699,12 +766,17 @@ export function TravelersSection({
                         updateAt(index, {
                           inventoryUnitId: v === NO_ROOM || !v ? null : v,
                           inventoryUnitSource: v === NO_ROOM || !v ? "none" : "manual",
-                          pricingCategoryId: matchPricingCategoryForTraveler(
-                            pricingCategories,
-                            traveler.dateOfBirth,
-                            traveler.role,
-                            v === NO_ROOM || !v ? null : v,
-                          ),
+                          ...(traveler.pricingCategorySource === "manual"
+                            ? {}
+                            : {
+                                pricingCategoryId: matchPricingCategoryForTraveler(
+                                  pricingCategories,
+                                  traveler.dateOfBirth,
+                                  traveler.role,
+                                  v === NO_ROOM || !v ? null : v,
+                                ),
+                                pricingCategorySource: "auto" as const,
+                              }),
                         })
                       }
                     >

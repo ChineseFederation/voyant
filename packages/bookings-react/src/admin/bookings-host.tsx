@@ -38,6 +38,7 @@ export function BookingsHost({
   return (
     <BookingsPage
       onBookingOpen={(booking) => navigateTo("booking.detail", { bookingId: booking.id })}
+      onBookingCreate={() => navigateTo("booking.create", {})}
       headerActions={headerActions}
       initialFilters={initialFilters}
       onFiltersChange={onFiltersChange}

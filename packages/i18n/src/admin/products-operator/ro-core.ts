@@ -102,7 +102,7 @@ export const operatorAdminProductsMessagesRoCore = {
   deleteServiceConfirm: "Stergi acest serviciu?",
   uploadFailed: "Incarcarea a esuat",
   breadcrumbProducts: "Produse",
-  addBooking: "Adauga rezervare",
+  addBooking: "Creeaza rezervare",
   duplicate: "Duplica",
   delete: "Sterge",
   edit: "Editeaza",

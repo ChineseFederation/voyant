@@ -34,3 +34,22 @@ export interface BookingCreateExtraLineInput {
   totalSellAmountCents?: number | null
   travelerKeys?: string[] | null
 }
+
+export interface BookingCreateTravelCreditRedemptionInput {
+  travelCreditId: string
+  amountCents: number
+}
+
+export type BookingCreateGroupMembershipInput =
+  | {
+      action: "create"
+      kind: "shared_room"
+      label: string
+      optionUnitId?: string | null
+      makeBookingPrimary?: boolean
+    }
+  | {
+      action: "join"
+      groupId: string
+      role?: string | null
+    }

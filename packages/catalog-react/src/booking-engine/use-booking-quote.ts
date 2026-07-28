@@ -104,11 +104,23 @@ export function useBookingQuote(options: UseBookingQuoteOptions) {
     () => ({
       data: query.data ?? null,
       isQuoting: query.isFetching || requote.isPending,
+      // `isQuoting` only covers an active request. Expose the debounce window too so
+      // commit surfaces cannot submit the previous quote after the draft changed but
+      // before the next request starts.
+      isSettling: signature !== debouncedSignature || query.isFetching || requote.isPending,
       error: query.error ?? requote.error ?? null,
       requote: () => requote.mutateAsync(),
       refetch: query.refetch,
     }),
-    [query.data, query.isFetching, query.error, query.refetch, requote],
+    [
+      debouncedSignature,
+      query.data,
+      query.isFetching,
+      query.error,
+      query.refetch,
+      requote,
+      signature,
+    ],
   )
 }
 

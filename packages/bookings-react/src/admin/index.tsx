@@ -46,6 +46,8 @@ declare module "@voyant-travel/admin" {
   interface AdminDestinations {
     /** The bookings list page. */
     "booking.list": Record<string, never>
+    /** The focused manual booking creation page. */
+    "booking.create": { productId?: string; slotId?: string }
     /** A booking's detail page; `tab` deep-links a specific tab. */
     "booking.detail": { bookingId: string; tab?: BookingDetailTabValue }
     /** A CRM person's detail page. */
@@ -152,6 +154,14 @@ export const bookingsIndexSearchSchema = z.object({
 })
 
 export type BookingsIndexSearchParams = z.infer<typeof bookingsIndexSearchSchema>
+
+/** Search contract for the focused manual booking create page. */
+export const bookingNewSearchSchema = z.object({
+  productId: z.string().min(1).optional(),
+  slotId: z.string().min(1).optional(),
+})
+
+export type BookingNewSearchParams = z.infer<typeof bookingNewSearchSchema>
 
 /** URL search params → `BookingList` initial state. Empty / `"all"` /
  * default values are absent in the URL; we let `BookingList`'s defaults
@@ -341,6 +351,23 @@ export function createBookingsAdminExtension(
           return queryClient.ensureQueryData(getBookingsQueryOptions(loaderClient(runtime)))
         },
         page: () => import("./pages/bookings-index-page.js"),
+      },
+      {
+        id: "bookings-new",
+        path: `${basePath}/new`,
+        title: bookings,
+        destination: "booking.create",
+        validateSearch: (search) => bookingNewSearchSchema.parse(search),
+        page: async () => {
+          const module = await import("./pages/booking-new-page.js")
+          const Page = module.default
+          return {
+            default: ({ search }: AdminRoutePageProps) => {
+              const validated = search as BookingNewSearchParams
+              return <Page productId={validated.productId} slotId={validated.slotId} />
+            },
+          }
+        },
       },
       {
         id: "bookings-detail",

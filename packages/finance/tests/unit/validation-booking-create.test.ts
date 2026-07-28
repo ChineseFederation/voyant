@@ -3,6 +3,23 @@ import { describe, expect, it } from "vitest"
 import { bookingCreateSchema, deriveBookingCreatePax } from "../../src/service-booking-create.js"
 
 describe("bookingCreateSchema", () => {
+  it("preserves billing party metadata for booking contact details", () => {
+    const result = bookingCreateSchema.parse({
+      bookingNumber: "BK-100",
+      productId: "prod_1",
+      organizationId: "organization_1",
+      contactFirstName: "Analytical Engines SRL",
+      contactLastName: null,
+      contactPhone: "+40 721 000 000",
+      contactPartyType: "company",
+      contactTaxId: "RO12345678",
+      travelers: [{ firstName: "Ada", lastName: "Lovelace" }],
+    })
+
+    expect(result.contactPartyType).toBe("company")
+    expect(result.contactTaxId).toBe("RO12345678")
+  })
+
   const valid = {
     productId: "prod_123",
     bookingNumber: "BK-001",

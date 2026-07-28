@@ -122,7 +122,7 @@ describe("bookings deployment manifest", () => {
         }),
         expect.objectContaining({
           id: "@voyant-travel/bookings#admin.route.new",
-          requiredScopes: ["bookings:write"],
+          requiredScopes: ["bookings:write", "finance:write"],
         }),
       ]),
     )

@@ -1,7 +1,9 @@
 export type {
   BookingCreateExtraLineInput,
+  BookingCreateGroupMembershipInput,
   BookingCreateItemLineInput,
   BookingCreatePaymentScheduleInput,
+  BookingCreateTravelCreditRedemptionInput,
 } from "./booking-create-types.js"
 export { type UseBookingOptions, useBooking } from "./use-booking.js"
 export {

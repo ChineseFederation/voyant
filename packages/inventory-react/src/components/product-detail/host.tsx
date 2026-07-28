@@ -33,6 +33,8 @@ export interface ProductDetailNavigation {
   toProducts: () => void
   toProduct: (productId: string) => void
   toAvailability: (slotId: string) => void
+  /** Opens the focused manual booking flow with this owned product preselected. */
+  toBookingCreate?: (productId: string) => void
 }
 
 export interface ProductDetailBreadcrumb {

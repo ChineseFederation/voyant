@@ -26,6 +26,7 @@ export const bookingsUiEnBase = {
   bookingsPage: {
     title: "Bookings",
     description: "Manage bookings, confirmations, and travelers.",
+    newBooking: "New booking",
   },
   bookingCreatePage: {
     title: "New booking",

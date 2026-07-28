@@ -1,6 +1,88 @@
 import type { BookingsUiCreateListMessages } from "./messages-create-list.js"
 
 export const bookingsUiRoCreateList = {
+  manualBookingCreate: {
+    sections: {
+      bookingItem: "Elementul rezervarii",
+      billing: "Facturare si date de contact",
+      payment: "Calendar de plata",
+    },
+    fields: {
+      departure: "Plecare",
+      sellAmount: "Valoare de vanzare",
+      currency: "Moneda",
+      initialStatus: "Stare initiala",
+      contactFirstName: "Prenume contact sau organizatie",
+      contactLastName: "Nume contact",
+      contactEmail: "E-mail contact",
+      contactPhone: "Telefon contact",
+      addPayment: "Adauga un calendar initial de plata",
+      notes: "Note interne",
+    },
+    placeholders: {
+      departure: "Alege optional o plecare",
+      departureEmpty: "Nu exista plecari viitoare deschise",
+      notes: "Note vizibile doar operatorilor",
+    },
+    hints: {
+      departureOptional: "Lasa necompletat pentru o rezervare cu data deschisa.",
+      payment: "Totalul programat trebuie sa fie egal cu valoarea rezervarii.",
+    },
+    validation: {
+      product: "Alege un produs.",
+      departure: "Alege o plecare.",
+      units: "Selecteaza cel putin o optiune.",
+      person: "Alege persoana facturata.",
+      organization: "Alege organizatia facturata.",
+      contact: "Adauga un nume de contact pentru rezervare.",
+      email: "Introdu un e-mail de contact valid.",
+      travelers: "Adauga cel putin un calator.",
+      travelerNames: "Fiecare calator are nevoie de prenume si nume.",
+      leadTraveler: "Alege exact un calator principal.",
+      amount: "Introdu o valoare de vanzare valida.",
+      pricingPending: "Asteapta putin cat timp calculam totalul.",
+      overrideReason: "Adauga un motiv pentru totalul manual.",
+      payment: "Completeaza calendarul de plata, cu un total egal valorii rezervarii.",
+      paidPaymentDate: "Data platii este obligatorie cand plata este marcata ca deja achitata.",
+      sharedRoomGroup: "Selecteaza partajul la care vrei sa te alaturi.",
+      create: "Rezervarea nu a putut fi creata.",
+    },
+    promotion: {
+      heading: "Cod promotional",
+      code: "Cod",
+      placeholder: "Introdu un cod promotional",
+      checking: "Se verifica promotia...",
+      valid: "Promotie aplicata. Total nou: {amount}.",
+      invalid: "Acest cod promotional nu este valabil pentru rezervarea selectata.",
+      unavailable: "Codul promotional nu a putut fi verificat. Incearca din nou.",
+    },
+    permissions: {
+      checking: "Se verifica permisiunile…",
+      denied:
+        "Ai nevoie de permisiuni de scriere pentru Rezervari si Finance pentru a crea rezervarea.",
+      error: "Permisiunile nu au putut fi verificate. Reincarca pagina si incearca din nou.",
+    },
+    actions: {
+      create: "Creeaza rezervarea",
+      confirmCreate: "Confirma si creeaza",
+    },
+    confirm: {
+      title: "Creezi aceasta rezervare?",
+      description:
+        "Creezi o rezervare ireversibila pentru {product}, in valoare de {amount}, cu {travelers} calator(i)?",
+    },
+    summary: {
+      title: "Rezumatul rezervarii",
+      product: "Produs",
+      departure: "Plecare",
+      billing: "Facturat catre",
+      travelers: "Calatori",
+      total: "Total vanzare",
+      missing: "Neselectat",
+      openDated: "Data deschisa",
+    },
+    priceOverrideReason: "Valoare de vanzare introdusa manual de operator",
+  },
   bookingDialog: {
     editTitle: "Editeaza rezervarea",
     fields: {

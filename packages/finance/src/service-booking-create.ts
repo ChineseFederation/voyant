@@ -424,6 +424,8 @@ const bookingCreateBaseSchema = z.object({
   // contact_* columns.
   contactFirstName: z.string().max(255).optional().nullable(),
   contactLastName: z.string().max(255).optional().nullable(),
+  contactPartyType: z.enum(["individual", "company"]).optional().nullable(),
+  contactTaxId: z.string().max(100).optional().nullable(),
   contactEmail: z.string().max(255).optional().nullable(),
   contactPhone: z.string().max(50).optional().nullable(),
   contactPreferredLanguage: z.string().max(35).optional().nullable(),
@@ -1248,6 +1250,8 @@ export async function createBookingMutation(
           initialStatus: input.initialStatus,
           contactFirstName: input.contactFirstName ?? null,
           contactLastName: input.contactLastName ?? null,
+          contactPartyType: input.contactPartyType ?? null,
+          contactTaxId: input.contactTaxId ?? null,
           contactEmail: input.contactEmail ?? null,
           contactPhone: input.contactPhone ?? null,
           contactPreferredLanguage: input.contactPreferredLanguage ?? null,
