@@ -1,5 +1,16 @@
 # @voyant-travel/bookings-react
 
+## 0.216.1
+
+### Patch Changes
+
+- d252ad5: Make manual booking product discovery search the unified catalog so operators can
+  select both owned and supplier products. Supplier selections now retain exact
+  catalog provenance, use catalog departures and live quote configuration, and
+  automatically update options, units, traveler types, add-ons, promotions,
+  currency, and pricing, including open-dated products.
+  - @voyant-travel/bookings@0.216.1
+
 ## 0.216.0
 
 ### Minor Changes
