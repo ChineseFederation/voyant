@@ -472,6 +472,48 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
   })
 
+  it("holds deletion eligibility through delete against a concurrent managed-workflow PATCH", async () => {
+    const contract = await insertContract("draft", "Concurrent delete")
+    let releaseDelete: () => void = () => undefined
+    const holdDelete = new Promise<void>((resolve) => {
+      releaseDelete = resolve
+    })
+    let lockReached: () => void = () => undefined
+    const locked = new Promise<void>((resolve) => {
+      lockReached = resolve
+    })
+    const deletion = contractsService.deleteContract(db, contract.id, {
+      async afterLock() {
+        lockReached()
+        await holdDelete
+      },
+    })
+    await locked
+
+    let patchSettled = false
+    const patch = contractsService
+      .updateContract(db, contract.id, {
+        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: true } },
+      })
+      .then(
+        () => {
+          patchSettled = true
+          throw new Error("Concurrent PATCH unexpectedly committed")
+        },
+        (error: unknown) => {
+          patchSettled = true
+          return error
+        },
+      )
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(patchSettled).toBe(false)
+
+    releaseDelete()
+    await expect(deletion).resolves.toEqual({ status: "deleted" })
+    await expect(patch).resolves.toMatchObject({ name: "RequestValidationError" })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
+  })
+
   async function insertContract(status: ContractStatus, title: string) {
     const [row] = await db
       .insert(contracts)
