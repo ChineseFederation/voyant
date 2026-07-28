@@ -1,5 +1,14 @@
 # @voyant-travel/db
 
+## 0.118.6
+
+### Patch Changes
+
+- a653664: Add a provider-neutral `scale-to-zero` recovery profile for package-owned jobs,
+  including channel-push subscribers, and expose safe durable-send,
+  payment-reconciliation, promotion-reindex, and channel-push jobs to payload-free
+  wakeups.
+
 ## 0.118.5
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @voyant-travel/legal-react
 
+## 0.216.1
+
+### Patch Changes
+
+- Updated dependencies [a653664]
+  - @voyant-travel/legal@0.216.1
+  - @voyant-travel/bookings-react@0.216.2
+  - @voyant-travel/distribution-react@0.206.1
+
 ## 0.216.0
 
 ### Patch Changes
