@@ -60,6 +60,7 @@ describe("bookings deployment manifest", () => {
             profiles: {
               eager: { cron: "* * * * *", overlap: "skip" },
               economical: { cron: "*/15 * * * *", overlap: "skip" },
+              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
             },
           },
           runtime: {

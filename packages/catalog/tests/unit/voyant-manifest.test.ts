@@ -134,6 +134,7 @@ describe("catalog deployment manifest", () => {
           profiles: {
             eager: { cron: "*/15 * * * *", overlap: "skip" },
             economical: { cron: "5 */6 * * *", overlap: "skip" },
+            "scale-to-zero": { cron: "5 */6 * * *", overlap: "skip" },
           },
         },
         runtime: {
@@ -149,6 +150,7 @@ describe("catalog deployment manifest", () => {
           profiles: {
             eager: { cron: "*/20 * * * *", overlap: "skip" },
             economical: { cron: "20 */6 * * *", overlap: "skip" },
+            "scale-to-zero": { cron: "20 */6 * * *", overlap: "skip" },
           },
         },
         runtime: {

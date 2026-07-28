@@ -93,6 +93,14 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "channel.booking.push",
       schedule: { every: "2m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      wakeup: true,
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelBookingPushJob",
@@ -101,6 +109,14 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "channel.availability.push",
       schedule: { every: "1m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      wakeup: true,
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelAvailabilityPushJob",
@@ -109,6 +125,14 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "channel.content.push",
       schedule: { every: "5m", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      wakeup: true,
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelContentPushJob",
@@ -117,6 +141,13 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "distribution.channel-push-reconcile-booking-links",
       schedule: { cron: "*/15 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { cron: "0 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "0 */6 * * *", overlap: "skip" },
+        },
+      },
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelBookingLinkReconcilerJob",
@@ -125,6 +156,13 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "distribution.channel-push-reconcile-availability",
       schedule: { cron: "0 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { cron: "0 */6 * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "0 */6 * * *", overlap: "skip" },
+        },
+      },
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelAvailabilityReconcilerJob",
@@ -133,6 +171,13 @@ export const distributionChannelPushVoyantExtensionDefinition = {
     {
       id: "distribution.channel-push-reconcile-content",
       schedule: { cron: "0 3 * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          economical: { cron: "0 3 * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "0 3 * * *", overlap: "skip" },
+        },
+      },
       runtime: {
         entry: "@voyant-travel/distribution/channel-push-jobs",
         export: "runChannelContentReconcilerJob",

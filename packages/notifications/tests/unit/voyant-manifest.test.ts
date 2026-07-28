@@ -57,8 +57,10 @@ describe("notifications deployment manifest", () => {
             profiles: {
               eager: { cron: "* * * * *", overlap: "skip" },
               economical: { cron: "*/5 * * * *", overlap: "skip" },
+              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
             },
           },
+          wakeup: true,
           runtime: {
             entry: "@voyant-travel/notifications/reminder-job",
             export: "runDueNotificationSendsJob",
@@ -72,6 +74,7 @@ describe("notifications deployment manifest", () => {
             profiles: {
               eager: { cron: "*/15 * * * *", overlap: "skip" },
               economical: { cron: "0 */6 * * *", overlap: "skip" },
+              "scale-to-zero": { cron: "0 */6 * * *", overlap: "skip" },
             },
           },
           runtime: {

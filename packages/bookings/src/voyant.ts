@@ -418,6 +418,7 @@ export const bookingsVoyantModule = defineModule({
         profiles: {
           eager: { cron: "* * * * *", overlap: "skip" },
           economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
         },
       },
       runtime: {

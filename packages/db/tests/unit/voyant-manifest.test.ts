@@ -42,6 +42,7 @@ describe("database deployment manifest", () => {
             profiles: {
               eager: { every: "1m", overlap: "skip" },
               economical: { every: "10m", overlap: "skip" },
+              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
             },
           },
           wakeup: true,

@@ -1,8 +1,17 @@
 import { bookingsVoyantModule } from "@voyant-travel/bookings/voyant"
+import { catalogVoyantModule } from "@voyant-travel/catalog/voyant"
+import { commerceVoyantModule } from "@voyant-travel/commerce/voyant"
+import cruisesVoyantModule from "@voyant-travel/cruises/voyant"
+import { dbVoyantModule } from "@voyant-travel/db/voyant"
+import { distributionChannelPushVoyantPlugin } from "@voyant-travel/distribution/voyant"
 import { financeVoyantModule } from "@voyant-travel/finance/voyant"
+import { legalVoyantModule } from "@voyant-travel/legal/voyant"
 import navigationPreferencesVoyantModule from "@voyant-travel/navigation-preferences/voyant"
+import { notificationsVoyantModule } from "@voyant-travel/notifications/voyant"
+import { operationsVoyantModule } from "@voyant-travel/operations/voyant"
 import reportingVoyantModule from "@voyant-travel/reporting/voyant"
 import { storefrontVoyantModule } from "@voyant-travel/storefront/voyant"
+import { tripsVoyantModule } from "@voyant-travel/trips/voyant"
 import operatorWebhooksVoyantModule from "@voyant-travel/webhook-delivery/voyant"
 import { describe, expect, it } from "vitest"
 import {
@@ -82,6 +91,64 @@ describe("standard package manifests", () => {
   it("runs selected product jobs in the standard Operator by default", () => {
     expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.scheduledJobs).toBe("node-cron")
     expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.legalDocumentArtifact).toBe("standard")
+  })
+
+  it("resolves the provider-neutral scale-to-zero recovery profile across standard jobs", async () => {
+    const graph = await resolveDeploymentGraph({
+      project: defineProject({
+        modules: [
+          bookingsVoyantModule,
+          catalogVoyantModule,
+          commerceVoyantModule,
+          cruisesVoyantModule,
+          dbVoyantModule,
+          legalVoyantModule,
+          notificationsVoyantModule,
+          operationsVoyantModule,
+          storefrontVoyantModule,
+          tripsVoyantModule,
+        ],
+        extensions: [distributionChannelPushVoyantPlugin],
+        jobScheduling: { profile: "scale-to-zero" },
+      }),
+      target: "node",
+      mode: "self-hosted",
+    })
+
+    expect(
+      graph.diagnostics.filter((diagnostic) => diagnostic.code.includes("JOB_SCHEDULE")),
+    ).toEqual([])
+    const schedules = new Map(graph.provisioning.jobs.map((job) => [job.id, job.schedule]))
+    expect(schedules.get("infrastructure.event-outbox-drain")).toEqual({
+      cron: "*/15 * * * *",
+      overlap: "skip",
+    })
+    expect(schedules.get("notifications.deliver-durable-sends")).toEqual({
+      cron: "*/15 * * * *",
+      overlap: "skip",
+    })
+    expect(schedules.get("channel.availability.push")).toEqual({
+      cron: "*/15 * * * *",
+      overlap: "skip",
+    })
+    expect(schedules.get("distribution.channel-push-reconcile-booking-links")).toEqual({
+      cron: "0 */6 * * *",
+      overlap: "skip",
+    })
+    expect(schedules.get("cruises.external-catalog-refresh")).toEqual({
+      cron: "30 3 * * *",
+      overlap: "skip",
+    })
+    expect(
+      graph.provisioning.jobs
+        .filter((job) => job.scheduling?.profiles["scale-to-zero"])
+        .every((job) => job.scheduling?.selected === "scale-to-zero"),
+    ).toBe(true)
+    expect(
+      graph.provisioning.jobs.filter(
+        (job) => job.scheduling?.selected === "scale-to-zero" && job.schedule.every === "15m",
+      ),
+    ).toEqual([])
   })
 
   it("selects the composed dashboard with a staff preset that satisfies every source scope", () => {

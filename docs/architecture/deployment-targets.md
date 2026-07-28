@@ -145,6 +145,21 @@ The host requires an explicit `scheduleAuthority`. Self-hosted Wrangler
 deployments select `cloudflare-cron`; managed workloads select `managed-http`.
 This prevents both systems from firing the same cadence during rollout.
 
+Wakeups are target-neutral signals, not a Cloudflare contract. A package marks
+a fixed, payload-free job with `wakeup: true`; the deployment host may then
+invoke the same `POST /__voyant/jobs/:id` contract from an in-process timer,
+AWS EventBridge/SQS, Google Cloud Scheduler/Tasks, Vercel Cron, Cloudflare, or
+another scheduler. Package code never imports a vendor SDK or assumes which
+control plane requested the wake. The declared cadence remains the recovery
+authority when a wake is lost or coalesced.
+
+The optional `scale-to-zero` scheduling profile aligns frequent recovery work
+on a 15-minute floor, leaving enough idle time for a five-minute database
+autosuspend window while bounding recovery when a wake is lost. Longer-running
+reminder and maintenance cadences retain their existing six-hour schedule.
+Selecting this profile is a deployment decision; self-hosted projects retain
+package defaults unless they opt in explicitly.
+
 The Worker entry owns no product IDs. Its integration shape is:
 
 ```ts

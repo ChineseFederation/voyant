@@ -153,8 +153,10 @@ describe("commerce deployment manifest", () => {
             profiles: {
               eager: { every: "1m", overlap: "skip" },
               economical: { every: "15m", overlap: "skip" },
+              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
             },
           },
+          wakeup: true,
           runtime: {
             entry: "@voyant-travel/commerce/promotion-reindex-job",
             export: "runPromotionReindexJob",
@@ -168,6 +170,7 @@ describe("commerce deployment manifest", () => {
             profiles: {
               eager: { cron: "* * * * *", overlap: "skip" },
               economical: { cron: "*/15 * * * *", overlap: "skip" },
+              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
             },
           },
           wakeup: true,

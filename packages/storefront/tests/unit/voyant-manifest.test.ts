@@ -231,8 +231,10 @@ describe("storefront deployment manifest", () => {
         profiles: {
           eager: { every: "1m", overlap: "skip" },
           economical: { every: "5m", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
         },
       },
+      wakeup: true,
       runtime: {
         entry: "@voyant-travel/storefront/payment-reconciliation-job",
         export: "runPaymentAdapterReconciliationJob",

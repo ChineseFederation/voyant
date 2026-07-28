@@ -293,6 +293,14 @@ describe("distribution deployment manifests", () => {
     expect(distributionChannelPushVoyantPlugin.jobs).toEqual([
       expect.objectContaining({
         id: "channel.booking.push",
+        scheduling: {
+          required: true,
+          profiles: {
+            economical: { every: "5m", overlap: "skip" },
+            "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+          },
+        },
+        wakeup: true,
         runtime: {
           entry: "@voyant-travel/distribution/channel-push-jobs",
           export: "runChannelBookingPushJob",
@@ -300,18 +308,35 @@ describe("distribution deployment manifests", () => {
       }),
       expect.objectContaining({
         id: "channel.availability.push",
+        wakeup: true,
       }),
       expect.objectContaining({
         id: "channel.content.push",
+        wakeup: true,
       }),
       expect.objectContaining({
         id: "distribution.channel-push-reconcile-booking-links",
+        scheduling: expect.objectContaining({
+          profiles: expect.objectContaining({
+            "scale-to-zero": { cron: "0 */6 * * *", overlap: "skip" },
+          }),
+        }),
       }),
       expect.objectContaining({
         id: "distribution.channel-push-reconcile-availability",
+        scheduling: expect.objectContaining({
+          profiles: expect.objectContaining({
+            "scale-to-zero": { cron: "0 */6 * * *", overlap: "skip" },
+          }),
+        }),
       }),
       expect.objectContaining({
         id: "distribution.channel-push-reconcile-content",
+        scheduling: expect.objectContaining({
+          profiles: expect.objectContaining({
+            "scale-to-zero": { cron: "0 3 * * *", overlap: "skip" },
+          }),
+        }),
       }),
     ])
   })
