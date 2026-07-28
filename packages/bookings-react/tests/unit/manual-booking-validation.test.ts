@@ -4,7 +4,10 @@ import {
   buildManualBookingQuoteDraft,
   formatManualBookingAmount,
   manualBookingTravelersToRows,
+  normalizeCatalogBookingSlot,
   resolveManualBookingPricing,
+  resolveSourcedOptionUnits,
+  resolveSourcedProductOptions,
   validateManualBookingDraft,
 } from "../../src/components/manual-booking-create-form.js"
 import { bookingsUiEn } from "../../src/i18n/en.js"
@@ -70,6 +73,83 @@ describe("manual booking validation", () => {
     expect(validateManualBookingDraft({ ...valid, hasSelectedUnits: false })).toBe(
       bookingsUiEn.manualBookingCreate.validation.units,
     )
+  })
+
+  it("allows an open-dated sourced product without a departure or owned units", () => {
+    expect(
+      validateManualBookingDraft({
+        ...valid,
+        slotId: null,
+        requireDeparture: false,
+        hasSelectedUnits: true,
+      }),
+    ).toBeNull()
+  })
+
+  it("uses live supplier options and applies unit availability bounds", () => {
+    const options = resolveSourcedProductOptions(
+      {
+        showsConfigure: true,
+        showsBilling: true,
+        showsTravelers: true,
+        showsAccommodation: true,
+        showsAddons: false,
+        showsPayment: true,
+        showsReview: true,
+        configureSubSteps: [
+          {
+            kind: "product-option",
+            options: [
+              {
+                id: "family",
+                name: "Family package",
+                isDefault: true,
+                units: [
+                  { id: "double", name: "Double room", unitType: "room", maxQuantity: 3 },
+                  { id: "adult", name: "Adult seat", unitType: "person" },
+                ],
+              },
+            ],
+          },
+        ],
+        paxBands: [],
+        paxBandsAllowedTotal: { min: 1, max: 7 },
+        travelerFields: [],
+        bookingFields: [],
+        paymentIntents: ["hold"],
+      },
+      { options: [{ id: "stale", name: "Stale cached option" }] },
+    )
+
+    expect(options.map((option) => option.id)).toEqual(["family"])
+    expect(resolveSourcedOptionUnits(options, "family", 7)).toMatchObject([
+      { optionUnitId: "double", unitType: "room", remaining: 3 },
+      { optionUnitId: "adult", unitType: "person", remaining: 7 },
+    ])
+  })
+
+  it("normalizes supplier departures and ignores open-dated rows without a start", () => {
+    expect(normalizeCatalogBookingSlot({ id: "open-date" }, "prod_source")).toBeNull()
+    expect(
+      normalizeCatalogBookingSlot(
+        {
+          id: "departure_1",
+          startsAt: "2026-09-15T08:00:00.000Z",
+          status: "available",
+          unlimited: false,
+          initialPax: 12,
+          remainingPax: 7,
+        },
+        "prod_source",
+      ),
+    ).toMatchObject({
+      id: "departure_1",
+      productId: "prod_source",
+      dateLocal: "2026-09-15",
+      status: "open",
+      unlimited: false,
+      remainingPax: 7,
+    })
   })
 
   it("requires the selected organization in organization billing mode", () => {
@@ -185,6 +265,9 @@ describe("manual booking validation", () => {
   it("includes unit selections, extras, and promotion code in the quote draft", () => {
     const draft = buildManualBookingQuoteDraft({
       productId: "prod_1",
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "connection_1",
+      sourceRef: "supplier-product-42",
       optionId: "opt_1",
       slotId: "slot_1",
       quantities: { unit_1: 2 },
@@ -239,6 +322,13 @@ describe("manual booking validation", () => {
     ])
     expect(draft?.addons).toEqual([{ extraId: "extra_1", quantity: 2 }])
     expect(draft?.promotionCode).toBe("SUMMER")
+    expect(draft?.entity).toEqual({
+      module: "products",
+      id: "prod_1",
+      sourceKind: "voyant-connect",
+      sourceConnectionId: "connection_1",
+      sourceRef: "supplier-product-42",
+    })
   })
 
   it("quotes a selected dynamic traveler category using its pricing band", () => {

@@ -41,6 +41,8 @@ export const bookingsUiRoCreateList = {
       leadTraveler: "Alege exact un calator principal.",
       amount: "Introdu o valoare de vanzare valida.",
       pricingPending: "Asteapta putin cat timp calculam totalul.",
+      pricingUnavailable:
+        "Nu am putut calcula pretul furnizorului. Verifica selectia si incearca din nou.",
       overrideReason: "Adauga un motiv pentru totalul manual.",
       payment: "Completeaza calendarul de plata, cu un total egal valorii rezervarii.",
       paidPaymentDate: "Data platii este obligatorie cand plata este marcata ca deja achitata.",

@@ -1,15 +1,13 @@
 "use client"
 
+import { useCatalogSearch } from "@voyant-travel/catalog-react"
+import { type ProductRecord, useProduct, useProductOptions } from "@voyant-travel/inventory-react"
 import {
-  type ProductRecord,
-  useProduct,
-  useProductOptions,
-  useProducts,
-} from "@voyant-travel/inventory-react"
-import {
+  Badge,
   Label,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -24,8 +22,12 @@ import {
   ComboboxList,
 } from "@voyant-travel/ui/components/combobox"
 import * as React from "react"
-import { useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
-import { productMatchesPickerSearch } from "./booking-create-utils.js"
+import { useBookingsUiI18nOrDefault, useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
+import {
+  catalogProductPickerRecordFromHit,
+  type ProductPickerSearchRecord,
+  productMatchesPickerSearch,
+} from "./booking-create-utils.js"
 
 const OPTION_NONE = "__none__"
 
@@ -33,6 +35,13 @@ export interface ProductPickerValue {
   productId: string
   /** `null` means "no specific option" — the product has options but none was picked. */
   optionId: string | null
+  sourceKind?: string
+  sourceConnectionId?: string
+  sourceRef?: string
+  productName?: string
+  supplierName?: string
+  sellCurrency?: string
+  sellAmountCents?: number | null
 }
 
 export interface ProductPickerSectionProps {
@@ -67,26 +76,57 @@ export function ProductPickerSection({
   labels,
 }: ProductPickerSectionProps) {
   const [productSearch, setProductSearch] = React.useState("")
-  const cachedProductsRef = React.useRef(new Map<string, ProductRecord>())
+  const [debouncedProductSearch, setDebouncedProductSearch] = React.useState("")
+  const cachedProductsRef = React.useRef(
+    new Map<string, ProductPickerSearchRecord & { id: string }>(),
+  )
+  const { formatCurrency } = useBookingsUiI18nOrDefault()
   const messages = useBookingsUiMessagesOrDefault()
   const merged = { ...messages.productPickerSection.labels, ...labels }
 
-  const { data: productsData } = useProducts({
-    search: productSearch || undefined,
-    limit: 20,
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedProductSearch(productSearch.trim()), 250)
+    return () => window.clearTimeout(timeout)
+  }, [productSearch])
+
+  const productsQuery = useCatalogSearch({
+    vertical: "products",
+    query: debouncedProductSearch,
+    mode: "keyword",
+    projection: "raw",
+    pagination: { limit: 30 },
+    surface: "admin",
     enabled: enabled && !lockProduct,
   })
   const selectedProductQuery = useProduct(value.productId || undefined, {
-    enabled: enabled && Boolean(value.productId),
+    enabled:
+      enabled && Boolean(value.productId) && (!value.sourceKind || value.sourceKind === "owned"),
   })
 
   const products = React.useMemo(() => {
     const map = new Map(cachedProductsRef.current)
-    for (const product of productsData?.data ?? []) map.set(product.id, product)
-    if (selectedProductQuery.data) map.set(selectedProductQuery.data.id, selectedProductQuery.data)
+    for (const hit of productsQuery.data?.hits ?? []) {
+      const product = catalogProductPickerRecordFromHit(hit)
+      map.set(product.id, product)
+    }
+    if (selectedProductQuery.data) {
+      map.set(selectedProductQuery.data.id, ownedProductToPickerRecord(selectedProductQuery.data))
+    }
+    if (value.productId && value.productName) {
+      map.set(value.productId, {
+        id: value.productId,
+        name: value.productName,
+        sellCurrency: value.sellCurrency,
+        sellAmountCents: value.sellAmountCents,
+        supplierName: value.supplierName,
+        sourceKind: value.sourceKind ?? "owned",
+        sourceConnectionId: value.sourceConnectionId,
+        sourceRef: value.sourceRef,
+      })
+    }
     cachedProductsRef.current = map
     return Array.from(map.values())
-  }, [productsData?.data, selectedProductQuery.data])
+  }, [productsQuery.data?.hits, selectedProductQuery.data, value])
 
   const productMap = React.useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -134,7 +174,24 @@ export function ProductPickerSection({
             }}
             onValueChange={(next) => {
               const productId = (next as string | null) ?? ""
-              onChange({ productId, optionId: null })
+              const selected = productId ? productMap.get(productId) : null
+              onChange({
+                productId,
+                optionId: null,
+                ...(selected
+                  ? {
+                      sourceKind: selected.sourceKind ?? "owned",
+                      ...(selected.sourceConnectionId
+                        ? { sourceConnectionId: selected.sourceConnectionId }
+                        : {}),
+                      ...(selected.sourceRef ? { sourceRef: selected.sourceRef } : {}),
+                      productName: selected.name,
+                      ...(selected.supplierName ? { supplierName: selected.supplierName } : {}),
+                      ...(selected.sellCurrency ? { sellCurrency: selected.sellCurrency } : {}),
+                      sellAmountCents: selected.sellAmountCents ?? null,
+                    }
+                  : {}),
+              })
               setProductInputValue(productId ? resolveProductLabel(productId) : "")
             }}
           >
@@ -151,14 +208,30 @@ export function ProductPickerSection({
                     if (!product) return null
                     return (
                       <ComboboxItem key={product.id} value={product.id}>
-                        <div className="flex min-w-0 flex-col">
-                          <span className="truncate font-medium">{product.name}</span>
-                          <span className="truncate text-xs text-muted-foreground">
-                            {product.sellCurrency}
-                            {product.sellAmountCents != null
-                              ? ` · ${product.sellAmountCents / 100}`
-                              : ""}
-                          </span>
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate font-medium">{product.name}</span>
+                            <Badge variant="secondary">
+                              {product.sourceKind && product.sourceKind !== "owned"
+                                ? merged.supplier
+                                : merged.owned}
+                            </Badge>
+                          </div>
+                          <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                            {product.supplierName ? (
+                              <span className="truncate">{product.supplierName}</span>
+                            ) : null}
+                            {product.sellCurrency ? (
+                              <span>
+                                {product.sellAmountCents != null
+                                  ? formatCurrency(
+                                      product.sellAmountCents / 100,
+                                      product.sellCurrency,
+                                    )
+                                  : product.sellCurrency}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </ComboboxItem>
                     )
@@ -190,16 +263,31 @@ export function ProductPickerSection({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={OPTION_NONE}>{merged.optionNone}</SelectItem>
-              {options.map((o) => (
-                <SelectItem key={o.id} value={o.id}>
-                  {o.name}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value={OPTION_NONE}>{merged.optionNone}</SelectItem>
+                {options.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
       )}
     </>
   )
+}
+
+function ownedProductToPickerRecord(
+  product: ProductRecord,
+): ProductPickerSearchRecord & { id: string } {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    sellCurrency: product.sellCurrency,
+    sellAmountCents: product.sellAmountCents,
+    sourceKind: "owned",
+  }
 }

@@ -9,10 +9,17 @@ import {
   travelersToRows,
 } from "@voyant-travel/bookings/pricing-assignment"
 import {
+  type BookingDraftShapeV1,
   type BookingDraftV1,
   bookingDraftV1,
   type PaxBandCode,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
+import {
+  type CatalogDetailEnrichment,
+  type CatalogSlot,
+  createCatalogEnrichmentFetchers,
+  useCatalogSlots,
+} from "@voyant-travel/catalog-react"
 import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
 import {
   useOptionUnitPriceRules,
@@ -39,6 +46,12 @@ import {
   FieldSet,
   Input,
   Label,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
 } from "@voyant-travel/ui/components"
 import { AsyncCombobox } from "@voyant-travel/ui/components/async-combobox"
@@ -78,7 +91,10 @@ import {
   stripUnitSuffix,
 } from "./booking-create-form-utils.js"
 import { BookingPreviewCard } from "./booking-create-preview-card.js"
-import { ProductExtrasPickerSection } from "./booking-create-product-extras-picker.js"
+import {
+  type CatalogBookingExtraOption,
+  ProductExtrasPickerSection,
+} from "./booking-create-product-extras-picker.js"
 import {
   getBookableDepartureSlots,
   getOverCapacityInventoryAssignments,
@@ -225,6 +241,9 @@ export function manualBookingTravelersToRows(
 
 export function buildManualBookingQuoteDraft(input: {
   productId: string
+  sourceKind?: string
+  sourceConnectionId?: string
+  sourceRef?: string
   optionId: string | null
   slotId: string | null
   quantities: Record<string, number>
@@ -239,7 +258,13 @@ export function buildManualBookingQuoteDraft(input: {
   if (!input.productId) return null
   const unitsById = new Map(input.units.map((unit) => [unit.optionUnitId, unit]))
   return bookingDraftV1.parse({
-    entity: { module: "products", id: input.productId, sourceKind: "owned" },
+    entity: {
+      module: "products",
+      id: input.productId,
+      sourceKind: input.sourceKind ?? "owned",
+      ...(input.sourceConnectionId ? { sourceConnectionId: input.sourceConnectionId } : {}),
+      ...(input.sourceRef ? { sourceRef: input.sourceRef } : {}),
+    },
     configure: {
       ...(input.slotId ? { departureSlotId: input.slotId } : {}),
       pax: countManualBookingPaxBands(input.travelers.travelers, input.pricingCategories),
@@ -364,6 +389,7 @@ export function buildManualBookingContactInput(input: {
 export function validateManualBookingDraft(input: {
   productId: string
   slotId?: string | null
+  requireDeparture?: boolean
   hasSelectedUnits?: boolean
   billing: PersonPickerValue
   contactFirstName: string
@@ -377,7 +403,7 @@ export function validateManualBookingDraft(input: {
   messages: ReturnType<typeof useBookingsUiMessagesOrDefault>["manualBookingCreate"]
 }): string | null {
   if (!input.productId) return input.messages.validation.product
-  if (input.slotId === null) return input.messages.validation.departure
+  if (input.requireDeparture !== false && !input.slotId) return input.messages.validation.departure
   if (input.hasSelectedUnits === false) return input.messages.validation.units
   const billTo = input.billing.billTo ?? "person"
   if (billTo === "person" && !input.billing.personId) return input.messages.validation.person
@@ -446,6 +472,9 @@ export function ManualBookingCreateForm({
     emptyTravelCreditPickerValue,
   )
   const [pricing, setPricing] = React.useState<PriceBreakdownValue | null>(null)
+  const handlePricingChange = React.useCallback((next: PriceBreakdownValue) => {
+    setPricing((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next))
+  }, [])
   const [promotionCode, setPromotionCode] = React.useState("")
   const [paymentSchedule, setPaymentScheduleState] =
     React.useState<PaymentScheduleValue>(emptyPaymentScheduleValue)
@@ -492,9 +521,55 @@ export function ManualBookingCreateForm({
   const defaultSlot = defaultSlotQuery.data?.data ?? null
 
   const productQuery = useProduct(product.productId || undefined, {
-    enabled: Boolean(product.productId),
+    enabled: Boolean(product.productId) && (!product.sourceKind || product.sourceKind === "owned"),
   })
   const productRecord = productQuery.data
+  const enrichmentFetchers = React.useMemo(
+    () =>
+      createCatalogEnrichmentFetchers({
+        baseUrl,
+        fetch: fetcher as typeof globalThis.fetch,
+        contentBasePathByVertical: { products: "/v1/admin/products" },
+      }),
+    [baseUrl, fetcher],
+  )
+  const productContentQuery = useQuery({
+    queryKey: ["manual-booking-product-content", product.productId],
+    queryFn: () =>
+      enrichmentFetchers.loadProductDetail(
+        { id: product.productId, score: 0, document: { id: product.productId, fields: {} } },
+        "products",
+      ),
+    enabled: Boolean(product.productId),
+    staleTime: 30_000,
+  })
+  const productContent = productContentQuery.data ?? null
+  const resolvedSourceKind =
+    productContent?.sourceKind ?? product.sourceKind ?? (productRecord ? "owned" : "")
+  const resolvedSourceConnectionId =
+    productContent?.sourceConnectionId ?? product.sourceConnectionId
+  const resolvedSourceRef = productContent?.sourceRef ?? product.sourceRef
+  const isSourcedProduct = Boolean(resolvedSourceKind && resolvedSourceKind !== "owned")
+  const productDisplayName =
+    productContent?.name ?? productRecord?.name ?? product.productName ?? product.productId
+
+  React.useEffect(() => {
+    if (!product.productId || !productContent) return
+    setProduct((current) => {
+      if (current.productId !== product.productId) return current
+      const next = {
+        ...current,
+        ...(productContent.name ? { productName: productContent.name } : {}),
+        ...(productContent.supplier ? { supplierName: productContent.supplier } : {}),
+        ...(productContent.sourceKind ? { sourceKind: productContent.sourceKind } : {}),
+        ...(productContent.sourceConnectionId
+          ? { sourceConnectionId: productContent.sourceConnectionId }
+          : {}),
+        ...(productContent.sourceRef ? { sourceRef: productContent.sourceRef } : {}),
+      }
+      return JSON.stringify(next) === JSON.stringify(current) ? current : next
+    })
+  }, [product.productId, productContent])
   const billingPerson = usePerson(
     (billing.billTo ?? "person") === "person" ? billing.personId || undefined : undefined,
     { enabled: (billing.billTo ?? "person") === "person" && Boolean(billing.personId) },
@@ -508,33 +583,54 @@ export function ManualBookingCreateForm({
     if (product.productId) setSlotsFromIso(new Date().toISOString())
   }, [product.productId])
 
-  const slotsQuery = useSlots({
+  const ownedSlotsQuery = useSlots({
     productId: product.productId || undefined,
     status: "open",
     startsAtFrom: slotsFromIso,
     limit: 100,
-    enabled: Boolean(product.productId),
+    enabled: Boolean(product.productId) && !isSourcedProduct,
   })
+  const sourcedSlotsQuery = useCatalogSlots({
+    entityModule: "products",
+    entityId: product.productId,
+    surface: "admin",
+    enabled: Boolean(product.productId) && isSourcedProduct,
+  })
+  const catalogSlots = React.useMemo(
+    () =>
+      (sourcedSlotsQuery.data?.rows ?? []).flatMap((slot) => {
+        const normalized = normalizeCatalogBookingSlot(slot, product.productId)
+        return normalized ? [normalized] : []
+      }),
+    [sourcedSlotsQuery.data?.rows, product.productId],
+  )
+  const availableSlots = React.useMemo(
+    () => (isSourcedProduct ? catalogSlots : (ownedSlotsQuery.data?.data ?? [])),
+    [isSourcedProduct, catalogSlots, ownedSlotsQuery.data?.data],
+  )
   const allOpenSlots = React.useMemo(
     () =>
-      getBookableDepartureSlots(slotsQuery.data?.data ?? [], {
+      getBookableDepartureSlots(availableSlots, {
         nowIso: slotsFromIso,
         optionId: null,
       }),
-    [slotsQuery.data?.data, slotsFromIso],
+    [availableSlots, slotsFromIso],
   )
   const slots = React.useMemo(() => {
-    const optionSlots = getBookableDepartureSlots(slotsQuery.data?.data ?? [], {
+    const optionSlots = getBookableDepartureSlots(availableSlots, {
       nowIso: slotsFromIso,
       optionId: product.optionId,
     })
     return optionSlots.length > 0 ? optionSlots : allOpenSlots
-  }, [slotsQuery.data?.data, slotsFromIso, product.optionId, allOpenSlots])
+  }, [availableSlots, slotsFromIso, product.optionId, allOpenSlots])
   const selectedSlot = React.useMemo(
     () =>
       slots.find((slot) => slot.id === slotId) ?? (defaultSlot?.id === slotId ? defaultSlot : null),
     [slots, slotId, defaultSlot],
   )
+  const canBookWithoutDeparture =
+    isSourcedProduct && sourcedSlotsQuery.isSuccess && catalogSlots.length === 0
+  const hasBookingTiming = Boolean(slotId) || canBookWithoutDeparture
   const departureDateIso = selectedSlot?.startsAt?.slice(0, 10) ?? null
 
   const formatSlotLabel = React.useCallback(
@@ -585,7 +681,7 @@ export function ManualBookingCreateForm({
       const nextOptionId = defaultSlotId ? (defaultSlot?.optionId ?? prev.optionId) : prev.optionId
       return prev.productId === nextProductId && prev.optionId === nextOptionId
         ? prev
-        : { productId: nextProductId, optionId: nextOptionId }
+        : { ...prev, productId: nextProductId, optionId: nextOptionId }
     })
     setSlotId(defaultSlotId ?? null)
   }, [defaultProductId, defaultSlotId, defaultSlot?.productId, defaultSlot?.optionId])
@@ -675,25 +771,188 @@ export function ManualBookingCreateForm({
     [billing.billTo, billing.organizationId, billing.personId],
   )
 
+  const sourcedQuoteDraft = React.useMemo(
+    () =>
+      buildManualBookingQuoteDraft({
+        productId: product.productId,
+        sourceKind: resolvedSourceKind || undefined,
+        sourceConnectionId: resolvedSourceConnectionId,
+        sourceRef: resolvedSourceRef,
+        optionId: product.optionId,
+        slotId,
+        quantities: rooms.quantities,
+        units: roomUnits,
+        travelers,
+        contact: null,
+        extraLines,
+        promotionCode,
+        paymentSchedule,
+      }),
+    [
+      product.productId,
+      product.optionId,
+      resolvedSourceKind,
+      resolvedSourceConnectionId,
+      resolvedSourceRef,
+      slotId,
+      rooms.quantities,
+      roomUnits,
+      travelers,
+      extraLines,
+      promotionCode,
+      paymentSchedule,
+    ],
+  )
+  const sourcedQuote = useBookingQuote({
+    surface: "admin",
+    baseUrl,
+    fetcher,
+    draft: sourcedQuoteDraft,
+    scope: { audience: "staff", currency: product.sellCurrency },
+    enabled:
+      isSourcedProduct && Boolean(product.productId && hasBookingTiming && resolvedSourceKind),
+  })
+  const [sourcedQuoteProductId, setSourcedQuoteProductId] = React.useState("")
+  React.useEffect(() => {
+    if (isSourcedProduct && product.productId && !sourcedQuote.isSettling && sourcedQuote.data) {
+      setSourcedQuoteProductId(product.productId)
+    }
+  }, [isSourcedProduct, product.productId, sourcedQuote.data, sourcedQuote.isSettling])
+  const currentSourcedQuoteData =
+    sourcedQuoteProductId === product.productId ? sourcedQuote.data : null
+  const sourcedProductOptions = React.useMemo(
+    () => resolveSourcedProductOptions(currentSourcedQuoteData?.shape, productContent),
+    [currentSourcedQuoteData?.shape, productContent],
+  )
+  const sourcedProductSelectItems = React.useMemo(
+    () => sourcedProductOptions.map((option) => ({ label: option.name, value: option.id })),
+    [sourcedProductOptions],
+  )
+  const sourcedOptionUnits = React.useMemo(
+    () =>
+      resolveSourcedOptionUnits(
+        sourcedProductOptions,
+        product.optionId,
+        selectedSlot?.remainingPax ?? null,
+      ),
+    [sourcedProductOptions, product.optionId, selectedSlot?.remainingPax],
+  )
+  const sourcedExtras = React.useMemo(
+    () => (currentSourcedQuoteData?.shape?.addons?.catalog ?? []) as CatalogBookingExtraOption[],
+    [currentSourcedQuoteData?.shape?.addons?.catalog],
+  )
+
+  React.useEffect(() => {
+    if (!isSourcedProduct || sourcedExtras.length === 0) return
+    setExtraLines((current) => {
+      const extrasById = new Map(sourcedExtras.map((extra) => [extra.id, extra]))
+      const synchronized = current.flatMap((line) => {
+        const extra = extrasById.get(line.productExtraId)
+        if (!extra || extra.selectionType === "unavailable") return []
+        const pricingMode = extra.pricingMode ?? (extra.pricedPerPerson ? "per_person" : "fixed")
+        const chargedQuantity =
+          pricingMode === "per_person" || extra.pricedPerPerson
+            ? Math.max(1, travelers.travelers.length) * line.quantity
+            : line.quantity
+        const unitSellAmountCents = extra.unitAmountCents ?? null
+        return [
+          {
+            ...line,
+            name: extra.name,
+            description: extra.description ?? null,
+            pricingMode,
+            pricedPerPerson: Boolean(extra.pricedPerPerson),
+            sellCurrency:
+              extra.currency ??
+              currentSourcedQuoteData?.pricing?.currency ??
+              product.sellCurrency ??
+              line.sellCurrency,
+            unitSellAmountCents,
+            totalSellAmountCents:
+              unitSellAmountCents == null ? null : unitSellAmountCents * chargedQuantity,
+          },
+        ] satisfies BookingCreateExtraLineInput[]
+      })
+      const selectedIds = new Set(synchronized.map((line) => line.productExtraId))
+      const defaults = sourcedExtras.flatMap((extra) => {
+        if (
+          selectedIds.has(extra.id) ||
+          (extra.selectionType !== "required" && extra.selectionType !== "default_selected")
+        ) {
+          return []
+        }
+        const quantity = Math.max(
+          extra.selectionType === "required" ? 1 : 0,
+          extra.minQuantity ?? 0,
+          extra.defaultQuantity ?? 0,
+        )
+        if (quantity <= 0) return []
+        const sellCurrency =
+          extra.currency ?? currentSourcedQuoteData?.pricing?.currency ?? product.sellCurrency
+        if (!sellCurrency) return []
+        const pricingMode = extra.pricingMode ?? (extra.pricedPerPerson ? "per_person" : "fixed")
+        const chargedQuantity =
+          pricingMode === "per_person" || extra.pricedPerPerson
+            ? Math.max(1, travelers.travelers.length) * quantity
+            : quantity
+        return [
+          {
+            productExtraId: extra.id,
+            name: extra.name,
+            description: extra.description ?? null,
+            pricingMode,
+            pricedPerPerson: Boolean(extra.pricedPerPerson),
+            quantity,
+            sellCurrency,
+            unitSellAmountCents: extra.unitAmountCents ?? null,
+            totalSellAmountCents:
+              extra.unitAmountCents == null ? null : extra.unitAmountCents * chargedQuantity,
+          },
+        ] satisfies BookingCreateExtraLineInput[]
+      })
+      const next = defaults.length > 0 ? [...synchronized, ...defaults] : synchronized
+      return JSON.stringify(next) === JSON.stringify(current) ? current : next
+    })
+  }, [
+    isSourcedProduct,
+    product.sellCurrency,
+    sourcedExtras,
+    currentSourcedQuoteData?.pricing?.currency,
+    travelers.travelers.length,
+  ])
+
+  React.useEffect(() => {
+    if (
+      !isSourcedProduct ||
+      sourcedProductOptions.length === 0 ||
+      (product.optionId && sourcedProductOptions.some((option) => option.id === product.optionId))
+    ) {
+      return
+    }
+    const preferred =
+      sourcedProductOptions.find((option) => option.isDefault) ?? sourcedProductOptions[0]
+    if (preferred) setProduct((current) => ({ ...current, optionId: preferred.id }))
+  }, [isSourcedProduct, product.optionId, sourcedProductOptions])
+
   const slotUnitAvailability = useSlotUnitAvailability({
     slotId: slotId ?? undefined,
-    enabled: Boolean(slotId),
+    enabled: Boolean(slotId) && !isSourcedProduct,
   })
   const pricingPreview = usePricingPreview({
     productId: product.productId,
     optionId: product.optionId,
-    enabled: Boolean(product.productId),
+    enabled: Boolean(product.productId) && !isSourcedProduct,
   })
   const pricingCategoriesQuery = usePricingCategories({
     active: true,
     limit: 200,
-    enabled: Boolean(product.productId),
+    enabled: Boolean(product.productId) && !isSourcedProduct,
   })
   const optionUnitPriceRulesQuery = useOptionUnitPriceRules({
     optionId: product.optionId ?? selectedSlot?.optionId ?? undefined,
     active: true,
     limit: 200,
-    enabled: Boolean(product.productId),
+    enabled: Boolean(product.productId) && !isSourcedProduct,
   })
   const handleRoomUnitsChange = React.useCallback((units: OptionUnitsStepperUnit[]) => {
     setRoomUnits((prev) => (sameRoomUnits(prev, units) ? prev : units))
@@ -776,6 +1035,18 @@ export function ManualBookingCreateForm({
   }, [bookingUnits])
 
   const travelerPricingCategories: TravelerPricingCategoryOption[] = React.useMemo(() => {
+    if (isSourcedProduct) {
+      const unitIds = sourcedOptionUnits.map((unit) => unit.optionUnitId)
+      return (currentSourcedQuoteData?.shape?.paxBands ?? []).map((band) => ({
+        categoryId: band.code,
+        name: band.label,
+        code: band.code,
+        categoryType: paxBandCategoryType(band.code),
+        minAge: band.minAge ?? null,
+        maxAge: band.maxAge ?? null,
+        unitIds,
+      }))
+    }
     const snapshot = pricingPreview.data?.data
     const categoriesById = new Map<string, PricingCategoryLike>()
     const bookingUnitIds = new Set(bookingUnits.map((unit) => unit.optionUnitId))
@@ -825,6 +1096,9 @@ export function ManualBookingCreateForm({
     pricingCategoriesQuery.data?.data,
     optionUnitPriceRulesQuery.data?.data,
     bookingUnits,
+    isSourcedProduct,
+    sourcedOptionUnits,
+    currentSourcedQuoteData?.shape?.paxBands,
   ])
 
   const travelerPricingCategoryLabels = React.useMemo(
@@ -885,6 +1159,9 @@ export function ManualBookingCreateForm({
     () =>
       buildManualBookingQuoteDraft({
         productId: product.productId,
+        sourceKind: resolvedSourceKind || undefined,
+        sourceConnectionId: resolvedSourceConnectionId,
+        sourceRef: resolvedSourceRef,
         optionId: product.optionId,
         slotId,
         quantities: displayDraft.quantities,
@@ -899,6 +1176,9 @@ export function ManualBookingCreateForm({
     [
       product.productId,
       product.optionId,
+      resolvedSourceKind,
+      resolvedSourceConnectionId,
+      resolvedSourceRef,
       slotId,
       displayDraft.quantities,
       bookingUnits,
@@ -910,16 +1190,21 @@ export function ManualBookingCreateForm({
       paymentSchedule,
     ],
   )
-  const quote = useBookingQuote({
+  const ownedQuote = useBookingQuote({
     surface: "admin",
     baseUrl,
     fetcher,
     draft: quoteDraft,
     scope: { audience: "staff", currency: productRecord?.sellCurrency ?? undefined },
-    enabled: Boolean(
-      product.productId && slotId && Object.values(displayDraft.quantities).some((qty) => qty > 0),
-    ),
+    enabled:
+      !isSourcedProduct &&
+      Boolean(
+        product.productId &&
+          slotId &&
+          Object.values(displayDraft.quantities).some((qty) => qty > 0),
+      ),
   })
+  const quote = isSourcedProduct ? { ...sourcedQuote, data: currentSourcedQuoteData } : ownedQuote
   const quoteTotalAmountCents =
     quote.isSettling || quote.data?.available === false
       ? null
@@ -927,12 +1212,22 @@ export function ManualBookingCreateForm({
   const pricingCurrency =
     quote.data?.pricing?.currency ??
     productRecord?.sellCurrency ??
+    product.sellCurrency ??
     pricing?.currency ??
     messages.bookingCreateDialog.labels.currency
+  const sourcedPreviewPricing = React.useMemo(() => {
+    const quotePricing = currentSourcedQuoteData?.pricing
+    if (!quotePricing) return undefined
+    return {
+      totalAmountCents: quotePricing.total,
+      currency: quotePricing.currency,
+      lines: quotePricing.lines,
+    }
+  }, [currentSourcedQuoteData?.pricing])
   const resolvedPricing = resolveManualBookingPricing({
     pricing,
     quoteTotalAmountCents,
-    productAmountCents: productRecord?.sellAmountCents ?? null,
+    productAmountCents: productRecord?.sellAmountCents ?? product.sellAmountCents ?? null,
     currency: pricingCurrency,
   })
   const paymentRows = paymentScheduleToRows(
@@ -940,10 +1235,9 @@ export function ManualBookingCreateForm({
     pricingCurrency,
     resolvedPricing?.confirmedAmountCents ?? null,
   )
-  const hasSelectedUnits = React.useMemo(
-    () => Object.values(rooms.quantities).some((qty) => qty > 0),
-    [rooms.quantities],
-  )
+  const requiresUnitSelection = !isSourcedProduct || sourcedOptionUnits.length > 0
+  const hasSelectedUnits =
+    !requiresUnitSelection || Object.values(rooms.quantities).some((qty) => qty > 0)
   const manualOverrideRequiresReason = Boolean(
     pricing?.isManualOverride &&
       resolvedPricing &&
@@ -953,6 +1247,12 @@ export function ManualBookingCreateForm({
   const hasPromotionCode = Boolean(promotionCode.trim())
   const promotionReady =
     !hasPromotionCode ||
+    (!quote.isSettling &&
+      !quote.error &&
+      quote.data?.available !== false &&
+      Boolean(quote.data?.pricing))
+  const sourcedQuoteReady =
+    !isSourcedProduct ||
     (!quote.isSettling &&
       !quote.error &&
       quote.data?.available !== false &&
@@ -982,6 +1282,10 @@ export function ManualBookingCreateForm({
       setError(copy.validation.pricingPending)
       return
     }
+    if (!sourcedQuoteReady) {
+      setError(copy.validation.pricingUnavailable)
+      return
+    }
     if (hasPromotionCode && !promotionReady) {
       setError(
         quote.data?.available === false ? copy.promotion.invalid : copy.promotion.unavailable,
@@ -991,6 +1295,7 @@ export function ManualBookingCreateForm({
     const validationError = validateManualBookingDraft({
       productId: product.productId,
       slotId,
+      requireDeparture: !canBookWithoutDeparture,
       hasSelectedUnits,
       billing,
       contactFirstName: contact.firstName,
@@ -1031,7 +1336,7 @@ export function ManualBookingCreateForm({
     const confirmed = await confirmDialog({
       title: copy.confirm.title,
       description: copy.confirm.description
-        .replace("{product}", productRecord?.name ?? product.productId)
+        .replace("{product}", productDisplayName)
         .replace(
           "{amount}",
           formatManualBookingAmount(
@@ -1242,7 +1547,7 @@ export function ManualBookingCreateForm({
             labels={{ optionNone: messages.bookingCreateDialog.labels.noSpecificOption }}
             showOptionPicker={false}
           />
-          {product.productId ? (
+          {product.productId && !canBookWithoutDeparture ? (
             <div className="flex flex-col gap-1">
               <Label>{messages.bookingCreateDialog.fields.departure}</Label>
               <AsyncCombobox<AvailabilitySlotRecord>
@@ -1261,7 +1566,41 @@ export function ManualBookingCreateForm({
             </div>
           ) : null}
 
-          {product.productId && slotId ? (
+          {isSourcedProduct &&
+          product.productId &&
+          hasBookingTiming &&
+          sourcedProductOptions.length > 0 ? (
+            <Field className="gap-2">
+              <FieldLabel>{messages.productPickerSection.labels.option}</FieldLabel>
+              <Select
+                items={sourcedProductSelectItems}
+                value={product.optionId ?? undefined}
+                onValueChange={(optionId) => {
+                  setRooms(emptyOptionUnitsStepperValue)
+                  setRoomUnits([])
+                  setExtraLines([])
+                  setProduct((current) => ({ ...current, optionId: optionId ?? null }))
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={messages.productPickerSection.labels.optionNone} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {sourcedProductOptions.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+
+          {product.productId &&
+          hasBookingTiming &&
+          (!isSourcedProduct || sourcedOptionUnits.length > 0) ? (
             <OptionUnitsStepperSection
               value={rooms}
               onChange={(next) => {
@@ -1269,7 +1608,7 @@ export function ManualBookingCreateForm({
                 setRooms(next)
               }}
               productId={product.productId}
-              slotId={slotId}
+              slotId={slotId ?? undefined}
               optionId={product.optionId}
               onUnitsChange={handleRoomUnitsChange}
               slotHasFiniteCapacity={
@@ -1278,6 +1617,8 @@ export function ManualBookingCreateForm({
                 typeof selectedSlot?.remainingPax === "number"
               }
               invalidOptionUnitIds={payloadMismatchUnitIds}
+              providedOptions={isSourcedProduct ? sourcedProductOptions : undefined}
+              providedUnits={isSourcedProduct ? sourcedOptionUnits : undefined}
               labels={{
                 heading: messages.bookingCreateDialog.labels.roomsHeading,
                 noOption: messages.bookingCreateDialog.labels.roomsNoOption,
@@ -1289,7 +1630,7 @@ export function ManualBookingCreateForm({
             />
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId && hasBookingTiming ? (
             <ProductExtrasPickerSection
               productId={product.productId}
               optionId={product.optionId}
@@ -1298,6 +1639,7 @@ export function ManualBookingCreateForm({
               value={extraLines}
               onChange={setExtraLines}
               enabled
+              providedExtras={isSourcedProduct ? sourcedExtras : undefined}
               labels={{
                 heading: messages.bookingCreateDialog.labels.extrasHeading,
                 empty: messages.bookingCreateDialog.labels.extrasEmpty,
@@ -1308,7 +1650,7 @@ export function ManualBookingCreateForm({
             />
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId && hasBookingTiming ? (
             <FieldSet className="gap-4 rounded-md border p-3">
               <FieldLegend className="px-1">
                 {messages.bookingCreateDialog.labels.billingHeading}
@@ -1357,7 +1699,9 @@ export function ManualBookingCreateForm({
             </FieldSet>
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId &&
+          hasBookingTiming &&
+          (!isSourcedProduct || sourcedOptionUnits.some(isBookingInventoryUnit)) ? (
             <SharedRoomSection
               value={sharedRoom}
               onChange={setSharedRoom}
@@ -1374,7 +1718,7 @@ export function ManualBookingCreateForm({
             />
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId && hasBookingTiming ? (
             <TravelersSection
               value={travelers}
               onChange={(next) => {
@@ -1410,7 +1754,7 @@ export function ManualBookingCreateForm({
             />
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId && hasBookingTiming ? (
             <Field className="gap-2">
               <FieldLabel htmlFor="manual-booking-notes">
                 {messages.bookingCreateDialog.fields.internalNotes}
@@ -1424,7 +1768,7 @@ export function ManualBookingCreateForm({
             </Field>
           ) : null}
 
-          {product.productId && slotId ? (
+          {product.productId && hasBookingTiming ? (
             <div className="flex flex-col gap-3 rounded-md border p-3">
               <Label>{messages.bookingCreateDialog.labels.documentGenerationHeading}</Label>
               <div className="flex flex-col gap-2">
@@ -1512,9 +1856,10 @@ export function ManualBookingCreateForm({
               submitting ||
               permissionState !== "allowed" ||
               !product.productId ||
-              !slotId ||
+              !hasBookingTiming ||
               !hasSelectedUnits ||
               quote.isSettling ||
+              !sourcedQuoteReady ||
               !promotionReady
             }
           >
@@ -1533,6 +1878,9 @@ export function ManualBookingCreateForm({
       <div className="flex flex-col gap-4 lg:col-span-4">
         <BookingPreviewCard
           productId={product.productId}
+          productName={productDisplayName}
+          isSourcedProduct={isSourcedProduct}
+          quotePricing={isSourcedProduct ? sourcedPreviewPricing : undefined}
           optionId={product.optionId}
           slotId={slotId}
           slotLabel={selectedSlot ? formatSlotLabel(selectedSlot) : null}
@@ -1543,9 +1891,18 @@ export function ManualBookingCreateForm({
           extraLines={displayExtraLines}
           travelers={travelers.travelers}
           messages={messages}
-          onPricingChange={setPricing}
+          onPricingChange={handlePricingChange}
         />
-        {product.productId && slotId ? (
+        {product.productId &&
+        hasBookingTiming &&
+        isSourcedProduct &&
+        !quote.isSettling &&
+        !sourcedQuoteReady ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            {copy.validation.pricingUnavailable}
+          </p>
+        ) : null}
+        {product.productId && hasBookingTiming ? (
           <FieldSet className="gap-3 rounded-md border p-3">
             <FieldLegend className="px-1">{copy.promotion.heading}</FieldLegend>
             <Field className="gap-2">
@@ -1568,7 +1925,7 @@ export function ManualBookingCreateForm({
             </Field>
           </FieldSet>
         ) : null}
-        {product.productId && slotId ? (
+        {product.productId && hasBookingTiming ? (
           <FieldSet className="gap-3 rounded-md border p-3">
             <FieldLegend className="px-1">{copy.fields.currency}</FieldLegend>
             <CurrencyCombobox
@@ -1579,7 +1936,7 @@ export function ManualBookingCreateForm({
             />
           </FieldSet>
         ) : null}
-        {product.productId && slotId ? (
+        {product.productId && hasBookingTiming ? (
           <TravelCreditPickerSection
             value={travelCredit}
             onChange={setTravelCredit}
@@ -1594,7 +1951,7 @@ export function ManualBookingCreateForm({
             }}
           />
         ) : null}
-        {product.productId && slotId ? (
+        {product.productId && hasBookingTiming ? (
           <PaymentScheduleSection
             value={paymentSchedule}
             onChange={setPaymentSchedule}
@@ -1626,6 +1983,131 @@ export function ManualBookingCreateForm({
       </div>
     </form>
   )
+}
+
+export interface SourcedProductOption {
+  id: string
+  name: string
+  isDefault?: boolean
+  units?: ReadonlyArray<{
+    id: string
+    name: string
+    unitType?: string | null
+    minQuantity?: number | null
+    maxQuantity?: number | null
+  }>
+}
+
+export function resolveSourcedProductOptions(
+  shape: BookingDraftShapeV1 | undefined,
+  content: CatalogDetailEnrichment | null,
+): SourcedProductOption[] {
+  const optionStep = shape?.configureSubSteps?.find((step) => step.kind === "product-option")
+  if (optionStep?.kind === "product-option" && optionStep.options.length > 0) {
+    return optionStep.options
+  }
+  return (content?.options ?? []).map((option) => ({
+    id: option.id,
+    name: option.name,
+  }))
+}
+
+export function resolveSourcedOptionUnits(
+  options: ReadonlyArray<SourcedProductOption>,
+  selectedOptionId: string | null,
+  remainingPax: number | null,
+): OptionUnitsStepperUnit[] {
+  const selected =
+    options.find((option) => option.id === selectedOptionId) ??
+    (options.length === 1 ? options[0] : undefined)
+  if (!selected?.units) return []
+  return selected.units.map((unit) => {
+    const remaining = unit.maxQuantity ?? remainingPax
+    return {
+      optionId: selected.id,
+      optionUnitId: unit.id,
+      unitName: `${selected.name} · ${unit.name}`,
+      unitType: normalizeSourcedUnitType(unit.unitType),
+      occupancyMax: null,
+      initial: remaining,
+      reserved: 0,
+      remaining,
+    }
+  })
+}
+
+function normalizeSourcedUnitType(
+  unitType: string | null | undefined,
+): OptionUnitsStepperUnit["unitType"] {
+  switch (unitType) {
+    case "person":
+    case "group":
+    case "room":
+    case "vehicle":
+    case "service":
+    case "other":
+      return unitType
+    default:
+      return "other"
+  }
+}
+
+export function normalizeCatalogBookingSlot(
+  slot: CatalogSlot,
+  productId: string,
+): AvailabilitySlotRecord | null {
+  if (!slot.startsAt) return null
+  const status = normalizeCatalogSlotStatus(slot.status)
+  return {
+    id: slot.id,
+    productId,
+    itineraryId: null,
+    optionId: null,
+    facilityId: null,
+    availabilityRuleId: null,
+    startTimeId: null,
+    dateLocal: slot.startsAt.slice(0, 10),
+    endDateLocal: null,
+    startsAt: slot.startsAt,
+    endsAt: null,
+    timezone: "UTC",
+    status,
+    unlimited: slot.unlimited ?? slot.remainingPax == null,
+    initialPax: slot.initialPax ?? null,
+    remainingPax: slot.remainingPax ?? null,
+    nights: null,
+    days: null,
+    notes: null,
+  }
+}
+
+function normalizeCatalogSlotStatus(
+  status: string | null | undefined,
+): AvailabilitySlotRecord["status"] {
+  switch (status) {
+    case "closed":
+    case "sold_out":
+    case "cancelled":
+      return status
+    default:
+      return "open"
+  }
+}
+
+function paxBandCategoryType(code: string): TravelerPricingCategoryOption["categoryType"] {
+  switch (code.trim().toLowerCase()) {
+    case "child":
+    case "children":
+      return "child"
+    case "infant":
+    case "infants":
+      return "infant"
+    case "senior":
+    case "seniors":
+      return "senior"
+    default:
+      return "adult"
+  }
 }
 
 function EditableContactField({

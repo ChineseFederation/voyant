@@ -41,6 +41,8 @@ export const bookingsUiEnCreateList = {
       leadTraveler: "Choose exactly one lead traveler.",
       amount: "Enter a valid sell amount.",
       pricingPending: "Wait a moment while we calculate the total.",
+      pricingUnavailable:
+        "We couldn't calculate a live supplier price. Review the selection and try again.",
       overrideReason: "Add a reason for the manual total.",
       payment: "Complete the payment schedule and make its total match the sell amount.",
       paidPaymentDate: "Payment date is required when Already paid is checked.",

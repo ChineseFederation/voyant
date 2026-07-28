@@ -50,6 +50,19 @@ export interface PriceBreakdownSectionProps {
    * uses — matches what a customer would see.
    */
   catalogId?: string | null
+  /** Authoritative live quote for a supplier-sourced product. */
+  providedPricing?: {
+    totalAmountCents: number
+    currency: string
+    label?: string
+    lines?: ReadonlyArray<{
+      kind: string
+      label: string
+      quantity?: number
+      unitAmount: number
+      totalAmount: number
+    }>
+  }
   labels?: {
     heading?: string
     total?: string
@@ -150,6 +163,7 @@ export function PriceBreakdownSection({
   pricingCategoryQuantities,
   pricingCategoryLabels,
   catalogId,
+  providedPricing,
   labels,
   onChange,
   flat = false,
@@ -161,9 +175,11 @@ export function PriceBreakdownSection({
     productId: productId ?? "",
     optionId: optionId ?? null,
     catalogId: catalogId ?? null,
-    enabled: Boolean(productId),
+    enabled: Boolean(productId) && !providedPricing,
   })
-  const productQuery = useProduct(productId, { enabled: Boolean(productId) })
+  const productQuery = useProduct(productId, {
+    enabled: Boolean(productId) && !providedPricing,
+  })
   const quantitiesKey = React.useMemo(() => JSON.stringify(unitQuantities), [unitQuantities])
   const [manualAmountCents, setManualAmountCents] = React.useState<number | null>(null)
   const [overrideReason, setOverrideReason] = React.useState("")
@@ -172,12 +188,23 @@ export function PriceBreakdownSection({
   React.useEffect(() => {
     setManualAmountCents(null)
     setOverrideReason("")
-  }, [productId, optionId, catalogId, quantitiesKey])
+  }, [
+    productId,
+    optionId,
+    catalogId,
+    quantitiesKey,
+    providedPricing?.totalAmountCents,
+    providedPricing?.currency,
+  ])
 
   const snapshot = preview.data?.data
   const fallbackProduct = productQuery.data
   const fallbackUnitAmountCents = fallbackProduct?.sellAmountCents ?? null
-  const currency = snapshot?.catalog.currencyCode ?? fallbackProduct?.sellCurrency ?? null
+  const currency =
+    providedPricing?.currency ??
+    snapshot?.catalog.currencyCode ??
+    fallbackProduct?.sellCurrency ??
+    null
   const formatAmount = React.useCallback(
     (cents: number) =>
       currency
@@ -190,6 +217,35 @@ export function PriceBreakdownSection({
   )
 
   const { lines, total } = React.useMemo(() => {
+    if (providedPricing) {
+      const providedLines = providedPricing.lines ?? []
+      const lines: PriceBreakdownLine[] =
+        providedLines.length > 0
+          ? providedLines.map((line, index) => ({
+              unitId: `quote:${line.kind}:${index}`,
+              label: line.label,
+              quantity: line.quantity ?? 1,
+              unitAmountCents: line.unitAmount,
+              totalAmountCents: line.totalAmount,
+              tierLabel: null,
+              isGroupRate: false,
+            }))
+          : [
+              {
+                unitId: "quote:total",
+                label: providedPricing.label ?? merged.total,
+                quantity: 1,
+                unitAmountCents: providedPricing.totalAmountCents,
+                totalAmountCents: providedPricing.totalAmountCents,
+                tierLabel: null,
+                isGroupRate: false,
+              },
+            ]
+      return {
+        lines,
+        total: providedPricing.totalAmountCents,
+      }
+    }
     const out: PriceBreakdownLine[] = []
     let runningTotal = 0
     let anyOnRequest = false
@@ -346,6 +402,8 @@ export function PriceBreakdownSection({
     pricingCategoryLabels,
     merged.onRequest,
     merged.groupRate,
+    merged.total,
+    providedPricing,
   ])
 
   const confirmedAmountCents = manualAmountCents ?? total
@@ -429,7 +487,11 @@ export function PriceBreakdownSection({
   const wrapperClassName = flat
     ? "flex flex-col gap-2" // i18n-literal-ok: tailwind utilities
     : "flex flex-col gap-2 rounded-md border p-3" // i18n-literal-ok: tailwind utilities
-  if ((preview.isError || (preview.isSuccess && !snapshot)) && fallbackUnitAmountCents === null) {
+  if (
+    !providedPricing &&
+    (preview.isError || (preview.isSuccess && !snapshot)) &&
+    fallbackUnitAmountCents === null
+  ) {
     return (
       <div className={wrapperClassName}>
         {flat ? null : <Label>{merged.heading}</Label>}

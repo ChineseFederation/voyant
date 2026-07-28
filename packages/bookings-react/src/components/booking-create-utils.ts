@@ -1,7 +1,61 @@
-import type { ProductRecord } from "@voyant-travel/inventory-react"
 import type { BookingCreateItemLineInput } from "../index.js"
 
-export type ProductPickerSearchRecord = Pick<ProductRecord, "description" | "name" | "sellCurrency">
+export interface ProductPickerSearchRecord {
+  id?: string
+  name: string
+  description?: string | null
+  sellCurrency?: string | null
+  sellAmountCents?: number | null
+  supplierName?: string | null
+  sourceKind?: string | null
+  sourceConnectionId?: string | null
+  sourceRef?: string | null
+}
+
+export interface CatalogProductSearchHitLike {
+  id: string
+  document: { fields: Record<string, unknown> }
+}
+
+/** Normalize an indexed catalog hit into the small record the booking picker needs. */
+export function catalogProductPickerRecordFromHit(
+  hit: CatalogProductSearchHitLike,
+): ProductPickerSearchRecord & { id: string } {
+  const fields = hit.document.fields
+  return {
+    id: hit.id,
+    name: firstString(fields, ["name", "title"]) ?? hit.id,
+    description: firstString(fields, ["description", "shortDescription", "short_description"]),
+    sellCurrency: firstString(fields, [
+      "sellCurrency",
+      "sell_currency",
+      "priceFromCurrency",
+      "price_from_currency",
+    ]),
+    sellAmountCents: firstNumber(fields, [
+      "sellAmountCents",
+      "sell_amount_cents",
+      "priceFromAmountCents",
+      "priceFromAmountMinor",
+      "price_from_amount_cents",
+    ]),
+    supplierName: firstString(fields, [
+      "supplierName",
+      "supplier_name",
+      "supplierId",
+      "supplier",
+      "source.provider",
+    ]),
+    sourceKind: firstString(fields, ["source.kind", "sourceKind", "source_kind"]) ?? "owned",
+    sourceConnectionId: firstString(fields, [
+      "source.connectionId",
+      "source.connection_id",
+      "sourceConnectionId",
+      "source_connection_id",
+    ]),
+    sourceRef: firstString(fields, ["source.ref", "sourceRef", "source_ref"]),
+  }
+}
 
 export interface DepartureSlotSearchRecord {
   id: string
@@ -82,9 +136,33 @@ export function productMatchesPickerSearch(
   query: string,
 ): boolean {
   if (!product) return false
-  return [product.name, product.description, product.sellCurrency].some((value) =>
-    matchesBookingSearchText(value, query),
-  )
+  return [
+    product.id,
+    product.name,
+    product.description,
+    product.sellCurrency,
+    product.supplierName,
+    product.sourceKind,
+  ].some((value) => matchesBookingSearchText(value, query))
+}
+
+function firstString(fields: Record<string, unknown>, keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = fields[key]
+    if (typeof value === "string" && value.trim()) return value
+  }
+  return null
+}
+
+function firstNumber(fields: Record<string, unknown>, keys: readonly string[]): number | null {
+  for (const key of keys) {
+    const value = fields[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+      return Number(value)
+    }
+  }
+  return null
 }
 
 export type BillingPersonContactValidationResult = "valid" | "missing-contact" | "invalid-email"

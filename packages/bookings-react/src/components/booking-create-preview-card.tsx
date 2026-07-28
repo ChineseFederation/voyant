@@ -19,6 +19,9 @@ import type { TravelerEntry } from "./travelers-section.js"
  */
 export function BookingPreviewCard({
   productId,
+  productName,
+  isSourcedProduct = false,
+  quotePricing,
   optionId,
   slotId,
   slotLabel,
@@ -32,6 +35,19 @@ export function BookingPreviewCard({
   onPricingChange,
 }: {
   productId: string
+  productName?: string | null
+  isSourcedProduct?: boolean
+  quotePricing?: {
+    totalAmountCents: number
+    currency: string
+    lines?: ReadonlyArray<{
+      kind: string
+      label: string
+      quantity?: number
+      unitAmount: number
+      totalAmount: number
+    }>
+  }
   optionId: string | null
   slotId: string | null
   slotLabel: string | null
@@ -45,8 +61,13 @@ export function BookingPreviewCard({
   onPricingChange: (value: PriceBreakdownValue) => void
 }) {
   const { formatCurrency, formatNumber } = useBookingsUiI18nOrDefault()
-  const productQuery = useProduct(productId || undefined, { enabled: Boolean(productId) })
-  const mediaQuery = useProductMedia(productId, { limit: 1, enabled: Boolean(productId) })
+  const productQuery = useProduct(productId || undefined, {
+    enabled: Boolean(productId) && !isSourcedProduct,
+  })
+  const mediaQuery = useProductMedia(productId, {
+    limit: 1,
+    enabled: Boolean(productId) && !isSourcedProduct,
+  })
   const product = productQuery.data ?? null
   const cover = (mediaQuery.data?.data ?? []).find((m) => m.isCover) ?? mediaQuery.data?.data?.[0]
   const labels = messages.bookingCreateDialog.labels
@@ -55,11 +76,12 @@ export function BookingPreviewCard({
   // onPricingChange. Manual overrides flow through the same field, so
   // the tax line follows whatever the operator decides to charge.
   const [breakdown, setBreakdown] = React.useState<PriceBreakdownValue | null>(null)
+  const lastBreakdownKeyRef = React.useRef("")
   const handlePricingChange = React.useCallback(
     (value: PriceBreakdownValue) => {
       const extraTotal = extraLines.reduce((sum, line) => sum + (line.totalSellAmountCents ?? 0), 0)
       const next =
-        extraTotal > 0
+        extraTotal > 0 && !isSourcedProduct
           ? {
               ...value,
               catalogAmountCents:
@@ -80,10 +102,23 @@ export function BookingPreviewCard({
               ],
             }
           : value
+      const nextKey = JSON.stringify(next)
+      if (nextKey === lastBreakdownKeyRef.current) return
+      lastBreakdownKeyRef.current = nextKey
       setBreakdown(next)
       onPricingChange(next)
     },
-    [extraLines, onPricingChange],
+    [extraLines, isSourcedProduct, onPricingChange],
+  )
+  const providedPricing = React.useMemo(
+    () =>
+      quotePricing
+        ? {
+            ...quotePricing,
+            label: productName ?? undefined,
+          }
+        : undefined,
+    [productName, quotePricing],
   )
   const taxSubtotalCents = breakdown?.confirmedAmountCents ?? breakdown?.catalogAmountCents ?? 0
   const taxCurrency = breakdown?.currency ?? "EUR"
@@ -91,7 +126,7 @@ export function BookingPreviewCard({
     productId,
     subtotalCents: taxSubtotalCents,
     currency: taxCurrency,
-    enabled: Boolean(productId) && taxSubtotalCents > 0,
+    enabled: Boolean(productId) && taxSubtotalCents > 0 && !isSourcedProduct,
   })
   const previewMessages = {
     heading: labels.previewHeading,
@@ -103,7 +138,7 @@ export function BookingPreviewCard({
     travelerUnnamed: labels.previewTravelerUnnamed,
   }
 
-  const showPriceBreakdown = Boolean(productId && slotId)
+  const showPriceBreakdown = Boolean(productId && (isSourcedProduct ? quotePricing : slotId))
   const hasContent =
     Boolean(productId) || slotLabel != null || travelers.length > 0 || showPriceBreakdown
 
@@ -123,7 +158,7 @@ export function BookingPreviewCard({
             {cover?.url ? (
               <img
                 src={cover.url}
-                alt={product?.name ?? ""}
+                alt={product?.name ?? productName ?? ""}
                 className="h-14 w-14 shrink-0 rounded-md object-cover ring-1 ring-border"
                 loading="lazy"
               />
@@ -137,7 +172,7 @@ export function BookingPreviewCard({
                 {previewMessages.product}
               </span>
               <span className="truncate text-sm font-medium">
-                {product?.name ?? previewMessages.loading}
+                {product?.name ?? productName ?? previewMessages.loading}
               </span>
             </div>
           </div>
@@ -197,6 +232,7 @@ export function BookingPreviewCard({
               unitLabels={unitLabels}
               pricingCategoryQuantities={pricingCategoryQuantities}
               pricingCategoryLabels={pricingCategoryLabels}
+              providedPricing={providedPricing}
               labels={{
                 heading: labels.breakdownHeading,
                 total: labels.breakdownTotal,

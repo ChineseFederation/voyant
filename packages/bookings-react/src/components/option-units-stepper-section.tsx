@@ -76,6 +76,18 @@ export interface OptionUnitsStepperSectionProps {
   }
   slotHasFiniteCapacity?: boolean
   invalidOptionUnitIds?: readonly string[]
+  /** Catalog-sourced products provide option/unit shape through the live quote. */
+  providedOptions?: ReadonlyArray<{ id: string; name: string }>
+  /** When present (including an empty array), skip owned product/availability lookups. */
+  providedUnits?: ReadonlyArray<OptionUnitsStepperUnit>
+}
+
+export interface OptionUnitsStepperRow {
+  optionKey: string
+  optionName: string
+  primary: OptionUnitsStepperUnit
+  allUnits: OptionUnitsStepperUnit[]
+  totalRemaining: number | null
 }
 
 /**
@@ -110,11 +122,17 @@ export function OptionUnitsStepperSection({
   labels,
   slotHasFiniteCapacity = false,
   invalidOptionUnitIds = [],
+  providedOptions,
+  providedUnits,
 }: OptionUnitsStepperSectionProps) {
   const productsClient = useVoyantProductsContext()
   const messages = useBookingsUiMessagesOrDefault()
   const merged = { ...messages.roomsStepperSection.labels, ...labels }
-  const availability = useSlotUnitAvailability({ slotId, enabled: enabled && Boolean(slotId) })
+  const usesProvidedUnits = providedUnits !== undefined
+  const availability = useSlotUnitAvailability({
+    slotId,
+    enabled: enabled && Boolean(slotId) && !usesProvidedUnits,
+  })
 
   // Always fetch option-level units for the product. They're needed
   // both before a slot is picked AND as a fallback after picking a slot
@@ -124,32 +142,35 @@ export function OptionUnitsStepperSection({
     productId,
     status: "active",
     limit: 100,
-    enabled: enabled && Boolean(productId),
+    enabled: enabled && Boolean(productId) && !usesProvidedUnits,
   })
   const productOptions = React.useMemo(() => {
-    const options = optionsQuery.data?.data ?? []
+    const options = providedOptions ?? optionsQuery.data?.data ?? []
     if (!optionId) return options
     const selected = options.find((option) => option.id === optionId)
     const rest = options.filter((option) => option.id !== optionId)
     return selected ? [selected, ...rest] : options
-  }, [optionsQuery.data?.data, optionId])
+  }, [optionsQuery.data?.data, optionId, providedOptions])
   const optionUnitQueries = useQueries({
-    queries: productOptions.map((option) => ({
-      ...getOptionUnitsQueryOptions(productsClient, {
-        optionId: option.id,
-        limit: 100,
-      }),
-      enabled: enabled && Boolean(productId),
-    })),
+    queries: usesProvidedUnits
+      ? []
+      : productOptions.map((option) => ({
+          ...getOptionUnitsQueryOptions(productsClient, {
+            optionId: option.id,
+            limit: 100,
+          }),
+          enabled: enabled && Boolean(productId),
+        })),
   })
   const optionUnitRows = React.useMemo(() => {
+    if (providedUnits) return [...providedUnits]
     const rows: OptionUnitsStepperUnit[] = []
     productOptions.forEach((option, index) => {
       const units = optionUnitQueries[index]?.data?.data ?? []
       rows.push(...units.map((unit) => optionUnitToStepperUnit(option, unit, units.length)))
     })
     return rows
-  }, [productOptions, optionUnitQueries])
+  }, [productOptions, optionUnitQueries, providedUnits])
   // optionUnitId → optionId lookup, derived from the product's own option
   // catalog. The slot-availability endpoint only returns option_unit rows
   // for the slot's bound option and doesn't stamp the option_id on each
@@ -194,6 +215,7 @@ export function OptionUnitsStepperSection({
   // the no-slot-rows branch and use the product fallback for everything.
   // See issue #960.
   const units = React.useMemo(() => {
+    if (providedUnits) return [...providedUnits]
     const merged = mergeStepperUnits(
       availabilityUnitRows,
       optionUnitRows,
@@ -205,7 +227,15 @@ export function OptionUnitsStepperSection({
     // with no rooms of its own correctly shows none).
     if (restrictToOption && optionId) return merged.filter((unit) => unit.optionId === optionId)
     return merged
-  }, [availabilityUnitRows, optionUnitRows, slotOptionId, slotId, restrictToOption, optionId])
+  }, [
+    availabilityUnitRows,
+    optionUnitRows,
+    slotOptionId,
+    slotId,
+    restrictToOption,
+    optionId,
+    providedUnits,
+  ])
   const invalidOptionUnitIdSet = React.useMemo(
     () => new Set(invalidOptionUnitIds),
     [invalidOptionUnitIds],
@@ -219,54 +249,10 @@ export function OptionUnitsStepperSection({
   // count, then traveler rows split Adult / Child / Infant. Inventory
   // options are different: rooms and vehicles are physical containers,
   // so each room/vehicle unit must be selectable independently.
-  const optionRows = React.useMemo(() => {
-    const groups = new Map<
-      string,
-      { primary: OptionUnitsStepperUnit; allUnits: OptionUnitsStepperUnit[] }
-    >()
-    for (const unit of units) {
-      const key = unit.optionId ?? unit.optionUnitId
-      const entry = groups.get(key)
-      if (entry) {
-        entry.allUnits.push(unit)
-        // Prefer an explicit ADULT unit as primary; fall back to whatever
-        // arrived first.
-        if (isAdultUnit(unit) && !isAdultUnit(entry.primary)) entry.primary = unit
-      } else {
-        groups.set(key, { primary: unit, allUnits: [unit] })
-      }
-    }
-    return Array.from(groups.entries()).flatMap(([optionKey, group]) => {
-      const optionName =
-        productOptions.find((option) => option.id === optionKey)?.name ?? group.primary.unitName
-      const inventoryUnits = group.allUnits.filter(isInventoryUnit)
-
-      if (inventoryUnits.length > 0) {
-        return inventoryUnits.map((unit) => ({
-          optionKey: unit.optionUnitId,
-          optionName: unit.unitName,
-          primary: unit,
-          allUnits: [unit],
-          totalRemaining: unit.remaining,
-        }))
-      }
-
-      const totalRemaining = group.allUnits.reduce<number | null>((acc, unit) => {
-        if (unit.remaining === null) return null
-        if (acc === null) return null
-        return acc + unit.remaining
-      }, 0)
-      return [
-        {
-          optionKey,
-          optionName,
-          primary: group.primary,
-          allUnits: group.allUnits,
-          totalRemaining,
-        },
-      ]
-    })
-  }, [units, productOptions])
+  const optionRows = React.useMemo(
+    () => buildOptionUnitsStepperRows(units, productOptions),
+    [units, productOptions],
+  )
 
   if (!slotId && !productId && !optionId) {
     return (
@@ -281,9 +267,14 @@ export function OptionUnitsStepperSection({
   // — slot units may legitimately be empty (product-level slot), and
   // we don't want to flash the empty state before option-level units
   // finish loading.
-  const optionsLoaded =
-    optionsQuery.isSuccess && optionUnitQueries.every((query) => query.isSuccess)
-  const loaded = slotId ? availability.isSuccess && optionsLoaded : optionsLoaded
+  const optionsLoaded = usesProvidedUnits
+    ? true
+    : optionsQuery.isSuccess && optionUnitQueries.every((query) => query.isSuccess)
+  const loaded = usesProvidedUnits
+    ? true
+    : slotId
+      ? availability.isSuccess && optionsLoaded
+      : optionsLoaded
   if (loaded && units.length === 0) {
     return (
       <div className="flex flex-col gap-2 rounded-md border p-3">
@@ -457,8 +448,61 @@ function isInventoryUnit(unit: Pick<OptionUnitsStepperUnit, "unitType">): boolea
   return unit.unitType === "room" || unit.unitType === "vehicle"
 }
 
+export function buildOptionUnitsStepperRows(
+  units: ReadonlyArray<OptionUnitsStepperUnit>,
+  productOptions: ReadonlyArray<Pick<ProductOptionRecord, "id" | "name">>,
+): OptionUnitsStepperRow[] {
+  const groups = new Map<
+    string,
+    { primary: OptionUnitsStepperUnit; allUnits: OptionUnitsStepperUnit[] }
+  >()
+  for (const unit of units) {
+    const key = unit.optionId ?? unit.optionUnitId
+    const entry = groups.get(key)
+    if (entry) {
+      entry.allUnits.push(unit)
+      if (isAdultUnit(unit) && !isAdultUnit(entry.primary)) entry.primary = unit
+    } else {
+      groups.set(key, { primary: unit, allUnits: [unit] })
+    }
+  }
+
+  return Array.from(groups.entries()).flatMap(([optionKey, group]) => {
+    const optionName =
+      productOptions.find((option) => option.id === optionKey)?.name ?? group.primary.unitName
+    const inventoryUnits = group.allUnits.filter(isInventoryUnit)
+    const inventoryRows: OptionUnitsStepperRow[] = inventoryUnits.map((unit) => ({
+      optionKey: unit.optionUnitId,
+      optionName: unit.unitName,
+      primary: unit,
+      allUnits: [unit],
+      totalRemaining: unit.remaining,
+    }))
+    const countUnits = group.allUnits.filter((unit) => !isInventoryUnit(unit))
+    if (countUnits.length === 0) return inventoryRows
+
+    const countPrimary = countUnits.find(isAdultUnit) ?? countUnits[0]
+    if (!countPrimary) return inventoryRows
+    const totalRemaining = countUnits.reduce<number | null>((acc, unit) => {
+      if (unit.remaining === null || acc === null) return null
+      return acc + unit.remaining
+    }, 0)
+    return [
+      ...inventoryRows,
+      {
+        optionKey:
+          inventoryRows.length > 0 ? `${optionKey}:${countPrimary.optionUnitId}` : optionKey,
+        optionName: inventoryRows.length > 0 ? countPrimary.unitName : optionName,
+        primary: countPrimary,
+        allUnits: countUnits,
+        totalRemaining,
+      },
+    ]
+  })
+}
+
 function optionUnitToStepperUnit(
-  option: ProductOptionRecord,
+  option: Pick<ProductOptionRecord, "id" | "name">,
   unit: OptionUnitRecord,
   unitCount: number,
 ): OptionUnitsStepperUnit {

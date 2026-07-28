@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  buildOptionUnitsStepperRows,
   mergeStepperUnits,
   type OptionUnitsStepperUnit,
   optionRowHasInvalidUnit,
@@ -96,6 +97,21 @@ describe("mergeStepperUnits", () => {
     const productRows = [sgl, dbl]
 
     expect(mergeStepperUnits([], productRows, "popt_SGL", true)).toEqual(productRows)
+  })
+})
+
+describe("buildOptionUnitsStepperRows", () => {
+  it("keeps both inventory and person controls for a mixed supplier option", () => {
+    const rows = buildOptionUnitsStepperRows(
+      [
+        { ...makeRow("family", "double-room", 3), unitName: "Double room", unitType: "room" },
+        { ...makeRow("family", "adult-seat", 7), unitName: "Adult seat", unitType: "person" },
+      ],
+      [{ id: "family", name: "Family package" }],
+    )
+
+    expect(rows.map((row) => row.optionName)).toEqual(["Double room", "Adult seat"])
+    expect(rows.map((row) => row.primary.optionUnitId)).toEqual(["double-room", "adult-seat"])
   })
 })
 

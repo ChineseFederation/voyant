@@ -39,6 +39,7 @@ export type BookingsUiCreateListMessages = {
       leadTraveler: string
       amount: string
       pricingPending: string
+      pricingUnavailable: string
       overrideReason: string
       payment: string
       paidPaymentDate: string

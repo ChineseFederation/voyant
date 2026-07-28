@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { findAlreadyPaidInstallmentMissingPaymentDate } from "../../src/components/booking-create-form-utils.js"
 import {
+  catalogProductPickerRecordFromHit,
   getBookableDepartureSlots,
   getOverCapacityInventoryAssignments,
   getSelectedSharedRoomUnitId,
@@ -73,6 +74,46 @@ describe("booking create helpers", () => {
         "rasnov",
       ),
     ).toBe(true)
+  })
+
+  it("normalizes supplier catalog hits for the unified product picker", () => {
+    expect(
+      catalogProductPickerRecordFromHit({
+        id: "prod_supplier_1",
+        document: {
+          fields: {
+            name: "Northern Lights Tour",
+            supplierId: "Demo Tours",
+            sellAmountCents: "12900",
+            sellCurrency: "EUR",
+            "source.kind": "voyant-connect",
+            "source.ref": "upstream-42",
+          },
+        },
+      }),
+    ).toEqual({
+      id: "prod_supplier_1",
+      name: "Northern Lights Tour",
+      description: null,
+      supplierName: "Demo Tours",
+      sellAmountCents: 12900,
+      sellCurrency: "EUR",
+      sourceKind: "voyant-connect",
+      sourceConnectionId: null,
+      sourceRef: "upstream-42",
+    })
+  })
+
+  it("matches product picker search by supplier and source", () => {
+    const product = {
+      id: "prod_supplier_1",
+      name: "Northern Lights Tour",
+      supplierName: "Demo Tours",
+      sourceKind: "voyant-connect",
+      sellCurrency: "EUR",
+    }
+    expect(productMatchesPickerSearch(product, "demo tours")).toBe(true)
+    expect(productMatchesPickerSearch(product, "voyant-connect")).toBe(true)
   })
 
   it("keeps future open departures for the selected product option", () => {
