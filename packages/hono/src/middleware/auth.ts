@@ -1,8 +1,8 @@
 import type { Actor, VoyantAuthContext } from "@voyant-travel/core"
-import { apikeyTable, type SelectApikey } from "@voyant-travel/db/schema/iam"
+import { apikeyTable, cloudAuthUserLinks, type SelectApikey } from "@voyant-travel/db/schema/iam"
 import { API_KEY_AUDIENCES, permissionsToStrings } from "@voyant-travel/types/api-keys"
 import type { KVStore } from "@voyant-travel/utils/cache"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNull, or, sql } from "drizzle-orm"
 import type { MiddlewareHandler } from "hono"
 
 import { constantTimeEqual, sha256Base64Url, sha256Hex } from "../auth/crypto.js"
@@ -22,6 +22,14 @@ import {
 import { acquireRequestDb } from "./request-db.js"
 
 const API_KEY_PREFIX = "voy_"
+const ACTING_USER_HEADER = "x-voyant-acting-user-id"
+const ACTING_USER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,199}$/
+
+/** Read acting identity only after the request has matched a trusted internal key. */
+function trustedActingUserId(header: string | undefined): string | undefined {
+  const value = header?.trim()
+  return value && ACTING_USER_ID_PATTERN.test(value) ? value : undefined
+}
 
 /**
  * Parse `INTERNAL_API_KEY` as one-or-more comma-separated values, so the
@@ -172,6 +180,7 @@ function applyAuthContext(
   if (auth.isInternalRequest !== undefined) c.set("isInternalRequest", auth.isInternalRequest)
   if (auth.apiTokenId) c.set("apiTokenId", auth.apiTokenId)
   if (auth.apiKeyId) c.set("apiKeyId", auth.apiKeyId)
+  if (auth.principalSubtype) c.set("principalSubtype", auth.principalSubtype)
   if (auth.appId) c.set("appId", auth.appId)
   if (auth.appInstallationId) c.set("appInstallationId", auth.appInstallationId)
   if (auth.appReleaseId) c.set("appReleaseId", auth.appReleaseId)
@@ -245,13 +254,51 @@ export function requireAuth<TBindings extends VoyantBindings>(
     // Strategy 1: Internal API Key
     const internalKeys = parseInternalApiKeys(c.env.INTERNAL_API_KEY)
     if (token && internalKeys.length > 0 && (await matchesInternalApiKey(token, internalKeys))) {
-      applyAuthContext(c, {
-        callerType: "internal",
-        isInternalRequest: true,
-        actor: "staff",
-        scopes: parseInternalApiKeyScopes(c.env.INTERNAL_API_KEY_SCOPES),
-      })
-      return next()
+      const actingUserHeader = c.req.header(ACTING_USER_HEADER)
+      const assertedActingUserId = trustedActingUserId(actingUserHeader)
+      if (actingUserHeader !== undefined && !assertedActingUserId) {
+        return c.json({ error: "Invalid acting user" }, 401)
+      }
+      const cloudDeploymentId = c.env.VOYANT_CLOUD_DEPLOYMENT_ID?.trim()
+      if (assertedActingUserId && !cloudDeploymentId) {
+        return c.json({ error: "Invalid acting user" }, 401)
+      }
+      const lease = assertedActingUserId ? acquireRequestDb(c, dbFactory) : undefined
+      try {
+        let actingUserId: string | undefined
+        if (assertedActingUserId && lease) {
+          const [link] = await lease.db
+            .select({ userId: cloudAuthUserLinks.userId })
+            .from(cloudAuthUserLinks)
+            .where(
+              and(
+                eq(cloudAuthUserLinks.providerId, "voyant-cloud"),
+                eq(cloudAuthUserLinks.deploymentId, cloudDeploymentId as string),
+                isNull(cloudAuthUserLinks.revokedAt),
+                or(
+                  eq(cloudAuthUserLinks.providerAccountId, assertedActingUserId),
+                  eq(cloudAuthUserLinks.userId, assertedActingUserId),
+                ),
+              ),
+            )
+            .limit(1)
+          actingUserId = link?.userId
+          if (!actingUserId) {
+            return c.json({ error: "Invalid acting user" }, 401)
+          }
+        }
+
+        applyAuthContext(c, {
+          ...(actingUserId ? { userId: actingUserId, principalSubtype: "max" } : {}),
+          callerType: "internal",
+          isInternalRequest: true,
+          actor: "staff",
+          scopes: parseInternalApiKeyScopes(c.env.INTERNAL_API_KEY_SCOPES),
+        })
+        return await next()
+      } finally {
+        await lease?.release()
+      }
     }
 
     // Strategy 2: Core-owned API key support (voy_ prefixed)

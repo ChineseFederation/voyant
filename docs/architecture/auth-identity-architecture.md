@@ -217,6 +217,31 @@ Rule:
 
 Do not overload user-session auth to cover every non-user access pattern.
 
+### 10a. Trusted internal acting-user attribution is not authorization
+
+An internal caller authenticated by an exact configured `INTERNAL_API_KEY`
+match may send `x-voyant-acting-user-id` when it performs work interactively on
+behalf of a Voyant staff user. Managed Max sends the Voyant Cloud / WorkOS
+provider account id. The Hono runtime must resolve that assertion through an
+active `cloud_auth_user_links` row and records the linked deployment-local auth
+user id as request `userId` with `principalSubtype: "max"`. An unknown or
+revoked link fails authentication. This is attribution and a delegated identity
+input, not a replacement for the machine credential's authorization.
+
+`INTERNAL_API_KEY_SCOPES` remains a hard permission ceiling. A route guarded by
+`requirePermission(resource, action)` must reject the request when the internal
+credential lacks that scope, even if the asserted user would independently
+have the permission in an interactive session. Audit consumers should record
+both the internal caller and the asserted actor where their schema permits it.
+
+Every holder of a configured internal key is technically able to assert this
+header. Managed deployments must therefore distribute that key only to trusted
+internal workloads allowed to act on behalf of staff, rotate it with the
+comma-separated overlap procedure, and give it the narrowest practical scopes.
+Self-hosted deployments that do not operate such a trusted workload should not
+forward the header and may leave `INTERNAL_API_KEY` unset. Untrusted clients and
+ordinary `voy_*` API keys must never be allowed to assert acting-user identity.
+
 For the current token-signing baseline and the threshold for eventual JWKS-style
 distribution, see
 [`token-signing-and-key-distribution-policy.md`](./token-signing-and-key-distribution-policy.md).

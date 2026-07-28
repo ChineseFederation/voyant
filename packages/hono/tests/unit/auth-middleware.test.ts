@@ -310,6 +310,162 @@ describe("requireAuth API keys", () => {
     })
   })
 
+  it("accepts Max acting-user attribution only with the trusted internal key", async () => {
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeCloudActorDb("local_auth_user_123")),
+    )
+    app.get("/secure", (c) =>
+      c.json({
+        callerType: c.get("callerType"),
+        userId: c.get("userId"),
+        principalSubtype: c.get("principalSubtype"),
+      }),
+    )
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure", {
+        headers: {
+          Authorization: "Bearer managed-max-key",
+          "x-voyant-acting-user-id": "user_01KQ9J3M7KE6FNHQPYJJ7VYBF1",
+        },
+      }),
+      {
+        ...TEST_ENV,
+        INTERNAL_API_KEY: "managed-max-key",
+        VOYANT_CLOUD_DEPLOYMENT_ID: "deployment_current",
+      },
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      callerType: "internal",
+      userId: "local_auth_user_123",
+      principalSubtype: "max",
+    })
+  })
+
+  it("rejects a trusted acting-user assertion with no active local mirror link", async () => {
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeCloudActorDb(null)),
+    )
+    app.get("/secure", (c) => c.json({ ok: true }))
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure", {
+        headers: {
+          Authorization: "Bearer managed-max-key",
+          "x-voyant-acting-user-id": "user_unknown",
+        },
+      }),
+      {
+        ...TEST_ENV,
+        INTERNAL_API_KEY: "managed-max-key",
+        VOYANT_CLOUD_DEPLOYMENT_ID: "deployment_current",
+      },
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: "Invalid acting user" })
+  })
+
+  it.each([
+    "",
+    "user!invalid",
+    `user_${"x".repeat(200)}`,
+  ])("rejects a malformed trusted acting-user assertion (%j)", async (assertion) => {
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeCloudActorDb("local_auth_user_123")),
+    )
+    app.get("/secure", (c) => c.json({ ok: true }))
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure", {
+        headers: {
+          Authorization: "Bearer managed-max-key",
+          "x-voyant-acting-user-id": assertion,
+        },
+      }),
+      {
+        ...TEST_ENV,
+        INTERNAL_API_KEY: "managed-max-key",
+        VOYANT_CLOUD_DEPLOYMENT_ID: "deployment_current",
+      },
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: "Invalid acting user" })
+  })
+
+  it("rejects acting-user attribution when the active deployment is unavailable", async () => {
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeCloudActorDb("local_auth_user_123")),
+    )
+    app.get("/secure", (c) => c.json({ ok: true }))
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure", {
+        headers: {
+          Authorization: "Bearer managed-max-key",
+          "x-voyant-acting-user-id": "user_01KQ9J3M7KE6FNHQPYJJ7VYBF1",
+        },
+      }),
+      { ...TEST_ENV, INTERNAL_API_KEY: "managed-max-key" },
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(401)
+    expect(await response.json()).toEqual({ error: "Invalid acting user" })
+  })
+
+  it("ignores acting-user attribution on an ordinary API key", async () => {
+    const token = "voy_test_api_key"
+    const row = makeApiKeyRow({
+      key: await sha256Base64Url(token),
+      referenceId: "organization_123",
+    })
+    const app = new Hono()
+    app.use(
+      "*",
+      requireAuth(() => makeApiKeyDb(row)),
+    )
+    app.get("/secure", (c) =>
+      c.json({
+        callerType: c.get("callerType"),
+        userId: c.get("userId") ?? null,
+        principalSubtype: c.get("principalSubtype") ?? null,
+      }),
+    )
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-voyant-acting-user-id": "user_spoofed",
+        },
+      }),
+      TEST_ENV,
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      callerType: "api_key",
+      userId: null,
+      principalSubtype: null,
+    })
+  })
+
   it("defaults a custom resolver audience to its authenticated actor", async () => {
     const app = new Hono()
     app.use(
@@ -537,6 +693,18 @@ function makeApiKeyDb(row: Record<string, unknown>) {
     update: () => ({
       set: () => ({
         where: async () => {},
+      }),
+    }),
+  } as never
+}
+
+function makeCloudActorDb(userId: string | null) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => (userId ? [{ userId }] : []),
+        }),
       }),
     }),
   } as never

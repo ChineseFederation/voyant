@@ -143,6 +143,44 @@ describe("requirePermission", () => {
     expect(hasPermission).not.toHaveBeenCalled()
   })
 
+  it("does not let an asserted internal actor exceed the machine scope cap", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const hasPermission = vi.fn().mockResolvedValue(true)
+
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.use("*", requestId)
+    app.use("*", async (c, next) => {
+      c.set("callerType", "internal")
+      c.set("isInternalRequest", true)
+      c.set("userId", "user_privileged")
+      c.set("principalSubtype", "max")
+      c.set("actor", "staff")
+      c.set("scopes", ["crm:read"])
+      await next()
+    })
+    app.use(
+      "*",
+      requirePermission(() => ({}) as never, "crm", "write", {
+        auth: { hasPermission },
+      }),
+    )
+    app.get("/secure", (c) => c.json({ ok: true }))
+
+    const response = await app.fetch(
+      new Request("http://example.com/secure"),
+      {},
+      mockExecutionCtx(),
+    )
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({
+      error: "Forbidden",
+      code: "forbidden",
+    })
+    expect(hasPermission).not.toHaveBeenCalled()
+  })
+
   it("returns 401 when userId is set but actor is not (upstream wiring bug)", async () => {
     // `requirePermission` runs after `requireActor`. If actor is missing here,
     // it means the auth pipeline silently let an unresolved request through —

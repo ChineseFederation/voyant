@@ -30,6 +30,7 @@ export interface VoyantExecutionContext {
 export interface VoyantBindings {
   INTERNAL_API_KEY?: string
   INTERNAL_API_KEY_SCOPES?: string
+  VOYANT_CLOUD_DEPLOYMENT_ID?: string
   SESSION_CLAIMS_ADMIN_SECRET?: string
   SESSION_CLAIMS_CUSTOMER_SECRET?: string
   BETTER_AUTH_ADMIN_SECRET?: string

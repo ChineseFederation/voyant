@@ -47,6 +47,8 @@ export interface VoyantAuthContext {
   isInternalRequest?: boolean
   apiTokenId?: string
   apiKeyId?: string
+  /** Auditable subtype for a trusted delegated principal (for example `max`). */
+  principalSubtype?: string
   appId?: string
   appInstallationId?: string
   appReleaseId?: string

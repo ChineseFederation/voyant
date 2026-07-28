@@ -40,6 +40,14 @@ export function requirePermission<TBindings extends VoyantBindings>(
       return next()
     }
 
+    // An internal credential's configured scopes are a hard authorization
+    // ceiling. An asserted acting user supplies attribution and delegated
+    // identity; it must never turn a denied machine scope into a user-session
+    // permission fallback.
+    if (c.get("isInternalRequest")) {
+      throw new ForbiddenApiError()
+    }
+
     const userId = requireUserId(c)
     const actor = c.get("actor") as Actor | undefined
     if (!actor) {
