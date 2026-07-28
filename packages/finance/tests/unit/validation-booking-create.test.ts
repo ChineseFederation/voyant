@@ -163,8 +163,8 @@ describe("deriveBookingCreatePax", () => {
     expect(deriveBookingCreatePax({ pax: 4, travelers: [{}, {}] })).toBe(4)
   })
 
-  it("keeps explicit null pax", () => {
-    expect(deriveBookingCreatePax({ pax: null, travelers: [{}, {}] })).toBeNull()
+  it("derives pax from travelers when the nullable field is explicitly null", () => {
+    expect(deriveBookingCreatePax({ pax: null, travelers: [{}, {}] })).toBe(2)
   })
 
   it("derives pax from supplied travelers when omitted", () => {
