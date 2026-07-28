@@ -1,5 +1,12 @@
 # @voyant-travel/public-document-delivery
 
+## 0.4.17
+
+### Patch Changes
+
+- Updated dependencies [9c2bb8c]
+  - @voyant-travel/storage@0.115.0
+
 ## 0.4.16
 
 ### Patch Changes

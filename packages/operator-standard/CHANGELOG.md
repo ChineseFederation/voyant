@@ -1,5 +1,20 @@
 # @voyant-travel/operator-standard
 
+## 0.15.33
+
+### Patch Changes
+
+- Updated dependencies [9c2bb8c]
+  - @voyant-travel/storage@0.115.0
+  - @voyant-travel/media@0.6.0
+  - @voyant-travel/finance@0.215.1
+  - @voyant-travel/inventory@0.22.3
+  - @voyant-travel/legal@0.215.1
+  - @voyant-travel/public-document-delivery@0.4.17
+  - @voyant-travel/media-react@0.7.1
+  - @voyant-travel/finance-react@0.215.1
+  - @voyant-travel/legal-react@0.215.1
+
 ## 0.15.32
 
 ### Patch Changes
