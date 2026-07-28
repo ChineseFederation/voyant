@@ -76,6 +76,10 @@ export type NotificationsRoutesOptions = {
   resolveProviders?: (bindings: Record<string, unknown>) => ReadonlyArray<NotificationProvider>
   publicCheckoutBaseUrl?: string | null
   resolvePublicCheckoutBaseUrl?: (bindings: Record<string, unknown>) => string | null | undefined
+  publicCustomerPortalBaseUrl?: string | null
+  resolvePublicCustomerPortalBaseUrl?: (
+    bindings: Record<string, unknown>,
+  ) => string | null | undefined
   documentAttachmentResolver?: BookingDocumentAttachmentResolver
   resolveDocumentAttachmentResolver?: (
     bindings: Record<string, unknown>,
@@ -87,6 +91,7 @@ export type NotificationsRoutesOptions = {
 export type NotificationsRouteRuntime = {
   providers: ReadonlyArray<NotificationProvider>
   publicCheckoutBaseUrl?: string | null
+  publicCustomerPortalBaseUrl?: string | null
   documentAttachmentResolver?: BookingDocumentAttachmentResolver
   eventBus?: EventBus
 }
@@ -101,6 +106,10 @@ export function buildNotificationsRouteRuntime(
     providers: options?.resolveProviders?.(bindings) ?? options?.providers ?? [],
     publicCheckoutBaseUrl:
       options?.resolvePublicCheckoutBaseUrl?.(bindings) ?? options?.publicCheckoutBaseUrl ?? null,
+    publicCustomerPortalBaseUrl:
+      options?.resolvePublicCustomerPortalBaseUrl?.(bindings) ??
+      options?.publicCustomerPortalBaseUrl ??
+      null,
     documentAttachmentResolver:
       options?.resolveDocumentAttachmentResolver?.(bindings) ?? options?.documentAttachmentResolver,
     eventBus: options?.resolveEventBus?.(bindings) ?? options?.eventBus,
@@ -1136,7 +1145,10 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           dispatcher,
           c.req.valid("param").id,
           c.req.valid("json"),
-          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+          {
+            paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
+          },
         )
         if (!row) return c.json({ error: "Payment session not found" }, 404)
         return c.json({ data: row }, 201)
@@ -1155,7 +1167,10 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           dispatcher,
           c.req.valid("param").id,
           c.req.valid("json"),
-          { paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl },
+          {
+            paymentLinkBaseUrl: runtime.publicCheckoutBaseUrl,
+            publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
+          },
         )
         if (!row) return c.json({ error: "Invoice not found" }, 404)
         return c.json({ data: row }, 201)
@@ -1183,6 +1198,7 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.req.valid("json"),
           {
             attachmentResolver: runtime.documentAttachmentResolver,
+            publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
           },
         )
         if (result.status === "not_found") return c.json({ error: "Booking not found" }, 404)
@@ -1244,6 +1260,7 @@ export function createNotificationsRoutes(options?: NotificationsRoutesOptions) 
           c.req.valid("json"),
           {
             attachmentResolver: runtime.documentAttachmentResolver,
+            publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
           },
         )
         if (result.status === "not_found") return c.json({ error: "Booking not found" }, 404)

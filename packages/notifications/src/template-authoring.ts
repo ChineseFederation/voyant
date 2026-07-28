@@ -158,6 +158,26 @@ export const notificationTemplateVariableCatalog: NotificationTemplateVariableCa
     ],
   },
   {
+    id: "portal",
+    label: "Customer portal",
+    description:
+      "Deployment-provided customer portal links. Values are empty when no portal is configured.",
+    variables: [
+      {
+        key: "portal.url",
+        label: "Portal URL",
+        example: "https://portal.example.com",
+        type: "url",
+      },
+      {
+        key: "portal.bookingUrl",
+        label: "Booking portal URL",
+        example: "https://portal.example.com/bookings/book_01abcxyz",
+        type: "url",
+      },
+    ],
+  },
+  {
     id: "invoice",
     label: "Invoice",
     description: "Available in invoice notifications and invoice reminder flows.",
@@ -420,5 +440,11 @@ export const notificationLiquidSnippets: NotificationLiquidSnippet[] = [
     label: "Payment link CTA",
     description: "Link to the latest active payment session when one exists.",
     code: "{% if payment.link %}\nPay now: {{ payment.link }}\n{% endif %}",
+  },
+  {
+    id: "portal-booking-link",
+    label: "Portal booking CTA",
+    description: "Link to the booking in the customer portal when one is configured.",
+    code: "{% if portal.bookingUrl %}\nView booking: {{ portal.bookingUrl }}\n{% endif %}",
   },
 ]

@@ -16,7 +16,9 @@ export async function deliverQueuedNotificationReminder(
 ) {
   const runtime = buildNotificationTaskRuntime(env, options)
   const dispatcher = createNotificationService(runtime.providers)
-  const result = await deliverReminderRun(db, dispatcher, input)
+  const result = await deliverReminderRun(db, dispatcher, input, {
+    publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
+  })
 
   return {
     reminderRunId: input.reminderRunId,

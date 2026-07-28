@@ -5,6 +5,7 @@ import { and, desc, eq, ne, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { enqueueNotification } from "./service-durable-send.js"
+import { buildNotificationPortalContext } from "./service-portal-context.js"
 import type {
   BookingDocumentBundleItem,
   NotificationService,
@@ -24,6 +25,7 @@ export type BookingDocumentAttachmentResolver = (
 
 export interface SendBookingDocumentsRuntimeOptions {
   attachmentResolver?: BookingDocumentAttachmentResolver
+  publicCustomerPortalBaseUrl?: string | null
 }
 
 export interface BookingDocumentsSentEvent {
@@ -337,6 +339,7 @@ export const bookingDocumentNotificationsService = {
           travelers: participants,
           documents,
           items,
+          portal: buildNotificationPortalContext(runtime.publicCustomerPortalBaseUrl, booking.id),
         },
         targetType: "booking",
         targetId: booking.id,

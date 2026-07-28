@@ -10,6 +10,7 @@ import {
   resolveNotificationPaymentUrl,
 } from "./service-delivery-metadata.js"
 import { enqueueNotification } from "./service-durable-send.js"
+import { buildNotificationPortalContext } from "./service-portal-context.js"
 import type {
   NotificationDeliveryListQuery,
   NotificationService,
@@ -45,6 +46,7 @@ interface InternalDomainNotificationInput {
   reminderRunId?: string | null
   scheduledFor?: string | null
   paymentLinkBaseUrl?: string | null
+  publicCustomerPortalBaseUrl?: string | null
 }
 
 export interface SendInvoiceReminderNotificationInput {
@@ -58,6 +60,7 @@ export interface SendInvoiceReminderNotificationInput {
   metadata?: Record<string, unknown> | null
   reminderRunId: string
   scheduledFor: string
+  publicCustomerPortalBaseUrl?: string | null
 }
 
 export async function listDeliveries(db: PostgresJsDatabase, query: NotificationDeliveryListQuery) {
@@ -151,7 +154,7 @@ export async function sendPaymentSessionNotification(
   dispatcher: NotificationService,
   sessionId: string,
   input: SendPaymentSessionNotificationInput,
-  options: { paymentLinkBaseUrl?: string | null } = {},
+  options: { paymentLinkBaseUrl?: string | null; publicCustomerPortalBaseUrl?: string | null } = {},
 ) {
   const request: InternalDomainNotificationInput = { ...input, ...options }
   const [session] = await db
@@ -251,6 +254,7 @@ export async function sendPaymentSessionNotification(
           : null,
         travelers: participants,
         items,
+        portal: buildNotificationPortalContext(request.publicCustomerPortalBaseUrl, booking?.id),
         ...(request.data ?? {}),
       },
       targetType: "payment_session",
@@ -272,7 +276,7 @@ export async function sendInvoiceNotification(
   dispatcher: NotificationService,
   invoiceId: string,
   input: SendInvoiceNotificationInput,
-  options: { paymentLinkBaseUrl?: string | null } = {},
+  options: { paymentLinkBaseUrl?: string | null; publicCustomerPortalBaseUrl?: string | null } = {},
 ) {
   return sendInvoiceNotificationInternal(db, dispatcher, invoiceId, { ...input, ...options })
 }
@@ -387,6 +391,7 @@ async function sendInvoiceNotificationInternal(
           : null,
         travelers: participants,
         items,
+        portal: buildNotificationPortalContext(input.publicCustomerPortalBaseUrl, booking?.id),
         ...(input.data ?? {}),
       },
       targetType: "invoice",

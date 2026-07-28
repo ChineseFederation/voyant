@@ -18,6 +18,8 @@ export function createNotificationsRuntime(
   return {
     resolveProviders,
     resolvePublicCheckoutBaseUrl: (bindings) => resolvePublicBaseUrl(primitives.env(bindings)),
+    resolvePublicCustomerPortalBaseUrl: (bindings) =>
+      resolvePublicCustomerPortalBaseUrl(primitives.env(bindings)),
     resolveDocumentAttachmentResolver: (bindings) => async (document) => {
       if (document.storageKey) {
         const contentBase64 = await primitives.storage.read(bindings, document.storageKey)
@@ -48,6 +50,7 @@ export function createNotificationsRuntime(
         resolveRuntimeOptions: (runtimeEnv) =>
           buildNotificationTaskRuntime(runtimeEnv, {
             resolveProviders: (taskEnv) => notificationProviders(primitives, taskEnv),
+            publicCustomerPortalBaseUrl: resolvePublicCustomerPortalBaseUrl(runtimeEnv),
             reminderSweepLockManager: resolveReminderSweepLockManager(env),
           }),
       })
@@ -77,6 +80,15 @@ function resolvePublicBaseUrl(env: Readonly<Record<string, unknown>>): string | 
     return key === "APP_URL" ? value.replace(/\/api\/?$/, "") : value
   }
   return null
+}
+
+function resolvePublicCustomerPortalBaseUrl(env: Readonly<Record<string, unknown>>): string | null {
+  const value =
+    nonEmpty(env.VOYANT_CUSTOMER_PORTAL_URL) ??
+    nonEmpty(env.CUSTOMER_PORTAL_URL) ??
+    nonEmpty(env.PUBLIC_CUSTOMER_PORTAL_URL) ??
+    null
+  return value ? value.replace(/\/+$/, "") : null
 }
 
 function nonEmpty(value: unknown): string | undefined {

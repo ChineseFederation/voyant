@@ -4,6 +4,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { sendInvoiceReminderNotification } from "./service-deliveries.js"
 import { enqueueNotification } from "./service-durable-send.js"
+import type { NotificationPortalContextOptions } from "./service-portal-context.js"
 import {
   bookingStatusSkipReason,
   buildBookingPaymentReminderTemplateData,
@@ -31,6 +32,8 @@ import type {
   RunDueRemindersInput,
 } from "./service-shared.js"
 
+export type NotificationReminderDeliveryOptions = NotificationPortalContextOptions
+
 export {
   bookingIsPaidInFullForNotification,
   dispatchReminderEventRules,
@@ -43,6 +46,7 @@ async function sendQueuedBookingPaymentScheduleReminder(
   rule: NotificationReminderRuleRow,
   now: Date,
   channelOverride: ChannelOverride,
+  options: NotificationReminderDeliveryOptions = {},
 ) {
   const [schedule] = await db
     .select()
@@ -62,7 +66,13 @@ async function sendQueuedBookingPaymentScheduleReminder(
     return markReminderRunSkipped(db, run.id, now, paymentScheduleStatusSkipReason(schedule.status))
   }
 
-  const context = await buildBookingPaymentReminderTemplateData(db, schedule, run.recipient)
+  const context = await buildBookingPaymentReminderTemplateData(
+    db,
+    schedule,
+    run.recipient,
+    {},
+    options,
+  )
 
   if (!context) {
     return markReminderRunSkipped(db, run.id, now, "Booking not found for payment schedule")
@@ -122,6 +132,7 @@ async function sendQueuedInvoiceReminder(
   rule: NotificationReminderRuleRow,
   now: Date,
   channelOverride: ChannelOverride,
+  options: NotificationReminderDeliveryOptions = {},
 ) {
   if (!run.recipient) {
     return markReminderRunSkipped(db, run.id, now, "No recipient available for invoice reminder")
@@ -142,6 +153,7 @@ async function sendQueuedInvoiceReminder(
     },
     reminderRunId: run.id,
     scheduledFor: run.scheduledFor.toISOString(),
+    publicCustomerPortalBaseUrl: options.publicCustomerPortalBaseUrl,
   })
 
   if (!delivery) {
@@ -163,6 +175,7 @@ export async function deliverReminderRun(
   db: PostgresJsDatabase,
   dispatcher: NotificationService,
   input: { reminderRunId: string },
+  options: NotificationReminderDeliveryOptions = {},
 ) {
   const now = new Date()
   const run = await getReminderRunById(db, input.reminderRunId)
@@ -190,11 +203,20 @@ export async function deliverReminderRun(
         rule,
         now,
         channelOverride,
+        options,
       )
     }
 
     if (run.targetType === "invoice") {
-      return await sendQueuedInvoiceReminder(db, dispatcher, run, rule, now, channelOverride)
+      return await sendQueuedInvoiceReminder(
+        db,
+        dispatcher,
+        run,
+        rule,
+        now,
+        channelOverride,
+        options,
+      )
     }
 
     return markReminderRunSkipped(db, run.id, now, "Unsupported reminder target type")
@@ -208,6 +230,7 @@ export async function runDueReminders(
   db: PostgresJsDatabase,
   dispatcher: NotificationService,
   input: RunDueRemindersInput = {},
+  options: NotificationReminderDeliveryOptions = {},
 ) {
-  return runStageBasedDueReminders(db, dispatcher, input)
+  return runStageBasedDueReminders(db, dispatcher, input, options)
 }

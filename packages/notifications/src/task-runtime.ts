@@ -10,12 +10,14 @@ export type ReminderDeliveryJob = {
 
 export type NotificationTaskRuntime = {
   providers: ReadonlyArray<NotificationProvider>
+  publicCustomerPortalBaseUrl?: string | null
   reminderSweepLockManager?: ExecutionLockManager
   enqueueReminderDelivery?: (job: ReminderDeliveryJob) => Promise<void>
 }
 
 export type NotificationTaskRuntimeOptions = {
   providers?: ReadonlyArray<NotificationProvider>
+  publicCustomerPortalBaseUrl?: string | null
   reminderSweepLockManager?: ExecutionLockManager
   enqueueReminderDelivery?: (job: ReminderDeliveryJob) => Promise<void>
   resolveProviders?: (env: NotificationTaskEnv) => ReadonlyArray<NotificationProvider>
@@ -34,6 +36,7 @@ export function buildNotificationTaskRuntime(
 
   return {
     providers,
+    publicCustomerPortalBaseUrl: options.publicCustomerPortalBaseUrl ?? null,
     reminderSweepLockManager: options.reminderSweepLockManager,
     enqueueReminderDelivery: options.enqueueReminderDelivery,
   }

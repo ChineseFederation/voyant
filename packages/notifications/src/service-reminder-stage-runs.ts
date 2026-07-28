@@ -11,6 +11,7 @@ import {
 } from "./schema.js"
 import { sendInvoiceReminderNotification } from "./service-deliveries.js"
 import { enqueueNotification } from "./service-durable-send.js"
+import type { NotificationPortalContextOptions } from "./service-portal-context.js"
 import {
   bookingStatusSkipReason,
   buildBookingPaymentReminderTemplateData,
@@ -88,6 +89,7 @@ async function emitStageChannelRun(
   sendCountAtFire: number,
   enqueueDelivery: ReminderDeliveryEnqueuer | null,
   now: Date,
+  options: NotificationPortalContextOptions,
 ): Promise<{
   status: "queued" | "sent" | "skipped" | "failed"
   runId: string | null
@@ -198,6 +200,7 @@ async function emitStageChannelRun(
         metadata: { reminderRuleId: rule.id, reminderRunId: processingRun.id, stageId: stage.id },
         reminderRunId: processingRun.id,
         scheduledFor: scheduledAt.toISOString(),
+        publicCustomerPortalBaseUrl: options.publicCustomerPortalBaseUrl,
       })
     } else if (rule.targetType === "booking_payment_schedule") {
       const schedule = await fetchScheduleRow(db, target.id)
@@ -228,6 +231,7 @@ async function emitStageChannelRun(
         schedule,
         recipient.email,
         data,
+        options,
       )
       if (!context) {
         return {
@@ -306,6 +310,7 @@ async function processStageRuleTargets(
     now: Date
     dispatcher: NotificationService | null
     enqueueDelivery: ReminderDeliveryEnqueuer | null
+    portal: NotificationPortalContextOptions
   },
 ): Promise<{ processed: number; sent: number; queued: number; skipped: number; failed: number }> {
   const tally = { processed: 0, sent: 0, queued: 0, skipped: 0, failed: 0 }
@@ -393,6 +398,7 @@ async function processStageRuleTargets(
         decision.sendCountAtFire,
         options.enqueueDelivery,
         options.now,
+        options.portal,
       )
       tally.processed += 1
       if (result.status === "sent") tally.sent += 1
@@ -408,6 +414,7 @@ export async function runStageBasedDueReminders(
   db: PostgresJsDatabase,
   dispatcher: NotificationService,
   input: RunDueRemindersInput = {},
+  options: NotificationPortalContextOptions = {},
 ): Promise<ReminderSweepResult> {
   const now = toTimestamp(input.now) ?? new Date()
   const today = startOfUtcDay(now)
@@ -429,6 +436,7 @@ export async function runStageBasedDueReminders(
       now,
       dispatcher,
       enqueueDelivery: null,
+      portal: options,
     })
     summary.processed += tally.processed
     summary.sent += tally.sent
@@ -464,6 +472,7 @@ export async function queueStageBasedDueReminders(
       now,
       dispatcher: null,
       enqueueDelivery,
+      portal: {},
     })
     summary.processed += tally.processed
     summary.queued += tally.queued

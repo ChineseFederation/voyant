@@ -8,6 +8,7 @@ import {
   bookingDocumentNotificationsService,
   createDefaultBookingDocumentAttachment,
 } from "./service-booking-documents.js"
+import { buildNotificationPortalContext } from "./service-portal-context.js"
 import type { BookingDocumentBundleItem, BookingPaymentScheduleRow } from "./service-shared.js"
 import { listBookingNotificationItems, resolveReminderRecipient } from "./service-shared.js"
 import type { NotificationAttachment } from "./types.js"
@@ -339,6 +340,7 @@ export async function buildBookingPaymentReminderTemplateData(
   schedule: BookingPaymentScheduleRow,
   recipientEmail?: string | null,
   extraData: Record<string, unknown> = {},
+  options: { publicCustomerPortalBaseUrl?: string | null } = {},
 ) {
   const [booking] = await db
     .select({
@@ -408,6 +410,7 @@ export async function buildBookingPaymentReminderTemplateData(
       booking: serializeReminderBooking(booking),
       ...serializeBookingPaymentContext(paymentContext, schedule, booking.bookingNumber),
       items,
+      portal: buildNotificationPortalContext(options.publicCustomerPortalBaseUrl, booking.id),
     },
   }
 }

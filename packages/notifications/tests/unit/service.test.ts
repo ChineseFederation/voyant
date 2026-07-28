@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createNotificationService, renderNotificationTemplate } from "../../src/service.js"
 import { resolveNotificationPaymentUrl } from "../../src/service-deliveries.js"
+import { buildNotificationPortalContext } from "../../src/service-portal-context.js"
 import { resolveReminderRecipient } from "../../src/service-shared.js"
 import type { NotificationProvider } from "../../src/types.js"
 
@@ -191,6 +192,34 @@ describe("renderNotificationTemplate", () => {
         payment: { isPaidInFull: true },
       }),
     ).toBe("Paid")
+  })
+
+  it("renders configured customer portal URLs in Liquid templates", () => {
+    const portal = buildNotificationPortalContext(" https://portal.example.test/ ", "book 123")
+
+    expect(portal).toEqual({
+      url: "https://portal.example.test",
+      bookingUrl: "https://portal.example.test/bookings/book%20123",
+    })
+    expect(
+      renderNotificationTemplate("Portal {{ portal.url }} booking {{ portal.bookingUrl }}", {
+        portal,
+      }),
+    ).toBe(
+      "Portal https://portal.example.test booking https://portal.example.test/bookings/book%20123",
+    )
+  })
+
+  it("renders empty portal values when no customer portal URL is configured", () => {
+    const portal = buildNotificationPortalContext(undefined, "book_123")
+
+    expect(portal).toEqual({ url: "", bookingUrl: "" })
+    expect(
+      renderNotificationTemplate(
+        "{% if portal.bookingUrl %}{{ portal.bookingUrl }}{% else %}empty{% endif %}",
+        { portal },
+      ),
+    ).toBe("empty")
   })
 })
 

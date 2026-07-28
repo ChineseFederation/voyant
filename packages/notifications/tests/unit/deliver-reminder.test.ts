@@ -41,8 +41,15 @@ describe("deliverQueuedNotificationReminder", () => {
     ).resolves.toEqual({ reminderRunId: "ntrn_123", status: "sent" })
 
     expect(createNotificationServiceMock).toHaveBeenCalledWith([])
-    expect(deliverReminderRunMock).toHaveBeenCalledWith({} as never, dispatcher, {
-      reminderRunId: "ntrn_123",
-    })
+    expect(deliverReminderRunMock).toHaveBeenCalledWith(
+      {} as never,
+      dispatcher,
+      {
+        reminderRunId: "ntrn_123",
+      },
+      {
+        publicCustomerPortalBaseUrl: undefined,
+      },
+    )
   })
 })
