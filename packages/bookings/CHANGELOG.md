@@ -1,5 +1,21 @@
 # @voyant-travel/bookings
 
+## 0.216.0
+
+### Minor Changes
+
+- 903c754: Restore a first-class manual booking flow for operator staff.
+
+  Bookings now expose a route-backed **New booking** action and a focused form
+  that collects the product/departure, billing contact, travelers, payment
+  schedule, price, notes, and initial status. The form defaults to `on_hold`,
+  requires an explicit review confirmation, and dispatches through Finance's
+  durable `create_booking` Tool with an authoritative booking number and a stable
+  idempotency key for safe retries.
+
+  Operated product details also expose **Create booking** with the product
+  preselected, and the new flow includes English and Romanian operator copy.
+
 ## 0.215.0
 
 ## 0.214.0

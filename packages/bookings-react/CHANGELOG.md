@@ -1,5 +1,42 @@
 # @voyant-travel/bookings-react
 
+## 0.216.0
+
+### Minor Changes
+
+- 903c754: Restore a first-class manual booking flow for operator staff.
+
+  Bookings now expose a route-backed **New booking** action and a focused form
+  that collects the product/departure, billing contact, travelers, payment
+  schedule, price, notes, and initial status. The form defaults to `on_hold`,
+  requires an explicit review confirmation, and dispatches through Finance's
+  durable `create_booking` Tool with an authoritative booking number and a stable
+  idempotency key for safe retries.
+
+  Operated product details also expose **Create booking** with the product
+  preselected, and the new flow includes English and Romanian operator copy.
+
+### Patch Changes
+
+- Updated dependencies [903c754]
+  - @voyant-travel/bookings@0.216.0
+  - @voyant-travel/inventory-react@0.98.0
+  - @voyant-travel/i18n@0.118.3
+  - @voyant-travel/accommodations@0.176.0
+  - @voyant-travel/catalog@0.214.0
+  - @voyant-travel/finance@0.216.0
+  - @voyant-travel/inventory@0.22.4
+  - @voyant-travel/distribution-react@0.206.0
+  - @voyant-travel/finance-react@0.216.0
+  - @voyant-travel/identity-react@0.216.0
+  - @voyant-travel/legal-react@0.216.0
+  - @voyant-travel/operations-react@0.97.0
+  - @voyant-travel/catalog-react@0.214.0
+  - @voyant-travel/commerce-react@0.98.0
+  - @voyant-travel/relationships-react@0.216.0
+  - @voyant-travel/storefront-react@0.218.0
+  - @voyant-travel/cruises@0.215.0
+
 ## 0.215.0
 
 ### Patch Changes
