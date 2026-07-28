@@ -25,6 +25,7 @@ import {
   availabilitySlotsRef as availabilitySlots,
 } from "../../../bookings/src/availability-ref.js"
 import { loadBookingStatusConsequencePreview } from "../../../bookings/src/mcp-runtime.js"
+import { publicPricingService } from "../../../commerce/src/pricing/service-public.js"
 import {
   executeFinanceBookingCreateCommand,
   financeBookingCreatedEventId,
@@ -1928,6 +1929,75 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     if (outcome.status !== "ok") return
     expect(outcome.result.booking.sellAmountCents).toBe(15_000)
     expect(outcome.result.booking.priceOverride).toBeNull()
+  })
+
+  it.each([
+    { label: "no catalog is marked default", isDefault: false },
+    { label: "multiple catalogs are marked default", isDefault: true },
+  ])("matches public catalog name ordering when $label", async ({ isDefault }) => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await db.execute(sql`
+        UPDATE products
+        SET status = 'active', activated = true, visibility = 'public'
+        WHERE id = ${productId}
+      `)
+
+    const alphaCatalogId = `pcat_bc_${productSeq}_alpha`
+    const zebraCatalogId = `pcat_bc_${productSeq}_zebra`
+    for (const catalog of [
+      { id: zebraCatalogId, name: "Zebra public", amountCents: 91_000 },
+      { id: alphaCatalogId, name: "Alpha public", amountCents: 23_000 },
+    ]) {
+      const ruleId = `${catalog.id}_rule`
+      await db.execute(sql`
+          INSERT INTO price_catalogs (
+            id, code, name, currency_code, catalog_type, is_default, active
+          ) VALUES (
+            ${catalog.id}, ${`PUBLIC-${catalog.id}`}, ${catalog.name}, 'EUR',
+            'public', ${isDefault}, true
+          )
+        `)
+      await db.execute(sql`
+          INSERT INTO option_price_rules (
+            id, product_id, option_id, price_catalog_id, name, pricing_mode, is_default, active
+          ) VALUES (
+            ${ruleId}, ${productId}, ${optionId}, ${catalog.id},
+            ${`${catalog.name} rate`}, 'per_booking', true, true
+          )
+        `)
+      await db.execute(sql`
+          INSERT INTO option_unit_price_rules (
+            id, option_price_rule_id, option_id, unit_id,
+            pricing_mode, sell_amount_cents, active
+          ) VALUES (
+            ${`${catalog.id}_unit_rule`}, ${ruleId}, ${optionId}, ${unitId},
+            'per_unit', ${catalog.amountCents}, true
+          )
+        `)
+    }
+
+    const publicSnapshot = await publicPricingService.getProductPricingSnapshot(db, productId, {
+      optionId,
+    })
+    expect(publicSnapshot?.catalog.id).toBe(alphaCatalogId)
+    expect(publicSnapshot?.options[0]?.pricingRules[0]?.unitPrices[0]?.sellAmountCents).toBe(23_000)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(23_000)
+    expect(outcome.result.invoice).toMatchObject({
+      subtotalCents: 23_000,
+      totalCents: 23_000,
+    })
   })
 
   it("charges one twin room for two adults using traveler-category pricing", async () => {

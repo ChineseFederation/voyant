@@ -1517,8 +1517,7 @@ async function loadPersistedBookingCreatePricing(
       FROM price_catalogs
       WHERE active = true
         AND catalog_type = 'public'
-        AND is_default = true
-      ORDER BY created_at ASC, id ASC
+      ORDER BY is_default DESC, name ASC
       LIMIT 1
     `),
   )
