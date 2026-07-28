@@ -67,6 +67,8 @@ export const voyantToolContextContribution = defineToolContextContribution({
         )
         return result.value
       },
+      listTrips: (input) => tripsService.listTrips(c.var.db, input),
+      getTrip: (envelopeId) => tripsService.getTrip(c.var.db, envelopeId),
       addComponent: (input) => tripsService.addComponent(c.var.db, input),
       removeComponent: (id) => tripsService.removeComponent(c.var.db, id),
       acceptPriceTrip: async (input, admitted) => {

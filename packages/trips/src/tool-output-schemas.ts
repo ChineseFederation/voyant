@@ -208,9 +208,19 @@ export const selectTripCandidateResultSchema = z.object({
   component: tripComponentToolSchema,
 })
 
-export const createTripResultSchema = z.object({
+/** `{ envelope, components }` — the aggregate every trip read returns. */
+export const tripAggregateToolSchema = z.object({
   envelope: tripEnvelopeToolSchema,
   components: z.array(tripComponentToolSchema),
+})
+
+export const createTripResultSchema = tripAggregateToolSchema
+
+export const listTripsResultSchema = z.object({
+  data: z.array(tripAggregateToolSchema),
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative(),
+  offset: z.number().int().nonnegative(),
 })
 
 export const reviseTripResultSchema = z.object({

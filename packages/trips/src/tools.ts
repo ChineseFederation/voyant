@@ -21,11 +21,13 @@ import { z } from "zod"
 
 import type { TripComponent } from "./schema.js"
 import {
+  listTripsResultSchema,
   reviseTripResultSchema,
   selectTripCandidateResultSchema,
   sourceTripCandidatesAcceptedResultSchema,
   tripActionAcceptedResultSchema,
   tripActionOperationResultSchema,
+  tripAggregateToolSchema,
   tripRequirementSourcingOperationResultSchema,
   tripRequirementToolSchema,
 } from "./tool-output-schemas.js"
@@ -39,6 +41,9 @@ import {
   reserveTripSchema,
   selectCandidateSchema,
   sourceRequirementCandidatesSchema,
+  tripEnvelopeStatusSchema,
+  tripsListSortDirSchema,
+  tripsListSortFieldSchema,
 } from "./validation.js"
 
 const OWNER = "@voyant-travel/trips"
@@ -194,6 +199,8 @@ export interface TripsToolServices {
     input: z.infer<typeof getRequirementSourcingOperationSchema>,
   ): Promise<unknown | null>
   selectCandidate(input: z.infer<typeof selectCandidateSchema>): Promise<unknown>
+  listTrips(input: ListTripsArgs): Promise<unknown>
+  getTrip(envelopeId: string): Promise<unknown | null>
 }
 
 /** Tool context with the trips service injected. */
@@ -477,7 +484,113 @@ export const selectTripCandidateTool = defineTool({
 })
 
 /** All trips agent tools, ready to register on a `ToolRegistry`. */
+/**
+ * Read side of the Trips surface.
+ *
+ * `listTripsQuerySchema` coerces from HTTP query strings; a Tool receives typed
+ * JSON, so these mirror the same filters without the coercion. `z.coerce.boolean`
+ * in particular would publish an untyped parameter and treat any non-empty
+ * string as true, which is the wrong contract for a model composing arguments.
+ */
+/**
+ * A creation-date bound. The service parses these with `new Date(...)` and
+ * silently drops the filter when the value will not parse, so anything looser
+ * would let `createdFrom: "yesterday"` return trips outside the requested
+ * period with no indication the constraint was ignored.
+ */
+const listTripsDateFilter = z.union([z.iso.date(), z.iso.datetime({ offset: true })])
+
+const listTripsArgs = z.object({
+  status: tripEnvelopeStatusSchema.optional(),
+  search: z.string().trim().min(1).max(255).optional(),
+  productId: z.string().trim().min(1).max(255).optional(),
+  accommodationId: z.string().trim().min(1).max(255).optional(),
+  cruiseId: z.string().trim().min(1).max(255).optional(),
+  // Presence-only. The service applies this filter on `=== true`, so a `false`
+  // would be accepted and then ignored, returning every trip. Advertise what
+  // the service actually implements rather than a filter it does not.
+  hasFlight: z
+    .literal(true)
+    .optional()
+    .describe("Set true to return only trips that contain a flight. Omit for no flight filter."),
+  totalMinCents: z.number().int().nonnegative().optional(),
+  totalMaxCents: z.number().int().nonnegative().optional(),
+  createdFrom: listTripsDateFilter
+    .optional()
+    .describe("Inclusive lower bound on creation date: YYYY-MM-DD or an ISO datetime."),
+  createdTo: listTripsDateFilter
+    .optional()
+    .describe(
+      "Inclusive upper bound on creation date: YYYY-MM-DD (matches the whole day) or an ISO datetime.",
+    ),
+  sortBy: tripsListSortFieldSchema.default("updatedAt"),
+  sortDir: tripsListSortDirSchema.default("desc"),
+  limit: z.number().int().min(1).max(100).default(50),
+  offset: z.number().int().min(0).default(0),
+})
+export type ListTripsArgs = z.infer<typeof listTripsArgs>
+
+export const listTripsTool = defineTool({
+  capabilityId: `${OWNER}#tool.list-trips`,
+  capabilityVersion: VERSION,
+  name: "list_trips",
+  description:
+    "List composed trip envelopes with their components. Filter by status, free-text search, " +
+    "a referenced product / accommodation / cruise, whether the trip contains a flight, " +
+    "total value, or creation date.",
+  inputSchema: listTripsArgs,
+  outputSchema: listTripsResultSchema,
+  requiredScopes: ["trips:read"],
+  audience: STAFF_AUDIENCE,
+  // A trip envelope's `travelerParty` carries traveler names, dates of birth,
+  // emails and phones, plus the billing party's contact details — see
+  // `flightPassengersFromTravelerParty`. Per `packages/tools/src/risk.ts` that
+  // makes these readers `sensitive`, alongside the CRM contact-method and
+  // address readers, not ordinary reads like the person directory.
+  tier: "sensitive",
+  riskPolicy: {
+    destructive: false,
+    reversible: true,
+    dryRunSupported: true,
+    confirmationRequired: false,
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true },
+  async handler(input, ctx: TripsToolContext) {
+    return parseJsonResult(listTripsResultSchema, await trips(ctx).listTrips(input))
+  },
+})
+
+export const getTripTool = defineTool({
+  capabilityId: `${OWNER}#tool.get-trip`,
+  capabilityVersion: VERSION,
+  name: "get_trip",
+  description:
+    "Read one composed trip envelope and its components by envelope id, including status, " +
+    "traveler party, and aggregate pricing. Returns null when no such trip exists.",
+  inputSchema: z.object({ envelopeId: z.string().min(1) }),
+  outputSchema: tripAggregateToolSchema.nullable(),
+  requiredScopes: ["trips:read"],
+  audience: STAFF_AUDIENCE,
+  /** Sensitive for the same reason as `list_trips`. */
+  tier: "sensitive",
+  riskPolicy: {
+    destructive: false,
+    reversible: true,
+    dryRunSupported: true,
+    confirmationRequired: false,
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true },
+  async handler(input, ctx: TripsToolContext) {
+    return parseJsonResult(
+      tripAggregateToolSchema.nullable(),
+      await trips(ctx).getTrip(input.envelopeId),
+    )
+  },
+})
+
 export const tripsTools = [
+  listTripsTool,
+  getTripTool,
   createTripTool,
   reviseTripTool,
   priceTripTool,
