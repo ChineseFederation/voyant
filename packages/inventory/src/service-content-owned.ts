@@ -249,6 +249,8 @@ export async function buildOwnedProductContent(
       const bestDayTrn = pickBestDayTranslation(
         dayTranslationsByDay.get(d.id) ?? [],
         options.preferredLocales,
+        d,
+        productRow.defaultLanguageTag,
       )
       const services = (dayServicesByDay.get(d.id) ?? []).map(
         (service: typeof productDayServices.$inferSelect) => {
@@ -471,15 +473,51 @@ function pickBestOptionTranslation(
 function pickBestDayTranslation(
   rows: ReadonlyArray<typeof productDayTranslations.$inferSelect>,
   preferred: ReadonlyArray<string>,
+  base: Pick<typeof productDays.$inferSelect, "title" | "description" | "location">,
+  defaultLanguageTag: string | null | undefined,
 ) {
-  if (rows.length === 0) return null
-  const candidates: DayTrnCandidate[] = rows.map((r) => ({
-    locale: r.languageTag,
-    title: r.title,
-    description: r.description,
-    location: r.location,
-  }))
-  return pickBestCachedLocale(candidates, preferred)
+  const normalizedDefaultLanguageTag = defaultLanguageTag?.trim().toLowerCase()
+  const translations: DayTrnCandidate[] = rows
+    // BCP-47 tags are case-insensitive. Drop every spelling of the declared
+    // default locale so an exact-scored stale translation cannot outrank the
+    // authoritative base candidate solely because its casing matches the
+    // request more closely.
+    .filter(
+      (r) =>
+        !normalizedDefaultLanguageTag ||
+        r.languageTag.trim().toLowerCase() !== normalizedDefaultLanguageTag,
+    )
+    .map((r) => ({
+      locale: r.languageTag,
+      title: r.title,
+      description: r.description,
+      location: r.location,
+    }))
+
+  if (defaultLanguageTag) {
+    // Base day columns are the source of truth for the product's declared
+    // default language. Put that candidate first so a stale legacy
+    // default-language translation row cannot shadow a successful base edit.
+    return pickBestCachedLocale(
+      [
+        {
+          locale: defaultLanguageTag,
+          title: base.title,
+          description: base.description,
+          location: base.location,
+        },
+        ...translations,
+      ],
+      preferred,
+    )
+  }
+
+  const resolved = pickBestCachedLocale(translations, preferred)
+  // Older products may not declare their base language. In that case an
+  // unrelated translation is not a safer fallback than the base columns.
+  return resolved?.match_kind === "exact" || resolved?.match_kind === "language_match"
+    ? resolved
+    : null
 }
 
 function pickBestDayServiceTranslation(

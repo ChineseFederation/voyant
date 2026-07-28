@@ -136,6 +136,104 @@ describe("buildOwnedProductContent", () => {
     ])
   })
 
+  it("keeps base day content authoritative for the product default language", async () => {
+    const db = fakeDb(
+      new Map<unknown, unknown[]>([
+        [
+          products,
+          [
+            {
+              id: "prod_1",
+              name: "Tur de baza",
+              status: "active",
+              description: "Descriere produs",
+              defaultLanguageTag: "ro-ro",
+              inclusionsHtml: null,
+              exclusionsHtml: null,
+              termsHtml: null,
+              contractTemplateId: null,
+              startDate: null,
+              endDate: null,
+              sellCurrency: "EUR",
+              supplierId: null,
+              tags: [],
+            },
+          ],
+        ],
+        [productOptions, []],
+        [productOptionTranslations, []],
+        [productMedia, []],
+        [productTranslations, []],
+        [
+          productItineraries,
+          [
+            {
+              id: "itin_1",
+              productId: "prod_1",
+              name: "Default",
+              isDefault: true,
+              sortOrder: 0,
+            },
+          ],
+        ],
+        [
+          productDays,
+          [
+            {
+              id: "day_1",
+              itineraryId: "itin_1",
+              dayNumber: 1,
+              title: "Titlu romanesc actualizat",
+              description: "Descriere romaneasca actualizata",
+              location: "Brasov",
+            },
+          ],
+        ],
+        [
+          productDayTranslations,
+          [
+            {
+              dayId: "day_1",
+              // Same BCP-47 locale with request-matching case. This stale row
+              // must not outrank the authoritative base day.
+              languageTag: "ro-RO",
+              title: "Titlu romanesc vechi",
+              description: "Descriere romaneasca veche",
+              location: "Locatie veche",
+            },
+            {
+              dayId: "day_1",
+              languageTag: "en-GB",
+              title: "English title",
+              description: "English description",
+              location: "English location",
+            },
+          ],
+        ],
+        [productDayServices, []],
+        [productDayServiceTranslations, []],
+      ]),
+    )
+
+    const romanian = await buildOwnedProductContent(db, "prod_1", {
+      preferredLocales: ["ro-RO"],
+    })
+    expect(romanian?.content.days[0]).toMatchObject({
+      title: "Titlu romanesc actualizat",
+      description: "Descriere romaneasca actualizata",
+      location: "Brasov",
+    })
+
+    const english = await buildOwnedProductContent(db, "prod_1", {
+      preferredLocales: ["en-GB", "ro-RO"],
+    })
+    expect(english?.content.days[0]).toMatchObject({
+      title: "English title",
+      description: "English description",
+      location: "English location",
+    })
+  })
+
   it("resolves localized SEO fallbacks and an explicit Open Graph image", async () => {
     const db = fakeDb(
       new Map<unknown, unknown[]>([
