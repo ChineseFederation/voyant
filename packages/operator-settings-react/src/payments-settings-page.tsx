@@ -275,6 +275,26 @@ export function canConfigurePaymentProvider(
 }
 
 /**
+ * Pick the first advertised mode that does not already have a connection.
+ * Hosted providers can keep their setup action available when one mode is the
+ * active default but another (for example Sandbox vs Live) still needs setup.
+ */
+export function firstUnconfiguredPaymentProviderMode(
+  provider: { id: ProviderDescriptor["id"]; modes: readonly ProviderMode[] },
+  connections: readonly Pick<ConnectionSummary, "providerId" | "mode">[] | undefined,
+): ProviderMode | null {
+  return (
+    provider.modes.find(
+      (availableMode) =>
+        !connections?.some(
+          (connection) =>
+            connection.providerId === provider.id && connection.mode === availableMode,
+        ),
+    ) ?? null
+  )
+}
+
+/**
  * A connection can be made the active default only when it is ready (its
  * lifecycle reached `connected`) and it is not already the active one. This
  * gates the "Make active" control so a not-ready or already-active connection
@@ -571,7 +591,10 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
     setDialogProvider(provider)
     setCredentials({})
     setOnboardingSession(null)
-    setMode(provider.modes.includes("sandbox") ? "sandbox" : (provider.modes[0] ?? "live"))
+    setMode(
+      firstUnconfiguredPaymentProviderMode(provider, connection?.connections) ??
+        (provider.modes.includes("sandbox") ? "sandbox" : (provider.modes[0] ?? "live")),
+    )
   }
 
   const modeLabels = {
@@ -777,6 +800,9 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                 {providers.map((provider) => {
                   const isActive = provider.id === activeId
                   const unavailable = !canConfigurePaymentProvider(provider)
+                  const hasAdditionalHostedMode =
+                    provider.connectionMethod === "embedded_onboarding" &&
+                    firstUnconfiguredPaymentProviderMode(provider, connection?.connections) !== null
                   return (
                     <Card key={provider.id}>
                       <CardHeader>
@@ -794,7 +820,7 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                         <Button
                           size="sm"
                           variant={isActive ? "outline" : "default"}
-                          disabled={unavailable || isActive}
+                          disabled={unavailable || (isActive && !hasAdditionalHostedMode)}
                           onClick={() => openConnect(provider)}
                         >
                           {provider.connectionMethod === "embedded_onboarding"

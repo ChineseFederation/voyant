@@ -4,6 +4,7 @@ import {
   canActivatePaymentConnection,
   canConfigurePaymentProvider,
   canDisconnectPaymentProvider,
+  firstUnconfiguredPaymentProviderMode,
   PaymentEmbeddedOnboardingBoundary,
   type PaymentEmbeddedOnboardingClientProps,
   paymentActivationControlState,
@@ -199,6 +200,37 @@ describe("payments settings contract", () => {
         connectionMethod: "credentials",
       }),
     ).toBe(true)
+  })
+
+  it("selects the first advertised payment mode without an existing connection", () => {
+    const provider = { id: "voyant-pay", modes: ["sandbox", "live"] as const }
+
+    expect(firstUnconfiguredPaymentProviderMode(provider, undefined)).toBe("sandbox")
+    expect(
+      firstUnconfiguredPaymentProviderMode(provider, [
+        { providerId: "voyant-pay", mode: "sandbox" },
+      ]),
+    ).toBe("live")
+    expect(
+      firstUnconfiguredPaymentProviderMode(provider, [{ providerId: "voyant-pay", mode: "live" }]),
+    ).toBe("sandbox")
+  })
+
+  it("reports no unconfigured mode only when every advertised mode is represented", () => {
+    const provider = { id: "voyant-pay", modes: ["sandbox", "live"] as const }
+
+    expect(
+      firstUnconfiguredPaymentProviderMode(provider, [
+        { providerId: "netopia", mode: "sandbox" },
+        { providerId: "voyant-pay", mode: null },
+      ]),
+    ).toBe("sandbox")
+    expect(
+      firstUnconfiguredPaymentProviderMode(provider, [
+        { providerId: "voyant-pay", mode: "sandbox" },
+        { providerId: "voyant-pay", mode: "live" },
+      ]),
+    ).toBeNull()
   })
 
   it("only enables activation for ready, inactive, writable connections", () => {
