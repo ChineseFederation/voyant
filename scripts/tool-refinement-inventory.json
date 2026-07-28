@@ -1,0 +1,126 @@
+{
+  "$schema note": "Exact inventory of Tool input-schema refinements. z.toJSONSchema drops .refine/.superRefine, so a rule expressed only that way is invisible to the model at call time. Every refinement must appear here, classified by a human: `documented` means the rule is stated in text the model can read (a field .describe() or the Tool description). Regenerate the id list with `pnpm verify:tool-refinement-visibility --write`, then classify by hand. Nothing is inferred from prose.",
+  "maxUndocumented": 20,
+  "entries": [
+    {
+      "id": "@voyant-travel/accommodations:reverse_room_block_pickup:<root>",
+      "documented": false,
+      "note": "Not stated. The Tool description covers what the call does, not the cross-field condition the refinement enforces."
+    },
+    {
+      "id": "@voyant-travel/commerce:create_promotion:<root>",
+      "documented": false,
+      "note": "Not stated. The discount-type/amount pairing rule (percent vs fixed amount, and the currency it needs) is enforced only by the refinement."
+    },
+    {
+      "id": "@voyant-travel/commerce:update_promotion:<root>",
+      "documented": false,
+      "note": "Not stated. Same discount-type/amount pairing rule as create_promotion."
+    },
+    {
+      "id": "@voyant-travel/cruises:quote_cruise_sailing:passengerComposition",
+      "documented": false,
+      "note": "Not stated. The passenger-composition constraint is enforced on the field with no description on it or in the Tool text."
+    },
+    {
+      "id": "@voyant-travel/finance:create_booking:booking",
+      "documented": true,
+      "note": "Documented. The Tool description states the billing-party rule in full: set `personId` for a private client or `organizationId` for a company, at least one mandatory (voyant#3814)."
+    },
+    {
+      "id": "@voyant-travel/finance:issue_invoice_from_booking:command",
+      "documented": false,
+      "note": "Not stated. The `command` description says only \"The exact invoice or proforma issue command\"; the refinement's cross-field rule is invisible."
+    },
+    {
+      "id": "@voyant-travel/inventory:create_option_unit:<root>",
+      "documented": false,
+      "note": "Not stated. update_option_unit documents its occupancy rule but create_option_unit does not, though the same class of rule applies (voyant#3822 fixed only the update side)."
+    },
+    {
+      "id": "@voyant-travel/inventory:create_product_option:<root>",
+      "documented": false,
+      "note": "Not stated. The refinement's cross-field requirement is absent from the description."
+    },
+    {
+      "id": "@voyant-travel/inventory:update_option_unit:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states it: \"Clearing occupancy on a room or vehicle unit is rejected\" (voyant#3822)."
+    },
+    {
+      "id": "@voyant-travel/inventory:update_product_day:<root>",
+      "documented": false,
+      "note": "Not stated. The description explains how to resolve a day and that dayId is preferred, but not the refinement's own either/or requirement."
+    },
+    {
+      "id": "@voyant-travel/inventory:update_product_option:<root>",
+      "documented": false,
+      "note": "Not stated. The availability-window ordering rule is enforced only by the refinement."
+    },
+    {
+      "id": "@voyant-travel/mice:create_mice_program:<root>",
+      "documented": false,
+      "note": "Not stated. The description says \"validated dates\" without saying what the validation requires."
+    },
+    {
+      "id": "@voyant-travel/mice:update_mice_program:<root>",
+      "documented": false,
+      "note": "Not stated. Same date-ordering rule as create_mice_program."
+    },
+    {
+      "id": "@voyant-travel/navigation-preferences:set_my_navigation_preferences:visibility",
+      "documented": false,
+      "note": "Not stated. The trimmed-id and entry-count limits appear nowhere in the JSON Schema."
+    },
+    {
+      "id": "@voyant-travel/navigation-preferences:set_my_navigation_preferences:visibility{key}",
+      "documented": false,
+      "note": "Not stated. The record-key rule (non-empty, trimmed navigation id) is enforced only by the refinement."
+    },
+    {
+      "id": "@voyant-travel/navigation-preferences:set_organization_navigation_preferences:visibility",
+      "documented": false,
+      "note": "Not stated. This is the entry the first attempt's keyword heuristic misclassified as documented because the description contains the word \"unless\"; the real rules (trimmed ids, at most 1000 entries) are not stated anywhere the model can read."
+    },
+    {
+      "id": "@voyant-travel/navigation-preferences:set_organization_navigation_preferences:visibility{key}",
+      "documented": false,
+      "note": "Not stated. Same record-key rule as the member-scoped tool."
+    },
+    {
+      "id": "@voyant-travel/notifications:get_notification_template:<root>",
+      "documented": false,
+      "note": "Not stated. The by-id-or-slug either/or requirement is enforced only by the refinement, though the description mentions both lookups exist."
+    },
+    {
+      "id": "@voyant-travel/storefront:bootstrap_my_customer_portal:<root>",
+      "documented": false,
+      "note": "Not stated. The claim-conflict precondition is named in the description but its actual cross-field requirement is not."
+    },
+    {
+      "id": "@voyant-travel/storefront:bootstrap_my_customer_portal:customerRecord.billingAddress",
+      "documented": false,
+      "note": "Not stated. The billing-address completeness rule has no description on the field."
+    },
+    {
+      "id": "@voyant-travel/storefront:update_my_customer_portal_profile:<root>",
+      "documented": false,
+      "note": "Not stated. The refinement's cross-field requirement is absent from the description."
+    },
+    {
+      "id": "@voyant-travel/storefront:update_my_customer_portal_profile:customerRecord.billingAddress",
+      "documented": false,
+      "note": "Not stated. Same billing-address completeness rule as bootstrap_my_customer_portal."
+    },
+    {
+      "id": "@voyant-travel/trips:create_trip:components[]",
+      "documented": true,
+      "note": "Documented. The `components` field description states both write rules (manual_placeholder needs metadata.manualService.name; catalog_booking needs metadata.bookingDraftV1.configure.dateRange with checkOut after checkIn). Pinned by packages/trips/tests/tool-refinement-visibility.test.ts."
+    },
+    {
+      "id": "@voyant-travel/trips:revise_trip:addComponents[]",
+      "documented": true,
+      "note": "Documented. Same two rules as create_trip, stated on the `addComponents` field description and pinned by the same test."
+    }
+  ]
+}
