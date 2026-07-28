@@ -5,11 +5,21 @@ import {
   LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY,
   LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION,
 } from "../../src/created-target-policy.js"
-import { executeLegalContractDraftCreate } from "../../src/mcp-runtime.js"
+import {
+  executeLegalContractDraftCreate,
+  resolveLegalContractDraftLanguage,
+} from "../../src/mcp-runtime.js"
 import { createLegalContractDraftTool } from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
 
 describe("legal contract draft created-target command", () => {
+  it("inherits Romanian when a revision omits language", () => {
+    expect(createLegalContractDraftTool.inputSchema.parse({ title: "Revizie" })).not.toHaveProperty(
+      "language",
+    )
+    expect(resolveLegalContractDraftLanguage(undefined, "ro")).toBe("ro")
+    expect(resolveLegalContractDraftLanguage("en", "ro")).toBe("en")
+  })
   it("binds the create tool to a handler-owned durable graph action", () => {
     expect(createLegalContractDraftTool.actionPolicyEnforcement).toBe("handler")
     expect(

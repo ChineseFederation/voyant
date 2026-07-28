@@ -215,13 +215,22 @@ export const contractRecordsService = {
   },
   async deleteContract(db: PostgresJsDatabase, id: string) {
     const [existing] = await db
-      .select({ id: contracts.id, status: contracts.status })
+      .select({ id: contracts.id, status: contracts.status, metadata: contracts.metadata })
       .from(contracts)
       .where(eq(contracts.id, id))
       .limit(1)
     if (!existing) return { status: "not_found" as const }
     if (existing.status !== "draft" && existing.status !== "void") {
       return { status: "not_deletable" as const }
+    }
+    const metadata =
+      existing.metadata &&
+      typeof existing.metadata === "object" &&
+      !Array.isArray(existing.metadata)
+        ? (existing.metadata as Record<string, unknown>)
+        : {}
+    if (metadata.bookingContractWorkflow) {
+      return { status: "immutable_revision" as const }
     }
     await db.delete(contracts).where(eq(contracts.id, id))
     return { status: "deleted" as const }

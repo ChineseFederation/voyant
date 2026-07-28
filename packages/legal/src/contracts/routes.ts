@@ -1123,7 +1123,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         content: { "application/json": { schema: successResponseSchema } },
       },
       404: notFoundResponse("Contract not found"),
-      409: conflictResponse("Only draft or void contracts can be deleted"),
+      409: conflictResponse("Contract cannot be deleted"),
     },
   })
 
@@ -1152,6 +1152,9 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
       if (result.status === "not_deletable") {
         return c.json({ error: "Only draft or void contracts can be deleted" }, 409)
+      }
+      if (result.status === "immutable_revision") {
+        return c.json({ error: "Managed booking contract revisions cannot be deleted" }, 409)
       }
       return c.json({ success: true } as const, 200)
     })

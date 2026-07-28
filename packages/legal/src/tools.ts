@@ -223,7 +223,7 @@ const createDraftInputSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(255).optional(),
   title: z.string().trim().min(1).max(500),
   scope: scopeSchema.default("customer"),
-  language: z.string().min(2).max(10).default("en"),
+  language: z.string().min(2).max(10).optional(),
   bookingId: z.string().optional(),
   personId: z.string().optional(),
   organizationId: z.string().optional(),
@@ -361,20 +361,43 @@ const listTermsInputSchema = z.object({
 })
 const listAttachmentsInputSchema = z.object({ contractId: z.string().trim().min(1) })
 const transitionContractInputSchema = z.object({ contractId: z.string().trim().min(1) })
-const legacySendContractInputSchema = transitionContractInputSchema.extend({
-  recipientEmail: z.string().email().nullable().optional(),
-  subject: z.string().max(500).nullable().optional(),
-  message: z.string().max(10_000).nullable().optional(),
-})
-const bookingContractSendInputSchema = transitionContractInputSchema.extend({
-  recipient: z.string().trim().min(3).max(320),
-  channel: z.enum(["email", "sms", "whatsapp"]),
+const legacySendContractInputSchema = transitionContractInputSchema
+  .extend({
+    recipientEmail: z.string().email().nullable().optional(),
+    subject: z.string().max(500).nullable().optional(),
+    message: z.string().max(10_000).nullable().optional(),
+  })
+  .strict()
+const bookingContractSendFields = {
   revision: z.number().int().positive(),
   contentFingerprint: z.string().startsWith("booking-contract-content:v1:sha256:"),
   notificationsSuppressed: z.boolean().default(false),
   subject: z.string().max(500).nullable().optional(),
   message: z.string().max(10_000).nullable().optional(),
-})
+}
+const bookingContractSendInputSchema = z.discriminatedUnion("channel", [
+  transitionContractInputSchema
+    .extend({
+      ...bookingContractSendFields,
+      channel: z.literal("email"),
+      recipient: z.string().trim().email().max(320),
+    })
+    .strict(),
+  transitionContractInputSchema
+    .extend({
+      ...bookingContractSendFields,
+      channel: z.literal("sms"),
+      recipient: z.string().trim().min(3).max(320),
+    })
+    .strict(),
+  transitionContractInputSchema
+    .extend({
+      ...bookingContractSendFields,
+      channel: z.literal("whatsapp"),
+      recipient: z.string().trim().min(3).max(320),
+    })
+    .strict(),
+])
 const sendContractInputSchema = z.union([
   bookingContractSendInputSchema,
   legacySendContractInputSchema,

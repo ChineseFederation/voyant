@@ -457,6 +457,30 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
       ...json({ title: "Mutated revision" }),
     })
     expect(managedPatch.status).toBe(400)
+    const managedDelete = await adminApp.request(`/${managedDraft!.id}`, { method: "DELETE" })
+    expect(managedDelete.status).toBe(409)
+    await expect(managedDelete.json()).resolves.toEqual({
+      error: "Managed booking contract revisions cannot be deleted",
+    })
+
+    const [managedVoid] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed void revision",
+        scope: "customer",
+        status: "void",
+        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: false } },
+      })
+      .returning()
+    const managedVoidDelete = await adminApp.request(`/${managedVoid!.id}`, { method: "DELETE" })
+    expect(managedVoidDelete.status).toBe(409)
+
+    const [unmanagedDraft] = await db
+      .insert(contracts)
+      .values({ title: "Legacy disposable draft", scope: "customer" })
+      .returning()
+    const unmanagedDelete = await adminApp.request(`/${unmanagedDraft!.id}`, { method: "DELETE" })
+    expect(unmanagedDelete.status).toBe(200)
 
     const [sent] = await db
       .insert(contracts)

@@ -287,6 +287,13 @@ type LegalCreatedCommandExecutor = (
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
 
+export function resolveLegalContractDraftLanguage(
+  requestedLanguage: string | undefined,
+  previousLanguage: string | undefined,
+): string {
+  return requestedLanguage ?? previousLanguage ?? "en"
+}
+
 export async function executeLegalContractDraftCreate(
   db: PostgresJsDatabase,
   requestContext: ActionLedgerRequestContextValues,
@@ -444,6 +451,7 @@ export async function executeLegalContractDraftCreate(
         const row = await createContract(transaction, {
           ...requestedInput,
           status: "draft",
+          language: resolveLegalContractDraftLanguage(requestedInput.language, previous?.language),
           bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
           personId: requestedInput.personId ?? previous?.personId ?? null,
           organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,

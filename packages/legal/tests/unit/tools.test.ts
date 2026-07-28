@@ -79,6 +79,24 @@ describe("legal Tools", () => {
     expect(
       sendLegalContractTool.inputSchema.safeParse({
         contractId: "contract_1",
+        recipient: "not-an-email",
+        channel: "email",
+        revision: 2,
+        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
+      }).success,
+    ).toBe(false)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "+40700000000",
+        channel: "sms",
+        revision: 2,
+        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
+      }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
         recipient: "traveller@example.com",
         channel: "email",
         revision: 2,
