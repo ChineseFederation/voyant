@@ -1206,6 +1206,7 @@ async function reconcileBookingCreatePricing(
     const categoryRules = unitRules.filter((rule) => rule.pricingCategoryId !== null)
     if (flatUnitRules.length === 0 && categoryRules.length > 0) {
       let categoryTotal = 0
+      let matchedCategoryPrice = false
       for (const rule of categoryRules) {
         const band = rule.travelerCategory
         if (!band || chargedTravelerBands.has(band)) continue
@@ -1218,8 +1219,20 @@ async function reconcileBookingCreatePricing(
           departureAmount ??
           selectPersistedUnitAmount(rule, persistedPricing?.tiers ?? [], bandQuantity)
         if (amount == null) continue
+        matchedCategoryPrice = true
         categoryTotal += amount * bandQuantity
         chargedTravelerBands.add(band)
+      }
+      if (!matchedCategoryPrice) {
+        return {
+          booking,
+          issues: [
+            {
+              path: ["itemLines"],
+              message: `Booking item ${item.optionUnitId ?? item.id} has no persisted category price matching its traveler band and quantity.`,
+            },
+          ],
+        }
       }
       pricedLines.set(item.id, {
         unit: Math.floor(categoryTotal / quantity),
@@ -1303,12 +1316,7 @@ async function reconcileBookingCreatePricing(
       }
     }
     const pricingMode = extra.pricingMode
-    const chargeQuantity =
-      pricingMode === "per_person" || extra.pricedPerPerson
-        ? Math.max(1, booking.pax ?? 1) * Math.max(1, item.quantity)
-        : pricingMode === "per_booking"
-          ? 1
-          : Math.max(1, item.quantity)
+    const chargeQuantity = pricingMode === "per_booking" ? 1 : Math.max(1, item.quantity)
     const unitAmount = extra.sellAmountCents ?? 0
     if (
       unitAmount === 0 &&

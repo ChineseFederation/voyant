@@ -1440,17 +1440,30 @@ async function adjustSlotCapacity(
   slotId: string,
   delta: number,
   source: SlotChangeSource = "booking",
-  options: { allowClosedCapacityRelease?: boolean } = {},
+  options: { allowTerminalCapacityRelease?: boolean } = {},
 ) {
   const locked = await lockAvailabilitySlot(db, slotId)
   if (!locked) {
     return { status: "slot_not_found" as const }
   }
 
-  const closedCapacityRelease =
-    options.allowClosedCapacityRelease === true && locked.status === "closed" && delta >= 0
-  if (locked.status !== "open" && locked.status !== "sold_out" && !closedCapacityRelease) {
+  const terminalCapacityRelease =
+    options.allowTerminalCapacityRelease === true &&
+    (locked.status === "closed" || locked.status === "cancelled") &&
+    delta >= 0
+  if (locked.status !== "open" && locked.status !== "sold_out" && !terminalCapacityRelease) {
     return { status: "slot_unavailable" as const, slot: locked }
+  }
+
+  // A cancelled departure is terminal: freeing a booking must not reopen it
+  // or require a capacity mutation that no longer has operational meaning.
+  if (locked.status === "cancelled" && terminalCapacityRelease) {
+    return {
+      status: "ok" as const,
+      slot: locked,
+      remainingPax: locked.remaining_pax,
+      slotChange: undefined,
+    }
   }
 
   if (locked.unlimited) {
@@ -1802,7 +1815,7 @@ async function releaseAllocationCapacity(
     allocation.availabilitySlotId,
     allocation.quantity,
     source,
-    { allowClosedCapacityRelease: source === "cancel" },
+    { allowTerminalCapacityRelease: source === "cancel" },
   )
   if (result.status !== "ok") {
     throw new BookingServiceError(result.status)

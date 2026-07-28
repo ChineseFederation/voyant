@@ -6,6 +6,7 @@ import type { NotificationService } from "./service.js"
 import type { BookingDocumentAttachmentResolver } from "./service-booking-documents.js"
 import {
   bookingIsPaidInFullForNotification,
+  bookingNotificationsSuppressedForNotification,
   dispatchReminderEventRules,
 } from "./service-reminders.js"
 
@@ -29,6 +30,7 @@ export interface NotificationsSubscriberRuntime {
 export interface NotificationsSubscriberDependencies {
   dispatchReminderRules?: typeof dispatchReminderEventRules
   isPaidInFull?: typeof bookingIsPaidInFullForNotification
+  isNotificationsSuppressed?: typeof bookingNotificationsSuppressedForNotification
   logger?: Pick<Console, "error">
 }
 
@@ -112,6 +114,8 @@ export function createPaymentCompletedReminderSubscriberRuntime(
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
   const isPaidInFull = dependencies.isPaidInFull ?? bookingIsPaidInFullForNotification
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -124,6 +128,7 @@ export function createPaymentCompletedReminderSubscriberRuntime(
         try {
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           if (!(await isPaidInFull(db, data.bookingId))) return
 
           await dispatchReminderRules(

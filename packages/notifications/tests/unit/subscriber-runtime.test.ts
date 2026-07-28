@@ -95,10 +95,12 @@ describe("Notifications subscriber runtime descriptors", () => {
   it("dispatches payment rules only when the booking is paid in full", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
     const isPaidInFull = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(false)
     const harness = createHarness()
     createPaymentCompletedReminderSubscriberRuntime({
       dispatchReminderRules,
       isPaidInFull,
+      isNotificationsSuppressed,
     }).register(harness)
 
     const payload = {
@@ -123,6 +125,30 @@ describe("Notifications subscriber runtime descriptors", () => {
       }),
       { documentAttachmentResolver: attachmentResolver },
     )
+  })
+
+  it("does not dispatch payment rules for a persistently suppressed booking", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isPaidInFull = vi.fn().mockResolvedValue(true)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(true)
+    const harness = createHarness()
+    createPaymentCompletedReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isPaidInFull,
+      isNotificationsSuppressed,
+    }).register(harness)
+
+    await harness.eventBus.emit("payment.completed", {
+      paymentSessionId: "pay_silent",
+      bookingId: "book_silent",
+      amountCents: 1000,
+      currency: "EUR",
+      provider: "test",
+    })
+
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
+    expect(isPaidInFull).not.toHaveBeenCalled()
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
   })
 
   it("dispatches cancellation rules only for a booking leaving on_hold", async () => {

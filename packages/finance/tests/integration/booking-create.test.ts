@@ -1448,6 +1448,24 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         WHERE ${bookingItems.bookingId} = ${outcome.result.booking.id}
       )`)
     expect(links).toHaveLength(4)
+    const [extraItem] = await db
+      .select({
+        quantity: bookingItems.quantity,
+        unitSellAmountCents: bookingItems.unitSellAmountCents,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(
+        and(
+          eq(bookingItems.bookingId, outcome.result.booking.id),
+          eq(bookingItems.itemType, "extra"),
+        ),
+      )
+    expect(extraItem).toEqual({
+      quantity: 2,
+      unitSellAmountCents: 1000,
+      totalSellAmountCents: 2000,
+    })
   })
 
   it("links item and extra lines to reordered travelers through stable keys", async () => {
@@ -2222,10 +2240,67 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome).toMatchObject({ status: "invalid_pricing" })
   })
 
+  it("rejects a category-priced item when no traveler band matches", async () => {
+    const { productId, optionId, childUnitId } = await seedProduct({
+      ageBandedUnits: true,
+    })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: childUnitId,
+      unitAmountCents: 10_000,
+      unitPricingMode: "per_person",
+    })
+    const categoryId = `prcat_bc_${productSeq}_adult_only`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${categoryId}, ${productId}, ${optionId}, ${childUnitId},
+        'ADULT_ONLY', 'Adult only', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      UPDATE option_unit_price_rules
+      SET pricing_category_id = ${categoryId}
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${childUnitId}
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      travelers: [
+        {
+          clientTravelerKey: "trav:child",
+          firstName: "Child",
+          lastName: "Traveler",
+          participantType: "traveler",
+          travelerCategory: "child",
+          isPrimary: true,
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${childUnitId}`,
+          optionUnitId: childUnitId,
+          quantity: 1,
+          travelerKeys: ["trav:child"],
+        },
+      ],
+    })
+
+    expect(outcome).toMatchObject({ status: "invalid_pricing" })
+  })
+
   it.each([
-    "on_hold",
-    "confirmed",
-  ] as const)("cancels a %s allocation on a closed departure and restores capacity exactly once", async (initialStatus) => {
+    ["on_hold", "closed", 12],
+    ["confirmed", "closed", 12],
+    ["on_hold", "cancelled", 10],
+    ["confirmed", "cancelled", 10],
+  ] as const)("cancels a %s allocation on a %s departure safely", async (initialStatus, slotStatus, expectedRemainingPax) => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const slot = await seedSlot({ productId, optionId, capacity: 12 })
     const outcome = await createBooking(db, {
@@ -2242,13 +2317,13 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     if (outcome.status !== "ok") return
     await db
       .update(availabilitySlots)
-      .set({ status: "closed" })
+      .set({ status: slotStatus })
       .where(eq(availabilitySlots.id, slot.id))
 
     const cancelled = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
-      { note: "closed departure cancellation" },
+      { note: `${slotStatus} departure cancellation` },
       "user_qa",
     )
     expect(cancelled.status).toBe("ok")
@@ -2262,12 +2337,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .select({ status: availabilitySlots.status, remainingPax: availabilitySlots.remainingPax })
       .from(availabilitySlots)
       .where(eq(availabilitySlots.id, slot.id))
-    expect(slotAfter).toEqual({ status: "closed", remainingPax: 12 })
+    expect(slotAfter).toEqual({
+      status: slotStatus,
+      remainingPax: expectedRemainingPax,
+    })
 
     const replay = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
-      { note: "closed departure cancellation" },
+      { note: `${slotStatus} departure cancellation` },
       "user_qa",
     )
     expect(replay.status).toBe("invalid_transition")
@@ -2275,7 +2353,10 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .select({ status: availabilitySlots.status, remainingPax: availabilitySlots.remainingPax })
       .from(availabilitySlots)
       .where(eq(availabilitySlots.id, slot.id))
-    expect(slotAfterReplay).toEqual({ status: "closed", remainingPax: 12 })
+    expect(slotAfterReplay).toEqual({
+      status: slotStatus,
+      remainingPax: expectedRemainingPax,
+    })
   })
 
   it("rejects selected room units that cannot seat the booking pax", async () => {

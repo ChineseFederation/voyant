@@ -250,4 +250,16 @@ export async function bookingIsPaidInFullForNotification(
   return !(await hasOutstandingBookingBalance(db, bookingId))
 }
 
+export async function bookingNotificationsSuppressedForNotification(
+  db: PostgresJsDatabase,
+  bookingId: string,
+) {
+  const [booking] = await db
+    .select({ notificationsSuppressed: bookings.notificationsSuppressed })
+    .from(bookings)
+    .where(eq(bookings.id, bookingId))
+    .limit(1)
+  return booking?.notificationsSuppressed === true
+}
+
 export type { BookingEventReminderRuntimeOptions } from "./service-reminder-booking-context.js"
