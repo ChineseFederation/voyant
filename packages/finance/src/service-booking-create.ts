@@ -13,14 +13,16 @@ import {
 } from "@voyant-travel/bookings/pricing-assignment"
 import type { Booking, BookingGroupMember, BookingTraveler } from "@voyant-travel/bookings/schema"
 import {
+  bookingActivityLog,
   bookingItems,
   bookingItemTravelers,
   bookings,
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
 import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
-import { asc, eq, sql } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import * as rrulePackage from "rrule"
 import { z } from "zod"
 
 import type {
@@ -1148,6 +1150,7 @@ async function reconcileBookingCreatePricing(
   tx: PostgresJsDatabase,
   booking: Booking,
   input: BookingCreateInput,
+  userId?: string,
 ): Promise<{ booking: Booking; issues: BookingCreateValidationIssue[] }> {
   const items = await tx
     .select({
@@ -1190,12 +1193,42 @@ async function reconcileBookingCreatePricing(
     : null
 
   const pricedLines = new Map<string, { unit: number; total: number }>()
+  const travelerBandCounts = bookingCreateTravelerBandCounts(input, booking.pax)
+  const chargedTravelerBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
   let appliedRuleBase = false
   for (const item of baseItems) {
-    const unitRule = persistedPricing?.unitRules.find((rule) => rule.unitId === item.optionUnitId)
+    const unitRules =
+      persistedPricing?.unitRules.filter((rule) => rule.unitId === item.optionUnitId) ?? []
     const quantity = Math.max(1, item.quantity)
+    const flatUnitRules = unitRules.filter((rule) => rule.pricingCategoryId === null)
+    const categoryRules = unitRules.filter((rule) => rule.pricingCategoryId !== null)
+    if (flatUnitRules.length === 0 && categoryRules.length > 0) {
+      let categoryTotal = 0
+      for (const rule of categoryRules) {
+        const band = rule.travelerCategory
+        if (!band || chargedTravelerBands.has(band)) continue
+        const bandQuantity = travelerBandCounts.get(band) ?? 0
+        if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
+        const departureAmount = item.optionUnitId
+          ? persistedPricing?.departureOverrides.get(item.optionUnitId)
+          : undefined
+        const amount =
+          departureAmount ??
+          selectPersistedUnitAmount(rule, persistedPricing?.tiers ?? [], bandQuantity)
+        if (amount == null) continue
+        categoryTotal += amount * bandQuantity
+        chargedTravelerBands.add(band)
+      }
+      pricedLines.set(item.id, {
+        unit: Math.floor(categoryTotal / quantity),
+        total: categoryTotal,
+      })
+      baseCatalogTotal += categoryTotal
+      continue
+    }
+    const unitRule = flatUnitRules.find((rule) => unitRuleMatchesQuantity(rule, quantity))
     const chargeQuantity =
       unitRule?.pricingMode === "per_person"
         ? Math.max(1, booking.pax ?? quantity)
@@ -1342,26 +1375,44 @@ async function reconcileBookingCreatePricing(
           reason: input.priceOverrideReason ?? "Manual price override",
         }
       : null)
+  await tx
+    .delete(bookingActivityLog)
+    .where(
+      and(
+        eq(bookingActivityLog.bookingId, booking.id),
+        eq(bookingActivityLog.description, "Booking sell total manually overridden during create"),
+      ),
+    )
+  const finalPriceOverride =
+    manualOverride && manualOverride.amountCents !== catalogTotal
+      ? {
+          isManual: true as const,
+          originalAmountCents: catalogTotal,
+          overriddenAmountCents: manualOverride.amountCents,
+          currency: booking.sellCurrency,
+          reason: manualOverride.reason,
+          overriddenBy: userId ?? "system",
+          overriddenAt: new Date().toISOString(),
+        }
+      : null
   const [updatedBooking] = await tx
     .update(bookings)
     .set({
       sellAmountCents: requestedTotal,
-      priceOverride:
-        manualOverride && manualOverride.amountCents !== catalogTotal
-          ? {
-              isManual: true,
-              originalAmountCents: catalogTotal,
-              overriddenAmountCents: manualOverride.amountCents,
-              currency: booking.sellCurrency,
-              reason: manualOverride.reason,
-              overriddenBy: booking.priceOverride?.overriddenBy ?? "system",
-              overriddenAt: new Date().toISOString(),
-            }
-          : null,
+      priceOverride: finalPriceOverride,
       updatedAt: new Date(),
     })
     .where(eq(bookings.id, booking.id))
     .returning()
+  if (finalPriceOverride) {
+    await tx.insert(bookingActivityLog).values({
+      bookingId: booking.id,
+      actorId: userId ?? "system",
+      activityType: "system_action",
+      description: "Booking sell total manually overridden during create",
+      metadata: { kind: "booking_price_overridden", ...finalPriceOverride },
+    })
+  }
   return { booking: updatedBooking ?? booking, issues: [] }
 }
 
@@ -1369,7 +1420,11 @@ type PersistedUnitPriceRule = {
   id: string
   unitId: string
   pricingMode: string
+  pricingCategoryId: string | null
+  travelerCategory: string | null
   sellAmountCents: number | null
+  minQuantity: number | null
+  maxQuantity: number | null
 }
 
 type PersistedUnitPriceTier = {
@@ -1380,55 +1435,150 @@ type PersistedUnitPriceTier = {
   sortOrder: number
 }
 
+type PersistedPriceRuleCandidate = {
+  id: string
+  name: string
+  pricingMode: string
+  baseSellAmountCents: number | null
+  priceCatalogId: string
+  isDefault: boolean
+  priceScheduleId: string | null
+  scheduleActive: boolean | null
+  schedulePriority: number | null
+  recurrenceRule: string | null
+  validFrom: string | null
+  validTo: string | null
+  weekdays: string[] | null
+}
+
+type RRulePackage = typeof import("rrule")
+type RRulePackageCompat = RRulePackage & { default?: RRulePackage; rrule?: RRulePackage }
+const rrulePackageCompat = rrulePackage as RRulePackageCompat
+const { rrulestr } =
+  rrulePackageCompat.rrulestr != null
+    ? rrulePackageCompat
+    : (rrulePackageCompat.default ?? rrulePackageCompat.rrule ?? rrulePackageCompat)
+
+const PRICE_WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const
+
+function persistedScheduleMatchesDate(rule: PersistedPriceRuleCandidate, isoDate: string) {
+  if (!rule.priceScheduleId || rule.scheduleActive !== true || rule.recurrenceRule == null) {
+    return false
+  }
+  if (rule.validFrom && isoDate < rule.validFrom) return false
+  if (rule.validTo && isoDate > rule.validTo) return false
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  const weekday = PRICE_WEEKDAY_CODES[date.getUTCDay()] ?? "MO"
+  if (rule.weekdays?.length && !rule.weekdays.includes(weekday)) return false
+
+  const recurrence = rule.recurrenceRule.trim()
+  if (recurrence === "") return true
+  const anchor = rule.validFrom ?? "2000-01-01"
+  const dtstart = `${anchor.replace(/-/g, "")}T000000Z`
+  const hasDtstart = /(?:^|\n)DTSTART[:;]/.test(recurrence)
+  const hasRrule = /(?:^|\n)RRULE[:;]/.test(recurrence)
+  const body = hasRrule ? recurrence : `RRULE:${recurrence}`
+  const fullRule = hasDtstart ? body : `DTSTART:${dtstart}\n${body}`
+  try {
+    const parsed = rrulestr(fullRule)
+    const end = new Date(date.getTime() + 24 * 60 * 60 * 1000)
+    return parsed
+      .between(date, end, true)
+      .some((value) => value.toISOString().slice(0, 10) === isoDate)
+  } catch {
+    return false
+  }
+}
+
+function selectPersistedPriceRule(rules: PersistedPriceRuleCandidate[], slotDate: string | null) {
+  const scheduled = slotDate
+    ? rules
+        .filter((rule) => persistedScheduleMatchesDate(rule, slotDate))
+        .sort(
+          (left, right) =>
+            (right.schedulePriority ?? 0) - (left.schedulePriority ?? 0) ||
+            Number(right.isDefault) - Number(left.isDefault) ||
+            left.name.localeCompare(right.name),
+        )
+    : []
+  if (scheduled[0]) return scheduled[0]
+  return rules
+    .filter((rule) => rule.priceScheduleId === null && rule.isDefault)
+    .sort((left, right) => left.name.localeCompare(right.name))[0]
+}
+
 async function loadPersistedBookingCreatePricing(
   tx: PostgresJsDatabase,
   input: { productId: string; optionId: string; slotId: string | null },
 ) {
-  const [rule] = toRows<{
-    id: string
-    pricingMode: string
-    baseSellAmountCents: number | null
-    priceCatalogId: string
-  }>(
+  const [catalog] = toRows<{ id: string }>(
     await tx.execute(sql`
-      SELECT
-        opr.id,
-        opr.pricing_mode AS "pricingMode",
-        opr.base_sell_amount_cents AS "baseSellAmountCents",
-        opr.price_catalog_id AS "priceCatalogId"
-      FROM option_price_rules opr
-      JOIN price_catalogs pc ON pc.id = opr.price_catalog_id
-      WHERE opr.product_id = ${input.productId}
-        AND opr.option_id = ${input.optionId}
-        AND opr.active = true
-        AND pc.active = true
-        AND pc.catalog_type = 'public'
-      ORDER BY
-        (coalesce(opr.base_sell_amount_cents, 0) > 0 OR EXISTS (
-          SELECT 1 FROM option_unit_price_rules oupr
-          WHERE oupr.option_price_rule_id = opr.id
-            AND oupr.active = true
-            AND coalesce(oupr.sell_amount_cents, 0) > 0
-        )) DESC,
-        pc.is_default DESC,
-        opr.is_default DESC,
-        opr.created_at ASC
+      SELECT id
+      FROM price_catalogs
+      WHERE active = true
+        AND catalog_type = 'public'
+        AND is_default = true
+      ORDER BY created_at ASC, id ASC
       LIMIT 1
     `),
   )
+  if (!catalog) return null
+  const [slot] = input.slotId
+    ? toRows<{ dateLocal: string }>(
+        await tx.execute(sql`
+          SELECT date_local AS "dateLocal"
+          FROM availability_slots
+          WHERE id = ${input.slotId}
+            AND product_id = ${input.productId}
+            AND (option_id IS NULL OR option_id = ${input.optionId})
+          LIMIT 1
+        `),
+      )
+    : []
+  const candidates = toRows<PersistedPriceRuleCandidate>(
+    await tx.execute(sql`
+      SELECT
+        opr.id,
+        opr.name,
+        opr.pricing_mode AS "pricingMode",
+        opr.base_sell_amount_cents AS "baseSellAmountCents",
+        opr.price_catalog_id AS "priceCatalogId",
+        opr.is_default AS "isDefault",
+        opr.price_schedule_id AS "priceScheduleId",
+        ps.active AS "scheduleActive",
+        ps.priority AS "schedulePriority",
+        ps.recurrence_rule AS "recurrenceRule",
+        ps.valid_from::text AS "validFrom",
+        ps.valid_to::text AS "validTo",
+        ps.weekdays
+      FROM option_price_rules opr
+      LEFT JOIN price_schedules ps ON ps.id = opr.price_schedule_id
+      WHERE opr.product_id = ${input.productId}
+        AND opr.option_id = ${input.optionId}
+        AND opr.price_catalog_id = ${catalog.id}
+        AND opr.active = true
+    `),
+  )
+  const rule = selectPersistedPriceRule(candidates, slot?.dateLocal ?? null)
   if (!rule) return null
 
   const unitRules = toRows<PersistedUnitPriceRule>(
     await tx.execute(sql`
       SELECT
-        id,
-        unit_id AS "unitId",
-        pricing_mode AS "pricingMode",
-        sell_amount_cents AS "sellAmountCents"
-      FROM option_unit_price_rules
-      WHERE option_price_rule_id = ${rule.id}
-        AND active = true
-      ORDER BY sort_order ASC, created_at ASC
+        oupr.id,
+        oupr.unit_id AS "unitId",
+        oupr.pricing_mode AS "pricingMode",
+        oupr.pricing_category_id AS "pricingCategoryId",
+        pc.category_type::text AS "travelerCategory",
+        oupr.sell_amount_cents AS "sellAmountCents",
+        oupr.min_quantity AS "minQuantity",
+        oupr.max_quantity AS "maxQuantity"
+      FROM option_unit_price_rules oupr
+      LEFT JOIN pricing_categories pc
+        ON pc.id = oupr.pricing_category_id
+      WHERE oupr.option_price_rule_id = ${rule.id}
+        AND oupr.active = true
+      ORDER BY oupr.sort_order ASC, oupr.created_at ASC
     `),
   )
   const tiers = toRows<PersistedUnitPriceTier>(
@@ -1469,6 +1619,24 @@ async function loadPersistedBookingCreatePricing(
   return { ...rule, unitRules, tiers, departureOverrides, ruleId: rule.id }
 }
 
+function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: number | null) {
+  const counts = new Map<string, number>()
+  for (const traveler of input.travelers ?? []) {
+    const band = traveler.travelerCategory ?? "adult"
+    if (!["adult", "child", "infant", "senior"].includes(band)) continue
+    counts.set(band, (counts.get(band) ?? 0) + 1)
+  }
+  if (counts.size === 0 && bookingPax && bookingPax > 0) counts.set("adult", bookingPax)
+  return counts
+}
+
+function unitRuleMatchesQuantity(rule: PersistedUnitPriceRule, quantity: number) {
+  return (
+    (rule.minQuantity == null || quantity >= rule.minQuantity) &&
+    (rule.maxQuantity == null || quantity <= rule.maxQuantity)
+  )
+}
+
 function selectPersistedUnitAmount(
   rule: PersistedUnitPriceRule | undefined,
   tiers: readonly PersistedUnitPriceTier[],
@@ -1494,6 +1662,7 @@ async function loadPersistedExtraPricing(
     optionPriceRuleId: string | null
   },
 ) {
+  if (!input.optionId || !input.optionPriceRuleId) return null
   const [extra] = toRows<{
     pricingMode: string
     pricedPerPerson: boolean
@@ -1505,18 +1674,20 @@ async function loadPersistedExtraPricing(
         coalesce(oec.priced_per_person, pe.priced_per_person, false) AS "pricedPerPerson",
         epr.sell_amount_cents AS "sellAmountCents"
       FROM product_extras pe
-      LEFT JOIN option_extra_configs oec
-        ON oec.product_extra_id = pe.id
-        AND oec.active = true
-        AND (${input.optionId}::text IS NULL OR oec.option_id = ${input.optionId})
-      LEFT JOIN extra_price_rules epr
+      JOIN extra_price_rules epr
         ON epr.active = true
+        AND epr.option_price_rule_id = ${input.optionPriceRuleId}
+        AND epr.option_id = ${input.optionId}
         AND epr.product_extra_id = pe.id
-        AND (${input.optionPriceRuleId}::text IS NULL OR epr.option_price_rule_id = ${input.optionPriceRuleId})
-        AND (${input.optionExtraConfigId}::text IS NULL OR epr.option_extra_config_id = ${input.optionExtraConfigId})
+      LEFT JOIN option_extra_configs oec
+        ON oec.id = epr.option_extra_config_id
+        AND oec.product_extra_id = pe.id
+        AND oec.option_id = ${input.optionId}
+        AND oec.active = true
       WHERE pe.id = ${input.productExtraId}
         AND pe.product_id = ${input.productId}
         AND pe.active = true
+        AND (epr.option_extra_config_id IS NULL OR oec.id IS NOT NULL)
         AND (${input.optionExtraConfigId}::text IS NULL OR oec.id = ${input.optionExtraConfigId})
       ORDER BY epr.sort_order ASC, epr.created_at ASC
       LIMIT 1
@@ -1761,7 +1932,7 @@ export async function createBookingMutation(
         )
       }
 
-      const pricing = await reconcileBookingCreatePricing(tx, booking, input)
+      const pricing = await reconcileBookingCreatePricing(tx, booking, input, userId)
       if (pricing.issues.length > 0) {
         throw new BookingCreateAbort({ status: "invalid_pricing", issues: pricing.issues })
       }

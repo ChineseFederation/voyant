@@ -122,6 +122,8 @@ async function resetTables(
     "option_unit_tiers",
     "option_unit_price_rules",
     "option_price_rules",
+    "price_schedules",
+    "pricing_categories",
     "price_catalogs",
     "option_extra_configs",
     "product_extras",
@@ -1860,6 +1862,294 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       taxCents: 0,
       totalCents: 30_000,
     })
+  })
+
+  it("uses the default public catalog and the highest-priority rule matching the departure date", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const slot = await seedSlot({ productId, optionId })
+    const { catalogId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+    })
+    const scheduleId = `psch_bc_${productSeq}`
+    const seasonalRuleId = `oprl_bc_${productSeq}_seasonal`
+    await db.execute(sql`
+      INSERT INTO price_schedules (
+        id, price_catalog_id, name, recurrence_rule, valid_from, valid_to, priority, active
+      ) VALUES (
+        ${scheduleId}, ${catalogId}, 'July peak', 'FREQ=DAILY', '2026-07-01', '2026-07-31', 20, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, price_schedule_id,
+        name, pricing_mode, is_default, active
+      ) VALUES (
+        ${seasonalRuleId}, ${productId}, ${optionId}, ${catalogId}, ${scheduleId},
+        'Peak', 'per_booking', false, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_seasonal`}, ${seasonalRuleId}, ${optionId}, ${unitId},
+        'per_unit', 15000, true
+      )
+    `)
+    const decoyCatalogId = `pcat_bc_${productSeq}_decoy`
+    const decoyRuleId = `oprl_bc_${productSeq}_decoy`
+    await db.execute(sql`
+      INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
+      VALUES (${decoyCatalogId}, ${`PUBLIC-DECOY-${productSeq}`}, 'Decoy', 'EUR', 'public', false, true)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode,
+        base_sell_amount_cents, is_default, active
+      ) VALUES (
+        ${decoyRuleId}, ${productId}, ${optionId}, ${decoyCatalogId},
+        'Non-default decoy', 'per_booking', 99000, true, true
+      )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(15_000)
+    expect(outcome.result.booking.priceOverride).toBeNull()
+  })
+
+  it("charges one twin room for two adults using traveler-category pricing", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: roomUnitId,
+      unitAmountCents: 1,
+    })
+    const categoryId = `prct_bc_${productSeq}_adult`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${categoryId}, ${productId}, ${optionId}, ${roomUnitId},
+        'adult', 'Adult', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult`}, ${optionPriceRuleId}, ${optionId}, ${roomUnitId},
+        ${categoryId}, 'per_unit', 12000, true
+      )
+    `)
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:one",
+          firstName: "Alice",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:two",
+          firstName: "Bob",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+      ],
+      itemLines: [{ optionUnitId: roomUnitId, quantity: 1 }],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(24_000)
+    expect(
+      await db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).toEqual([{ unit: 24_000, total: 24_000 }])
+  })
+
+  it("audits manual overrides only after comparing against persisted catalog pricing", async () => {
+    const first = await seedProduct()
+    const firstPricing = await seedPersistedPricing({
+      productId: first.productId,
+      optionId: first.optionId,
+      unitId: first.unitId,
+      unitAmountCents: 40_000,
+    })
+    const overridden = await createBooking(
+      db,
+      {
+        productId: first.productId,
+        optionId: first.optionId,
+        bookingNumber: nextBookingNumber(),
+        ...bookingParty(),
+        itemLines: [{ optionUnitId: first.unitId, quantity: 1 }],
+        manualPriceOverride: { amountCents: 50_000, reason: "Named operator decision" },
+      },
+      { userId: "user_actual_override" },
+    )
+    expect(overridden.status).toBe("ok")
+    if (overridden.status !== "ok") return
+    expect(overridden.result.booking.priceOverride).toMatchObject({
+      originalAmountCents: 40_000,
+      overriddenAmountCents: 50_000,
+      reason: "Named operator decision",
+      overriddenBy: "user_actual_override",
+    })
+    expect(
+      await db
+        .select({ actorId: bookingActivityLog.actorId, metadata: bookingActivityLog.metadata })
+        .from(bookingActivityLog)
+        .where(
+          and(
+            eq(bookingActivityLog.bookingId, overridden.result.booking.id),
+            eq(
+              bookingActivityLog.description,
+              "Booking sell total manually overridden during create",
+            ),
+          ),
+        ),
+    ).toEqual([
+      {
+        actorId: "user_actual_override",
+        metadata: expect.objectContaining({
+          originalAmountCents: 40_000,
+          overriddenAmountCents: 50_000,
+          reason: "Named operator decision",
+          overriddenBy: "user_actual_override",
+        }),
+      },
+    ])
+
+    await db.execute(sql`
+      UPDATE price_catalogs SET is_default = false WHERE id = ${firstPricing.catalogId}
+    `)
+
+    const second = await seedProduct()
+    await seedPersistedPricing({
+      productId: second.productId,
+      optionId: second.optionId,
+      unitId: second.unitId,
+      unitAmountCents: 40_000,
+    })
+    const catalogPrice = await createBooking(
+      db,
+      {
+        productId: second.productId,
+        optionId: second.optionId,
+        bookingNumber: nextBookingNumber(),
+        ...bookingParty(),
+        itemLines: [{ optionUnitId: second.unitId, quantity: 1 }],
+        manualPriceOverride: { amountCents: 40_000, reason: "Matches current catalog" },
+      },
+      { userId: "user_not_override" },
+    )
+    expect(catalogPrice.status).toBe("ok")
+    if (catalogPrice.status !== "ok") return
+    expect(catalogPrice.result.booking.priceOverride).toBeNull()
+    expect(
+      await db
+        .select({ id: bookingActivityLog.id })
+        .from(bookingActivityLog)
+        .where(
+          and(
+            eq(bookingActivityLog.bookingId, catalogPrice.result.booking.id),
+            eq(
+              bookingActivityLog.description,
+              "Booking sell total manually overridden during create",
+            ),
+          ),
+        ),
+    ).toEqual([])
+  })
+
+  it("rejects an extra whose only persisted price belongs to another option", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    const otherOptionId = `popt_bc_${productSeq}_other`
+    const otherRuleId = `oprl_bc_${productSeq}_other`
+    const extraId = `pex_bc_${productSeq}_cross_option`
+    const catalogId = `pcat_bc_${productSeq}_cross_option`
+    await db.execute(sql`
+      INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
+      VALUES (${otherOptionId}, ${productId}, 'Other', 'active', false, 1)
+    `)
+    await db.execute(sql`
+      INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
+      VALUES (${catalogId}, ${`PUBLIC-CROSS-${productSeq}`}, 'Public', 'EUR', 'public', true, true)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode, is_default, active
+      ) VALUES (
+        ${otherRuleId}, ${productId}, ${otherOptionId}, ${catalogId},
+        'Other option rate', 'per_booking', true, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO product_extras (
+        id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
+      ) VALUES (
+        ${extraId}, ${productId}, 'Other option transfer', 'per_booking', false, 'booking_total', true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO extra_price_rules (
+        id, option_price_rule_id, option_id, product_extra_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`expr_bc_${productSeq}_other`}, ${otherRuleId}, ${otherOptionId}, ${extraId},
+        'per_booking', 9000, true
+      )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      extraLines: [
+        {
+          productExtraId: extraId,
+          name: "Untrusted caller label",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
+      ],
+    })
+
+    expect(outcome).toMatchObject({ status: "invalid_pricing" })
   })
 
   it.each([
