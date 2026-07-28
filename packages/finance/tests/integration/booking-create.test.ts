@@ -465,6 +465,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       optionExtraConfigId: string
       amountCents: number
       pricingMode: "per_person" | "per_booking"
+      pricedPerPerson?: boolean
     }
   }) {
     const catalogId = `pcat_bc_${productSeq}`
@@ -490,12 +491,14 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       )
     `)
     if (input.extra) {
+      const pricedPerPerson =
+        input.extra.pricedPerPerson ?? input.extra.pricingMode === "per_person"
       await db.execute(sql`
         INSERT INTO product_extras (
           id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
         ) VALUES (
           ${input.extra.productExtraId}, ${input.productId}, 'Airport transfer',
-          ${input.extra.pricingMode}, ${input.extra.pricingMode === "per_person"}, 'booking_total', true
+          ${input.extra.pricingMode}, ${pricedPerPerson}, 'booking_total', true
         )
       `)
       await db.execute(sql`
@@ -503,7 +506,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           id, option_id, product_extra_id, pricing_mode, priced_per_person, active
         ) VALUES (
           ${input.extra.optionExtraConfigId}, ${input.optionId}, ${input.extra.productExtraId},
-          ${input.extra.pricingMode}, ${input.extra.pricingMode === "per_person"}, true
+          ${input.extra.pricingMode}, ${pricedPerPerson}, true
         )
       `)
       await db.execute(sql`
@@ -1805,7 +1808,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         productExtraId,
         optionExtraConfigId,
         amountCents: 3_000,
-        pricingMode: "per_person",
+        pricingMode: "per_booking",
+        pricedPerPerson: true,
       },
     })
 

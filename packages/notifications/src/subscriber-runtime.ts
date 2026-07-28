@@ -83,6 +83,8 @@ export function createBookingConfirmedReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -93,8 +95,10 @@ export function createBookingConfirmedReminderSubscriberRuntime(
         if (data.suppressNotifications === true) return
         try {
           const runtime = resolveRuntime(container)
+          const db = runtime.resolveDb(bindings)
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           await dispatchReminderRules(
-            runtime.resolveDb(bindings),
+            db,
             runtime.dispatcher,
             { targetType: "booking_confirmed", bookingId: data.bookingId, eventData: data },
             { documentAttachmentResolver: runtime.documentAttachmentResolver },

@@ -1815,7 +1815,7 @@ async function releaseAllocationCapacity(
     allocation.availabilitySlotId,
     allocation.quantity,
     source,
-    { allowTerminalCapacityRelease: source === "cancel" },
+    { allowTerminalCapacityRelease: source === "cancel" || source === "expire" },
   )
   if (result.status !== "ok") {
     throw new BookingServiceError(result.status)

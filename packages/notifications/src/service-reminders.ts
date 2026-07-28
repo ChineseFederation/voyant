@@ -36,6 +36,7 @@ export type NotificationReminderDeliveryOptions = NotificationPortalContextOptio
 
 export {
   bookingIsPaidInFullForNotification,
+  bookingNotificationsSuppressedForNotification,
   dispatchReminderEventRules,
 } from "./service-reminder-events.js"
 

@@ -1316,7 +1316,11 @@ async function reconcileBookingCreatePricing(
       }
     }
     const pricingMode = extra.pricingMode
-    const chargeQuantity = pricingMode === "per_booking" ? 1 : Math.max(1, item.quantity)
+    const chargeQuantity = extra.pricedPerPerson
+      ? Math.max(1, booking.pax ?? item.quantity)
+      : pricingMode === "per_booking"
+        ? 1
+        : Math.max(1, item.quantity)
     const unitAmount = extra.sellAmountCents ?? 0
     if (
       unitAmount === 0 &&

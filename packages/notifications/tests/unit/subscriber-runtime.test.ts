@@ -63,8 +63,12 @@ describe("Notifications subscriber runtime descriptors", () => {
 
   it("dispatches booking-confirmed rules with the runtime attachment resolver", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(false)
     const harness = createHarness()
-    createBookingConfirmedReminderSubscriberRuntime({ dispatchReminderRules }).register(harness)
+    createBookingConfirmedReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
 
     const payload = { bookingId: "book_1", bookingNumber: "BK-1", actorId: null }
     await harness.eventBus.emit("booking.confirmed", payload)
@@ -75,6 +79,7 @@ describe("Notifications subscriber runtime descriptors", () => {
       { targetType: "booking_confirmed", bookingId: "book_1", eventData: payload },
       { documentAttachmentResolver: attachmentResolver },
     )
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_1")
   })
 
   it("does not dispatch a suppressed booking confirmation", async () => {
@@ -89,6 +94,25 @@ describe("Notifications subscriber runtime descriptors", () => {
       suppressNotifications: true,
     })
 
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
+  })
+
+  it("does not dispatch confirmation for a persistently suppressed booking", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(true)
+    const harness = createHarness()
+    createBookingConfirmedReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
+
+    await harness.eventBus.emit("booking.confirmed", {
+      bookingId: "book_silent",
+      bookingNumber: "BK-SILENT",
+      actorId: null,
+    })
+
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
     expect(dispatchReminderRules).not.toHaveBeenCalled()
   })
 
@@ -226,6 +250,7 @@ describe("Notifications subscriber runtime descriptors", () => {
     const harness = createHarness()
     createBookingConfirmedReminderSubscriberRuntime({
       dispatchReminderRules: vi.fn().mockRejectedValue(new Error("boom")),
+      isNotificationsSuppressed: vi.fn().mockResolvedValue(false),
       logger,
     }).register(harness)
 
