@@ -35,6 +35,7 @@ import {
   useBookings,
 } from "../index.js"
 import { BookingDialog } from "./booking-dialog.js"
+import { resolveBookingDisplayDateRange } from "./booking-display-date-range.js"
 import { BookingListFiltersPopover } from "./booking-list-filters.js"
 import { StatusBadge } from "./status-badge.js"
 
@@ -459,12 +460,7 @@ export function BookingList({
                   </TableCell>
                   <TableCell>{booking.pax ?? "—"}</TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {formatBookingDateRange(
-                      booking.startsAt ?? booking.startDate,
-                      booking.endsAt ?? booking.endDate,
-                      formatDate,
-                      locale,
-                    )}
+                    {formatBookingRecordDateRange(booking, formatDate, locale)}
                   </TableCell>
                 </TableRow>
               ))
@@ -777,6 +773,15 @@ function formatBookingDateRange(
     return `${body}, ${e.getFullYear()}`
   }
   return `${formatDate(s, { month: "short", day: "numeric", year: "numeric" })} – ${formatDate(e, { month: "short", day: "numeric", year: "numeric" })}`
+}
+
+function formatBookingRecordDateRange(
+  booking: BookingRecord,
+  formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string,
+  locale: string,
+) {
+  const { start, end } = resolveBookingDisplayDateRange(booking)
+  return formatBookingDateRange(start, end, formatDate, locale)
 }
 
 /** Detect whether the locale renders the day before the month in a

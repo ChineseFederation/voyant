@@ -4,6 +4,7 @@ import { AsyncCombobox } from "@voyant-travel/ui/components/async-combobox"
 import * as React from "react"
 import { useBookingsUiMessagesOrDefault } from "../i18n/provider.js"
 import { type BookingRecord, useBooking, useBookings } from "../index.js"
+import { resolveBookingDisplayDateRange } from "./booking-display-date-range.js"
 
 export interface BookingComboboxProps {
   value: string | null | undefined
@@ -33,8 +34,7 @@ function formatPrimaryItem(booking: BookingRecord) {
 }
 
 function formatDateRange(booking: BookingRecord) {
-  const start = booking.startDate ?? booking.startsAt
-  const end = booking.endDate ?? booking.endsAt
+  const { start, end } = resolveBookingDisplayDateRange(booking)
   if (start && end) return `${start} - ${end}`
   return start ?? end ?? null
 }

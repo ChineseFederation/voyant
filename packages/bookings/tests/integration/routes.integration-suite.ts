@@ -705,14 +705,29 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       expect((await res.json()).data.id).toBe(booking.id)
     })
 
-    it("updates a booking", async () => {
+    it("persists an updated booking travel period", async () => {
       const booking = await seedBooking()
       const res = await app.request(`/${booking.id}`, {
         method: "PATCH",
-        ...json({ internalNotes: "Updated" }),
+        ...json({
+          internalNotes: "Updated",
+          startDate: "2026-10-28",
+          endDate: "2026-11-01",
+        }),
       })
       expect(res.status).toBe(200)
-      expect((await res.json()).data.internalNotes).toBe("Updated")
+      expect((await res.json()).data).toMatchObject({
+        internalNotes: "Updated",
+        startDate: "2026-10-28",
+        endDate: "2026-11-01",
+      })
+
+      const getRes = await app.request(`/${booking.id}`, { method: "GET" })
+      expect(getRes.status).toBe(200)
+      expect((await getRes.json()).data).toMatchObject({
+        startDate: "2026-10-28",
+        endDate: "2026-11-01",
+      })
     })
 
     it("deletes a booking", async () => {
