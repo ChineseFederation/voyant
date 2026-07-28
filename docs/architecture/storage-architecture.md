@@ -52,9 +52,18 @@ That fits things like:
 - CMS/editor uploads
 - storefront-facing assets
 
+"Stable" describes the *delivery strategy*, not a value to write into a row. The
+public origin is deployment configuration: it changes when a CDN hostname or a
+custom domain changes, and a catalogue that has baked the old origin into every
+row is invalidated wholesale, with no code path that repairs it. That failure is
+silent — the rows still look right, the objects are still there, and the only
+symptom is broken images.
+
 Rule:
 
-Public media may use durable public URLs when the asset is intentionally public.
+Public media may be delivered through a durable public URL, but that URL is
+composed at read time from the configured origin plus the stored key. Persist
+the key; never persist the origin.
 
 ### 3. Private documents should use signed or authenticated access
 
@@ -78,7 +87,7 @@ Sensitive documents should be private by default and resolved per-request.
 
 ## Storage Metadata
 
-### 4. Persist storage keys, not expiring download URLs
+### 4. Persist storage keys, not resolved access URLs
 
 Voyant should store durable storage metadata such as:
 
@@ -87,15 +96,23 @@ Voyant should store durable storage metadata such as:
 - filename
 - content type
 
-It should not persist temporary signed URLs as the primary durable reference to
-the document.
+It should not persist a resolved access URL as the primary durable reference to
+the object. That covers both shapes:
 
-Signed URLs expire. The durable record should be the storage key, and access
-URLs should be derived at read time.
+- **Signed URLs**, which expire.
+- **Public delivery URLs**, whose origin is deployment configuration and is
+  invalidated by any hostname or custom-domain change.
+
+The durable record should be the storage key, and access URLs should be derived
+at read time. `StorageProvider.publicUrl(key)` is the seam for the public case:
+it composes the URL from the provider's *currently configured* origin, and
+returns `null` when the store has no public origin so the caller falls back to
+the deployment's own byte-serving route rather than to a stale absolute URL.
 
 Rule:
 
-Store `storageKey`-style durable metadata, not expiring access URLs.
+Store `storageKey`-style durable metadata, not resolved access URLs — expiring
+or otherwise.
 
 ### 5. Resolve document access at read time
 

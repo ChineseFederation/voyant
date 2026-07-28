@@ -47,6 +47,10 @@ export function createLocalStorageProvider(options: LocalStorageOptions = {}): S
 
   const store = new Map<string, StoredRecord>()
 
+  function publicUrl(key: string): string {
+    return `${baseUrl}${encodeKey(key)}`
+  }
+
   async function upload(body: StorageUploadBody, opts: UploadOptions = {}): Promise<StorageObject> {
     const key = opts.key ?? generateKey()
     const bytes = await toBytes(body)
@@ -54,18 +58,19 @@ export function createLocalStorageProvider(options: LocalStorageOptions = {}): S
     if (opts.contentType !== undefined) record.contentType = opts.contentType
     if (opts.metadata !== undefined) record.metadata = opts.metadata
     store.set(key, record)
-    return { key, url: `${baseUrl}${encodeKey(key)}` }
+    return { key, url: publicUrl(key) }
   }
 
   return {
     name,
     resolveBackendIdentity: () => opaqueBackendIdentity(`local:${baseUrl}`),
+    publicUrl,
     upload,
     async delete(key) {
       store.delete(key)
     },
     async signedUrl(key) {
-      return `${baseUrl}${encodeKey(key)}`
+      return publicUrl(key)
     },
     async get(key) {
       const record = store.get(key)

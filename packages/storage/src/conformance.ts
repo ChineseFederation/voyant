@@ -13,12 +13,38 @@ export async function assertStorageProviderConformance(
   const key = options.key ?? `voyant-conformance/${globalThis.crypto.randomUUID()}`
   const expected = new Uint8Array([0, 1, 2, 127, 255])
 
+  // Derivation must be pure: same key in, same URL out (voyant#3845). Sampled
+  // before the upload so the post-upload comparison below can prove it does not
+  // depend on the object existing — a provider that only derives for objects it
+  // has already seen would otherwise pass by returning `null` twice.
+  const publicUrlBeforeUpload = provider.publicUrl?.(key) ?? null
+  if (provider.publicUrl) {
+    assert(
+      publicUrlBeforeUpload === provider.publicUrl(key),
+      "publicUrl is not stable for the same key",
+    )
+    if (publicUrlBeforeUpload !== null) {
+      assert(
+        publicUrlBeforeUpload.trim().length > 0,
+        "publicUrl returned an empty URL instead of null",
+      )
+    }
+  }
+
   const uploaded = await provider.upload(expected, {
     key,
     contentType: "application/octet-stream",
     metadata: { conformance: "true" },
   })
   assert(uploaded.key === key, `upload returned key ${uploaded.key}; expected ${key}`)
+
+  if (provider.publicUrl) {
+    const publicUrlAfterUpload = provider.publicUrl(key)
+    assert(
+      publicUrlAfterUpload === publicUrlBeforeUpload,
+      `publicUrl changed once the object existed (${publicUrlBeforeUpload} -> ${publicUrlAfterUpload}); it must derive from configuration, not from object state`,
+    )
+  }
 
   const stored = await provider.get(key)
   assert(stored !== null, "get returned null after upload")

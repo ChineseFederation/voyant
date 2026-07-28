@@ -85,18 +85,18 @@ describe("createGatewayStorageProvider", () => {
     const first = createGatewayStorageProvider({
       endpoint: "https://gateway.example",
       tier: "documents",
-      token: "workspace-a-secret",
+      token: "test-workspace-a-credential",
     })
     const second = createGatewayStorageProvider({
       endpoint: "https://gateway.example",
       tier: "documents",
-      token: "workspace-b-secret",
+      token: "test-workspace-b-credential",
     })
 
     const firstIdentity = await first.resolveBackendIdentity?.()
     expect(firstIdentity).toMatch(/^[a-f0-9]{64}$/)
     expect(await second.resolveBackendIdentity?.()).not.toBe(firstIdentity)
-    expect(firstIdentity).not.toContain("workspace-a-secret")
+    expect(firstIdentity).not.toContain("test-workspace-a-credential")
   })
 
   it("uploads bytes and returns the gateway-issued key and url", async () => {
@@ -121,6 +121,27 @@ describe("createGatewayStorageProvider", () => {
     expect(stored?.bytes).toEqual(new Uint8Array([1, 2, 3]))
     expect(stored?.contentType).toBe("application/pdf")
     expect(stored?.metadata).toEqual({ owner: "workspace" })
+  })
+
+  it("derives public urls from the configured base and returns null without one", () => {
+    const withBase = createGatewayStorageProvider({
+      endpoint: "https://gw.test",
+      token: "t",
+      tier: "media",
+      publicBaseUrl: "https://cdn.example.test/eu/org_1/media/",
+    })
+    const withoutBase = createGatewayStorageProvider({
+      endpoint: "https://gw.test",
+      token: "t",
+      tier: "media",
+    })
+
+    // Derived, not persisted: the same key resolves against whatever origin the
+    // deployment is configured with right now (voyant#3845).
+    expect(withBase.publicUrl?.("uploads/media/abc.jpg")).toBe(
+      "https://cdn.example.test/eu/org_1/media/uploads/media/abc.jpg",
+    )
+    expect(withoutBase.publicUrl?.("uploads/media/abc.jpg")).toBeNull()
   })
 
   it("round-trips bytes through get and returns null for a missing key", async () => {

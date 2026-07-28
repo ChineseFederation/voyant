@@ -43,8 +43,13 @@ export function createS3CompatibleStorageProvider(
   const publicBaseUrl = normalizeBaseUrl(options.publicBaseUrl)
   const generateKey = options.generateKey ?? defaultKey
 
+  function publicUrl(key: string): string | null {
+    return publicBaseUrl ? `${publicBaseUrl}/${encodeKey(key)}` : null
+  }
+
   return {
     name: options.name ?? "s3-compatible",
+    publicUrl,
     resolveBackendIdentity: () =>
       opaqueBackendIdentity(
         JSON.stringify({
@@ -69,7 +74,7 @@ export function createS3CompatibleStorageProvider(
           ...(uploadOptions.metadata ? { Metadata: uploadOptions.metadata } : {}),
         }),
       )
-      return { key, url: publicBaseUrl ? `${publicBaseUrl}/${encodeKey(key)}` : "" }
+      return { key, url: publicUrl(key) ?? "" }
     },
     async delete(key) {
       await client.send(new DeleteObjectCommand({ Bucket: options.bucket, Key: key }))

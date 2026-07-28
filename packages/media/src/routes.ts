@@ -103,6 +103,12 @@ const mediaAssetRowSchema = z.object({
   defaultLanguageTag: z.string(),
   altTranslations: z.array(mediaAssetTranslationRowSchema),
   storageKey: z.string(),
+  /**
+   * Derived per response from the resolved provider's configured origin — never
+   * stored. `null` means this deployment exposes no public media origin, and the
+   * caller should serve bytes through `GET /v1/admin/media/{storageKey}`
+   * (voyant#3845).
+   */
   url: z.string().nullable(),
   mimeType: z.string().nullable(),
   fileSize: z.number().nullable(),
@@ -412,14 +418,18 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
       asRouteResponse(
         (async () => {
           const query = parseQuery(c, listMediaAssetsQuerySchema)
-          return c.json(await listMediaAssets(c.get("db"), query), 200)
+          return c.json(await listMediaAssets(c.get("db"), query, options.resolveStorage(c)), 200)
         })(),
       ),
     )
     .openapi(getAssetRoute, (c) =>
       asRouteResponse(
         (async () => {
-          const asset = await getMediaAsset(c.get("db"), c.req.valid("param").assetId)
+          const asset = await getMediaAsset(
+            c.get("db"),
+            c.req.valid("param").assetId,
+            options.resolveStorage(c),
+          )
           if (!asset) return c.json({ error: "Media asset not found" }, 404)
           return c.json({ data: asset }, 200)
         })(),
@@ -430,7 +440,12 @@ export function createMediaLibraryRoutes(options: MediaLibraryRoutesOptions) {
         (async () => {
           const input = await parseJsonBody(c, updateMediaAssetSchema)
           try {
-            const asset = await updateMediaAsset(c.get("db"), c.req.valid("param").assetId, input)
+            const asset = await updateMediaAsset(
+              c.get("db"),
+              c.req.valid("param").assetId,
+              input,
+              options.resolveStorage(c),
+            )
             if (!asset) return c.json({ error: "Media asset not found" }, 404)
             return c.json({ data: asset }, 200)
           } catch (error) {

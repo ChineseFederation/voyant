@@ -12,6 +12,8 @@
  *   deliberately does not touch `product_media`.
  * - Folders are modelled as *membership* (`media_folder_member`) so an asset can
  *   live in many folders; there is no `folderId` column on the asset itself.
+ * - NO persisted delivery URL. `storage_key` is the durable locator; absolute
+ *   URLs are derived on read from the configured storage origin (voyant#3845).
  */
 
 import { typeId } from "@voyant-travel/db/lib/typeid-column"
@@ -44,10 +46,15 @@ export const mediaAsset = pgTable(
     altText: text("alt"),
     /** Language of the base `altText`; localized alternatives live below. */
     defaultLanguageTag: text("default_language_tag").notNull().default("en"),
-    /** Object key inside the resolved `"media"` StorageProvider. */
+    /**
+     * Object key inside the resolved `"media"` StorageProvider — the only
+     * durable locator for the bytes. The absolute delivery URL is deliberately
+     * NOT stored: it is derived per read from the provider's configured origin
+     * (`StorageProvider.publicUrl`). A persisted origin is invalidated wholesale
+     * by a CDN hostname change and fails silently as broken images
+     * (voyant#3845).
+     */
     storageKey: text("storage_key").notNull(),
-    /** Stable public delivery URL returned by the selected storage provider. */
-    url: text("url"),
     mimeType: text("mime_type"),
     /** Size in bytes. */
     fileSize: integer("file_size"),

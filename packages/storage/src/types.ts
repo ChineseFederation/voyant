@@ -28,6 +28,10 @@ export interface StorageObject {
   /**
    * Public URL for the object when the provider exposes one. Empty string
    * when the object is private and can only be accessed via `signedUrl`.
+   *
+   * Point-in-time only — do NOT persist it. The origin baked into this string
+   * goes stale the moment the store's public hostname changes. Persist `key`
+   * and re-derive through {@link StorageProvider.publicUrl} on every read.
    */
   url: string
 }
@@ -46,6 +50,17 @@ export interface StorageProvider {
   resolveBackendIdentity?(): Promise<string>
   /** Upload an object. */
   upload(body: StorageUploadBody, options?: UploadOptions): Promise<StorageObject>
+  /**
+   * Derive the stable public delivery URL for `key` from the provider's
+   * *currently configured* origin. Returns `null` when this store has no public
+   * origin (private bucket, or a gateway without a configured CDN base).
+   *
+   * Deliberately synchronous and pure so callers can derive on every read.
+   * Catalogues must call this instead of persisting the absolute URL returned by
+   * {@link upload}: a stored origin is invalidated wholesale by a CDN hostname
+   * change and fails silently as broken media (voyant#3845).
+   */
+  publicUrl?(key: string): string | null
   /** Delete an object by key. No-op if the key does not exist. */
   delete(key: string): Promise<void>
   /**

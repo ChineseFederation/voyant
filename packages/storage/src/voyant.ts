@@ -162,7 +162,10 @@ export const storageVoyantModule = defineModule({
       port: storageObjectRuntimePort.id,
       selection: { role: "storage", value: "gateway" },
       uses: {
-        config: ["@voyant-travel/storage#config.gateway-endpoint"],
+        config: [
+          "@voyant-travel/storage#config.gateway-endpoint",
+          "@voyant-travel/storage#config.media-public-base-url",
+        ],
         secrets: ["@voyant-travel/storage#secret.gateway-token"],
       },
       runtime: {

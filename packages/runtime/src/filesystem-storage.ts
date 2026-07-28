@@ -99,6 +99,11 @@ function withDiskProvider(inner: StorageProvider, dir: string): StorageProvider 
   if (inner.signedUrl) {
     provider.signedUrl = (key, expiresIn) => inner.signedUrl!(key, expiresIn)
   }
+  // Delivery URLs are derived per read from the wrapped store's configured
+  // origin; the wrapper must forward that seam or callers silently lose it.
+  if (inner.publicUrl) {
+    provider.publicUrl = (key) => inner.publicUrl!(key)
+  }
   return provider
 }
 
@@ -192,6 +197,11 @@ function withRequiredDiskProvider(inner: StorageProvider, dir: string): StorageP
   }
   if (inner.signedUrl) {
     provider.signedUrl = (key, expiresIn) => inner.signedUrl!(key, expiresIn)
+  }
+  // Delivery URLs are derived per read from the wrapped store's configured
+  // origin; the wrapper must forward that seam or callers silently lose it.
+  if (inner.publicUrl) {
+    provider.publicUrl = (key) => inner.publicUrl!(key)
   }
   return provider
 }

@@ -24,6 +24,20 @@ export interface GatewayStorageProviderOptions {
    * provider are always the un-prefixed, caller-facing keys.
    */
   tier?: string
+  /**
+   * Public CDN base that fronts this store's object namespace, if the
+   * deployment has one. The base must be the origin **plus** whatever path
+   * prefix the gateway serves this store under, so that
+   * `${publicBaseUrl}/${key}` resolves for a caller-facing key.
+   *
+   * Supplying it lets {@link StorageProvider.publicUrl} derive delivery URLs on
+   * every read from a single configured value, so no absolute origin is ever
+   * persisted (voyant#3845). When absent `publicUrl` returns `null`, meaning
+   * "this store has no public origin" — correct for a private tier such as
+   * documents, but a media store feeding a storefront must set it, which is why
+   * the graph provider requires it there.
+   */
+  publicBaseUrl?: string
 }
 
 async function opaqueBackendIdentity(value: string): Promise<string> {
@@ -47,6 +61,7 @@ export function createGatewayStorageProvider(
   const doFetch = options.fetch ?? globalThis.fetch
   const name = options.name ?? "gateway"
   const tier = options.tier?.replace(/^\/+|\/+$/g, "") || ""
+  const publicBaseUrl = options.publicBaseUrl?.trim().replace(/\/+$/, "") || ""
 
   /** Prepend the pinned tier so the gateway routes to the right bucket. */
   function wireKey(key: string): string {
@@ -65,6 +80,9 @@ export function createGatewayStorageProvider(
     name,
     resolveBackendIdentity: () =>
       opaqueBackendIdentity(`gateway:${endpoint}:${tier || "default"}:${options.token}`),
+    publicUrl(key) {
+      return publicBaseUrl ? `${publicBaseUrl}/${encodeKey(key)}` : null
+    },
     async upload(
       body: StorageUploadBody,
       uploadOptions: UploadOptions = {},

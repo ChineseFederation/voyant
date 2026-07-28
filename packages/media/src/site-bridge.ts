@@ -67,12 +67,15 @@ export function createMediaSiteBridgeRoutes(options: MediaSiteBridgeOptions) {
         const body = await readJson(c)
         const query = listMediaAssetsQuerySchema.safeParse(body ?? {})
         if (!query.success) return invalid(c, query.error.issues)
-        return c.json(await listMediaAssets(c.get("db"), query.data), 200)
+        return c.json(
+          await listMediaAssets(c.get("db"), query.data, options.resolveStorage(c)),
+          200,
+        )
       }
       case "get": {
         const body = assetIdBodySchema.safeParse(await readJson(c))
         if (!body.success) return invalid(c, body.error.issues)
-        const asset = await getMediaAsset(c.get("db"), body.data.assetId)
+        const asset = await getMediaAsset(c.get("db"), body.data.assetId, options.resolveStorage(c))
         return asset
           ? c.json({ data: asset }, 200)
           : c.json({ error: "Media asset not found" }, 404)
@@ -81,7 +84,12 @@ export function createMediaSiteBridgeRoutes(options: MediaSiteBridgeOptions) {
         const body = updateBodySchema.safeParse(await readJson(c))
         if (!body.success) return invalid(c, body.error.issues)
         try {
-          const asset = await updateMediaAsset(c.get("db"), body.data.assetId, body.data.input)
+          const asset = await updateMediaAsset(
+            c.get("db"),
+            body.data.assetId,
+            body.data.input,
+            options.resolveStorage(c),
+          )
           return asset
             ? c.json({ data: asset }, 200)
             : c.json({ error: "Media asset not found" }, 404)

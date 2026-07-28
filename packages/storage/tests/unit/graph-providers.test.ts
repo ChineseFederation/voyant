@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  createGatewayGraphStorageProvider,
   createMemoryGraphStorageProvider,
   createS3CompatibleGraphStorageProvider,
 } from "../../src/providers/graph.js"
@@ -61,5 +62,35 @@ describe("graph-selected storage providers", () => {
         }),
       ),
     ).not.toThrow()
+  })
+
+  it("derives gateway media URLs from the required public base", () => {
+    const resolver = createGatewayGraphStorageProvider(
+      context({
+        "@voyant-travel/storage#config.gateway-endpoint": "https://gw.example.test",
+        "@voyant-travel/storage#secret.gateway-token": "workspace-test-credential",
+        "@voyant-travel/storage#config.media-public-base-url":
+          "https://cdn.example.test/org_1/media",
+      }),
+    )
+
+    expect(resolver.resolve("media")?.publicUrl?.("uploads/media/abc.jpg")).toBe(
+      "https://cdn.example.test/org_1/media/uploads/media/abc.jpg",
+    )
+    // Documents are private by design: no public origin, so no derived URL.
+    expect(resolver.resolve("documents")?.publicUrl?.("invoices/inv_1.pdf")).toBeNull()
+  })
+
+  it("fails closed when the gateway media public base is absent", () => {
+    // Degrading to `/v1/admin/media/*` is not an option: that route is
+    // staff-guarded, so a storefront guest would get nothing (voyant#3845).
+    expect(() =>
+      createGatewayGraphStorageProvider(
+        context({
+          "@voyant-travel/storage#config.gateway-endpoint": "https://gw.example.test",
+          "@voyant-travel/storage#secret.gateway-token": "workspace-test-credential",
+        }),
+      ),
+    ).toThrow(/MEDIA_PUBLIC_BASE_URL/)
   })
 })

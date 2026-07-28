@@ -25,6 +25,7 @@ import {
   mediaFolder,
   mediaFolderMember,
 } from "./schema.js"
+import { computeChecksum, mediaStorageKey, toBytes } from "./storage-key.js"
 import type {
   CreateMediaAssetInput,
   CreateMediaFolderInput,
@@ -35,6 +36,10 @@ import type {
   UpdateMediaAssetInput,
   UpdateMediaFolderInput,
 } from "./validation.js"
+
+// Storage-key derivation lives in `./storage-key`; re-exported so the service
+// remains the single import site for consumers.
+export { computeChecksum, MEDIA_STORAGE_KEY_PREFIX, mediaStorageKey } from "./storage-key.js"
 
 /** Stable, machine-readable failure codes surfaced by the service. */
 export type MediaErrorCode = "asset_in_use" | "invalid_alt_translation" | "not_found"
@@ -57,64 +62,40 @@ export interface CreateMediaAssetResult {
 
 export type MediaAssetWithTranslations = MediaAsset & {
   altTranslations: MediaAssetTranslation[]
+  /**
+   * Absolute delivery URL derived from the provider's *currently configured*
+   * origin, or `null` when this store exposes no public origin — consumers then
+   * fall back to the deployment's own byte-serving media route. Never read back
+   * from the database: a persisted origin goes stale on the next CDN hostname
+   * change and fails silently as broken images (voyant#3845).
+   */
+  url: string | null
 }
-
-/** All object keys minted by the library live under this servable prefix. */
-const MEDIA_STORAGE_KEY_PREFIX = "uploads/media/"
 
 /**
- * Storage keys are content-addressed by checksum. Append the file extension so
- * the byte-serving route (`@voyant-travel/storage`, which sends
- * `X-Content-Type-Options: nosniff`) can infer the correct `Content-Type` from
- * the key and browsers render the asset instead of downloading octet-stream.
+ * The slice of `StorageProvider` the read paths need. Accepting the narrow shape
+ * (rather than a full provider) keeps `getMediaAsset`/`listMediaAssets` callable
+ * from surfaces that only resolve a URL origin.
  */
-const MEDIA_EXTENSION_BY_MIME: Readonly<Record<string, string>> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "image/avif": "avif",
-  "image/svg+xml": "svg",
-  "video/mp4": "mp4",
-  "video/webm": "webm",
-  "video/quicktime": "mov",
-  "application/pdf": "pdf",
-}
+export type MediaUrlSource = Pick<StorageProvider, "publicUrl"> | null | undefined
 
-function storageKeyExtension(mimeType: string | null | undefined): string {
-  const normalized = (mimeType ?? "").toLowerCase().split(";")[0]?.trim() ?? ""
-  const ext = MEDIA_EXTENSION_BY_MIME[normalized]
-  return ext ? `.${ext}` : ""
-}
-
-async function toBytes(body: StorageUploadBody): Promise<Uint8Array> {
-  if (body instanceof Uint8Array) return body
-  if (body instanceof ArrayBuffer) return new Uint8Array(body)
-  return new Uint8Array(await body.arrayBuffer())
-}
-
-/** SHA-256 hex digest of the given bytes (org-global dedup key). */
-export async function computeChecksum(body: StorageUploadBody): Promise<string> {
-  const bytes = await toBytes(body)
-  // Copy into a fresh ArrayBuffer-backed view so the digest arg is a concrete
-  // BufferSource (Uint8Array<ArrayBufferLike>` isn't assignable under TS 6).
-  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes))
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
+function resolveAssetUrl(storageKey: string, storage: MediaUrlSource): string | null {
+  return storage?.publicUrl?.(storageKey) ?? null
 }
 
 async function findAssetByChecksum(
   db: PostgresJsDatabase,
   checksum: string,
+  storage: MediaUrlSource,
 ): Promise<MediaAssetWithTranslations | null> {
   const [row] = await db.select().from(mediaAsset).where(eq(mediaAsset.checksum, checksum)).limit(1)
-  return row ? attachTranslations(db, [row]).then((assets) => assets[0] ?? null) : null
+  return row ? attachTranslations(db, [row], storage).then((assets) => assets[0] ?? null) : null
 }
 
 async function attachTranslations(
   db: PostgresJsDatabase,
   assets: MediaAsset[],
+  storage: MediaUrlSource,
 ): Promise<MediaAssetWithTranslations[]> {
   if (assets.length === 0) return []
 
@@ -139,6 +120,7 @@ async function attachTranslations(
   return assets.map((asset) => ({
     ...asset,
     altTranslations: byAssetId.get(asset.id) ?? [],
+    url: resolveAssetUrl(asset.storageKey, storage),
   }))
 }
 
@@ -192,13 +174,15 @@ export async function createMediaAsset(
   const bytes = await toBytes(body)
   const checksum = await computeChecksum(bytes)
 
-  const existing = await findAssetByChecksum(db, checksum)
+  const existing = await findAssetByChecksum(db, checksum, storage)
   if (existing) {
     return { asset: existing, deduped: true }
   }
 
-  const storageKey = `${MEDIA_STORAGE_KEY_PREFIX}${checksum}${storageKeyExtension(input.mimeType)}`
-  const stored = await storage.upload(bytes, {
+  const storageKey = mediaStorageKey(checksum, input.mimeType)
+  // The upload result's `url` is deliberately discarded: `storageKey` is the
+  // durable locator and delivery URLs are derived per read (voyant#3845).
+  await storage.upload(bytes, {
     key: storageKey,
     ...(input.mimeType ? { contentType: input.mimeType } : {}),
   })
@@ -212,7 +196,6 @@ export async function createMediaAsset(
         altText: input.altText ?? null,
         defaultLanguageTag,
         storageKey,
-        url: stored.url || null,
         mimeType: input.mimeType ?? null,
         fileSize: bytes.byteLength,
         checksum,
@@ -232,13 +215,13 @@ export async function createMediaAsset(
     }
     await replaceAltTranslations(db, created.id, input.altTranslations)
 
-    const [asset] = await attachTranslations(db, [created])
+    const [asset] = await attachTranslations(db, [created], storage)
     if (!asset) throw new MediaError("not_found", "Failed to load created media asset")
     return { asset, deduped: false }
   } catch (error) {
     // Lost a race with a concurrent identical upload: the unique checksum index
     // rejected our insert. Fall back to the row the winner created.
-    const raced = await findAssetByChecksum(db, checksum)
+    const raced = await findAssetByChecksum(db, checksum, storage)
     if (raced) return { asset: raced, deduped: true }
     throw error
   }
@@ -247,15 +230,20 @@ export async function createMediaAsset(
 export async function getMediaAsset(
   db: PostgresJsDatabase,
   id: string,
+  storage?: MediaUrlSource,
 ): Promise<MediaAssetWithTranslations | null> {
   const [row] = await db.select().from(mediaAsset).where(eq(mediaAsset.id, id)).limit(1)
   if (!row) return null
-  const [asset] = await attachTranslations(db, [row])
+  const [asset] = await attachTranslations(db, [row], storage)
   return asset ?? null
 }
 
 /** Paginated list/search over assets. Filters combine with AND. */
-export async function listMediaAssets(db: PostgresJsDatabase, query: ListMediaAssetsQuery) {
+export async function listMediaAssets(
+  db: PostgresJsDatabase,
+  query: ListMediaAssetsQuery,
+  storage?: MediaUrlSource,
+) {
   const conditions = []
   if (query.type) conditions.push(eq(mediaAsset.type, query.type))
   if (query.mimeType) conditions.push(eq(mediaAsset.mimeType, query.mimeType))
@@ -285,7 +273,7 @@ export async function listMediaAssets(db: PostgresJsDatabase, query: ListMediaAs
     db.select({ count: sql<number>`count(*)::int` }).from(mediaAsset).where(where),
   ])
 
-  return listResponse(await attachTranslations(db, rows), {
+  return listResponse(await attachTranslations(db, rows, storage), {
     total: counted?.count ?? 0,
     limit: query.limit,
     offset: query.offset,
@@ -300,8 +288,9 @@ export async function updateMediaAsset(
   db: PostgresJsDatabase,
   id: string,
   patch: UpdateMediaAssetInput,
+  storage?: MediaUrlSource,
 ): Promise<MediaAssetWithTranslations | null> {
-  const existing = await getMediaAsset(db, id)
+  const existing = await getMediaAsset(db, id, storage)
   if (!existing) return null
   const defaultLanguageTag = patch.defaultLanguageTag ?? existing.defaultLanguageTag
   const altTranslations = patch.altTranslations ?? existing.altTranslations
@@ -332,7 +321,7 @@ export async function updateMediaAsset(
     await replaceAltTranslations(db, id, patch.altTranslations)
   }
 
-  const [asset] = await attachTranslations(db, [updated])
+  const [asset] = await attachTranslations(db, [updated], storage)
   return asset ?? null
 }
 
@@ -346,7 +335,7 @@ export async function deleteMediaAsset(
   storage: StorageProvider,
   id: string,
 ): Promise<MediaAssetWithTranslations | null> {
-  const existing = await getMediaAsset(db, id)
+  const existing = await getMediaAsset(db, id, storage)
   if (!existing) return null
 
   const usageCount = await countAssetUsage(db, id)

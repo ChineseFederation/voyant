@@ -180,7 +180,7 @@ describe("@voyant-travel/media service (pglite)", () => {
     expect(products.data.every((row) => row.entityType === "product")).toBe(true)
   })
 
-  it("persists a canonical delivery URL and localized alt text", async () => {
+  it("derives the delivery URL from the provider and stores localized alt text", async () => {
     const { asset } = await createMediaAsset(
       db,
       storage,
@@ -204,12 +204,17 @@ describe("@voyant-travel/media service (pglite)", () => {
       }),
     ])
 
-    const updated = await updateMediaAsset(db, asset.id, {
-      altTranslations: [
-        { languageTag: "en", altText: "Sunset beach" },
-        { languageTag: "de", altText: "Strand bei Sonnenuntergang" },
-      ],
-    })
+    const updated = await updateMediaAsset(
+      db,
+      asset.id,
+      {
+        altTranslations: [
+          { languageTag: "en", altText: "Sunset beach" },
+          { languageTag: "de", altText: "Strand bei Sonnenuntergang" },
+        ],
+      },
+      storage,
+    )
     expect(
       updated?.altTranslations.map(({ languageTag, altText }) => ({ languageTag, altText })),
     ).toEqual([
@@ -217,8 +222,8 @@ describe("@voyant-travel/media service (pglite)", () => {
       { languageTag: "en", altText: "Sunset beach" },
     ])
 
-    expect((await getMediaAsset(db, asset.id))?.altTranslations).toHaveLength(2)
-    const listed = await listMediaAssets(db, { limit: 50, offset: 0 })
+    expect((await getMediaAsset(db, asset.id, storage))?.altTranslations).toHaveLength(2)
+    const listed = await listMediaAssets(db, { limit: 50, offset: 0 }, storage)
     expect(listed.data[0]?.altTranslations).toHaveLength(2)
 
     await expect(
@@ -226,5 +231,39 @@ describe("@voyant-travel/media service (pglite)", () => {
         defaultLanguageTag: "en",
       }),
     ).rejects.toMatchObject({ code: "invalid_alt_translation" })
+  })
+
+  it("re-derives delivery URLs after the media origin changes (voyant#3845)", async () => {
+    const { asset } = await createMediaAsset(db, storage, imageInput, bytesOf("origin-move"))
+    expect(asset.url).toBe(`https://cdn.example.test/${asset.storageKey}`)
+
+    // The deployment's media CDN moves to a new hostname. Nothing about the
+    // bucket, the object keys or `storage_key` changes — only the origin.
+    const movedStorage = createLocalStorageProvider({
+      name: "memory:media",
+      baseUrl: "https://cdn.moved.test/",
+    })
+
+    expect((await getMediaAsset(db, asset.id, movedStorage))?.url).toBe(
+      `https://cdn.moved.test/${asset.storageKey}`,
+    )
+    const listed = await listMediaAssets(db, { limit: 50, offset: 0 }, movedStorage)
+    expect(listed.data[0]?.url).toBe(`https://cdn.moved.test/${asset.storageKey}`)
+    expect(listed.data[0]?.storageKey).toBe(asset.storageKey)
+  })
+
+  it("reports a null URL when the store exposes no public origin", async () => {
+    const { asset } = await createMediaAsset(db, storage, imageInput, bytesOf("private-store"))
+
+    // A provider without `publicUrl` (or one whose bucket is private) must not
+    // fall back to a stale persisted origin — consumers serve the bytes through
+    // the deployment's own media route instead.
+    const privateStorage: StorageProvider = {
+      ...storage,
+      publicUrl: () => null,
+    }
+
+    expect((await getMediaAsset(db, asset.id, privateStorage))?.url).toBeNull()
+    expect((await getMediaAsset(db, asset.id))?.url).toBeNull()
   })
 })
