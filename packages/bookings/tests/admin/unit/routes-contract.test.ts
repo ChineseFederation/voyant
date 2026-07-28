@@ -86,6 +86,7 @@ const booking: Booking = {
   endDate: "2026-06-08",
   pax: 2,
   internalNotes: null,
+  notificationsSuppressed: false,
   customerPaymentPolicy: null,
   priceOverride: null,
   customFields: { custom: { source: "intake" } },
