@@ -281,6 +281,11 @@ export async function loadVoyantProject(
     createRuntimePorts: generated.createRuntimePorts,
     outboundWebhooks,
   })
+  const eventDelivery = {
+    bind(deliver: (event: EventEnvelope) => Promise<unknown>) {
+      deploymentResources.primitives.events.deliver = (event) => deliver(event as EventEnvelope)
+    },
+  }
   const customerBusinessAccountOnboarding = deploymentResources.ports[
     customerBusinessAccountOnboardingRuntimePort.id
   ] as CustomerBusinessAccountOnboardingRuntimeProvider | undefined
@@ -313,6 +318,7 @@ export async function loadVoyantProject(
     },
     deploymentRequirements: graph.requirements,
     runtimePorts: deploymentResources.ports,
+    eventDelivery,
     resources: deploymentResources.capabilities,
     outboundWebhooks: deploymentResources.outboundWebhooks,
     appWebhooks,

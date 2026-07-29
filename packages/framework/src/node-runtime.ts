@@ -4,7 +4,6 @@
 
 import type { ActionLedgerCapabilityRegistry } from "@voyant-travel/action-ledger/capability"
 import type { EventEnvelope, VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
-import { type EventOutboxJobRuntime, eventOutboxJobRuntimePort } from "@voyant-travel/db/outbox-job"
 import {
   createPostgresFixedWindowRateLimitStore,
   createPostgresKvStore,
@@ -204,6 +203,14 @@ export interface VoyantNodeRuntimeOptions {
   deployment: VoyantNodeRuntimeDeployment
   deploymentRequirements: VoyantGraphDeploymentRequirements
   runtimePorts?: import("./runtime-composition.js").VoyantGraphRuntimePorts
+  /**
+   * Binds graph-contributed durable event delivery to the composed application
+   * bus after boot. The caller owns the concrete runtime port; the generic Node
+   * host owns only the event-delivery lifecycle.
+   */
+  eventDelivery?: {
+    bind(deliver: (event: EventEnvelope) => Promise<unknown>): void
+  }
   /** Node-owned durable boundary for graph-selected outbound webhook events. */
   outboundWebhooks?: {
     enqueue: (event: EventEnvelope, bindings: unknown) => Promise<unknown>
@@ -371,20 +378,11 @@ export async function loadVoyantNodeRuntime(
     ),
   })
 
-  const configuredOutboxRuntime = (await runtimePorts?.[eventOutboxJobRuntimePort.id]) as
-    | EventOutboxJobRuntime
-    | undefined
-  if (runtimePorts && configuredOutboxRuntime) {
-    runtimePorts[eventOutboxJobRuntimePort.id] = {
-      ...configuredOutboxRuntime,
-      deliver: async (envelope: EventEnvelope) => {
-        await app.ready(env)
-        if (app.eventBus.deliver) return app.eventBus.deliver(envelope)
-        await app.eventBus.emit(envelope.name, envelope.data, envelope.metadata)
-        return { attempted: 0, failed: 0, errors: [] }
-      },
-    } satisfies EventOutboxJobRuntime
-  }
+  options.eventDelivery?.bind(async (envelope) => {
+    await app.ready(env)
+    if (app.eventBus.deliver) return app.eventBus.deliver(envelope)
+    await app.eventBus.emit(envelope.name, envelope.data, envelope.metadata)
+  })
 
   const fetch = async (
     request: Request,

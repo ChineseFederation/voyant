@@ -1,4 +1,5 @@
-import { eventOutboxJobRuntimePort } from "@voyant-travel/db/outbox-job"
+import type { EventEnvelope } from "@voyant-travel/core"
+import { definePort } from "@voyant-travel/core/project"
 import type { LazyRedisClient } from "@voyant-travel/utils/redis-client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { VoyantDeploymentProviders } from "./deployment-types.js"
@@ -185,6 +186,16 @@ function emptyGraphRuntime(providers: VoyantDeploymentProviders) {
 }
 
 const OUTBOX_JOB_ID = "infrastructure.event-outbox-drain"
+const outboxRuntimePort = definePort<{
+  deliver(event: EventEnvelope): Promise<unknown>
+}>({
+  id: "infrastructure.event-outbox-delivery",
+  test(runtime) {
+    if (!runtime || typeof runtime.deliver !== "function") {
+      throw new TypeError("test event-delivery port must implement deliver().")
+    }
+  },
+})
 
 function outboxJobRuntime(
   providers: VoyantDeploymentProviders,
@@ -200,7 +211,7 @@ function outboxJobRuntime(
         kind: "module",
         packageName: unitId,
         order: 0,
-        runtimePorts: [eventOutboxJobRuntimePort.id],
+        runtimePorts: [outboxRuntimePort.id],
         references: [
           {
             id: "event-outbox-job",
@@ -383,8 +394,12 @@ describe("createVoyantNodeEnv Redis namespace", () => {
 
 describe("loadVoyantNodeRuntime Redis URL validation", () => {
   it("delivers outbox events through the composed internal subscriber bus", async () => {
-    const originalDeliver = vi.fn(async () => ({ attempted: 0, failed: 0, errors: [] }))
-    const event = {
+    const originalDeliver = vi.fn(async (_envelope: EventEnvelope) => ({
+      attempted: 0,
+      failed: 0,
+      errors: [],
+    }))
+    const event: EventEnvelope = {
       name: "person.changed",
       data: { personId: "pers_1" },
       metadata: { eventId: "evt_1" },
@@ -396,12 +411,13 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
     })
     const handler: VoyantGraphRuntimeJobHandler = async ({ getPort }) => {
       try {
-        const outbox = await getPort(eventOutboxJobRuntimePort)
+        const outbox = await getPort(outboxRuntimePort)
         await outbox.deliver(event)
       } finally {
         markJobFinished()
       }
     }
+    let deliverEvent: (envelope: EventEnvelope) => Promise<unknown> = originalDeliver
     const runtime = await loadVoyantNodeRuntime({
       graphRuntime: outboxJobRuntime(BASE_PROVIDERS, handler),
       jobs: [
@@ -415,10 +431,15 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       deployment: { mode: "self-hosted", providers: BASE_PROVIDERS },
       deploymentRequirements: { resources: [] },
       runtimePorts: {
-        [eventOutboxJobRuntimePort.id]: {
+        [outboxRuntimePort.id]: {
           withDb: vi.fn(),
-          deliver: originalDeliver,
+          deliver: (envelope: EventEnvelope) => deliverEvent(envelope),
           warn: vi.fn(),
+        },
+      },
+      eventDelivery: {
+        bind(deliver) {
+          deliverEvent = deliver
         },
       },
     })

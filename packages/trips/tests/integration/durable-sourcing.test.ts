@@ -49,7 +49,10 @@ describe.skipIf(!DB_AVAILABLE)("Trips durable requirement sourcing", () => {
       timeouts: { statementMs: false, queryMs: false, connectMs: false },
     }) as ClosableTestDb
   })
-  beforeEach(() => cleanupTestDb(db))
+  // This suite runs late in the shared integration lane. Truncating the full
+  // package-union schema can exceed Vitest's 10-second hook default once the
+  // preceding suites have populated it.
+  beforeEach(() => cleanupTestDb(db), 30_000)
   afterAll(async () => {
     await db.$client.end({ timeout: 0 })
   })
