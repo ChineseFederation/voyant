@@ -53,7 +53,7 @@ export function hasManagedBookingWorkflow(metadata: unknown): boolean {
 }
 
 export function redactManagedBookingContractForGenericDetail<
-  T extends { variables: unknown; metadata: unknown },
+  T extends { variables: unknown; metadata: unknown; renderedBody?: unknown },
 >(row: T): T {
   const workflow = managedBookingWorkflow(row.metadata)
   if (!workflow) return row
@@ -64,6 +64,7 @@ export function redactManagedBookingContractForGenericDetail<
   } = record(row.metadata)
   return {
     ...row,
+    ...(Object.hasOwn(row, "renderedBody") ? { renderedBody: null } : {}),
     variables: null,
     metadata: {
       ...metadata,

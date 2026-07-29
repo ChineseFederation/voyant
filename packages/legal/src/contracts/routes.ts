@@ -35,7 +35,10 @@ import type { StorageProvider } from "@voyant-travel/storage"
 import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
-import { redactManagedBookingContractForGenericDetail } from "../contract-dto.js"
+import {
+  hasManagedBookingWorkflow,
+  redactManagedBookingContractForGenericDetail,
+} from "../contract-dto.js"
 import type { ContractLifecycleHook } from "./lifecycle.js"
 import {
   buildContractsRouteRuntime,
@@ -646,6 +649,10 @@ function toGenericAdminContract<T extends { variables: unknown; metadata: unknow
   contract: T,
 ): T {
   return redactManagedBookingContractForGenericDetail(contract)
+}
+
+function isGenericContractRenderAllowed(contract: Pick<Contract, "metadata">): boolean {
+  return !hasManagedBookingWorkflow(contract.metadata)
 }
 
 function toPublicSignature(
@@ -1367,6 +1374,9 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
             c.req.valid("param").id,
           )
           if (!contract) return c.json({ error: "Contract not found" }, 404)
+          if (!isGenericContractRenderAllowed(contract)) {
+            return c.json({ error: "Contract not found" }, 404)
+          }
           return renderPreviewResponse(c, input)
         })(),
       ),

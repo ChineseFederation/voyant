@@ -2,10 +2,10 @@ import { legalTargetKindSchema } from "@voyant-travel/legal-contracts/targets/va
 import { listResponse, listResponseSchema } from "@voyant-travel/types"
 import type { InferSelectModel } from "drizzle-orm"
 import { Hono } from "hono"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 
-import { contractsPublicRoutes } from "../../../src/contracts/routes.js"
+import { contractsPublicRoutes, createContractsAdminRoutes } from "../../../src/contracts/routes.js"
 import type {
   contractAttachments,
   contractNumberSeries,
@@ -14,6 +14,7 @@ import type {
   contractTemplates,
   contractTemplateVersions,
 } from "../../../src/contracts/schema.js"
+import { contractsService } from "../../../src/contracts/service.js"
 import {
   contractBodyFormatSchema,
   contractNumberResetStrategySchema,
@@ -273,6 +274,18 @@ const contractListRow: InferSelectModel<typeof contracts> & {
   personPhone: null,
 }
 
+const managedBookingWorkflowMetadata = {
+  bookingContractWorkflow: {
+    revision: 2,
+    previousRevisionId: "contracts_previous",
+    reviewOnly: true,
+    reviewSnapshot: {
+      booking: { customerName: "Ada Lovelace", customerEmail: "ada@example.com" },
+    },
+    delivery: { recipient: "ada@example.com", channel: "email" },
+  },
+}
+
 const signatureRow: InferSelectModel<typeof contractSignatures> = {
   id: "contract_signatures_0000000000000000000",
   contractId: "contracts_000000000000000000000000000",
@@ -367,6 +380,110 @@ describe("legal contracts array { data } envelope response contracts", () => {
       expect(parsed.success ? null : parsed.error.toString()).toBeNull()
     })
   }
+})
+
+describe("legal contracts managed booking generic redaction", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("redacts managed booking rendered bodies from generic admin list rows", async () => {
+    vi.spyOn(contractsService, "listContracts").mockResolvedValue({
+      data: [
+        {
+          ...contractListRow,
+          renderedBody: "<p>Ada Lovelace ada@example.com</p>",
+          variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+          metadata: managedBookingWorkflowMetadata,
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request("/")
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { data: Array<Record<string, unknown>> }
+    expect(body.data[0]).toMatchObject({
+      renderedBody: null,
+      variables: null,
+      metadata: {
+        bookingContractWorkflow: {
+          revision: 2,
+          previousRevisionId: "contracts_previous",
+          reviewOnly: true,
+          piiRedacted: true,
+        },
+      },
+    })
+  })
+
+  it("redacts managed booking rendered bodies from generic admin detail rows", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue({
+      ...contractRow,
+      renderedBody: "<p>Ada Lovelace ada@example.com</p>",
+      variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+      metadata: managedBookingWorkflowMetadata,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}`)
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { data: Record<string, unknown> }
+    expect(body.data).toMatchObject({
+      renderedBody: null,
+      variables: null,
+      metadata: {
+        bookingContractWorkflow: {
+          revision: 2,
+          previousRevisionId: "contracts_previous",
+          reviewOnly: true,
+          piiRedacted: true,
+        },
+      },
+    })
+  })
+
+  it("blocks managed booking contracts on the generic admin render surface", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue({
+      ...contractRow,
+      metadata: managedBookingWorkflowMetadata,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+        body: "<p>{{ customer.name }} {{ customer.email }}</p>",
+      }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: "Contract not found" })
+  })
+
+  it("keeps generic admin render behavior for non-managed contracts", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue(contractRow)
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variables: { customer: { name: "Ada Lovelace" } },
+        body: "<p>{{ customer.name }}</p>",
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: { rendered: "<p>Ada Lovelace</p>" } })
+  })
 })
 
 describe("legal contracts public token guard", () => {
