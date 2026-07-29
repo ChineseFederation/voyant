@@ -20,7 +20,7 @@
  * Per docs/architecture/channel-push-architecture.md §13.
  */
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, eq, inArray, isNull, lt, ne, or } from "drizzle-orm"
 
 import {
   channelBookingLinks,
@@ -77,11 +77,9 @@ export async function reconcileBookingLinks(
     .from(channelBookingLinks)
     .where(
       and(
-        // agent-quality: raw-sql reviewed -- owner: distribution; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        sql`${channelBookingLinks.pushStatus} <> 'ok'`,
-        // agent-quality: raw-sql reviewed -- owner: distribution; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        sql`(${channelBookingLinks.lastPushAt} IS NULL OR ${channelBookingLinks.lastPushAt} < ${staleAfter})`,
-        options.channelId ? eq(channelBookingLinks.channelId, options.channelId) : sql`true`,
+        ne(channelBookingLinks.pushStatus, "ok"),
+        or(isNull(channelBookingLinks.lastPushAt), lt(channelBookingLinks.lastPushAt, staleAfter)),
+        options.channelId ? eq(channelBookingLinks.channelId, options.channelId) : undefined,
       ),
     )
     .orderBy(asc(channelBookingLinks.lastPushAt))
@@ -161,7 +159,7 @@ export async function reconcileAvailability(
         eq(channelProductMappings.active, true),
         eq(channelProductMappings.pushAvailability, true),
         eq(channels.status, "active"),
-        options.channelId ? eq(channelInventoryAllotments.channelId, options.channelId) : sql`true`,
+        options.channelId ? eq(channelInventoryAllotments.channelId, options.channelId) : undefined,
       ),
     )) as Array<{
     allotment: typeof channelInventoryAllotments.$inferSelect
@@ -219,7 +217,7 @@ export async function reconcileContent(
         eq(channelProductMappings.active, true),
         eq(channelProductMappings.pushContent, true),
         eq(channels.status, "active"),
-        options.channelId ? eq(channelProductMappings.channelId, options.channelId) : sql`true`,
+        options.channelId ? eq(channelProductMappings.channelId, options.channelId) : undefined,
       ),
     )
     .limit(limit)) as Array<{
