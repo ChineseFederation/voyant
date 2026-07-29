@@ -141,6 +141,10 @@ const authRouteFiles: readonly VoyantGeneratedRouteFile[] = [
     "localAuth",
     "forgotPassword",
   ),
+  // The OAuth consent screen an MCP connector sends the operator to. It lives
+  // in the chrome-less auth group because it is a decision point handed over
+  // from an external client, not a page inside the workspace.
+  contributionRoute("(auth)/mcp-consent.tsx", "/(auth)/mcp-consent", "localAuth", "mcpConsent"),
   contributionRoute("(auth)/onboarding.tsx", "/(auth)/onboarding", "localAuth", "onboarding"),
   contributionRoute(
     "(auth)/reset-password.tsx",

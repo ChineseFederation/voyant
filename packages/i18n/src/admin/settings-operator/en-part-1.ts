@@ -7,6 +7,7 @@ export const operatorAdminSettingsMessagesEnPart1 = {
   team: "Team",
   apiTokens: "API tokens",
   channels: "Channels",
+  mcp: "MCP",
   invoicing: "Invoicing",
   payments: "Payments",
   webhooks: "Webhooks",

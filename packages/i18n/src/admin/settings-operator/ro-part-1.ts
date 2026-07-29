@@ -7,6 +7,7 @@ export const operatorAdminSettingsMessagesRoPart1 = {
   team: "Echipa",
   apiTokens: "Tokenuri API",
   channels: "Canale",
+  mcp: "MCP",
   invoicing: "Facturare",
   payments: "Plati",
   webhooks: "Webhook-uri",

@@ -35,6 +35,18 @@ describe("operator setup contribution", () => {
   })
 })
 
+describe("mcp settings contribution", () => {
+  it("mounts the MCP page in the general group next to API tokens", () => {
+    const extension = createSelectedOperatorSettingsAdminExtension()
+
+    expect(extension.settingsPages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "mcp", path: "/mcp", title: "MCP", group: "general" }),
+      ]),
+    )
+  })
+})
+
 describe("operator webhook settings contribution", () => {
   it("contributes list and subscription detail settings routes", () => {
     const extension = createSelectedOperatorWebhooksAdminExtension()

@@ -407,6 +407,34 @@ export function requireAuth<TBindings extends VoyantBindings>(
       }
     }
 
+    // Strategy 2b: MCP connector OAuth token. A chat assistant that completed
+    // the consent flow presents an opaque OAuth access token — no `voy_`
+    // prefix, so strategy 2 skips it. The grant is scoped to the MCP surface
+    // alone: accepting it anywhere else under `/v1/admin/*` would turn a
+    // narrow, operator-approved tool grant into a full admin credential.
+    const isMcpApi = p === "/v1/admin/mcp" || p.startsWith("/v1/admin/mcp/")
+    if (token && isMcpApi && opts?.auth?.resolveMcpToken) {
+      const lease = acquireRequestDb(c, dbFactory)
+      try {
+        const resolved = await opts.auth.resolveMcpToken({
+          request: c.req.raw,
+          env: c.env,
+          db: lease.db,
+          // Guarded: Hono throws on `executionCtx` access outside Workers.
+          ctx: tryGetExecutionCtx(c),
+          token,
+        })
+
+        if (resolved?.actor) {
+          applyAuthContext(c, resolved)
+          // `await` is load-bearing — see strategy 2.
+          return await next()
+        }
+      } finally {
+        await lease.release()
+      }
+    }
+
     // Strategy 3: Remote app access token support. App grants authorize only
     // the installation-scoped App API; never resolve them on admin/public
     // surfaces where similarly named scopes may protect broader host routes.

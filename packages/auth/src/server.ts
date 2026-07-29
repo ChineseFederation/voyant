@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: auth; the Better Auth factory keeps realm table maps, plugin composition, and signup/cookie policy in one place so admin and customer realms cannot drift apart. Already over the limit before the MCP OAuth tables were registered here.
 import { apiKey } from "@better-auth/api-key"
 import { getDb } from "@voyant-travel/db"
 import {
@@ -13,6 +14,11 @@ import {
   customerAuthSession,
   customerAuthUser,
   customerAuthVerification,
+  jwksTable,
+  oauthAccessTokenTable,
+  oauthClientTable,
+  oauthConsentTable,
+  oauthRefreshTokenTable,
 } from "@voyant-travel/db/schema/iam"
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
@@ -215,6 +221,17 @@ export interface BetterAuthRealmTables {
   account: AnyPgTable
   verification: AnyPgTable
   apikey?: AnyPgTable
+  /**
+   * OAuth 2.1 authorization-server tables. Admin-realm only: the MCP connector
+   * flow issues grants against staff identities, so the customer realm has no
+   * authorization server of its own.
+   */
+  oauthClient?: AnyPgTable
+  oauthAccessToken?: AnyPgTable
+  oauthRefreshToken?: AnyPgTable
+  oauthConsent?: AnyPgTable
+  /** Signing keys for the JWT access tokens issued to MCP connectors. */
+  jwks?: AnyPgTable
 }
 
 const ADMIN_AUTH_TABLES: BetterAuthRealmTables = {
@@ -223,6 +240,11 @@ const ADMIN_AUTH_TABLES: BetterAuthRealmTables = {
   account: authAccount,
   verification: authVerification,
   apikey: apikeyTable,
+  oauthClient: oauthClientTable,
+  oauthAccessToken: oauthAccessTokenTable,
+  oauthRefreshToken: oauthRefreshTokenTable,
+  oauthConsent: oauthConsentTable,
+  jwks: jwksTable,
 }
 
 const CUSTOMER_AUTH_TABLES = {
@@ -325,8 +347,8 @@ export function createBetterAuth<
   const signupBlockSurfaces = normalizeSignupBlockSurfaces(options.disableSignupWhenUsersExist)
   const signupBlockEnabled = isSignupBlockEnabled(options.disableSignupWhenUsersExist)
   const customerSignupSurfaces = normalizeSurfaceList(options.customerSignupSurfaces)
-  const reservedSchemaCollision = Object.keys(options.extraSchema ?? {}).find(
-    (modelName) => (realmTables as unknown as BetterAuthDrizzleSchema)[modelName] !== undefined,
+  const reservedSchemaCollision = Object.keys(options.extraSchema ?? {}).find((modelName) =>
+    Object.hasOwn(realmTables, modelName),
   )
   if (reservedSchemaCollision) {
     throw new Error(`extraSchema cannot override reserved auth model: ${reservedSchemaCollision}`)

@@ -77,6 +77,11 @@ vi.mock("@voyant-travel/db/schema/iam", () => ({
   customerAuthSession: { name: "customerSession" },
   customerAuthUser: { name: "customerUser" },
   customerAuthVerification: { name: "customerVerification" },
+  jwksTable: { name: "jwks" },
+  oauthAccessTokenTable: { name: "oauthAccessToken" },
+  oauthClientTable: { name: "oauthClient" },
+  oauthConsentTable: { name: "oauthConsent" },
+  oauthRefreshTokenTable: { name: "oauthRefreshToken" },
   userProfilesTable: { name: "userProfiles" },
 }))
 
@@ -356,14 +361,14 @@ describe("createBetterAuth", () => {
 
   it("merges extra Better Auth plugin tables into the Drizzle adapter schema", async () => {
     const { createBetterAuth } = await import("../../src/server.js")
-    const jwksTable = { name: "jwks" }
+    const passkeyTable = { name: "passkey" }
 
     createBetterAuth({
       db: { id: "db" } as never,
       secret: "x".repeat(32),
       baseURL: "https://auth.example.com",
       extraSchema: {
-        jwks: jwksTable,
+        passkey: passkeyTable,
       } as never,
     })
 
@@ -378,7 +383,7 @@ describe("createBetterAuth", () => {
       account: { name: "account" },
       verification: { name: "verification" },
       apikey: { name: "apikey" },
-      jwks: jwksTable,
+      passkey: passkeyTable,
     })
   })
 
@@ -461,7 +466,7 @@ describe("createBetterAuth", () => {
       baseURL: "https://auth.example.com",
       plugins: [jwtPlugin, customPlugin] as never,
       extraSchema: {
-        jwks: { name: "jwks" },
+        passkey: { name: "passkey" },
         customTable: { name: "customTable" },
       } as never,
     })
