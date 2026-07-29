@@ -3618,6 +3618,128 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome).toMatchObject({ status: "invalid_pricing" })
   })
 
+  it("rejects a category-priced item when any positive traveler band is unpriced", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      unitPricingMode: "per_person",
+    })
+    const adultCategoryId = `prcat_bc_${productSeq}_adult_only_mixed`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${adultCategoryId}, ${productId}, ${optionId}, ${unitId},
+        'ADULT_ONLY_MIXED', 'Adult only', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      UPDATE option_unit_price_rules
+      SET pricing_category_id = ${adultCategoryId}
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${unitId}
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:adult",
+          firstName: "Adult",
+          lastName: "Traveler",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:child",
+          firstName: "Child",
+          lastName: "Traveler",
+          travelerCategory: "child",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}:mixed-unpriced`,
+          optionUnitId: unitId,
+          quantity: 2,
+          travelerKeys: ["trav:adult", "trav:child"],
+        },
+      ],
+    })
+
+    expect(outcome).toMatchObject({ status: "invalid_pricing" })
+  })
+
+  it("uses a flat fallback for an otherwise unpriced traveler band", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 6_000,
+      unitPricingMode: "per_person",
+    })
+    const adultCategoryId = `prcat_bc_${productSeq}_adult_with_fallback`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${adultCategoryId}, ${productId}, ${optionId}, ${unitId},
+        'ADULT_WITH_FALLBACK', 'Adult', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, sort_order, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult_with_fallback`}, ${optionPriceRuleId}, ${optionId},
+        ${unitId}, ${adultCategoryId}, 'per_person', 10000, 1, true
+      )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:adult",
+          firstName: "Adult",
+          lastName: "Traveler",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:child",
+          firstName: "Child",
+          lastName: "Traveler",
+          travelerCategory: "child",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}:mixed-fallback`,
+          optionUnitId: unitId,
+          quantity: 2,
+          travelerKeys: ["trav:adult", "trav:child"],
+        },
+      ],
+    })
+
+    expect(outcome).toMatchObject({
+      status: "ok",
+      result: { booking: { sellAmountCents: 16_000 } },
+    })
+  })
+
   it("rejects a category-priced item when no traveler band matches", async () => {
     const { productId, optionId, childUnitId } = await seedProduct({
       ageBandedUnits: true,

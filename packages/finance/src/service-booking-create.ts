@@ -1286,7 +1286,17 @@ async function reconcileBookingCreatePricing(
         const rule =
           categoryRule ??
           flatUnitRules.find((candidate) => unitRuleMatchesQuantity(candidate, bandQuantity))
-        if (!rule) continue
+        if (!rule) {
+          return {
+            booking,
+            issues: [
+              {
+                path: ["itemLines"],
+                message: `Booking item ${item.optionUnitId ?? item.id} has no persisted price for traveler band ${band}.`,
+              },
+            ],
+          }
+        }
         if (
           !bandAllocation.scopedToItem &&
           rule.unitType === "room" &&
@@ -1310,7 +1320,17 @@ async function reconcileBookingCreatePricing(
         const amount =
           departureAmount ??
           selectPersistedUnitAmount(rule, persistedPricing?.tiers ?? [], bandQuantity)
-        if (amount == null && chargeQuantity > 0) continue
+        if (amount == null && chargeQuantity > 0) {
+          return {
+            booking,
+            issues: [
+              {
+                path: ["itemLines"],
+                message: `Booking item ${item.optionUnitId ?? item.id} has no active persisted price for traveler band ${band}.`,
+              },
+            ],
+          }
+        }
         matchedCategoryPrice = true
         matchedBands.add(band)
         categoryTotal += (amount ?? 0) * chargeQuantity

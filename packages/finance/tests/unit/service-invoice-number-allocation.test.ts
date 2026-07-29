@@ -785,6 +785,85 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
     })
   })
 
+  it("allocates booking tax once across a mixed-currency schedule cohort", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn(async ({ baseCurrency, quoteCurrency }) => {
+      if (baseCurrency === "EUR" && quoteCurrency === "USD") {
+        return { rate: 2, fxRateSetId: "fxrs_123" }
+      }
+      if (baseCurrency === "USD" && quoteCurrency === "EUR") {
+        return { rate: 0.5, fxRateSetId: "fxrs_123" }
+      }
+      return null
+    })
+    const paymentSchedules = [
+      {
+        id: "bps_eur",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "EUR",
+        amountCents: 50,
+      },
+      {
+        id: "bps_usd",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "USD",
+        amountCents: 100,
+      },
+    ]
+    const data = {
+      booking: {
+        ...bookingData.booking,
+        sellCurrency: "EUR",
+        fxRateSetId: "fxrs_123",
+        sellAmountCents: 100,
+      },
+      paymentSchedules,
+      items: [
+        {
+          id: "bkit_123",
+          title: "Mixed-currency taxable booking",
+          quantity: 1,
+          unitSellAmountCents: 100,
+          totalSellAmountCents: 100,
+        },
+      ],
+    }
+
+    for (const paymentSchedule of paymentSchedules) {
+      await financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: `MANUAL-${paymentSchedule.id}`,
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        { ...data, paymentSchedule },
+        { resolveInvoiceExchangeRate },
+      )
+    }
+
+    expect(insertedInvoices).toEqual([
+      expect.objectContaining({ currency: "EUR", taxCents: 5, totalCents: 50 }),
+      expect.objectContaining({ currency: "USD", taxCents: 10, totalCents: 100 }),
+    ])
+  })
+
   it("uses booking item snapshots for schedule descriptions without an item link", async () => {
     const { db, insertedInvoiceLineItems } = makeDb({})
 

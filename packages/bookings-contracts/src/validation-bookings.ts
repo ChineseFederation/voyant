@@ -93,6 +93,7 @@ const bookingCoreSchema = z.object({
 export const insertBookingSchema = bookingCoreSchema.superRefine(validateExclusiveBillingParty)
 export const updateBookingSchema = bookingCoreSchema
   .partial()
+  .extend({ notificationsSuppressed: z.literal(true).optional() })
   .superRefine(validateExclusiveBillingParty)
 
 export const createBookingSchema = bookingCoreSchema

@@ -291,16 +291,49 @@ export const financeInvoiceFromBookingService = {
             asc(bookingPaymentSchedules.id),
           )))
       : []
-    const scheduleCurrencyRows = paymentSchedule
-      ? scheduleAllocationRows.filter(
-          (schedule) => normalizeCurrencyCode(schedule.currency) === invoiceCurrency,
+    const scheduleRowsInBookingCurrency = paymentSchedule
+      ? await Promise.all(
+          scheduleAllocationRows.map(async (schedule) => {
+            const scheduleCurrency = normalizeCurrencyCode(schedule.currency)
+            if (scheduleCurrency === bookingSellCurrency) return schedule
+            const converted = await resolveFxMoneyBaseAmount(
+              db,
+              {
+                amountCents: schedule.amountCents,
+                currency: scheduleCurrency,
+                baseCurrency: bookingSellCurrency,
+                baseAmountCents: null,
+                fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+              },
+              {
+                ...runtime,
+                targetBaseCurrency: bookingSellCurrency,
+                fallbackFxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+                date: data.issueDate,
+                setBaseCurrencyWhenUnresolved: true,
+              },
+            )
+            if (converted.baseAmountCents === null || converted.baseAmountCents === undefined) {
+              throw new InvoiceFromBookingValidationError(
+                "Mixed-currency payment schedule tax requires resolvable exchange rates",
+                {
+                  scheduleCurrency,
+                  bookingSellCurrency,
+                  fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+                },
+              )
+            }
+            return { ...schedule, amountCents: converted.baseAmountCents }
+          }),
         )
       : []
-    const allocateScheduleTax = (amountCents: number) => {
+    const allocateScheduleTaxInBookingCurrency = (amountCents: number) => {
       if (!paymentSchedule) return amountCents
       return allocateScheduleAmountCents(
         amountCents,
-        scheduleCurrencyRows.length > 0 ? scheduleCurrencyRows : [paymentSchedule],
+        scheduleRowsInBookingCurrency.length > 0
+          ? scheduleRowsInBookingCurrency
+          : [paymentSchedule],
         paymentSchedule.id,
       )
     }
@@ -353,8 +386,8 @@ export const financeInvoiceFromBookingService = {
             // A schedule amount is already gross of both tax kinds. Convert and
             // allocate their combined amount once so indivisible cents cannot
             // be awarded twice to the same installment.
-            includedTaxCents: allocateScheduleTax(
-              await convertBookingTaxToInvoiceCurrency(
+            includedTaxCents: await convertBookingTaxToInvoiceCurrency(
+              allocateScheduleTaxInBookingCurrency(
                 bookingIncludedTaxCents + bookingExcludedTaxCents,
               ),
             ),
