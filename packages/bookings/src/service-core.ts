@@ -7,7 +7,7 @@ import {
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
-import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { authUser } from "@voyant-travel/db/schema/iam"

@@ -1,5 +1,5 @@
 import { createSaga, type EventBus, sagaStep } from "@voyant-travel/core"
-import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 

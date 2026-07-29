@@ -5,7 +5,7 @@ import {
   executeAdmittedExistingTargetCommand,
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
-import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
 import {
   defineToolContextContribution,

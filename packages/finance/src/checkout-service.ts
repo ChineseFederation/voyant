@@ -1,5 +1,5 @@
 import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings"
-import { withBookingFinanceInsertionFence } from "@voyant-travel/db"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { and, asc, desc, eq, gt, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {

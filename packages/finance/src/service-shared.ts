@@ -10,7 +10,7 @@ export type { AnyDrizzleDb } from "@voyant-travel/db"
 export {
   lockBookingFinanceInsertionFence,
   withBookingFinanceInsertionFence,
-} from "@voyant-travel/db"
+} from "@voyant-travel/db/booking-finance-fence"
 export { newId } from "@voyant-travel/db/lib/typeid"
 export { renderStructuredTemplate } from "@voyant-travel/utils/template-renderer"
 export {

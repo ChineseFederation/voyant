@@ -21,7 +21,7 @@ import {
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
 import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
-import { withBookingFinanceInsertionFence } from "@voyant-travel/db"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import * as rrulePackage from "rrule"

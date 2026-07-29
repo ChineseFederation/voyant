@@ -7,7 +7,7 @@ import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import {
   assertBookingFinanceInsertionAllowed,
   lockBookingFinanceInsertionFence,
-} from "@voyant-travel/db"
+} from "@voyant-travel/db/booking-finance-fence"
 import { and, asc, eq, inArray, ne } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
