@@ -85,15 +85,15 @@ type ResolvedBetterAuthUserOptions<UserOptions extends BetterAuthOptions["user"]
   changeEmail: ResolvedBetterAuthChangeEmail<UserOptions>
 }
 
-type VoyantBetterAuthPlugins = [
-  ReturnType<typeof apiKey>,
-  ReturnType<typeof emailOTP>,
-  ReturnType<typeof createLocalMemberAccessPlugin>,
-]
-
-type ResolvedBetterAuthPlugins<_Plugins extends BetterAuthPlugin[] | undefined> =
-  | VoyantBetterAuthPlugins
-  | BetterAuthPlugin[]
+/**
+ * The bundled plugins were previously spelled as a tuple of their concrete
+ * `ReturnType`s. Better Auth's plugin types have since grown richer than the
+ * `BetterAuthPlugin` constraint they must satisfy, so that tuple no longer
+ * type-checks against `betterAuth<TOptions>` — and because it was already
+ * unioned with `BetterAuthPlugin[]`, it bought no endpoint precision at any
+ * call site. Widen to the constraint itself.
+ */
+type ResolvedBetterAuthPlugins<_Plugins extends BetterAuthPlugin[] | undefined> = BetterAuthPlugin[]
 
 const DEFAULT_SIGNUP_BLOCK_SURFACES = ["admin"] as const
 const CUSTOMER_SIGNUP_ENDPOINT_SUFFIXES = [
