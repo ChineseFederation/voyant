@@ -117,6 +117,14 @@ describe("bookings MCP runtime lifecycle detail", () => {
     expect(statusMutation).toHaveBeenCalledOnce()
     expect(statusMutation.mock.calls[0]?.[4]).toMatchObject({
       actionLedgerCausationActionId: "action_claim_1",
+      actionLedgerContext: {
+        userId: "user_1",
+        agentId: "agent_1",
+        callerType: "agent",
+        actor: "staff",
+        organizationId: "organization_1",
+        correlationId: "correlation_1",
+      },
     })
   })
 
@@ -260,6 +268,9 @@ function request(): never {
   const vars = {
     actor: "staff",
     callerType: "agent",
+    userId: "user_1",
+    agentId: "agent_1",
+    organizationId: "organization_1",
     scopes: ["bookings:read", "bookings:write"],
     isInternalRequest: false,
   }
@@ -269,7 +280,11 @@ function request(): never {
     get(key: string) {
       return vars[key as keyof typeof vars] ?? null
     },
-    req: { header: () => null },
+    req: {
+      header(name: string) {
+        return name === "x-correlation-id" ? "correlation_1" : null
+      },
+    },
   } as never
 }
 

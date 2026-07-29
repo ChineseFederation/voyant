@@ -196,6 +196,7 @@ async function executeBookingStatusToolCommand(input: {
           input.action,
           input.admitted,
           bufferingEventBus,
+          bookingToolActionLedgerContext(input.c),
           command.causation.claimActionId,
         )
         const statusResult =
@@ -254,12 +255,14 @@ function bookingStatusToolLifecycleRuntime(
   action: BookingStatusToolAction,
   admitted: ToolHandlerActionPolicyContext,
   eventBus: EventBus,
+  actionLedgerContext: ActionLedgerRequestContextValues,
   causationActionId: string,
 ) {
   const idempotencyKey = admitted.invocation.idempotencyKey?.trim() ?? null
   const routeOrToolName = admitted.capabilityId
   return {
     eventBus,
+    actionLedgerContext,
     actionLedgerAuthorizationSource: "selected_graph_mcp_handler_existing_target",
     actionLedgerRouteOrToolName: routeOrToolName,
     actionLedgerCausationActionId: causationActionId,
