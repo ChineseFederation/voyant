@@ -177,6 +177,11 @@ async function executeBookingStatusToolCommand(input: {
     },
     {
       async prepare(tx, command) {
+        await lockBookingStatusConsequenceState(
+          tx as Parameters<typeof bookingsService.getBookingById>[0],
+          input.input.id,
+          input.action,
+        )
         const currentPreview = await loadBookingStatusConsequencePreview(
           tx as Parameters<typeof bookingsService.getBookingById>[0],
           input.input.id,
@@ -378,12 +383,56 @@ export async function loadBookingStatusConsequencePreview(
   }
 }
 
-async function loadCancellationFinancialConsequences(
+export async function lockBookingStatusConsequenceState(
   db: Parameters<typeof bookingsService.getBookingById>[0],
   bookingId: string,
-  settlementHookAvailable: boolean,
+  action: BookingStatusToolAction,
 ) {
-  const [financeTables] = rowsFromExecute<{
+  // Lock the parent first. Booking-owned consequence rows have a booking FK,
+  // so this also prevents new allocations from appearing during revalidation.
+  await db.execute(sql`
+    SELECT id
+    FROM bookings
+    WHERE id = ${bookingId}
+    FOR UPDATE
+  `)
+  await db.execute(sql`
+    SELECT id
+    FROM booking_allocations
+    WHERE booking_id = ${bookingId}
+    ORDER BY id
+    FOR UPDATE
+  `)
+  if (action !== "cancel") return
+
+  // Finance is optional and its booking references are deliberately loose.
+  // Lock every installed row for this booking, not just the currently visible
+  // paid/pending subset, so status and amount changes cannot cross the preview.
+  const financeTables = await loadFinanceConsequenceTables(db)
+  if (financeTables?.invoicesTable) {
+    await db.execute(sql`
+      SELECT id
+      FROM invoices
+      WHERE booking_id = ${bookingId}
+      ORDER BY id
+      FOR UPDATE
+    `)
+  }
+  if (financeTables?.paymentSchedulesTable) {
+    await db.execute(sql`
+      SELECT id
+      FROM booking_payment_schedules
+      WHERE booking_id = ${bookingId}
+      ORDER BY id
+      FOR UPDATE
+    `)
+  }
+}
+
+async function loadFinanceConsequenceTables(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+) {
+  return rowsFromExecute<{
     invoicesTable: string | null
     paymentSchedulesTable: string | null
   }>(
@@ -392,7 +441,15 @@ async function loadCancellationFinancialConsequences(
         to_regclass('invoices')::text AS "invoicesTable",
         to_regclass('booking_payment_schedules')::text AS "paymentSchedulesTable"
     `),
-  )
+  )[0]
+}
+
+async function loadCancellationFinancialConsequences(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+  bookingId: string,
+  settlementHookAvailable: boolean,
+) {
+  const financeTables = await loadFinanceConsequenceTables(db)
   if (!financeTables?.invoicesTable && !financeTables?.paymentSchedulesTable) {
     return {
       actionRequired: false,

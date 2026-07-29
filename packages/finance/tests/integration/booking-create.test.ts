@@ -24,7 +24,10 @@ import {
   availabilityHoldsRef as availabilityHolds,
   availabilitySlotsRef as availabilitySlots,
 } from "../../../bookings/src/availability-ref.js"
-import { loadBookingStatusConsequencePreview } from "../../../bookings/src/mcp-runtime.js"
+import {
+  loadBookingStatusConsequencePreview,
+  lockBookingStatusConsequenceState,
+} from "../../../bookings/src/mcp-runtime.js"
 import { publicPricingService } from "../../../commerce/src/pricing/service-public.js"
 import { resolve as resolveSellability } from "../../../commerce/src/sellability/service-resolve.js"
 import {
@@ -1310,6 +1313,81 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         }),
       ],
     })
+  })
+
+  it("holds mutable cancellation consequences locked from preview revalidation through transition", async () => {
+    const { productId } = await seedProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "confirmed",
+      ...bookingParty(),
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          dueDate: "2026-08-15",
+          currency: "EUR",
+          amountCents: 50_000,
+        },
+      ],
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    let releaseTransition = () => {}
+    const transitionMayProceed = new Promise<void>((resolve) => {
+      releaseTransition = resolve
+    })
+    let previewRevalidated = () => {}
+    const previewWasRevalidated = new Promise<void>((resolve) => {
+      previewRevalidated = resolve
+    })
+    const cancellation = db.transaction(async (tx) => {
+      await lockBookingStatusConsequenceState(tx, outcome.result.booking.id, "cancel")
+      const preview = await loadBookingStatusConsequencePreview(
+        tx,
+        outcome.result.booking.id,
+        "cancel",
+        false,
+        false,
+      )
+      expect(preview.financialSettlement?.schedulesToClose).toEqual([
+        expect.objectContaining({ amountCents: 50_000, status: "pending" }),
+      ])
+      previewRevalidated()
+      await transitionMayProceed
+      return bookingsService.cancelBooking(
+        tx,
+        outcome.result.booking.id,
+        { note: "Approved cancellation" },
+        "user_consequence_lock_test",
+      )
+    })
+
+    await previewWasRevalidated
+    let concurrentMutationCompleted = false
+    const concurrentMutation = db
+      .update(bookingPaymentSchedules)
+      .set({ amountCents: 49_000, updatedAt: new Date() })
+      .where(eq(bookingPaymentSchedules.id, outcome.result.paymentSchedules[0]!.id))
+      .then(() => {
+        concurrentMutationCompleted = true
+      })
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(concurrentMutationCompleted).toBe(false)
+    } finally {
+      releaseTransition()
+    }
+
+    await expect(cancellation).resolves.toMatchObject({
+      status: "ok",
+      booking: expect.objectContaining({ status: "cancelled" }),
+    })
+    await concurrentMutation
+    expect(concurrentMutationCompleted).toBe(true)
   })
 
   it("requests an invoice rendition only when invoice document generation is enabled", async () => {

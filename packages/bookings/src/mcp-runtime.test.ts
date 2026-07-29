@@ -163,13 +163,14 @@ describe("bookings MCP runtime lifecycle detail", () => {
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
-    expect(execute).toHaveBeenCalledTimes(2)
+    expect(execute).toHaveBeenCalledTimes(5)
     expect(cancelBooking).toHaveBeenCalledOnce()
   })
 
   it("keeps approval consequences stable when tied allocations arrive in a different order", async () => {
     const detail = bookingDetailWithDates("booking_1")
-    const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
+    const execute = vi.fn().mockResolvedValue(financeTablesUnavailable())
+    const db = { execute }
     const createdAt = new Date("2026-07-28T10:03:00.000Z")
     const allocationA = {
       id: "allocation_a",
@@ -189,8 +190,16 @@ describe("bookings MCP runtime lifecycle detail", () => {
     }
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
     vi.spyOn(bookingsService, "listAllocations")
-      .mockResolvedValueOnce([allocationB, allocationA] as never)
-      .mockResolvedValueOnce([allocationA, allocationB] as never)
+      .mockImplementationOnce(async () => {
+        expect(execute).not.toHaveBeenCalled()
+        return [allocationB, allocationA] as never
+      })
+      .mockImplementationOnce(async () => {
+        // Booking and allocation locks are both acquired before the approved
+        // preview is reloaded inside the command transaction.
+        expect(execute).toHaveBeenCalledTimes(2)
+        return [allocationA, allocationB] as never
+      })
     vi.spyOn(bookingsService, "confirmBooking").mockResolvedValue({
       status: "ok",
       booking: detail.booking,
