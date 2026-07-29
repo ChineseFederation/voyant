@@ -14,8 +14,8 @@ export {
   departuresDocPrefix,
   invalidateDeparturesReadModel,
   readThroughDepartures,
-  storefrontAvailabilityReadModelInvalidationSubscriber,
   STOREFRONT_AVAILABILITY_READ_MODEL_SUBSCRIBER_ID,
+  storefrontAvailabilityReadModelInvalidationSubscriber,
 } from "./departures-read-model.js"
 
 export type {

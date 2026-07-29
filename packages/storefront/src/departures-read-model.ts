@@ -1,6 +1,5 @@
 import type { BootstrapContext, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import type { KVStore } from "@voyant-travel/utils/cache"
-import type { Context } from "hono"
 
 /**
  * Cache-store-backed public departure documents. Managed Node deployments bind
@@ -18,10 +17,7 @@ export function departuresDocPrefix(productId: string): string {
   return `${DEPARTURES_RM_PREFIX}:${productId}:`
 }
 
-export function departuresDocKey(
-  productId: string,
-  query: Record<string, unknown>,
-): string {
+export function departuresDocKey(productId: string, query: Record<string, unknown>): string {
   const entries = Object.entries(query)
     .filter(([, value]) => value !== undefined && value !== null)
     .sort(([a], [b]) => (a < b ? -1 : 1))
@@ -32,7 +28,7 @@ export function departuresDocKey(
 
 /** Best-effort read-through cache; failures degrade to the live query. */
 export async function readThroughDepartures<T>(
-  c: Context<{ Bindings: { CACHE?: KVStore } }>,
+  c: { env?: { CACHE?: KVStore } },
   key: string,
   compute: () => Promise<T>,
 ): Promise<T> {
@@ -59,10 +55,7 @@ export async function readThroughDepartures<T>(
 }
 
 /** Delete every query variant for one product. */
-export async function invalidateDeparturesReadModel(
-  kv: KVStore,
-  productId: string,
-): Promise<void> {
+export async function invalidateDeparturesReadModel(kv: KVStore, productId: string): Promise<void> {
   if (!kv.list) return
   const { keys } = await kv.list({ prefix: departuresDocPrefix(productId) })
   await Promise.all(keys.map(({ name }) => kv.delete(name)))
@@ -71,9 +64,7 @@ export async function invalidateDeparturesReadModel(
 function productIdFromAvailabilityEvent(data: unknown): string | null {
   if (!data || typeof data !== "object") return null
   const productId = (data as { productId?: unknown }).productId
-  return typeof productId === "string" && productId.trim()
-    ? productId.trim()
-    : null
+  return typeof productId === "string" && productId.trim() ? productId.trim() : null
 }
 
 export const STOREFRONT_AVAILABILITY_READ_MODEL_SUBSCRIBER_ID =

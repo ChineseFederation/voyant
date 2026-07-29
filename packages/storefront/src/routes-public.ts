@@ -9,10 +9,7 @@ import {
 } from "@voyant-travel/hono"
 import type { Context } from "hono"
 
-import {
-  departuresDocKey,
-  readThroughDepartures,
-} from "./departures-read-model.js"
+import { departuresDocKey, readThroughDepartures } from "./departures-read-model.js"
 import {
   createStorefrontService,
   type StorefrontRequestContext,

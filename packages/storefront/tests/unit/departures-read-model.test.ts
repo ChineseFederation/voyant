@@ -113,10 +113,7 @@ describe("availability read-model subscriber", () => {
     let handler: ((event: { data: unknown }) => Promise<void>) | undefined
     const eventBus = {
       subscribe: vi.fn(
-        (
-          _eventType: string,
-          registered: (event: { data: unknown }) => Promise<void>,
-        ) => {
+        (_eventType: string, registered: (event: { data: unknown }) => Promise<void>) => {
           handler = registered
         },
       ),
