@@ -1,3 +1,4 @@
+import { PgDialect } from "drizzle-orm/pg-core"
 import { describe, expect, it } from "vitest"
 
 import { createPostgresIndexer } from "./postgres.js"
@@ -56,6 +57,55 @@ describe("Postgres graph indexer provider", () => {
       vectorDimensions: 3,
       maxVectorsPerDocument: 1,
     })
+  })
+
+  it("reconciles obsolete Lakebase vector storage before pgvector writes", async () => {
+    const dialect = new PgDialect()
+    const statements: string[] = []
+    const db = {
+      execute: async (statement: unknown) => {
+        const query = dialect.sqlToQuery(statement as never).sql
+        statements.push(query)
+        if (query.includes("FROM pg_extension")) return [{ installed: 1 }]
+        if (query.includes("format_type")) return [{ data_type: "vector(3072)" }]
+        return []
+      },
+    }
+    const adapter = createPostgresIndexer({
+      db: db as never,
+      registries: new Map(),
+      vectorStrategy: "pgvector",
+      vectorDimensions: 1_536,
+      textStrategy: "native",
+    })
+
+    await adapter.ensureCollection(
+      {
+        vertical: "products",
+        locale: "en-GB",
+        audience: "staff",
+        market: "default",
+      },
+      {} as never,
+    )
+
+    expect(
+      statements.some((query) =>
+        query.includes("DROP INDEX IF EXISTS voyant_catalog_search_documents_ann_idx"),
+      ),
+    ).toBe(true)
+    expect(
+      statements.some((query) =>
+        query.includes("DROP INDEX IF EXISTS voyant_catalog_search_documents_bm25_idx"),
+      ),
+    ).toBe(true)
+    expect(
+      statements.some(
+        (query) =>
+          query.includes("ALTER COLUMN search_embedding TYPE vector") &&
+          query.includes("USING search_embedding::vector"),
+      ),
+    ).toBe(true)
   })
 
   it("enables Lakebase ANN only from its recorded deployment capability", () => {

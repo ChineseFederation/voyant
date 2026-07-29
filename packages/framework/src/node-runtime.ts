@@ -4,6 +4,7 @@
 
 import type { ActionLedgerCapabilityRegistry } from "@voyant-travel/action-ledger/capability"
 import type { EventEnvelope, VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import { type EventOutboxJobRuntime, eventOutboxJobRuntimePort } from "@voyant-travel/db/outbox-job"
 import {
   createPostgresFixedWindowRateLimitStore,
   createPostgresKvStore,
@@ -305,10 +306,11 @@ export async function loadVoyantNodeRuntime(
   const activeModules = options.graphRuntime.modules.map((unit) => unit.localId ?? unit.id)
   const auth = options.app?.auth ?? options.auth
   const resources = { ...(options.providers ?? {}), ...(options.resources ?? {}) }
+  const runtimePorts = options.runtimePorts ? { ...options.runtimePorts } : undefined
   const graphComposition = await composeVoyantGraphRuntime({
     runtime: options.graphRuntime,
     capabilities: resources,
-    ports: options.runtimePorts,
+    ports: runtimePorts,
     outboundWebhooks: options.outboundWebhooks,
     appWebhooks: options.appWebhooks,
   })
@@ -317,7 +319,7 @@ export async function loadVoyantNodeRuntime(
     runtime: options.graphRuntime,
     jobs: options.jobs,
     bindings: env,
-    ...(options.runtimePorts ? { ports: options.runtimePorts } : {}),
+    ...(runtimePorts ? { ports: runtimePorts } : {}),
     ...(env.ORIGIN_TRUST_SECRET ? { originTrustSecret: env.ORIGIN_TRUST_SECRET } : {}),
     ...(managedJobHealthReporter ? { reportExecution: managedJobHealthReporter } : {}),
   })
@@ -368,6 +370,21 @@ export async function loadVoyantNodeRuntime(
       ]),
     ),
   })
+
+  const configuredOutboxRuntime = (await runtimePorts?.[eventOutboxJobRuntimePort.id]) as
+    | EventOutboxJobRuntime
+    | undefined
+  if (runtimePorts && configuredOutboxRuntime) {
+    runtimePorts[eventOutboxJobRuntimePort.id] = {
+      ...configuredOutboxRuntime,
+      deliver: async (envelope: EventEnvelope) => {
+        await app.ready(env)
+        if (app.eventBus.deliver) return app.eventBus.deliver(envelope)
+        await app.eventBus.emit(envelope.name, envelope.data, envelope.metadata)
+        return { attempted: 0, failed: 0, errors: [] }
+      },
+    } satisfies EventOutboxJobRuntime
+  }
 
   const fetch = async (
     request: Request,
