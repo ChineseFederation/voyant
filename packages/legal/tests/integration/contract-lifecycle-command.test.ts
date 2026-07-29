@@ -550,12 +550,16 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     await expect(contractsService.voidContract(db, voidTarget.id)).rejects.toMatchObject({
       name: "RequestValidationError",
     })
-    await expect(db.select().from(contracts).where(eq(contracts.id, sendTarget.id))).resolves.toEqual(
-      [expect.objectContaining({ status: "issued", metadata: managedBookingWorkflowMetadata() })],
-    )
-    await expect(db.select().from(contracts).where(eq(contracts.id, voidTarget.id))).resolves.toEqual(
-      [expect.objectContaining({ status: "sent", metadata: managedBookingWorkflowMetadata() })],
-    )
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, sendTarget.id)),
+    ).resolves.toEqual([
+      expect.objectContaining({ status: "issued", metadata: managedBookingWorkflowMetadata() }),
+    ])
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, voidTarget.id)),
+    ).resolves.toEqual([
+      expect.objectContaining({ status: "sent", metadata: managedBookingWorkflowMetadata() }),
+    ])
   })
 
   it("voids ordinary lifecycle-command targets without adding managed workflow metadata", async () => {

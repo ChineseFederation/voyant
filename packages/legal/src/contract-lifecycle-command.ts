@@ -8,9 +8,7 @@ import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import {
-  bookingContractContentFingerprint,
-} from "./booking-contract-review.js"
+import { bookingContractContentFingerprint } from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
 import {
   appendContractStageHistory,

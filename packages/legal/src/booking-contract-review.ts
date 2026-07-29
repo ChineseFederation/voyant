@@ -2,7 +2,7 @@ import { sha256 } from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { z } from "zod"
+import type { z } from "zod"
 import { legalContractDetail } from "./contract-dto.js"
 import { contracts, contractTemplates, contractTemplateVersions } from "./contracts/schema.js"
 import {
