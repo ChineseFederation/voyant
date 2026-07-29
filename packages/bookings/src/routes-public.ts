@@ -289,6 +289,10 @@ const confirmSessionRoute = createRoute({
       description: "Confirmed booking session snapshot",
       content: { "application/json": { schema: z.object({ data: publicBookingSessionSchema }) } },
     },
+    402: {
+      description: "Monthly booking plan limit reached",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking session not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -480,10 +484,18 @@ export const publicBookingRoutes = publicBookingApp
       c.req.valid("param").sessionId,
       c.req.valid("json"),
       c.get("userId"),
+      {
+        eventBus: c.get("eventBus"),
+        monthlyBookingLimit: getRouteRuntime(c).monthlyBookingLimit,
+      },
     )
 
     if (result.status === "not_found") {
       return notFound(c, "Booking session not found")
+    }
+
+    if (result.status === "monthly_booking_limit_reached" && "message" in result) {
+      return c.json({ error: result.message }, 402)
     }
 
     if (!hasSession(result)) {

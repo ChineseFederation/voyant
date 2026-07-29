@@ -1,3 +1,4 @@
+import { resolveMonthlyBookingLimit } from "@voyant-travel/bookings"
 import type { EventBus } from "@voyant-travel/core"
 
 import type { InvoiceFxOptions } from "./invoice-fx.js"
@@ -11,6 +12,7 @@ import type {
 import type { InvoiceDocumentGenerator } from "./service-documents.js"
 
 export type FinanceRouteRuntime = {
+  monthlyBookingLimit?: number | null
   invoiceDocumentGenerator?: InvoiceDocumentGenerator
   resolveCustomFields?: FinanceDocumentRouteOptions["resolveCustomFields"]
   resolveDocumentDownloadUrl?: FinanceDocumentRouteOptions["resolveDocumentDownloadUrl"]
@@ -36,7 +38,15 @@ export function buildFinanceRouteRuntime(
   bindings: Record<string, unknown>,
   options: FinanceRuntimeOptions = {},
 ): FinanceRouteRuntime {
+  const processEnv =
+    (
+      globalThis as typeof globalThis & {
+        process?: { env?: Record<string, string | undefined> }
+      }
+    ).process?.env ?? {}
+
   return {
+    monthlyBookingLimit: resolveMonthlyBookingLimit({ ...processEnv, ...bindings }),
     invoiceDocumentGenerator:
       options.resolveInvoiceDocumentGenerator?.(bindings) ?? options.invoiceDocumentGenerator,
     resolveCustomFields: options.resolveCustomFields,

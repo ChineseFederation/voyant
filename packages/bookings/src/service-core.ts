@@ -33,6 +33,10 @@ import type { z } from "zod"
 
 import { BOOKING_STATUS_CAPABILITIES } from "./action-ledger-capabilities.js"
 import { availabilityHoldsRef, availabilitySlotsRef } from "./availability-ref.js"
+import {
+  assertMonthlyBookingLimitAvailable,
+  BookingMonthlyLimitReachedError,
+} from "./booking-plan-limit.js"
 import { exchangeRatesRef } from "./markets-ref.js"
 import {
   applyTravelDetailSnapshot,
@@ -350,6 +354,8 @@ type OptionUnitReference = typeof optionUnitsRef.$inferSelect
  */
 export interface BookingServiceRuntime {
   eventBus?: EventBus
+  /** Optional managed-plan allowance; null/undefined keeps bookings unlimited. */
+  monthlyBookingLimit?: number | null
   actionLedgerContext?: ActionLedgerRequestContextValues
   actionLedgerAuthorizationSource?: string | null
   actionLedgerCausationActionId?: string | null
@@ -600,8 +606,20 @@ class BookingServiceError extends Error {
   }
 }
 
+function monthlyBookingLimitResult(error: BookingMonthlyLimitReachedError) {
+  return {
+    status: error.code,
+    message: error.message,
+    ...error.details,
+  } as const
+}
+
 function toTimestamp(value?: string | null) {
   return value ? new Date(value) : null
+}
+
+function isAcceptedBookingStatus(status: BookingStatus) {
+  return status === "confirmed" || status === "in_progress" || status === "completed"
 }
 
 function confirmedAtForStatus(status: BookingStatus, value: Date | null, now = new Date()) {
@@ -2408,7 +2426,7 @@ const bookingsServiceInternal = {
     data: ConvertProductInput,
     productData: ConvertProductData,
     userId?: string,
-    options: { availabilityHoldToken?: string } = {},
+    options: { availabilityHoldToken?: string; monthlyBookingLimit?: number | null } = {},
   ) {
     const { product, option, slot, dayServices, units } = productData
 
@@ -2483,6 +2501,9 @@ const bookingsServiceInternal = {
     }
 
     const initialStatus = data.initialStatus ?? "draft"
+    if (isAcceptedBookingStatus(initialStatus)) {
+      await assertMonthlyBookingLimitAvailable(db, options.monthlyBookingLimit)
+    }
     const bookingPax = Object.hasOwn(data, "pax") ? (data.pax ?? null) : product.pax
     // Map the booking lifecycle status onto the booking-item lifecycle.
     // Items don't have an `awaiting_payment` state — when the booking is
@@ -2516,12 +2537,13 @@ const bookingsServiceInternal = {
       .values({
         bookingNumber: data.bookingNumber,
         status: initialStatus,
+        acceptedAt: isAcceptedBookingStatus(initialStatus) ? now : null,
         // Mirror the lifecycle timestamps that overrideBookingStatus
         // stamps when the status transition happens after-the-fact, so
         // a booking that lands in `confirmed` straight from create is
         // indistinguishable downstream from one that was flipped via
         // the verb endpoint.
-        confirmedAt: initialStatus === "confirmed" ? now : null,
+        confirmedAt: confirmedAtForStatus(initialStatus, null, now),
         personId: data.personId ?? null,
         organizationId: data.organizationId ?? null,
         // Billing-contact snapshot — captured at create time so the
@@ -2890,7 +2912,12 @@ const bookingsServiceInternal = {
       .orderBy(asc(bookingAllocations.createdAt))
   },
 
-  async updateBooking(db: PostgresJsDatabase, id: string, data: UpdateBookingInput) {
+  async updateBooking(
+    db: PostgresJsDatabase,
+    id: string,
+    data: UpdateBookingInput,
+    runtime: BookingServiceRuntime = {},
+  ) {
     const normalizedData = normalizeBookingBillingPartyUpdate(data)
     const includesDirectTotalUpdate =
       data.sellAmountCents !== undefined ||
@@ -2900,17 +2927,27 @@ const bookingsServiceInternal = {
 
     return db.transaction(async (tx) => {
       const rows = await tx.execute(
-        sql`SELECT status, custom_fields
+        sql`SELECT status, accepted_at, custom_fields
             FROM ${bookings}
             WHERE ${bookings.id} = ${id}
             FOR UPDATE`,
       )
       const existing = toRows<{
         status: BookingStatus
+        accepted_at: Date | null
         custom_fields: NamespacedCustomFieldValues
       }>(rows)[0]
 
       if (!existing) return null
+
+      const nextStatus = data.status ?? existing.status
+      if (existing.accepted_at === null && isAcceptedBookingStatus(nextStatus)) {
+        await assertMonthlyBookingLimitAvailable(
+          tx as PostgresJsDatabase,
+          runtime.monthlyBookingLimit,
+          { excludeBookingId: id },
+        )
+      }
 
       let updateData = normalizedData
       let shouldRecomputeTotals = false
@@ -2947,6 +2984,8 @@ const bookingsServiceInternal = {
         }
       }
 
+      const now = new Date()
+
       const [row] = await tx
         .update(bookings)
         .set({
@@ -2977,12 +3016,14 @@ const bookingsServiceInternal = {
             data.contactPostalCode === undefined ? undefined : (data.contactPostalCode ?? null),
           holdExpiresAt:
             data.holdExpiresAt === undefined ? undefined : toTimestamp(data.holdExpiresAt),
-          confirmedAt: confirmedAtForBookingUpdate(existing.status, data),
+          acceptedAt:
+            existing.accepted_at ?? (isAcceptedBookingStatus(nextStatus) ? now : undefined),
+          confirmedAt: confirmedAtForBookingUpdate(existing.status, data, now),
           expiredAt: data.expiredAt === undefined ? undefined : toTimestamp(data.expiredAt),
           cancelledAt: data.cancelledAt === undefined ? undefined : toTimestamp(data.cancelledAt),
           completedAt: data.completedAt === undefined ? undefined : toTimestamp(data.completedAt),
           redeemedAt: data.redeemedAt === undefined ? undefined : toTimestamp(data.redeemedAt),
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(bookings.id, id))
         .returning()
@@ -3014,7 +3055,7 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, hold_expires_at
+          sql`SELECT id, booking_number, status, hold_expires_at, accepted_at
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
@@ -3024,6 +3065,7 @@ const bookingsServiceInternal = {
           booking_number: string
           status: BookingStatus
           hold_expires_at: Date | null
+          accepted_at: Date | null
         }>(rows)[0]
 
         if (!booking) {
@@ -3044,14 +3086,21 @@ const bookingsServiceInternal = {
           throw new BookingServiceError("hold_expired")
         }
 
-        const patch = transitionBooking(booking.status, "confirmed")
+        await assertMonthlyBookingLimitAvailable(
+          tx as PostgresJsDatabase,
+          runtime.monthlyBookingLimit,
+          { excludeBookingId: id },
+        )
+
+        const now = new Date()
+        const patch = transitionBooking(booking.status, "confirmed", { now })
 
         await tx
           .update(bookingAllocations)
           .set({
             status: "confirmed",
-            confirmedAt: new Date(),
-            updatedAt: new Date(),
+            confirmedAt: now,
+            updatedAt: now,
           })
           .where(and(eq(bookingAllocations.bookingId, id), eq(bookingAllocations.status, "held")))
 
@@ -3066,8 +3115,9 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            acceptedAt: booking.accepted_at ?? now,
             holdExpiresAt: null,
-            updatedAt: new Date(),
+            updatedAt: now,
           })
           .where(eq(bookings.id, id))
           .returning()
@@ -3119,6 +3169,9 @@ const bookingsServiceInternal = {
 
       return result
     } catch (error) {
+      if (error instanceof BookingMonthlyLimitReachedError) {
+        return monthlyBookingLimitResult(error)
+      }
       if (error instanceof BookingServiceError) {
         return { status: error.code as Exclude<string, "ok"> }
       }
@@ -3137,7 +3190,7 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, booking_number, status
+          sql`SELECT id, booking_number, status, accepted_at
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
@@ -3146,6 +3199,7 @@ const bookingsServiceInternal = {
           id: string
           booking_number: string
           status: BookingStatus
+          accepted_at: Date | null
         }>(rows)[0]
 
         if (!booking) {
@@ -3154,6 +3208,12 @@ const bookingsServiceInternal = {
         if (booking.status !== "awaiting_payment" && booking.status !== "expired") {
           throw new BookingServiceError("invalid_transition")
         }
+
+        await assertMonthlyBookingLimitAvailable(
+          tx as PostgresJsDatabase,
+          runtime.monthlyBookingLimit,
+          { excludeBookingId: id },
+        )
 
         const allocations = await tx
           .select()
@@ -3219,6 +3279,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             status: "confirmed",
+            acceptedAt: booking.accepted_at ?? now,
             confirmedAt: now,
             paidAt: now,
             expiredAt: null,
@@ -3273,6 +3334,9 @@ const bookingsServiceInternal = {
 
       return result
     } catch (error) {
+      if (error instanceof BookingMonthlyLimitReachedError) {
+        return monthlyBookingLimitResult(error)
+      }
       if (error instanceof BookingServiceError) {
         return { status: error.code as Exclude<string, "ok"> }
       }
@@ -3877,7 +3941,7 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, booking_number, status
+          sql`SELECT id, booking_number, status, accepted_at
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
@@ -3886,10 +3950,19 @@ const bookingsServiceInternal = {
           id: string
           booking_number: string
           status: BookingStatus
+          accepted_at: Date | null
         }>(rows)[0]
 
         if (!booking) {
           throw new BookingServiceError("not_found")
+        }
+
+        if (booking.accepted_at === null && isAcceptedBookingStatus(data.status)) {
+          await assertMonthlyBookingLimitAvailable(
+            tx as PostgresJsDatabase,
+            runtime.monthlyBookingLimit,
+            { excludeBookingId: id },
+          )
         }
 
         const now = new Date()
@@ -3897,6 +3970,8 @@ const bookingsServiceInternal = {
         const terminalAllocationStatus = terminalBookingAllocationStatusForOverride(data.status)
         const updates: Record<string, unknown> = {
           status: data.status,
+          acceptedAt:
+            booking.accepted_at ?? (isAcceptedBookingStatus(data.status) ? now : undefined),
           confirmedAt: confirmedAtForStatus(data.status, null, now),
           updatedAt: now,
         }
@@ -4054,6 +4129,9 @@ const bookingsServiceInternal = {
 
       return { status: result.status, booking: result.booking }
     } catch (error) {
+      if (error instanceof BookingMonthlyLimitReachedError) {
+        return monthlyBookingLimitResult(error)
+      }
       if (error instanceof BookingServiceError) {
         return { status: error.code as Exclude<string, "ok"> }
       }
@@ -5454,7 +5532,7 @@ export async function settleBookingCreateDomain(
   commandIdempotencyKey: string,
   data: ConvertProductInput,
   userId?: string,
-  options: { availabilityHoldToken?: string } = {},
+  options: { availabilityHoldToken?: string; monthlyBookingLimit?: number | null } = {},
 ) {
   consumeCreatedTargetMutationLease(lease, tx, {
     actionName: "@voyant-travel/finance#bookings-create-extension.action.create-booking",

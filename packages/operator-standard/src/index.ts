@@ -299,6 +299,10 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
       owners: ["@voyant-travel/quotes", "@voyant-travel/notifications"],
     },
     {
+      resolve: "@voyant-travel/realtime/quotes-invalidation-extension",
+      owners: ["@voyant-travel/realtime", "@voyant-travel/quotes"],
+    },
+    {
       resolve: "@voyant-travel/catalog/offers-extension",
       owners: ["@voyant-travel/catalog"],
     },

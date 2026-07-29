@@ -26,6 +26,7 @@ import {
   bookingItems,
   bookingItemTravelers,
   bookingPiiAccessLog,
+  bookings,
   bookingTravelers,
 } from "../../src/schema.js"
 import { bookingsService } from "../../src/service.js"
@@ -812,6 +813,12 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       const body = await res.json()
       expect(body.data.status).toBe("draft")
       expect(body.data.confirmedAt).toBeNull()
+
+      const [stored] = await db
+        .select({ acceptedAt: bookings.acceptedAt })
+        .from(bookings)
+        .where(eq(bookings.id, booking.id))
+      expect(stored?.acceptedAt).toBeNull()
     })
 
     it("clears confirmedAt when a generic update moves a booking out of confirmed", async () => {
@@ -827,6 +834,38 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       const body = await res.json()
       expect(body.data.status).toBe("draft")
       expect(body.data.confirmedAt).toBeNull()
+    })
+
+    it("records first acceptance with server time and never clears it", async () => {
+      const booking = await seedBooking({ status: "draft" })
+      const beforeAcceptance = Date.now()
+
+      const accepted = await app.request(`/${booking.id}`, {
+        method: "PATCH",
+        ...json({ status: "confirmed", confirmedAt: "2020-01-01T00:00:00.000Z" }),
+      })
+
+      expect(accepted.status).toBe(200)
+      const [firstStored] = await db
+        .select({ acceptedAt: bookings.acceptedAt, confirmedAt: bookings.confirmedAt })
+        .from(bookings)
+        .where(eq(bookings.id, booking.id))
+      expect(firstStored?.confirmedAt?.toISOString()).toBe("2020-01-01T00:00:00.000Z")
+      expect(firstStored?.acceptedAt?.getTime()).toBeGreaterThanOrEqual(beforeAcceptance)
+
+      const firstAcceptedAt = firstStored?.acceptedAt?.toISOString()
+      const movedOn = await app.request(`/${booking.id}/start`, {
+        method: "POST",
+        ...json({}),
+      })
+      expect(movedOn.status).toBe(200)
+
+      const [afterTransition] = await db
+        .select({ acceptedAt: bookings.acceptedAt, confirmedAt: bookings.confirmedAt })
+        .from(bookings)
+        .where(eq(bookings.id, booking.id))
+      expect(afterTransition?.acceptedAt?.toISOString()).toBe(firstAcceptedAt)
+      expect(afterTransition?.confirmedAt).toBeNull()
     })
   })
 

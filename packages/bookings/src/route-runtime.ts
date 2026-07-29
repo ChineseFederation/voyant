@@ -2,6 +2,7 @@ import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fie
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils/kms"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { resolveMonthlyBookingLimit } from "./booking-plan-limit.js"
 import type { BookingTravelerSnapshot } from "./pii.js"
 import type { KmsBindings } from "./routes-shared.js"
 import type { BookingStatus } from "./state-machine.js"
@@ -127,6 +128,7 @@ export type BookingOverviewItemEnricher = (
 
 export interface BookingRouteRuntime {
   getKmsProvider(): Promise<KmsProvider>
+  monthlyBookingLimit?: number | null
   resolveTravelSnapshot?: ResolveBookingTravelSnapshot
   resolveBillingPerson?: ResolveBookingBillingPerson
   resolveTravelerPerson?: ResolveBookingTravelerPerson
@@ -185,6 +187,7 @@ export function buildBookingRouteRuntime(
   const runtimeEnv = buildRuntimeEnv(bindings)
 
   return {
+    monthlyBookingLimit: resolveMonthlyBookingLimit(runtimeEnv),
     async getKmsProvider() {
       if (options.resolveKmsProvider) {
         return options.resolveKmsProvider(runtimeEnv)
