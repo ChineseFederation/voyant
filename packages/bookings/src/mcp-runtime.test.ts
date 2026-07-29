@@ -75,7 +75,94 @@ describe("bookings MCP runtime lifecycle detail", () => {
       },
     })
   })
+
+  it.each([
+    ["confirmBooking", "confirmBooking"],
+    ["cancelBooking", "cancelBooking"],
+  ] as const)("links an approved %s lifecycle mutation to the claim action", async (method, serviceMethod) => {
+    const detail = bookingDetailWithDates("booking_1")
+    const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
+    vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
+    const statusMutation = vi
+      .spyOn(bookingsService, serviceMethod)
+      .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
+    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
+      await handlers.prepare(
+        input.db,
+        { causation: { claimActionId: "action_claim_1" } },
+        input.commandInput,
+      )
+      return { replayed: false, value: detail.booking }
+    })
+
+    const contribution = await voyantToolContextContribution.contribute({
+      request: request(),
+      context: toolContext(db),
+      resources: {},
+    })
+    const runtime = contribution.bookings as Record<
+      typeof method,
+      (
+        input: { id: string; idempotencyKey: string },
+        admitted: ToolHandlerActionPolicyContext,
+      ) => Promise<unknown>
+    >
+
+    await runtime[method]({ id: "booking_1", idempotencyKey: `${method}-claim` }, {
+      capabilityId: `booking.status.${method === "confirmBooking" ? "confirm" : "cancel"}`,
+      invocation: {},
+    } as ToolHandlerActionPolicyContext)
+
+    expect(statusMutation).toHaveBeenCalledOnce()
+    expect(statusMutation.mock.calls[0]?.[4]).toMatchObject({
+      actionLedgerCausationActionId: "action_claim_1",
+    })
+  })
+
+  it("does not issue a failing Finance query while preparing a bookings-only cancellation", async () => {
+    const detail = bookingDetailWithDates("booking_1")
+    const execute = vi.fn().mockResolvedValue(financeTablesUnavailable())
+    const db = { execute }
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
+    vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
+    const cancelBooking = vi
+      .spyOn(bookingsService, "cancelBooking")
+      .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
+    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
+      await handlers.prepare(
+        input.db,
+        { causation: { claimActionId: "action_claim_cancel" } },
+        input.commandInput,
+      )
+      return { replayed: false, value: detail.booking }
+    })
+
+    const contribution = await voyantToolContextContribution.contribute({
+      request: request(),
+      context: toolContext(db),
+      resources: {},
+    })
+    const runtime = contribution.bookings as {
+      cancelBooking: (
+        input: { id: string; idempotencyKey: string },
+        admitted: ToolHandlerActionPolicyContext,
+      ) => Promise<unknown>
+    }
+
+    await runtime.cancelBooking({ id: "booking_1", idempotencyKey: "cancel-bookings-only" }, {
+      capabilityId: "booking.status.cancel",
+      invocation: {},
+    } as ToolHandlerActionPolicyContext)
+
+    expect(execute).toHaveBeenCalledTimes(2)
+    expect(cancelBooking).toHaveBeenCalledOnce()
+  })
 })
+
+function financeTablesUnavailable() {
+  return { rows: [{ invoicesTable: null, paymentSchedulesTable: null }] }
+}
 
 function bookingDetailWithDates(id: string) {
   const booking = {

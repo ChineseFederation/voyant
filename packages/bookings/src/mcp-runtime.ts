@@ -176,7 +176,7 @@ async function executeBookingStatusToolCommand(input: {
       approvalErrorMetadata: { consequencePreview: preview },
     },
     {
-      async prepare(tx) {
+      async prepare(tx, command) {
         const currentPreview = await loadBookingStatusConsequencePreview(
           tx as Parameters<typeof bookingsService.getBookingById>[0],
           input.input.id,
@@ -196,6 +196,7 @@ async function executeBookingStatusToolCommand(input: {
           input.action,
           input.admitted,
           bufferingEventBus,
+          command.causation.claimActionId,
         )
         const statusResult =
           input.action === "confirm"
@@ -253,6 +254,7 @@ function bookingStatusToolLifecycleRuntime(
   action: BookingStatusToolAction,
   admitted: ToolHandlerActionPolicyContext,
   eventBus: EventBus,
+  causationActionId: string,
 ) {
   const idempotencyKey = admitted.invocation.idempotencyKey?.trim() ?? null
   const routeOrToolName = admitted.capabilityId
@@ -260,6 +262,7 @@ function bookingStatusToolLifecycleRuntime(
     eventBus,
     actionLedgerAuthorizationSource: "selected_graph_mcp_handler_existing_target",
     actionLedgerRouteOrToolName: routeOrToolName,
+    actionLedgerCausationActionId: causationActionId,
     actionLedgerApprovalId: admitted.invocation.approvalId ?? null,
     actionLedgerIdempotencyScope: idempotencyKey
       ? `bookings.status.tool:${routeOrToolName}:${action}`
@@ -375,74 +378,83 @@ async function loadCancellationFinancialConsequences(
   bookingId: string,
   settlementHookAvailable: boolean,
 ) {
-  try {
-    const paidInvoices = rowsFromExecute<{
-      id: string
-      invoiceNumber: string
-      currency: string
-      paidCents: number
-      status: string
-    }>(
-      await db.execute(sql`
-        SELECT
-          id,
-          invoice_number AS "invoiceNumber",
-          currency,
-          paid_cents AS "paidCents",
-          status
-        FROM invoices
-        WHERE booking_id = ${bookingId}
-          AND paid_cents > 0
-          AND status <> 'void'
-        ORDER BY created_at ASC, id ASC
-      `),
-    )
-    const schedulesToClose = rowsFromExecute<{
-      currency: string
-      amountCents: number
-      status: string
-    }>(
-      await db.execute(sql`
-        SELECT
-          currency,
-          amount_cents AS "amountCents",
-          status
-        FROM booking_payment_schedules
-        WHERE booking_id = ${bookingId}
-          AND status IN ('pending', 'due')
-        ORDER BY created_at ASC, id ASC
-      `),
-    )
-    const paidByCurrency = paidInvoices.reduce<Record<string, number>>((totals, invoice) => {
-      totals[invoice.currency] = (totals[invoice.currency] ?? 0) + invoice.paidCents
-      return totals
-    }, {})
+  const [financeTables] = rowsFromExecute<{
+    invoicesTable: string | null
+    paymentSchedulesTable: string | null
+  }>(
+    await db.execute(sql`
+      SELECT
+        to_regclass('invoices')::text AS "invoicesTable",
+        to_regclass('booking_payment_schedules')::text AS "paymentSchedulesTable"
+    `),
+  )
+  if (!financeTables?.invoicesTable && !financeTables?.paymentSchedulesTable) {
     return {
-      actionRequired: paidInvoices.length > 0,
-      consequence:
-        paidInvoices.length > 0
-          ? "Paid invoices remain paid; an operator must record a refund, credit note, or explicit no-refund decision."
-          : "No paid invoice settlement action is currently required.",
+      actionRequired: false,
+      consequence: "Finance invoice data is not installed for this deployment.",
       settlementRecorderAvailable: settlementHookAvailable,
-      requiredDecisionOptions:
-        paidInvoices.length > 0 ? ["refund", "credit_note", "no_refund"] : [],
-      paidInvoices,
-      paidByCurrency,
-      schedulesToClose,
+      requiredDecisionOptions: [],
+      paidInvoices: [],
+      paidByCurrency: {},
+      schedulesToClose: [],
     }
-  } catch (error) {
-    if (isUndefinedTableError(error)) {
-      return {
-        actionRequired: false,
-        consequence: "Finance invoice data is not installed for this deployment.",
-        settlementRecorderAvailable: settlementHookAvailable,
-        requiredDecisionOptions: [],
-        paidInvoices: [],
-        paidByCurrency: {},
-        schedulesToClose: [],
-      }
-    }
-    throw error
+  }
+  const paidInvoices = financeTables.invoicesTable
+    ? rowsFromExecute<{
+        id: string
+        invoiceNumber: string
+        currency: string
+        paidCents: number
+        status: string
+      }>(
+        await db.execute(sql`
+          SELECT
+            id,
+            invoice_number AS "invoiceNumber",
+            currency,
+            paid_cents AS "paidCents",
+            status
+          FROM invoices
+          WHERE booking_id = ${bookingId}
+            AND paid_cents > 0
+            AND status <> 'void'
+          ORDER BY created_at ASC, id ASC
+        `),
+      )
+    : []
+  const schedulesToClose = financeTables.paymentSchedulesTable
+    ? rowsFromExecute<{
+        currency: string
+        amountCents: number
+        status: string
+      }>(
+        await db.execute(sql`
+          SELECT
+            currency,
+            amount_cents AS "amountCents",
+            status
+          FROM booking_payment_schedules
+          WHERE booking_id = ${bookingId}
+            AND status IN ('pending', 'due')
+          ORDER BY created_at ASC, id ASC
+        `),
+      )
+    : []
+  const paidByCurrency = paidInvoices.reduce<Record<string, number>>((totals, invoice) => {
+    totals[invoice.currency] = (totals[invoice.currency] ?? 0) + invoice.paidCents
+    return totals
+  }, {})
+  return {
+    actionRequired: paidInvoices.length > 0,
+    consequence:
+      paidInvoices.length > 0
+        ? "Paid invoices remain paid; an operator must record a refund, credit note, or explicit no-refund decision."
+        : "No paid invoice settlement action is currently required.",
+    settlementRecorderAvailable: settlementHookAvailable,
+    requiredDecisionOptions: paidInvoices.length > 0 ? ["refund", "credit_note", "no_refund"] : [],
+    paidInvoices,
+    paidByCurrency,
+    schedulesToClose,
   }
 }
 
@@ -452,15 +464,6 @@ function rowsFromExecute<T>(result: unknown): T[] {
     return (result as { rows: T[] }).rows
   }
   return []
-}
-
-function isUndefinedTableError(error: unknown) {
-  return (
-    error != null &&
-    typeof error === "object" &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "42P01"
-  )
 }
 
 function bookingStatusConsequenceSummary(
