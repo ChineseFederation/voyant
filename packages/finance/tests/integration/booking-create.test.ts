@@ -1469,12 +1469,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           clientLineKey: "extra:lunch",
           productExtraId: "lunch",
           name: "Lunch",
-          pricingMode: "per_person",
-          pricedPerPerson: true,
-          quantity: 2,
+          quantity: 1,
           sellCurrency: "EUR",
-          unitSellAmountCents: 1000,
-          totalSellAmountCents: 2000,
           travelerKeys: ["trav:lead", "trav:child"],
         },
       ],
@@ -1482,6 +1478,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(52_000)
 
     // Two travelers × (1 item + 1 extra) = 4 link rows when the
     // server stamps `metadata.bookingCreateLineKey` on each item and
@@ -1763,13 +1760,17 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .orderBy(asc(eventOutboxTable.createdAt)),
     ).toEqual([
       {
-        eventId: `evt_booking_confirmed_${outcome.result.booking.id}`,
+        eventId: expect.stringMatching(
+          new RegExp(`^evt_booking_confirmed_${outcome.result.booking.id}_[0-9a-f]+$`),
+        ),
         name: "booking.confirmed",
         payload: expect.objectContaining({ suppressNotifications: true }),
         status: "pending",
       },
       {
-        eventId: `evt_booking_cancelled_${outcome.result.booking.id}`,
+        eventId: expect.stringMatching(
+          new RegExp(`^evt_booking_cancelled_${outcome.result.booking.id}_[0-9a-f]+$`),
+        ),
         name: "booking.cancelled",
         payload: expect.objectContaining({ suppressNotifications: true }),
         status: "pending",
@@ -2286,6 +2287,11 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
   it("matches canonical lowercase persisted schedule weekdays only on the intended date", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await db.execute(sql`
+      UPDATE products
+      SET status = 'active', activated = true, visibility = 'public'
+      WHERE id = ${productId}
+    `)
     const wednesdaySlot = await seedSlot({ productId, optionId, dateLocal: "2026-07-01" })
     const thursdaySlot = await seedSlot({ productId, optionId, dateLocal: "2026-07-02" })
     const { catalogId } = await seedPersistedPricing({
@@ -2323,6 +2329,14 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       )
     `)
 
+    const publicWednesday = await publicPricingService.getProductPricingSnapshot(db, productId, {
+      optionId,
+      departureId: wednesdaySlot.id,
+    })
+    const publicThursday = await publicPricingService.getProductPricingSnapshot(db, productId, {
+      optionId,
+      departureId: thursdaySlot.id,
+    })
     const matching = await createBooking(db, {
       productId,
       optionId,
@@ -2344,6 +2358,10 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(matching.status).toBe("ok")
     expect(nonmatching.status).toBe("ok")
     if (matching.status !== "ok" || nonmatching.status !== "ok") return
+    expect(publicWednesday?.options[0]?.pricingRules[0]?.unitPrices[0]?.sellAmountCents).toBe(
+      15_000,
+    )
+    expect(publicThursday?.options[0]?.pricingRules[0]?.unitPrices[0]?.sellAmountCents).toBe(10_000)
     expect(matching.result.booking.sellAmountCents).toBe(15_000)
     expect(nonmatching.result.booking.sellAmountCents).toBe(10_000)
   })

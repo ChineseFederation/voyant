@@ -403,11 +403,13 @@ export function bookingLifecycleOutboxEventId(
   if (!commandIdentity) {
     throw new Error(`Missing booking lifecycle command identity for ${transition} transition`)
   }
-  return `evt_booking_${transition}_${bookingId}_${slugifyEventIdPart(commandIdentity)}`
+  return `evt_booking_${transition}_${bookingId}_${encodeEventIdPart(commandIdentity)}`
 }
 
-function slugifyEventIdPart(value: string) {
-  return value.replace(/[^A-Za-z0-9_:-]+/g, "_")
+function encodeEventIdPart(value: string) {
+  return [...new TextEncoder().encode(value)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
 }
 
 type BookingStatusActionName =

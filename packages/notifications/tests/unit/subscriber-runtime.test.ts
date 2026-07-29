@@ -17,7 +17,7 @@ const db = {
   update: vi.fn(() => ({
     set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
   })),
-} as unknown as PostgresJsDatabase
+} as PostgresJsDatabase
 const dispatcher = {} as NotificationService
 const attachmentResolver = vi.fn()
 
@@ -177,8 +177,12 @@ describe("Notifications subscriber runtime descriptors", () => {
 
   it("dispatches cancellation rules only for a booking leaving on_hold", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(false)
     const harness = createHarness()
-    createBookingCancelledReminderSubscriberRuntime({ dispatchReminderRules }).register(harness)
+    createBookingCancelledReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
 
     await harness.eventBus.emit("booking.cancelled", {
       bookingId: "book_1",
@@ -220,6 +224,27 @@ describe("Notifications subscriber runtime descriptors", () => {
 
     expect(dispatchReminderRules).not.toHaveBeenCalled()
     expect(db.update).toHaveBeenCalled()
+  })
+
+  it("clears queued reminders but does not dispatch a persistently suppressed legacy cancellation", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(true)
+    const harness = createHarness()
+    createBookingCancelledReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
+
+    await harness.eventBus.emit("booking.cancelled", {
+      bookingId: "book_silent",
+      bookingNumber: "BK-SILENT",
+      previousStatus: "on_hold",
+      actorId: null,
+    })
+
+    expect(db.update).toHaveBeenCalled()
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
   })
 
   it("maps booking expiry to non-payment cancellation rules", async () => {

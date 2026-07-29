@@ -38,7 +38,28 @@ export interface ResolverScheduleInput {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-const WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const
+const WEEKDAY_TOKENS = [
+  ["SU", "sunday", "sun", "0", "7"],
+  ["MO", "monday", "mon", "1"],
+  ["TU", "tuesday", "tue", "2"],
+  ["WE", "wednesday", "wed", "3"],
+  ["TH", "thursday", "thu", "4"],
+  ["FR", "friday", "fri", "5"],
+  ["SA", "saturday", "sat", "6"],
+] as const
+
+const WEEKDAY_CODES = WEEKDAY_TOKENS.map(([code]) => code)
+
+export function normalizeScheduleWeekdayToken(token: string): string | null {
+  const normalized = token.trim().toLowerCase()
+  if (!normalized) return null
+  for (const [code, ...aliases] of WEEKDAY_TOKENS) {
+    if (code.toLowerCase() === normalized || aliases.some((alias) => alias === normalized)) {
+      return code
+    }
+  }
+  return null
+}
 
 function weekdayCode(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00Z`)
@@ -79,7 +100,12 @@ function scheduleMatchesDate(s: ResolverScheduleInput, isoDate: string): boolean
   if (!dateInWindow(isoDate, s.validFrom, s.validTo)) return false
 
   if (s.weekdays && s.weekdays.length > 0) {
-    if (!s.weekdays.includes(weekdayCode(isoDate))) return false
+    const weekdays = new Set(
+      s.weekdays
+        .map((entry) => normalizeScheduleWeekdayToken(entry))
+        .filter((entry): entry is string => entry !== null),
+    )
+    if (!weekdays.has(weekdayCode(isoDate))) return false
   }
 
   const anchor = s.validFrom ?? "2000-01-01"

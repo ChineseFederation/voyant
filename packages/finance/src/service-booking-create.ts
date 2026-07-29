@@ -1364,7 +1364,11 @@ async function reconcileBookingCreatePricing(
         ],
       }
     }
-    const chargeQuantity = pricingMode === "per_booking" ? 1 : Math.max(1, item.quantity)
+    const quantity =
+      pricingMode === "per_person" || extra.pricedPerPerson
+        ? resolveAssignedExtraQuantity(input, item)
+        : Math.max(1, item.quantity)
+    const chargeQuantity = pricingMode === "per_booking" ? 1 : quantity
     const unitAmount = extra.sellAmountCents ?? 0
     if (
       extra.sellAmountCents == null &&
@@ -1383,7 +1387,18 @@ async function reconcileBookingCreatePricing(
     const total = ["included", "free", "on_request"].includes(pricingMode)
       ? 0
       : unitAmount * chargeQuantity
-    pricedLines.set(item.id, { unit: unitAmount, total })
+    const persistedUnitAmount = Math.floor(total / quantity)
+    pricedLines.set(item.id, { unit: persistedUnitAmount, total })
+    if (quantity !== item.quantity) {
+      await tx
+        .update(bookingItems)
+        .set({
+          quantity,
+          unitSellAmountCents: persistedUnitAmount,
+          totalSellAmountCents: total,
+        })
+        .where(eq(bookingItems.id, item.id))
+    }
     extrasCatalogTotal += total
   }
 
@@ -1524,15 +1539,28 @@ const { rrulestr } =
     ? rrulePackageCompat
     : (rrulePackageCompat.default ?? rrulePackageCompat.rrule ?? rrulePackageCompat)
 
-const PRICE_WEEKDAY_NAMES = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
+const PRICE_WEEKDAY_TOKENS = [
+  ["SU", "sunday", "sun", "0", "7"],
+  ["MO", "monday", "mon", "1"],
+  ["TU", "tuesday", "tue", "2"],
+  ["WE", "wednesday", "wed", "3"],
+  ["TH", "thursday", "thu", "4"],
+  ["FR", "friday", "fri", "5"],
+  ["SA", "saturday", "sat", "6"],
 ] as const
+
+const PRICE_WEEKDAY_CODES = PRICE_WEEKDAY_TOKENS.map(([code]) => code)
+
+function normalizePriceScheduleWeekdayToken(token: string): string | null {
+  const normalized = token.trim().toLowerCase()
+  if (!normalized) return null
+  for (const [code, ...aliases] of PRICE_WEEKDAY_TOKENS) {
+    if (code.toLowerCase() === normalized || aliases.some((alias) => alias === normalized)) {
+      return code
+    }
+  }
+  return null
+}
 
 function persistedScheduleMatchesDate(rule: PersistedPriceRuleCandidate, isoDate: string) {
   if (!rule.priceScheduleId || rule.scheduleActive !== true || rule.recurrenceRule == null) {
@@ -1541,9 +1569,14 @@ function persistedScheduleMatchesDate(rule: PersistedPriceRuleCandidate, isoDate
   if (rule.validFrom && isoDate < rule.validFrom) return false
   if (rule.validTo && isoDate > rule.validTo) return false
   const date = new Date(`${isoDate}T00:00:00Z`)
-  const weekday = PRICE_WEEKDAY_NAMES[date.getUTCDay()] ?? "monday"
-  if (rule.weekdays?.length && !rule.weekdays.map((day) => day.toLowerCase()).includes(weekday)) {
-    return false
+  const weekday = PRICE_WEEKDAY_CODES[date.getUTCDay()] ?? "MO"
+  if (rule.weekdays?.length) {
+    const weekdays = new Set(
+      rule.weekdays
+        .map((day) => normalizePriceScheduleWeekdayToken(day))
+        .filter((day): day is string => day !== null),
+    )
+    if (!weekdays.has(weekday)) return false
   }
 
   const recurrence = rule.recurrenceRule.trim()
@@ -1758,6 +1791,25 @@ function persistedFlatUnitChargeQuantity(pricingMode: string | null | undefined,
   if (pricingMode === "per_person") return quantity
   if (pricingMode === "per_booking") return 1
   return quantity
+}
+
+function resolveAssignedExtraQuantity(
+  input: BookingCreateInput,
+  item: { quantity: number; metadata: unknown },
+) {
+  const metadata = (item.metadata ?? {}) as Record<string, unknown>
+  const lineKey =
+    typeof metadata.bookingCreateLineKey === "string" ? metadata.bookingCreateLineKey : null
+  const productExtraId =
+    typeof metadata.productExtraId === "string" ? metadata.productExtraId : null
+  const matchingLines = (input.extraLines ?? []).filter((line) =>
+    lineKey
+      ? line.clientLineKey === lineKey
+      : productExtraId !== null && line.productExtraId === productExtraId,
+  )
+  const line = matchingLines.length === 1 ? matchingLines[0] : undefined
+  const assignedQuantity = uniqueTravelerKeys(line?.travelerKeys).length
+  return assignedQuantity > 0 ? assignedQuantity : Math.max(1, item.quantity)
 }
 
 export function resolvePersistedFlatUnitPriceForBookingCreate(input: {

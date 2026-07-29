@@ -160,6 +160,8 @@ export function createBookingCancelledReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -172,6 +174,7 @@ export function createBookingCancelledReminderSubscriberRuntime(
           const db = runtime.resolveDb(bindings)
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "cancelled")
           if (data.suppressNotifications === true) return
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           if (data.previousStatus !== "on_hold") return
           await dispatchReminderRules(
             db,
