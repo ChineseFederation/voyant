@@ -1,5 +1,14 @@
 # @voyant-travel/mcp
 
+## 0.8.2
+
+### Patch Changes
+
+- 6df3ab4: Expose a review-first booking contract workflow to operator tools, including applicable-template prerequisites, immutable draft revisions, exact approved delivery, durable delivery status, audited void handling, authenticated MCP scope propagation, and shared tool context typing.
+- Updated dependencies [6df3ab4]
+  - @voyant-travel/tools@0.7.2
+  - @voyant-travel/framework@0.64.24
+
 ## 0.8.1
 
 ### Patch Changes
