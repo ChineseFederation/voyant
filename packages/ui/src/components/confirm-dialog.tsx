@@ -2,6 +2,7 @@
 
 import type * as React from "react"
 import { useEffect, useState } from "react"
+import { getImperativeDialogChannel } from "../internal/imperative-dialog-channel.js"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./alert-dialog.js"
-import { getImperativeDialogChannel } from "./imperative-dialog-channel.js"
 
 export interface ConfirmDialogOptions {
   title?: React.ReactNode

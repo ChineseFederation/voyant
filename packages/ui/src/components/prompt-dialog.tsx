@@ -2,9 +2,9 @@
 
 import type * as React from "react"
 import { useEffect, useState } from "react"
+import { getImperativeDialogChannel } from "../internal/imperative-dialog-channel.js"
 import { Button } from "./button.js"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./dialog.js"
-import { getImperativeDialogChannel } from "./imperative-dialog-channel.js"
 import { Input } from "./input.js"
 import { Label } from "./label.js"
 
