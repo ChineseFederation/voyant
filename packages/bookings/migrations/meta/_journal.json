@@ -26,15 +26,15 @@
     {
       "idx": 3,
       "version": "7",
-      "when": 1785276000000,
-      "tag": "20260728220000_persist_notification_suppression",
+      "when": 1785326400000,
+      "tag": "20260729120000_booking_first_acceptance",
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "7",
-      "when": 1785326400000,
-      "tag": "20260729120000_booking_first_acceptance",
+      "when": 1785326460000,
+      "tag": "20260729120100_persist_notification_suppression",
       "breakpoints": true
     }
   ]
