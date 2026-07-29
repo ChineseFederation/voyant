@@ -432,6 +432,21 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     "/auth/session",
     "/auth/sign-out",
     "/auth/token",
+    // MCP connector OAuth. Managed deployments broker staff sessions through
+    // Voyant Cloud, but the authorization server issuing connector grants is
+    // local to the deployment — discovery advertises it in every mode, so these
+    // must stay reachable or a managed operator gets a 404 the moment they try
+    // to connect an assistant.
+    "/auth/.well-known/oauth-authorization-server",
+    "/auth/oauth2/authorize",
+    "/auth/oauth2/consent",
+    "/auth/oauth2/delete-consent",
+    "/auth/oauth2/get-client",
+    "/auth/oauth2/get-consents",
+    "/auth/oauth2/public-client",
+    "/auth/oauth2/register",
+    "/auth/oauth2/revoke",
+    "/auth/oauth2/token",
   ])
 
   function resolveOperatorAuthMode(_env: Env): OperatorAuthMode {
