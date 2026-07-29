@@ -29,4 +29,29 @@ describe("booking lifecycle outbox event ids", () => {
     expect(first).toBe("evt_booking_cancelled_booking_1_bookings_cancel_booking_1")
     expect(retry).toBe(first)
   })
+
+  it("uses persisted lifecycle timestamps when callers have no request metadata", () => {
+    const first = bookingLifecycleOutboxEventId(
+      "confirmed",
+      "booking_1",
+      {},
+      "2026-07-01T10:00:00.000Z",
+    )
+    const later = bookingLifecycleOutboxEventId(
+      "confirmed",
+      "booking_1",
+      {},
+      "2026-07-01T10:01:00.000Z",
+    )
+
+    expect(first).toBe("evt_booking_confirmed_booking_1_confirmed_2026-07-01T10:00:00_000Z")
+    expect(later).toBe("evt_booking_confirmed_booking_1_confirmed_2026-07-01T10:01:00_000Z")
+    expect(later).not.toBe(first)
+  })
+
+  it("rejects missing lifecycle command identity instead of falling back to booking-only ids", () => {
+    expect(() => bookingLifecycleOutboxEventId("confirmed", "booking_1")).toThrow(
+      /Missing booking lifecycle command identity/,
+    )
+  })
 })

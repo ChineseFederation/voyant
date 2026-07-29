@@ -391,15 +391,19 @@ export function bookingLifecycleOutboxEventId(
     BookingServiceRuntime,
     "actionLedgerCausationActionId" | "actionLedgerIdempotencyScope" | "actionLedgerIdempotencyKey"
   > = {},
+  persistedTransitionAt?: Date | string | null,
 ) {
   const commandIdentity =
     runtime.actionLedgerCausationActionId ??
     (runtime.actionLedgerIdempotencyKey
       ? `${runtime.actionLedgerIdempotencyScope ?? "booking"}_${runtime.actionLedgerIdempotencyKey}`
-      : null)
-  return commandIdentity
-    ? `evt_booking_${transition}_${bookingId}_${slugifyEventIdPart(commandIdentity)}`
-    : `evt_booking_${transition}_${bookingId}`
+      : persistedTransitionAt
+        ? `${transition}_${new Date(persistedTransitionAt).toISOString()}`
+        : null)
+  if (!commandIdentity) {
+    throw new Error(`Missing booking lifecycle command identity for ${transition} transition`)
+  }
+  return `evt_booking_${transition}_${bookingId}_${slugifyEventIdPart(commandIdentity)}`
 }
 
 function slugifyEventIdPart(value: string) {
@@ -3172,7 +3176,12 @@ const bookingsServiceInternal = {
               metadata: {
                 category: "domain",
                 source: "service",
-                eventId: bookingLifecycleOutboxEventId("confirmed", row.id, runtime),
+                eventId: bookingLifecycleOutboxEventId(
+                  "confirmed",
+                  row.id,
+                  runtime,
+                  row.confirmedAt,
+                ),
               },
             },
           ])
@@ -3733,7 +3742,12 @@ const bookingsServiceInternal = {
               metadata: {
                 category: "domain",
                 source: "service",
-                eventId: bookingLifecycleOutboxEventId("cancelled", row.id, runtime),
+                eventId: bookingLifecycleOutboxEventId(
+                  "cancelled",
+                  row.id,
+                  runtime,
+                  row.cancelledAt,
+                ),
               },
             },
           ])

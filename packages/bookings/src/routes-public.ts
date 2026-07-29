@@ -480,6 +480,11 @@ export const publicBookingRoutes = publicBookingApp
       c.req.valid("param").sessionId,
       c.req.valid("json"),
       c.get("userId"),
+      {
+        eventBus: c.get("eventBus"),
+        actionLedgerIdempotencyScope: "bookings.public.session.confirm",
+        actionLedgerIdempotencyKey: c.get("idempotencyKey") ?? null,
+      },
     )
 
     if (result.status === "not_found") {

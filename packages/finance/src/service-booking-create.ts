@@ -1213,9 +1213,11 @@ async function reconcileBookingCreatePricing(
       const bandAllocation = bookingCreateTravelerBandCountsForItem(input, item, booking.pax)
       let categoryTotal = 0
       let matchedCategoryPrice = false
+      const matchedBands = new Set<string>()
       for (const rule of categoryRules) {
         const band = rule.travelerCategory
         if (!band) continue
+        if (matchedBands.has(band)) continue
         if (!bandAllocation.scopedToItem && chargedUnassignedTravelerBands.has(band)) continue
         const bandQuantity = bandAllocation.counts.get(band) ?? 0
         if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
@@ -1232,6 +1234,7 @@ async function reconcileBookingCreatePricing(
           selectPersistedUnitAmount(rule, persistedPricing?.tiers ?? [], bandQuantity)
         if (amount == null && chargeQuantity > 0) continue
         matchedCategoryPrice = true
+        matchedBands.add(band)
         categoryTotal += (amount ?? 0) * chargeQuantity
         if (!bandAllocation.scopedToItem) chargedUnassignedTravelerBands.add(band)
       }

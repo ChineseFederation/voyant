@@ -192,6 +192,11 @@ async function executeBookingStatusToolCommand(input: {
           )
         }
         const userId = input.c.get("userId") ?? input.c.get("agentId") ?? "agent"
+        const lifecycleRuntime = bookingStatusToolLifecycleRuntime(
+          input.action,
+          input.admitted,
+          bufferingEventBus,
+        )
         const statusResult =
           input.action === "confirm"
             ? await bookingsService.confirmBooking(
@@ -202,7 +207,7 @@ async function executeBookingStatusToolCommand(input: {
                   suppressNotifications: input.input.suppressNotifications,
                 },
                 userId,
-                { eventBus: bufferingEventBus },
+                lifecycleRuntime,
               )
             : await bookingsService.cancelBooking(
                 tx as Parameters<typeof bookingsService.cancelBooking>[0],
@@ -213,7 +218,7 @@ async function executeBookingStatusToolCommand(input: {
                 },
                 userId,
                 {
-                  eventBus: bufferingEventBus,
+                  ...lifecycleRuntime,
                   closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
                   recordCancellationFinancialSettlement:
                     routeRuntime.recordCancellationFinancialSettlement,
@@ -241,6 +246,26 @@ async function executeBookingStatusToolCommand(input: {
     status: input.action === "confirm" ? ("confirmed" as const) : ("cancelled" as const),
     booking: result.value,
     replayed: result.replayed,
+  }
+}
+
+function bookingStatusToolLifecycleRuntime(
+  action: BookingStatusToolAction,
+  admitted: ToolHandlerActionPolicyContext,
+  eventBus: EventBus,
+) {
+  const idempotencyKey = admitted.invocation.idempotencyKey?.trim() ?? null
+  const routeOrToolName = admitted.capabilityId
+  return {
+    eventBus,
+    actionLedgerAuthorizationSource: "selected_graph_mcp_handler_existing_target",
+    actionLedgerRouteOrToolName: routeOrToolName,
+    actionLedgerApprovalId: admitted.invocation.approvalId ?? null,
+    actionLedgerIdempotencyScope: idempotencyKey
+      ? `bookings.status.tool:${routeOrToolName}:${action}`
+      : null,
+    actionLedgerIdempotencyKey: idempotencyKey,
+    actionLedgerIdempotencyFingerprint: admitted.invocation.idempotencyFingerprint ?? null,
   }
 }
 

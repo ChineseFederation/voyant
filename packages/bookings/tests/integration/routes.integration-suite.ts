@@ -4,6 +4,7 @@ import {
   actionMutationDetails,
   actionSensitiveReadDetails,
 } from "@voyant-travel/action-ledger"
+import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { eq, sql } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -752,6 +753,37 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       })
       expect(res.status).toBe(200)
       expect((await res.json()).data.status).toBe("confirmed")
+    })
+
+    it("emits distinct lifecycle outbox events when a metadata-free caller repeats after override", async () => {
+      const booking = await seedBooking({
+        status: "on_hold",
+        holdExpiresAt: "2026-12-31T00:00:00.000Z",
+      })
+
+      const first = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      expect(first.status).toBe("ok")
+
+      const override = await bookingsService.overrideBookingStatus(
+        db,
+        booking.id,
+        { status: "on_hold", reason: "Administrative correction" },
+        "user_override",
+      )
+      expect(override.status).toBe("ok")
+
+      await new Promise((resolve) => setTimeout(resolve, 2))
+
+      const second = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      expect(second.status).toBe("ok")
+
+      const outboxRows = await db
+        .select({ eventId: eventOutboxTable.eventId })
+        .from(eventOutboxTable)
+        .where(eq(eventOutboxTable.name, "booking.confirmed"))
+
+      expect(outboxRows).toHaveLength(2)
+      expect(new Set(outboxRows.map((row) => row.eventId)).size).toBe(2)
     })
 
     it("creates activity log entry on status change", async () => {

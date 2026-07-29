@@ -739,6 +739,7 @@ function bookingStatusMutationRuntime(
   const approvedExecution = auth.approvedAction
     ? buildActionLedgerApprovedExecutionFields(auth.approvedAction)
     : null
+  const requestIdempotencyKey = c.req.header("idempotency-key")?.trim() || null
 
   return {
     eventBus: c.get("eventBus"),
@@ -748,8 +749,10 @@ function bookingStatusMutationRuntime(
     actionLedgerAuthorizationSource: auth.access.authorizationSource,
     actionLedgerCausationActionId: approvedExecution?.causationActionId ?? null,
     actionLedgerApprovalId: approvedExecution?.approvalId ?? null,
-    actionLedgerIdempotencyScope: approvedExecution?.idempotencyScope ?? null,
-    actionLedgerIdempotencyKey: approvedExecution?.idempotencyKey ?? null,
+    actionLedgerIdempotencyScope:
+      approvedExecution?.idempotencyScope ??
+      (requestIdempotencyKey ? "bookings.status.route" : null),
+    actionLedgerIdempotencyKey: approvedExecution?.idempotencyKey ?? requestIdempotencyKey,
     actionLedgerIdempotencyFingerprint: approvedExecution?.idempotencyFingerprint ?? null,
   }
 }
