@@ -1,5 +1,25 @@
 # @voyant-travel/framework
 
+## 0.65.0
+
+### Patch Changes
+
+- 8adeb23: Make agent-driven booking create, confirmation, cancellation, passenger capacity, persisted option/unit/extra pricing, invoice reconciliation, approval admission, paid-settlement previews, immediate reads, idempotent lifecycle replay, notification suppression, and required-schema deployment admission coherent.
+- fa75fe3: Allow resident Node database clients enough time to reconnect after a suspended
+  database wakes, deliver durable outbox events through the composed internal
+  subscriber bus, and reconcile obsolete Lakebase vector storage when a
+  deployment uses pgvector.
+- Updated dependencies [8adeb23]
+- Updated dependencies [6d0b4b4]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/action-ledger@0.115.4
+  - @voyant-travel/db@0.119.0
+  - @voyant-travel/hono@0.135.0
+  - @voyant-travel/operator-standard@0.16.0
+  - @voyant-travel/cruises@0.219.0
+  - @voyant-travel/types@0.109.10
+
 ## 0.64.24
 
 ### Patch Changes

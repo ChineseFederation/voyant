@@ -1,5 +1,11 @@
 # @voyant-travel/bookings-contracts
 
+## 0.111.0
+
+### Minor Changes
+
+- 8adeb23: Make agent-driven booking create, confirmation, cancellation, passenger capacity, persisted option/unit/extra pricing, invoice reconciliation, approval admission, paid-settlement previews, immediate reads, idempotent lifecycle replay, notification suppression, and required-schema deployment admission coherent.
+
 ## 0.110.0
 
 ### Minor Changes

@@ -1,5 +1,22 @@
 # @voyant-travel/catalog
 
+## 0.218.0
+
+### Patch Changes
+
+- fa75fe3: Allow resident Node database clients enough time to reconnect after a suspended
+  database wakes, deliver durable outbox events through the composed internal
+  subscriber bus, and reconcile obsolete Lakebase vector storage when a
+  deployment uses pgvector.
+- Updated dependencies [8adeb23]
+- Updated dependencies [6d0b4b4]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/bookings@0.220.0
+  - @voyant-travel/finance@0.220.0
+  - @voyant-travel/db@0.119.0
+  - @voyant-travel/hono@0.135.0
+
 ## 0.217.0
 
 ### Patch Changes

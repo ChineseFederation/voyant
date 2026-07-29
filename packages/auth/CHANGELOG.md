@@ -1,5 +1,35 @@
 # @voyant-travel/auth
 
+## 0.146.0
+
+### Minor Changes
+
+- 7496159: Add an OAuth 2.1 authorization server so chat assistants can connect to the deployment's MCP endpoint by URL alone.
+
+  Claude and ChatGPT add remote MCP servers by pasting a URL — there is nowhere to supply an API token — so they follow the MCP authorization spec instead: dynamic client registration (RFC 7591), authorization code + PKCE, and a browser consent step. This adds that server on the admin realm via `@better-auth/oauth-provider`, with `oauth_client` / `oauth_access_token` / `oauth_refresh_token` / `oauth_consent` / `jwks` tables.
+
+  The grant is coarse (`mcp:read`, optionally `mcp:write`) because a consent screen cannot ask a travel agent about fifty resource scopes. Effective permissions are re-derived per request from the approving staff member's current role, intersected with the actions their owning packages mark remote-safe and non-sensitive — so a connector never exceeds the person who approved it, and narrowing someone's role immediately narrows every connector they approved.
+
+  Access tokens are signed JWTs verified against the published JWKS. Because a JWT cannot be withdrawn once signed, the resource server also re-checks the connector's consent row on every request, so disconnecting a connector takes effect on its next call rather than whenever its token happens to expire.
+
+  Discovery documents are served at the origin root, with authorization-server endpoints rewritten onto the public API base — the Hono app strips that prefix before the auth handler sees a request, so the URLs Better Auth advertises would otherwise point at the admin SPA instead of the authorization server.
+
+### Patch Changes
+
+- 6d0b4b4: Emit the RFC 9728 `WWW-Authenticate` challenge on the MCP surface, and admit the OAuth endpoints in Voyant Cloud auth mode.
+
+  An anonymous request to `/v1/admin/mcp` previously fell through to a bare 401 with no challenge header. That header is the entry point of the connector handshake — an assistant dials the pasted URL with no credential and follows `resource_metadata` from there to discovery — so without it nothing downstream was reachable.
+
+  Managed deployments additionally returned 404 for every `/oauth2/*` path, because the cloud-mode allowlist predates them: discovery advertised an authorization server that rejected every request to it.
+
+- Updated dependencies [8adeb23]
+- Updated dependencies [6d0b4b4]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/db@0.119.0
+  - @voyant-travel/hono@0.135.0
+  - @voyant-travel/types@0.109.10
+
 ## 0.145.0
 
 ## 0.144.0

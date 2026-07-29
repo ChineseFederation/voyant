@@ -207,6 +207,10 @@ const allowedInfrastructureImports = new Map([
     "lowers graph action declarations into the generic runtime capability registry",
   ],
   ["@voyant-travel/core", "types the domain-neutral runtime host primitive contract"],
+  [
+    "@voyant-travel/db/outbox-job",
+    "provides the generic durable event-outbox job port used by the resident runtime",
+  ],
   ["@voyant-travel/db/runtime", "constructs the Node database and database-backed stores"],
   ["@voyant-travel/hono", "provides the generic HTTP, auth, database, and rate-limit contracts"],
   ["@voyant-travel/hono/composition", "types deployment-local graph factories"],
