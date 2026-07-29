@@ -753,7 +753,36 @@ async function assignTravelerToExistingBookingItems(
 ) {
   if (!isPaxParticipantType(traveler.participantType)) return
 
-  const items = toRows<{ id: string }>(
+  return db.transaction(async (tx) => {
+    const items = await lockBookingItemsForParticipantMutation(tx, bookingId)
+
+    if (items.length === 0) return
+    await lockBookingTravelersForParticipantMutation(tx, bookingId)
+
+    const itemIds = items.map((item) => item.id)
+    if (traveler.isPrimary) {
+      await tx
+        .update(bookingItemTravelers)
+        .set({ isPrimary: false })
+        .where(inArray(bookingItemTravelers.bookingItemId, itemIds))
+    }
+
+    await tx.insert(bookingItemTravelers).values(
+      items.map((item) => ({
+        bookingItemId: item.id,
+        travelerId: traveler.id,
+        role: traveler.participantType,
+        isPrimary: traveler.isPrimary,
+      })),
+    )
+  })
+}
+
+async function lockBookingItemsForParticipantMutation(
+  db: Pick<PostgresJsDatabase, "execute">,
+  bookingId: string,
+) {
+  return toRows<{ id: string }>(
     await db.execute(sql`
       SELECT id
       FROM booking_items
@@ -762,25 +791,19 @@ async function assignTravelerToExistingBookingItems(
       FOR UPDATE
     `),
   )
+}
 
-  if (items.length === 0) return
-
-  const itemIds = items.map((item) => item.id)
-  if (traveler.isPrimary) {
-    await db
-      .update(bookingItemTravelers)
-      .set({ isPrimary: false })
-      .where(inArray(bookingItemTravelers.bookingItemId, itemIds))
-  }
-
-  await db.insert(bookingItemTravelers).values(
-    items.map((item) => ({
-      bookingItemId: item.id,
-      travelerId: traveler.id,
-      role: traveler.participantType,
-      isPrimary: traveler.isPrimary,
-    })),
-  )
+async function lockBookingTravelersForParticipantMutation(
+  db: Pick<PostgresJsDatabase, "execute">,
+  bookingId: string,
+) {
+  await db.execute(sql`
+    SELECT id
+    FROM booking_travelers
+    WHERE booking_id = ${bookingId}
+    ORDER BY created_at, id
+    FOR UPDATE
+  `)
 }
 
 async function ensureBookingScopedLinks(
@@ -4298,57 +4321,62 @@ const bookingsServiceInternal = {
     data: CreateTravelerRecordInput,
     userId?: string,
   ) {
-    const [booking] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(eq(bookings.id, bookingId))
-      .limit(1)
+    return db.transaction(async (tx) => {
+      await lockBookingItemsForParticipantMutation(tx, bookingId)
+      await lockBookingTravelersForParticipantMutation(tx, bookingId)
 
-    if (!booking) {
-      return null
-    }
+      const [booking] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.id, bookingId))
+        .limit(1)
 
-    const participantType = data.participantType
-    const travelerCategory =
-      data.travelerCategory == null && isPaxParticipantType(participantType)
-        ? "adult"
-        : (data.travelerCategory ?? null)
+      if (!booking) {
+        return null
+      }
 
-    const [row] = await db
-      .insert(bookingTravelers)
-      .values({
+      const participantType = data.participantType
+      const travelerCategory =
+        data.travelerCategory == null && isPaxParticipantType(participantType)
+          ? "adult"
+          : (data.travelerCategory ?? null)
+
+      const [row] = await tx
+        .insert(bookingTravelers)
+        .values({
+          bookingId,
+          personId: data.personId ?? null,
+          participantType,
+          travelerCategory,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          preferredLanguage: data.preferredLanguage ?? null,
+          specialRequests: data.specialRequests ?? null,
+          isPrimary: data.isPrimary ?? false,
+          notes: data.notes ?? null,
+        })
+        .returning()
+
+      if (!row) {
+        return null
+      }
+
+      await assignTravelerToExistingBookingItems(tx as PostgresJsDatabase, bookingId, row)
+      await ensureParticipantFlags(tx as PostgresJsDatabase, bookingId, row.id, data)
+      await recomputeBookingPaxFromTravelers(tx as PostgresJsDatabase, bookingId)
+
+      await tx.insert(bookingActivityLog).values({
         bookingId,
-        personId: data.personId ?? null,
-        participantType,
-        travelerCategory,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email ?? null,
-        phone: data.phone ?? null,
-        preferredLanguage: data.preferredLanguage ?? null,
-        specialRequests: data.specialRequests ?? null,
-        isPrimary: data.isPrimary ?? false,
-        notes: data.notes ?? null,
+        actorId: userId ?? "system",
+        activityType: "traveler_update",
+        description: `Traveler ${data.firstName} ${data.lastName} added`,
+        metadata: { travelerId: row.id, participantType },
       })
-      .returning()
 
-    if (!row) {
-      return null
-    }
-
-    await assignTravelerToExistingBookingItems(db, bookingId, row)
-    await ensureParticipantFlags(db, bookingId, row.id, data)
-    await recomputeBookingPaxFromTravelers(db, bookingId)
-
-    await db.insert(bookingActivityLog).values({
-      bookingId,
-      actorId: userId ?? "system",
-      activityType: "traveler_update",
-      description: `Traveler ${data.firstName} ${data.lastName} added`,
-      metadata: { travelerId: row.id, participantType },
+      return row
     })
-
-    return row
   },
 
   async updateTravelerRecord(
@@ -5054,9 +5082,9 @@ const bookingsServiceInternal = {
     data: CreateBookingItemParticipantInput,
   ) {
     return db.transaction(async (tx) => {
-      const item = toRows<{ id: string }>(
+      const item = toRows<{ id: string; bookingId: string }>(
         await tx.execute(sql`
-          SELECT id
+          SELECT id, booking_id AS "bookingId"
           FROM booking_items
           WHERE id = ${itemId}
           FOR UPDATE
@@ -5067,11 +5095,16 @@ const bookingsServiceInternal = {
         return null
       }
 
-      const [traveler] = await tx
-        .select({ id: bookingTravelers.id })
-        .from(bookingTravelers)
-        .where(eq(bookingTravelers.id, data.travelerId))
-        .limit(1)
+      const travelers = toRows<{ id: string }>(
+        await tx.execute(sql`
+          SELECT id
+          FROM booking_travelers
+          WHERE booking_id = ${item.bookingId}
+          ORDER BY created_at, id
+          FOR UPDATE
+        `),
+      )
+      const traveler = travelers.find((row) => row.id === data.travelerId)
 
       if (!traveler) {
         return null

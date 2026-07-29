@@ -1839,9 +1839,17 @@ async function loadPersistedBookingCreatePricing(
   }
 }
 
-function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: number | null) {
+function isBookingCreatePaxParticipant(participantType: string | null | undefined) {
+  return participantType == null || participantType === "traveler" || participantType === "occupant"
+}
+
+export function bookingCreateTravelerBandCounts(
+  input: BookingCreateInput,
+  bookingPax: number | null,
+) {
   const counts = new Map<string, number>()
   for (const traveler of input.travelers ?? []) {
+    if (!isBookingCreatePaxParticipant(traveler.participantType)) continue
     const band = traveler.travelerCategory ?? "adult"
     if (!["adult", "child", "infant", "senior", "other"].includes(band)) continue
     counts.set(band, (counts.get(band) ?? 0) + 1)
@@ -1857,7 +1865,7 @@ function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: 
   return counts
 }
 
-function bookingCreateTravelerBandCountsForItem(
+export function bookingCreateTravelerBandCountsForItem(
   input: BookingCreateInput,
   item: { optionUnitId: string | null; metadata: unknown },
   bookingPax: number | null,
@@ -1886,7 +1894,9 @@ function bookingCreateTravelerBandCountsForItem(
   )
   const counts = new Map<string, number>()
   for (const travelerKey of travelerKeys) {
-    const band = travelersByKey.get(travelerKey)?.travelerCategory ?? "adult"
+    const traveler = travelersByKey.get(travelerKey)
+    if (traveler && !isBookingCreatePaxParticipant(traveler.participantType)) continue
+    const band = traveler?.travelerCategory ?? "adult"
     if (!["adult", "child", "infant", "senior", "other"].includes(band)) continue
     counts.set(band, (counts.get(band) ?? 0) + 1)
   }
@@ -2078,14 +2088,19 @@ export function deriveBookingCreatePax(input: {
   extraLines?: readonly { travelerKeys?: readonly string[] | null }[] | null
 }) {
   const travelerCount =
-    input.travelers?.filter((traveler) =>
-      [undefined, null, "traveler", "occupant"].includes(traveler.participantType),
-    ).length ?? 0
+    input.travelers?.filter((traveler) => isBookingCreatePaxParticipant(traveler.participantType))
+      .length ?? 0
+  const nonPaxTravelerKeys = new Set(
+    (input.travelers ?? [])
+      .filter((traveler) => !isBookingCreatePaxParticipant(traveler.participantType))
+      .map((traveler) => traveler.clientTravelerKey?.trim())
+      .filter((key): key is string => Boolean(key)),
+  )
   const assignedTravelerKeys = new Set(
     [...(input.itemLines ?? []), ...(input.extraLines ?? [])]
       .flatMap((line) => line.travelerKeys ?? [])
       .map((key) => key.trim())
-      .filter(Boolean),
+      .filter((key) => Boolean(key) && !nonPaxTravelerKeys.has(key)),
   )
   const derivedPax = Math.max(travelerCount, assignedTravelerKeys.size)
   const explicitPax = typeof input.pax === "number" ? input.pax : 0

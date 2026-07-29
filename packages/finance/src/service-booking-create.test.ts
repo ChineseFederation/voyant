@@ -1,9 +1,72 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  bookingCreateTravelerBandCounts,
+  bookingCreateTravelerBandCountsForItem,
+  deriveBookingCreatePax,
   resolveAssignedExtraQuantity,
   resolvePersistedFlatUnitPriceForBookingCreate,
 } from "./service-booking-create.js"
+
+describe("booking-create traveler pricing bands", () => {
+  it("does not derive pax from an assigned non-pax participant key", () => {
+    expect(
+      deriveBookingCreatePax({
+        travelers: [
+          { clientTravelerKey: "trav:pax", participantType: "traveler" },
+          { clientTravelerKey: "trav:contact", participantType: "other" },
+        ],
+        itemLines: [{ travelerKeys: ["trav:pax", "trav:contact"] }],
+      }),
+    ).toBe(1)
+  })
+
+  it("excludes non-pax participants globally while retaining traveler category other", () => {
+    const counts = bookingCreateTravelerBandCounts(
+      {
+        travelers: [
+          { participantType: "traveler", travelerCategory: "other" },
+          { participantType: "occupant", travelerCategory: "child" },
+          { participantType: "other", travelerCategory: "adult" },
+        ],
+      } as never,
+      2,
+    )
+
+    expect(Object.fromEntries(counts)).toEqual({ other: 1, child: 1 })
+  })
+
+  it("excludes keyed non-pax participants from item-scoped pricing bands", () => {
+    const result = bookingCreateTravelerBandCountsForItem(
+      {
+        travelers: [
+          {
+            clientTravelerKey: "trav:pax",
+            participantType: "traveler",
+            travelerCategory: "adult",
+          },
+          {
+            clientTravelerKey: "trav:contact",
+            participantType: "other",
+            travelerCategory: "other",
+          },
+        ],
+        itemLines: [
+          {
+            clientLineKey: "line:room",
+            optionUnitId: "unit_1",
+            travelerKeys: ["trav:pax", "trav:contact"],
+          },
+        ],
+      } as never,
+      { optionUnitId: "unit_1", metadata: { bookingCreateLineKey: "line:room" } },
+      1,
+    )
+
+    expect(result.scopedToItem).toBe(true)
+    expect(Object.fromEntries(result.counts)).toEqual({ adult: 1 })
+  })
+})
 
 describe("persisted flat unit booking create pricing", () => {
   it("preserves free persisted pricing as a zero total without falling back", () => {

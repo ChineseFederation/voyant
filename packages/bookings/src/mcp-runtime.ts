@@ -517,19 +517,19 @@ export async function lockBookingStatusConsequenceState(
     FOR UPDATE
   `)
   await db.execute(sql`
+    SELECT id
+    FROM booking_travelers
+    WHERE booking_id = ${bookingId}
+    ORDER BY is_primary DESC, created_at, id
+    FOR UPDATE
+  `)
+  await db.execute(sql`
     SELECT participant.id
     FROM booking_item_travelers participant
     JOIN booking_items item ON item.id = participant.booking_item_id
     WHERE item.booking_id = ${bookingId}
     ORDER BY participant.booking_item_id, participant.created_at, participant.id
     FOR UPDATE OF participant
-  `)
-  await db.execute(sql`
-    SELECT id
-    FROM booking_travelers
-    WHERE booking_id = ${bookingId}
-    ORDER BY is_primary DESC, created_at, id
-    FOR UPDATE
   `)
   await db.execute(sql`
     SELECT id

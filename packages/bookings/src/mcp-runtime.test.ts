@@ -377,9 +377,9 @@ describe("bookings MCP runtime lifecycle detail", () => {
     const statements = execute.mock.calls.map(([query]) => dialect.sqlToQuery(query).sql)
     expect(statements).toHaveLength(8)
     expect(statements[0]).toContain("FROM booking_items")
-    expect(statements[1]).toContain("FROM booking_item_travelers")
-    expect(statements[2]).toContain("FROM booking_travelers")
-    expect(statements[2]).not.toContain("participant_type")
+    expect(statements[1]).toContain("FROM booking_travelers")
+    expect(statements[1]).not.toContain("participant_type")
+    expect(statements[2]).toContain("FROM booking_item_travelers")
     expect(statements[3]).toContain("FROM booking_fulfillments")
     expect(statements[4]).toContain("LOCK TABLE product_ticket_settings")
     expect(statements[5]).toContain("FROM product_ticket_settings")
@@ -393,19 +393,13 @@ describe("bookings MCP runtime lifecycle detail", () => {
     const tx = {
       execute: vi.fn(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
         const statement = dialect.sqlToQuery(query).sql
-        events.push(statement.includes("FROM booking_items") ? "item_lock" : statement)
-        return [{ id: "item_1" }]
+        if (statement.includes("FROM booking_items")) {
+          events.push("item_lock")
+          return [{ id: "item_1", bookingId: "booking_1" }]
+        }
+        events.push("traveler_lock")
+        return [{ id: "traveler_1" }]
       }),
-      select: vi.fn(() => ({
-        from: () => ({
-          where: () => ({
-            limit: async () => {
-              events.push("traveler_read")
-              return [{ id: "traveler_1" }]
-            },
-          }),
-        }),
-      })),
       update: vi.fn(() => ({
         set: () => ({
           where: async () => {
@@ -435,7 +429,7 @@ describe("bookings MCP runtime lifecycle detail", () => {
     expect(transaction).toHaveBeenCalledOnce()
     expect(events).toEqual([
       "item_lock",
-      "traveler_read",
+      "traveler_lock",
       "participant_update",
       "participant_insert",
     ])
