@@ -248,10 +248,10 @@ export async function getBookingContractReview(
   const [row] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1)
   if (!row) return null
   const metadata = record(row.metadata)
-  const workflow = record(metadata.bookingContractWorkflow)
-  if (!workflow.reviewSnapshot) return null
+  const workflow = parseManagedBookingContractReviewWorkflow(metadata)
+  if (!workflow) return null
   const delivery = record(workflow.delivery)
-  const snapshot = bookingContractReviewSnapshotSchema.parse(workflow.reviewSnapshot)
+  const snapshot = workflow.reviewSnapshot
   const effectiveStatus =
     row.status === "void"
       ? "void"
