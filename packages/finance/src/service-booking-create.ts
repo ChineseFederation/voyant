@@ -1269,21 +1269,48 @@ async function reconcileBookingCreatePricing(
   const extraItems = items.filter((item) => item.itemType === "extra")
   const selectedOptionId =
     input.optionId ?? baseItems.find((item) => item.optionId)?.optionId ?? null
-  const persistedPricing = selectedOptionId
-    ? await loadPersistedBookingCreatePricing(tx, {
-        productId: input.productId,
-        optionId: selectedOptionId,
-        slotId: input.slotId ?? null,
-        catalogId: input.catalogId ?? null,
-      })
+  const selectedOptionIds = [
+    ...new Set(
+      baseItems
+        .map((item) => item.optionId ?? input.optionId ?? null)
+        .filter((optionId): optionId is string => optionId !== null),
+    ),
+  ]
+  const persistedPricingByOption = new Map<
+    string,
+    NonNullable<Awaited<ReturnType<typeof loadPersistedBookingCreatePricing>>>
+  >()
+  for (const optionId of selectedOptionIds) {
+    const pricing = await loadPersistedBookingCreatePricing(tx, {
+      productId: input.productId,
+      optionId,
+      slotId: input.slotId ?? null,
+      catalogId: input.catalogId ?? null,
+    })
+    if (pricing) {
+      persistedPricingByOption.set(optionId, pricing)
+    } else if (input.catalogId != null) {
+      return {
+        booking,
+        issues: [
+          {
+            path: ["catalogId"],
+            message: `The selected public catalog ${input.catalogId} no longer has active pricing for booking option ${optionId}.`,
+          },
+        ],
+      }
+    }
+  }
+  const selectedPersistedPricing = selectedOptionId
+    ? (persistedPricingByOption.get(selectedOptionId) ?? null)
     : null
-  if (input.catalogId != null && persistedPricing == null) {
+  if (input.catalogId != null && selectedOptionIds.length === 0) {
     return {
       booking,
       issues: [
         {
           path: ["catalogId"],
-          message: `The selected public catalog ${input.catalogId} no longer has active pricing for this booking option.`,
+          message: `The selected public catalog ${input.catalogId} cannot price this booking because no option was selected.`,
         },
       ],
     }
@@ -1293,13 +1320,27 @@ async function reconcileBookingCreatePricing(
   const chargedUnassignedRoomBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
-  // When selected unit rules price the booking, Commerce applies the option-rule
-  // base once. Its no-unit fallback instead treats the base as a per-passenger
-  // amount, using the same effective-pax floor of one as the public quote.
-  const ruleBaseTotal = persistedPricing?.baseSellAmountCents ?? 0
-  const noUnitRuleBaseTotal = ruleBaseTotal * Math.max(1, booking.pax ?? 0)
-  let appliedRuleBase = ruleBaseTotal === 0
+  // Each selected option has its own authoritative rule and option-level base.
+  // Commerce resolves those rules per option selection, so apply each base at
+  // most once instead of letting the first selected option price every item.
+  const optionBaseStates = new Map<
+    string,
+    { ruleBaseTotal: number; noUnitRuleBaseTotal: number; applied: boolean }
+  >()
+  for (const [optionId, pricing] of persistedPricingByOption) {
+    const ruleBaseTotal = pricing.baseSellAmountCents ?? 0
+    optionBaseStates.set(optionId, {
+      ruleBaseTotal,
+      noUnitRuleBaseTotal: ruleBaseTotal * Math.max(1, booking.pax ?? 0),
+      applied: ruleBaseTotal === 0,
+    })
+  }
   for (const item of baseItems) {
+    const itemOptionId = item.optionId ?? input.optionId ?? null
+    const persistedPricing = itemOptionId
+      ? (persistedPricingByOption.get(itemOptionId) ?? null)
+      : null
+    const optionBaseState = itemOptionId ? optionBaseStates.get(itemOptionId) : undefined
     const unitRules =
       persistedPricing?.unitRules.filter((rule) => rule.unitId === item.optionUnitId) ?? []
     const quantity = Math.max(1, item.quantity)
@@ -1421,28 +1462,38 @@ async function reconcileBookingCreatePricing(
         ],
       }
     }
-    if (!appliedRuleBase && !unitRule && persistedPricing?.baseSellAmountCents != null) {
-      const total = noUnitRuleBaseTotal
+    if (
+      optionBaseState &&
+      !optionBaseState.applied &&
+      !unitRule &&
+      persistedPricing?.baseSellAmountCents != null
+    ) {
+      const total = optionBaseState.noUnitRuleBaseTotal
       pricedLines.set(item.id, {
         unit: Math.floor(total / quantity),
         total,
       })
       baseCatalogTotal += total
-      appliedRuleBase = true
+      optionBaseState.applied = true
       continue
     }
     unresolvedBaseItems += 1
   }
-  if (!appliedRuleBase && baseItems.length > 0) {
-    const firstBaseItem = baseItems[0]!
+  for (const [optionId, optionBaseState] of optionBaseStates) {
+    if (optionBaseState.applied) continue
+    const firstBaseItem = baseItems.find(
+      (item) => (item.optionId ?? input.optionId ?? null) === optionId,
+    )
+    if (!firstBaseItem) continue
     const existing = pricedLines.get(firstBaseItem.id) ?? { unit: 0, total: 0 }
     const quantity = Math.max(1, firstBaseItem.quantity)
-    const total = existing.total + ruleBaseTotal
+    const total = existing.total + optionBaseState.ruleBaseTotal
     pricedLines.set(firstBaseItem.id, {
       unit: Math.floor(total / quantity),
       total,
     })
-    baseCatalogTotal += ruleBaseTotal
+    baseCatalogTotal += optionBaseState.ruleBaseTotal
+    optionBaseState.applied = true
   }
 
   if (unresolvedBaseItems > 0) {
@@ -1470,7 +1521,7 @@ async function reconcileBookingCreatePricing(
           optionId: selectedOptionId,
           productExtraId,
           optionExtraConfigId,
-          optionPriceRuleId: persistedPricing?.ruleId ?? null,
+          optionPriceRuleId: selectedPersistedPricing?.ruleId ?? null,
         })
       : null
     if (!extra) {
@@ -1564,7 +1615,9 @@ async function reconcileBookingCreatePricing(
     distributeBookingCreateTotal(baseItems, baseRequestedTotal, pricedLines)
   }
 
-  const pricingCurrency = persistedPricing?.currencyCode ?? booking.sellCurrency
+  const pricingCurrency =
+    [...persistedPricingByOption.values()].find((pricing) => pricing.currencyCode != null)
+      ?.currencyCode ?? booking.sellCurrency
   for (const item of items) {
     const price = pricedLines.get(item.id) ?? { unit: 0, total: 0 }
     await tx
@@ -1789,7 +1842,6 @@ async function loadPersistedBookingCreatePricing(
           FROM availability_slots
           WHERE id = ${input.slotId}
             AND product_id = ${input.productId}
-            AND (option_id IS NULL OR option_id = ${input.optionId})
           LIMIT 1
         `),
       )

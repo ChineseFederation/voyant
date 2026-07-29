@@ -2203,6 +2203,71 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(selectedPriced.result.booking.priceOverride).toBeNull()
   })
 
+  it("reconciles every selected option against its own persisted price rule", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    const { catalogId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 40_000,
+      baseSellAmountCents: 1_000,
+    })
+    const secondOptionId = `popt_bc_${productSeq}_second`
+    const secondUnitId = `opun_bc_${productSeq}_second`
+    const secondRuleId = `oprl_bc_${productSeq}_second`
+    await db.execute(sql`
+      INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
+      VALUES (${secondOptionId}, ${productId}, 'Second option', 'active', false, 1)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_units (
+        id, option_id, name, unit_type, is_required, min_quantity, sort_order
+      ) VALUES (${secondUnitId}, ${secondOptionId}, 'Second unit', 'person', true, 1, 0)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode,
+        base_sell_amount_cents, is_default, active
+      ) VALUES (
+        ${secondRuleId}, ${productId}, ${secondOptionId}, ${catalogId},
+        'Second option rate', 'per_booking', 2_000, true, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_second`}, ${secondRuleId}, ${secondOptionId}, ${secondUnitId},
+        'per_unit', 30_000, true
+      )
+    `)
+
+    const result = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [
+        { optionUnitId: unitId, quantity: 1 },
+        { optionUnitId: secondUnitId, quantity: 1 },
+      ],
+      catalogId,
+    })
+
+    expect(result.status).toBe("ok")
+    if (result.status !== "ok") return
+    expect(result.result.booking.sellAmountCents).toBe(73_000)
+    await expect(
+      db
+        .select({ optionId: bookingItems.optionId, total: bookingItems.totalSellAmountCents })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, result.result.booking.id))
+        .orderBy(asc(bookingItems.optionId)),
+    ).resolves.toEqual([
+      { optionId, total: 41_000 },
+      { optionId: secondOptionId, total: 32_000 },
+    ])
+  })
+
   it.each([
     { label: "no longer exists", catalogState: "missing" },
     { label: "has no active option rule", catalogState: "without_rule" },
