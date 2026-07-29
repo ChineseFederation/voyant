@@ -2,10 +2,10 @@ import { legalTargetKindSchema } from "@voyant-travel/legal-contracts/targets/va
 import { listResponse, listResponseSchema } from "@voyant-travel/types"
 import type { InferSelectModel } from "drizzle-orm"
 import { Hono } from "hono"
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 
-import { contractsPublicRoutes } from "../../../src/contracts/routes.js"
+import { contractsPublicRoutes, createContractsAdminRoutes } from "../../../src/contracts/routes.js"
 import type {
   contractAttachments,
   contractNumberSeries,
@@ -14,6 +14,7 @@ import type {
   contractTemplates,
   contractTemplateVersions,
 } from "../../../src/contracts/schema.js"
+import { contractsService } from "../../../src/contracts/service.js"
 import {
   contractBodyFormatSchema,
   contractNumberResetStrategySchema,
@@ -273,6 +274,18 @@ const contractListRow: InferSelectModel<typeof contracts> & {
   personPhone: null,
 }
 
+const managedBookingWorkflowMetadata = {
+  bookingContractWorkflow: {
+    revision: 2,
+    previousRevisionId: "contracts_previous",
+    reviewOnly: true,
+    reviewSnapshot: {
+      booking: { customerName: "Ada Lovelace", customerEmail: "ada@example.com" },
+    },
+    delivery: { recipient: "ada@example.com", channel: "email" },
+  },
+}
+
 const signatureRow: InferSelectModel<typeof contractSignatures> = {
   id: "contract_signatures_0000000000000000000",
   contractId: "contracts_000000000000000000000000000",
@@ -367,6 +380,191 @@ describe("legal contracts array { data } envelope response contracts", () => {
       expect(parsed.success ? null : parsed.error.toString()).toBeNull()
     })
   }
+})
+
+describe("legal contracts managed booking generic redaction", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("redacts managed booking rendered bodies from generic admin list rows", async () => {
+    vi.spyOn(contractsService, "listContracts").mockResolvedValue({
+      data: [
+        {
+          ...contractListRow,
+          renderedBody: "<p>Ada Lovelace ada@example.com</p>",
+          variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+          metadata: managedBookingWorkflowMetadata,
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request("/")
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { data: Array<Record<string, unknown>> }
+    expect(body.data[0]).toMatchObject({
+      renderedBody: null,
+      variables: null,
+      metadata: {
+        bookingContractWorkflow: {
+          revision: 2,
+          previousRevisionId: "contracts_previous",
+          reviewOnly: true,
+          piiRedacted: true,
+        },
+      },
+    })
+  })
+
+  it("redacts managed booking rendered bodies from generic admin detail rows", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue({
+      ...contractRow,
+      renderedBody: "<p>Ada Lovelace ada@example.com</p>",
+      variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+      metadata: managedBookingWorkflowMetadata,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}`)
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { data: Record<string, unknown> }
+    expect(body.data).toMatchObject({
+      renderedBody: null,
+      variables: null,
+      metadata: {
+        bookingContractWorkflow: {
+          revision: 2,
+          previousRevisionId: "contracts_previous",
+          reviewOnly: true,
+          piiRedacted: true,
+        },
+      },
+    })
+  })
+
+  it("blocks managed booking contracts on the generic admin render surface", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue({
+      ...contractRow,
+      metadata: managedBookingWorkflowMetadata,
+    })
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variables: { customer: { name: "Ada Lovelace", email: "ada@example.com" } },
+        body: "<p>{{ customer.name }} {{ customer.email }}</p>",
+      }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: "Contract not found" })
+  })
+
+  it("keeps generic admin render behavior for non-managed contracts", async () => {
+    vi.spyOn(contractsService, "getContractById").mockResolvedValue(contractRow)
+    const app = new Hono().route("/", createContractsAdminRoutes())
+
+    const res = await app.request(`/${contractRow.id}/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variables: { customer: { name: "Ada Lovelace" } },
+        body: "<p>{{ customer.name }}</p>",
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: { rendered: "<p>Ada Lovelace</p>" } })
+  })
+
+  it("uses shared booking PII policy for managed document downloads", async () => {
+    vi.spyOn(contractsService, "getAttachmentWithContractById").mockResolvedValue({
+      attachment: attachmentRow,
+      contract: {
+        ...contractRow,
+        bookingId: "bookings_000000000000000000000000000",
+        metadata: managedBookingWorkflowMetadata,
+      },
+    })
+
+    function app(input: { scopes: string[]; userId: string; isInternalRequest?: boolean }) {
+      const values = vi.fn(async () => undefined)
+      const route = new Hono()
+      route.use("*", async (c, next) => {
+        c.set("db" as never, {
+          insert: () => ({ values }),
+        })
+        c.set("scopes" as never, input.scopes)
+        c.set("userId" as never, input.userId)
+        c.set("actor" as never, "staff")
+        c.set("callerType" as never, input.isInternalRequest ? "internal" : "session")
+        c.set("isInternalRequest" as never, input.isInternalRequest ?? false)
+        await next()
+      })
+      route.route(
+        "/",
+        createContractsAdminRoutes({
+          resolveDocumentDownloadUrl: (_bindings, key) => `https://signed.example.test/${key}`,
+        }),
+      )
+      return { route, values }
+    }
+
+    const deniedApp = app({ scopes: ["legal:read"], userId: "usr_denied" })
+    const denied = await deniedApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(denied.status).toBe(404)
+    await expect(denied.json()).resolves.toEqual({ error: "Attachment not found" })
+    expect(deniedApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "usr_denied",
+        outcome: "denied",
+        reason: "insufficient_scope",
+      }),
+    )
+
+    const scopedApp = app({
+      scopes: ["legal:read", "bookings-pii:read"],
+      userId: "usr_scoped",
+    })
+    const scoped = await scopedApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(scoped.status).toBe(302)
+    expect(scoped.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/ctr/attachments/agreement.pdf",
+    )
+    expect(scopedApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "usr_scoped",
+        outcome: "allowed",
+        reason: "contract_document_delivery_reveal",
+      }),
+    )
+
+    const internalApp = app({
+      scopes: ["legal:read"],
+      userId: "svc_internal",
+      isInternalRequest: true,
+    })
+    const internal = await internalApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(internal.status).toBe(302)
+    expect(internal.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/ctr/attachments/agreement.pdf",
+    )
+    expect(internalApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "svc_internal",
+        outcome: "allowed",
+        reason: "contract_document_delivery_reveal",
+      }),
+    )
+  })
 })
 
 describe("legal contracts public token guard", () => {

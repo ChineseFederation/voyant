@@ -102,6 +102,7 @@ describe("booking route custom-fields validation", () => {
       expect.anything(),
       id,
       expect.objectContaining({ customFields: { custom: { tour_guide: "Ana", group_size: 4 } } }),
+      { monthlyBookingLimit: undefined },
     )
   })
 

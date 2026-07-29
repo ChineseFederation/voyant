@@ -1,12 +1,17 @@
+// agent-quality: file-size exception -- owner: legal; contract records, lifecycle, and attachment mutations remain co-located until a service split preserves route behavior and tests.
+
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { suppliers } from "@voyant-travel/distribution"
 import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
 import { and, desc, eq, getTableColumns, ilike, notInArray, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { parseManagedBookingContractReviewWorkflow } from "../managed-booking-contract-workflow.js"
 import { normalizeLegalTargetFields, normalizeLegalTargetUpdateFields } from "../targets/service.js"
 import {
   appendContractStageHistory,
   buildContractLifecycleEvent,
+  CONTRACT_LIFECYCLE_EVENT_NAMES,
   type ContractLifecycleRuntimeOptions,
   checkContractLifecycleTransition,
   createContractStageHistoryEntry,
@@ -14,6 +19,7 @@ import {
 } from "./lifecycle.js"
 import {
   contractAttachments,
+  contractLifecycleCommandResults,
   contractSignatures,
   contracts,
   contractTemplateVersions,
@@ -43,6 +49,19 @@ export class DurableContractDocumentAttachmentMutationError extends Error {
   }
 }
 
+type InsertOutboxEvents = typeof insertOutboxEvents
+
+export class ContractSignatureOutboxError extends Error {
+  constructor() {
+    super("Contract signature event outbox insertion did not capture exactly one event.")
+    this.name = "ContractSignatureOutboxError"
+  }
+}
+
+export function contractSignatureLifecycleEventId(signatureId: string): string {
+  return `evt_legal_contract_signed_${signatureId}`
+}
+
 function assertGenericAttachmentKind(kind: string | null | undefined) {
   if (
     kind &&
@@ -52,6 +71,40 @@ function assertGenericAttachmentKind(kind: string | null | undefined) {
   ) {
     throw new DurableContractDocumentAttachmentMutationError()
   }
+}
+
+function isManagedBookingContract(metadata: unknown): boolean {
+  return parseManagedBookingContractReviewWorkflow(metadata) !== null
+}
+
+function scrubGenericContractMetadata<T extends { metadata?: unknown }>(data: T): T {
+  if (
+    !data.metadata ||
+    typeof data.metadata !== "object" ||
+    Array.isArray(data.metadata) ||
+    !("bookingContractWorkflow" in data.metadata)
+  ) {
+    return data
+  }
+  const { bookingContractWorkflow: _workflow, ...metadata } = data.metadata as Record<
+    string,
+    unknown
+  >
+  return {
+    ...data,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  }
+}
+
+function assertGenericLifecycleMutationAllowed(
+  metadata: unknown,
+  transition: "issue" | "send" | "void",
+) {
+  if (!isManagedBookingContract(metadata)) return
+  const label = transition === "issue" ? "issued" : transition === "send" ? "sent" : "voided"
+  throw new RequestValidationError(
+    `Managed booking contract revisions must be ${label} through the reviewed lifecycle command.`,
+  )
 }
 
 /**
@@ -160,17 +213,22 @@ export const contractRecordsService = {
     const [row] = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1)
     return row ?? null
   },
-  async createContract(db: PostgresJsDatabase, data: CreateContractInput) {
-    await assertContractPartiesExist(db, data)
+  async createContract(
+    db: PostgresJsDatabase,
+    data: CreateContractInput,
+    options?: { allowBookingContractWorkflow?: boolean },
+  ) {
+    const insert = options?.allowBookingContractWorkflow ? data : scrubGenericContractMetadata(data)
+    await assertContractPartiesExist(db, insert)
     const now = new Date()
-    const stage = data.status ?? "draft"
+    const stage = insert.status ?? "draft"
     const [row] = await db
       .insert(contracts)
       .values({
-        ...data,
-        ...normalizeLegalTargetFields(data),
+        ...insert,
+        ...normalizeLegalTargetFields(insert),
         stageHistory: [createContractStageHistoryEntry(stage, { enteredAt: now })],
-        expiresAt: toTimestamp(data.expiresAt),
+        expiresAt: toTimestamp(insert.expiresAt),
       })
       .returning()
     return row ?? null
@@ -179,31 +237,81 @@ export const contractRecordsService = {
     const { status: _status, ...update } = data as UpdateContractInput & {
       status?: never
     }
-    await assertContractPartiesExist(db, update)
+    const [existing] = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1)
+    if (!existing) return null
+    if (existing.status !== "draft") {
+      throw new RequestValidationError(
+        "Issued, sent, signed, executed, expired, and void contract revisions are immutable.",
+      )
+    }
+    const metadata =
+      existing.metadata &&
+      typeof existing.metadata === "object" &&
+      !Array.isArray(existing.metadata)
+        ? (existing.metadata as Record<string, unknown>)
+        : {}
+    if (isManagedBookingContract(metadata)) {
+      throw new RequestValidationError(
+        "Booking contract revisions are immutable; create a new revision instead of patching.",
+      )
+    }
+    const sanitizedUpdate = scrubGenericContractMetadata(update)
+    await assertContractPartiesExist(db, sanitizedUpdate)
     const [row] = await db
       .update(contracts)
       .set({
-        ...update,
-        ...normalizeLegalTargetUpdateFields(update),
-        expiresAt: update.expiresAt === undefined ? undefined : toTimestamp(update.expiresAt),
+        ...sanitizedUpdate,
+        ...normalizeLegalTargetUpdateFields(sanitizedUpdate),
+        expiresAt:
+          sanitizedUpdate.expiresAt === undefined
+            ? undefined
+            : toTimestamp(sanitizedUpdate.expiresAt),
         updatedAt: new Date(),
       })
-      .where(eq(contracts.id, id))
+      .where(and(eq(contracts.id, id), eq(contracts.status, "draft")))
       .returning()
-    return row ?? null
-  },
-  async deleteContract(db: PostgresJsDatabase, id: string) {
-    const [existing] = await db
-      .select({ id: contracts.id, status: contracts.status })
-      .from(contracts)
-      .where(eq(contracts.id, id))
-      .limit(1)
-    if (!existing) return { status: "not_found" as const }
-    if (existing.status !== "draft" && existing.status !== "void") {
-      return { status: "not_deletable" as const }
+    if (!row) {
+      throw new RequestValidationError("The contract changed state and can no longer be patched.")
     }
-    await db.delete(contracts).where(eq(contracts.id, id))
-    return { status: "deleted" as const }
+    return row
+  },
+  async deleteContract(
+    db: PostgresJsDatabase,
+    id: string,
+    testHooks?: { afterLock?: () => Promise<void> },
+  ) {
+    return db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({ id: contracts.id, status: contracts.status, metadata: contracts.metadata })
+        .from(contracts)
+        .where(eq(contracts.id, id))
+        .for("update")
+        .limit(1)
+      if (!existing) return { status: "not_found" as const }
+      await testHooks?.afterLock?.()
+      if (existing.status !== "draft" && existing.status !== "void") {
+        return { status: "not_deletable" as const }
+      }
+      const metadata =
+        existing.metadata &&
+        typeof existing.metadata === "object" &&
+        !Array.isArray(existing.metadata)
+          ? (existing.metadata as Record<string, unknown>)
+          : {}
+      if (isManagedBookingContract(metadata)) {
+        return { status: "immutable_revision" as const }
+      }
+      const [lifecycleResult] = await tx
+        .select({ claimActionId: contractLifecycleCommandResults.claimActionId })
+        .from(contractLifecycleCommandResults)
+        .where(eq(contractLifecycleCommandResults.contractId, existing.id))
+        .limit(1)
+      if (lifecycleResult) {
+        return { status: "immutable_revision" as const }
+      }
+      await tx.delete(contracts).where(eq(contracts.id, id))
+      return { status: "deleted" as const }
+    })
   },
   async issueContract(
     db: PostgresJsDatabase,
@@ -220,6 +328,7 @@ export const contractRecordsService = {
       if (!contract) return { status: "not_found" as const }
       const transition = checkContractLifecycleTransition(contract.status, "issued")
       if (!transition.ok) return { status: transition.reason }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "issue")
 
       let contractNumber = contract.contractNumber
       if (!contractNumber && contract.seriesId) {
@@ -294,6 +403,7 @@ export const contractRecordsService = {
         .for("update")
         .limit(1)
       if (!contract) return { status: "not_found" as const }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "send")
       const transition = checkContractLifecycleTransition(contract.status, "sent")
       if (!transition.ok) return { status: transition.reason }
       if (contract.status === "sent") {
@@ -357,6 +467,7 @@ export const contractRecordsService = {
         .for("update")
         .limit(1)
       if (!contract) return { status: "not_found" as const }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "void")
       const transition = checkContractLifecycleTransition(contract.status, "voided")
       if (!transition.ok) return { status: transition.reason }
       const now = new Date()
@@ -396,7 +507,8 @@ export const contractRecordsService = {
     db: PostgresJsDatabase,
     contractId: string,
     data: CreateContractSignatureInput,
-    runtime?: ContractLifecycleRuntimeOptions,
+    _runtime?: ContractLifecycleRuntimeOptions,
+    testHooks?: { insertEvents?: InsertOutboxEvents },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -436,17 +548,31 @@ export const contractRecordsService = {
         .set({ status: "signed", stageHistory, updatedAt: now })
         .where(eq(contracts.id, contractId))
         .returning()
+      if (!signature || !updated) throw new ContractSignatureOutboxError()
+      const event = buildContractLifecycleEvent(updated, contract.status, "signed", "signed", now)
+      const eventId = contractSignatureLifecycleEventId(signature.id)
+      const inserted = await (testHooks?.insertEvents ?? insertOutboxEvents)(
+        tx as PostgresJsDatabase,
+        [
+          {
+            name: CONTRACT_LIFECYCLE_EVENT_NAMES.signed,
+            data: event,
+            metadata: {
+              category: "domain",
+              source: "service",
+              eventId,
+            },
+          },
+        ],
+      )
+      if (inserted.length !== 1) throw new ContractSignatureOutboxError()
       return {
         status: "signed" as const,
-        contract: updated ?? null,
-        signature: signature ?? null,
-        event:
-          updated && buildContractLifecycleEvent(updated, contract.status, "signed", "signed", now),
+        contract: updated,
+        signature,
+        event,
       }
     })
-    if (result.status === "signed" && result.event) {
-      await emitContractLifecycleEvent(runtime, result.event)
-    }
     return result
   },
   async executeContract(
@@ -502,6 +628,22 @@ export const contractRecordsService = {
     const [row] = await db
       .select()
       .from(contractAttachments)
+      .where(eq(contractAttachments.id, attachmentId))
+      .limit(1)
+    return row ?? null
+  },
+  async getAttachmentWithContractById(db: PostgresJsDatabase, attachmentId: string) {
+    const [row] = await db
+      .select({
+        attachment: contractAttachments,
+        contract: {
+          id: contracts.id,
+          bookingId: contracts.bookingId,
+          metadata: contracts.metadata,
+        },
+      })
+      .from(contractAttachments)
+      .innerJoin(contracts, eq(contractAttachments.contractId, contracts.id))
       .where(eq(contractAttachments.id, attachmentId))
       .limit(1)
     return row ?? null

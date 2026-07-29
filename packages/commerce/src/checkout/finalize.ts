@@ -31,6 +31,7 @@ export function buildCheckoutFinalizeDeps(
   db: PostgresJsDatabase,
   eventBus: EventBus,
   identity: CheckoutFinalizationIdentity,
+  monthlyBookingLimit?: number | null,
 ): CheckoutFinalizeDeps {
   return {
     db,
@@ -55,10 +56,15 @@ export function buildCheckoutFinalizeDeps(
 
       const result = await bookingsService.confirmBooking(db, bookingId, {}, undefined, {
         eventBus,
+        monthlyBookingLimit,
       })
       if (result.status === "ok") {
         await markBookingConfirmed(db, identity)
         return
+      }
+
+      if (result.status === "monthly_booking_limit_reached" && "message" in result) {
+        throw new Error(`checkout-finalize: ${result.message}`)
       }
 
       if (result.status === "hold_expired") {
@@ -67,7 +73,7 @@ export function buildCheckoutFinalizeDeps(
           bookingId,
           { note: "Recovered after late payment completion" },
           undefined,
-          { eventBus },
+          { eventBus, monthlyBookingLimit },
         )
         if (recovered.status === "ok") {
           await markBookingConfirmed(db, identity)
@@ -333,6 +339,7 @@ export interface FinalizeCheckoutParams {
   db: PostgresJsDatabase
   eventBus: EventBus
   input: CheckoutFinalizeInput
+  monthlyBookingLimit?: number | null
 }
 
 /**
@@ -350,7 +357,12 @@ export async function finalizeCheckout(params: FinalizeCheckoutParams): Promise<
   const delivery = await getCheckoutFinalizationDelivery(params.db, paymentSessionId)
   if (delivery?.completedAt) return
 
-  const deps = buildCheckoutFinalizeDeps(params.db, params.eventBus, identity)
+  const deps = buildCheckoutFinalizeDeps(
+    params.db,
+    params.eventBus,
+    identity,
+    params.monthlyBookingLimit,
+  )
   await runCheckoutFinalize(params.input, deps)
   await withCheckoutFinalizationLock(params.db, identity, async (tx) => {
     const current = await getCheckoutFinalizationDelivery(tx, paymentSessionId)

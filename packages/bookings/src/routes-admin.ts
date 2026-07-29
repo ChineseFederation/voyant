@@ -48,6 +48,7 @@ import {
   BOOKING_PII_READ_CAPABILITY,
   BOOKING_STATUS_CAPABILITIES,
 } from "./action-ledger-capabilities.js"
+import { BookingMonthlyLimitReachedError } from "./booking-plan-limit.js"
 import { createBookingPiiService } from "./pii.js"
 import {
   redactBookingContact,
@@ -729,6 +730,7 @@ function bookingStatusMutationRuntime(
 
   return {
     eventBus: c.get("eventBus"),
+    monthlyBookingLimit: getRouteRuntime(c).monthlyBookingLimit,
     closePaymentSchedulesForBooking: getRouteRuntime(c).closePaymentSchedulesForBooking,
     recordCancellationFinancialSettlement: getRouteRuntime(c).recordCancellationFinancialSettlement,
     actionLedgerContext: getActionLedgerRequestContext(c),
@@ -1725,6 +1727,7 @@ const updateBookingRoute = createRoute({
   },
   responses: {
     200: dataResponse(bookingSchema, "The updated booking"),
+    402: notFoundResponse("Monthly booking plan limit reached"),
     400: invalidRequestResponse,
     404: notFoundResponse("Booking not found"),
   },
@@ -1804,16 +1807,25 @@ coreCrudRoutes
     const data = c.req.valid("json") ?? {}
     await validateBookingBillingPartyReferences(c, data)
     const db = c.get("db")
-    const row =
-      data.customFields !== undefined && getRouteRuntime(c).customFieldsForWrite
-        ? await db.transaction(async (tx) => {
-            await validateBookingCustomFields(c, data, "update", tx)
-            return bookingsService.updateBooking(tx, c.req.valid("param").id, data)
-          })
-        : await (async () => {
-            await validateBookingCustomFields(c, data, "update", db)
-            return bookingsService.updateBooking(db, c.req.valid("param").id, data)
-          })()
+    let row: Awaited<ReturnType<typeof bookingsService.updateBooking>>
+    try {
+      const runtime = { monthlyBookingLimit: getRouteRuntime(c).monthlyBookingLimit }
+      row =
+        data.customFields !== undefined && getRouteRuntime(c).customFieldsForWrite
+          ? await db.transaction(async (tx) => {
+              await validateBookingCustomFields(c, data, "update", tx)
+              return bookingsService.updateBooking(tx, c.req.valid("param").id, data, runtime)
+            })
+          : await (async () => {
+              await validateBookingCustomFields(c, data, "update", db)
+              return bookingsService.updateBooking(db, c.req.valid("param").id, data, runtime)
+            })()
+    } catch (error) {
+      if (error instanceof BookingMonthlyLimitReachedError) {
+        return c.json({ error: error.message }, 402)
+      }
+      throw error
+    }
     if (!row) {
       return c.json({ error: "Booking not found" }, 404)
     }
@@ -2077,6 +2089,7 @@ const confirmRoute = createRoute({
       content: { "application/json": { schema: jsonObject } },
     },
     400: invalidRequestResponse,
+    402: notFoundResponse("Monthly booking plan limit reached"),
     403: notFoundResponse("Forbidden"),
     404: notFoundResponse("Booking not found"),
     409: conflictResponse("Hold expired / invalid transition / approval idempotency conflict"),
@@ -2192,6 +2205,7 @@ const overrideStatusRoute = createRoute({
       content: { "application/json": { schema: jsonObject } },
     },
     400: invalidRequestResponse,
+    402: notFoundResponse("Monthly booking plan limit reached"),
     403: notFoundResponse("Forbidden"),
     404: notFoundResponse("Booking not found"),
     409: conflictResponse("Approval idempotency conflict"),
@@ -2242,6 +2256,9 @@ lifecycleRoutes
         }
         if (result.status === "invalid_transition") {
           return c.json({ error: "Booking is not in an on-hold state" }, 409)
+        }
+        if (result.status === "monthly_booking_limit_reached" && "message" in result) {
+          return c.json({ error: result.message }, 402)
         }
         if ("booking" in result) {
           return c.json({ data: result.booking }, 200)
@@ -2429,6 +2446,9 @@ lifecycleRoutes
         )
         if (result.status === "not_found") {
           return c.json({ error: "Booking not found" }, 404)
+        }
+        if (result.status === "monthly_booking_limit_reached" && "message" in result) {
+          return c.json({ error: result.message }, 402)
         }
         if ("booking" in result) {
           return c.json({ data: result.booking }, 200)

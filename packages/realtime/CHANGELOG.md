@@ -1,5 +1,11 @@
 # @voyant-travel/realtime
 
+## 0.7.1
+
+### Patch Changes
+
+- d367d9f: Make quote-specific Realtime invalidation subscribers follow the Quotes module's standard-distribution lifecycle.
+
 ## 0.7.0
 
 ### Minor Changes

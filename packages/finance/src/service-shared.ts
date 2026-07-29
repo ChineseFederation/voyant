@@ -1043,6 +1043,7 @@ export async function touchLinkedBookingUpdatedAt(
  */
 export interface FinanceServiceRuntime extends InvoiceFxOptions {
   eventBus?: EventBus
+  monthlyBookingLimit?: number | null
   actionLedgerContext?: ActionLedgerRequestContextValues
   actionLedgerAuthorizationSource?: string | null
   actionLedgerActionName?: string | null

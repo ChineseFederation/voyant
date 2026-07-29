@@ -1,5 +1,24 @@
 # @voyant-travel/bookings
 
+## 0.219.0
+
+### Patch Changes
+
+- Updated dependencies [6df3ab4]
+  - @voyant-travel/tools@0.7.2
+
+## 0.218.2
+
+### Patch Changes
+
+- d367d9f: Enforce an optional, concurrency-safe monthly booking allowance at every accepted-booking boundary.
+
+## 0.218.1
+
+### Patch Changes
+
+- 87668e8: Make manual booking creation actionable and predictable: submit errors are visible, existing CRM contacts no longer require duplicate data entry, room assignments fill selected capacity, authoritative quotes preserve per-person/per-room pricing, and Finance tool failures explain how to correct invalid room or payment inputs.
+
 ## 0.218.0
 
 ### Minor Changes

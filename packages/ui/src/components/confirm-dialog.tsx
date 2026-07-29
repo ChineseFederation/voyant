@@ -2,6 +2,7 @@
 
 import type * as React from "react"
 import { useEffect, useState } from "react"
+import { getImperativeDialogChannel } from "../internal/imperative-dialog-channel.js"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +29,7 @@ interface ConfirmRequest {
   resolve: (value: boolean) => void
 }
 
-let sequence = 0
-const listeners = new Set<(request: ConfirmRequest) => void>()
+const channel = getImperativeDialogChannel<ConfirmRequest>("confirm")
 
 /**
  * Imperative, promise-based confirmation — the styled replacement for the
@@ -45,9 +45,9 @@ const listeners = new Set<(request: ConfirmRequest) => void>()
 export function confirmDialog(input: ConfirmDialogOptions | string): Promise<boolean> {
   const options: ConfirmDialogOptions = typeof input === "string" ? { description: input } : input
   return new Promise<boolean>((resolve) => {
-    sequence += 1
-    const request: ConfirmRequest = { id: sequence, options, resolve }
-    for (const listener of listeners) listener(request)
+    channel.sequence += 1
+    const request: ConfirmRequest = { id: channel.sequence, options, resolve }
+    for (const listener of channel.listeners) listener(request)
   })
 }
 
@@ -71,9 +71,9 @@ export function ConfirmDialogHost({
 
   useEffect(() => {
     const listener = (next: ConfirmRequest) => setRequest(next)
-    listeners.add(listener)
+    channel.listeners.add(listener)
     return () => {
-      listeners.delete(listener)
+      channel.listeners.delete(listener)
     }
   }, [])
 

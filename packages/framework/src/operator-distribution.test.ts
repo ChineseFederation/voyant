@@ -39,7 +39,7 @@ describe("standard Operator distribution", () => {
       "@voyant-travel/catalog-authoring",
       "@voyant-travel/reporting",
     ])
-    expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toHaveLength(24)
+    expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toHaveLength(25)
     expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toContain(
       "@voyant-travel/distribution/extension",
     )
@@ -50,7 +50,7 @@ describe("standard Operator distribution", () => {
     expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.modules).size).toBe(
       STANDARD_OPERATOR_DISTRIBUTION.modules.length,
     )
-    expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.extensions).size).toBe(24)
+    expect(new Set(STANDARD_OPERATOR_DISTRIBUTION.extensions).size).toBe(25)
   })
 
   it("defaults authored differences without treating extensions as plugins", () => {
@@ -72,6 +72,18 @@ describe("standard Operator distribution", () => {
     expect(selected.modules).not.toContain("@voyant-travel/bookings")
     for (const extension of ownedExtensions) expect(selected.extensions).not.toContain(extension)
     expect(selected.extensions).toContain("@voyant-travel/catalog/offers-extension")
+  })
+
+  it("removes quote-owned Realtime invalidations with the Quotes module", () => {
+    const selected = selectStandardOperatorDistribution({
+      exclude: ["@voyant-travel/quotes"],
+    })
+
+    expect(selected.modules).not.toContain("@voyant-travel/quotes")
+    expect(selected.extensions).not.toContain(
+      "@voyant-travel/realtime/quotes-invalidation-extension",
+    )
+    expect(selected.modules).toContain("@voyant-travel/realtime")
   })
 
   it("does not allow required or unknown selections to be removed", () => {

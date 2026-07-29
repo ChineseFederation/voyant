@@ -46,26 +46,52 @@ export function toTimestamp(value?: string | null): Date | null {
   return value ? new Date(value) : null
 }
 
-function resolvePath(obj: unknown, path: string): unknown {
-  if (obj === null || obj === undefined) return undefined
+const unsafeTemplatePathKeys = new Set(["__proto__", "prototype", "constructor"])
+
+function parseTemplateVariablePath(path: string): Array<string | number> | null {
   const segments: Array<string | number> = []
-  const parts = path.split(".")
-  for (const part of parts) {
-    if (!part) continue
-    const indexMatches = [...part.matchAll(/([^[\]]+)|\[(\d+)\]/g)]
-    for (const match of indexMatches) {
-      if (match[1] !== undefined) segments.push(match[1])
-      else if (match[2] !== undefined) segments.push(Number.parseInt(match[2], 10))
+  for (const part of path.split(".")) {
+    if (!part) return null
+    let cursor = 0
+    while (cursor < part.length) {
+      if (part[cursor] === "[") {
+        const end = part.indexOf("]", cursor + 1)
+        if (end === -1) return null
+        const rawIndex = part.slice(cursor + 1, end)
+        if (!/^(0|[1-9]\d*)$/.test(rawIndex)) return null
+        segments.push(Number.parseInt(rawIndex, 10))
+        cursor = end + 1
+        continue
+      }
+
+      const nextBracket = part.indexOf("[", cursor)
+      const token = part.slice(cursor, nextBracket === -1 ? undefined : nextBracket)
+      if (!token || token.includes("]") || unsafeTemplatePathKeys.has(token)) return null
+      segments.push(token)
+      cursor = nextBracket === -1 ? part.length : nextBracket
     }
   }
+  return segments
+}
+
+export function resolveTemplateVariablePath(obj: unknown, path: string): unknown {
+  if (obj === null || obj === undefined) return undefined
+  const segments = parseTemplateVariablePath(path)
+  if (!segments) return undefined
   let current: unknown = obj
   for (const seg of segments) {
     if (current === null || current === undefined) return undefined
     if (typeof seg === "number") {
-      if (!Array.isArray(current)) return undefined
+      if (!Array.isArray(current) || seg >= current.length) return undefined
       current = current[seg]
     } else {
       if (typeof current !== "object") return undefined
+      if (Array.isArray(current) && /^(0|[1-9]\d*)$/.test(seg)) {
+        const index = Number.parseInt(seg, 10)
+        current = index < current.length ? current[index] : undefined
+        continue
+      }
+      if (!Object.hasOwn(current, seg)) return undefined
       current = (current as Record<string, unknown>)[seg]
     }
   }
@@ -155,9 +181,11 @@ export function validateTemplateVariables(
   const issues: string[] = []
   if (!variableSchema || typeof variableSchema !== "object") return issues
   const schema = variableSchema as Record<string, unknown>
-  const requiredList = Array.isArray(schema.required) ? (schema.required as string[]) : []
+  const requiredList = Array.isArray(schema.required)
+    ? schema.required.filter((key): key is string => typeof key === "string")
+    : []
   for (const key of requiredList) {
-    const resolved = resolvePath(values, key)
+    const resolved = resolveTemplateVariablePath(values, key)
     if (resolved === undefined || resolved === null || resolved === "") {
       issues.push(`missing required variable: ${key}`)
     }

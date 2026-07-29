@@ -1,5 +1,14 @@
 # @voyant-travel/cruises
 
+## 0.218.0
+
+### Patch Changes
+
+- Updated dependencies [6df3ab4]
+  - @voyant-travel/tools@0.7.2
+  - @voyant-travel/catalog@0.217.0
+  - @voyant-travel/finance@0.219.0
+
 ## 0.217.0
 
 ### Patch Changes

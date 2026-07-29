@@ -79,6 +79,12 @@ function contractLifecyclePayloadSchema(
             required: ["recipientEmail", "subject", "message"],
             properties: {
               recipientEmail: nullableStringSchema,
+              recipient: nullableStringSchema,
+              channel: {
+                anyOf: [{ type: "string", enum: ["email", "sms", "whatsapp"] }, { type: "null" }],
+              },
+              revision: { anyOf: [{ type: "integer", minimum: 1 }, { type: "null" }] },
+              notificationsSuppressed: { type: "boolean" },
               subject: nullableStringSchema,
               message: nullableStringSchema,
             },

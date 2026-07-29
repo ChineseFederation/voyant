@@ -1,5 +1,47 @@
 # @voyant-travel/bookings-react
 
+## 0.219.0
+
+### Patch Changes
+
+- @voyant-travel/legal-react@0.219.0
+- @voyant-travel/storefront-react@0.221.0
+- @voyant-travel/distribution-react@0.209.0
+- @voyant-travel/finance-react@0.219.0
+- @voyant-travel/identity-react@0.219.0
+- @voyant-travel/operations-react@0.100.0
+- @voyant-travel/inventory-react@0.101.0
+- @voyant-travel/catalog-react@0.217.0
+- @voyant-travel/commerce-react@0.101.0
+- @voyant-travel/relationships-react@0.219.0
+- @voyant-travel/bookings@0.219.0
+- @voyant-travel/catalog@0.217.0
+- @voyant-travel/cruises@0.218.0
+- @voyant-travel/finance@0.219.0
+- @voyant-travel/accommodations@0.179.0
+- @voyant-travel/inventory@0.23.4
+
+## 0.218.2
+
+### Patch Changes
+
+- Updated dependencies [d367d9f]
+  - @voyant-travel/bookings@0.218.2
+  - @voyant-travel/finance@0.218.2
+  - @voyant-travel/finance-react@0.218.2
+
+## 0.218.1
+
+### Patch Changes
+
+- 87668e8: Make manual booking creation actionable and predictable: submit errors are visible, existing CRM contacts no longer require duplicate data entry, room assignments fill selected capacity, authoritative quotes preserve per-person/per-room pricing, and Finance tool failures explain how to correct invalid room or payment inputs.
+- Updated dependencies [87668e8]
+  - @voyant-travel/bookings@0.218.1
+  - @voyant-travel/catalog-contracts@0.112.2
+  - @voyant-travel/finance@0.218.1
+  - @voyant-travel/inventory@0.23.3
+  - @voyant-travel/finance-react@0.218.1
+
 ## 0.218.0
 
 ### Patch Changes

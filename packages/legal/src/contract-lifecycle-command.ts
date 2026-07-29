@@ -6,8 +6,9 @@ import {
 } from "@voyant-travel/action-ledger"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { bookingContractContentFingerprint } from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
 import {
   appendContractStageHistory,
@@ -28,6 +29,7 @@ import {
   renderTemplate,
 } from "./contracts/service-shared.js"
 import { LEGAL_CONTRACT_LIFECYCLE_POLICIES } from "./existing-target-policy.js"
+import { parseManagedBookingContractReviewWorkflow } from "./managed-booking-contract-workflow.js"
 import { type LegalContractDetail, legalContractDetailSchema } from "./tools.js"
 
 type LifecycleTransition = keyof typeof LEGAL_CONTRACT_LIFECYCLE_POLICIES
@@ -36,9 +38,25 @@ type LifecycleCommandPayload =
   | { contractId: string }
   | {
       contractId: string
+      recipient: string
+      channel: "email" | "sms" | "whatsapp"
+      revision: number
+      contentFingerprint: string
+      notificationsSuppressed: boolean
+      subject: string | null
+      message: string | null
+    }
+  | {
+      contractId: string
       recipientEmail: string | null
       subject: string | null
       message: string | null
+    }
+  | {
+      contractId: string
+      revision: number
+      reason: string
+      acknowledgedConsequences: true
     }
 
 type InsertOutbox = typeof insertOutboxEvents
@@ -51,6 +69,13 @@ export interface ExecuteLegalContractLifecycleCommandInput {
   commandInput: {
     contractId: string
     recipientEmail?: string | null
+    recipient?: string
+    channel?: "email" | "sms" | "whatsapp"
+    revision?: number
+    contentFingerprint?: string
+    notificationsSuppressed?: boolean
+    reason?: string
+    acknowledgedConsequences?: true
     subject?: string | null
     message?: string | null
   }
@@ -205,7 +230,17 @@ async function applyLifecycleTransition(
     case "issue":
       return issueContract(db, contract)
     case "send":
+      if (
+        contract.status === "draft" &&
+        "contentFingerprint" in payload &&
+        parseManagedBookingContractReviewWorkflow(contractMetadataRecord(contract.metadata))
+      ) {
+        const issued = await issueContract(db, contract, { allowManagedReviewWorkflow: true })
+        return sendContract(db, issued.contract, payload)
+      }
       return sendContract(db, contract, payload)
+    case "void":
+      return voidContract(db, contract, payload)
     case "execute":
       return executeContract(db, contract)
   }
@@ -214,6 +249,7 @@ async function applyLifecycleTransition(
 async function issueContract(
   db: PostgresJsDatabase,
   contract: Contract,
+  options: { allowManagedReviewWorkflow?: boolean } = {},
 ): Promise<{ contract: Contract; event: ContractLifecycleEvent }> {
   if (contract.status !== "draft") {
     throw new ToolError("Only draft contracts can be issued.", "INVALID_INPUT", {
@@ -222,7 +258,16 @@ async function issueContract(
   }
 
   let contractNumber = contract.contractNumber
-  if (!contractNumber && contract.seriesId) {
+  const metadata = contractMetadataRecord(contract.metadata)
+  const immutableReviewedRevision = parseManagedBookingContractReviewWorkflow(metadata) !== null
+  if (immutableReviewedRevision && !options.allowManagedReviewWorkflow) {
+    throw new ToolError(
+      "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+      "INVALID_INPUT",
+      { contractId: contract.id },
+    )
+  }
+  if (!immutableReviewedRevision && !contractNumber && contract.seriesId) {
     const allocated = await allocateContractNumber(db, contract.seriesId)
     if (allocated) contractNumber = allocated.number
   }
@@ -232,7 +277,7 @@ async function issueContract(
     : baseVariables
   let renderedBody = contract.renderedBody
   let renderedBodyFormat = contract.renderedBodyFormat
-  if (contract.templateVersionId) {
+  if (!immutableReviewedRevision && contract.templateVersionId) {
     const [version] = await db
       .select()
       .from(contractTemplateVersions)
@@ -284,6 +329,37 @@ async function sendContract(
     })
   }
   const delivery = sendDelivery(payload)
+  const metadata = contractMetadataRecord(contract.metadata)
+  const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
+  const expectedRevision = managedWorkflow?.revision ?? 1
+  if (managedWorkflow && !("contentFingerprint" in payload)) {
+    throw new ToolError(
+      "Booking contract revisions require an exact review content fingerprint.",
+      "INVALID_INPUT",
+    )
+  }
+  if (managedWorkflow) await assertNoManagedSuccessorRevision(db, contract.id)
+  if ("contentFingerprint" in payload) {
+    const currentFingerprint = await bookingContractContentFingerprint(contract)
+    if (payload.contentFingerprint !== currentFingerprint) {
+      throw new ToolError(
+        "The approved contract content is no longer the reviewed content.",
+        "INVALID_INPUT",
+        { contractId: contract.id },
+      )
+    }
+  }
+  if ("revision" in payload && delivery.revision !== expectedRevision) {
+    throw new ToolError(
+      "The approved contract revision is no longer the selected revision.",
+      "INVALID_INPUT",
+      {
+        contractId: contract.id,
+        expectedRevision,
+        approvedRevision: delivery.revision,
+      },
+    )
+  }
   const now = new Date()
   const stageHistory = appendContractStageHistory(
     contract.stageHistory,
@@ -295,7 +371,27 @@ async function sendContract(
   )
   const [updated] = await db
     .update(contracts)
-    .set({ status: "sent", stageHistory, sentAt: now, updatedAt: now })
+    .set({
+      status: "sent",
+      stageHistory,
+      sentAt: now,
+      metadata: managedWorkflow
+        ? {
+            ...metadata,
+            bookingContractWorkflow: {
+              ...managedWorkflow,
+              reviewOnly: false,
+              delivery: {
+                recipient: delivery.recipient,
+                channel: delivery.channel,
+                revision: delivery.revision,
+                notificationsSuppressed: delivery.notificationsSuppressed,
+              },
+            },
+          }
+        : metadata,
+      updatedAt: now,
+    })
     .where(eq(contracts.id, contract.id))
     .returning()
   if (!updated) throw new Error("Contract send transition did not return a row")
@@ -335,14 +431,121 @@ async function executeContract(
   }
 }
 
+async function voidContract(
+  db: PostgresJsDatabase,
+  contract: Contract,
+  payload: ExistingTargetCommandPayload<LifecycleCommandPayload>,
+): Promise<{ contract: Contract; event: ContractLifecycleEvent }> {
+  if (contract.status === "void") {
+    throw new ToolError("Contract is already void.", "INVALID_INPUT", { contractId: contract.id })
+  }
+  if (
+    !("revision" in payload) ||
+    !("reason" in payload) ||
+    !("acknowledgedConsequences" in payload) ||
+    payload.acknowledgedConsequences !== true
+  ) {
+    throw new LegalContractLifecycleCommandError("result_identity_mismatch")
+  }
+  const metadata =
+    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
+      ? (contract.metadata as Record<string, unknown>)
+      : {}
+  const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
+  const expectedRevision = managedWorkflow?.revision ?? 1
+  if (payload.revision !== expectedRevision) {
+    throw new ToolError(
+      "The approved contract revision is no longer the selected revision.",
+      "INVALID_INPUT",
+    )
+  }
+  const now = new Date()
+  const stageHistory = appendContractStageHistory(
+    contract.stageHistory,
+    createContractStageHistoryEntry("void", {
+      previousStage: contract.status,
+      transition: "voided",
+      enteredAt: now,
+    }),
+  )
+  const [updated] = await db
+    .update(contracts)
+    .set({
+      status: "void",
+      stageHistory,
+      voidedAt: now,
+      metadata: managedWorkflow
+        ? {
+            ...metadata,
+            bookingContractWorkflow: {
+              ...managedWorkflow,
+              voidReason: payload.reason,
+              voidedRevision: payload.revision,
+            },
+          }
+        : contract.metadata,
+      updatedAt: now,
+    })
+    .where(eq(contracts.id, contract.id))
+    .returning()
+  if (!updated) throw new Error("Contract void transition did not return a row")
+  return {
+    contract: updated,
+    event: buildContractLifecycleEvent(updated, contract.status, "void", "voided", now),
+  }
+}
+
+async function assertNoManagedSuccessorRevision(
+  db: PostgresJsDatabase,
+  contractId: string,
+): Promise<void> {
+  const [successor] = await db
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(
+      // agent-quality: raw-sql reviewed -- owner: legal; JSONB lineage lookup is parameterized and runs while the predecessor contract row is locked by the lifecycle transition.
+      sql`${contracts.metadata}->'bookingContractWorkflow'->>'previousRevisionId' = ${contractId}`,
+    )
+    .limit(1)
+  if (successor) {
+    throw new ToolError(
+      "A successor revision already exists for this contract revision.",
+      "INVALID_INPUT",
+      { contractId, successorRevisionId: successor.id },
+    )
+  }
+}
+
 function sendDelivery(
   payload: ExistingTargetCommandPayload<LifecycleCommandPayload>,
 ): NonNullable<ContractLifecycleEvent["delivery"]> {
-  if (!("recipientEmail" in payload) || !("subject" in payload) || !("message" in payload)) {
+  if ("recipientEmail" in payload) {
+    return {
+      recipientEmail: payload.recipientEmail,
+      recipient: payload.recipientEmail,
+      channel: payload.recipientEmail ? "email" : null,
+      revision: null,
+      notificationsSuppressed: false,
+      subject: payload.subject,
+      message: payload.message,
+    }
+  }
+  if (
+    !("recipient" in payload) ||
+    !("channel" in payload) ||
+    !("revision" in payload) ||
+    !("notificationsSuppressed" in payload) ||
+    !("subject" in payload) ||
+    !("message" in payload)
+  ) {
     throw new LegalContractLifecycleCommandError("result_identity_mismatch")
   }
   return {
-    recipientEmail: payload.recipientEmail,
+    recipientEmail: payload.channel === "email" ? payload.recipient : null,
+    recipient: payload.recipient,
+    channel: payload.channel,
+    revision: payload.revision,
+    notificationsSuppressed: payload.notificationsSuppressed,
     subject: payload.subject,
     message: payload.message,
   }
@@ -352,10 +555,33 @@ function normalizeCommandInput(
   transition: LifecycleTransition,
   commandInput: ExecuteLegalContractLifecycleCommandInput["commandInput"],
 ): LifecycleCommandPayload {
+  if (transition === "void") {
+    return {
+      contractId: commandInput.contractId,
+      revision: commandInput.revision as number,
+      reason: commandInput.reason as string,
+      acknowledgedConsequences: commandInput.acknowledgedConsequences as true,
+    }
+  }
   if (transition !== "send") return { contractId: commandInput.contractId }
+  if (!("recipient" in commandInput) || !commandInput.contentFingerprint) {
+    return {
+      contractId: commandInput.contractId,
+      recipientEmail:
+        "recipientEmail" in commandInput
+          ? (commandInput.recipientEmail ?? null)
+          : (commandInput.recipient ?? null),
+      subject: "subject" in commandInput ? (commandInput.subject ?? null) : null,
+      message: "message" in commandInput ? (commandInput.message ?? null) : null,
+    }
+  }
   return {
     contractId: commandInput.contractId,
-    recipientEmail: "recipientEmail" in commandInput ? (commandInput.recipientEmail ?? null) : null,
+    recipient: commandInput.recipient as string,
+    channel: commandInput.channel as "email" | "sms" | "whatsapp",
+    revision: commandInput.revision as number,
+    contentFingerprint: commandInput.contentFingerprint as string,
+    notificationsSuppressed: commandInput.notificationsSuppressed ?? false,
     subject: "subject" in commandInput ? (commandInput.subject ?? null) : null,
     message: "message" in commandInput ? (commandInput.message ?? null) : null,
   }
@@ -386,4 +612,10 @@ function canonicalJson(value: unknown): string {
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
     .join(",")}}`
+}
+
+function contractMetadataRecord(metadata: unknown): Record<string, unknown> {
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {}
 }

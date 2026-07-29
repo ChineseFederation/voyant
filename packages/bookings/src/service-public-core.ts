@@ -1582,8 +1582,9 @@ export const publicBookingsService = {
     bookingId: string,
     input: PublicBookingSessionMutationInput,
     userId?: string,
+    runtime: BookingServiceRuntime = {},
   ) {
-    const result = await bookingsService.confirmBooking(db, bookingId, input, userId)
+    const result = await bookingsService.confirmBooking(db, bookingId, input, userId, runtime)
     if (result.status !== "ok") {
       return result
     }

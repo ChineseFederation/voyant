@@ -1,5 +1,25 @@
 # @voyant-travel/commerce
 
+## 0.44.19
+
+### Patch Changes
+
+- Updated dependencies [6df3ab4]
+  - @voyant-travel/tools@0.7.2
+  - @voyant-travel/bookings@0.219.0
+  - @voyant-travel/catalog@0.217.0
+  - @voyant-travel/distribution@0.209.0
+  - @voyant-travel/finance@0.219.0
+
+## 0.44.18
+
+### Patch Changes
+
+- d367d9f: Enforce an optional, concurrency-safe monthly booking allowance at every accepted-booking boundary.
+- Updated dependencies [d367d9f]
+  - @voyant-travel/bookings@0.218.2
+  - @voyant-travel/finance@0.218.2
+
 ## 0.44.17
 
 ### Patch Changes

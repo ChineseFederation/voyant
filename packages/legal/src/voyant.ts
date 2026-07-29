@@ -434,6 +434,20 @@ export const legalVoyantModule = defineModule({
         "high",
       ],
       [
+        "list-applicable-booking-contract-templates",
+        "list_applicable_booking_contract_templates",
+        "listApplicableBookingContractTemplatesTool",
+        "legal:read",
+        "high",
+      ],
+      [
+        "get-booking-contract-review",
+        "get_booking_contract_review",
+        "getBookingContractReviewTool",
+        "legal:read",
+        "high",
+      ],
+      [
         "get-contract-template",
         "get_contract_template",
         "getContractTemplateTool",
@@ -482,6 +496,7 @@ export const legalVoyantModule = defineModule({
       ],
       ["issue-contract", "issue_legal_contract", "issueLegalContractTool", "legal:write", "high"],
       ["send-contract", "send_legal_contract", "sendLegalContractTool", "legal:write", "high"],
+      ["void-contract", "void_legal_contract", "voidLegalContractTool", "legal:write", "critical"],
       [
         "execute-contract",
         "execute_legal_contract",
@@ -493,7 +508,10 @@ export const legalVoyantModule = defineModule({
       id: `@voyant-travel/legal#tool.${id}`,
       name: name!,
       runtime: { entry: "@voyant-travel/legal/tools", export: exportName! },
-      requiredScopes: [scope!],
+      requiredScopes:
+        id === "get-booking-contract-review" || id === "list-applicable-booking-contract-templates"
+          ? ["legal:read", "bookings-pii:read"]
+          : [scope!],
       context: ["legal"],
       risk: risk as "medium" | "high" | "critical",
     })),
@@ -561,6 +579,36 @@ export const legalVoyantModule = defineModule({
           "@voyant-travel/legal#tool.preview-contract-template",
         ],
       },
+    },
+    {
+      id: "@voyant-travel/legal#action.inspect-booking-contract-template-applicability",
+      version: "v1",
+      kind: "sensitive-read",
+      targetType: "booking",
+      resource: "legal",
+      action: "read",
+      requiredScopes: ["legal:read", "bookings-pii:read"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      allowedActorTypes: ["staff"],
+      from: {
+        tools: ["@voyant-travel/legal#tool.list-applicable-booking-contract-templates"],
+      },
+    },
+    {
+      id: "@voyant-travel/legal#action.inspect-booking-contract-review",
+      version: "v1",
+      kind: "sensitive-read",
+      targetType: "legal-contract",
+      resource: "legal",
+      action: "read",
+      requiredScopes: ["legal:read", "bookings-pii:read"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      allowedActorTypes: ["staff"],
+      from: { tools: ["@voyant-travel/legal#tool.get-booking-contract-review"] },
     },
     {
       id: "@voyant-travel/legal#action.author-contract-template",
@@ -641,6 +689,7 @@ export const legalVoyantModule = defineModule({
       [
         ["issue", "issue-contract", "high"],
         ["send", "send-contract", "high"],
+        ["void", "void-contract", "critical"],
         ["execute", "execute-contract", "critical"],
       ] as const
     ).map(([transition, tool, risk]) => ({

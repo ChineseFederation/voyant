@@ -1,5 +1,11 @@
 # @voyant-travel/catalog-contracts
 
+## 0.112.2
+
+### Patch Changes
+
+- 87668e8: Make manual booking creation actionable and predictable: submit errors are visible, existing CRM contacts no longer require duplicate data entry, room assignments fill selected capacity, authoritative quotes preserve per-person/per-room pricing, and Finance tool failures explain how to correct invalid room or payment inputs.
+
 ## 0.112.1
 
 ### Patch Changes
