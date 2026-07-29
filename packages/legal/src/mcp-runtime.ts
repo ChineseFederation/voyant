@@ -560,16 +560,6 @@ export async function executeLegalContractDraftCreate(
             "INVALID_INPUT",
           )
         }
-        if (
-          previous &&
-          requestedInput.templateVersionId &&
-          requestedInput.templateVersionId !== priorWorkflow?.reviewSnapshot.template.versionId
-        ) {
-          throw new ToolError(
-            "A contract revision must remain attached to the same template version.",
-            "INVALID_INPUT",
-          )
-        }
         const revision = priorWorkflow ? priorWorkflow.revision + 1 : 1
         let variables =
           requestedInput.variables ??

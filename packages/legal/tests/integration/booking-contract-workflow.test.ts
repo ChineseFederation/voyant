@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: legal; managed booking review workflow coverage stays co-located because revision, snapshot, delivery, and concurrency guards share the same database fixtures.
 import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
@@ -516,12 +517,28 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       templateVersionId: version.id,
       variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
     })
+    const [newVersion] = await db
+      .insert(contractTemplateVersions)
+      .values({
+        templateId: version.templateId,
+        version: 2,
+        body: "Updated hello {{ customer.name }}",
+        variableSchema: { required: ["customer.name"] },
+      })
+      .returning()
+    await db
+      .update(contractTemplates)
+      .set({ currentVersionId: newVersion!.id, updatedAt: new Date() })
+      .where(eq(contractTemplates.id, version.templateId))
+
     const successor = await createDraft("managed-successor-create", {
       title: "Managed successor",
       revisionOfContractId: parent.value.id,
+      templateVersionId: newVersion!.id,
       variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 20_00 } },
     })
     const [row] = await db.select().from(contracts).where(eq(contracts.id, successor.value.id))
+    expect(row).toEqual(expect.objectContaining({ templateVersionId: newVersion!.id }))
     expect(row?.metadata).toEqual(
       expect.objectContaining({
         bookingContractWorkflow: expect.objectContaining({
@@ -529,7 +546,7 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
           previousRevisionId: parent.value.id,
           reviewSnapshot: expect.objectContaining({
             booking: expect.objectContaining({ id: booking.id }),
-            template: expect.objectContaining({ versionId: version.id }),
+            template: expect.objectContaining({ versionId: newVersion!.id }),
           }),
         }),
       }),
