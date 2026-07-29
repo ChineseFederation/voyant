@@ -520,6 +520,13 @@ export async function executeLegalContractDraftCreate(
             { revisionOfContractId },
           )
         }
+        if (previous?.status === "sent") {
+          throw new ToolError(
+            "Sent contract revisions cannot be superseded by a draft revision.",
+            "INVALID_INPUT",
+            { revisionOfContractId },
+          )
+        }
         if (previous && priorWorkflow?.reviewSnapshot.booking.id !== previous.bookingId) {
           throw new ToolError(
             "A contract revision predecessor has inconsistent booking workflow metadata.",

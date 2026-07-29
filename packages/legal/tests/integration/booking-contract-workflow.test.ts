@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: legal; managed booking review workflow coverage stays co-located because revision, snapshot, delivery, and concurrency guards share the same database fixtures.
 import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
 import { createDbClient } from "@voyant-travel/db"
+import { infraPublicDocumentDeliveryGrantsTable } from "@voyant-travel/db/schema/infra"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import type { ToolContext } from "@voyant-travel/tools"
 import { eq, sql } from "drizzle-orm"
@@ -538,6 +539,61 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       (successor.metadata as { bookingContractWorkflow: { revision: number } })
         .bookingContractWorkflow.revision,
     ).toBe(2)
+  })
+
+  it("rejects sent predecessors without creating successors or mutating delivery grants", async () => {
+    const { booking, version } = await seedBookingTemplate("BK-SENT-REVISION-GUARD")
+    const parent = await createDraft("sent-parent-create", {
+      title: "Sent parent revision",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+    })
+    await db
+      .update(contracts)
+      .set({ status: "sent", sentAt: new Date("2026-07-29T12:00:00.000Z") })
+      .where(eq(contracts.id, parent.value.id))
+    const [grant] = await db
+      .insert(infraPublicDocumentDeliveryGrantsTable)
+      .values({
+        tokenHash: "sent-predecessor-token-hash",
+        storageKey: `contracts/${parent.value.id}/document.pdf`,
+        sourceModule: "legal",
+        sourceEntity: "contract",
+        sourceId: parent.value.id,
+        expiresAt: new Date("2026-07-30T12:00:00.000Z"),
+      })
+      .returning()
+
+    await expect(
+      createDraft("reject-sent-successor-create", {
+        title: "Rejected successor",
+        revisionOfContractId: parent.value.id,
+        variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 20_00 } },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "Sent contract revisions cannot be superseded by a draft revision.",
+      meta: { revisionOfContractId: parent.value.id },
+    })
+
+    const rows = await db.select().from(contracts).where(eq(contracts.bookingId, booking.id))
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toEqual(expect.objectContaining({ id: parent.value.id, status: "sent" }))
+    expect(
+      rows.filter((row) => {
+        const workflow = (
+          row.metadata as { bookingContractWorkflow?: { previousRevisionId?: string } }
+        ).bookingContractWorkflow
+        return workflow?.previousRevisionId === parent.value.id
+      }),
+    ).toEqual([])
+    await expect(
+      db
+        .select()
+        .from(infraPublicDocumentDeliveryGrantsTable)
+        .where(eq(infraPublicDocumentDeliveryGrantsTable.id, grant!.id)),
+    ).resolves.toEqual([expect.objectContaining({ revokedAt: null, sourceId: parent.value.id })])
   })
 
   it("rejects unmanaged predecessors while preserving valid managed successor revisions", async () => {
