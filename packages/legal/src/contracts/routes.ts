@@ -35,6 +35,7 @@ import type { StorageProvider } from "@voyant-travel/storage"
 import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import { redactManagedBookingContractForGenericDetail } from "../contract-dto.js"
 import type { ContractLifecycleHook } from "./lifecycle.js"
 import {
   buildContractsRouteRuntime,
@@ -641,6 +642,12 @@ function toPublicContract(contract: Contract): z.infer<typeof publicContractSche
   }
 }
 
+function toGenericAdminContract<T extends { variables: unknown; metadata: unknown }>(
+  contract: T,
+): T {
+  return redactManagedBookingContractForGenericDetail(contract)
+}
+
 function toPublicSignature(
   signature: ContractSignature,
 ): z.infer<typeof publicContractSignatureSchema> {
@@ -1128,16 +1135,19 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
   })
 
   const contractRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-    .openapi(listContractsRoute, async (c) =>
-      c.json(await contractsService.listContracts(c.get("db"), c.req.valid("query")), 200),
-    )
+    .openapi(listContractsRoute, async (c) => {
+      const result = await contractsService.listContracts(c.get("db"), c.req.valid("query"))
+      return c.json({ ...result, data: result.data.map(toGenericAdminContract) }, 200)
+    })
     .openapi(createContractRoute, async (c) => {
       const row = await contractsService.createContract(c.get("db"), c.req.valid("json"))
-      return c.json({ data: row! }, 201)
+      return c.json({ data: toGenericAdminContract(row!) }, 201)
     })
     .openapi(getContractRoute, async (c) => {
       const row = await contractsService.getContractById(c.get("db"), c.req.valid("param").id)
-      return row ? c.json({ data: row }, 200) : c.json({ error: "Contract not found" }, 404)
+      return row
+        ? c.json({ data: toGenericAdminContract(row) }, 200)
+        : c.json({ error: "Contract not found" }, 404)
     })
     .openapi(updateContractRoute, async (c) => {
       const row = await contractsService.updateContract(
@@ -1145,7 +1155,9 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         c.req.valid("param").id,
         c.req.valid("json"),
       )
-      return row ? c.json({ data: row }, 200) : c.json({ error: "Contract not found" }, 404)
+      return row
+        ? c.json({ data: toGenericAdminContract(row) }, 200)
+        : c.json({ error: "Contract not found" }, 404)
     })
     .openapi(deleteContractRoute, async (c) => {
       const result = await contractsService.deleteContract(c.get("db"), c.req.valid("param").id)
@@ -1277,7 +1289,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_draft") {
         return c.json({ error: "Only draft contracts can be issued" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(sendContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1296,7 +1308,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_issued") {
         return c.json({ error: "Only issued/sent contracts can be sent" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(signContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1310,7 +1322,15 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_signable") {
         return c.json({ error: "Contract is not in a signable state" }, 409)
       }
-      return c.json({ data: { contract: result.contract!, signature: result.signature! } }, 200)
+      return c.json(
+        {
+          data: {
+            contract: toGenericAdminContract(result.contract!),
+            signature: result.signature!,
+          },
+        },
+        200,
+      )
     })
     .openapi(executeContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1323,7 +1343,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_signed") {
         return c.json({ error: "Only signed contracts can be executed" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(voidContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1336,7 +1356,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "already_void") {
         return c.json({ error: "Contract is already void" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(renderContractRoute, (c) =>
       asRouteResponse(

@@ -4,13 +4,18 @@ import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import type { ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { getBookingContractReview } from "../../src/booking-contract-review.js"
+import { createContractsAdminRoutes } from "../../src/contracts/routes.js"
 import { contractsService } from "../../src/contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION } from "../../src/created-target-policy.js"
 import { createLegalToolServices, executeLegalContractDraftCreate } from "../../src/mcp-runtime.js"
 import { contracts, contractTemplates, contractTemplateVersions } from "../../src/schema.js"
-import { listApplicableBookingContractTemplatesTool } from "../../src/tools.js"
+import {
+  getBookingContractReviewTool,
+  listApplicableBookingContractTemplatesTool,
+} from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -57,6 +62,44 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       commercialTerms: { depositDueCents: 25_00, balanceDueDays: 30 },
     })
     const originalFingerprint = originalReview?.contentFingerprint
+    expect(originalReview?.contract.variables).toMatchObject({
+      customer: { name: "Ana Pop", email: "ana@example.test" },
+    })
+
+    const redactedService = createLegalToolServices(db).getContract(first.value.id)
+    await expect(redactedService).resolves.toMatchObject({
+      variables: null,
+      metadata: {
+        bookingContractWorkflow: {
+          revision: 1,
+          previousRevisionId: null,
+          reviewOnly: true,
+          piiRedacted: true,
+        },
+      },
+    })
+    expect((await redactedService)?.metadata).not.toHaveProperty(
+      "bookingContractWorkflow.reviewSnapshot",
+    )
+
+    const adminApp = new Hono()
+    adminApp.use("*", async (c, next) => {
+      c.set("db" as never, db)
+      await next()
+    })
+    adminApp.route("/", createContractsAdminRoutes())
+    const detailRes = await adminApp.request(`/${first.value.id}`)
+    expect(detailRes.status).toBe(200)
+    const detailBody = (await detailRes.json()) as { data: Record<string, unknown> }
+    expect(detailBody.data.variables).toBeNull()
+    expect(detailBody.data.metadata).toEqual({
+      bookingContractWorkflow: {
+        revision: 1,
+        previousRevisionId: null,
+        reviewOnly: true,
+        piiRedacted: true,
+      },
+    })
 
     await db
       .update(bookings)
@@ -83,6 +126,43 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     expect(afterMutation?.contentFingerprint).toBe(originalFingerprint)
   })
 
+  it("keeps immutable review history and fingerprints after template deletion", async () => {
+    const { booking, template, version } = await seedBookingTemplate("BK-TEMPLATE-DELETE-1")
+    const created = await createDraft("template-delete-create", {
+      title: "Customer agreement",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: {
+        customer: { name: "Ana Pop", email: "ana@example.test" },
+        commercial: { depositDueCents: 25_00, balanceDueDays: 30 },
+      },
+    })
+    const beforeDelete = await getBookingContractReview(db, created.value.id)
+    const fingerprint = beforeDelete?.contentFingerprint
+
+    await expect(contractsService.deleteTemplate(db, template.id)).resolves.toMatchObject({
+      id: template.id,
+    })
+    await expect(contractsService.getTemplateVersionById(db, version.id)).resolves.toBeNull()
+    const [contractAfterDelete] = await db
+      .select({ templateVersionId: contracts.templateVersionId })
+      .from(contracts)
+      .where(eq(contracts.id, created.value.id))
+      .limit(1)
+    expect(contractAfterDelete?.templateVersionId).toBeNull()
+
+    const afterDelete = await getBookingContractReview(db, created.value.id)
+    expect(afterDelete).toEqual(beforeDelete)
+    expect(afterDelete?.contentFingerprint).toBe(fingerprint)
+    expect(afterDelete?.template).toEqual({
+      id: template.id,
+      name: template.name,
+      versionId: version.id,
+      version: version.version,
+      language: template.language,
+    })
+  })
+
   it("requires bookings-pii:read for applicability and audits allowed and denied probes", async () => {
     const { booking } = await seedBookingTemplate("BK-PII-1")
     const deniedContext = {
@@ -97,6 +177,9 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     await expect(
       listApplicableBookingContractTemplatesTool.handler({ bookingId: booking.id }, deniedContext),
     ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    await expect(
+      getBookingContractReviewTool.handler({ contractId: "contract_missing" }, deniedContext),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
 
     const service = createLegalToolServices(db, undefined, {
       userId: "usr_allowed",
@@ -105,11 +188,24 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     })
     const allowed = await service.listApplicableBookingTemplates({ bookingId: booking.id })
     expect(allowed).toMatchObject({ bookingFound: true })
+    const { version } = await seedBookingTemplate("BK-PII-2")
+    const contract = await createDraft("review-audit-create", {
+      title: "Customer agreement",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+    })
+    await expect(
+      service.getBookingContractReview({ contractId: contract.value.id }),
+    ).resolves.toMatchObject({
+      booking: { id: booking.id },
+    })
 
     const piiRows = await db
       .select()
       .from(bookingPiiAccessLog)
       .where(eq(bookingPiiAccessLog.bookingId, booking.id))
+    const allPiiRows = await db.select().from(bookingPiiAccessLog)
     expect(piiRows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -122,6 +218,23 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
           outcome: "allowed",
           reason: "contract_template_applicability_reveal",
           actorId: "usr_allowed",
+        }),
+        expect.objectContaining({
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_review_reveal",
+          actorId: "usr_allowed",
+        }),
+      ]),
+    )
+    expect(allPiiRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          bookingId: null,
+          action: "read",
+          outcome: "denied",
+          reason: "insufficient_scope",
+          metadata: expect.objectContaining({ contractId: "contract_missing" }),
         }),
       ]),
     )

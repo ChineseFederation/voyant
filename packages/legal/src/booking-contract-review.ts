@@ -10,7 +10,7 @@ import type { bookingContractReviewSchema } from "./tools.js"
 type BookingContractReview = z.infer<typeof bookingContractReviewSchema>
 type BookingContractReviewSnapshot = Pick<
   BookingContractReview,
-  "booking" | "products" | "commercialTerms"
+  "booking" | "products" | "commercialTerms" | "template"
 >
 
 export async function bookingContractContentFingerprint(contract: {
@@ -25,12 +25,16 @@ export async function bookingContractContentFingerprint(contract: {
 }): Promise<string> {
   const metadata = record(contract.metadata)
   const workflow = record(metadata.bookingContractWorkflow)
+  const reviewSnapshot = record(workflow.reviewSnapshot)
+  const snapshotTemplate = record(reviewSnapshot.template)
+  const frozenTemplateVersionId =
+    typeof snapshotTemplate.versionId === "string" ? snapshotTemplate.versionId : null
   const digest = await sha256({
     contractId: contract.id,
     bookingId: contract.bookingId,
     title: contract.title,
     language: contract.language,
-    templateVersionId: contract.templateVersionId,
+    templateVersionId: frozenTemplateVersionId ?? contract.templateVersionId,
     variables: contract.variables,
     renderedBody: contract.renderedBody,
     reviewSnapshot: workflow.reviewSnapshot ?? null,
@@ -101,6 +105,8 @@ export function bookingContractCustomerVariables(booking: {
 export function bookingContractReviewSnapshot(input: {
   booking: typeof bookings.$inferSelect
   items: readonly (typeof bookingItems.$inferSelect)[]
+  template: typeof contractTemplates.$inferSelect
+  version: typeof contractTemplateVersions.$inferSelect
   language: string
   commercialTerms: Record<string, unknown>
 }): BookingContractReviewSnapshot {
@@ -125,6 +131,13 @@ export function bookingContractReviewSnapshot(input: {
       currency: item.sellCurrency,
     })),
     commercialTerms: input.commercialTerms as BookingContractReview["commercialTerms"],
+    template: {
+      id: input.template.id,
+      name: input.template.name,
+      versionId: input.version.id,
+      version: input.version.version,
+      language: input.template.language,
+    },
   }
 }
 
@@ -226,56 +239,39 @@ export async function getBookingContractReview(
   db: PostgresJsDatabase,
   contractId: string,
 ): Promise<BookingContractReview | null> {
-  const [row] = await db
-    .select({
-      contract: contracts,
-      booking: bookings,
-      template: contractTemplates,
-      version: contractTemplateVersions,
-    })
-    .from(contracts)
-    .innerJoin(bookings, eq(contracts.bookingId, bookings.id))
-    .innerJoin(
-      contractTemplateVersions,
-      eq(contracts.templateVersionId, contractTemplateVersions.id),
-    )
-    .innerJoin(contractTemplates, eq(contractTemplateVersions.templateId, contractTemplates.id))
-    .where(eq(contracts.id, contractId))
-    .limit(1)
+  const [row] = await db.select().from(contracts).where(eq(contracts.id, contractId)).limit(1)
   if (!row) return null
-  const metadata = record(row.contract.metadata)
+  const metadata = record(row.metadata)
   const workflow = record(metadata.bookingContractWorkflow)
+  if (!workflow.reviewSnapshot) return null
   const delivery = record(workflow.delivery)
   const snapshot = bookingContractReviewSnapshotSchema.parse(workflow.reviewSnapshot)
   const effectiveStatus =
-    row.contract.status === "void"
+    row.status === "void"
       ? "void"
-      : row.contract.status === "signed" || row.contract.status === "executed"
+      : row.status === "signed" || row.status === "executed"
         ? "signed"
         : delivery.declinedAt
           ? "declined"
           : delivery.viewedAt
             ? "viewed"
-            : row.contract.status === "sent"
+            : row.status === "sent"
               ? "sent"
               : "draft"
 
   return {
-    contract: legalContractDetail(row.contract),
-    contentFingerprint: await bookingContractContentFingerprint(row.contract),
+    contract: legalContractDetail(
+      { ...row, templateVersionId: snapshot.template.versionId },
+      { redactManagedBookingPii: false },
+    ),
+    contentFingerprint: await bookingContractContentFingerprint(row),
     effectiveStatus,
     revision: typeof workflow.revision === "number" ? workflow.revision : 1,
     previousRevisionId:
       typeof workflow.previousRevisionId === "string" ? workflow.previousRevisionId : null,
     booking: snapshot.booking,
     products: snapshot.products,
-    template: {
-      id: row.template.id,
-      name: row.template.name,
-      versionId: row.version.id,
-      version: row.version.version,
-      language: row.template.language,
-    },
+    template: snapshot.template,
     commercialTerms: snapshot.commercialTerms,
     delivery: {
       recipient: typeof delivery.recipient === "string" ? delivery.recipient : null,
@@ -286,7 +282,7 @@ export async function getBookingContractReview(
           ? delivery.channel
           : null,
       sentRevision: typeof delivery.revision === "number" ? delivery.revision : null,
-      sentAt: row.contract.sentAt?.toISOString() ?? null,
+      sentAt: row.sentAt?.toISOString() ?? null,
       viewedAt: typeof delivery.viewedAt === "string" ? delivery.viewedAt : null,
       declinedAt: typeof delivery.declinedAt === "string" ? delivery.declinedAt : null,
       notificationsSuppressed: delivery.notificationsSuppressed === true,
@@ -320,6 +316,13 @@ const bookingContractReviewSnapshotSchema = z.object({
     }),
   ),
   commercialTerms: z.record(z.string(), z.json()),
+  template: z.object({
+    id: z.string(),
+    name: z.string(),
+    versionId: z.string(),
+    version: z.number().int().positive(),
+    language: z.string(),
+  }),
 })
 
 /**

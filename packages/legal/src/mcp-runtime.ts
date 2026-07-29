@@ -551,6 +551,12 @@ export async function executeLegalContractDraftCreate(
         const template = templateVersion
           ? await contractsService.getTemplateById(transaction, templateVersion.templateId)
           : null
+        if (templateVersion && !template) {
+          throw new ToolError(
+            `Contract template "${templateVersion.templateId}" was not found.`,
+            "NOT_FOUND",
+          )
+        }
         const bookingId = requestedInput.bookingId ?? previous?.bookingId ?? null
         let language = resolveLegalContractDraftLanguage(
           requestedInput.language,
@@ -558,6 +564,12 @@ export async function executeLegalContractDraftCreate(
         )
         let reviewSnapshot: unknown
         if (bookingId && templateVersion) {
+          if (!template) {
+            throw new ToolError(
+              `Contract template "${templateVersion.templateId}" was not found.`,
+              "NOT_FOUND",
+            )
+          }
           const [booking] = await transaction
             .select()
             .from(bookings)
@@ -596,6 +608,8 @@ export async function executeLegalContractDraftCreate(
           reviewSnapshot = bookingContractReviewSnapshot({
             booking,
             items,
+            template,
+            version: templateVersion,
             language,
             commercialTerms: record(record(variables).commercial),
           })

@@ -1,6 +1,10 @@
 import type { Contract as LegalContract } from "./contracts/schema.js"
 import type { LegalContractDetail, LegalContractSummary } from "./tools.js"
 
+type LegalContractDetailOptions = {
+  redactManagedBookingPii?: boolean
+}
+
 function iso(value: Date): string {
   return value.toISOString()
 }
@@ -31,20 +35,70 @@ export function legalContractSummary(row: LegalContract): LegalContractSummary {
   }
 }
 
-export function legalContractDetail(row: LegalContract): LegalContractDetail {
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function managedBookingWorkflow(metadata: unknown): Record<string, unknown> | null {
+  const workflow = record(metadata).bookingContractWorkflow
+  if (!workflow || typeof workflow !== "object" || Array.isArray(workflow)) return null
+  const candidate = workflow as Record<string, unknown>
+  return candidate.reviewSnapshot ? candidate : null
+}
+
+export function hasManagedBookingWorkflow(metadata: unknown): boolean {
+  return !!managedBookingWorkflow(metadata)
+}
+
+export function redactManagedBookingContractForGenericDetail<
+  T extends { variables: unknown; metadata: unknown },
+>(row: T): T {
+  const workflow = managedBookingWorkflow(row.metadata)
+  if (!workflow) return row
+  const {
+    bookingContractWorkflow: _workflow,
+    bookingContractReviewSnapshot: _legacy,
+    ...metadata
+  } = record(row.metadata)
   return {
-    ...legalContractSummary(row),
-    templateVersionId: row.templateVersionId,
-    seriesId: row.seriesId,
-    channelId: row.channelId,
-    targetKind: row.targetKind,
-    targetId: row.targetId,
-    targetProvider: row.targetProvider,
-    targetSourceRef: row.targetSourceRef,
-    renderedBodyFormat: row.renderedBodyFormat,
-    renderedBody: row.renderedBody,
-    variables: row.variables as LegalContractDetail["variables"],
-    metadata: row.metadata as LegalContractDetail["metadata"],
-    stageHistory: row.stageHistory,
+    ...row,
+    variables: null,
+    metadata: {
+      ...metadata,
+      bookingContractWorkflow: {
+        revision: typeof workflow.revision === "number" ? workflow.revision : null,
+        previousRevisionId:
+          typeof workflow.previousRevisionId === "string" ? workflow.previousRevisionId : null,
+        reviewOnly: workflow.reviewOnly === true,
+        piiRedacted: true,
+      },
+    },
+  }
+}
+
+export function legalContractDetail(
+  row: LegalContract,
+  options: LegalContractDetailOptions = {},
+): LegalContractDetail {
+  const safeRow =
+    options.redactManagedBookingPii === false
+      ? row
+      : redactManagedBookingContractForGenericDetail(row)
+  return {
+    ...legalContractSummary(safeRow),
+    templateVersionId: safeRow.templateVersionId,
+    seriesId: safeRow.seriesId,
+    channelId: safeRow.channelId,
+    targetKind: safeRow.targetKind,
+    targetId: safeRow.targetId,
+    targetProvider: safeRow.targetProvider,
+    targetSourceRef: safeRow.targetSourceRef,
+    renderedBodyFormat: safeRow.renderedBodyFormat,
+    renderedBody: safeRow.renderedBody,
+    variables: safeRow.variables as LegalContractDetail["variables"],
+    metadata: safeRow.metadata as LegalContractDetail["metadata"],
+    stageHistory: safeRow.stageHistory,
   }
 }
