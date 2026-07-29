@@ -44,6 +44,7 @@ type ClosableTestDb = PostgresJsDatabase & {
 type Transition = keyof typeof LEGAL_CONTRACT_LIFECYCLE_POLICIES
 type CommandInput = {
   contractId: string
+  recipientEmail?: string | null
   recipient?: string
   channel?: "email" | "sms" | "whatsapp"
   revision?: number
@@ -450,6 +451,36 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     ])
   })
 
+  it("preserves ordinary legacy send metadata without adding a managed workflow marker", async () => {
+    const ordinaryMetadata = { retained: true, source: "legacy" }
+    const contract = await insertContract("issued", "Ordinary legacy send", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("send", "send-ordinary-legacy", {
+      contractId: contract.id,
+      recipientEmail: "traveller@example.com",
+      subject: "Your contract",
+      message: "Please sign.",
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "sent" },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "sent",
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.sendContract(db, contract.id)).resolves.toMatchObject({
+      status: "sent",
+    })
+  })
+
   it.each([
     "signed",
     "executed",
@@ -817,7 +848,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     if (!input.contentFingerprint) {
       return {
         contractId: input.contractId,
-        recipientEmail: input.recipient ?? null,
+        recipientEmail: input.recipientEmail ?? input.recipient ?? null,
         subject: input.subject ?? null,
         message: input.message ?? null,
       }

@@ -8,7 +8,10 @@ import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { bookingContractContentFingerprint } from "./booking-contract-review.js"
+import {
+  bookingContractContentFingerprint,
+  parseManagedBookingContractReviewWorkflow,
+} from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
 import {
   appendContractStageHistory,
@@ -323,15 +326,9 @@ async function sendContract(
     contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
       ? (contract.metadata as Record<string, unknown>)
       : {}
-  const workflow =
-    metadata.bookingContractWorkflow &&
-    typeof metadata.bookingContractWorkflow === "object" &&
-    !Array.isArray(metadata.bookingContractWorkflow)
-      ? (metadata.bookingContractWorkflow as Record<string, unknown>)
-      : {}
-  const expectedRevision = typeof workflow.revision === "number" ? workflow.revision : 1
-  const managedRevision = Object.keys(workflow).length > 0
-  if (managedRevision && !("contentFingerprint" in payload)) {
+  const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
+  const expectedRevision = managedWorkflow?.revision ?? 1
+  if (managedWorkflow && !("contentFingerprint" in payload)) {
     throw new ToolError(
       "Booking contract revisions require an exact review content fingerprint.",
       "INVALID_INPUT",
@@ -373,19 +370,21 @@ async function sendContract(
       status: "sent",
       stageHistory,
       sentAt: now,
-      metadata: {
-        ...metadata,
-        bookingContractWorkflow: {
-          ...workflow,
-          reviewOnly: false,
-          delivery: {
-            recipient: delivery.recipient,
-            channel: delivery.channel,
-            revision: delivery.revision,
-            notificationsSuppressed: delivery.notificationsSuppressed,
-          },
-        },
-      },
+      metadata: managedWorkflow
+        ? {
+            ...metadata,
+            bookingContractWorkflow: {
+              ...managedWorkflow,
+              reviewOnly: false,
+              delivery: {
+                recipient: delivery.recipient,
+                channel: delivery.channel,
+                revision: delivery.revision,
+                notificationsSuppressed: delivery.notificationsSuppressed,
+              },
+            },
+          }
+        : metadata,
       updatedAt: now,
     })
     .where(eq(contracts.id, contract.id))
