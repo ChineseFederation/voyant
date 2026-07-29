@@ -1897,7 +1897,7 @@ function persistedFlatUnitChargeQuantity(pricingMode: string | null | undefined,
   return quantity
 }
 
-function resolveAssignedExtraQuantity(
+export function resolveAssignedExtraQuantity(
   input: BookingCreateInput,
   item: { quantity: number; metadata: unknown },
 ) {
@@ -1913,7 +1913,12 @@ function resolveAssignedExtraQuantity(
   )
   const line = matchingLines.length === 1 ? matchingLines[0] : undefined
   const assignedQuantity = uniqueTravelerKeys(line?.travelerKeys).length
-  return assignedQuantity > 0 ? assignedQuantity : Math.max(1, item.quantity)
+  // The standard draft resolver and public quote path already expand a
+  // per-person extra's base quantity by its applicable traveler count. Keep
+  // that resolved multiplicity instead of replacing it with the number of
+  // traveler links. `assignedQuantity` remains a lower bound for legacy or
+  // direct callers that submit one unit with multiple traveler keys.
+  return Math.max(1, item.quantity, assignedQuantity)
 }
 
 export function resolvePersistedFlatUnitPriceForBookingCreate(input: {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { resolvePersistedFlatUnitPriceForBookingCreate } from "./service-booking-create.js"
+import {
+  resolveAssignedExtraQuantity,
+  resolvePersistedFlatUnitPriceForBookingCreate,
+} from "./service-booking-create.js"
 
 describe("persisted flat unit booking create pricing", () => {
   it("preserves free persisted pricing as a zero total without falling back", () => {
@@ -45,5 +48,51 @@ describe("persisted flat unit booking create pricing", () => {
         chargeQuantity: 1,
       }),
     ).toEqual({ status: "unpriced" })
+  })
+})
+
+describe("persisted extra booking create quantity", () => {
+  const bookingInput = (extraLines: Array<Record<string, unknown>>) =>
+    ({ extraLines }) as Parameters<typeof resolveAssignedExtraQuantity>[0]
+
+  it("preserves resolved per-person multiplicity when traveler links are item-scoped", () => {
+    expect(
+      resolveAssignedExtraQuantity(
+        bookingInput([
+          {
+            clientLineKey: "extra:lunch",
+            productExtraId: "lunch",
+            travelerKeys: ["trav:lead", "trav:child"],
+          },
+        ]),
+        {
+          quantity: 4,
+          metadata: { bookingCreateLineKey: "extra:lunch", productExtraId: "lunch" },
+        },
+      ),
+    ).toBe(4)
+  })
+
+  it("uses assigned travelers as a lower bound for direct legacy payloads", () => {
+    expect(
+      resolveAssignedExtraQuantity(
+        bookingInput([
+          {
+            productExtraId: "lunch",
+            travelerKeys: ["trav:lead", "trav:child"],
+          },
+        ]),
+        { quantity: 1, metadata: { productExtraId: "lunch" } },
+      ),
+    ).toBe(2)
+  })
+
+  it("preserves the resolved quantity when traveler keys are absent", () => {
+    expect(
+      resolveAssignedExtraQuantity(bookingInput([{ productExtraId: "lunch" }]), {
+        quantity: 6,
+        metadata: { productExtraId: "lunch" },
+      }),
+    ).toBe(6)
   })
 })

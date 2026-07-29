@@ -1745,7 +1745,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           clientLineKey: "extra:lunch",
           productExtraId: "lunch",
           name: "Lunch",
-          quantity: 1,
+          // The standard booking resolver expands a base quantity of two by
+          // the two applicable travelers before this payload is submitted.
+          quantity: 4,
           sellCurrency: "EUR",
           travelerKeys: ["trav:lead", "trav:child"],
         },
@@ -1754,7 +1756,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(outcome.result.booking.sellAmountCents).toBe(52_000)
+    expect(outcome.result.booking.sellAmountCents).toBe(54_000)
 
     // Two travelers × (1 item + 1 extra) = 4 link rows when the
     // server stamps `metadata.bookingCreateLineKey` on each item and
@@ -1783,9 +1785,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         ),
       )
     expect(extraItem).toEqual({
-      quantity: 2,
+      quantity: 4,
       unitSellAmountCents: 1000,
-      totalSellAmountCents: 2000,
+      totalSellAmountCents: 4000,
     })
   })
 
