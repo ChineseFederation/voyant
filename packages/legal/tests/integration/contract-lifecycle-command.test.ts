@@ -410,6 +410,45 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     ).toEqual([expect.objectContaining({ status: "awaiting_approval" })])
   })
 
+  it("rejects ordinary draft send with reviewed payload shape without lifecycle side effects", async () => {
+    const ordinaryMetadata = { retained: true, source: "ordinary-draft" }
+    const contract = await insertContract("draft", "Ordinary reviewed-shaped send rejection", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("send", "send-ordinary-draft-reviewed-shape", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+      subject: "Your agreement",
+      message: "Please review and sign.",
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "Only issued contracts can be sent.",
+      meta: { contractId: contract.id },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "draft",
+          issuedAt: null,
+          sentAt: null,
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect((await db.select().from(eventOutboxTable)).map(({ name }) => name)).not.toEqual(
+      expect.arrayContaining(["contract.issued", "contract.sent"]),
+    )
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+  })
+
   it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
     const contract = await insertContract("draft", "Review-first contract", { managed: true })
     const contentFingerprint = await bookingContractContentFingerprint(contract)

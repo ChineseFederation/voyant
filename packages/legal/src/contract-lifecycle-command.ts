@@ -230,7 +230,11 @@ async function applyLifecycleTransition(
     case "issue":
       return issueContract(db, contract)
     case "send":
-      if (contract.status === "draft" && "contentFingerprint" in payload) {
+      if (
+        contract.status === "draft" &&
+        "contentFingerprint" in payload &&
+        parseManagedBookingContractReviewWorkflow(contractMetadataRecord(contract.metadata))
+      ) {
         const issued = await issueContract(db, contract, { allowManagedReviewWorkflow: true })
         return sendContract(db, issued.contract, payload)
       }
@@ -254,10 +258,7 @@ async function issueContract(
   }
 
   let contractNumber = contract.contractNumber
-  const metadata =
-    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
-      ? (contract.metadata as Record<string, unknown>)
-      : {}
+  const metadata = contractMetadataRecord(contract.metadata)
   const immutableReviewedRevision = parseManagedBookingContractReviewWorkflow(metadata) !== null
   if (immutableReviewedRevision && !options.allowManagedReviewWorkflow) {
     throw new ToolError(
@@ -328,10 +329,7 @@ async function sendContract(
     })
   }
   const delivery = sendDelivery(payload)
-  const metadata =
-    contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
-      ? (contract.metadata as Record<string, unknown>)
-      : {}
+  const metadata = contractMetadataRecord(contract.metadata)
   const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
   const expectedRevision = managedWorkflow?.revision ?? 1
   if (managedWorkflow && !("contentFingerprint" in payload)) {
@@ -614,4 +612,10 @@ function canonicalJson(value: unknown): string {
     .sort()
     .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
     .join(",")}}`
+}
+
+function contractMetadataRecord(metadata: unknown): Record<string, unknown> {
+  return metadata && typeof metadata === "object" && !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {}
 }
