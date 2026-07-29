@@ -11,6 +11,7 @@ import {
   resolveLegalContractDraftLanguage,
   resolveLegalContractDraftMetadata,
   resolveLegalContractDraftNumber,
+  resolveLegalContractDraftScope,
 } from "../../src/mcp-runtime.js"
 import { createLegalContractDraftTool } from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
@@ -34,6 +35,14 @@ describe("legal contract draft created-target command", () => {
         new Date("2026-12-31T23:59:59.000Z"),
       ),
     ).toBe("2027-01-31T23:59:59.000Z")
+  })
+
+  it("rejects non-customer scopes for managed booking revisions", () => {
+    expect(resolveLegalContractDraftScope("customer", "book_1")).toBe("customer")
+    expect(resolveLegalContractDraftScope("supplier", null)).toBe("supplier")
+    expect(() => resolveLegalContractDraftScope("supplier", "book_1")).toThrow(
+      "Booking contracts must use customer scope",
+    )
   })
 
   it("allocates a unique managed booking number for every immutable revision", async () => {

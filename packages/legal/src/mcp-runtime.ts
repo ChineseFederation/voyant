@@ -6,7 +6,7 @@ import {
   executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
-import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
+import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
   defineToolContextContribution,
@@ -144,8 +144,26 @@ export function createLegalToolServices(
     listApplicableBookingTemplates(input) {
       return listApplicableBookingContractTemplates(db, input)
     },
-    getBookingContractReview({ contractId }) {
-      return getBookingContractReview(db, contractId)
+    async getBookingContractReview({ contractId }) {
+      const review = await getBookingContractReview(db, contractId)
+      if (review) {
+        await db.insert(bookingPiiAccessLog).values({
+          bookingId: review.booking.id,
+          travelerId: null,
+          actorId:
+            requestContext.userId ??
+            requestContext.agentId ??
+            requestContext.workflowPrincipalId ??
+            null,
+          actorType: requestContext.actor ?? null,
+          callerType: requestContext.callerType ?? null,
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_review_reveal",
+          metadata: { contractId, reveal: true },
+        })
+      }
+      return review
     },
     async getTemplate(id) {
       const row = await contractsService.getTemplateById(db, id)
@@ -308,6 +326,19 @@ export function resolveLegalContractDraftExpiration(
   if (requestedExpiresAt) return requestedExpiresAt
   if (previousExpiresAt instanceof Date) return previousExpiresAt.toISOString()
   return previousExpiresAt ?? null
+}
+
+export function resolveLegalContractDraftScope(
+  requestedScope: "customer" | "supplier" | "partner" | "channel" | "other",
+  bookingId: string | null,
+) {
+  if (bookingId && requestedScope !== "customer") {
+    throw new ToolError("Booking contracts must use customer scope.", "INVALID_INPUT", {
+      bookingId,
+      scope: requestedScope,
+    })
+  }
+  return bookingId ? ("customer" as const) : requestedScope
 }
 
 export async function resolveLegalContractDraftNumber(
@@ -530,6 +561,7 @@ export async function executeLegalContractDraftCreate(
         const row = await createContract(transaction, {
           ...requestedInput,
           status: "draft",
+          scope: resolveLegalContractDraftScope(requestedInput.scope, bookingId),
           language,
           bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
           personId: requestedInput.personId ?? previous?.personId ?? null,

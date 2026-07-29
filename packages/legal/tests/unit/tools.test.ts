@@ -61,6 +61,7 @@ describe("legal Tools", () => {
   it("advertises the bounded review-first booking contract workflow", () => {
     expect(listApplicableBookingContractTemplatesTool.description).toContain("missing prerequisite")
     expect(getBookingContractReviewTool.description).toContain("exact template version")
+    expect(getBookingContractReviewTool.requiredScopes).toEqual(["legal:read", "bookings-pii:read"])
     expect(
       createLegalContractDraftTool.inputSchema.safeParse({
         title: "Revised agreement",

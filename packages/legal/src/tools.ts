@@ -18,6 +18,7 @@ const VERSION = "v1"
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
 const READ_SCOPES = ["legal:read"] as const
 const WRITE_SCOPES = ["legal:write"] as const
+const BOOKING_CONTRACT_REVIEW_SCOPES = ["legal:read", "bookings-pii:read"] as const
 const scopeSchema = z.enum(["customer", "supplier", "partner", "channel", "other"])
 const statusSchema = z.enum(["draft", "issued", "sent", "signed", "executed", "expired", "void"])
 const bookingContractEffectiveStatusSchema = z.enum([
@@ -654,6 +655,7 @@ export const listApplicableBookingContractTemplatesTool = defineTool({
 })
 export const getBookingContractReviewTool = defineTool({
   ...readMetadata,
+  requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
   capabilityId: `${OWNER}#tool.get-booking-contract-review`,
   name: "get_booking_contract_review",
   description:
