@@ -1984,6 +1984,69 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ unit: 4_000, total: 8_000 }])
   })
 
+  it("selects a flat per-booking tier by booked item quantity but charges it once", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 99_000,
+      unitPricingMode: "per_booking",
+    })
+    const [unitRule] = await db.execute<{ id: string }>(sql`
+      SELECT id
+      FROM option_unit_price_rules
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${unitId}
+    `)
+    if (!unitRule) throw new Error("Expected persisted unit rule")
+    await db.execute(sql`
+      INSERT INTO option_unit_tiers (
+        id, option_unit_price_rule_id, min_quantity, max_quantity,
+        sell_amount_cents, sort_order, active
+      ) VALUES
+        (
+          ${`out_bc_${productSeq}_small`}, ${unitRule.id}, 1, 2,
+          10000, 1, true
+        ),
+        (
+          ${`out_bc_${productSeq}_large`}, ${unitRule.id}, 3, NULL,
+          25000, 2, true
+        )
+    `)
+
+    const publicSnapshot = await publicPricingService.getProductPricingSnapshot(db, productId, {
+      optionId,
+    })
+    expect(publicSnapshot?.options[0]?.pricingRules[0]?.unitPrices[0]?.tiers).toEqual([
+      expect.objectContaining({ minQuantity: 1, maxQuantity: 2, sellAmountCents: 10_000 }),
+      expect.objectContaining({ minQuantity: 3, maxQuantity: null, sellAmountCents: 25_000 }),
+    ])
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 3 }],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(25_000)
+    expect(outcome.result.invoice).toMatchObject({ subtotalCents: 25_000, totalCents: 25_000 })
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 25_000, total: 25_000 }])
+  })
+
   it("includes a persisted option rule base amount before adding selected unit totals", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     await seedPersistedPricing({
@@ -2818,6 +2881,101 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       { unit: 24_000, total: 24_000 },
       { unit: 24_000, total: 24_000 },
     ])
+  })
+
+  it("prices item-assigned other travelers and selects their category tier by count", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 1,
+      unitPricingMode: "per_person",
+    })
+    const categoryId = `prct_bc_${productSeq}_other`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${categoryId}, ${productId}, ${optionId}, ${unitId},
+        'other', 'Other traveler', 'other', true
+      )
+    `)
+    await db.execute(sql`
+      UPDATE option_unit_price_rules
+      SET pricing_category_id = ${categoryId}, sell_amount_cents = 99000
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${unitId}
+    `)
+    const [unitRule] = await db.execute<{ id: string }>(sql`
+      SELECT id
+      FROM option_unit_price_rules
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${unitId}
+    `)
+    if (!unitRule) throw new Error("Expected persisted category unit rule")
+    await db.execute(sql`
+      INSERT INTO option_unit_tiers (
+        id, option_unit_price_rule_id, min_quantity, max_quantity,
+        sell_amount_cents, sort_order, active
+      ) VALUES
+        (
+          ${`out_bc_${productSeq}_other_one`}, ${unitRule.id}, 1, 1,
+          9000, 1, true
+        ),
+        (
+          ${`out_bc_${productSeq}_other_two`}, ${unitRule.id}, 2, NULL,
+          6000, 2, true
+        )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Other",
+      contactEmail: "alice@example.com",
+      travelers: [
+        {
+          clientTravelerKey: "trav:other-one",
+          firstName: "Alice",
+          lastName: "Other",
+          travelerCategory: "other",
+          isPrimary: true,
+        },
+        {
+          clientTravelerKey: "trav:other-two",
+          firstName: "Bob",
+          lastName: "Other",
+          travelerCategory: "other",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}:other`,
+          optionUnitId: unitId,
+          quantity: 1,
+          travelerKeys: ["trav:other-one", "trav:other-two"],
+        },
+      ],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(12_000)
+    expect(outcome.result.invoice).toMatchObject({ subtotalCents: 12_000, totalCents: 12_000 })
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 12_000, total: 12_000 }])
   })
 
   it("audits manual overrides only after comparing against persisted catalog pricing", async () => {

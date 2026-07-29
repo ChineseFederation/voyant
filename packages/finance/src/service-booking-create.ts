@@ -1260,7 +1260,7 @@ async function reconcileBookingCreatePricing(
       : undefined
     const unitAmount =
       departureAmount ??
-      selectPersistedUnitAmount(unitRule, persistedPricing?.tiers ?? [], chargeQuantity)
+      selectPersistedUnitAmount(unitRule, persistedPricing?.tiers ?? [], quantity)
     const flatUnitPrice = resolvePersistedFlatUnitPriceForBookingCreate({
       matchedRule: Boolean(unitRule),
       pricingMode: unitRule?.pricingMode,
@@ -1734,7 +1734,7 @@ function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: 
   const counts = new Map<string, number>()
   for (const traveler of input.travelers ?? []) {
     const band = traveler.travelerCategory ?? "adult"
-    if (!["adult", "child", "infant", "senior"].includes(band)) continue
+    if (!["adult", "child", "infant", "senior", "other"].includes(band)) continue
     counts.set(band, (counts.get(band) ?? 0) + 1)
   }
   if (counts.size === 0 && bookingPax && bookingPax > 0) counts.set("adult", bookingPax)
@@ -1771,7 +1771,7 @@ function bookingCreateTravelerBandCountsForItem(
   const counts = new Map<string, number>()
   for (const travelerKey of travelerKeys) {
     const band = travelersByKey.get(travelerKey)?.travelerCategory ?? "adult"
-    if (!["adult", "child", "infant", "senior"].includes(band)) continue
+    if (!["adult", "child", "infant", "senior", "other"].includes(band)) continue
     counts.set(band, (counts.get(band) ?? 0) + 1)
   }
   return { counts, scopedToItem: true }
