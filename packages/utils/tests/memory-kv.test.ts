@@ -63,4 +63,30 @@ describe("createTieredKvStore", () => {
     clock += 1_001
     expect(await l1.get("k")).toBeNull()
   })
+
+  it("bounds write-through L1 entries without shortening the L2 TTL", async () => {
+    let clock = 1_000
+    const l1 = createMemoryKvNamespace({ now: () => clock })
+    const l2 = createMemoryKvNamespace({ now: () => clock })
+    const kv = createTieredKvStore(l1, l2)
+
+    await kv.put("k", "v", { expirationTtl: 900 })
+    clock += 60_001
+
+    expect(await l1.get("k")).toBeNull()
+    expect(await l2.get("k")).toBe("v")
+  })
+
+  it("preserves a write-through TTL shorter than the L1 bound", async () => {
+    let clock = 1_000
+    const l1 = createMemoryKvNamespace({ now: () => clock })
+    const l2 = createMemoryKvNamespace({ now: () => clock })
+    const kv = createTieredKvStore(l1, l2)
+
+    await kv.put("k", "v", { expirationTtl: 30 })
+    clock += 30_001
+
+    expect(await l1.get("k")).toBeNull()
+    expect(await l2.get("k")).toBeNull()
+  })
 })

@@ -10,6 +10,9 @@ import {
 import type { Context } from "hono"
 
 import { departuresDocKey, readThroughDepartures } from "./departures-read-model.js"
+
+export { departuresDocKey, readThroughDepartures }
+
 import {
   createStorefrontService,
   type StorefrontRequestContext,
