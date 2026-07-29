@@ -1,4 +1,8 @@
 import { bookingActionLedgerCapabilityRegistry } from "@voyant-travel/bookings/action-ledger-capabilities"
+import {
+  CANCEL_BOOKING_HANDLER_POLICY,
+  CONFIRM_BOOKING_HANDLER_POLICY,
+} from "@voyant-travel/bookings/tools"
 import { bookingsVoyantModule } from "@voyant-travel/bookings/voyant"
 import { describe, expect, it } from "vitest"
 import { lowerVoyantGraphActionsToActionLedgerRegistry } from "../../framework/src/graph-action-ledger.js"
@@ -99,7 +103,70 @@ describe("standard booking action-ledger authority", () => {
         (left, right) =>
           left.id.localeCompare(right.id) || left.version.localeCompare(right.version),
       )
+    const requiredInSelectedGraph = new Set(["bookings:status:confirm", "bookings:status:cancel"])
+    const selectedGraphCanonical = canonical.map((definition) =>
+      requiredInSelectedGraph.has(definition.id)
+        ? { ...definition, approvalPolicy: "required" as const }
+        : definition,
+    )
 
-    expect(lowered).toEqual(canonical)
+    expect(lowered).toEqual(selectedGraphCanonical)
+
+    const lifecycleActionExpectations = [
+      {
+        graphId: "booking.status.confirm",
+        capabilityId: "bookings:status:confirm",
+        toolId: "@voyant-travel/bookings#tool.confirm-booking",
+        toolPolicy: CONFIRM_BOOKING_HANDLER_POLICY,
+      },
+      {
+        graphId: "booking.status.cancel",
+        capabilityId: "bookings:status:cancel",
+        toolId: "@voyant-travel/bookings#tool.cancel-booking",
+        toolPolicy: CANCEL_BOOKING_HANDLER_POLICY,
+      },
+    ] as const
+
+    for (const expectation of lifecycleActionExpectations) {
+      const canonicalDefinition = canonical.find(
+        (definition) => definition.id === expectation.capabilityId,
+      )
+      const graphAction = actions.find((action) => action.id === expectation.graphId)
+      const graphTool = bookingsVoyantModule.tools?.find((tool) => tool.id === expectation.toolId)
+      const loweredDefinition = lowered.find(
+        (definition) => definition.id === expectation.capabilityId,
+      )
+
+      expect(canonicalDefinition).toMatchObject({
+        id: expectation.capabilityId,
+        approvalPolicy: "conditional",
+        ledgerPolicy: "required",
+      })
+      expect(graphAction).toMatchObject({
+        id: expectation.graphId,
+        approval: "required",
+        ledger: "required",
+        from: { tools: [expectation.toolId] },
+      })
+      expect(graphTool).toMatchObject({
+        id: expectation.toolId,
+        requiredScopes: ["bookings:write"],
+      })
+      expect(expectation.toolPolicy.actionPolicy).toMatchObject({
+        id: expectation.graphId,
+        capabilityId: expectation.capabilityId,
+        approval: "required",
+        ledger: "required",
+      })
+      expect(loweredDefinition).toMatchObject({
+        id: expectation.capabilityId,
+        approvalPolicy: "required",
+        ledgerPolicy: "required",
+      })
+      expect(canonicalDefinition?.approvalPolicy).not.toBe("required")
+      expect(graphAction?.approval).not.toBe("conditional")
+      expect(expectation.toolPolicy.actionPolicy.approval).not.toBe("conditional")
+      expect(loweredDefinition?.approvalPolicy).not.toBe("conditional")
+    }
   })
 })

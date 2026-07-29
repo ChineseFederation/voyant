@@ -1,3 +1,6 @@
+// agent-quality: file-size exception -- owner: bookings; selected Tool contribution,
+// approval admission, replay, and consequence locking remain co-located until a
+// dedicated MCP runtime split preserves the public tools entry and tests.
 import {
   type ActionLedgerRequestContextValues,
   actionLedgerService,
@@ -15,6 +18,10 @@ import {
 import { sql } from "drizzle-orm"
 import type { Context } from "hono"
 import { contributeBookingsExtrasToolContext } from "./extras/mcp-runtime.js"
+import {
+  type BookingStatusToolAction,
+  requiredBookingStatusReplayDetail,
+} from "./mcp-booking-status-replay.js"
 import {
   redactBookingContact,
   redactTravelerIdentity,
@@ -119,7 +126,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
   },
 })
 
-type BookingStatusToolAction = "confirm" | "cancel"
 type BufferedEvent = {
   event: string
   data: unknown
@@ -240,7 +246,7 @@ async function executeBookingStatusToolCommand(input: {
         return requiredBookingStatusDetail(input)
       },
       async replay() {
-        return requiredBookingStatusDetail(input)
+        return requiredBookingStatusReplayDetail(input)
       },
     },
   )

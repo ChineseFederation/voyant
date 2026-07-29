@@ -5,6 +5,7 @@ import {
 } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
+import { requiredBookingStatusReplayDetail } from "../src/mcp-booking-status-replay.js"
 import {
   type BookingsToolServices,
   bookingsTools,
@@ -28,7 +29,7 @@ function ctx(
   }
 }
 
-function bookingDetail(id: string, status: "draft" | "cancelled") {
+function bookingDetail(id: string, status: "draft" | "confirmed" | "cancelled") {
   return {
     id,
     bookingNumber: "B-1001",
@@ -83,6 +84,45 @@ function bookingDetail(id: string, status: "draft" | "cancelled") {
 }
 
 describe("bookings tools", () => {
+  it.each([
+    { action: "confirm" as const, status: "confirmed" as const },
+    { action: "cancel" as const, status: "cancelled" as const },
+  ])("returns detail on $action replay when status is $status", async ({ action, status }) => {
+    await expect(
+      requiredBookingStatusReplayDetail({
+        action,
+        input: { id: "bk_1" },
+        loadBookingDetail: async (id) => bookingDetail(id, status),
+      }),
+    ).resolves.toMatchObject({ id: "bk_1", status })
+  })
+
+  it.each([
+    { action: "confirm" as const, expectedStatus: "confirmed", currentStatus: "draft" as const },
+    { action: "cancel" as const, expectedStatus: "cancelled", currentStatus: "confirmed" as const },
+  ])("rejects $action replay when status drifted to $currentStatus", async ({
+    action,
+    expectedStatus,
+    currentStatus,
+  }) => {
+    await expect(
+      requiredBookingStatusReplayDetail({
+        action,
+        input: { id: "bk_1" },
+        loadBookingDetail: async (id) => bookingDetail(id, currentStatus),
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      meta: {
+        bookingId: "bk_1",
+        action,
+        reason: "replay_state_drift",
+        expectedStatus,
+        currentStatus,
+      },
+    })
+  })
+
   it("registers read tools and the approval-gated cancellation", () => {
     const registry = createToolRegistry()
     registry.registerAll(bookingsTools)
