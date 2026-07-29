@@ -444,7 +444,7 @@ export const legalVoyantModule = defineModule({
         "get-booking-contract-review",
         "get_booking_contract_review",
         "getBookingContractReviewTool",
-        ["legal:read", "bookings-pii:read"],
+        "legal:read",
         "high",
       ],
       [
@@ -508,7 +508,8 @@ export const legalVoyantModule = defineModule({
       id: `@voyant-travel/legal#tool.${id}`,
       name: name!,
       runtime: { entry: "@voyant-travel/legal/tools", export: exportName! },
-      requiredScopes: Array.isArray(scope) ? scope : [scope!],
+      requiredScopes:
+        id === "get-booking-contract-review" ? ["legal:read", "bookings-pii:read"] : [scope!],
       context: ["legal"],
       risk: risk as "medium" | "high" | "critical",
     })),
