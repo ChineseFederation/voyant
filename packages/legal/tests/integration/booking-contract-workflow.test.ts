@@ -268,6 +268,137 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     })
   })
 
+  it("gates booking draft snapshots with trusted PII context and preserves generic drafts", async () => {
+    const { booking, version } = await seedBookingTemplate("BK-DRAFT-PII-GATE")
+    let snapshotSourceRead = false
+
+    await expect(
+      createDraftForContext(
+        "draft-pii-denied",
+        {
+          title: "Denied customer agreement",
+          bookingId: booking.id,
+          templateVersionId: version.id,
+          variables: { customer: { name: "Ana Pop" } },
+        },
+        {
+          userId: "usr_denied_draft",
+          callerType: "agent",
+          actor: "staff",
+          organizationId: "org_legal_booking_contract",
+          scopes: ["legal:write"],
+        },
+        contractsService.createContract,
+        {
+          async afterBookingReviewSourceRead() {
+            snapshotSourceRead = true
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    expect(snapshotSourceRead).toBe(false)
+    await expect(
+      db.select().from(contracts).where(eq(contracts.bookingId, booking.id)),
+    ).resolves.toHaveLength(0)
+
+    const scoped = await createDraftForContext(
+      "draft-pii-scoped",
+      {
+        title: "Scoped customer agreement",
+        bookingId: booking.id,
+        templateVersionId: version.id,
+        variables: { customer: { name: "Ana Pop" } },
+      },
+      {
+        userId: "usr_scoped_draft",
+        callerType: "agent",
+        actor: "staff",
+        organizationId: "org_legal_booking_contract",
+        scopes: ["legal:write", "bookings-pii:read"],
+      },
+    )
+    expect(scoped.value.id).toEqual(expect.any(String))
+
+    const internal = await createDraftForContext(
+      "draft-pii-internal",
+      {
+        title: "Internal customer agreement",
+        bookingId: booking.id,
+        templateVersionId: version.id,
+        variables: { customer: { name: "Ana Pop" } },
+      },
+      {
+        userId: "svc_legal_draft",
+        callerType: "internal",
+        actor: "system",
+        isInternalRequest: true,
+        organizationId: "org_legal_booking_contract",
+        scopes: ["legal:write"],
+      },
+    )
+    expect(internal.value.id).toEqual(expect.any(String))
+
+    const generic = await createDraftForContext(
+      "draft-generic-unscoped",
+      {
+        title: "Generic supplier terms",
+        scope: "supplier",
+        language: "en",
+      },
+      {
+        userId: "usr_generic_draft",
+        callerType: "agent",
+        actor: "staff",
+        organizationId: "org_legal_booking_contract",
+        scopes: ["legal:write"],
+      },
+    )
+    expect(generic.value.id).toEqual(expect.any(String))
+
+    const piiRows = await db
+      .select()
+      .from(bookingPiiAccessLog)
+      .where(eq(bookingPiiAccessLog.bookingId, booking.id))
+    expect(piiRows).toHaveLength(3)
+    expect(piiRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "read",
+          outcome: "denied",
+          reason: "insufficient_scope",
+          actorId: "usr_denied_draft",
+          callerType: "agent",
+          metadata: expect.objectContaining({
+            routeOrToolName: "legal.create_legal_contract_draft",
+            reveal: false,
+          }),
+        }),
+        expect.objectContaining({
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_draft_booking_snapshot_reveal",
+          actorId: "usr_scoped_draft",
+          callerType: "agent",
+          metadata: expect.objectContaining({
+            routeOrToolName: "legal.create_legal_contract_draft",
+            reveal: true,
+          }),
+        }),
+        expect.objectContaining({
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_draft_booking_snapshot_reveal",
+          actorId: "svc_legal_draft",
+          callerType: "internal",
+          metadata: expect.objectContaining({
+            routeOrToolName: "legal.create_legal_contract_draft",
+            reveal: true,
+          }),
+        }),
+      ]),
+    )
+  })
+
   it("requires bookings-pii:read and audits generic managed document delivery", async () => {
     const { booking, version } = await seedBookingTemplate("BK-DOC-PII")
     const contract = await createDraft("document-delivery-create", {
@@ -820,14 +951,33 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     >[5] = contractsService.createContract,
     testHooks?: Parameters<typeof executeLegalContractDraftCreate>[6],
   ) {
-    return executeLegalContractDraftCreate(
-      db,
+    return createDraftForContext(
+      idempotencyKey,
+      input,
       {
         userId: "usr_legal_booking_contract",
         callerType: "session",
         actor: "staff",
         organizationId: "org_legal_booking_contract",
+        scopes: ["legal:write", "bookings-pii:read"],
       },
+      createContract,
+      testHooks,
+    )
+  }
+
+  function createDraftForContext(
+    idempotencyKey: string,
+    input: Parameters<typeof executeLegalContractDraftCreate>[2],
+    requestContext: Parameters<typeof executeLegalContractDraftCreate>[1],
+    createContract: Parameters<
+      typeof executeLegalContractDraftCreate
+    >[5] = contractsService.createContract,
+    testHooks?: Parameters<typeof executeLegalContractDraftCreate>[6],
+  ) {
+    return executeLegalContractDraftCreate(
+      db,
+      requestContext,
       { ...input, idempotencyKey },
       legalDraftAdmission(idempotencyKey),
       async (command, handlers) => {

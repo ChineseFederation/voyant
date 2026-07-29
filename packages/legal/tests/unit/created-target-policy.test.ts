@@ -230,6 +230,160 @@ describe("legal contract draft created-target command", () => {
     expect(capabilityVersion).toBe(LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION.actionPolicy.version)
   })
 
+  it("gates booking draft PII snapshots before executor while preserving generic drafts", async () => {
+    const auditRows: Array<Record<string, unknown>> = []
+    const db = {
+      insert() {
+        return {
+          async values(input: Record<string, unknown>) {
+            auditRows.push(input)
+          },
+        }
+      },
+    } as never
+    let executorCalls = 0
+    const executor: NonNullable<
+      Parameters<typeof executeLegalContractDraftCreate>[4]
+    > = async () => {
+      executorCalls += 1
+      return {
+        replayed: false as const,
+        value: { id: `cont_${executorCalls}` },
+        result: {
+          entry: {} as never,
+          reference: {
+            type: "legal-contract",
+            id: `cont_${executorCalls}`,
+            value: `legal-contract:cont_${executorCalls}` as const,
+          },
+        },
+      }
+    }
+
+    await expect(
+      executeLegalContractDraftCreate(
+        db,
+        {
+          userId: "usr_denied",
+          callerType: "agent",
+          actor: "staff",
+          scopes: ["legal:write"],
+        },
+        {
+          idempotencyKey: "denied-key",
+          title: "Denied booking draft",
+          bookingId: "book_1",
+          templateVersionId: "ctv_1",
+        },
+        legalHandlerContext({ idempotencyKey: "denied-key" }),
+        executor,
+      ),
+    ).rejects.toMatchObject({ code: "AUTHORIZATION_DENIED" })
+    expect(executorCalls).toBe(0)
+
+    await expect(
+      executeLegalContractDraftCreate(
+        db,
+        {
+          userId: "usr_scoped",
+          callerType: "agent",
+          actor: "staff",
+          scopes: ["legal:write", "bookings-pii:read"],
+        },
+        {
+          idempotencyKey: "scoped-key",
+          title: "Scoped booking draft",
+          bookingId: "book_1",
+          templateVersionId: "ctv_1",
+        },
+        legalHandlerContext({ idempotencyKey: "scoped-key" }),
+        executor,
+      ),
+    ).resolves.toMatchObject({ value: { id: "cont_1" } })
+
+    await expect(
+      executeLegalContractDraftCreate(
+        db,
+        {
+          userId: "svc_internal",
+          callerType: "internal",
+          actor: "system",
+          isInternalRequest: true,
+          scopes: ["legal:write"],
+        },
+        {
+          idempotencyKey: "internal-key",
+          title: "Internal booking draft",
+          bookingId: "book_1",
+          templateVersionId: "ctv_1",
+        },
+        legalHandlerContext({ idempotencyKey: "internal-key" }),
+        executor,
+      ),
+    ).resolves.toMatchObject({ value: { id: "cont_2" } })
+
+    await expect(
+      executeLegalContractDraftCreate(
+        db,
+        {
+          userId: "usr_generic",
+          callerType: "agent",
+          actor: "staff",
+          scopes: ["legal:write"],
+        },
+        {
+          idempotencyKey: "generic-key",
+          title: "Generic draft",
+          scope: "supplier",
+          language: "en",
+        },
+        legalHandlerContext({ idempotencyKey: "generic-key" }),
+        executor,
+      ),
+    ).resolves.toMatchObject({ value: { id: "cont_3" } })
+
+    expect(executorCalls).toBe(3)
+    expect(auditRows).toHaveLength(3)
+    expect(auditRows).toEqual([
+      expect.objectContaining({
+        bookingId: "book_1",
+        action: "read",
+        outcome: "denied",
+        reason: "insufficient_scope",
+        actorId: "usr_denied",
+        callerType: "agent",
+        metadata: expect.objectContaining({
+          routeOrToolName: "legal.create_legal_contract_draft",
+          reveal: false,
+        }),
+      }),
+      expect.objectContaining({
+        bookingId: "book_1",
+        action: "read",
+        outcome: "allowed",
+        reason: "contract_draft_booking_snapshot_reveal",
+        actorId: "usr_scoped",
+        callerType: "agent",
+        metadata: expect.objectContaining({
+          routeOrToolName: "legal.create_legal_contract_draft",
+          reveal: true,
+        }),
+      }),
+      expect.objectContaining({
+        bookingId: "book_1",
+        action: "read",
+        outcome: "allowed",
+        reason: "contract_draft_booking_snapshot_reveal",
+        actorId: "svc_internal",
+        callerType: "internal",
+        metadata: expect.objectContaining({
+          routeOrToolName: "legal.create_legal_contract_draft",
+          reveal: true,
+        }),
+      }),
+    ])
+  })
+
   it("rejects unknown principals before executor and domain mutation", async () => {
     let executorCalls = 0
     let createCalls = 0

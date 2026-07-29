@@ -7,6 +7,7 @@ import {
   executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
+import { shouldRevealBookingPii } from "@voyant-travel/bookings"
 import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
@@ -93,8 +94,17 @@ type LegalMcpContext = Context<{
     organizationId?: string
     workflowRunId?: string
     workflowStepId?: string
+    scopes?: string[]
   }
 }>
+
+export type LegalToolRequestContext = ActionLedgerRequestContextValues & {
+  scopes?: readonly string[] | null
+}
+
+const BOOKING_PII_DECISION_POLICY = "bookings-pii-scope-or-staff-v1"
+const BOOKING_CONTRACT_DRAFT_SNAPSHOT_REASON = "contract_draft_booking_snapshot_reveal"
+const BOOKING_CONTRACT_DRAFT_REQUIRED_PII_SCOPES = ["bookings-pii:read"] as const
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -141,7 +151,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
 export function createLegalToolServices(
   db: PostgresJsDatabase,
   lifecycleRuntime?: ContractLifecycleRuntimeOptions,
-  requestContext: ActionLedgerRequestContextValues = {},
+  requestContext: LegalToolRequestContext = {},
 ): LegalToolServices & LegalLifecycleCommandToolServices {
   return {
     async listContracts(query) {
@@ -448,9 +458,71 @@ export function resolveLegalContractDraftMetadata(
   }
 }
 
+async function resolveLegalContractDraftSnapshotBookingId(
+  db: PostgresJsDatabase,
+  input: Parameters<LegalToolServices["createDraft"]>[0],
+): Promise<string | null> {
+  if (input.bookingId) return input.bookingId
+  if (!input.revisionOfContractId) return null
+  const [previous] = await db
+    .select({ bookingId: contracts.bookingId })
+    .from(contracts)
+    .where(eq(contracts.id, input.revisionOfContractId))
+    .limit(1)
+  return previous?.bookingId ?? null
+}
+
+async function authorizeLegalContractDraftBookingSnapshotRead(
+  db: PostgresJsDatabase,
+  requestContext: LegalToolRequestContext,
+  input: Parameters<LegalToolServices["createDraft"]>[0],
+) {
+  const bookingId = await resolveLegalContractDraftSnapshotBookingId(db, input)
+  if (!bookingId) return
+
+  const allowed = shouldRevealBookingPii({
+    actor: requestContext.actor,
+    callerType: requestContext.callerType,
+    scopes: requestContext.scopes ? [...requestContext.scopes] : null,
+    isInternalRequest:
+      requestContext.isInternalRequest === true || requestContext.callerType === "internal",
+    enforceRbac: true,
+  })
+
+  await db.insert(bookingPiiAccessLog).values({
+    bookingId,
+    travelerId: null,
+    actorId:
+      requestContext.userId ?? requestContext.agentId ?? requestContext.workflowPrincipalId ?? null,
+    actorType: requestContext.actor ?? null,
+    callerType: requestContext.callerType ?? null,
+    action: "read",
+    outcome: allowed ? "allowed" : "denied",
+    reason: allowed ? BOOKING_CONTRACT_DRAFT_SNAPSHOT_REASON : "insufficient_scope",
+    metadata: {
+      bookingId,
+      revisionOfContractId: input.revisionOfContractId ?? null,
+      requestedBookingId: input.bookingId ?? null,
+      templateVersionId: input.templateVersionId ?? null,
+      routeOrToolName: "legal.create_legal_contract_draft",
+      requiredScopes: BOOKING_CONTRACT_DRAFT_REQUIRED_PII_SCOPES,
+      decisionPolicy: BOOKING_PII_DECISION_POLICY,
+      reveal: allowed,
+    },
+  })
+
+  if (!allowed) {
+    throw new ToolError(
+      "Booking contract draft snapshots require bookings-pii:read or wildcard scope.",
+      "AUTHORIZATION_DENIED",
+      { requiredScopes: BOOKING_CONTRACT_DRAFT_REQUIRED_PII_SCOPES },
+    )
+  }
+}
+
 export async function executeLegalContractDraftCreate(
   db: PostgresJsDatabase,
-  requestContext: ActionLedgerRequestContextValues,
+  requestContext: LegalToolRequestContext,
   input: Parameters<LegalToolServices["createDraft"]>[0],
   admitted: ToolHandlerActionPolicyContext,
   executor: LegalCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
@@ -471,6 +543,7 @@ export async function executeLegalContractDraftCreate(
     throw new TypeError("Legal created-target command Tool identity drifted after admission")
   }
   admittedCreatedCommandIdempotencyKey(admitted, legacyIdempotencyKey)
+  await authorizeLegalContractDraftBookingSnapshotRead(db, requestContext, commandInput)
   return executor(
     {
       db,
@@ -795,7 +868,8 @@ function admittedCreatedCommandIdempotencyKey(
   return idempotencyKey
 }
 
-function legalActionLedgerContext(c: LegalMcpContext): ActionLedgerRequestContextValues {
+function legalActionLedgerContext(c: LegalMcpContext): LegalToolRequestContext {
+  const callerType = c.get("callerType") ?? null
   return {
     userId: c.get("userId") ?? null,
     agentId: c.get("agentId") ?? null,
@@ -803,13 +877,14 @@ function legalActionLedgerContext(c: LegalMcpContext): ActionLedgerRequestContex
     principalSubtype: c.get("principalSubtype") ?? null,
     sessionId: c.get("sessionId") ?? null,
     apiTokenId: c.get("apiTokenId") ?? c.get("apiKeyId") ?? null,
-    callerType: c.get("callerType") ?? null,
+    callerType,
     actor: c.get("actor") ?? null,
-    isInternalRequest: c.get("isInternalRequest") ?? false,
+    isInternalRequest: c.get("isInternalRequest") ?? callerType === "internal",
     organizationId: c.get("organizationId") ?? null,
     workflowRunId: c.get("workflowRunId") ?? null,
     workflowStepId: c.get("workflowStepId") ?? null,
     correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
+    scopes: c.get("scopes") ?? null,
   }
 }
 
