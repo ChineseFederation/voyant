@@ -171,6 +171,15 @@ describe("deriveBookingCreatePax", () => {
     expect(deriveBookingCreatePax({ travelers: [{}, {}] })).toBe(2)
   })
 
+  it("normalizes assigned traveler keys before deriving pax", () => {
+    expect(
+      deriveBookingCreatePax({
+        itemLines: [{ travelerKeys: ["traveler-1", " traveler-1 ", "   "] }],
+        extraLines: [{ travelerKeys: ["traveler-2", "traveler-2 "] }],
+      }),
+    ).toBe(2)
+  })
+
   it("excludes other participants when deriving pax", () => {
     expect(
       deriveBookingCreatePax({

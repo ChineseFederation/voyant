@@ -1831,9 +1831,10 @@ export function deriveBookingCreatePax(input: {
       [undefined, null, "traveler", "occupant"].includes(traveler.participantType),
     ).length ?? 0
   const assignedTravelerKeys = new Set(
-    [...(input.itemLines ?? []), ...(input.extraLines ?? [])].flatMap(
-      (line) => line.travelerKeys ?? [],
-    ),
+    [...(input.itemLines ?? []), ...(input.extraLines ?? [])]
+      .flatMap((line) => line.travelerKeys ?? [])
+      .map((key) => key.trim())
+      .filter(Boolean),
   )
   const derivedPax = Math.max(travelerCount, assignedTravelerKeys.size)
   const explicitPax = typeof input.pax === "number" ? input.pax : 0

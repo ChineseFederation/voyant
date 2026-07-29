@@ -481,6 +481,11 @@ export interface InvoiceFromBookingData {
     baseSellAmountCents: number | null
   }
   paymentSchedule?: InvoiceFromBookingPaymentScheduleData | null
+  /**
+   * Complete persisted schedule set for the booking. Schedule-derived invoices
+   * use this to allocate indivisible tax cents exactly once across installments.
+   */
+  paymentSchedules?: InvoiceFromBookingPaymentScheduleData[]
   dueDatePaymentSchedule?: InvoiceFromBookingPaymentScheduleData | null
   items: Array<{
     id: string

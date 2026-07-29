@@ -413,18 +413,20 @@ export async function issueInvoiceFromBookingCommand(
     .from(bookingItems)
     .where(eq(bookingItems.bookingId, booking.id))
     .orderBy(asc(bookingItems.createdAt), asc(bookingItems.id))
-  const [paymentSchedule] = input.bookingPaymentScheduleId
+  const paymentSchedules = input.bookingPaymentScheduleId
     ? await db
         .select()
         .from(bookingPaymentSchedules)
-        .where(
-          and(
-            eq(bookingPaymentSchedules.id, input.bookingPaymentScheduleId),
-            eq(bookingPaymentSchedules.bookingId, booking.id),
-          ),
+        .where(eq(bookingPaymentSchedules.bookingId, booking.id))
+        .orderBy(
+          asc(bookingPaymentSchedules.dueDate),
+          asc(bookingPaymentSchedules.createdAt),
+          asc(bookingPaymentSchedules.id),
         )
-        .limit(1)
     : []
+  const paymentSchedule = paymentSchedules.find(
+    (schedule) => schedule.id === input.bookingPaymentScheduleId,
+  )
   if (input.bookingPaymentScheduleId && !paymentSchedule) {
     return { status: "payment_schedule_not_found" }
   }
@@ -454,6 +456,15 @@ export async function issueInvoiceFromBookingCommand(
           amountCents: paymentSchedule.amountCents,
         }
       : null,
+    paymentSchedules: paymentSchedules.map((schedule) => ({
+      id: schedule.id,
+      bookingId: schedule.bookingId,
+      bookingItemId: schedule.bookingItemId,
+      scheduleType: schedule.scheduleType,
+      dueDate: schedule.dueDate,
+      currency: schedule.currency,
+      amountCents: schedule.amountCents,
+    })),
     items: items.map((item) => ({
       id: item.id,
       title: item.title,

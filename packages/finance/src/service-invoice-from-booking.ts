@@ -3,6 +3,7 @@ import type {
   CreateInvoiceFromBookingInput,
   FinanceServiceRuntime,
   InvoiceFromBookingData,
+  InvoiceFromBookingPaymentScheduleData,
   PostgresJsDatabase,
 } from "./service-shared.js"
 import {
@@ -11,6 +12,7 @@ import {
   bookingItemCommissions,
   bookingItemTaxLines,
   bookingItemToInvoiceLine,
+  bookingPaymentSchedules,
   bookingPaymentScheduleToInvoiceLine,
   eq,
   InvoiceFromBookingValidationError,
@@ -34,6 +36,47 @@ import {
   resolvePaymentScheduleDisplayItem,
   touchLinkedBookingUpdatedAt,
 } from "./service-shared.js"
+
+function allocateScheduleAmountCents(
+  totalAmountCents: number,
+  schedules: InvoiceFromBookingPaymentScheduleData[],
+  selectedScheduleId: string,
+): number {
+  const weightedSchedules = schedules
+    .filter((schedule) => schedule.amountCents > 0)
+    .map((schedule) => ({ schedule, weight: BigInt(schedule.amountCents) }))
+  const selected = weightedSchedules.find(({ schedule }) => schedule.id === selectedScheduleId)
+  const totalWeight = weightedSchedules.reduce((sum, entry) => sum + entry.weight, 0n)
+  if (!selected || totalWeight <= 0n || totalAmountCents === 0) return 0
+
+  const sign = totalAmountCents < 0 ? -1 : 1
+  const unsignedTotal = BigInt(Math.abs(totalAmountCents))
+  const allocations = weightedSchedules.map(({ schedule, weight }) => {
+    const numerator = unsignedTotal * weight
+    return {
+      schedule,
+      amount: numerator / totalWeight,
+      remainder: numerator % totalWeight,
+    }
+  })
+  let undistributed = Number(
+    unsignedTotal - allocations.reduce((sum, allocation) => sum + allocation.amount, 0n),
+  )
+  allocations.sort((left, right) => {
+    if (left.remainder !== right.remainder) {
+      return left.remainder > right.remainder ? -1 : 1
+    }
+    return left.schedule.id.localeCompare(right.schedule.id)
+  })
+  for (const allocation of allocations) {
+    if (undistributed <= 0) break
+    allocation.amount += 1n
+    undistributed -= 1
+  }
+
+  const allocation = allocations.find(({ schedule }) => schedule.id === selectedScheduleId)
+  return sign * Number(allocation?.amount ?? 0n)
+}
 
 async function resolveInvoiceNumberForBooking(
   db: PostgresJsDatabase,
@@ -235,28 +278,76 @@ export const financeInvoiceFromBookingService = {
     })
 
     const grossLineTotalCents = lineItems.reduce((sum, line) => sum + line.totalCents, 0)
-    const scheduleTaxShare = (amountCents: number) => {
-      if (!paymentSchedule || !booking.sellAmountCents || booking.sellAmountCents <= 0) {
-        return amountCents
-      }
-      return Math.round((amountCents * paymentSchedule.amountCents) / booking.sellAmountCents)
+    const scheduleAllocationRows = paymentSchedule
+      ? (bookingData.paymentSchedules ??
+        (await db
+          .select()
+          .from(bookingPaymentSchedules)
+          .where(eq(bookingPaymentSchedules.bookingId, booking.id))
+          .orderBy(
+            asc(bookingPaymentSchedules.dueDate),
+            asc(bookingPaymentSchedules.createdAt),
+            asc(bookingPaymentSchedules.id),
+          )))
+      : []
+    const scheduleCurrencyRows = paymentSchedule
+      ? scheduleAllocationRows.filter(
+          (schedule) => normalizeCurrencyCode(schedule.currency) === invoiceCurrency,
+        )
+      : []
+    const allocateScheduleTax = (amountCents: number) => {
+      if (!paymentSchedule) return amountCents
+      return allocateScheduleAmountCents(
+        amountCents,
+        scheduleCurrencyRows.length > 0 ? scheduleCurrencyRows : [paymentSchedule],
+        paymentSchedule.id,
+      )
     }
+    const convertBookingTaxToInvoiceCurrency = async (amountCents: number) => {
+      if (amountCents === 0 || bookingSellCurrency === invoiceCurrency) return amountCents
+      const converted = await resolveFxMoneyBaseAmount(
+        db,
+        {
+          amountCents,
+          currency: bookingSellCurrency,
+          baseCurrency: invoiceCurrency,
+          baseAmountCents: null,
+          fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+        },
+        {
+          ...runtime,
+          targetBaseCurrency: invoiceCurrency,
+          fallbackFxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+          date: data.issueDate,
+          setBaseCurrencyWhenUnresolved: true,
+        },
+      )
+      if (converted.baseAmountCents === null || converted.baseAmountCents === undefined) {
+        throw new InvoiceFromBookingValidationError(
+          "Cross-currency payment schedule tax requires a resolvable exchange rate",
+          {
+            bookingSellCurrency,
+            invoiceCurrency,
+            fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+          },
+        )
+      }
+      return converted.baseAmountCents
+    }
+    const bookingIncludedTaxCents = taxes.reduce((sum, tax) => {
+      if (tax.scope === "withheld" || !tax.includedInPrice) return sum
+      return sum + tax.amountCents
+    }, 0)
+    const bookingExcludedTaxCents = taxes.reduce((sum, tax) => {
+      if (tax.scope === "withheld" || tax.includedInPrice) return sum
+      return sum + tax.amountCents
+    }, 0)
     const includedTaxCents = overrideLineItems
       ? 0
-      : scheduleTaxShare(
-          taxes.reduce((sum, tax) => {
-            if (tax.scope === "withheld" || !tax.includedInPrice) return sum
-            return sum + tax.amountCents
-          }, 0),
-        )
+      : allocateScheduleTax(await convertBookingTaxToInvoiceCurrency(bookingIncludedTaxCents))
     const excludedTaxCents = overrideLineItems
       ? overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0)
-      : scheduleTaxShare(
-          taxes.reduce((sum, tax) => {
-            if (tax.scope === "withheld" || tax.includedInPrice) return sum
-            return sum + tax.amountCents
-          }, 0),
-        )
+      : allocateScheduleTax(await convertBookingTaxToInvoiceCurrency(bookingExcludedTaxCents))
     // Payment schedule amounts are portions of the persisted booking total and
     // therefore already include excluded tax. Remove that tax from the schedule
     // line's gross amount before adding it back to the invoice total.

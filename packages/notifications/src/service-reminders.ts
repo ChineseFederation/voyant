@@ -81,6 +81,9 @@ async function sendQueuedBookingPaymentScheduleReminder(
   if (!PAYABLE_BOOKING_STATUSES.has(context.booking.status)) {
     return markReminderRunSkipped(db, run.id, now, bookingStatusSkipReason(context.booking.status))
   }
+  if (context.booking.notificationsSuppressed) {
+    return markReminderRunSkipped(db, run.id, now, "Booking notifications are suppressed")
+  }
 
   const recipientEmail = context.recipientEmail
 

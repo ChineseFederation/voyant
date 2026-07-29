@@ -219,6 +219,86 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     expect(recordedSends).toHaveLength(0)
   })
 
+  it("skips queued payment reminders when booking notifications were suppressed after queueing", async () => {
+    const templateRes = await ctx.request("/templates", {
+      method: "POST",
+      ...json({
+        slug: "queued-suppressed-template",
+        name: "Queued suppressed template",
+        channel: "email",
+        provider: "local",
+        status: "active",
+        subjectTemplate: "Payment due",
+        textTemplate: "Payment due",
+      }),
+    })
+    const { data: template } = await templateRes.json()
+    const ruleRes = await ctx.request("/reminder-rules", {
+      method: "POST",
+      ...json({
+        slug: "queued-suppressed-rule",
+        name: "Queued suppressed rule",
+        status: "active",
+        targetType: "booking_payment_schedule",
+        channel: "email",
+        provider: "local",
+        templateId: template.id,
+      }),
+    })
+    const { data: rule } = await ruleRes.json()
+
+    await ctx.db.execute(sql`
+      INSERT INTO bookings (
+        id, booking_number, status, sell_currency, notifications_suppressed
+      ) VALUES (
+        'book_queued_suppressed_1', 'BK-Q-SUP-1', 'awaiting_payment', 'EUR', true
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO booking_travelers (
+        id, booking_id, first_name, last_name, email, participant_type, is_primary
+      ) VALUES (
+        'bkpt_queued_suppressed_1', 'book_queued_suppressed_1',
+        'Sonia', 'Suppressed', 'sonia@example.com', 'traveler', true
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO booking_payment_schedules (
+        id, booking_id, schedule_type, status, due_date, currency, amount_cents
+      ) VALUES (
+        'bkps_queued_suppressed_1', 'book_queued_suppressed_1',
+        'balance', 'due', DATE '2026-04-12', 'EUR', 18000
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO notification_reminder_runs (
+        id, reminder_rule_id, target_type, target_id, dedupe_key, booking_id,
+        status, recipient, scheduled_for
+      ) VALUES (
+        'nrr_queued_suppressed_1', ${rule.id}, 'booking_payment_schedule',
+        'bkps_queued_suppressed_1', 'queued-suppressed-dedupe',
+        'book_queued_suppressed_1', 'queued', 'sonia@example.com',
+        TIMESTAMPTZ '2026-04-09T09:00:00.000Z'
+      )
+    `)
+
+    const { deliverReminderRun } = await import("../../src/service-reminders.js")
+    const { createNotificationService } = await import("../../src/service.js")
+    const recordedSends: Array<Record<string, unknown>> = []
+    const localDispatcher = createNotificationService([
+      createTestDurableProvider({
+        sink: (payload) => recordedSends.push(payload as Record<string, unknown>),
+      }),
+    ])
+
+    const delivered = await deliverReminderRun(ctx.db as never, localDispatcher, {
+      reminderRunId: "nrr_queued_suppressed_1",
+    })
+    expect(delivered?.status).toBe("skipped")
+    expect(delivered?.errorMessage).toBe("Booking notifications are suppressed")
+    expect(recordedSends).toHaveLength(0)
+  })
+
   it("does not requeue failed one-shot reminder runs on later sweeps", async () => {
     const tmplRes = await ctx.request("/templates", {
       method: "POST",

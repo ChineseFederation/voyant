@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   bookingItemTaxLines,
+  bookingPaymentSchedules,
   invoiceExternalRefs,
   invoiceLineItems,
   invoiceNumberSeries,
@@ -140,6 +141,13 @@ function makeDb(options: {
             }
           }
           if (table === bookingItemTaxLines) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => rows),
+              })),
+            }
+          }
+          if (table === bookingPaymentSchedules) {
             return {
               where: vi.fn(() => ({
                 orderBy: vi.fn(async () => rows),
@@ -606,6 +614,144 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       subtotalCents: 50_000,
       taxCents: 10_000,
       totalCents: 60_000,
+    })
+  })
+
+  it("allocates indivisible tax cents exactly once across payment schedules", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 1,
+        },
+      ],
+    })
+    const paymentSchedules = [
+      {
+        id: "bps_a",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "RON",
+        amountCents: 50,
+      },
+      {
+        id: "bps_b",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "RON",
+        amountCents: 50,
+      },
+    ]
+    const data = {
+      booking: { ...bookingData.booking, sellAmountCents: 100 },
+      paymentSchedules,
+      items: [
+        {
+          id: "bkit_123",
+          title: "Taxable booking",
+          quantity: 1,
+          unitSellAmountCents: 100,
+          totalSellAmountCents: 100,
+        },
+      ],
+    }
+
+    for (const paymentSchedule of paymentSchedules) {
+      await financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: `MANUAL-${paymentSchedule.id}`,
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        { ...data, paymentSchedule },
+      )
+    }
+
+    expect(insertedInvoices.map((invoice) => invoice.taxCents)).toEqual([1, 0])
+    expect(insertedInvoices.reduce((sum, invoice) => sum + Number(invoice.taxCents), 0)).toBe(1)
+  })
+
+  it("converts booking tax before allocating it to cross-currency schedules", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn(async () => ({ rate: 2, fxRateSetId: "fxrs_123" }))
+    const paymentSchedules = [
+      {
+        id: "bps_a",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "USD",
+        amountCents: 100,
+      },
+      {
+        id: "bps_b",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "USD",
+        amountCents: 100,
+      },
+    ]
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-USD",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-01",
+      },
+      {
+        booking: {
+          ...bookingData.booking,
+          sellCurrency: "EUR",
+          fxRateSetId: "fxrs_123",
+          sellAmountCents: 100,
+        },
+        paymentSchedule: paymentSchedules[0],
+        paymentSchedules,
+        items: [
+          {
+            id: "bkit_123",
+            title: "Taxable booking",
+            quantity: 1,
+            unitSellAmountCents: 100,
+            totalSellAmountCents: 100,
+          },
+        ],
+      },
+      { resolveInvoiceExchangeRate },
+    )
+
+    expect(resolveInvoiceExchangeRate).toHaveBeenCalledWith({
+      baseCurrency: "EUR",
+      quoteCurrency: "USD",
+      date: "2026-05-23",
+    })
+    expect(insertedInvoices[0]).toMatchObject({
+      currency: "USD",
+      subtotalCents: 90,
+      taxCents: 10,
+      totalCents: 100,
     })
   })
 

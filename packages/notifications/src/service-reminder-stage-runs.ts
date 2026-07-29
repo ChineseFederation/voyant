@@ -255,6 +255,20 @@ async function emitStageChannelRun(
             )?.id ?? null,
         }
       }
+      if (context.booking.notificationsSuppressed) {
+        return {
+          status: "skipped",
+          runId:
+            (
+              await markReminderRunSkipped(
+                db,
+                processingRun.id,
+                new Date(),
+                "booking_notifications_suppressed",
+              )
+            )?.id ?? null,
+        }
+      }
       await enqueueNotification({
         db,
         registry: dispatcher,
@@ -335,6 +349,7 @@ async function processStageRuleTargets(
               contactEmail: bookings.contactEmail,
               contactPhone: bookings.contactPhone,
               contactPreferredLanguage: bookings.contactPreferredLanguage,
+              notificationsSuppressed: bookings.notificationsSuppressed,
             })
             .from(bookings)
             .where(eq(bookings.id, target.bookingId))
@@ -356,6 +371,11 @@ async function processStageRuleTargets(
           .orderBy(desc(bookingTravelers.isPrimary), bookingTravelers.createdAt)
       : []
     const recipient = booking ? resolveReminderRecipient(booking, participants) : null
+
+    if (booking?.notificationsSuppressed) {
+      tally.skipped += 1
+      continue
+    }
 
     if (
       await suppressedByGroup(
