@@ -9,7 +9,11 @@ vi.mock("@voyant-travel/action-ledger", async (importOriginal) => ({
   executeAdmittedExistingTargetCommand,
 }))
 
-import { lockBookingStatusConsequenceState, voyantToolContextContribution } from "./mcp-runtime.js"
+import {
+  loadBookingStatusConsequencePreview,
+  lockBookingStatusConsequenceState,
+  voyantToolContextContribution,
+} from "./mcp-runtime.js"
 import { bookingsService } from "./service.js"
 
 afterEach(() => {
@@ -176,6 +180,39 @@ describe("bookings MCP runtime lifecycle detail", () => {
 
     expect(execute).toHaveBeenCalledTimes(6)
     expect(cancelBooking).toHaveBeenCalledOnce()
+  })
+
+  it("preserves fulfilled allocation status in a cancellation consequence preview", async () => {
+    const detail = bookingDetailWithDates("booking_1")
+    const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
+    vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([
+      {
+        id: "allocation_fulfilled",
+        bookingId: "booking_1",
+        status: "fulfilled",
+        availabilitySlotId: "slot_1",
+        quantity: 1,
+        createdAt: new Date("2026-07-28T10:03:00.000Z"),
+      },
+    ] as never)
+
+    const preview = await loadBookingStatusConsequencePreview(
+      db as never,
+      "booking_1",
+      "cancel",
+      false,
+      false,
+    )
+
+    expect(preview.allocations).toEqual([
+      expect.objectContaining({
+        id: "allocation_fulfilled",
+        status: "fulfilled",
+        resultingStatus: "fulfilled",
+        restoresCapacity: true,
+      }),
+    ])
   })
 
   it("keeps approval consequences stable when tied allocations arrive in a different order", async () => {

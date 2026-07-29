@@ -33,12 +33,15 @@ describe("booking-finance insertion fence", () => {
     expect(write).toHaveBeenCalledWith(tx)
   })
 
-  it("rejects a cancelled booking while holding the booking row lock", async () => {
+  it.each([
+    "cancelled",
+    "expired",
+  ])("rejects a %s booking while holding the booking row lock", async (status) => {
     const dialect = new PgDialect()
     const tx = {
       execute: vi.fn(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
         const statement = dialect.sqlToQuery(query).sql
-        return statement.includes("FROM bookings") ? [{ status: "cancelled" }] : []
+        return statement.includes("FROM bookings") ? [{ status }] : []
       }),
     }
     const db = {

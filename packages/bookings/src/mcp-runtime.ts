@@ -384,7 +384,12 @@ export async function loadBookingStatusConsequencePreview(
       status: allocation.status,
       availabilitySlotId: allocation.availabilitySlotId,
       quantity: allocation.quantity,
-      resultingStatus: action === "confirm" ? "confirmed" : "cancelled",
+      resultingStatus:
+        action === "confirm"
+          ? "confirmed"
+          : allocation.status === "held" || allocation.status === "confirmed"
+            ? "cancelled"
+            : allocation.status,
       restoresCapacity:
         action === "cancel" &&
         allocation.availabilitySlotId !== null &&

@@ -372,6 +372,60 @@ describe("createProductsBookingHandler.computeQuote", () => {
     )
   })
 
+  it("does not charge a selected category-priced room left empty by explicit assignments", async () => {
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-07-27",
+      loadProductOptions: async () => [
+        {
+          id: "opt_standard",
+          name: "Standard",
+          units: [{ id: "unit_standard", name: "Standard room", unitType: "room" }],
+        },
+        {
+          id: "opt_upgrade",
+          name: "Upgrade",
+          units: [{ id: "unit_upgrade", name: "Upgrade room", unitType: "room" }],
+        },
+      ],
+      loadResolvedOptionPrice: async (_ctx, input) => ({
+        baseSellAmountCents: 0,
+        unitPrices: [
+          {
+            unitId: input.optionId === "opt_standard" ? "unit_standard" : "unit_upgrade",
+            unitType: "room",
+            travelerCategory: "adult",
+            sellAmountCents: input.optionId === "opt_standard" ? 12_000 : 15_000,
+          },
+        ],
+      }),
+    })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({
+        configure: {
+          departureSlotId: "slot_1",
+          pax: { adult: 1 },
+          optionSelections: [
+            { optionId: "opt_standard", optionUnitId: "unit_standard", quantity: 1 },
+            { optionId: "opt_upgrade", optionUnitId: "unit_upgrade", quantity: 1 },
+          ],
+        },
+        travelers: [{ rowId: "traveler_a", firstName: "A", lastName: "Adult", band: "adult" }],
+        accommodation: {
+          travelerAssignments: { traveler_a: "unit_standard" },
+        },
+      }),
+    )
+
+    expect(result.available).toBe(true)
+    const breakdown = result.pricing?.breakdown as Record<string, unknown>
+    expect(breakdown?.total).toBe(12_000)
+    expect(breakdown?.lines).toEqual([
+      expect.objectContaining({ optionId: "opt_standard", quantity: 1, totalAmount: 12_000 }),
+    ])
+  })
+
   it("prices category-less per-person room rates from traveler room assignments", async () => {
     const handler = createProductsBookingHandler({
       loadSlotDate: async () => "2026-11-09",

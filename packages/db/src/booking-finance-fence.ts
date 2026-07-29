@@ -51,7 +51,7 @@ export async function assertBookingFinanceInsertionAllowed(
   `)
   const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])
   const status = (rows[0] as { status?: string } | undefined)?.status
-  if (status === "cancelled") {
+  if (status === "cancelled" || status === "expired") {
     throw new BookingFinanceInsertionClosedError(bookingId)
   }
 }

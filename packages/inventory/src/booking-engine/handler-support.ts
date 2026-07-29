@@ -119,6 +119,7 @@ export async function priceOptionSelections(input: {
   const lines: PricedLine[] = []
   let totalCents = 0
   const optionsById = new Map(input.productOptions.map((option) => [option.id, option]))
+  const hasExplicitTravelerAssignments = Object.keys(input.travelerAssignments ?? {}).length > 0
   // Per-traveler-category room prices (a Double room whose price is set per
   // "Adult"/"Child" via the product editor's Rooms & prices matrix) price
   // per-person by band — `pax[band] × price` — NOT per room, so they're
@@ -193,14 +194,13 @@ export async function priceOptionSelections(input: {
       for (const row of categoryUnitRows) {
         const band = row.travelerCategory
         const count = band
-          ? assignedTravelerKeys.length > 0
+          ? hasExplicitTravelerAssignments
             ? (assignedTravelerBandCounts.get(band) ?? 0)
             : (input.pax?.[band] ?? 0)
           : 0
-        const optionBandKey =
-          assignedTravelerKeys.length > 0
-            ? `${selection.optionId}\u0000${selection.optionUnitId ?? ""}\u0000${band ?? ""}`
-            : `${selection.optionId}\u0000${band ?? ""}`
+        const optionBandKey = hasExplicitTravelerAssignments
+          ? `${selection.optionId}\u0000${selection.optionUnitId ?? ""}\u0000${band ?? ""}`
+          : `${selection.optionId}\u0000${band ?? ""}`
         if (
           !band ||
           count <= 0 ||
@@ -223,7 +223,7 @@ export async function priceOptionSelections(input: {
     const assignedTravelerCount = assignedTravelerKeys.length
     const pricingQuantity =
       defaultUnitPrice?.pricingMode === "per_person"
-        ? assignedTravelerCount > 0
+        ? hasExplicitTravelerAssignments
           ? assignedTravelerCount
           : input.selections.length === 1
             ? input.effectivePax
@@ -262,7 +262,7 @@ export async function priceOptionSelections(input: {
       resolvedPrice?.baseSellAmountCents ??
       input.product.sellAmountCents ??
       0
-    if (unitAmount <= 0) continue
+    if (unitAmount <= 0 || pricingQuantity <= 0) continue
     const totalAmount = unitAmount * pricingQuantity
     totalCents += totalAmount
     lines.push({
