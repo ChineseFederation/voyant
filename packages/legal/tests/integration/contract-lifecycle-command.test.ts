@@ -591,6 +591,51 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     ])
   })
 
+  it("rejects sending a managed revision after a successor revision exists", async () => {
+    const contract = await insertContract("issued", "Superseded revision", { managed: true })
+    const workflow = managedBookingWorkflowMetadata().bookingContractWorkflow
+    const [successor] = await db
+      .insert(contracts)
+      .values({
+        scope: "customer",
+        status: "draft",
+        title: "Successor revision",
+        stageHistory: [],
+        variables: { commercial: { depositDueCents: 25_00 } },
+        renderedBody: "Updated reviewed body",
+        metadata: {
+          bookingContractWorkflow: {
+            ...workflow,
+            revision: 2,
+            previousRevisionId: contract.id,
+          },
+        },
+      })
+      .returning()
+    if (!successor) throw new Error("Test successor insert failed")
+    const command = await approvedCommand("send", "send-superseded-revision", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+      subject: null,
+      message: null,
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "A successor revision already exists for this contract revision.",
+      meta: { contractId: contract.id, successorRevisionId: successor.id },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "issued", sentAt: null })],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+  })
+
   it("voids ordinary lifecycle-command targets without adding managed workflow metadata", async () => {
     const ordinaryMetadata = { retained: true, source: "legacy" }
     const contract = await insertContract("issued", "Ordinary command void", {

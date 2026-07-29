@@ -6,7 +6,7 @@ import {
 } from "@voyant-travel/action-ledger"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { bookingContractContentFingerprint } from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
@@ -332,6 +332,7 @@ async function sendContract(
       "INVALID_INPUT",
     )
   }
+  if (managedWorkflow) await assertNoManagedSuccessorRevision(db, contract.id)
   if ("contentFingerprint" in payload) {
     const currentFingerprint = await bookingContractContentFingerprint(contract)
     if (payload.contentFingerprint !== currentFingerprint) {
@@ -485,6 +486,27 @@ async function voidContract(
   return {
     contract: updated,
     event: buildContractLifecycleEvent(updated, contract.status, "void", "voided", now),
+  }
+}
+
+async function assertNoManagedSuccessorRevision(
+  db: PostgresJsDatabase,
+  contractId: string,
+): Promise<void> {
+  const [successor] = await db
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(
+      // agent-quality: raw-sql reviewed -- owner: legal; JSONB lineage lookup is parameterized and runs while the predecessor contract row is locked by the lifecycle transition.
+      sql`${contracts.metadata}->'bookingContractWorkflow'->>'previousRevisionId' = ${contractId}`,
+    )
+    .limit(1)
+  if (successor) {
+    throw new ToolError(
+      "A successor revision already exists for this contract revision.",
+      "INVALID_INPUT",
+      { contractId, successorRevisionId: successor.id },
+    )
   }
 }
 
