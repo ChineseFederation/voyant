@@ -1,6 +1,7 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "../../src/contract-document-policy.js"
+import { contractsService } from "../../src/contracts/service.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "../../src/existing-target-policy.js"
 import { createLegalContractDocumentToolServices } from "../../src/mcp-runtime.js"
 import {
@@ -66,10 +67,7 @@ describe("legal Tools", () => {
     ])
     expect(getBookingContractReviewTool.description).toContain("exact template version")
     expect(getBookingContractReviewTool.requiredScopes).toEqual(["legal:read", "bookings-pii:read"])
-    expect(resolveContractDocumentDeliveryTool.requiredScopes).toEqual([
-      "legal:read",
-      "bookings-pii:read",
-    ])
+    expect(resolveContractDocumentDeliveryTool.requiredScopes).toEqual(["legal:read"])
     expect(
       createLegalContractDraftTool.inputSchema.safeParse({
         title: "Revised agreement",
@@ -314,5 +312,40 @@ describe("legal Tools", () => {
     await expect(service.resolveDelivery({ attachmentId: "attachment_1" })).resolves.toMatchObject({
       filename: "contract.pdf",
     })
+  })
+
+  it("resolves non-managed contract document delivery without bookings PII scope", async () => {
+    const getAttachmentWithContractById = vi
+      .spyOn(contractsService, "getAttachmentWithContractById")
+      .mockResolvedValueOnce({
+        attachment: { id: "attachment_1" },
+        contract: { id: "contract_1", bookingId: null, metadata: {} },
+      } as never)
+    const resolveDelivery = vi.fn(async () => ({
+      url: "https://documents.example.test/signed",
+      filename: "contract.pdf",
+      contentType: "application/pdf",
+    }))
+
+    await expect(
+      resolveContractDocumentDeliveryTool.handler(
+        { attachmentId: "attachment_1" },
+        {
+          ...baseContext(),
+          scopes: ["legal:read"],
+          db: { select: vi.fn() },
+          legalContractDocument: {
+            generate: vi.fn(),
+            regenerate: vi.fn(),
+            resolveDelivery,
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ filename: "contract.pdf" })
+    expect(getAttachmentWithContractById).toHaveBeenCalledWith(
+      expect.objectContaining({ select: expect.any(Function) }),
+      "attachment_1",
+    )
+    expect(resolveDelivery).toHaveBeenCalledWith({ attachmentId: "attachment_1" })
   })
 })

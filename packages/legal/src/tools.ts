@@ -970,7 +970,7 @@ export const voidLegalContractTool = defineTool({
 const contractDocumentReadMetadata = {
   owner: OWNER,
   capabilityVersion: VERSION,
-  requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
+  requiredScopes: READ_SCOPES,
   audience: STAFF_AUDIENCE,
   tier: "sensitive" as const,
   riskPolicy: READ_ONLY_RISK,
