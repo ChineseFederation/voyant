@@ -2203,6 +2203,50 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(selectedPriced.result.booking.priceOverride).toBeNull()
   })
 
+  it.each([
+    { label: "no longer exists", catalogState: "missing" },
+    { label: "has no active option rule", catalogState: "without_rule" },
+  ])("rejects an explicit catalog that $label instead of using fallback pricing", async ({
+    catalogState,
+  }) => {
+    const { productId, optionId, unitId } = await seedProduct()
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 40_000,
+    })
+    const selectedCatalogId = `pcat_bc_${productSeq}_unresolved`
+    if (catalogState === "without_rule") {
+      await db.execute(sql`
+        INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
+        VALUES (
+          ${selectedCatalogId}, ${`PUBLIC-${productSeq}-UNRESOLVED`},
+          'Public without matching rule', 'EUR', 'public', false, true
+        )
+      `)
+    }
+
+    const result = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      catalogId: selectedCatalogId,
+    })
+
+    expect(result).toMatchObject({
+      status: "invalid_pricing",
+      issues: [
+        {
+          path: ["catalogId"],
+          message: expect.stringContaining(selectedCatalogId),
+        },
+      ],
+    })
+  })
+
   it("prices selected units and extras from persisted rules and keeps invoice totals aligned", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     const productExtraId = `pex_bc_${productSeq}`

@@ -1277,6 +1277,17 @@ async function reconcileBookingCreatePricing(
         catalogId: input.catalogId ?? null,
       })
     : null
+  if (input.catalogId != null && persistedPricing == null) {
+    return {
+      booking,
+      issues: [
+        {
+          path: ["catalogId"],
+          message: `The selected public catalog ${input.catalogId} no longer has active pricing for this booking option.`,
+        },
+      ],
+    }
+  }
 
   const pricedLines = new Map<string, { unit: number; total: number }>()
   const chargedUnassignedRoomBands = new Set<string>()
