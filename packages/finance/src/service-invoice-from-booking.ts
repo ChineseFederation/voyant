@@ -3,20 +3,25 @@ import type {
   CreateInvoiceFromBookingInput,
   FinanceServiceRuntime,
   InvoiceFromBookingData,
+  InvoiceFromBookingPaymentScheduleData,
   PostgresJsDatabase,
 } from "./service-shared.js"
 import {
+  and,
   asc,
   assertInvoiceFromBookingOverrideTotals,
   bookingItemCommissions,
   bookingItemTaxLines,
   bookingItemToInvoiceLine,
+  bookingPaymentSchedules,
   bookingPaymentScheduleToInvoiceLine,
   eq,
+  INVOICEABLE_PAYMENT_SCHEDULE_STATUSES,
   InvoiceFromBookingValidationError,
   InvoiceLineItemsPersistenceError,
   InvoiceNumberAllocationError,
   InvoiceNumberConflictError,
+  inArray,
   invoiceExternalRefs,
   invoiceFromBookingExternalRefValues,
   invoiceFromBookingOverrideLineItems,
@@ -33,7 +38,49 @@ import {
   resolveInvoiceLineDescriptions,
   resolvePaymentScheduleDisplayItem,
   touchLinkedBookingUpdatedAt,
+  withBookingFinanceInsertionFence,
 } from "./service-shared.js"
+
+function allocateScheduleAmountCents(
+  totalAmountCents: number,
+  schedules: InvoiceFromBookingPaymentScheduleData[],
+  selectedScheduleId: string,
+): number {
+  const weightedSchedules = schedules
+    .filter((schedule) => schedule.amountCents > 0)
+    .map((schedule) => ({ schedule, weight: BigInt(schedule.amountCents) }))
+  const selected = weightedSchedules.find(({ schedule }) => schedule.id === selectedScheduleId)
+  const totalWeight = weightedSchedules.reduce((sum, entry) => sum + entry.weight, 0n)
+  if (!selected || totalWeight <= 0n || totalAmountCents === 0) return 0
+
+  const sign = totalAmountCents < 0 ? -1 : 1
+  const unsignedTotal = BigInt(Math.abs(totalAmountCents))
+  const allocations = weightedSchedules.map(({ schedule, weight }) => {
+    const numerator = unsignedTotal * weight
+    return {
+      schedule,
+      amount: numerator / totalWeight,
+      remainder: numerator % totalWeight,
+    }
+  })
+  let undistributed = Number(
+    unsignedTotal - allocations.reduce((sum, allocation) => sum + allocation.amount, 0n),
+  )
+  allocations.sort((left, right) => {
+    if (left.remainder !== right.remainder) {
+      return left.remainder > right.remainder ? -1 : 1
+    }
+    return left.schedule.id.localeCompare(right.schedule.id)
+  })
+  for (const allocation of allocations) {
+    if (undistributed <= 0) break
+    allocation.amount += 1n
+    undistributed -= 1
+  }
+
+  const allocation = allocations.find(({ schedule }) => schedule.id === selectedScheduleId)
+  return sign * Number(allocation?.amount ?? 0n)
+}
 
 async function resolveInvoiceNumberForBooking(
   db: PostgresJsDatabase,
@@ -157,9 +204,17 @@ export const financeInvoiceFromBookingService = {
 
     const shouldUseBookingItems = overrideLineItems === null && !paymentSchedule
     const invoiceItems = shouldUseBookingItems ? items : []
-    const itemIds = invoiceItems.map((item) => item.id)
+    const taxSourceItems = overrideLineItems
+      ? []
+      : paymentSchedule?.bookingItemId
+        ? items.filter((item) => item.id === paymentSchedule.bookingItemId)
+        : paymentSchedule
+          ? items
+          : invoiceItems
+    const itemIds = taxSourceItems.map((item) => item.id)
+    const commissionItemIds = invoiceItems.map((item) => item.id)
 
-    const taxes =
+    const loadedTaxes =
       itemIds.length === 0
         ? []
         : await db
@@ -172,14 +227,20 @@ export const financeInvoiceFromBookingService = {
               asc(bookingItemTaxLines.createdAt),
               asc(bookingItemTaxLines.id),
             )
+    // Keep the application boundary defensive as well as the SQL predicate:
+    // item-linked schedules must never inherit taxes from sibling items.
+    const itemIdSet = new Set(itemIds)
+    const taxes = loadedTaxes.filter((tax) => itemIdSet.has(tax.bookingItemId))
 
     const commissions =
-      itemIds.length === 0
+      commissionItemIds.length === 0
         ? []
         : await db
             .select()
             .from(bookingItemCommissions)
-            .where(or(...itemIds.map((id) => eq(bookingItemCommissions.bookingItemId, id))))
+            .where(
+              or(...commissionItemIds.map((id) => eq(bookingItemCommissions.bookingItemId, id))),
+            )
 
     const taxesByBookingItemId = new Map<string, typeof taxes>()
     for (const tax of taxes) {
@@ -231,18 +292,143 @@ export const financeInvoiceFromBookingService = {
     })
 
     const grossLineTotalCents = lineItems.reduce((sum, line) => sum + line.totalCents, 0)
-    const includedTaxCents = overrideLineItems
-      ? 0
-      : taxes.reduce((sum, tax) => {
-          if (tax.scope === "withheld" || !tax.includedInPrice) return sum
-          return sum + tax.amountCents
-        }, 0)
-    const excludedTaxCents = overrideLineItems
-      ? overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0)
-      : taxes.reduce((sum, tax) => {
-          if (tax.scope === "withheld" || tax.includedInPrice) return sum
-          return sum + tax.amountCents
-        }, 0)
+    const scheduleAllocationRows = paymentSchedule
+      ? (
+          bookingData.paymentSchedules ??
+          (await db
+            .select()
+            .from(bookingPaymentSchedules)
+            .where(
+              and(
+                eq(bookingPaymentSchedules.bookingId, booking.id),
+                inArray(bookingPaymentSchedules.status, INVOICEABLE_PAYMENT_SCHEDULE_STATUSES),
+              ),
+            )
+            .orderBy(
+              asc(bookingPaymentSchedules.dueDate),
+              asc(bookingPaymentSchedules.createdAt),
+              asc(bookingPaymentSchedules.id),
+            ))
+        ).filter((schedule) => schedule.bookingItemId === paymentSchedule.bookingItemId)
+      : []
+    const scheduleRowsInBookingCurrency = paymentSchedule
+      ? await Promise.all(
+          scheduleAllocationRows.map(async (schedule) => {
+            const scheduleCurrency = normalizeCurrencyCode(schedule.currency)
+            if (!scheduleCurrency || !/^[A-Z]{3}$/.test(scheduleCurrency)) {
+              throw new InvoiceFromBookingValidationError(
+                "Payment schedule currency must be a valid three-letter currency code",
+                {
+                  scheduleId: schedule.id,
+                  scheduleCurrency: schedule.currency,
+                },
+              )
+            }
+            if (scheduleCurrency === bookingSellCurrency) return schedule
+            const converted = await resolveFxMoneyBaseAmount(
+              db,
+              {
+                amountCents: schedule.amountCents,
+                currency: scheduleCurrency,
+                baseCurrency: bookingSellCurrency,
+                baseAmountCents: null,
+                fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+              },
+              {
+                ...runtime,
+                targetBaseCurrency: bookingSellCurrency,
+                fallbackFxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+                date: data.issueDate,
+                setBaseCurrencyWhenUnresolved: true,
+              },
+            )
+            if (converted.baseAmountCents === null || converted.baseAmountCents === undefined) {
+              throw new InvoiceFromBookingValidationError(
+                "Mixed-currency payment schedule tax requires resolvable exchange rates",
+                {
+                  scheduleCurrency,
+                  bookingSellCurrency,
+                  fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+                },
+              )
+            }
+            return { ...schedule, amountCents: converted.baseAmountCents }
+          }),
+        )
+      : []
+    const allocateScheduleTaxInBookingCurrency = (amountCents: number) => {
+      if (!paymentSchedule) return amountCents
+      return allocateScheduleAmountCents(
+        amountCents,
+        scheduleRowsInBookingCurrency.length > 0
+          ? scheduleRowsInBookingCurrency
+          : [paymentSchedule],
+        paymentSchedule.id,
+      )
+    }
+    const convertBookingTaxToInvoiceCurrency = async (amountCents: number) => {
+      if (amountCents === 0 || bookingSellCurrency === invoiceCurrency) return amountCents
+      const converted = await resolveFxMoneyBaseAmount(
+        db,
+        {
+          amountCents,
+          currency: bookingSellCurrency,
+          baseCurrency: invoiceCurrency,
+          baseAmountCents: null,
+          fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+        },
+        {
+          ...runtime,
+          targetBaseCurrency: invoiceCurrency,
+          fallbackFxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+          date: data.issueDate,
+          setBaseCurrencyWhenUnresolved: true,
+        },
+      )
+      if (converted.baseAmountCents === null || converted.baseAmountCents === undefined) {
+        throw new InvoiceFromBookingValidationError(
+          "Cross-currency payment schedule tax requires a resolvable exchange rate",
+          {
+            bookingSellCurrency,
+            invoiceCurrency,
+            fxRateSetId: data.fxRateSetId ?? booking.fxRateSetId ?? null,
+          },
+        )
+      }
+      return converted.baseAmountCents
+    }
+    const bookingIncludedTaxCents = taxes.reduce((sum, tax) => {
+      if (tax.scope === "withheld" || !tax.includedInPrice) return sum
+      return sum + tax.amountCents
+    }, 0)
+    const bookingExcludedTaxCents = taxes.reduce((sum, tax) => {
+      if (tax.scope === "withheld" || tax.includedInPrice) return sum
+      return sum + tax.amountCents
+    }, 0)
+    const { includedTaxCents, excludedTaxCents } = overrideLineItems
+      ? {
+          includedTaxCents: 0,
+          excludedTaxCents: overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0),
+        }
+      : paymentSchedule
+        ? {
+            // A schedule amount is already gross of both tax kinds. Convert and
+            // allocate their combined amount once so indivisible cents cannot
+            // be awarded twice to the same installment.
+            includedTaxCents: await convertBookingTaxToInvoiceCurrency(
+              allocateScheduleTaxInBookingCurrency(
+                bookingIncludedTaxCents + bookingExcludedTaxCents,
+              ),
+            ),
+            excludedTaxCents: 0,
+          }
+        : {
+            includedTaxCents: await convertBookingTaxToInvoiceCurrency(bookingIncludedTaxCents),
+            excludedTaxCents: await convertBookingTaxToInvoiceCurrency(bookingExcludedTaxCents),
+          }
+    // Payment schedule amounts are portions of the persisted booking total and
+    // therefore already include excluded tax. Remove that tax from the schedule
+    // line's gross amount before adding it back to the invoice total.
     const subtotalCents = Math.max(0, grossLineTotalCents - includedTaxCents)
     const taxCents = includedTaxCents + excludedTaxCents
     const totalCents = subtotalCents + taxCents
@@ -294,10 +480,14 @@ export const financeInvoiceFromBookingService = {
       )
     }
 
-    const numberAssignment = await resolveInvoiceNumberForBooking(db, data)
+    let attemptedInvoiceNumber = data.invoiceNumber ?? null
 
     try {
-      return await db.transaction(async (tx) => {
+      return await withBookingFinanceInsertionFence(db, booking.id, async (tx) => {
+        // Local series allocation must share the fenced insert transaction so
+        // a rejected/failed invoice rolls the sequence advance back as well.
+        const numberAssignment = await resolveInvoiceNumberForBooking(tx, data)
+        attemptedInvoiceNumber = numberAssignment.invoiceNumber
         const [invoice] = await tx
           .insert(invoices)
           .values({
@@ -369,7 +559,7 @@ export const financeInvoiceFromBookingService = {
       })
     } catch (error) {
       if (isInvoiceNumberUniqueConstraintError(error)) {
-        throw new InvoiceNumberConflictError(numberAssignment.invoiceNumber)
+        throw new InvoiceNumberConflictError(attemptedInvoiceNumber ?? "unknown")
       }
       throw error
     }

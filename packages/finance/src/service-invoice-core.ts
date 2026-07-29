@@ -33,6 +33,7 @@ import {
   sql,
   toRows,
   touchLinkedBookingUpdatedAt,
+  withBookingFinanceInsertionFence,
 } from "./service-shared.js"
 
 async function assertOptionalTableReference(
@@ -219,7 +220,9 @@ export const financeInvoiceCoreService = {
     await assertInvoiceReferencesExist(db, data)
 
     try {
-      const [row] = await db.insert(invoices).values(data).returning()
+      const [row] = await withBookingFinanceInsertionFence(db, data.bookingId, (tx) =>
+        tx.insert(invoices).values(data).returning(),
+      )
       await touchLinkedBookingUpdatedAt(db, row?.bookingId)
       return row
     } catch (error) {

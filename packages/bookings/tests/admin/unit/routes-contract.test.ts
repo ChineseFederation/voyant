@@ -41,7 +41,22 @@ const {
   bookingDetailSchema,
   bookingAggregatesSchema,
   sharingGroupSummarySchema,
+  confirmBookingAuthorizationInput,
 } = __test__
+
+describe("booking lifecycle authorization input", () => {
+  it("binds the confirmation command body into the approval fingerprint input", () => {
+    const commandInput = { suppressNotifications: true, note: "Approved without email" }
+
+    expect(confirmBookingAuthorizationInput("booking_1", commandInput)).toEqual({
+      key: "confirm",
+      actionName: "booking.status.confirm",
+      routeOrToolName: "bookings.confirm",
+      bookingId: "booking_1",
+      commandInput,
+    })
+  })
+})
 
 /** Reproduce the wire form: JSON serialize then re-parse (Date → ISO string). */
 function toWire<T>(value: T): unknown {
@@ -86,6 +101,7 @@ const booking: Booking = {
   endDate: "2026-06-08",
   pax: 2,
   internalNotes: null,
+  notificationsSuppressed: false,
   customerPaymentPolicy: null,
   priceOverride: null,
   customFields: { custom: { source: "intake" } },

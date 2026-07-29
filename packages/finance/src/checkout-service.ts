@@ -1,4 +1,5 @@
 import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { and, asc, desc, eq, gt, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
@@ -271,58 +272,60 @@ async function createCollectionInvoice(
   const issueDate = new Date().toISOString().slice(0, 10)
   const dueDate = plan.selectedSchedule?.dueDate ?? issueDate
   const documentType = plan.documentType ?? "invoice"
-  const invoiceNumber = await allocateDocumentNumber(
-    db,
-    context.booking.bookingNumber,
-    documentType,
-    amountCents,
-  )
 
-  const [invoice] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber,
-      bookingId: context.booking.id,
-      personId: context.booking.personId,
-      organizationId: context.booking.organizationId,
-      invoiceType: documentType,
-      status: "issued",
-      currency,
-      baseCurrency: alignsWithBookingSell ? context.booking.baseCurrency : null,
-      fxRateSetId: null,
-      subtotalCents: amountCents,
-      baseSubtotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      taxCents: 0,
-      baseTaxCents: null,
+  return withBookingFinanceInsertionFence(db, context.booking.id, async (tx) => {
+    const invoiceNumber = await allocateDocumentNumber(
+      tx,
+      context.booking.bookingNumber,
+      documentType,
+      amountCents,
+    )
+    const [invoice] = await tx
+      .insert(invoices)
+      .values({
+        invoiceNumber,
+        bookingId: context.booking.id,
+        personId: context.booking.personId,
+        organizationId: context.booking.organizationId,
+        invoiceType: documentType,
+        status: "issued",
+        currency,
+        baseCurrency: alignsWithBookingSell ? context.booking.baseCurrency : null,
+        fxRateSetId: null,
+        subtotalCents: amountCents,
+        baseSubtotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        taxCents: 0,
+        baseTaxCents: null,
+        totalCents: amountCents,
+        baseTotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        paidCents: 0,
+        basePaidCents: alignsWithBookingSell && context.booking.baseCurrency != null ? 0 : null,
+        balanceDueCents: amountCents,
+        baseBalanceDueCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        commissionAmountCents: null,
+        issueDate,
+        dueDate,
+        notes: notes ?? plan.selectedSchedule?.notes ?? null,
+      })
+      .returning()
+
+    if (!invoice) {
+      throw new Error("Failed to create collection invoice")
+    }
+
+    await tx.insert(invoiceLineItems).values({
+      invoiceId: invoice.id,
+      bookingItemId: plan.selectedSchedule?.bookingItemId ?? null,
+      description: lineDescription(context.booking, plan.selectedSchedule, plan.stage),
+      quantity: 1,
+      unitPriceCents: amountCents,
       totalCents: amountCents,
-      baseTotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      paidCents: 0,
-      basePaidCents: alignsWithBookingSell && context.booking.baseCurrency != null ? 0 : null,
-      balanceDueCents: amountCents,
-      baseBalanceDueCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      commissionAmountCents: null,
-      issueDate,
-      dueDate,
-      notes: notes ?? plan.selectedSchedule?.notes ?? null,
+      taxRate: null,
+      sortOrder: 0,
     })
-    .returning()
 
-  if (!invoice) {
-    throw new Error("Failed to create collection invoice")
-  }
-
-  await db.insert(invoiceLineItems).values({
-    invoiceId: invoice.id,
-    bookingItemId: plan.selectedSchedule?.bookingItemId ?? null,
-    description: lineDescription(context.booking, plan.selectedSchedule, plan.stage),
-    quantity: 1,
-    unitPriceCents: amountCents,
-    totalCents: amountCents,
-    taxRate: null,
-    sortOrder: 0,
+    return invoice
   })
-
-  return invoice
 }
 
 export async function initiateCheckoutCollection(
@@ -417,59 +420,66 @@ export async function initiateCheckoutCollection(
         )
     }
   } else {
-    if (!plan.selectedSchedule) {
+    const selectedSchedule = plan.selectedSchedule
+    if (!selectedSchedule) {
       throw new Error("No outstanding payment schedule available for collection")
     }
 
-    // Create (or reuse) the schedule session first so idempotent retries return
-    // the existing row before we materialize any new proforma.
-    paymentSession = await financeService.createPaymentSessionFromBookingSchedule(
-      db,
-      plan.selectedSchedule.id,
-      {
-        ...(input.paymentSession ?? {}),
-        notes: input.notes ?? input.paymentSession?.notes ?? null,
-      },
-    )
+    const resources = await withBookingFinanceInsertionFence(db, context.booking.id, async (tx) => {
+      // Session creation, proforma creation/numbering, and linking share this
+      // outer transaction. A cancellation fence rejection or later write
+      // failure therefore cannot leave an orphaned schedule session.
+      let scheduleSession = await financeService.createPaymentSessionFromBookingSchedule(
+        tx,
+        selectedSchedule.id,
+        {
+          ...(input.paymentSession ?? {}),
+          notes: input.notes ?? input.paymentSession?.notes ?? null,
+        },
+      )
 
-    if (!paymentSession) {
-      throw new Error("Failed to create payment session from booking schedule")
-    }
-
-    if (paymentSession.invoiceId) {
-      const [existingInvoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, paymentSession.invoiceId))
-        .limit(1)
-      if (!existingInvoice) {
-        throw new Error(
-          `Payment session ${paymentSession.id} references missing invoice ${paymentSession.invoiceId}`,
-        )
+      if (!scheduleSession) {
+        throw new Error("Failed to create payment session from booking schedule")
       }
-      invoice = existingInvoice
-    } else {
+
+      if (scheduleSession.invoiceId) {
+        const [existingInvoice] = await tx
+          .select()
+          .from(invoices)
+          .where(eq(invoices.id, scheduleSession.invoiceId))
+          .limit(1)
+        if (!existingInvoice) {
+          throw new Error(
+            `Payment session ${scheduleSession.id} references missing invoice ${scheduleSession.invoiceId}`,
+          )
+        }
+        return { invoice: existingInvoice, paymentSession: scheduleSession }
+      }
+
       // Card settlement completion requires an outstanding booking invoice even
       // when the session is schedule-targeted. Materialize a proforma in the
       // schedule currency so status refresh can project paid without FX drift.
-      invoice = await createCollectionInvoice(
-        db,
+      const scheduleInvoice = await createCollectionInvoice(
+        tx,
         context,
         {
           ...plan,
           documentType: plan.documentType ?? "proforma",
-          currency: plan.selectedSchedule.currency,
+          currency: selectedSchedule.currency,
         },
         input.notes ?? null,
       )
 
-      const [linkedSession] = await db
+      const [linkedSession] = await tx
         .update(paymentSessions)
-        .set({ invoiceId: invoice.id, updatedAt: new Date() })
-        .where(eq(paymentSessions.id, paymentSession.id))
+        .set({ invoiceId: scheduleInvoice.id, updatedAt: new Date() })
+        .where(eq(paymentSessions.id, scheduleSession.id))
         .returning()
-      paymentSession = linkedSession ?? { ...paymentSession, invoiceId: invoice.id }
-    }
+      scheduleSession = linkedSession ?? { ...scheduleSession, invoiceId: scheduleInvoice.id }
+      return { invoice: scheduleInvoice, paymentSession: scheduleSession }
+    })
+    invoice = resources.invoice
+    paymentSession = resources.paymentSession
 
     if (
       runtime.notificationDispatcher?.sendPaymentSessionNotification &&

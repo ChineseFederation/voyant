@@ -746,6 +746,7 @@
       "@voyant-travel/custom-fields/voyant": ["../custom-fields/dist/voyant.d.ts"],
       "@voyant-travel/db": ["../db/dist/index.d.ts"],
       "@voyant-travel/db/aggregate-snapshots": ["../db/dist/aggregate-snapshots.d.ts"],
+      "@voyant-travel/db/booking-finance-fence": ["../db/dist/booking-finance-fence.d.ts"],
       "@voyant-travel/db/columns": ["../db/dist/columns/index.d.ts"],
       "@voyant-travel/db/crud": ["../db/dist/crud.d.ts"],
       "@voyant-travel/db/helpers": ["../db/dist/helpers.d.ts"],

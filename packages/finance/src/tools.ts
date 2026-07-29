@@ -4,6 +4,7 @@
  * by intersection so this module stays deployment-agnostic.
  * Refunds are issued through the credit-note service after action approval.
  */
+import { bookingToolDetailSchema } from "@voyant-travel/bookings"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -20,7 +21,7 @@ import {
   invoiceListItemSchema,
   invoiceSchema,
 } from "./routes-invoice-schemas.js"
-import { bookingCreateSchema } from "./service-booking-create.js"
+import { type bookingCreateSchema, bookingCreateToolSchema } from "./service-booking-create.js"
 import {
   insertCreditNoteSchema,
   invoiceFromBookingSchema,
@@ -64,7 +65,11 @@ export interface FinanceToolServices {
   createBooking(
     input: z.infer<typeof bookingCreateSchema>,
     admitted: ReturnType<typeof admitHandlerActionPolicy>,
-  ): Promise<{ bookingId: string; replayed: boolean }>
+  ): Promise<{
+    bookingId: string
+    replayed: boolean
+    booking: z.infer<typeof bookingToolDetailSchema>
+  }>
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
@@ -221,7 +226,7 @@ export const issueInvoiceRefundTool = defineTool<
 })
 
 export const createBookingToolInputSchema = z.object({
-  booking: bookingCreateSchema.describe(
+  booking: bookingCreateToolSchema.describe(
     "The atomic product/slot booking command, including travelers, room/item lines, and schedules.",
   ),
 })
@@ -230,6 +235,7 @@ const durableBookingCreateResultSchema = z.object({
   status: z.literal("created"),
   bookingId: z.string().min(1),
   replayed: z.boolean(),
+  booking: bookingToolDetailSchema,
 })
 
 export const createBookingTool = defineTool({
@@ -259,6 +265,7 @@ export const createBookingTool = defineTool({
       status: "created",
       bookingId: result.bookingId,
       replayed: result.replayed,
+      booking: result.booking,
     }
   },
 })

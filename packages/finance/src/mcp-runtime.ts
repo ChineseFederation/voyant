@@ -2,6 +2,14 @@ import {
   type ActionLedgerRequestContextValues,
   buildActionLedgerApprovedExecutionFields,
 } from "@voyant-travel/action-ledger"
+import {
+  bookingsService,
+  bookingToolDetailSchema,
+  redactBookingContact,
+  redactTravelerIdentity,
+  shouldRevealBookingPii,
+} from "@voyant-travel/bookings"
+import { isStaffRbacEnforced } from "@voyant-travel/hono"
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -57,10 +65,37 @@ export const voyantToolContextContribution = defineToolContextContribution({
             commandInput: input,
             admitted,
             runtime: getFinanceRouteRuntime(c),
-          }).then((result) => ({
-            bookingId: result.value.bookingId,
-            replayed: result.replayed,
-          })),
+          }).then(async (result) => {
+            const booking = await bookingsService.getBookingById(db, result.value.bookingId)
+            if (!booking) {
+              throw new ToolError("The created booking could not be read back.", "NOT_FOUND", {
+                bookingId: result.value.bookingId,
+              })
+            }
+            const [items, travelers] = await Promise.all([
+              bookingsService.listItems(db, booking.id),
+              bookingsService.listTravelers(db, booking.id),
+            ])
+            const reveal = shouldRevealBookingPii({
+              actor: c.var.actor,
+              scopes: c.var.scopes,
+              callerType: c.var.callerType,
+              isInternalRequest: c.var.isInternalRequest,
+              enforceRbac: isStaffRbacEnforced(c.env),
+            })
+            const detail = {
+              ...(reveal ? booking : redactBookingContact(booking)),
+              items,
+              travelers: reveal
+                ? travelers
+                : travelers.map((traveler) => redactTravelerIdentity(traveler)),
+            }
+            return {
+              bookingId: booking.id,
+              replayed: result.replayed,
+              booking: bookingToolDetailSchema.parse(toJsonValue(detail)),
+            }
+          }),
         async issueInvoiceFromBooking(input: {
           command: CreateInvoiceFromBookingInput
           idempotencyKey: string

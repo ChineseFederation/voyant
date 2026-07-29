@@ -265,6 +265,7 @@ export const db = new Proxy({} as ReturnType<typeof createDbClient>, {
   },
 })
 
+export * from "./booking-finance-fence.js"
 // Re-export lib utilities
 export * from "./connection-config.js"
 export * from "./helpers.js"

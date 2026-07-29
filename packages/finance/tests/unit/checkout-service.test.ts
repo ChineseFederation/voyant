@@ -1,3 +1,4 @@
+import { PgDialect } from "drizzle-orm/pg-core"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -415,6 +416,106 @@ describe("finance checkout service", () => {
     })
   })
 
+  it("rolls back document number allocation when the fenced invoice insert fails", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      series: { currentSequence: 7 },
+      invoiceInsertError: new Error("invoice insert failed"),
+    })
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "bank_transfer",
+        stage: "manual",
+        amountCents: 12_000,
+      }),
+    ).rejects.toThrow("invoice insert failed")
+
+    expect(db.getSeriesSequence()).toBe(7)
+    expect(
+      db.executedSql.findIndex((statement) => statement.includes("pg_advisory_xact_lock")),
+    ).toBe(0)
+    expect(
+      db.executedSql.findIndex(
+        (statement) =>
+          statement.includes("FOR UPDATE") && !statement.includes("invoice_number_series"),
+      ),
+    ).toBe(1)
+    expect(
+      db.executedSql.findIndex((statement) => statement.includes("FROM invoice_number_series")),
+    ).toBe(2)
+  })
+
+  it("rejects a cancelled booking before allocating a document number", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      bookingStatus: "cancelled",
+      series: { currentSequence: 7 },
+    })
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "bank_transfer",
+        stage: "manual",
+        amountCents: 12_000,
+      }),
+    ).rejects.toThrow("no longer accepts new financial consequences")
+
+    expect(db.getSeriesSequence()).toBe(7)
+    expect(
+      db.executedSql.some((statement) => statement.includes("FROM invoice_number_series")),
+    ).toBe(false)
+    expect(insertedInvoices).toHaveLength(0)
+  })
+
+  it("rejects a cancelled schedule checkout before creating its payment session", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      bookingStatus: "cancelled",
+    })
+    const createScheduleSession = vi.spyOn(
+      financeService,
+      "createPaymentSessionFromBookingSchedule",
+    )
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "card",
+        stage: "initial",
+        amountCents: 5_000,
+      }),
+    ).rejects.toThrow("no longer accepts new financial consequences")
+
+    expect(createScheduleSession).not.toHaveBeenCalled()
+    expect(insertedInvoices).toHaveLength(0)
+  })
+
+  it("rolls back a newly created schedule session when fenced invoice creation fails", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const insertedPaymentSessions: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      insertedPaymentSessions,
+      series: { currentSequence: 7 },
+      invoiceInsertError: new Error("invoice insert failed"),
+    })
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "card",
+        stage: "initial",
+        amountCents: 5_000,
+      }),
+    ).rejects.toThrow("invoice insert failed")
+
+    expect(insertedPaymentSessions).toHaveLength(0)
+    expect(insertedInvoices).toHaveLength(0)
+    expect(db.getSeriesSequence()).toBe(7)
+  })
+
   it("rejects mismatched booking and session ids during bootstrap", async () => {
     await expect(
       bootstrapCheckoutCollection(
@@ -438,6 +539,10 @@ function createCheckoutDb({
   existingInvoices = [],
   schedule: scheduleOverrides = {},
   booking: bookingOverrides = {},
+  bookingStatus = "confirmed",
+  series: seriesOverrides = null,
+  invoiceInsertError,
+  insertedPaymentSessions = [],
 }: {
   insertedInvoices: Array<Record<string, unknown>>
   linkedSessions?: Array<Record<string, unknown>>
@@ -445,7 +550,12 @@ function createCheckoutDb({
   existingInvoices?: Array<Record<string, unknown>>
   schedule?: Partial<Record<string, unknown>>
   booking?: Partial<Record<string, unknown>>
+  bookingStatus?: "confirmed" | "cancelled"
+  series?: Partial<Record<string, unknown>> | null
+  invoiceInsertError?: Error
+  insertedPaymentSessions?: Array<Record<string, unknown>>
 }) {
+  const dialect = new PgDialect()
   const booking = {
     id: "booking_123",
     bookingNumber: "BK-123",
@@ -472,14 +582,71 @@ function createCheckoutDb({
     ...scheduleOverrides,
   }
 
+  const series = seriesOverrides
+    ? {
+        id: "series_123",
+        prefix: "INV",
+        separator: "-",
+        padLength: 5,
+        currentSequence: 0,
+        resetStrategy: "never",
+        resetAt: null,
+        active: true,
+        scope: "invoice",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...seriesOverrides,
+      }
+    : null
+  let seriesSequence = Number(series?.currentSequence ?? 0)
+  const executedSql: string[] = []
+
   const rowsFor = (table: unknown) => {
-    if (table === invoiceNumberSeries) return []
+    if (table === invoiceNumberSeries)
+      return series ? [{ ...series, currentSequence: seriesSequence }] : []
     if (table === bookingPaymentSchedules) return [schedule]
     if (table === invoices) return existingInvoices
     return []
   }
 
-  return {
+  const db = {
+    execute: vi.fn(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+      const statement = dialect.sqlToQuery(query).sql
+      executedSql.push(statement)
+      if (statement.includes("FROM invoice_number_series")) {
+        if (!series) return []
+        return [
+          {
+            id: series.id,
+            prefix: series.prefix,
+            separator: series.separator,
+            pad_length: series.padLength,
+            current_sequence: seriesSequence,
+            reset_strategy: series.resetStrategy,
+            reset_at: series.resetAt,
+            active: series.active,
+          },
+        ]
+      }
+      if (statement.includes("FOR UPDATE") && !statement.includes("invoice_number_series")) {
+        return [{ status: bookingStatus }]
+      }
+      return []
+    }),
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => {
+      const sequenceBeforeTransaction = seriesSequence
+      const invoiceCountBeforeTransaction = insertedInvoices.length
+      const sessionCountBeforeTransaction = insertedPaymentSessions.length
+      const linkCountBeforeTransaction = linkedSessions.length
+      try {
+        return await callback(db)
+      } catch (error) {
+        seriesSequence = sequenceBeforeTransaction
+        insertedInvoices.length = invoiceCountBeforeTransaction
+        insertedPaymentSessions.length = sessionCountBeforeTransaction
+        linkedSessions.length = linkCountBeforeTransaction
+        throw error
+      }
+    }),
     select() {
       let selectedTable: unknown = null
       const query = {
@@ -495,7 +662,9 @@ function createCheckoutDb({
           return Promise.resolve(rowsFor(selectedTable))
         },
         limit() {
-          if (selectedTable === invoiceNumberSeries) return Promise.resolve([])
+          if (selectedTable === invoiceNumberSeries) {
+            return Promise.resolve(rowsFor(selectedTable).slice(0, 1))
+          }
           if (selectedTable === invoices) {
             return Promise.resolve(existingInvoices.slice(0, 1))
           }
@@ -511,6 +680,7 @@ function createCheckoutDb({
       return {
         values(values: Record<string, unknown>) {
           if (table === invoices) {
+            if (invoiceInsertError) throw invoiceInsertError
             insertedInvoices.push(values)
             return {
               returning() {
@@ -521,6 +691,20 @@ function createCheckoutDb({
           if (table === invoiceLineItems) {
             return Promise.resolve(undefined)
           }
+          if (table === paymentSessions) {
+            insertedPaymentSessions.push(values)
+            return {
+              returning() {
+                return Promise.resolve([
+                  {
+                    id: "ps_atomic_schedule",
+                    invoiceId: null,
+                    ...values,
+                  },
+                ])
+              },
+            }
+          }
           return Promise.resolve(undefined)
         },
       }
@@ -530,6 +714,9 @@ function createCheckoutDb({
         set(values: Record<string, unknown>) {
           return {
             where() {
+              if (table === invoiceNumberSeries && values.currentSequence !== undefined) {
+                seriesSequence = Number(values.currentSequence)
+              }
               return {
                 returning() {
                   if (table !== paymentSessions) {
@@ -550,4 +737,9 @@ function createCheckoutDb({
       }
     },
   }
+
+  return Object.assign(db, {
+    executedSql,
+    getSeriesSequence: () => seriesSequence,
+  })
 }

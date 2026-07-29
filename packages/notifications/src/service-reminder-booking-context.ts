@@ -354,6 +354,7 @@ export async function buildBookingPaymentReminderTemplateData(
       contactEmail: bookings.contactEmail,
       contactPhone: bookings.contactPhone,
       contactPreferredLanguage: bookings.contactPreferredLanguage,
+      notificationsSuppressed: bookings.notificationsSuppressed,
       sellCurrency: bookings.sellCurrency,
       sellAmountCents: bookings.sellAmountCents,
       startDate: bookings.startDate,

@@ -66,6 +66,7 @@
     "drizzle-orm": "catalog:",
     "fflate": "^0.8.2",
     "hono": "catalog:",
+    "rrule": "^2.8.1",
     "zod": "catalog:",
     "@voyant-travel/tools": "workspace:^"
   },
@@ -258,6 +259,7 @@
     },
     "schema": "./schema",
     "requiresSchemas": [
+      "@voyant-travel/commerce",
       "@voyant-travel/db"
     ]
   }

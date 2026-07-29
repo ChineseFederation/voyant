@@ -486,6 +486,8 @@ export const publicBookingRoutes = publicBookingApp
       c.get("userId"),
       {
         eventBus: c.get("eventBus"),
+        actionLedgerIdempotencyScope: "bookings.public.session.confirm",
+        actionLedgerIdempotencyKey: c.get("idempotencyKey") ?? null,
         monthlyBookingLimit: getRouteRuntime(c).monthlyBookingLimit,
       },
     )

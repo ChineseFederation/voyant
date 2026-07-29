@@ -562,7 +562,17 @@ async function authorizeBookingStatusMutation(
   return bookingStatusAuthorizationRouteResult(c, result)
 }
 
-function bookingStatusAuthorizationRouteResult(
+function confirmBookingAuthorizationInput(bookingId: string, commandInput: unknown) {
+  return {
+    key: "confirm",
+    actionName: "booking.status.confirm",
+    routeOrToolName: "bookings.confirm",
+    bookingId,
+    commandInput,
+  } as const
+}
+
+async function bookingStatusAuthorizationRouteResult(
   c: Context<Env>,
   result: BookingStatusAuthorizationResult,
 ) {
@@ -606,6 +616,19 @@ function bookingStatusAuthorizationRouteResult(
           202,
         ),
       }
+    case "already_executed": {
+      const booking = await bookingsService.getBookingById(c.get("db"), result.bookingId)
+      if (!booking) {
+        return {
+          allowed: false as const,
+          response: c.json({ error: "Booking not found" }, 404),
+        }
+      }
+      return {
+        allowed: false as const,
+        response: c.json({ data: booking, replayed: true }, 200),
+      }
+    }
     case "denied":
       return {
         allowed: false as const,
@@ -727,6 +750,7 @@ function bookingStatusMutationRuntime(
   const approvedExecution = auth.approvedAction
     ? buildActionLedgerApprovedExecutionFields(auth.approvedAction)
     : null
+  const requestIdempotencyKey = c.req.header("idempotency-key")?.trim() || null
 
   return {
     eventBus: c.get("eventBus"),
@@ -737,8 +761,10 @@ function bookingStatusMutationRuntime(
     actionLedgerAuthorizationSource: auth.access.authorizationSource,
     actionLedgerCausationActionId: approvedExecution?.causationActionId ?? null,
     actionLedgerApprovalId: approvedExecution?.approvalId ?? null,
-    actionLedgerIdempotencyScope: approvedExecution?.idempotencyScope ?? null,
-    actionLedgerIdempotencyKey: approvedExecution?.idempotencyKey ?? null,
+    actionLedgerIdempotencyScope:
+      approvedExecution?.idempotencyScope ??
+      (requestIdempotencyKey ? "bookings.status.route" : null),
+    actionLedgerIdempotencyKey: approvedExecution?.idempotencyKey ?? requestIdempotencyKey,
     actionLedgerIdempotencyFingerprint: approvedExecution?.idempotencyFingerprint ?? null,
   }
 }
@@ -1295,6 +1321,7 @@ const bookingSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   internalNotes: z.string().nullable(),
+  notificationsSuppressed: z.boolean(),
   customerPaymentPolicy: z.unknown().nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,
@@ -2234,12 +2261,10 @@ lifecycleRoutes
       (async () => {
         const bookingId = c.req.valid("param").id
         const data = c.req.valid("json") ?? {}
-        const auth = await authorizeBookingStatusMutation(c, {
-          key: "confirm",
-          actionName: "booking.status.confirm",
-          routeOrToolName: "bookings.confirm",
-          bookingId,
-        })
+        const auth = await authorizeBookingStatusMutation(
+          c,
+          confirmBookingAuthorizationInput(bookingId, data),
+        )
         if (!auth.allowed) return auth.response
         const result = await bookingsService.confirmBooking(
           c.get("db"),
@@ -3853,4 +3878,5 @@ export const __test__ = {
   bookingDetailSchema,
   bookingAggregatesSchema,
   sharingGroupSummarySchema,
+  confirmBookingAuthorizationInput,
 }

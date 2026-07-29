@@ -7,7 +7,9 @@ import {
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { newId } from "@voyant-travel/db/lib/typeid"
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { authUser } from "@voyant-travel/db/schema/iam"
 import {
   and,
@@ -389,6 +391,34 @@ export interface BookingServiceRuntime {
     | undefined
 }
 
+export function bookingLifecycleOutboxEventId(
+  transition: "confirmed" | "cancelled",
+  bookingId: string,
+  runtime: Pick<
+    BookingServiceRuntime,
+    "actionLedgerCausationActionId" | "actionLedgerIdempotencyScope" | "actionLedgerIdempotencyKey"
+  > = {},
+  persistedTransitionAt?: Date | string | null,
+) {
+  const commandIdentity =
+    runtime.actionLedgerCausationActionId ??
+    (runtime.actionLedgerIdempotencyKey
+      ? `${runtime.actionLedgerIdempotencyScope ?? "booking"}_${runtime.actionLedgerIdempotencyKey}`
+      : persistedTransitionAt
+        ? `${transition}_${new Date(persistedTransitionAt).toISOString()}`
+        : null)
+  if (!commandIdentity) {
+    throw new Error(`Missing booking lifecycle command identity for ${transition} transition`)
+  }
+  return `evt_booking_${transition}_${bookingId}_${encodeEventIdPart(commandIdentity)}`
+}
+
+function encodeEventIdPart(value: string) {
+  return [...new TextEncoder().encode(value)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+}
+
 type BookingStatusActionName =
   | "booking.status.confirm"
   | "booking.status.expire"
@@ -431,6 +461,8 @@ async function appendBookingStatusMutationLedger(
     idempotencyKey: runtime.actionLedgerIdempotencyKey ?? null,
     idempotencyFingerprint: runtime.actionLedgerIdempotencyFingerprint ?? null,
     mutationDetail: {
+      commandInputRef: `booking:${input.bookingId}:status:${input.toStatus}`,
+      commandResultRef: `booking:${input.bookingId}`,
       summary: `Booking status changed from ${input.fromStatus} to ${input.toStatus}`,
       reversalKind: "none",
     },
@@ -510,6 +542,7 @@ export interface BookingCancelledEvent {
   previousStatus: "draft" | "on_hold" | "awaiting_payment" | "confirmed" | "in_progress"
   reason?: string | null
   actorId: string | null
+  suppressNotifications?: boolean
 }
 
 /**
@@ -720,29 +753,57 @@ async function assignTravelerToExistingBookingItems(
 ) {
   if (!isPaxParticipantType(traveler.participantType)) return
 
-  const items = await db
-    .select({ id: bookingItems.id })
-    .from(bookingItems)
-    .where(eq(bookingItems.bookingId, bookingId))
+  return db.transaction(async (tx) => {
+    const items = await lockBookingItemsForParticipantMutation(tx, bookingId)
 
-  if (items.length === 0) return
+    if (items.length === 0) return
+    await lockBookingTravelersForParticipantMutation(tx, bookingId)
 
-  const itemIds = items.map((item) => item.id)
-  if (traveler.isPrimary) {
-    await db
-      .update(bookingItemTravelers)
-      .set({ isPrimary: false })
-      .where(inArray(bookingItemTravelers.bookingItemId, itemIds))
-  }
+    const itemIds = items.map((item) => item.id)
+    if (traveler.isPrimary) {
+      await tx
+        .update(bookingItemTravelers)
+        .set({ isPrimary: false })
+        .where(inArray(bookingItemTravelers.bookingItemId, itemIds))
+    }
 
-  await db.insert(bookingItemTravelers).values(
-    items.map((item) => ({
-      bookingItemId: item.id,
-      travelerId: traveler.id,
-      role: traveler.participantType,
-      isPrimary: traveler.isPrimary,
-    })),
+    await tx.insert(bookingItemTravelers).values(
+      items.map((item) => ({
+        bookingItemId: item.id,
+        travelerId: traveler.id,
+        role: traveler.participantType,
+        isPrimary: traveler.isPrimary,
+      })),
+    )
+  })
+}
+
+async function lockBookingItemsForParticipantMutation(
+  db: Pick<PostgresJsDatabase, "execute">,
+  bookingId: string,
+) {
+  return toRows<{ id: string }>(
+    await db.execute(sql`
+      SELECT id
+      FROM booking_items
+      WHERE booking_id = ${bookingId}
+      ORDER BY created_at, id
+      FOR UPDATE
+    `),
   )
+}
+
+async function lockBookingTravelersForParticipantMutation(
+  db: Pick<PostgresJsDatabase, "execute">,
+  bookingId: string,
+) {
+  await db.execute(sql`
+    SELECT id
+    FROM booking_travelers
+    WHERE booking_id = ${bookingId}
+    ORDER BY created_at, id
+    FOR UPDATE
+  `)
 }
 
 async function ensureBookingScopedLinks(
@@ -1454,14 +1515,30 @@ async function adjustSlotCapacity(
   slotId: string,
   delta: number,
   source: SlotChangeSource = "booking",
+  options: { allowTerminalCapacityRelease?: boolean } = {},
 ) {
   const locked = await lockAvailabilitySlot(db, slotId)
   if (!locked) {
     return { status: "slot_not_found" as const }
   }
 
-  if (locked.status !== "open" && locked.status !== "sold_out") {
+  const terminalCapacityRelease =
+    options.allowTerminalCapacityRelease === true &&
+    (locked.status === "closed" || locked.status === "cancelled") &&
+    delta >= 0
+  if (locked.status !== "open" && locked.status !== "sold_out" && !terminalCapacityRelease) {
     return { status: "slot_unavailable" as const, slot: locked }
+  }
+
+  // A cancelled departure is terminal: freeing a booking must not reopen it
+  // or require a capacity mutation that no longer has operational meaning.
+  if (locked.status === "cancelled" && terminalCapacityRelease) {
+    return {
+      status: "ok" as const,
+      slot: locked,
+      remainingPax: locked.remaining_pax,
+      slotChange: undefined,
+    }
   }
 
   if (locked.unlimited) {
@@ -1796,7 +1873,7 @@ async function releaseAllocationCapacity(
   db: PostgresJsDatabase,
   allocation: Pick<
     typeof bookingAllocations.$inferSelect,
-    "availabilitySlotId" | "quantity" | "status" | "id"
+    "availabilitySlotId" | "bookingId" | "quantity" | "status" | "id"
   >,
   source: SlotChangeSource = "cancel",
 ): Promise<AvailabilitySlotChangedEventPayload | undefined> {
@@ -1813,8 +1890,28 @@ async function releaseAllocationCapacity(
     allocation.availabilitySlotId,
     allocation.quantity,
     source,
+    { allowTerminalCapacityRelease: source === "cancel" || source === "expire" },
   )
-  return result.status === "ok" ? result.slotChange : undefined
+  if (result.status === "slot_not_found") {
+    await db.insert(bookingActivityLog).values({
+      bookingId: allocation.bookingId,
+      actorId: "system",
+      activityType: "system_action",
+      description: "Allocation capacity release requires reconciliation: availability slot missing",
+      metadata: {
+        kind: "allocation_capacity_release_reconciliation",
+        allocationId: allocation.id,
+        availabilitySlotId: allocation.availabilitySlotId,
+        source,
+        problem: "slot_not_found",
+      },
+    })
+    return undefined
+  }
+  if (result.status !== "ok") {
+    throw new BookingServiceError(result.status)
+  }
+  return result.slotChange
 }
 
 async function autoIssueFulfillmentsForBooking(
@@ -1869,6 +1966,7 @@ async function autoIssueFulfillmentsForBooking(
     .select()
     .from(productTicketSettingsRef)
     .where(inArray(productTicketSettingsRef.productId, productIds))
+    .orderBy(asc(productTicketSettingsRef.productId), asc(productTicketSettingsRef.id))
 
   const settingsByProductId = new Map(settings.map((setting) => [setting.productId, setting]))
   const travelerParticipants = await db
@@ -1883,7 +1981,11 @@ async function autoIssueFulfillmentsForBooking(
         ),
       ),
     )
-    .orderBy(desc(bookingTravelers.isPrimary), asc(bookingTravelers.createdAt))
+    .orderBy(
+      desc(bookingTravelers.isPrimary),
+      asc(bookingTravelers.createdAt),
+      asc(bookingTravelers.id),
+    )
 
   const participantLinks = await db
     .select()
@@ -2444,15 +2546,20 @@ const bookingsServiceInternal = {
     // engine pass the promotion-discounted base through to the booking
     // row so the customer is charged the post-discount amount, not the
     // product's list price. Per docs/architecture/promotions-architecture.md §7.1.
-    const confirmedSellAmountCents = data.confirmedSellAmountCents ?? null
-    const catalogSellAmountCents = data.catalogSellAmountCents ?? product.sellAmountCents
+    const explicitManualPriceOverride = data.manualPriceOverride
+    const confirmedSellAmountCents =
+      explicitManualPriceOverride?.amountCents ?? data.confirmedSellAmountCents ?? null
+    const catalogSellAmountCents = explicitManualPriceOverride
+      ? product.sellAmountCents
+      : (data.catalogSellAmountCents ?? product.sellAmountCents)
     const effectiveSellAmountCents =
       confirmedSellAmountCents != null
         ? confirmedSellAmountCents
         : data.sellAmountCentsOverride != null
           ? data.sellAmountCentsOverride
           : product.sellAmountCents
-    const priceOverrideReason = data.priceOverrideReason?.trim() ?? null
+    const priceOverrideReason =
+      explicitManualPriceOverride?.reason.trim() ?? data.priceOverrideReason?.trim() ?? null
     const isManualPriceOverride =
       confirmedSellAmountCents != null && confirmedSellAmountCents !== catalogSellAmountCents
     const priceOverride = isManualPriceOverride
@@ -2571,6 +2678,7 @@ const bookingsServiceInternal = {
         endDate,
         pax: bookingPax,
         internalNotes: data.internalNotes ?? null,
+        notificationsSuppressed: data.suppressNotifications === true,
       })
       .returning()
 
@@ -2737,8 +2845,13 @@ const bookingsServiceInternal = {
     // second-guessing that would change committed booking behaviour.
     const seededSingleUnit =
       requestedItemLines.length === 0 && unitsToSeed.length === 1 ? unitsToSeed[0] : null
+    const singleSelectedUnit =
+      insertedItems.length === 1
+        ? (selectedUnits.find((unit) => unit.id === insertedItems[0]?.optionUnitId) ?? null)
+        : null
     const slotAllocationQuantity = (item: (typeof insertedItems)[number]): number => {
-      if (!seededSingleUnit || seededSingleUnit.unitType === "person") return item.quantity
+      const unit = seededSingleUnit ?? singleSelectedUnit
+      if (!unit || unit.unitType === "person") return item.quantity
       if (!bookingPax || bookingPax <= 0) return item.quantity
       return bookingPax
     }
@@ -2926,6 +3039,9 @@ const bookingsServiceInternal = {
       data.baseCostAmountCents !== undefined
 
     return db.transaction(async (tx) => {
+      if (data.status === "cancelled") {
+        await lockBookingFinanceInsertionFence(tx, id)
+      }
       const rows = await tx.execute(
         sql`SELECT status, accepted_at, custom_fields
             FROM ${bookings}
@@ -3055,7 +3171,7 @@ const bookingsServiceInternal = {
     try {
       const result = await db.transaction(async (tx) => {
         const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, hold_expires_at, accepted_at
+          sql`SELECT id, booking_number, status, hold_expires_at, notifications_suppressed, accepted_at
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
@@ -3065,6 +3181,7 @@ const bookingsServiceInternal = {
           booking_number: string
           status: BookingStatus
           hold_expires_at: Date | null
+          notifications_suppressed: boolean
           accepted_at: Date | null
         }>(rows)[0]
 
@@ -3094,6 +3211,8 @@ const bookingsServiceInternal = {
 
         const now = new Date()
         const patch = transitionBooking(booking.status, "confirmed", { now })
+        const suppressNotifications =
+          booking.notifications_suppressed || data.suppressNotifications === true
 
         await tx
           .update(bookingAllocations)
@@ -3117,6 +3236,7 @@ const bookingsServiceInternal = {
             ...patch,
             acceptedAt: booking.accepted_at ?? now,
             holdExpiresAt: null,
+            notificationsSuppressed: suppressNotifications,
             updatedAt: now,
           })
           .where(eq(bookings.id, id))
@@ -3141,31 +3261,39 @@ const bookingsServiceInternal = {
 
         await appendBookingStatusMutationLedger(tx as PostgresJsDatabase, runtime, {
           actionName: "booking.status.confirm",
-          routeOrToolName: "bookings.confirm",
+          routeOrToolName: runtime.actionLedgerRouteOrToolName ?? "bookings.confirm",
           capabilityId: BOOKING_STATUS_CAPABILITIES.confirm.id,
           bookingId: id,
           fromStatus: booking.status,
           toStatus: "confirmed",
         })
 
+        if (row) {
+          await insertOutboxEvents(tx as PostgresJsDatabase, [
+            {
+              name: "booking.confirmed",
+              data: {
+                bookingId: row.id,
+                bookingNumber: row.bookingNumber,
+                actorId: userId ?? null,
+                suppressNotifications: row.notificationsSuppressed,
+              } satisfies BookingConfirmedEvent,
+              metadata: {
+                category: "domain",
+                source: "service",
+                eventId: bookingLifecycleOutboxEventId(
+                  "confirmed",
+                  row.id,
+                  runtime,
+                  row.confirmedAt,
+                ),
+              },
+            },
+          ])
+        }
+
         return { status: "ok" as const, booking: row ?? null }
       })
-
-      // Emit AFTER the transaction commits so subscribers can't observe a
-      // confirmed state that might still roll back. `emit` is fire-and-forget
-      // per the EventBus contract — subscriber errors are logged, not rethrown.
-      if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.confirmed",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            actorId: userId ?? null,
-            suppressNotifications: data.suppressNotifications === true,
-          } satisfies BookingConfirmedEvent,
-          { category: "domain", source: "service" },
-        )
-      }
 
       return result
     } catch (error) {
@@ -3580,15 +3708,21 @@ const bookingsServiceInternal = {
     const slotChanges: AvailabilitySlotChangedEventPayload[] = []
     try {
       const result = await db.transaction(async (tx) => {
+        // Cancellation and Finance writers share an advisory-first, booking-row-second
+        // lock order. This central placement covers admin, Tool, and service callers.
+        await lockBookingFinanceInsertionFence(tx, id)
         const rows = await tx.execute(
-          sql`SELECT id, status, booking_number
+          sql`SELECT id, status, booking_number, notifications_suppressed
               FROM ${bookings}
               WHERE ${bookings.id} = ${id}
               FOR UPDATE`,
         )
-        const booking = toRows<{ id: string; status: BookingStatus; booking_number: string }>(
-          rows,
-        )[0]
+        const booking = toRows<{
+          id: string
+          status: BookingStatus
+          booking_number: string
+          notifications_suppressed: boolean
+        }>(rows)[0]
 
         if (!booking) {
           throw new BookingServiceError("not_found")
@@ -3600,6 +3734,8 @@ const bookingsServiceInternal = {
         const patch = transitionBooking(booking.status, "cancelled")
         const previousStatus = booking.status as BookingCancelledEvent["previousStatus"]
         const cancellationReason = data.note?.trim() || null
+        const suppressNotifications =
+          booking.notifications_suppressed || data.suppressNotifications === true
 
         const allocations = await tx
           .select()
@@ -3651,6 +3787,7 @@ const bookingsServiceInternal = {
           .set({
             ...patch,
             holdExpiresAt: null,
+            notificationsSuppressed: suppressNotifications,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -3712,21 +3849,36 @@ const bookingsServiceInternal = {
           evaluatedRisk: "critical",
         })
 
+        if (row) {
+          await insertOutboxEvents(tx as PostgresJsDatabase, [
+            {
+              name: "booking.cancelled",
+              data: {
+                bookingId: row.id,
+                bookingNumber: row.bookingNumber,
+                previousStatus,
+                reason: cancellationReason,
+                actorId: userId ?? null,
+                suppressNotifications: row.notificationsSuppressed,
+              } satisfies BookingCancelledEvent,
+              metadata: {
+                category: "domain",
+                source: "service",
+                eventId: bookingLifecycleOutboxEventId(
+                  "cancelled",
+                  row.id,
+                  runtime,
+                  row.cancelledAt,
+                ),
+              },
+            },
+          ])
+        }
+
         return { status: "ok" as const, booking: row ?? null, previousStatus }
       })
 
       if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.cancelled",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            previousStatus: result.previousStatus,
-            reason: data.note?.trim() || null,
-            actorId: userId ?? null,
-          } satisfies BookingCancelledEvent,
-          { category: "domain", source: "service" },
-        )
         await emitSlotChanges(runtime, slotChanges)
       }
 
@@ -3940,6 +4092,9 @@ const bookingsServiceInternal = {
     const slotChanges: AvailabilitySlotChangedEventPayload[] = []
     try {
       const result = await db.transaction(async (tx) => {
+        if (data.status === "cancelled") {
+          await lockBookingFinanceInsertionFence(tx, id)
+        }
         const rows = await tx.execute(
           sql`SELECT id, booking_number, status, accepted_at
               FROM ${bookings}
@@ -3974,6 +4129,9 @@ const bookingsServiceInternal = {
             booking.accepted_at ?? (isAcceptedBookingStatus(data.status) ? now : undefined),
           confirmedAt: confirmedAtForStatus(data.status, null, now),
           updatedAt: now,
+        }
+        if (data.suppressNotifications === true) {
+          updates.notificationsSuppressed = true
         }
         if (data.status === "expired") updates.expiredAt = now
         if (data.status === "cancelled") updates.cancelledAt = now
@@ -4163,57 +4321,62 @@ const bookingsServiceInternal = {
     data: CreateTravelerRecordInput,
     userId?: string,
   ) {
-    const [booking] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(eq(bookings.id, bookingId))
-      .limit(1)
+    return db.transaction(async (tx) => {
+      await lockBookingItemsForParticipantMutation(tx, bookingId)
+      await lockBookingTravelersForParticipantMutation(tx, bookingId)
 
-    if (!booking) {
-      return null
-    }
+      const [booking] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.id, bookingId))
+        .limit(1)
 
-    const participantType = data.participantType
-    const travelerCategory =
-      data.travelerCategory == null && isPaxParticipantType(participantType)
-        ? "adult"
-        : (data.travelerCategory ?? null)
+      if (!booking) {
+        return null
+      }
 
-    const [row] = await db
-      .insert(bookingTravelers)
-      .values({
+      const participantType = data.participantType
+      const travelerCategory =
+        data.travelerCategory == null && isPaxParticipantType(participantType)
+          ? "adult"
+          : (data.travelerCategory ?? null)
+
+      const [row] = await tx
+        .insert(bookingTravelers)
+        .values({
+          bookingId,
+          personId: data.personId ?? null,
+          participantType,
+          travelerCategory,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email ?? null,
+          phone: data.phone ?? null,
+          preferredLanguage: data.preferredLanguage ?? null,
+          specialRequests: data.specialRequests ?? null,
+          isPrimary: data.isPrimary ?? false,
+          notes: data.notes ?? null,
+        })
+        .returning()
+
+      if (!row) {
+        return null
+      }
+
+      await assignTravelerToExistingBookingItems(tx as PostgresJsDatabase, bookingId, row)
+      await ensureParticipantFlags(tx as PostgresJsDatabase, bookingId, row.id, data)
+      await recomputeBookingPaxFromTravelers(tx as PostgresJsDatabase, bookingId)
+
+      await tx.insert(bookingActivityLog).values({
         bookingId,
-        personId: data.personId ?? null,
-        participantType,
-        travelerCategory,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email ?? null,
-        phone: data.phone ?? null,
-        preferredLanguage: data.preferredLanguage ?? null,
-        specialRequests: data.specialRequests ?? null,
-        isPrimary: data.isPrimary ?? false,
-        notes: data.notes ?? null,
+        actorId: userId ?? "system",
+        activityType: "traveler_update",
+        description: `Traveler ${data.firstName} ${data.lastName} added`,
+        metadata: { travelerId: row.id, participantType },
       })
-      .returning()
 
-    if (!row) {
-      return null
-    }
-
-    await ensureParticipantFlags(db, bookingId, row.id, data)
-    await assignTravelerToExistingBookingItems(db, bookingId, row)
-    await recomputeBookingPaxFromTravelers(db, bookingId)
-
-    await db.insert(bookingActivityLog).values({
-      bookingId,
-      actorId: userId ?? "system",
-      activityType: "traveler_update",
-      description: `Traveler ${data.firstName} ${data.lastName} added`,
-      metadata: { travelerId: row.id, participantType },
+      return row
     })
-
-    return row
   },
 
   async updateTravelerRecord(
@@ -4545,6 +4708,15 @@ const bookingsServiceInternal = {
       .from(bookingItems)
       .where(eq(bookingItems.bookingId, bookingId))
       .orderBy(asc(bookingItems.createdAt))
+  },
+
+  listProductTicketSettings(db: PostgresJsDatabase, productIds: string[]) {
+    if (productIds.length === 0) return Promise.resolve([])
+    return db
+      .select()
+      .from(productTicketSettingsRef)
+      .where(inArray(productTicketSettingsRef.productId, productIds))
+      .orderBy(asc(productTicketSettingsRef.productId), asc(productTicketSettingsRef.id))
   },
 
   /**
@@ -4909,44 +5081,54 @@ const bookingsServiceInternal = {
     itemId: string,
     data: CreateBookingItemParticipantInput,
   ) {
-    const [item] = await db
-      .select({ id: bookingItems.id })
-      .from(bookingItems)
-      .where(eq(bookingItems.id, itemId))
-      .limit(1)
+    return db.transaction(async (tx) => {
+      const item = toRows<{ id: string; bookingId: string }>(
+        await tx.execute(sql`
+          SELECT id, booking_id AS "bookingId"
+          FROM booking_items
+          WHERE id = ${itemId}
+          FOR UPDATE
+        `),
+      )[0]
 
-    if (!item) {
-      return null
-    }
+      if (!item) {
+        return null
+      }
 
-    const [traveler] = await db
-      .select({ id: bookingTravelers.id })
-      .from(bookingTravelers)
-      .where(eq(bookingTravelers.id, data.travelerId))
-      .limit(1)
+      const travelers = toRows<{ id: string }>(
+        await tx.execute(sql`
+          SELECT id
+          FROM booking_travelers
+          WHERE booking_id = ${item.bookingId}
+          ORDER BY created_at, id
+          FOR UPDATE
+        `),
+      )
+      const traveler = travelers.find((row) => row.id === data.travelerId)
 
-    if (!traveler) {
-      return null
-    }
+      if (!traveler) {
+        return null
+      }
 
-    if (data.isPrimary) {
-      await db
-        .update(bookingItemTravelers)
-        .set({ isPrimary: false })
-        .where(eq(bookingItemTravelers.bookingItemId, itemId))
-    }
+      if (data.isPrimary) {
+        await tx
+          .update(bookingItemTravelers)
+          .set({ isPrimary: false })
+          .where(eq(bookingItemTravelers.bookingItemId, itemId))
+      }
 
-    const [row] = await db
-      .insert(bookingItemTravelers)
-      .values({
-        bookingItemId: itemId,
-        travelerId: data.travelerId,
-        role: data.role,
-        isPrimary: data.isPrimary ?? false,
-      })
-      .returning()
+      const [row] = await tx
+        .insert(bookingItemTravelers)
+        .values({
+          bookingItemId: itemId,
+          travelerId: data.travelerId,
+          role: data.role,
+          isPrimary: data.isPrimary ?? false,
+        })
+        .returning()
 
-    return row
+      return row
+    })
   },
 
   async removeItemParticipant(db: PostgresJsDatabase, linkId: string) {

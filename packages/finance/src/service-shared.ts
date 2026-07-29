@@ -7,6 +7,10 @@ export {
 export { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 export type { EventBus } from "@voyant-travel/core"
 export type { AnyDrizzleDb } from "@voyant-travel/db"
+export {
+  lockBookingFinanceInsertionFence,
+  withBookingFinanceInsertionFence,
+} from "@voyant-travel/db/booking-finance-fence"
 export { newId } from "@voyant-travel/db/lib/typeid"
 export { renderStructuredTemplate } from "@voyant-travel/utils/template-renderer"
 export {
@@ -466,6 +470,12 @@ export type InvoiceFromBookingPaymentScheduleData = {
   amountCents: number
 }
 
+export const INVOICEABLE_PAYMENT_SCHEDULE_STATUSES = ["pending", "due", "paid"] as const
+
+export function isInvoiceablePaymentScheduleStatus(status: string) {
+  return (INVOICEABLE_PAYMENT_SCHEDULE_STATUSES as readonly string[]).includes(status)
+}
+
 export interface InvoiceFromBookingData {
   booking: {
     id: string
@@ -481,6 +491,11 @@ export interface InvoiceFromBookingData {
     baseSellAmountCents: number | null
   }
   paymentSchedule?: InvoiceFromBookingPaymentScheduleData | null
+  /**
+   * Complete persisted schedule set for the booking. Schedule-derived invoices
+   * use this to allocate indivisible tax cents exactly once across installments.
+   */
+  paymentSchedules?: InvoiceFromBookingPaymentScheduleData[]
   dueDatePaymentSchedule?: InvoiceFromBookingPaymentScheduleData | null
   items: Array<{
     id: string

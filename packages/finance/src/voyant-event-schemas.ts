@@ -447,6 +447,7 @@ export const bookingCreatedPayloadSchema = {
     },
     createdByUserId: nullableStringSchema,
     occurredAt: { type: "string", format: "date-time" },
+    suppressNotifications: { type: "boolean" },
   },
   additionalProperties: false,
 } as const

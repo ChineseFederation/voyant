@@ -4,6 +4,7 @@ import {
   actionMutationDetails,
   actionSensitiveReadDetails,
 } from "@voyant-travel/action-ledger"
+import { eventOutboxTable } from "@voyant-travel/db/schema"
 import { eq, sql } from "drizzle-orm"
 import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -20,6 +21,7 @@ import {
 import { bookingRoutes } from "../../src/routes.js"
 import { bookingTravelerTravelDetails } from "../../src/schema/travel-details.js"
 import {
+  bookingActivityLog,
   bookingAllocations,
   bookingDocuments,
   bookingFulfillments,
@@ -745,6 +747,60 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
   })
 
   describe("Booking Status", () => {
+    it("cancels after an allocation slot is deleted and records reconciliation evidence", async () => {
+      const slot = await seedSlot()
+      const booking = await seedBooking({ status: "confirmed" })
+      const [item] = await db
+        .insert(bookingItems)
+        .values({
+          bookingId: booking.id,
+          title: "Deleted-slot room",
+          itemType: "accommodation",
+          status: "confirmed",
+          quantity: 1,
+          sellCurrency: "USD",
+        })
+        .returning()
+      const [allocation] = await db
+        .insert(bookingAllocations)
+        .values({
+          bookingId: booking.id,
+          bookingItemId: item!.id,
+          availabilitySlotId: slot.id,
+          quantity: 1,
+          status: "confirmed",
+        })
+        .returning()
+
+      await db.delete(availabilitySlotsRef).where(eq(availabilitySlotsRef.id, slot.id))
+
+      const response = await app.request(`/${booking.id}/cancel`, {
+        method: "POST",
+        ...json({}),
+      })
+
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.status).toBe("cancelled")
+      await expect(
+        db
+          .select({
+            activityType: bookingActivityLog.activityType,
+            metadata: bookingActivityLog.metadata,
+          })
+          .from(bookingActivityLog)
+          .where(eq(bookingActivityLog.bookingId, booking.id)),
+      ).resolves.toContainEqual({
+        activityType: "system_action",
+        metadata: {
+          kind: "allocation_capacity_release_reconciliation",
+          allocationId: allocation!.id,
+          availabilitySlotId: slot.id,
+          source: "cancel",
+          problem: "slot_not_found",
+        },
+      })
+    })
+
     it("changes booking status", async () => {
       const booking = await seedBooking()
       const res = await app.request(`/${booking.id}/status`, {
@@ -753,6 +809,37 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       })
       expect(res.status).toBe(200)
       expect((await res.json()).data.status).toBe("confirmed")
+    })
+
+    it("emits distinct lifecycle outbox events when a metadata-free caller repeats after override", async () => {
+      const booking = await seedBooking({
+        status: "on_hold",
+        holdExpiresAt: "2026-12-31T00:00:00.000Z",
+      })
+
+      const first = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      expect(first.status).toBe("ok")
+
+      const override = await bookingsService.overrideBookingStatus(
+        db,
+        booking.id,
+        { status: "on_hold", reason: "Administrative correction" },
+        "user_override",
+      )
+      expect(override.status).toBe("ok")
+
+      await new Promise((resolve) => setTimeout(resolve, 2))
+
+      const second = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      expect(second.status).toBe("ok")
+
+      const outboxRows = await db
+        .select({ eventId: eventOutboxTable.eventId })
+        .from(eventOutboxTable)
+        .where(eq(eventOutboxTable.name, "booking.confirmed"))
+
+      expect(outboxRows).toHaveLength(2)
+      expect(new Set(outboxRows.map((row) => row.eventId)).size).toBe(2)
     })
 
     it("creates activity log entry on status change", async () => {

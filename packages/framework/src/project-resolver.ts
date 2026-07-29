@@ -1041,14 +1041,23 @@ function orderPackageSchemaMigrations(
     packageMigrations.sort((left, right) => left.id.localeCompare(right.id))
   }
 
+  for (const packageName of [...byPackage.keys()].sort()) {
+    const missingDependencies = (dependencies.get(packageName) ?? []).filter(
+      (dependency) => !byPackage.has(dependency),
+    )
+    if (missingDependencies.length > 0) {
+      throw new Error(
+        `buildMigrationPlan: package schema dependency is not selected: ${packageName} requires ${missingDependencies.join(", ")}`,
+      )
+    }
+  }
+
   const pending = [...byPackage.keys()].sort()
   const completed = new Set<string>()
   const ordered: VoyantProjectSchemaMigration[] = []
   while (pending.length > 0) {
     const index = pending.findIndex((packageName) =>
-      (dependencies.get(packageName) ?? []).every(
-        (dependency) => !byPackage.has(dependency) || completed.has(dependency),
-      ),
+      (dependencies.get(packageName) ?? []).every((dependency) => completed.has(dependency)),
     )
     if (index === -1) {
       throw new Error(

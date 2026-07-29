@@ -60,6 +60,7 @@ export const bookingCancelledPayloadSchema = {
       enum: ["draft", "on_hold", "awaiting_payment", "confirmed", "in_progress"],
     },
     reason: { type: ["string", "null"] },
+    suppressNotifications: { type: "boolean" },
   },
   additionalProperties: false,
 } as const

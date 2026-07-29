@@ -130,6 +130,23 @@ describe("dispatchBookingStatusChange — override fallback", () => {
     })
   })
 
+  it("sends durable notification suppression to confirmed override fallbacks", () => {
+    const target = dispatchBookingStatusChange(
+      BOOKING_ID,
+      "draft",
+      "confirmed",
+      "silent correction",
+      { suppressNotifications: true },
+    )
+    expect(target.path).toBe(`/v1/admin/bookings/${BOOKING_ID}/override-status`)
+    expect(target.body).toEqual({
+      status: "confirmed",
+      reason: "silent correction",
+      note: "silent correction",
+      suppressNotifications: true,
+    })
+  })
+
   it("does not send lifecycle suppression to named confirm route", () => {
     const target = dispatchBookingStatusChange(
       BOOKING_ID,

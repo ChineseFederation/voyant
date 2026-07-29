@@ -35,11 +35,10 @@ export function dispatchBookingStatusChange(
   options?: { suppressNotifications?: boolean; suppressLifecycleEvents?: boolean },
 ): BookingStatusDispatchTarget {
   const noteBody = note ? { note } : {}
-  // Only carry the suppression flag on transitions to `confirmed` —
-  // it's the only transition that triggers customer-facing
-  // notifications today. Including it elsewhere is harmless but noisy.
+  // Confirmation and cancellation may both trigger customer-facing messages.
+  // Once requested, the service persists suppression across the lifecycle.
   const suppress =
-    target === "confirmed" && options?.suppressNotifications === true
+    (target === "confirmed" || target === "cancelled") && options?.suppressNotifications === true
       ? { suppressNotifications: true }
       : {}
   const lifecycleSuppression =
@@ -66,7 +65,10 @@ export function dispatchBookingStatusChange(
       current === "confirmed" ||
       current === "in_progress")
   ) {
-    return { path: `/v1/admin/bookings/${bookingId}/cancel`, body: noteBody }
+    return {
+      path: `/v1/admin/bookings/${bookingId}/cancel`,
+      body: { ...noteBody, ...suppress },
+    }
   }
 
   // The override-status route rejects empty reasons. Callers can pass an

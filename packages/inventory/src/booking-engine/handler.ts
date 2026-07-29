@@ -499,6 +499,14 @@ export function createProductsBookingHandler(
                 effectivePax,
                 pax: draft.configure?.pax,
                 travelerAssignments: draft.accommodation?.travelerAssignments,
+                travelerBands: Object.fromEntries(
+                  (draft.travelers ?? []).flatMap((traveler) => {
+                    const travelerKey = traveler.rowId?.trim()
+                    return travelerKey && traveler.band
+                      ? [[travelerKey, traveler.band] as const]
+                      : []
+                  }),
+                ),
               })
             : priceQuote({
                 product,

@@ -163,12 +163,21 @@ describe("deriveBookingCreatePax", () => {
     expect(deriveBookingCreatePax({ pax: 4, travelers: [{}, {}] })).toBe(4)
   })
 
-  it("keeps explicit null pax", () => {
-    expect(deriveBookingCreatePax({ pax: null, travelers: [{}, {}] })).toBeNull()
+  it("derives pax from travelers when the nullable field is explicitly null", () => {
+    expect(deriveBookingCreatePax({ pax: null, travelers: [{}, {}] })).toBe(2)
   })
 
   it("derives pax from supplied travelers when omitted", () => {
     expect(deriveBookingCreatePax({ travelers: [{}, {}] })).toBe(2)
+  })
+
+  it("normalizes assigned traveler keys before deriving pax", () => {
+    expect(
+      deriveBookingCreatePax({
+        itemLines: [{ travelerKeys: ["traveler-1", " traveler-1 ", "   "] }],
+        extraLines: [{ travelerKeys: ["traveler-2", "traveler-2 "] }],
+      }),
+    ).toBe(2)
   })
 
   it("excludes other participants when deriving pax", () => {

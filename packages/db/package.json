@@ -10,6 +10,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./booking-finance-fence": "./src/booking-finance-fence.ts",
     "./aggregate-snapshots": "./src/aggregate-snapshots.ts",
     "./operators": "./src/operators.ts",
     "./lib": "./src/lib/index.ts",
@@ -77,6 +78,11 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./booking-finance-fence": {
+        "types": "./dist/booking-finance-fence.d.ts",
+        "import": "./dist/booking-finance-fence.js",
+        "default": "./dist/booking-finance-fence.js"
       },
       "./aggregate-snapshots": {
         "types": "./dist/aggregate-snapshots.d.ts",

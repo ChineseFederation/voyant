@@ -42,6 +42,7 @@ export const bookingToolSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   internalNotes: z.string().nullable(),
+  notificationsSuppressed: z.boolean(),
   customerPaymentPolicy: bookingCustomerPaymentPolicySchema.nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,
@@ -57,25 +58,53 @@ export const bookingToolSchema = z.object({
   updatedAt: isoTimestamp,
 })
 
-/** Non-PII commercial lines needed to review booking-scoped document actions. */
-export const bookingToolItemSchema = z.object({
-  id: z.string(),
-  bookingId: z.string(),
-  title: z.string(),
-  quantity: z.number().int(),
-  sellCurrency: z.string(),
-  unitSellAmountCents: z.number().int().nullable(),
-  totalSellAmountCents: z.number().int().nullable(),
-  serviceDate: z.string().nullable(),
-  startsAt: isoTimestamp.nullable(),
-  endsAt: isoTimestamp.nullable(),
-  productNameSnapshot: z.string().nullable(),
-  optionNameSnapshot: z.string().nullable(),
-  unitNameSnapshot: z.string().nullable(),
-  departureLabelSnapshot: z.string().nullable(),
-})
+export const bookingToolItemSchema = z
+  .object({
+    id: z.string(),
+    bookingId: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    itemType: z.string(),
+    status: z.string(),
+    serviceDate: z.string().nullable(),
+    startsAt: isoTimestamp.nullable(),
+    endsAt: isoTimestamp.nullable(),
+    quantity: z.number().int(),
+    sellCurrency: z.string(),
+    unitSellAmountCents: z.number().int().nullable(),
+    totalSellAmountCents: z.number().int().nullable(),
+    productId: z.string().nullable(),
+    optionId: z.string().nullable(),
+    optionUnitId: z.string().nullable(),
+    availabilitySlotId: z.string().nullable(),
+    productNameSnapshot: z.string().nullable(),
+    optionNameSnapshot: z.string().nullable(),
+    unitNameSnapshot: z.string().nullable(),
+    departureLabelSnapshot: z.string().nullable(),
+    metadata: jsonObject.nullable(),
+    createdAt: isoTimestamp,
+    updatedAt: isoTimestamp,
+  })
+  .passthrough()
 
-/** A known booking plus the exact sold lines used by downstream approval previews. */
-export const bookingDetailToolSchema = bookingToolSchema.extend({
+export const bookingToolTravelerSchema = z
+  .object({
+    id: z.string(),
+    bookingId: z.string(),
+    participantType: z.string(),
+    travelerCategory: z.string().nullable(),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string().nullable(),
+    phone: z.string().nullable(),
+    isPrimary: z.boolean(),
+    createdAt: isoTimestamp,
+    updatedAt: isoTimestamp,
+  })
+  .passthrough()
+
+/** Immediately useful booking read returned by create/get/lifecycle Tools. */
+export const bookingToolDetailSchema = bookingToolSchema.extend({
   items: z.array(bookingToolItemSchema),
+  travelers: z.array(bookingToolTravelerSchema),
 })

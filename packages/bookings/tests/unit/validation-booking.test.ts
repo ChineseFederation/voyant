@@ -180,6 +180,16 @@ describe("Update booking schema", () => {
     expect(updateBookingSchema.parse({})).toBeDefined()
   })
 
+  it("allows durable notification suppression to be enabled", () => {
+    expect(updateBookingSchema.parse({ notificationsSuppressed: true })).toMatchObject({
+      notificationsSuppressed: true,
+    })
+  })
+
+  it("rejects clearing durable notification suppression", () => {
+    expect(() => updateBookingSchema.parse({ notificationsSuppressed: false })).toThrow()
+  })
+
   it("rejects malformed billing-party updates", () => {
     expect(() => updateBookingSchema.parse({ organizationId: "org_dummy" })).toThrow()
   })

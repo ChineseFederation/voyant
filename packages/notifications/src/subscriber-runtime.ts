@@ -6,6 +6,7 @@ import type { NotificationService } from "./service.js"
 import type { BookingDocumentAttachmentResolver } from "./service-booking-documents.js"
 import {
   bookingIsPaidInFullForNotification,
+  bookingNotificationsSuppressedForNotification,
   dispatchReminderEventRules,
 } from "./service-reminders.js"
 
@@ -29,6 +30,7 @@ export interface NotificationsSubscriberRuntime {
 export interface NotificationsSubscriberDependencies {
   dispatchReminderRules?: typeof dispatchReminderEventRules
   isPaidInFull?: typeof bookingIsPaidInFullForNotification
+  isNotificationsSuppressed?: typeof bookingNotificationsSuppressedForNotification
   logger?: Pick<Console, "error">
 }
 
@@ -54,6 +56,7 @@ interface BookingCancelledPayload extends Record<string, unknown> {
   bookingNumber: string
   previousStatus: "draft" | "on_hold" | "confirmed" | "in_progress"
   actorId: string | null
+  suppressNotifications?: boolean
 }
 
 interface BookingExpiredPayload extends Record<string, unknown> {
@@ -80,6 +83,8 @@ export function createBookingConfirmedReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -87,10 +92,13 @@ export function createBookingConfirmedReminderSubscriberRuntime(
     eventType: "booking.confirmed",
     register: ({ bindings, container, eventBus }) => {
       eventBus.subscribe<BookingConfirmedPayload>("booking.confirmed", async ({ data }) => {
+        if (data.suppressNotifications === true) return
         try {
           const runtime = resolveRuntime(container)
+          const db = runtime.resolveDb(bindings)
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           await dispatchReminderRules(
-            runtime.resolveDb(bindings),
+            db,
             runtime.dispatcher,
             { targetType: "booking_confirmed", bookingId: data.bookingId, eventData: data },
             { documentAttachmentResolver: runtime.documentAttachmentResolver },
@@ -110,6 +118,8 @@ export function createPaymentCompletedReminderSubscriberRuntime(
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
   const isPaidInFull = dependencies.isPaidInFull ?? bookingIsPaidInFullForNotification
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -122,6 +132,7 @@ export function createPaymentCompletedReminderSubscriberRuntime(
         try {
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           if (!(await isPaidInFull(db, data.bookingId))) return
 
           await dispatchReminderRules(
@@ -149,6 +160,8 @@ export function createBookingCancelledReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -160,6 +173,8 @@ export function createBookingCancelledReminderSubscriberRuntime(
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "cancelled")
+          if (data.suppressNotifications === true) return
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           if (data.previousStatus !== "on_hold") return
           await dispatchReminderRules(
             db,
@@ -185,6 +200,8 @@ export function createBookingExpiredReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -196,6 +213,7 @@ export function createBookingExpiredReminderSubscriberRuntime(
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "expired")
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           await dispatchReminderRules(
             db,
             runtime.dispatcher,

@@ -328,6 +328,13 @@ export interface ExecuteAdmittedExistingTargetCommandInput<TCommandPayload = unk
   idempotencyKey?: string
   /** Optional compatibility copy; commandTargetField remains authoritative. */
   targetId?: string
+  /** Human-readable immutable consequence preview attached to the approval request. */
+  approvalMutationDetail?: Omit<
+    NonNullable<BuildActionLedgerMutationInput["mutationDetail"]>,
+    "commandResultRef"
+  >
+  /** Additional safe metadata returned with the approval-required Tool error. */
+  approvalErrorMetadata?: Readonly<Record<string, unknown>>
 }
 
 export interface AdmittedExistingTargetCommand {
@@ -553,6 +560,8 @@ export async function executeAdmittedExistingTargetCommand<TValue, TCommandPaylo
       idempotencyKey,
       fingerprint,
       reasonCode: approvalReasonCode,
+      mutationDetail: input.approvalMutationDetail,
+      errorMetadata: input.approvalErrorMetadata,
     })
   }
   const approvalControls =
@@ -596,7 +605,10 @@ export async function executeAdmittedExistingTargetCommand<TValue, TCommandPaylo
     idempotencyKey,
     idempotencyFingerprint: fingerprint,
     mutationDetail: {
-      summary: `Handler-owned Tool ${input.admitted.canonicalName} admitted durable existing-target command`,
+      ...input.approvalMutationDetail,
+      summary:
+        input.approvalMutationDetail?.summary ??
+        `Handler-owned Tool ${input.admitted.canonicalName} admitted durable existing-target command`,
       commandResultRef: null,
       reversalKind: "none",
     },
@@ -1063,6 +1075,11 @@ async function throwHandlerApprovalRequired(input: {
   idempotencyKey: string
   fingerprint: string
   reasonCode: string | null
+  mutationDetail?: Omit<
+    NonNullable<BuildActionLedgerMutationInput["mutationDetail"]>,
+    "commandResultRef"
+  >
+  errorMetadata?: Readonly<Record<string, unknown>>
 }): Promise<never> {
   const policyName = input.policyName?.trim()
   if (!policyName) {
@@ -1083,6 +1100,7 @@ async function throwHandlerApprovalRequired(input: {
     idempotencyScope: `${input.actionName}:${input.actionVersion}:handler-approval`,
     idempotencyKey: input.idempotencyKey,
     idempotencyFingerprint: input.fingerprint,
+    mutationDetail: input.mutationDetail,
     approval: {
       requestedByPrincipalId: input.principal.principalId,
       policyName,
@@ -1101,6 +1119,7 @@ async function throwHandlerApprovalRequired(input: {
       requestId: input.idempotencyKey,
       idempotencyFingerprint: input.fingerprint,
       replayed: result.replayed,
+      ...input.errorMetadata,
     },
   )
 }

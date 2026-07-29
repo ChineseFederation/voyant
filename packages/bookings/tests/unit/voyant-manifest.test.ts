@@ -100,6 +100,7 @@ describe("bookings deployment manifest", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "list_bookings", risk: "low" }),
         expect.objectContaining({ name: "get_booking", risk: "low" }),
+        expect.objectContaining({ name: "confirm_booking", risk: "high" }),
         expect.objectContaining({ name: "cancel_booking", risk: "critical" }),
       ]),
     )
@@ -109,12 +110,9 @@ describe("bookings deployment manifest", () => {
         requiredScopes: ["bookings:write"],
         risk: "critical",
         ledger: "required",
-        approval: "conditional",
+        approval: "required",
         reversible: false,
-        availability: {
-          status: "unavailable",
-          reasonCode: "unsafe-nonidempotent-transition",
-        },
+        availability: { status: "available" },
         effectBoundary: "multistage",
         from: expect.objectContaining({
           routes: ["@voyant-travel/bookings#api.admin"],

@@ -65,4 +65,25 @@ describe("resolveBookingExtraLines", () => {
     })
     expect(result[0]?.travelerIndexes).toBeUndefined()
   })
+
+  it("multiplies base extra quantity by the applicable traveler count", () => {
+    const result = resolveBookingExtraLines({
+      travelerCount: 2,
+      travelerKeys: ["trav:lead", "trav:child"],
+      extraLines: [
+        {
+          productExtraId: "lunch",
+          pricingMode: "per_person",
+          quantity: 2,
+          unitSellAmountCents: 1000,
+        },
+      ],
+    })
+
+    expect(result[0]).toMatchObject({
+      quantity: 4,
+      totalSellAmountCents: 4000,
+      travelerKeys: ["trav:lead", "trav:child"],
+    })
+  })
 })

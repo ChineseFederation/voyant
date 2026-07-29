@@ -1,8 +1,10 @@
 // agent-quality: file-size exception -- owner: finance; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
+import { PgDialect } from "drizzle-orm/pg-core"
 import { describe, expect, it, vi } from "vitest"
 
 import {
   bookingItemTaxLines,
+  bookingPaymentSchedules,
   invoiceExternalRefs,
   invoiceLineItems,
   invoiceNumberSeries,
@@ -60,11 +62,17 @@ function makeDb(options: {
   executeRowsObject?: boolean
   invoiceInsertError?: unknown
   invoiceLineItemsReturning?: Array<Record<string, unknown>>
+  bookingItemTaxRows?: Array<Record<string, unknown>>
 }) {
   const insertedInvoices: Array<Record<string, unknown>> = []
   const insertedInvoiceExternalRefs: Array<Record<string, unknown>> = []
   const insertedInvoiceLineItems: Array<Record<string, unknown>> = []
-  const execute = vi.fn(async () => {
+  const dialect = new PgDialect()
+  const execute = vi.fn(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+    const { sql } = dialect.sqlToQuery(query)
+    if (sql.includes("pg_advisory_xact_lock")) return []
+    if (sql.includes("FROM bookings")) return [{ status: "confirmed" }]
+
     const row = options.explicitSeries ?? options.defaultSeries
     const rows = row
       ? [
@@ -128,7 +136,7 @@ function makeDb(options: {
     select: vi.fn((selection?: unknown) => ({
       from: vi.fn((table) => {
         if (table !== invoiceNumberSeries) {
-          const rows: Array<Record<string, unknown>> = []
+          const rows = table === bookingItemTaxLines ? (options.bookingItemTaxRows ?? []) : []
           if (selection) {
             return {
               where: vi.fn(() => ({
@@ -139,6 +147,13 @@ function makeDb(options: {
             }
           }
           if (table === bookingItemTaxLines) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => rows),
+              })),
+            }
+          }
+          if (table === bookingPaymentSchedules) {
             return {
               where: vi.fn(() => ({
                 orderBy: vi.fn(async () => rows),
@@ -171,6 +186,11 @@ function makeDb(options: {
     })),
   }
 
+  Object.assign(tx, {
+    select: db.select,
+    transaction: vi.fn(async (callback: (writer: typeof tx) => Promise<unknown>) => callback(tx)),
+  })
+
   return {
     db: db as never,
     tx,
@@ -178,6 +198,16 @@ function makeDb(options: {
     insertedInvoiceExternalRefs,
     insertedInvoiceLineItems,
   }
+}
+
+function expectOnlyBookingFinanceFence(execute: ReturnType<typeof vi.fn>) {
+  const dialect = new PgDialect()
+  const statements = execute.mock.calls.map(([query]) => dialect.sqlToQuery(query).sql)
+
+  expect(statements).toHaveLength(2)
+  expect(statements[0]).toContain("pg_advisory_xact_lock")
+  expect(statements[1]).toContain("FROM bookings")
+  expect(statements[1]).toContain("FOR UPDATE")
 }
 
 describe("financeService.createInvoiceFromBooking number allocation", () => {
@@ -195,7 +225,7 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       bookingData,
     )
 
-    expect(tx.execute).not.toHaveBeenCalled()
+    expectOnlyBookingFinanceFence(tx.execute)
     expect(insertedInvoices[0]).toMatchObject({
       invoiceNumber: "MANUAL-1",
       seriesId: null,
@@ -306,7 +336,7 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       bookingData,
     )
 
-    expect(tx.execute).not.toHaveBeenCalled()
+    expectOnlyBookingFinanceFence(tx.execute)
     expect(insertedInvoices[0]?.invoiceNumber).toMatch(/^PENDING-INVOICE-/)
     expect(insertedInvoices[0]).toMatchObject({
       seriesId: "ins_123",
@@ -550,6 +580,415 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
         sortOrder: 0,
       }),
     ])
+  })
+
+  it("counts excluded booking tax exactly once in a payment-schedule invoice", async () => {
+    const { db, insertedInvoices, insertedInvoiceLineItems } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "excluded",
+          includedInPrice: false,
+          amountCents: 10_000,
+        },
+      ],
+    })
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-1",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-23",
+      },
+      {
+        booking: {
+          ...bookingData.booking,
+          sellAmountCents: 60_000,
+        },
+        paymentSchedule: {
+          id: "bps_123",
+          bookingId: "book_123",
+          bookingItemId: "bkit_123",
+          scheduleType: "balance",
+          dueDate: "2026-06-23",
+          currency: "RON",
+          amountCents: 60_000,
+        },
+        items: [
+          {
+            id: "bkit_123",
+            title: "Taxable booking",
+            quantity: 1,
+            unitSellAmountCents: 50_000,
+            totalSellAmountCents: 50_000,
+          },
+        ],
+      },
+    )
+
+    expect(insertedInvoiceLineItems).toEqual([
+      expect.objectContaining({ unitPriceCents: 60_000, totalCents: 60_000 }),
+    ])
+    expect(insertedInvoices[0]).toMatchObject({
+      subtotalCents: 50_000,
+      taxCents: 10_000,
+      totalCents: 60_000,
+    })
+  })
+
+  it("uses only the linked item's taxes and schedule cohort for an item schedule", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_selected",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 100,
+        },
+        {
+          bookingItemId: "bkit_sibling",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 900,
+        },
+      ],
+    })
+    const selectedSchedule = {
+      id: "bps_selected",
+      bookingId: "book_123",
+      bookingItemId: "bkit_selected",
+      scheduleType: "deposit" as const,
+      dueDate: "2026-06-01",
+      currency: "RON",
+      amountCents: 5_000,
+    }
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-ITEM-TAX",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-01",
+      },
+      {
+        booking: { ...bookingData.booking, sellAmountCents: 15_000 },
+        paymentSchedule: selectedSchedule,
+        paymentSchedules: [
+          selectedSchedule,
+          {
+            id: "bps_sibling",
+            bookingId: "book_123",
+            bookingItemId: "bkit_sibling",
+            scheduleType: "balance",
+            dueDate: "2026-06-23",
+            currency: "RON",
+            amountCents: 10_000,
+          },
+        ],
+        items: [
+          {
+            id: "bkit_selected",
+            title: "Selected item",
+            quantity: 1,
+            unitSellAmountCents: 5_000,
+            totalSellAmountCents: 5_000,
+          },
+          {
+            id: "bkit_sibling",
+            title: "Sibling item",
+            quantity: 1,
+            unitSellAmountCents: 10_000,
+            totalSellAmountCents: 10_000,
+          },
+        ],
+      },
+    )
+
+    expect(insertedInvoices[0]).toMatchObject({
+      subtotalCents: 4_900,
+      taxCents: 100,
+      totalCents: 5_000,
+    })
+  })
+
+  it("allocates combined included and excluded tax cents once across payment schedules", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 1,
+        },
+        {
+          bookingItemId: "bkit_123",
+          scope: "excluded",
+          includedInPrice: false,
+          amountCents: 1,
+        },
+      ],
+    })
+    const paymentSchedules = [
+      {
+        id: "bps_a",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "RON",
+        amountCents: 1,
+      },
+      {
+        id: "bps_b",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "RON",
+        amountCents: 1,
+      },
+    ]
+    const data = {
+      booking: { ...bookingData.booking, sellAmountCents: 2 },
+      paymentSchedules,
+      items: [
+        {
+          id: "bkit_123",
+          title: "Taxable booking",
+          quantity: 1,
+          unitSellAmountCents: 2,
+          totalSellAmountCents: 2,
+        },
+      ],
+    }
+
+    for (const paymentSchedule of paymentSchedules) {
+      await financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: `MANUAL-${paymentSchedule.id}`,
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        { ...data, paymentSchedule },
+      )
+    }
+
+    expect(insertedInvoices.map((invoice) => invoice.taxCents)).toEqual([1, 1])
+    expect(insertedInvoices.reduce((sum, invoice) => sum + Number(invoice.taxCents), 0)).toBe(2)
+    for (const invoice of insertedInvoices) {
+      expect(invoice.taxCents).toBeLessThanOrEqual(invoice.totalCents)
+    }
+  })
+
+  it("converts booking tax before allocating it to cross-currency schedules", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn(async () => ({ rate: 2, fxRateSetId: "fxrs_123" }))
+    const paymentSchedules = [
+      {
+        id: "bps_a",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "USD",
+        amountCents: 100,
+      },
+      {
+        id: "bps_b",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "USD",
+        amountCents: 100,
+      },
+    ]
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-USD",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-01",
+      },
+      {
+        booking: {
+          ...bookingData.booking,
+          sellCurrency: "EUR",
+          fxRateSetId: "fxrs_123",
+          sellAmountCents: 100,
+        },
+        paymentSchedule: paymentSchedules[0],
+        paymentSchedules,
+        items: [
+          {
+            id: "bkit_123",
+            title: "Taxable booking",
+            quantity: 1,
+            unitSellAmountCents: 100,
+            totalSellAmountCents: 100,
+          },
+        ],
+      },
+      { resolveInvoiceExchangeRate },
+    )
+
+    expect(resolveInvoiceExchangeRate).toHaveBeenCalledWith({
+      baseCurrency: "EUR",
+      quoteCurrency: "USD",
+      date: "2026-05-23",
+    })
+    expect(insertedInvoices[0]).toMatchObject({
+      currency: "USD",
+      subtotalCents: 90,
+      taxCents: 10,
+      totalCents: 100,
+    })
+  })
+
+  it("allocates booking tax once across a mixed-currency schedule cohort", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn(async ({ baseCurrency, quoteCurrency }) => {
+      if (baseCurrency === "EUR" && quoteCurrency === "USD") {
+        return { rate: 2, fxRateSetId: "fxrs_123" }
+      }
+      if (baseCurrency === "USD" && quoteCurrency === "EUR") {
+        return { rate: 0.5, fxRateSetId: "fxrs_123" }
+      }
+      return null
+    })
+    const paymentSchedules = [
+      {
+        id: "bps_eur",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "deposit" as const,
+        dueDate: "2026-06-01",
+        currency: "EUR",
+        amountCents: 50,
+      },
+      {
+        id: "bps_usd",
+        bookingId: "book_123",
+        bookingItemId: "bkit_123",
+        scheduleType: "balance" as const,
+        dueDate: "2026-06-23",
+        currency: "USD",
+        amountCents: 100,
+      },
+    ]
+    const data = {
+      booking: {
+        ...bookingData.booking,
+        sellCurrency: "EUR",
+        fxRateSetId: "fxrs_123",
+        sellAmountCents: 100,
+      },
+      paymentSchedules,
+      items: [
+        {
+          id: "bkit_123",
+          title: "Mixed-currency taxable booking",
+          quantity: 1,
+          unitSellAmountCents: 100,
+          totalSellAmountCents: 100,
+        },
+      ],
+    }
+
+    for (const paymentSchedule of paymentSchedules) {
+      await financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: `MANUAL-${paymentSchedule.id}`,
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        { ...data, paymentSchedule },
+        { resolveInvoiceExchangeRate },
+      )
+    }
+
+    expect(insertedInvoices).toEqual([
+      expect.objectContaining({ currency: "EUR", taxCents: 5, totalCents: 50 }),
+      expect.objectContaining({ currency: "USD", taxCents: 10, totalCents: 100 }),
+    ])
+  })
+
+  it("rejects an invalid schedule currency before resolving tax FX", async () => {
+    const { db } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn()
+    const paymentSchedule = {
+      id: "bps_invalid_currency",
+      bookingId: "book_123",
+      bookingItemId: "bkit_123",
+      scheduleType: "deposit" as const,
+      dueDate: "2026-06-01",
+      currency: " ",
+      amountCents: 50,
+    }
+
+    await expect(
+      financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: "MANUAL-INVALID-CURRENCY",
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        {
+          booking: { ...bookingData.booking, sellCurrency: "EUR" },
+          paymentSchedule,
+          paymentSchedules: [paymentSchedule],
+          items: [
+            {
+              id: "bkit_123",
+              title: "Taxable booking",
+              quantity: 1,
+              unitSellAmountCents: 50,
+              totalSellAmountCents: 50,
+            },
+          ],
+        },
+        { resolveInvoiceExchangeRate },
+      ),
+    ).rejects.toThrow("Payment schedule currency must be a valid three-letter currency code")
+    expect(resolveInvoiceExchangeRate).not.toHaveBeenCalled()
   })
 
   it("uses booking item snapshots for schedule descriptions without an item link", async () => {

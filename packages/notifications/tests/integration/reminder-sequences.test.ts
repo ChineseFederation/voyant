@@ -460,6 +460,98 @@ describe.skipIf(!DB_AVAILABLE)("Reminder sequences (stage-based dispatcher)", ()
     expect(body.data.sent).toBe(0)
   })
 
+  it("does not fire payment schedule reminders for persistently suppressed bookings", async () => {
+    const templateRes = await ctx.request("/templates", {
+      method: "POST",
+      ...json({
+        slug: "tpl-suppressed-booking-payment",
+        name: "Suppressed booking payment reminder",
+        channel: "email",
+        provider: "local",
+        status: "active",
+        subjectTemplate: "Payment due",
+        textTemplate: "Payment due",
+      }),
+    })
+    const { data: template } = await templateRes.json()
+    await ctx.db.execute(sql`
+      INSERT INTO bookings (
+        id, booking_number, status, sell_currency, notifications_suppressed
+      ) VALUES (
+        'book_suppressed_seq_1', 'BK-SUP-1', 'awaiting_payment', 'EUR', true
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO booking_travelers (
+        id, booking_id, first_name, last_name, email, participant_type, is_primary
+      ) VALUES (
+        'bkpt_suppressed_seq_1', 'book_suppressed_seq_1',
+        'Ana', 'Suppressed', 'ana-suppressed@example.com', 'traveler', true
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO booking_payment_schedules (
+        id, booking_id, schedule_type, status, due_date, currency, amount_cents
+      ) VALUES (
+        'bkps_suppressed_seq_1', 'book_suppressed_seq_1',
+        'balance', 'due', DATE '2026-04-10', 'EUR', 25000
+      )
+    `)
+
+    const ruleRes = await ctx.request("/reminder-rules", {
+      method: "POST",
+      ...json({
+        slug: "suppressed-payment-balance-sequence",
+        name: "Suppressed payment balance sequence",
+        status: "active",
+        targetType: "booking_payment_schedule",
+        channel: "email",
+        provider: "local",
+      }),
+    })
+    const { data: rule } = await ruleRes.json()
+    const stageRes = await ctx.request(`/reminder-rules/${rule.id}/stages`, {
+      method: "POST",
+      ...json({
+        orderIndex: 0,
+        anchor: "due_date",
+        windowStartDays: -7,
+        windowEndDays: 0,
+        cadenceKind: "once",
+        respectQuietHours: false,
+      }),
+    })
+    const { data: stage } = await stageRes.json()
+    await ctx.request(`/reminder-rules/${rule.id}/stages/${stage.id}/channels`, {
+      method: "POST",
+      ...json({
+        orderIndex: 0,
+        channel: "email",
+        provider: "local",
+        templateId: template.id,
+        recipientKind: "primary",
+      }),
+    })
+
+    const sweepRes = await ctx.request("/reminders/run-due", {
+      method: "POST",
+      ...json({ now: "2026-04-08T09:00:00.000Z" }),
+    })
+    expect(sweepRes.status).toBe(200)
+    const body = await sweepRes.json()
+    expect(body.data.processed).toBe(0)
+    expect(body.data.sent).toBe(0)
+    expect(body.data.skipped).toBe(1)
+    expect(ctx.sink).not.toHaveBeenCalled()
+
+    const runs = queryRows(
+      await ctx.db.execute(sql`
+        SELECT id FROM notification_reminder_runs WHERE reminder_rule_id = ${rule.id}
+      `),
+    )
+    expect(runs).toHaveLength(0)
+  })
+
   it("does not fire payment schedule reminders for cancelled bookings", async () => {
     const tmplRes = await ctx.request("/templates", {
       method: "POST",

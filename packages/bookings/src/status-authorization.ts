@@ -8,6 +8,7 @@ import {
   appendActionLedgerMutation,
   type BuildActionLedgerApprovedExecutionFieldsInput,
   buildActionApprovalCommandFingerprint,
+  buildIdempotencyFingerprint,
   evaluateActionLedgerApprovalRequirement,
   evaluateActionLedgerCapabilityAccess,
   mapActionLedgerRequestContext,
@@ -70,6 +71,11 @@ export type BookingStatusAuthorizationResult =
       requestedAction: Awaited<ReturnType<typeof requestActionLedgerApproval>>["requestedAction"]
       approval: Awaited<ReturnType<typeof requestActionLedgerApproval>>["approval"]
       replayed: boolean
+    }
+  | {
+      status: "already_executed"
+      access: ActionLedgerCapabilityAccessResult
+      bookingId: string
     }
   | {
       status: "denied"
@@ -135,6 +141,12 @@ export async function authorizeBookingStatusMutation(
   })
   if (!approvalRequirement.required) return { status: "authorized", access }
 
+  const commandFingerprint = await buildBookingStatusCommandFingerprint(input, access)
+  if (input.approvalId) {
+    const replay = await resolveExecutedBookingStatusReplay(input, access, commandFingerprint)
+    if (replay) return replay
+  }
+
   const targetState = await loadBookingStatusApprovalTargetState(input.db, input.bookingId)
   const fingerprint = await buildBookingStatusApprovalFingerprint(
     input,
@@ -192,6 +204,7 @@ export async function authorizeBookingStatusMutation(
       idempotencyKey: input.idempotencyKey,
       idempotencyFingerprint: fingerprint,
       mutationDetail: {
+        commandInputRef: commandFingerprint,
         summary: `Booking status ${capability.action} awaiting approval: ${approvalRequirement.reasonCode}`,
         reversalKind: "none",
       },
@@ -220,6 +233,67 @@ export async function authorizeBookingStatusMutation(
     }
     throw error
   }
+}
+
+async function buildBookingStatusCommandFingerprint(
+  input: BookingStatusAuthorizationInput,
+  access: ActionLedgerCapabilityAccessResult,
+) {
+  return buildIdempotencyFingerprint({
+    actionName: input.actionName,
+    actionVersion: BOOKING_STATUS_CAPABILITIES[input.key].version,
+    targetType: "booking",
+    targetId: input.bookingId,
+    commandInput: input.commandInput ?? null,
+    policyInputs: {
+      capabilityId: access.capabilityId,
+      capabilityVersion: access.capabilityVersion,
+      routeOrToolName: input.routeOrToolName,
+    },
+  })
+}
+
+async function resolveExecutedBookingStatusReplay(
+  input: BookingStatusAuthorizationInput,
+  access: ActionLedgerCapabilityAccessResult,
+  commandFingerprint: string,
+): Promise<Extract<BookingStatusAuthorizationResult, { status: "already_executed" }> | null> {
+  if (!input.approvalId) return null
+  const approval = await actionLedgerService.getApproval(input.db, input.approvalId)
+  const requested = approval?.requestedAction
+  if (approval?.approval.status !== "approved" || !requested) return null
+  const principal = mapActionLedgerRequestContext(input.requestContext)
+  const entry = requested.entry
+  const exactRequest =
+    entry.actionName === input.actionName &&
+    entry.actionVersion === BOOKING_STATUS_CAPABILITIES[input.key].version &&
+    entry.actionKind === "update" &&
+    entry.targetType === "booking" &&
+    entry.targetId === input.bookingId &&
+    entry.routeOrToolName === input.routeOrToolName &&
+    entry.capabilityId === access.capabilityId &&
+    entry.capabilityVersion === access.capabilityVersion &&
+    entry.principalType === principal.principalType &&
+    entry.principalId === principal.principalId &&
+    entry.organizationId === principal.organizationId &&
+    entry.idempotencyKey === input.idempotencyKey &&
+    requested.mutationDetail?.commandInputRef === commandFingerprint
+  if (!exactRequest) return null
+
+  const execution = await actionLedgerService.listEntries(input.db, {
+    actionName: input.actionName,
+    actionKind: "update",
+    targetType: "booking",
+    targetId: input.bookingId,
+    routeOrToolName: input.routeOrToolName,
+    causationActionId: entry.id,
+    approvalId: approval.approval.id,
+    status: "succeeded",
+    limit: 1,
+  })
+  return execution.entries.length > 0
+    ? { status: "already_executed", access, bookingId: input.bookingId }
+    : null
 }
 
 async function buildBookingStatusApprovalFingerprint(

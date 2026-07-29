@@ -189,6 +189,55 @@ describe("existing-target durable command protocol", () => {
     expect(harness.events).toEqual([])
   })
 
+  it("carries an exact consequence preview through approval storage and the Tool error", async () => {
+    const harness = makeCreatedCommandDb()
+    const admitted = await makeAdmittedExistingTargetContext({ approval: "required" })
+    const requestApproval = vi.spyOn(actionLedgerService, "requestApproval").mockResolvedValue({
+      requestedAction: { id: "requested_preview" },
+      approval: { id: "approval_preview", status: "pending" },
+      replayed: false,
+    } as never)
+    const consequencePreview = {
+      bookingId: "trip_1",
+      pax: 2,
+      allocationQuantity: 2,
+      suppressNotifications: true,
+    }
+
+    await expect(
+      executeAdmittedExistingTargetCommand(
+        {
+          ...existingCommandInput(harness.db, admitted),
+          approvalMutationDetail: {
+            commandInputRef: JSON.stringify(consequencePreview),
+            summary: "Confirm booking B-1 for two passengers without notifications.",
+            reversalKind: "none",
+          },
+          approvalErrorMetadata: { consequencePreview },
+        },
+        { prepare: vi.fn(), execute: vi.fn(), replay: vi.fn() },
+      ),
+    ).rejects.toMatchObject({
+      code: "APPROVAL_REQUIRED",
+      meta: {
+        approvalId: "approval_preview",
+        requestedActionId: "requested_preview",
+        consequencePreview,
+      },
+    })
+    expect(requestApproval).toHaveBeenCalledWith(
+      harness.db,
+      expect.objectContaining({
+        requestedAction: expect.objectContaining({
+          mutationDetail: expect.objectContaining({
+            commandInputRef: JSON.stringify(consequencePreview),
+            summary: "Confirm booking B-1 for two passengers without notifications.",
+          }),
+        }),
+      }),
+    )
+  })
+
   it("clones and recursively freezes a nested JSON command payload", async () => {
     const harness = makeCreatedCommandDb()
     const admitted = await makeAdmittedExistingTargetContext()
