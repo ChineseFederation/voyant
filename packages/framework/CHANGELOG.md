@@ -1,5 +1,12 @@
 # @voyant-travel/framework
 
+## 0.65.1
+
+### Patch Changes
+
+- ef80127: Bind durable event delivery to the composed internal subscriber bus without
+  making the generic Node host depend on a product package.
+
 ## 0.65.0
 
 ### Patch Changes
