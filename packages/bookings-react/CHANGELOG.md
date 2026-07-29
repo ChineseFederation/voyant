@@ -1,5 +1,32 @@
 # @voyant-travel/bookings-react
 
+## 0.220.0
+
+### Patch Changes
+
+- Updated dependencies [8adeb23]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/bookings@0.220.0
+  - @voyant-travel/finance@0.220.0
+  - @voyant-travel/i18n@0.119.0
+  - @voyant-travel/catalog@0.218.0
+  - @voyant-travel/accommodations@0.180.0
+  - @voyant-travel/inventory@0.23.5
+  - @voyant-travel/cruises@0.219.0
+  - @voyant-travel/finance-react@0.220.0
+  - @voyant-travel/inventory-react@0.102.0
+  - @voyant-travel/types@0.109.10
+  - @voyant-travel/storefront-react@0.222.0
+  - @voyant-travel/admin@0.131.1
+  - @voyant-travel/catalog-react@0.218.0
+  - @voyant-travel/commerce-react@0.102.0
+  - @voyant-travel/distribution-react@0.210.0
+  - @voyant-travel/identity-react@0.220.0
+  - @voyant-travel/legal-react@0.220.0
+  - @voyant-travel/operations-react@0.101.0
+  - @voyant-travel/relationships-react@0.220.0
+
 ## 0.219.0
 
 ### Patch Changes

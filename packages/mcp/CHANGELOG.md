@@ -1,5 +1,18 @@
 # @voyant-travel/mcp
 
+## 0.9.0
+
+### Patch Changes
+
+- 3ab6a93: Admit both the current framework line and the projected 1.x release line used by the OAuth release plan.
+- Updated dependencies [8adeb23]
+- Updated dependencies [6d0b4b4]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/framework@0.65.0
+  - @voyant-travel/hono@0.135.0
+  - @voyant-travel/types@0.109.10
+
 ## 0.8.2
 
 ### Patch Changes

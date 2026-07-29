@@ -1,5 +1,95 @@
 # @voyant-travel/operator-standard
 
+## 0.16.0
+
+### Minor Changes
+
+- 7496159: Add an OAuth 2.1 authorization server so chat assistants can connect to the deployment's MCP endpoint by URL alone.
+
+  Claude and ChatGPT add remote MCP servers by pasting a URL — there is nowhere to supply an API token — so they follow the MCP authorization spec instead: dynamic client registration (RFC 7591), authorization code + PKCE, and a browser consent step. This adds that server on the admin realm via `@better-auth/oauth-provider`, with `oauth_client` / `oauth_access_token` / `oauth_refresh_token` / `oauth_consent` / `jwks` tables.
+
+  The grant is coarse (`mcp:read`, optionally `mcp:write`) because a consent screen cannot ask a travel agent about fifty resource scopes. Effective permissions are re-derived per request from the approving staff member's current role, intersected with the actions their owning packages mark remote-safe and non-sensitive — so a connector never exceeds the person who approved it, and narrowing someone's role immediately narrows every connector they approved.
+
+  Access tokens are signed JWTs verified against the published JWKS. Because a JWT cannot be withdrawn once signed, the resource server also re-checks the connector's consent row on every request, so disconnecting a connector takes effect on its next call rather than whenever its token happens to expire.
+
+  Discovery documents are served at the origin root, with authorization-server endpoints rewritten onto the public API base — the Hono app strips that prefix before the auth handler sees a request, so the URLs Better Auth advertises would otherwise point at the admin SPA instead of the authorization server.
+
+### Patch Changes
+
+- Updated dependencies [8adeb23]
+- Updated dependencies [6d0b4b4]
+- Updated dependencies [3ab6a93]
+- Updated dependencies [7496159]
+- Updated dependencies [7496159]
+- Updated dependencies [fa75fe3]
+  - @voyant-travel/bookings@0.220.0
+  - @voyant-travel/finance@0.220.0
+  - @voyant-travel/notifications@0.142.8
+  - @voyant-travel/action-ledger@0.115.4
+  - @voyant-travel/db@0.119.0
+  - @voyant-travel/auth@0.146.0
+  - @voyant-travel/mcp@0.9.0
+  - @voyant-travel/auth-react@0.146.0
+  - @voyant-travel/operator-settings-react@0.75.0
+  - @voyant-travel/i18n@0.119.0
+  - @voyant-travel/catalog@0.218.0
+  - @voyant-travel/accommodations@0.180.0
+  - @voyant-travel/bookings-react@0.220.0
+  - @voyant-travel/commerce@0.44.20
+  - @voyant-travel/distribution@0.210.0
+  - @voyant-travel/inventory@0.23.5
+  - @voyant-travel/legal@0.220.0
+  - @voyant-travel/mice@0.76.0
+  - @voyant-travel/relationships@0.132.16
+  - @voyant-travel/storefront@0.222.0
+  - @voyant-travel/trips@0.213.0
+  - @voyant-travel/cruises@0.219.0
+  - @voyant-travel/finance-react@0.220.0
+  - @voyant-travel/flights@0.220.0
+  - @voyant-travel/flights-react@0.220.0
+  - @voyant-travel/inventory-react@0.102.0
+  - @voyant-travel/operator-settings@0.16.5
+  - @voyant-travel/trips-react@0.213.0
+  - @voyant-travel/apps@0.12.14
+  - @voyant-travel/availability@0.2.28
+  - @voyant-travel/catalog-authoring@0.107.32
+  - @voyant-travel/charters@0.218.0
+  - @voyant-travel/custom-fields@0.2.18
+  - @voyant-travel/identity@0.220.0
+  - @voyant-travel/media@0.6.1
+  - @voyant-travel/navigation-preferences@0.20.0
+  - @voyant-travel/operations@0.11.3
+  - @voyant-travel/public-document-delivery@0.4.18
+  - @voyant-travel/quotes@0.135.12
+  - @voyant-travel/reporting@0.3.9
+  - @voyant-travel/setup@0.7.1
+  - @voyant-travel/types@0.109.10
+  - @voyant-travel/webhook-delivery@0.5.6
+  - @voyant-travel/admin-host@0.70.0
+  - @voyant-travel/event-catalog@0.2.18
+  - @voyant-travel/realtime@0.7.2
+  - @voyant-travel/admin-app@0.112.0
+  - @voyant-travel/navigation-preferences-react@0.20.0
+  - @voyant-travel/quotes-react@0.218.0
+  - @voyant-travel/storefront-react@0.222.0
+  - @voyant-travel/action-ledger-react@0.109.0
+  - @voyant-travel/admin@0.131.1
+  - @voyant-travel/apps-react@0.7.1
+  - @voyant-travel/catalog-react@0.218.0
+  - @voyant-travel/commerce-react@0.102.0
+  - @voyant-travel/cruises-react@0.219.0
+  - @voyant-travel/custom-fields-react@0.7.1
+  - @voyant-travel/distribution-react@0.210.0
+  - @voyant-travel/event-catalog-react@0.21.1
+  - @voyant-travel/identity-react@0.220.0
+  - @voyant-travel/legal-react@0.220.0
+  - @voyant-travel/media-react@0.7.2
+  - @voyant-travel/mice-react@0.88.0
+  - @voyant-travel/notifications-react@0.142.8
+  - @voyant-travel/operations-react@0.101.0
+  - @voyant-travel/relationships-react@0.220.0
+  - @voyant-travel/admin-react@0.131.1
+
 ## 0.15.50
 
 ### Patch Changes

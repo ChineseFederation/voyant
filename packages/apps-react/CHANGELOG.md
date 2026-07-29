@@ -1,5 +1,14 @@
 # @voyant-travel/apps-react
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [7496159]
+  - @voyant-travel/i18n@0.119.0
+  - @voyant-travel/types@0.109.10
+  - @voyant-travel/admin@0.131.1
+
 ## 0.7.0
 
 ### Patch Changes
