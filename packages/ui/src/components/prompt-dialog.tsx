@@ -4,6 +4,7 @@ import type * as React from "react"
 import { useEffect, useState } from "react"
 import { Button } from "./button.js"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./dialog.js"
+import { getImperativeDialogChannel } from "./imperative-dialog-channel.js"
 import { Input } from "./input.js"
 import { Label } from "./label.js"
 
@@ -23,8 +24,7 @@ interface PromptRequest {
   resolve: (value: string | null) => void
 }
 
-let sequence = 0
-const listeners = new Set<(request: PromptRequest) => void>()
+const channel = getImperativeDialogChannel<PromptRequest>("prompt")
 
 /**
  * Imperative, promise-based text prompt — the styled replacement for the native
@@ -33,9 +33,9 @@ const listeners = new Set<(request: PromptRequest) => void>()
  */
 export function promptDialog(options: PromptDialogOptions): Promise<string | null> {
   return new Promise<string | null>((resolve) => {
-    sequence += 1
-    const request: PromptRequest = { id: sequence, options, resolve }
-    for (const listener of listeners) listener(request)
+    channel.sequence += 1
+    const request: PromptRequest = { id: channel.sequence, options, resolve }
+    for (const listener of channel.listeners) listener(request)
   })
 }
 
@@ -57,9 +57,9 @@ export function PromptDialogHost({
       setRequest(next)
       setValue(next.options.defaultValue ?? "")
     }
-    listeners.add(listener)
+    channel.listeners.add(listener)
     return () => {
-      listeners.delete(listener)
+      channel.listeners.delete(listener)
     }
   }, [])
 
