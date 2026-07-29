@@ -864,6 +864,57 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
     ])
   })
 
+  it("rejects an invalid schedule currency before resolving tax FX", async () => {
+    const { db } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 10,
+        },
+      ],
+    })
+    const resolveInvoiceExchangeRate = vi.fn()
+    const paymentSchedule = {
+      id: "bps_invalid_currency",
+      bookingId: "book_123",
+      bookingItemId: "bkit_123",
+      scheduleType: "deposit" as const,
+      dueDate: "2026-06-01",
+      currency: " ",
+      amountCents: 50,
+    }
+
+    await expect(
+      financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: "book_123",
+          invoiceNumber: "MANUAL-INVALID-CURRENCY",
+          issueDate: "2026-05-23",
+          dueDate: paymentSchedule.dueDate,
+        },
+        {
+          booking: { ...bookingData.booking, sellCurrency: "EUR" },
+          paymentSchedule,
+          paymentSchedules: [paymentSchedule],
+          items: [
+            {
+              id: "bkit_123",
+              title: "Taxable booking",
+              quantity: 1,
+              unitSellAmountCents: 50,
+              totalSellAmountCents: 50,
+            },
+          ],
+        },
+        { resolveInvoiceExchangeRate },
+      ),
+    ).rejects.toThrow("Payment schedule currency must be a valid three-letter currency code")
+    expect(resolveInvoiceExchangeRate).not.toHaveBeenCalled()
+  })
+
   it("uses booking item snapshots for schedule descriptions without an item link", async () => {
     const { db, insertedInvoiceLineItems } = makeDb({})
 

@@ -295,6 +295,15 @@ export const financeInvoiceFromBookingService = {
       ? await Promise.all(
           scheduleAllocationRows.map(async (schedule) => {
             const scheduleCurrency = normalizeCurrencyCode(schedule.currency)
+            if (!scheduleCurrency || !/^[A-Z]{3}$/.test(scheduleCurrency)) {
+              throw new InvoiceFromBookingValidationError(
+                "Payment schedule currency must be a valid three-letter currency code",
+                {
+                  scheduleId: schedule.id,
+                  scheduleCurrency: schedule.currency,
+                },
+              )
+            }
             if (scheduleCurrency === bookingSellCurrency) return schedule
             const converted = await resolveFxMoneyBaseAmount(
               db,
