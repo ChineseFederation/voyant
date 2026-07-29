@@ -33,6 +33,8 @@ function baseContext(): ToolContext {
   }
 }
 
+const bookingContractContentFingerprint = `booking-contract-content:v1:sha256:${"a".repeat(64)}`
+
 describe("legal Tools", () => {
   it("publishes unique typed capabilities for both selected legal units", () => {
     expect(legalTools).toHaveLength(21)
@@ -89,7 +91,7 @@ describe("legal Tools", () => {
         recipient: "not-an-email",
         channel: "email",
         revision: 2,
-        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
+        contentFingerprint: bookingContractContentFingerprint,
       }).success,
     ).toBe(false)
     expect(
@@ -98,7 +100,16 @@ describe("legal Tools", () => {
         recipient: "+40700000000",
         channel: "sms",
         revision: 2,
-        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
+        contentFingerprint: bookingContractContentFingerprint,
+      }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "+40700000000",
+        channel: "whatsapp",
+        revision: 2,
+        contentFingerprint: bookingContractContentFingerprint,
       }).success,
     ).toBe(true)
     expect(
@@ -107,7 +118,7 @@ describe("legal Tools", () => {
         recipient: "traveller@example.com",
         channel: "email",
         revision: 2,
-        contentFingerprint: `booking-contract-content:v1:sha256:${"a".repeat(64)}`,
+        contentFingerprint: bookingContractContentFingerprint,
         notificationsSuppressed: false,
       }).success,
     ).toBe(true)
@@ -119,6 +130,71 @@ describe("legal Tools", () => {
         acknowledgedConsequences: false,
       }).success,
     ).toBe(false)
+  })
+
+  it("admits only canonical international phone recipients for sms and whatsapp sends", async () => {
+    const expected = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.send
+    const sendContractCommand = vi.fn(async () => {
+      throw new Error("sendContractCommand should not run for invalid recipient input")
+    })
+    const legal = {
+      issueContract: vi.fn(),
+      sendContract: vi.fn(),
+      executeContract: vi.fn(),
+      listContracts: vi.fn(),
+      getContract: vi.fn(),
+      listTemplates: vi.fn(),
+      getTemplate: vi.fn(),
+      createTemplate: vi.fn(),
+      listPolicies: vi.fn(),
+      getPolicy: vi.fn(),
+      resolvePolicy: vi.fn(),
+      evaluateCancellation: vi.fn(),
+      listTerms: vi.fn(),
+      listAttachments: vi.fn(),
+      issueContractCommand: vi.fn(),
+      sendContractCommand,
+      voidContractCommand: vi.fn(),
+      executeContractCommand: vi.fn(),
+    } as never
+    const registry = createToolRegistry()
+    registry.register(sendLegalContractTool, { actionPolicy: expected.actionPolicy })
+    const validInput = {
+      contractId: "contract_1",
+      recipient: "+40700000000",
+      revision: 2,
+      contentFingerprint: bookingContractContentFingerprint,
+    }
+
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({ ...validInput, channel: "sms" }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({ ...validInput, channel: "whatsapp" }).success,
+    ).toBe(true)
+
+    for (const channel of ["sms", "whatsapp"] as const) {
+      for (const recipient of [
+        "abc",
+        "40700000000",
+        "+40 700000000",
+        "+40-700000000",
+        "+1234567",
+        "+1234567890123456",
+        " +40700000000",
+        "+40700000000 ",
+      ]) {
+        await expect(
+          registry.dispatch(
+            sendLegalContractTool.name,
+            { ...validInput, channel, recipient },
+            { ...baseContext(), legal },
+          ),
+        ).rejects.toThrow()
+      }
+    }
+
+    expect(sendContractCommand).not.toHaveBeenCalled()
   })
 
   it("uses admitted lifecycle command methods", async () => {

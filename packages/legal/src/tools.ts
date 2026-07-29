@@ -381,6 +381,7 @@ const bookingContractSendFields = {
   subject: z.string().max(500).nullable().optional(),
   message: z.string().max(10_000).nullable().optional(),
 }
+const routableInternationalPhoneSchema = z.string().regex(/^\+[1-9]\d{7,14}$/)
 const bookingContractSendInputSchema = z.discriminatedUnion("channel", [
   transitionContractInputSchema
     .extend({
@@ -393,14 +394,14 @@ const bookingContractSendInputSchema = z.discriminatedUnion("channel", [
     .extend({
       ...bookingContractSendFields,
       channel: z.literal("sms"),
-      recipient: z.string().trim().min(3).max(320),
+      recipient: routableInternationalPhoneSchema,
     })
     .strict(),
   transitionContractInputSchema
     .extend({
       ...bookingContractSendFields,
       channel: z.literal("whatsapp"),
-      recipient: z.string().trim().min(3).max(320),
+      recipient: routableInternationalPhoneSchema,
     })
     .strict(),
 ])
