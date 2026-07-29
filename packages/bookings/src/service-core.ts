@@ -384,6 +384,28 @@ export interface BookingServiceRuntime {
     | undefined
 }
 
+export function bookingLifecycleOutboxEventId(
+  transition: "confirmed" | "cancelled",
+  bookingId: string,
+  runtime: Pick<
+    BookingServiceRuntime,
+    "actionLedgerCausationActionId" | "actionLedgerIdempotencyScope" | "actionLedgerIdempotencyKey"
+  > = {},
+) {
+  const commandIdentity =
+    runtime.actionLedgerCausationActionId ??
+    (runtime.actionLedgerIdempotencyKey
+      ? `${runtime.actionLedgerIdempotencyScope ?? "booking"}_${runtime.actionLedgerIdempotencyKey}`
+      : null)
+  return commandIdentity
+    ? `evt_booking_${transition}_${bookingId}_${slugifyEventIdPart(commandIdentity)}`
+    : `evt_booking_${transition}_${bookingId}`
+}
+
+function slugifyEventIdPart(value: string) {
+  return value.replace(/[^A-Za-z0-9_:-]+/g, "_")
+}
+
 type BookingStatusActionName =
   | "booking.status.confirm"
   | "booking.status.expire"
@@ -3150,7 +3172,7 @@ const bookingsServiceInternal = {
               metadata: {
                 category: "domain",
                 source: "service",
-                eventId: `evt_booking_confirmed_${row.id}`,
+                eventId: bookingLifecycleOutboxEventId("confirmed", row.id, runtime),
               },
             },
           ])
@@ -3711,7 +3733,7 @@ const bookingsServiceInternal = {
               metadata: {
                 category: "domain",
                 source: "service",
-                eventId: `evt_booking_cancelled_${row.id}`,
+                eventId: bookingLifecycleOutboxEventId("cancelled", row.id, runtime),
               },
             },
           ])

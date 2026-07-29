@@ -27,6 +27,7 @@ import {
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { bookingsService } from "./service.js"
+import { bookingToolDetailSchema } from "./tool-output-schemas.js"
 
 export * from "./tools.js"
 
@@ -50,13 +51,14 @@ export const voyantToolContextContribution = defineToolContextContribution({
         bookingsService.listItems(db, id),
         bookingsService.listTravelers(db, id),
       ])
-      return {
+      const detail = {
         ...(reveal ? row : redactBookingRow(row)),
         items,
         travelers: reveal
           ? travelers
           : travelers.map((traveler) => redactTravelerIdentity(traveler)),
       }
+      return bookingToolDetailSchema.parse(toJsonValue(detail))
     }
     return Object.assign(
       {
@@ -535,6 +537,17 @@ function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
 function toIsoString(value: Date | string | null): string | null {
   if (!value) return null
   return value instanceof Date ? value.toISOString() : value
+}
+
+function toJsonValue(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString()
+  if (Array.isArray(value)) return value.map(toJsonValue)
+  if (typeof value !== "object" || value === null) return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, nested]) => [key, toJsonValue(nested)] as const)
+      .filter(([, nested]) => nested !== undefined),
+  )
 }
 
 function redactBookingRow<T>(row: T): T {

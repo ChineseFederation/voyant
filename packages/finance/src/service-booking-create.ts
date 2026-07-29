@@ -1254,23 +1254,37 @@ async function reconcileBookingCreatePricing(
       continue
     }
     const unitRule = flatUnitRules.find((rule) => unitRuleMatchesQuantity(rule, quantity))
-    const chargeQuantity =
-      unitRule?.pricingMode === "per_person"
-        ? quantity
-        : unitRule?.pricingMode === "per_booking"
-          ? 1
-          : quantity
+    const chargeQuantity = persistedFlatUnitChargeQuantity(unitRule?.pricingMode, quantity)
     const departureAmount = item.optionUnitId
       ? persistedPricing?.departureOverrides.get(item.optionUnitId)
       : undefined
     const unitAmount =
       departureAmount ??
       selectPersistedUnitAmount(unitRule, persistedPricing?.tiers ?? [], chargeQuantity)
-    if (unitAmount != null) {
-      const total = unitAmount * chargeQuantity
-      pricedLines.set(item.id, { unit: unitAmount, total })
-      baseCatalogTotal += total
+    const flatUnitPrice = resolvePersistedFlatUnitPriceForBookingCreate({
+      matchedRule: Boolean(unitRule),
+      pricingMode: unitRule?.pricingMode,
+      unitAmount,
+      chargeQuantity,
+    })
+    if (flatUnitPrice.status === "priced") {
+      pricedLines.set(item.id, {
+        unit: flatUnitPrice.unitAmountCents,
+        total: flatUnitPrice.totalAmountCents,
+      })
+      baseCatalogTotal += flatUnitPrice.totalAmountCents
       continue
+    }
+    if (flatUnitPrice.status === "invalid") {
+      return {
+        booking,
+        issues: [
+          {
+            path: ["itemLines"],
+            message: `Booking item ${item.optionUnitId ?? item.id} has no active persisted price rule.`,
+          },
+        ],
+      }
     }
     if (!appliedRuleBase && persistedPricing?.baseSellAmountCents != null) {
       const total = ruleBaseTotal
@@ -1735,6 +1749,34 @@ function unitRuleMatchesQuantity(rule: PersistedUnitPriceRule, quantity: number)
     (rule.minQuantity == null || quantity >= rule.minQuantity) &&
     (rule.maxQuantity == null || quantity <= rule.maxQuantity)
   )
+}
+
+function persistedFlatUnitChargeQuantity(pricingMode: string | null | undefined, quantity: number) {
+  if (pricingMode === "per_person") return quantity
+  if (pricingMode === "per_booking") return 1
+  return quantity
+}
+
+export function resolvePersistedFlatUnitPriceForBookingCreate(input: {
+  matchedRule: boolean
+  pricingMode: string | null | undefined
+  unitAmount: number | null
+  chargeQuantity: number
+}):
+  | { status: "priced"; unitAmountCents: number; totalAmountCents: number }
+  | { status: "invalid" }
+  | { status: "unpriced" } {
+  if (input.pricingMode === "included" || input.pricingMode === "free") {
+    return { status: "priced", unitAmountCents: input.unitAmount ?? 0, totalAmountCents: 0 }
+  }
+  if (input.pricingMode === "on_request" || input.unitAmount == null) {
+    return input.matchedRule ? { status: "invalid" } : { status: "unpriced" }
+  }
+  return {
+    status: "priced",
+    unitAmountCents: input.unitAmount,
+    totalAmountCents: input.unitAmount * input.chargeQuantity,
+  }
 }
 
 function selectPersistedUnitAmount(

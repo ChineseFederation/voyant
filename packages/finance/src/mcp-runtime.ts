@@ -4,6 +4,7 @@ import {
 } from "@voyant-travel/action-ledger"
 import {
   bookingsService,
+  bookingToolDetailSchema,
   redactBookingContact,
   redactTravelerIdentity,
   shouldRevealBookingPii,
@@ -82,16 +83,17 @@ export const voyantToolContextContribution = defineToolContextContribution({
               isInternalRequest: c.var.isInternalRequest,
               enforceRbac: isStaffRbacEnforced(c.env),
             })
+            const detail = {
+              ...(reveal ? booking : redactBookingContact(booking)),
+              items,
+              travelers: reveal
+                ? travelers
+                : travelers.map((traveler) => redactTravelerIdentity(traveler)),
+            }
             return {
               bookingId: booking.id,
               replayed: result.replayed,
-              booking: {
-                ...(reveal ? booking : redactBookingContact(booking)),
-                items,
-                travelers: reveal
-                  ? travelers
-                  : travelers.map((traveler) => redactTravelerIdentity(traveler)),
-              },
+              booking: bookingToolDetailSchema.parse(toJsonValue(detail)),
             }
           }),
         async issueInvoiceFromBooking(input: {
