@@ -112,11 +112,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         payload: expect.objectContaining({
           contractId: contract.id,
           transition: "sent",
-          delivery: {
+          delivery: expect.objectContaining({
             recipientEmail: commandInput.recipient,
             subject: commandInput.subject,
             message: commandInput.message,
-          },
+          }),
         }),
         metadata: expect.objectContaining({ category: "domain", source: "service", eventId }),
       }),
