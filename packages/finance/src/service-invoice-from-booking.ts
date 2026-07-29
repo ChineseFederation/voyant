@@ -7,6 +7,7 @@ import type {
   PostgresJsDatabase,
 } from "./service-shared.js"
 import {
+  and,
   asc,
   assertInvoiceFromBookingOverrideTotals,
   bookingItemCommissions,
@@ -15,10 +16,12 @@ import {
   bookingPaymentSchedules,
   bookingPaymentScheduleToInvoiceLine,
   eq,
+  INVOICEABLE_PAYMENT_SCHEDULE_STATUSES,
   InvoiceFromBookingValidationError,
   InvoiceLineItemsPersistenceError,
   InvoiceNumberAllocationError,
   InvoiceNumberConflictError,
+  inArray,
   invoiceExternalRefs,
   invoiceFromBookingExternalRefValues,
   invoiceFromBookingOverrideLineItems,
@@ -201,11 +204,17 @@ export const financeInvoiceFromBookingService = {
 
     const shouldUseBookingItems = overrideLineItems === null && !paymentSchedule
     const invoiceItems = shouldUseBookingItems ? items : []
-    const taxSourceItems = overrideLineItems ? [] : paymentSchedule ? items : invoiceItems
+    const taxSourceItems = overrideLineItems
+      ? []
+      : paymentSchedule?.bookingItemId
+        ? items.filter((item) => item.id === paymentSchedule.bookingItemId)
+        : paymentSchedule
+          ? items
+          : invoiceItems
     const itemIds = taxSourceItems.map((item) => item.id)
     const commissionItemIds = invoiceItems.map((item) => item.id)
 
-    const taxes =
+    const loadedTaxes =
       itemIds.length === 0
         ? []
         : await db
@@ -218,6 +227,10 @@ export const financeInvoiceFromBookingService = {
               asc(bookingItemTaxLines.createdAt),
               asc(bookingItemTaxLines.id),
             )
+    // Keep the application boundary defensive as well as the SQL predicate:
+    // item-linked schedules must never inherit taxes from sibling items.
+    const itemIdSet = new Set(itemIds)
+    const taxes = loadedTaxes.filter((tax) => itemIdSet.has(tax.bookingItemId))
 
     const commissions =
       commissionItemIds.length === 0
@@ -280,16 +293,23 @@ export const financeInvoiceFromBookingService = {
 
     const grossLineTotalCents = lineItems.reduce((sum, line) => sum + line.totalCents, 0)
     const scheduleAllocationRows = paymentSchedule
-      ? (bookingData.paymentSchedules ??
-        (await db
-          .select()
-          .from(bookingPaymentSchedules)
-          .where(eq(bookingPaymentSchedules.bookingId, booking.id))
-          .orderBy(
-            asc(bookingPaymentSchedules.dueDate),
-            asc(bookingPaymentSchedules.createdAt),
-            asc(bookingPaymentSchedules.id),
-          )))
+      ? (
+          bookingData.paymentSchedules ??
+          (await db
+            .select()
+            .from(bookingPaymentSchedules)
+            .where(
+              and(
+                eq(bookingPaymentSchedules.bookingId, booking.id),
+                inArray(bookingPaymentSchedules.status, INVOICEABLE_PAYMENT_SCHEDULE_STATUSES),
+              ),
+            )
+            .orderBy(
+              asc(bookingPaymentSchedules.dueDate),
+              asc(bookingPaymentSchedules.createdAt),
+              asc(bookingPaymentSchedules.id),
+            ))
+        ).filter((schedule) => schedule.bookingItemId === paymentSchedule.bookingItemId)
       : []
     const scheduleRowsInBookingCurrency = paymentSchedule
       ? await Promise.all(

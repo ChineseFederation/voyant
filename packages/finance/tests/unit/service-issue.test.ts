@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { resolveBookingSellTaxRate } from "../../src/booking-tax.js"
 import { financeService } from "../../src/service.js"
 import { type InvoiceIssuedEvent, issueInvoiceFromBooking } from "../../src/service-issue.js"
+import { isInvoiceablePaymentScheduleStatus } from "../../src/service-shared.js"
 
 vi.mock("../../src/booking-tax.js", () => ({
   resolveBookingSellTaxRate: vi.fn(),
@@ -17,6 +18,16 @@ vi.mock("../../src/service.js", () => ({
   },
   touchLinkedBookingUpdatedAt: vi.fn(),
 }))
+
+describe("invoiceable payment schedule statuses", () => {
+  it.each(["pending", "due", "paid"])("includes current %s schedules", (status) => {
+    expect(isInvoiceablePaymentScheduleStatus(status)).toBe(true)
+  })
+
+  it.each(["waived", "cancelled", "expired"])("excludes obsolete %s schedules", (status) => {
+    expect(isInvoiceablePaymentScheduleStatus(status)).toBe(false)
+  })
+})
 
 describe("issueInvoiceFromBooking", () => {
   beforeEach(() => {

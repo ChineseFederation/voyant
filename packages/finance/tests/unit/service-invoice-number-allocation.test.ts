@@ -638,6 +638,82 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
     })
   })
 
+  it("uses only the linked item's taxes and schedule cohort for an item schedule", async () => {
+    const { db, insertedInvoices } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_selected",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 100,
+        },
+        {
+          bookingItemId: "bkit_sibling",
+          scope: "included",
+          includedInPrice: true,
+          amountCents: 900,
+        },
+      ],
+    })
+    const selectedSchedule = {
+      id: "bps_selected",
+      bookingId: "book_123",
+      bookingItemId: "bkit_selected",
+      scheduleType: "deposit" as const,
+      dueDate: "2026-06-01",
+      currency: "RON",
+      amountCents: 5_000,
+    }
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-ITEM-TAX",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-01",
+      },
+      {
+        booking: { ...bookingData.booking, sellAmountCents: 15_000 },
+        paymentSchedule: selectedSchedule,
+        paymentSchedules: [
+          selectedSchedule,
+          {
+            id: "bps_sibling",
+            bookingId: "book_123",
+            bookingItemId: "bkit_sibling",
+            scheduleType: "balance",
+            dueDate: "2026-06-23",
+            currency: "RON",
+            amountCents: 10_000,
+          },
+        ],
+        items: [
+          {
+            id: "bkit_selected",
+            title: "Selected item",
+            quantity: 1,
+            unitSellAmountCents: 5_000,
+            totalSellAmountCents: 5_000,
+          },
+          {
+            id: "bkit_sibling",
+            title: "Sibling item",
+            quantity: 1,
+            unitSellAmountCents: 10_000,
+            totalSellAmountCents: 10_000,
+          },
+        ],
+      },
+    )
+
+    expect(insertedInvoices[0]).toMatchObject({
+      subtotalCents: 4_900,
+      taxCents: 100,
+      totalCents: 5_000,
+    })
+  })
+
   it("allocates combined included and excluded tax cents once across payment schedules", async () => {
     const { db, insertedInvoices } = makeDb({
       bookingItemTaxRows: [

@@ -1263,9 +1263,11 @@ async function reconcileBookingCreatePricing(
   const chargedUnassignedRoomBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
-  // Commerce quotes apply the option-rule base once. The pricing mode
-  // describes the rule, while only selected unit prices multiply by quantity.
+  // When selected unit rules price the booking, Commerce applies the option-rule
+  // base once. Its no-unit fallback instead treats the base as a per-passenger
+  // amount, using the same effective-pax floor of one as the public quote.
   const ruleBaseTotal = persistedPricing?.baseSellAmountCents ?? 0
+  const noUnitRuleBaseTotal = ruleBaseTotal * Math.max(1, booking.pax ?? 0)
   let appliedRuleBase = ruleBaseTotal === 0
   for (const item of baseItems) {
     const unitRules =
@@ -1389,8 +1391,8 @@ async function reconcileBookingCreatePricing(
         ],
       }
     }
-    if (!appliedRuleBase && persistedPricing?.baseSellAmountCents != null) {
-      const total = ruleBaseTotal
+    if (!appliedRuleBase && !unitRule && persistedPricing?.baseSellAmountCents != null) {
+      const total = noUnitRuleBaseTotal
       pricedLines.set(item.id, {
         unit: Math.floor(total / quantity),
         total,
@@ -1844,7 +1846,14 @@ function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: 
     if (!["adult", "child", "infant", "senior", "other"].includes(band)) continue
     counts.set(band, (counts.get(band) ?? 0) + 1)
   }
-  if (counts.size === 0 && bookingPax && bookingPax > 0) counts.set("adult", bookingPax)
+  // A caller may know the booking's total pax before it has collected every
+  // traveler row. The public contract defaults those unclassified passengers
+  // to adults, just as it does for a traveler whose category is omitted.
+  const classifiedPax = [...counts.values()].reduce((sum, count) => sum + count, 0)
+  const unclassifiedPax = Math.max(0, (bookingPax ?? 0) - classifiedPax)
+  if (unclassifiedPax > 0) {
+    counts.set("adult", (counts.get("adult") ?? 0) + unclassifiedPax)
+  }
   return counts
 }
 

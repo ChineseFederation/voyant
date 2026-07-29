@@ -14,6 +14,7 @@ import {
 } from "../../src/invoice-issue-authorization.js"
 import {
   bookingItemTaxLines,
+  bookingPaymentSchedules,
   invoiceLineItems,
   invoiceNumberSeries,
   invoices,
@@ -293,6 +294,66 @@ describe.skipIf(!DB_AVAILABLE)("unsynced proforma command", () => {
     )
     expect(outcome).toMatchObject({ status: "approval_snapshot_changed" })
     expect(await db.select().from(invoices)).toHaveLength(0)
+  })
+
+  it("excludes obsolete schedules from tax allocation and refuses selecting one", async () => {
+    const { booking, item } = await seedBooking()
+    await db.insert(bookingItemTaxLines).values({
+      bookingItemId: item.id,
+      name: "VAT",
+      scope: "included",
+      currency: "EUR",
+      amountCents: 8_000,
+      rateBasisPoints: 1_000,
+      includedInPrice: true,
+    })
+    const [current, obsolete] = await db
+      .insert(bookingPaymentSchedules)
+      .values([
+        {
+          bookingId: booking.id,
+          bookingItemId: item.id,
+          scheduleType: "deposit",
+          status: "pending",
+          dueDate: "2026-08-01",
+          currency: "EUR",
+          amountCents: 40_000,
+        },
+        {
+          bookingId: booking.id,
+          bookingItemId: item.id,
+          scheduleType: "balance",
+          status: "cancelled",
+          dueDate: "2026-08-05",
+          currency: "EUR",
+          amountCents: 40_000,
+        },
+      ])
+      .returning()
+
+    await expect(
+      issueInvoiceFromBookingCommand(db, {
+        bookingId: booking.id,
+        bookingPaymentScheduleId: obsolete!.id,
+        issueDate: "2026-07-29",
+        dueDate: "2026-08-05",
+        invoiceType: "proforma",
+        skipExternalSync: true,
+      }),
+    ).resolves.toEqual({ status: "payment_schedule_not_found" })
+
+    const outcome = await issueInvoiceFromBookingCommand(db, {
+      bookingId: booking.id,
+      bookingPaymentScheduleId: current!.id,
+      issueDate: "2026-07-29",
+      dueDate: "2026-08-01",
+      invoiceType: "proforma",
+      skipExternalSync: true,
+    })
+    expect(outcome).toMatchObject({
+      status: "issued",
+      invoice: { subtotalCents: 32_000, taxCents: 8_000, totalCents: 40_000 },
+    })
   })
 
   it("serializes tax inserts behind exact snapshot validation and issuance", async () => {

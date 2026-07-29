@@ -2409,6 +2409,56 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome.result.invoice).toMatchObject({ subtotalCents: 31_000, totalCents: 31_000 })
   })
 
+  it("multiplies the option-rule base by booking pax when no unit rule applies", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      optionPricingMode: "per_person",
+      baseSellAmountCents: 7_000,
+      unitAmountCents: 12_000,
+      unitPricingMode: "per_person",
+    })
+    await db.execute(sql`
+      DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 3,
+      itemLines: [{ optionUnitId: unitId, quantity: 3 }],
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          currency: "EUR",
+          amountCents: 21_000,
+          dueDate: "2026-08-15",
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(21_000)
+    expect(outcome.result.paymentSchedules).toEqual([
+      expect.objectContaining({ amountCents: 21_000, currency: "EUR" }),
+    ])
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 7_000, total: 21_000 }])
+  })
+
   it("uses selected extra quantity when the pricing mode is not per-booking", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     const productExtraId = `pex_bc_${productSeq}_quantity`
@@ -2894,6 +2944,81 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .from(bookingItems)
         .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
     ).toEqual([{ unit: 12_000, total: 12_000 }])
+  })
+
+  it("defaults residual booking pax to adults without expanding explicit item scopes", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      unitPricingMode: "per_person",
+    })
+    const adultCategoryId = `prct_bc_${productSeq}_partial_adults`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${adultCategoryId}, ${productId}, ${optionId}, ${unitId},
+        'partial_adults', 'Adult', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      UPDATE option_unit_price_rules
+      SET pricing_category_id = ${adultCategoryId}
+      WHERE option_price_rule_id = ${optionPriceRuleId}
+        AND unit_id = ${unitId}
+    `)
+    const travelers = [
+      {
+        clientTravelerKey: "trav:one",
+        firstName: "Alice",
+        lastName: "Adult",
+        travelerCategory: "adult" as const,
+      },
+      {
+        clientTravelerKey: "trav:two",
+        firstName: "Bob",
+        lastName: "Adult",
+        travelerCategory: "adult" as const,
+      },
+    ]
+
+    const unscoped = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 4,
+      travelers,
+      itemLines: [{ optionUnitId: unitId, quantity: 4 }],
+    })
+    expect(unscoped).toMatchObject({
+      status: "ok",
+      result: { booking: { pax: 4, sellAmountCents: 40_000 } },
+    })
+
+    const scoped = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 4,
+      travelers,
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}:partial-adults`,
+          optionUnitId: unitId,
+          quantity: 2,
+          travelerKeys: ["trav:one", "trav:two"],
+        },
+      ],
+    })
+    expect(scoped).toMatchObject({
+      status: "ok",
+      result: { booking: { pax: 4, sellAmountCents: 20_000 } },
+    })
   })
 
   it("prefers adult and child category prices over a general flat fallback", async () => {

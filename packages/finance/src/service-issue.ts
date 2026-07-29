@@ -28,6 +28,7 @@ import {
   type CreateInvoiceFromBookingInput,
   type FinanceServiceRuntime,
   financeService,
+  INVOICEABLE_PAYMENT_SCHEDULE_STATUSES,
   type InvoiceFromBookingData,
   InvoiceNumberConflictError,
   resolveInvoiceLineDescriptions,
@@ -421,7 +422,12 @@ export async function issueInvoiceFromBookingCommand(
     ? await db
         .select()
         .from(bookingPaymentSchedules)
-        .where(eq(bookingPaymentSchedules.bookingId, booking.id))
+        .where(
+          and(
+            eq(bookingPaymentSchedules.bookingId, booking.id),
+            inArray(bookingPaymentSchedules.status, INVOICEABLE_PAYMENT_SCHEDULE_STATUSES),
+          ),
+        )
         .orderBy(
           asc(bookingPaymentSchedules.dueDate),
           asc(bookingPaymentSchedules.createdAt),

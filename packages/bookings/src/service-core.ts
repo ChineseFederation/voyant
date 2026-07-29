@@ -753,10 +753,15 @@ async function assignTravelerToExistingBookingItems(
 ) {
   if (!isPaxParticipantType(traveler.participantType)) return
 
-  const items = await db
-    .select({ id: bookingItems.id })
-    .from(bookingItems)
-    .where(eq(bookingItems.bookingId, bookingId))
+  const items = toRows<{ id: string }>(
+    await db.execute(sql`
+      SELECT id
+      FROM booking_items
+      WHERE booking_id = ${bookingId}
+      ORDER BY created_at, id
+      FOR UPDATE
+    `),
+  )
 
   if (items.length === 0) return
 
@@ -1938,6 +1943,7 @@ async function autoIssueFulfillmentsForBooking(
     .select()
     .from(productTicketSettingsRef)
     .where(inArray(productTicketSettingsRef.productId, productIds))
+    .orderBy(asc(productTicketSettingsRef.productId), asc(productTicketSettingsRef.id))
 
   const settingsByProductId = new Map(settings.map((setting) => [setting.productId, setting]))
   const travelerParticipants = await db
@@ -1952,7 +1958,11 @@ async function autoIssueFulfillmentsForBooking(
         ),
       ),
     )
-    .orderBy(desc(bookingTravelers.isPrimary), asc(bookingTravelers.createdAt))
+    .orderBy(
+      desc(bookingTravelers.isPrimary),
+      asc(bookingTravelers.createdAt),
+      asc(bookingTravelers.id),
+    )
 
   const participantLinks = await db
     .select()
@@ -4326,8 +4336,8 @@ const bookingsServiceInternal = {
       return null
     }
 
-    await ensureParticipantFlags(db, bookingId, row.id, data)
     await assignTravelerToExistingBookingItems(db, bookingId, row)
+    await ensureParticipantFlags(db, bookingId, row.id, data)
     await recomputeBookingPaxFromTravelers(db, bookingId)
 
     await db.insert(bookingActivityLog).values({
@@ -4670,6 +4680,15 @@ const bookingsServiceInternal = {
       .from(bookingItems)
       .where(eq(bookingItems.bookingId, bookingId))
       .orderBy(asc(bookingItems.createdAt))
+  },
+
+  listProductTicketSettings(db: PostgresJsDatabase, productIds: string[]) {
+    if (productIds.length === 0) return Promise.resolve([])
+    return db
+      .select()
+      .from(productTicketSettingsRef)
+      .where(inArray(productTicketSettingsRef.productId, productIds))
+      .orderBy(asc(productTicketSettingsRef.productId), asc(productTicketSettingsRef.id))
   },
 
   /**
@@ -5034,44 +5053,49 @@ const bookingsServiceInternal = {
     itemId: string,
     data: CreateBookingItemParticipantInput,
   ) {
-    const [item] = await db
-      .select({ id: bookingItems.id })
-      .from(bookingItems)
-      .where(eq(bookingItems.id, itemId))
-      .limit(1)
+    return db.transaction(async (tx) => {
+      const item = toRows<{ id: string }>(
+        await tx.execute(sql`
+          SELECT id
+          FROM booking_items
+          WHERE id = ${itemId}
+          FOR UPDATE
+        `),
+      )[0]
 
-    if (!item) {
-      return null
-    }
+      if (!item) {
+        return null
+      }
 
-    const [traveler] = await db
-      .select({ id: bookingTravelers.id })
-      .from(bookingTravelers)
-      .where(eq(bookingTravelers.id, data.travelerId))
-      .limit(1)
+      const [traveler] = await tx
+        .select({ id: bookingTravelers.id })
+        .from(bookingTravelers)
+        .where(eq(bookingTravelers.id, data.travelerId))
+        .limit(1)
 
-    if (!traveler) {
-      return null
-    }
+      if (!traveler) {
+        return null
+      }
 
-    if (data.isPrimary) {
-      await db
-        .update(bookingItemTravelers)
-        .set({ isPrimary: false })
-        .where(eq(bookingItemTravelers.bookingItemId, itemId))
-    }
+      if (data.isPrimary) {
+        await tx
+          .update(bookingItemTravelers)
+          .set({ isPrimary: false })
+          .where(eq(bookingItemTravelers.bookingItemId, itemId))
+      }
 
-    const [row] = await db
-      .insert(bookingItemTravelers)
-      .values({
-        bookingItemId: itemId,
-        travelerId: data.travelerId,
-        role: data.role,
-        isPrimary: data.isPrimary ?? false,
-      })
-      .returning()
+      const [row] = await tx
+        .insert(bookingItemTravelers)
+        .values({
+          bookingItemId: itemId,
+          travelerId: data.travelerId,
+          role: data.role,
+          isPrimary: data.isPrimary ?? false,
+        })
+        .returning()
 
-    return row
+      return row
+    })
   },
 
   async removeItemParticipant(db: PostgresJsDatabase, linkId: string) {

@@ -352,6 +352,8 @@ export async function loadBookingStatusConsequencePreview(
   const allocations = [...(await bookingsService.listAllocations(db, bookingId))].sort(
     (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
   )
+  const fulfillmentProjection =
+    action === "confirm" ? await loadConfirmationFulfillmentProjection(db, bookingId) : null
   const financialSettlement =
     action === "cancel"
       ? await loadCancellationFinancialConsequences(db, bookingId, settlementHookAvailable)
@@ -370,6 +372,7 @@ export async function loadBookingStatusConsequencePreview(
     notificationsSuppressed: booking.notificationsSuppressed || suppressNotifications === true,
     closesPaymentSchedules: action === "cancel",
     financialSettlement,
+    fulfillmentProjection,
     allocations: allocations.map((allocation) => ({
       id: allocation.id,
       status: allocation.status,
@@ -381,6 +384,85 @@ export async function loadBookingStatusConsequencePreview(
         allocation.availabilitySlotId !== null &&
         ["held", "confirmed", "fulfilled"].includes(allocation.status),
     })),
+  }
+}
+
+async function loadConfirmationFulfillmentProjection(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+  bookingId: string,
+) {
+  const items = [...(await bookingsService.listItems(db, bookingId))].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
+  )
+  const productIds = [
+    ...new Set(
+      items.map((item) => item.productId).filter((value): value is string => Boolean(value)),
+    ),
+  ].sort()
+  const [participantEntries, travelers, fulfillments, ticketSettings] = await Promise.all([
+    Promise.all(
+      items.map(
+        async (item) =>
+          [
+            item.id,
+            [...(await bookingsService.listItemParticipants(db, item.id))].sort(
+              (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
+            ),
+          ] as const,
+      ),
+    ),
+    bookingsService.listTravelers(db, bookingId),
+    bookingsService.listFulfillments(db, bookingId),
+    bookingsService.listProductTicketSettings(db, productIds),
+  ])
+  const participantsByItemId = new Map(participantEntries)
+
+  return {
+    items: items.map((item) => ({
+      id: item.id,
+      itemType: item.itemType,
+      status: item.status,
+      productId: item.productId,
+      optionId: item.optionId,
+      optionUnitId: item.optionUnitId,
+      pricingCategoryId: item.pricingCategoryId,
+      availabilitySlotId: item.availabilitySlotId,
+      quantity: item.quantity,
+      serviceDate: item.serviceDate,
+      startsAt: toIsoString(item.startsAt),
+      endsAt: toIsoString(item.endsAt),
+      metadata: item.metadata,
+      participants: (participantsByItemId.get(item.id) ?? []).map((participant) => ({
+        id: participant.id,
+        travelerId: participant.travelerId,
+        role: participant.role,
+        isPrimary: participant.isPrimary,
+      })),
+    })),
+    ticketSettings: [...ticketSettings]
+      .sort((a, b) => a.productId.localeCompare(b.productId) || a.id.localeCompare(b.id))
+      .map((setting) => ({
+        id: setting.id,
+        productId: setting.productId,
+        fulfillmentMode: setting.fulfillmentMode,
+        defaultDeliveryFormat: setting.defaultDeliveryFormat,
+      })),
+    existingFulfillments: [...fulfillments]
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+      .map((fulfillment) => ({ id: fulfillment.id })),
+    travelers: [...travelers]
+      .sort(
+        (a, b) =>
+          Number(b.isPrimary) - Number(a.isPrimary) ||
+          a.createdAt.getTime() - b.createdAt.getTime() ||
+          a.id.localeCompare(b.id),
+      )
+      .map((traveler) => ({
+        id: traveler.id,
+        participantType: traveler.participantType,
+        isPrimary: traveler.isPrimary,
+        createdAt: toIsoString(traveler.createdAt),
+      })),
   }
 }
 
@@ -420,10 +502,64 @@ export async function lockBookingStatusConsequenceState(
         FOR UPDATE
       `)
     }
+    // Preserve Finance row -> booking -> allocation ordering for cancellation.
+    await lockBookingAndAllocations(db, bookingId)
+    return
   }
 
-  // Lock the parent after Finance consequence rows. Booking-owned allocation
-  // rows have a booking FK, so the parent lock also prevents new allocations.
+  // Item writers update item -> booking. Confirmation takes all mutable
+  // fulfillment inputs before the parent to remain compatible with that order.
+  await db.execute(sql`
+    SELECT id
+    FROM booking_items
+    WHERE booking_id = ${bookingId}
+    ORDER BY created_at, id
+    FOR UPDATE
+  `)
+  await db.execute(sql`
+    SELECT participant.id
+    FROM booking_item_travelers participant
+    JOIN booking_items item ON item.id = participant.booking_item_id
+    WHERE item.booking_id = ${bookingId}
+    ORDER BY participant.booking_item_id, participant.created_at, participant.id
+    FOR UPDATE OF participant
+  `)
+  await db.execute(sql`
+    SELECT id
+    FROM booking_travelers
+    WHERE booking_id = ${bookingId}
+    ORDER BY is_primary DESC, created_at, id
+    FOR UPDATE
+  `)
+  await db.execute(sql`
+    SELECT id
+    FROM booking_fulfillments
+    WHERE booking_id = ${bookingId}
+    ORDER BY created_at, id
+    FOR UPDATE
+  `)
+  // Product ticket settings are not booking-owned, so a table-level SHARE lock
+  // also prevents a new setting from appearing after the drift re-read.
+  await db.execute(sql`LOCK TABLE product_ticket_settings IN SHARE MODE`)
+  await db.execute(sql`
+    SELECT setting.id
+    FROM product_ticket_settings setting
+    WHERE setting.product_id IN (
+      SELECT item.product_id
+      FROM booking_items item
+      WHERE item.booking_id = ${bookingId}
+        AND item.product_id IS NOT NULL
+    )
+    ORDER BY setting.product_id, setting.id
+    FOR UPDATE OF setting
+  `)
+  await lockBookingAndAllocations(db, bookingId)
+}
+
+async function lockBookingAndAllocations(
+  db: Parameters<typeof bookingsService.getBookingById>[0],
+  bookingId: string,
+) {
   await db.execute(sql`
     SELECT id
     FROM bookings

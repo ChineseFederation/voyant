@@ -470,6 +470,12 @@ export type InvoiceFromBookingPaymentScheduleData = {
   amountCents: number
 }
 
+export const INVOICEABLE_PAYMENT_SCHEDULE_STATUSES = ["pending", "due", "paid"] as const
+
+export function isInvoiceablePaymentScheduleStatus(status: string) {
+  return (INVOICEABLE_PAYMENT_SCHEDULE_STATUSES as readonly string[]).includes(status)
+}
+
 export interface InvoiceFromBookingData {
   booking: {
     id: string
