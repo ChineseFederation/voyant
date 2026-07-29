@@ -531,7 +531,10 @@ export const bookingCreateToolSchema = bookingCreateBaseSchema
   .extend({
     itemLines: z
       .array(itemLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
-      .optional(),
+      .optional()
+      .describe(
+        "Explicit selected rooms or priced units. Required for room products: quantity is room count, and travelerKeys assigns travelers to each room type.",
+      ),
     extraLines: z
       .array(extraLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
       .optional(),
