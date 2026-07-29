@@ -16,6 +16,7 @@ import {
 } from "./lifecycle.js"
 import {
   contractAttachments,
+  contractLifecycleCommandResults,
   contractSignatures,
   contracts,
   contractTemplateVersions,
@@ -278,6 +279,14 @@ export const contractRecordsService = {
           ? (existing.metadata as Record<string, unknown>)
           : {}
       if (isManagedBookingContract(metadata)) {
+        return { status: "immutable_revision" as const }
+      }
+      const [lifecycleResult] = await tx
+        .select({ claimActionId: contractLifecycleCommandResults.claimActionId })
+        .from(contractLifecycleCommandResults)
+        .where(eq(contractLifecycleCommandResults.contractId, existing.id))
+        .limit(1)
+      if (lifecycleResult) {
         return { status: "immutable_revision" as const }
       }
       await tx.delete(contracts).where(eq(contracts.id, id))

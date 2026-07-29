@@ -586,6 +586,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         }),
       ],
     )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "immutable_revision",
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
   })
 
   it("voids malformed lifecycle-command targets without promoting the legacy marker", async () => {
@@ -631,6 +636,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         }),
       ],
     )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "immutable_revision",
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
   })
 
   it.each([

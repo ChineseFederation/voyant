@@ -548,7 +548,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     const managedDelete = await adminApp.request(`/${managedDraft!.id}`, { method: "DELETE" })
     expect(managedDelete.status).toBe(409)
     await expect(managedDelete.json()).resolves.toEqual({
-      error: "Managed booking contract revisions cannot be deleted",
+      error: "Immutable contract revisions cannot be deleted",
     })
 
     const [managedVoid] = await db

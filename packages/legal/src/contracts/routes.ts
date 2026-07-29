@@ -1224,7 +1224,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         return c.json({ error: "Only draft or void contracts can be deleted" }, 409)
       }
       if (result.status === "immutable_revision") {
-        return c.json({ error: "Managed booking contract revisions cannot be deleted" }, 409)
+        return c.json({ error: "Immutable contract revisions cannot be deleted" }, 409)
       }
       return c.json({ success: true } as const, 200)
     })
