@@ -603,7 +603,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     expect(lifecycleEvents.map((event) => event.name)).toEqual([
       "contract.issued",
       "contract.sent",
-      "contract.signed",
       "contract.executed",
       "contract.voided",
     ])

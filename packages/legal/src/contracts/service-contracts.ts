@@ -1,4 +1,6 @@
 // agent-quality: file-size exception -- owner: legal; contract records, lifecycle, and attachment mutations remain co-located until a service split preserves route behavior and tests.
+
+import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { suppliers } from "@voyant-travel/distribution"
 import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
@@ -9,6 +11,7 @@ import { normalizeLegalTargetFields, normalizeLegalTargetUpdateFields } from "..
 import {
   appendContractStageHistory,
   buildContractLifecycleEvent,
+  CONTRACT_LIFECYCLE_EVENT_NAMES,
   type ContractLifecycleRuntimeOptions,
   checkContractLifecycleTransition,
   createContractStageHistoryEntry,
@@ -44,6 +47,19 @@ export class DurableContractDocumentAttachmentMutationError extends Error {
     )
     this.name = "DurableContractDocumentAttachmentMutationError"
   }
+}
+
+type InsertOutboxEvents = typeof insertOutboxEvents
+
+export class ContractSignatureOutboxError extends Error {
+  constructor() {
+    super("Contract signature event outbox insertion did not capture exactly one event.")
+    this.name = "ContractSignatureOutboxError"
+  }
+}
+
+export function contractSignatureLifecycleEventId(signatureId: string): string {
+  return `evt_legal_contract_signed_${signatureId}`
 }
 
 function assertGenericAttachmentKind(kind: string | null | undefined) {
@@ -491,7 +507,8 @@ export const contractRecordsService = {
     db: PostgresJsDatabase,
     contractId: string,
     data: CreateContractSignatureInput,
-    runtime?: ContractLifecycleRuntimeOptions,
+    _runtime?: ContractLifecycleRuntimeOptions,
+    testHooks?: { insertEvents?: InsertOutboxEvents },
   ) {
     const result = await db.transaction(async (tx) => {
       const [contract] = await tx
@@ -531,17 +548,31 @@ export const contractRecordsService = {
         .set({ status: "signed", stageHistory, updatedAt: now })
         .where(eq(contracts.id, contractId))
         .returning()
+      if (!signature || !updated) throw new ContractSignatureOutboxError()
+      const event = buildContractLifecycleEvent(updated, contract.status, "signed", "signed", now)
+      const eventId = contractSignatureLifecycleEventId(signature.id)
+      const inserted = await (testHooks?.insertEvents ?? insertOutboxEvents)(
+        tx as PostgresJsDatabase,
+        [
+          {
+            name: CONTRACT_LIFECYCLE_EVENT_NAMES.signed,
+            data: event,
+            metadata: {
+              category: "domain",
+              source: "service",
+              eventId,
+            },
+          },
+        ],
+      )
+      if (inserted.length !== 1) throw new ContractSignatureOutboxError()
       return {
         status: "signed" as const,
-        contract: updated ?? null,
-        signature: signature ?? null,
-        event:
-          updated && buildContractLifecycleEvent(updated, contract.status, "signed", "signed", now),
+        contract: updated,
+        signature,
+        event,
       }
     })
-    if (result.status === "signed" && result.event) {
-      await emitContractLifecycleEvent(runtime, result.event)
-    }
     return result
   },
   async executeContract(
