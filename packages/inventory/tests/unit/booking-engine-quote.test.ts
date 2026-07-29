@@ -196,7 +196,7 @@ describe("createProductsBookingHandler.computeQuote", () => {
     const lines = breakdown?.lines as Array<{ label: string; quantity: number; unitAmount: number }>
     expect(lines[0]).toEqual(
       expect.objectContaining({
-        label: "Junior suite upgrade",
+        label: "Suite",
         quantity: 2,
         unitAmount: 32000,
       }),
@@ -252,6 +252,82 @@ describe("createProductsBookingHandler.computeQuote", () => {
     expect(lines[0]).toEqual(
       expect.objectContaining({ quantity: 2, unitAmount: 40000, label: "Double — adult" }),
     )
+  })
+
+  it("prices category-less per-person room rates from traveler room assignments", async () => {
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-11-09",
+      loadProductOptions: async () => [
+        {
+          id: "opt_standard",
+          name: "Standard",
+          units: [
+            { id: "unit_double", name: "Double", unitType: "room" },
+            { id: "unit_single", name: "Single", unitType: "room" },
+          ],
+        },
+      ],
+      loadResolvedOptionPrice: async () => ({
+        baseSellAmountCents: 0,
+        unitPrices: [
+          {
+            unitId: "unit_double",
+            unitType: "room",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 142_000,
+          },
+          {
+            unitId: "unit_single",
+            unitType: "room",
+            travelerCategory: null,
+            pricingMode: "per_person",
+            sellAmountCents: 198_000,
+          },
+        ],
+      }),
+    })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({
+        configure: {
+          departureSlotId: "slot_1",
+          pax: { adult: 3 },
+          optionSelections: [
+            { optionId: "opt_standard", optionUnitId: "unit_double", quantity: 1 },
+            { optionId: "opt_standard", optionUnitId: "unit_single", quantity: 1 },
+          ],
+        },
+        accommodation: {
+          travelerAssignments: {
+            traveler_x: "unit_double",
+            traveler_y: "unit_double",
+            traveler_z: "unit_single",
+          },
+        },
+      }),
+    )
+
+    expect(result.available).toBe(true)
+    const breakdown = result.pricing?.breakdown as Record<string, unknown>
+    expect(breakdown?.total).toBe(482_000)
+    expect(breakdown?.lines).toEqual([
+      expect.objectContaining({
+        label: "Double",
+        quantity: 2,
+        unitAmount: 142_000,
+        totalAmount: 284_000,
+        pricingBasis: "per_person",
+      }),
+      expect.objectContaining({
+        label: "Single",
+        quantity: 1,
+        unitAmount: 198_000,
+        totalAmount: 198_000,
+        pricingBasis: "per_person",
+      }),
+    ])
   })
 
   it("uses selected option-unit pax tiers before falling back to the product base price", async () => {

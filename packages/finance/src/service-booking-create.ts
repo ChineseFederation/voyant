@@ -41,7 +41,15 @@ import {
 // ---------- validation ----------
 
 const travelerInputSchema = z.object({
-  clientTravelerKey: z.string().min(1).max(255).optional().nullable(),
+  clientTravelerKey: z
+    .string()
+    .min(1)
+    .max(255)
+    .optional()
+    .nullable()
+    .describe(
+      "Stable key for this traveler within the request. Use the same key in exactly one room itemLine.travelerKeys entry to assign the traveler to that room.",
+    ),
   firstName: z.string().min(1).max(255),
   lastName: z.string().min(1).max(255),
   email: z.string().email().optional().nullable(),
@@ -86,8 +94,19 @@ const itemLineInputSchema = z.object({
    * via `booking_item_travelers`. See voyant-travel/voyant#1267.
    */
   clientLineKey: z.string().min(1).max(255).optional().nullable(),
-  optionUnitId: z.string().min(1),
-  quantity: z.number().int().min(1),
+  optionUnitId: z
+    .string()
+    .min(1)
+    .describe(
+      "Selected product option-unit id. Resolve valid room or person units with `list_option_units` for the chosen option.",
+    ),
+  quantity: z
+    .number()
+    .int()
+    .min(1)
+    .describe(
+      "Number of this unit selected. For a room unit this is the number of rooms, not the number of travelers.",
+    ),
   title: z.string().min(1).max(255).optional().nullable(),
   description: z.string().max(5000).optional().nullable(),
   unitSellAmountCents: z.number().int().min(0).optional().nullable(),
@@ -96,7 +115,13 @@ const itemLineInputSchema = z.object({
    * Stable traveler keys this item applies to. Server inserts one
    * `booking_item_travelers` row per traveler.
    */
-  travelerKeys: z.array(z.string().min(1).max(255)).optional().nullable(),
+  travelerKeys: z
+    .array(z.string().min(1).max(255))
+    .optional()
+    .nullable()
+    .describe(
+      "clientTravelerKey values assigned to this room or priced unit. For accommodation, assign every traveler to exactly one selected room and respect room occupancy.",
+    ),
 })
 
 const extraLineInputSchema = z.object({
@@ -340,7 +365,13 @@ function isRealEmail(value: string | null | undefined): value is string {
 const bookingCreateBaseSchema = z.object({
   // Convert-product fields (mirrors convertProductSchema in bookings)
   productId: z.string().min(1),
-  optionId: z.string().optional().nullable(),
+  optionId: z
+    .string()
+    .optional()
+    .nullable()
+    .describe(
+      "Chosen product option id. Resolve it with `list_product_options`; supply it explicitly when the product has rooms or multiple options.",
+    ),
   slotId: z.string().optional().nullable(),
   /** Pre-booking availability hold converted inside the create transaction. */
   availabilityHoldToken: z.string().min(1).optional(),
@@ -381,7 +412,15 @@ const bookingCreateBaseSchema = z.object({
     .describe(
       "Id of the organization billed for this booking, for a company or agency booking. Required unless `personId` is set — a booking needs a billing party. Resolve it with `list_organizations`, or create it first with `create_organization`.",
     ),
-  pax: z.number().int().positive().optional().nullable(),
+  pax: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .nullable()
+    .describe(
+      "Total traveler count. This must match the travelers array and selected room capacity.",
+    ),
   internalNotes: z.string().optional().nullable(),
   /**
    * Override the seed `sellAmountCents` on the new booking + line item.
@@ -437,8 +476,16 @@ const bookingCreateBaseSchema = z.object({
   contactPostalCode: z.string().max(20).optional().nullable(),
 
   // Orchestration fields
-  travelers: z.array(travelerInputSchema).optional(),
-  itemLines: z.array(itemLineInputSchema).optional(),
+  travelers: z
+    .array(travelerInputSchema)
+    .optional()
+    .describe("Travelers on the booking. Give each one a unique clientTravelerKey."),
+  itemLines: z
+    .array(itemLineInputSchema)
+    .optional()
+    .describe(
+      "Explicit selected rooms or priced units. Required for room products: quantity is room count, and travelerKeys assigns travelers to each room type.",
+    ),
   extraLines: z.array(extraLineInputSchema).optional(),
   taxLines: z.array(taxLineInputSchema).optional(),
   paymentSchedules: z.array(paymentScheduleInputSchema).optional(),

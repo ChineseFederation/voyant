@@ -307,6 +307,9 @@ export const bookingsUiRoSections = {
       overrideReason: "Motiv suprascriere",
       overrideReasonPlaceholder: "De ce este acest total diferit?",
       overrideReasonRequired: "Adauga un motiv pentru totalul manual.",
+      perPerson: "per calator",
+      perUnit: "per camera",
+      perBooking: "per rezervare",
     },
   },
   bookingDocumentDialog: {

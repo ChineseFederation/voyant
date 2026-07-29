@@ -22,6 +22,7 @@ export interface PriceBreakdownLine {
    */
   tierLabel: string | null
   isGroupRate: boolean
+  pricingBasis?: "per_person" | "per_unit" | "per_booking"
 }
 
 export interface PriceBreakdownValue {
@@ -61,6 +62,7 @@ export interface PriceBreakdownSectionProps {
       quantity?: number
       unitAmount: number
       totalAmount: number
+      pricingBasis?: "per_person" | "per_unit" | "per_booking"
     }>
   }
   labels?: {
@@ -76,6 +78,9 @@ export interface PriceBreakdownSectionProps {
     overrideReason?: string
     overrideReasonPlaceholder?: string
     overrideReasonRequired?: string
+    perPerson?: string
+    perUnit?: string
+    perBooking?: string
   }
   onChange?: (value: PriceBreakdownValue) => void
   /**
@@ -229,6 +234,7 @@ export function PriceBreakdownSection({
               totalAmountCents: line.totalAmount,
               tierLabel: null,
               isGroupRate: false,
+              pricingBasis: line.pricingBasis,
             }))
           : [
               {
@@ -239,6 +245,7 @@ export function PriceBreakdownSection({
                 totalAmountCents: providedPricing.totalAmountCents,
                 tierLabel: null,
                 isGroupRate: false,
+                pricingBasis: "per_booking",
               },
             ]
       return {
@@ -524,6 +531,16 @@ export function PriceBreakdownSection({
               <span>{line.label}</span>
               {line.tierLabel ? (
                 <span className="text-xs text-muted-foreground">· {line.tierLabel}</span>
+              ) : null}
+              {line.pricingBasis ? (
+                <span className="text-xs text-muted-foreground">
+                  ·{" "}
+                  {line.pricingBasis === "per_person"
+                    ? merged.perPerson
+                    : line.pricingBasis === "per_booking"
+                      ? merged.perBooking
+                      : merged.perUnit}
+                </span>
               ) : null}
             </div>
             <div className="tabular-nums">

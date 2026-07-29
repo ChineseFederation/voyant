@@ -27,6 +27,11 @@ export const bookingsUiRoCreateList = {
     hints: {
       departureOptional: "Lasa necompletat pentru o rezervare cu data deschisa.",
       payment: "Totalul programat trebuie sa fie egal cu valoarea rezervarii.",
+      contactLoading: "Se incarca datele de contact...",
+      contactUnavailable:
+        "Nu am putut incarca acest contact. Incearca din nou sau selecteaza ori creeaza alt contact.",
+      contactIncomplete:
+        "Acest contact are nevoie de prenume si nume, plus un e-mail sau un numar de telefon. Editeaza contactul de mai sus sau selecteaza ori creeaza alt contact.",
     },
     validation: {
       product: "Alege un produs.",
@@ -35,6 +40,8 @@ export const bookingsUiRoCreateList = {
       person: "Alege persoana facturata.",
       organization: "Alege organizatia facturata.",
       contact: "Adauga un nume de contact pentru rezervare.",
+      contactName: "Adauga prenumele si numele persoanei facturate.",
+      contactMethod: "Adauga un e-mail sau un numar de telefon pentru persoana facturata.",
       email: "Introdu un e-mail de contact valid.",
       travelers: "Adauga cel putin un calator.",
       travelerNames: "Fiecare calator are nevoie de prenume si nume.",
@@ -67,6 +74,7 @@ export const bookingsUiRoCreateList = {
     actions: {
       create: "Creeaza rezervarea",
       confirmCreate: "Confirma si creeaza",
+      retryContact: "Incearca din nou",
     },
     confirm: {
       title: "Creezi aceasta rezervare?",
@@ -251,6 +259,9 @@ export const bookingsUiRoCreateList = {
       breakdownOverrideReason: "Motiv suprascriere",
       breakdownOverrideReasonPlaceholder: "De ce este acest total diferit?",
       breakdownOverrideReasonRequired: "Adauga un motiv pentru totalul manual.",
+      breakdownPerTraveler: "per calator",
+      breakdownPerRoom: "per camera",
+      breakdownPerBooking: "per rezervare",
       breakdownSubtotal: "Subtotal",
       breakdownTax: "Taxa",
       breakdownTaxIncluded: "inclus",

@@ -489,6 +489,7 @@ export function registerProductBookingHandler(
               unitId: optionUnitPriceRules.unitId,
               sellAmountCents: optionUnitPriceRules.sellAmountCents,
               pricingCategoryId: optionUnitPriceRules.pricingCategoryId,
+              pricingMode: optionUnitPriceRules.pricingMode,
             })
             .from(optionUnitPriceRules)
             .where(
@@ -541,6 +542,7 @@ export function registerProductBookingHandler(
                 unitId: up.unitId,
                 unitType: unit.unitType,
                 travelerCategory: band as "adult" | "child" | "infant" | "senior",
+                pricingMode: up.pricingMode,
                 sellAmountCents: up.sellAmountCents,
               },
             ]
@@ -550,6 +552,7 @@ export function registerProductBookingHandler(
               unitId: up.unitId,
               unitType: unit.unitType,
               travelerCategory: deriveTravelerCategory(unit),
+              pricingMode: up.pricingMode,
               sellAmountCents: up.sellAmountCents,
             },
           ]
