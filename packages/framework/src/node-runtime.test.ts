@@ -1,8 +1,13 @@
+import { eventOutboxJobRuntimePort } from "@voyant-travel/db/outbox-job"
 import type { LazyRedisClient } from "@voyant-travel/utils/redis-client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { VoyantDeploymentProviders } from "./deployment-types.js"
 import { createVoyantNodeEnv, loadVoyantNodeRuntime } from "./node-runtime.js"
-import { createVoyantGraphRuntime } from "./runtime-lowering.js"
+import {
+  createVoyantGraphRuntime,
+  type VoyantGraphRuntime,
+  type VoyantGraphRuntimeJobHandler,
+} from "./runtime-lowering.js"
 
 const redisOperations = vi.hoisted(
   () => [] as Array<{ op: string; key: string; redisUrl?: string; client?: string }>,
@@ -179,6 +184,53 @@ function emptyGraphRuntime(providers: VoyantDeploymentProviders) {
   })
 }
 
+const OUTBOX_JOB_ID = "infrastructure.event-outbox-drain"
+
+function outboxJobRuntime(
+  providers: VoyantDeploymentProviders,
+  handler: VoyantGraphRuntimeJobHandler,
+): VoyantGraphRuntime {
+  const unitId = "@voyant-travel/db"
+  return createVoyantGraphRuntime({
+    graphHash: "sha256:node-outbox-delivery",
+    entries: { "@voyant-travel/db/outbox-job": async () => ({ runJob: handler }) },
+    modules: [
+      {
+        id: unitId,
+        kind: "module",
+        packageName: unitId,
+        order: 0,
+        runtimePorts: [eventOutboxJobRuntimePort.id],
+        references: [
+          {
+            id: "event-outbox-job",
+            unitId,
+            facet: "jobs.runtime",
+            entityId: OUTBOX_JOB_ID,
+            runtime: { entry: "./outbox-job", export: "runJob" },
+            importEntry: "@voyant-travel/db/outbox-job",
+          },
+        ],
+        jobs: [
+          {
+            unitId,
+            declaration: {
+              id: OUTBOX_JOB_ID,
+              wakeup: true,
+              runtime: { entry: "./outbox-job", export: "runJob" },
+            },
+            referenceId: "event-outbox-job",
+          },
+        ],
+        selectedIds: { routes: [], tools: [], events: [], webhooks: [] },
+        routes: [],
+      },
+    ],
+    plugins: [],
+    providerSelections: { ...providers },
+  })
+}
+
 function authIntegration() {
   return {
     handler: () => ({
@@ -330,6 +382,57 @@ describe("createVoyantNodeEnv Redis namespace", () => {
 })
 
 describe("loadVoyantNodeRuntime Redis URL validation", () => {
+  it("delivers outbox events through the composed internal subscriber bus", async () => {
+    const originalDeliver = vi.fn(async () => ({ attempted: 0, failed: 0, errors: [] }))
+    const event = {
+      name: "person.changed",
+      data: { personId: "pers_1" },
+      metadata: { eventId: "evt_1" },
+      emittedAt: "2026-07-29T00:00:00.000Z",
+    }
+    let markJobFinished!: () => void
+    const jobFinished = new Promise<void>((resolve) => {
+      markJobFinished = resolve
+    })
+    const handler: VoyantGraphRuntimeJobHandler = async ({ getPort }) => {
+      try {
+        const outbox = await getPort(eventOutboxJobRuntimePort)
+        await outbox.deliver(event)
+      } finally {
+        markJobFinished()
+      }
+    }
+    const runtime = await loadVoyantNodeRuntime({
+      graphRuntime: outboxJobRuntime(BASE_PROVIDERS, handler),
+      jobs: [
+        {
+          id: OUTBOX_JOB_ID,
+          unitId: "@voyant-travel/db",
+          packageName: "@voyant-travel/db",
+          wakeup: true,
+        },
+      ],
+      deployment: { mode: "self-hosted", providers: BASE_PROVIDERS },
+      deploymentRequirements: { resources: [] },
+      runtimePorts: {
+        [eventOutboxJobRuntimePort.id]: {
+          withDb: vi.fn(),
+          deliver: originalDeliver,
+          warn: vi.fn(),
+        },
+      },
+    })
+    const subscriber = vi.fn(async () => undefined)
+    await runtime.app.ready(runtime.env)
+    runtime.app.eventBus.subscribe(event.name, subscriber)
+
+    await runtime.jobs.invoke(OUTBOX_JOB_ID, "wakeup")
+    await jobFinished
+
+    expect(subscriber).toHaveBeenCalledWith(event)
+    expect(originalDeliver).not.toHaveBeenCalled()
+  })
+
   it("routes the exact managed product-job inventory endpoint", async () => {
     const providers = {
       ...BASE_PROVIDERS,

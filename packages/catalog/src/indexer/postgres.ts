@@ -311,6 +311,9 @@ export function createPostgresIndexer(options: PostgresIndexerOptions): Postgres
       }
       lakebaseTextStorageVerified = true
     }
+    if (textStrategy !== "lakebase") {
+      await db.execute(sql`DROP INDEX IF EXISTS voyant_catalog_search_documents_bm25_idx`)
+    }
     if (vectorStrategy !== "none") {
       if (!vectorStorageVerified) {
         const requiredExtension = vectorStrategy === "lakebase" ? "lakebase_vector" : "vector"
@@ -330,6 +333,30 @@ export function createPostgresIndexer(options: PostgresIndexerOptions): Postgres
         ALTER TABLE voyant_catalog_search_documents
         ADD COLUMN IF NOT EXISTS search_embedding vector
       `)
+      if (vectorStrategy === "pgvector") {
+        // Lakebase ANN indexes pin the column to the embedding dimension that
+        // was active when the index was built. The pgvector exact-search path
+        // deliberately uses an unbounded vector column so model migrations can
+        // retain old derived rows while new dimensions are indexed under a new
+        // embedding_model_id.
+        await db.execute(sql`DROP INDEX IF EXISTS voyant_catalog_search_documents_ann_idx`)
+        const [column] = readRows(
+          await db.execute(sql`
+            SELECT format_type(attribute.atttypid, attribute.atttypmod) AS data_type
+            FROM pg_attribute AS attribute
+            WHERE attribute.attrelid = 'voyant_catalog_search_documents'::regclass
+              AND attribute.attname = 'search_embedding'
+              AND NOT attribute.attisdropped
+          `),
+        ) as Array<{ data_type?: string }>
+        if (column?.data_type !== "vector") {
+          await db.execute(sql`
+            ALTER TABLE voyant_catalog_search_documents
+            ALTER COLUMN search_embedding TYPE vector
+            USING search_embedding::vector
+          `)
+        }
+      }
       await db.execute(sql`
         CREATE INDEX IF NOT EXISTS voyant_catalog_search_documents_embedding_slice_idx
           ON voyant_catalog_search_documents (

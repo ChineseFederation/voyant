@@ -33,8 +33,9 @@ export interface DbClientOptions<TSchema extends Record<string, unknown> = Recor
   serverlessPool?: Omit<PoolConfig, "connectionString">
   /**
    * Query/connection timeouts (ms) applied per adapter. Defaults:
-   * `statementMs: 10_000`, `queryMs: 15_000`, `connectMs: 10_000` — queries
-   * now fail fast instead of pinning a Worker isolate for its full lifetime.
+   * `statementMs: 10_000`, `queryMs: 15_000`; `connectMs` defaults to `10_000`
+   * for the serverless Pool adapter and `45_000` for resident Node so a
+   * suspended database can wake. Queries still fail within bounded budgets.
    * Pass `false` per field to disable. The `edge` (neon-http) adapter does
    * not support client-side timeouts and ignores this option entirely —
    * http queries rely on the server-side default `statement_timeout` and

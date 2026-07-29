@@ -28,18 +28,26 @@ export interface DbTimeoutOptions {
    */
   queryMs?: number | false
   /**
-   * Connection-establishment timeout in ms. Default `10_000`.
+   * Connection-establishment timeout in ms. Defaults to `10_000` for the
+   * serverless Pool adapter and `45_000` for the resident Node adapter.
    * `false` disables it.
    */
   connectMs?: number | false
 }
 
-/** Default timeouts applied when no override is provided. */
+/** Default serverless Pool timeouts applied when no override is provided. */
 export const DEFAULT_DB_TIMEOUTS = {
   statementMs: 10_000,
   queryMs: 15_000,
   connectMs: 10_000,
 } as const
+
+/**
+ * Resident Node deployments may connect to databases that suspend while the
+ * application process remains warm. Give those databases enough time to wake
+ * without weakening the shorter serverless/Worker connection budget.
+ */
+export const DEFAULT_NODE_CONNECT_TIMEOUT_MS = 45_000
 
 /**
  * Close idle postgres-js sockets well before a typical serverless Postgres
@@ -116,7 +124,7 @@ export function resolveNodePostgresOptions(options?: {
   timeouts?: DbTimeoutOptions
 }): NodePostgresOptions {
   const statementMs = options?.timeouts?.statementMs ?? DEFAULT_DB_TIMEOUTS.statementMs
-  const connectMs = options?.timeouts?.connectMs ?? DEFAULT_DB_TIMEOUTS.connectMs
+  const connectMs = options?.timeouts?.connectMs ?? DEFAULT_NODE_CONNECT_TIMEOUT_MS
 
   const config: NodePostgresOptions = {}
   const idleSeconds =

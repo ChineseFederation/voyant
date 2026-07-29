@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   DEFAULT_DB_TIMEOUTS,
+  DEFAULT_NODE_CONNECT_TIMEOUT_MS,
   DEFAULT_NODE_IDLE_TIMEOUT_SECONDS,
   isNeonConnectionString,
   isPooledNeonConnectionString,
@@ -83,10 +84,11 @@ describe("resolveNodePostgresOptions", () => {
     const config = resolveNodePostgresOptions()
 
     expect(config).toEqual({
-      connect_timeout: 10,
+      connect_timeout: 45,
       idle_timeout: DEFAULT_NODE_IDLE_TIMEOUT_SECONDS,
       connection: { statement_timeout: 10_000 },
     })
+    expect(DEFAULT_NODE_CONNECT_TIMEOUT_MS).toBe(45_000)
   })
 
   it("converts connectMs to whole seconds, rounding up", () => {
