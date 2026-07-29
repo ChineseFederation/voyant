@@ -338,7 +338,7 @@ async function sendContract(
       throw new ToolError(
         "The approved contract content is no longer the reviewed content.",
         "INVALID_INPUT",
-        { contractId: contract.id, currentFingerprint },
+        { contractId: contract.id },
       )
     }
   }

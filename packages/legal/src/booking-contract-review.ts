@@ -324,13 +324,14 @@ export async function recordBookingContractDeliveryStatus(
       .for("update")
       .limit(1)
     if (!contract) return { status: "not_found" as const }
+    const metadata = record(contract.metadata)
+    const workflow = parseManagedBookingContractReviewWorkflow(metadata)
     const acceptsStatus =
       contract.status === "sent" ||
+      (contract.status === "void" && workflow !== null && contract.sentAt !== null) ||
       (input.status === "viewed" &&
         (contract.status === "signed" || contract.status === "executed"))
     if (!acceptsStatus) return { status: "not_sent" as const }
-    const metadata = record(contract.metadata)
-    const workflow = parseManagedBookingContractReviewWorkflow(metadata)
     if (!workflow) return { status: "not_managed" as const }
     const delivery = record(workflow.delivery)
     const history = Array.isArray(workflow.deliveryHistory) ? workflow.deliveryHistory : []

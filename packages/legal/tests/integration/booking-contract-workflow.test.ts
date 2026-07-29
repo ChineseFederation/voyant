@@ -411,6 +411,62 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     ).resolves.toEqual([expect.objectContaining({ active: true, currentVersionId: version.id })])
   })
 
+  it("freezes booking review data from one source read while booking items mutate concurrently", async () => {
+    const { booking, item, version } = await seedBookingTemplate("BK-SOURCE-SNAPSHOT")
+    let releaseSnapshot: () => void = () => undefined
+    const holdSnapshot = new Promise<void>((resolve) => {
+      releaseSnapshot = resolve
+    })
+    let sourceRead: () => void = () => undefined
+    const sourceWasRead = new Promise<void>((resolve) => {
+      sourceRead = resolve
+    })
+
+    const creating = createDraft(
+      "source-snapshot-create",
+      {
+        title: "Snapshot source agreement",
+        bookingId: booking.id,
+        templateVersionId: version.id,
+        variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+      },
+      contractsService.createContract,
+      {
+        async afterBookingReviewSourceRead() {
+          sourceRead()
+          await holdSnapshot
+        },
+      },
+    )
+    await sourceWasRead
+
+    await db
+      .update(bookingItems)
+      .set({
+        title: "Concurrent item",
+        productNameSnapshot: "Concurrent product",
+        totalSellAmountCents: 200_00,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookingItems.id, item.id))
+    releaseSnapshot()
+
+    const created = await creating
+    const review = await getBookingContractReview(db, created.value.id)
+    expect(review).toMatchObject({
+      booking: { id: booking.id, totalAmountCents: 100_00 },
+      products: [{ title: "Original tour", quantity: 2, amountCents: 100_00 }],
+    })
+    await expect(
+      db.select().from(bookingItems).where(eq(bookingItems.id, item.id)),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productNameSnapshot: "Concurrent product",
+        totalSellAmountCents: 200_00,
+      }),
+    ])
+  })
+
   it("serializes same-parent successor creation and rejects the second successor", async () => {
     const { booking, version } = await seedBookingTemplate("BK-RACE-1")
     const parent = await createDraft("parent-create", {
@@ -613,6 +669,7 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     createContract: Parameters<
       typeof executeLegalContractDraftCreate
     >[5] = contractsService.createContract,
+    testHooks?: Parameters<typeof executeLegalContractDraftCreate>[6],
   ) {
     return executeLegalContractDraftCreate(
       db,
@@ -640,6 +697,7 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
         }
       },
       createContract,
+      testHooks,
     )
   }
 })

@@ -352,6 +352,9 @@ type LegalCreatedCommandExecutor = (
   input: ExecuteAdmittedCreatedTargetCommandInput<string>,
   handlers: ExecuteCreatedTargetCommandHandlers<{ id: string }, string>,
 ) => Promise<ExecuteCreatedTargetCommandResult<{ id: string }, string>>
+type LegalContractDraftCreateTestHooks = {
+  afterBookingReviewSourceRead?: () => Promise<void> | void
+}
 
 export function resolveLegalContractDraftLanguage(
   requestedLanguage: string | undefined,
@@ -452,6 +455,7 @@ export async function executeLegalContractDraftCreate(
   admitted: ToolHandlerActionPolicyContext,
   executor: LegalCreatedCommandExecutor = executeAdmittedCreatedTargetCommand,
   createContract: typeof contractsService.createContract = contractsService.createContract,
+  testHooks?: LegalContractDraftCreateTestHooks,
 ) {
   const { idempotencyKey: legacyIdempotencyKey, ...commandInput } = input
   const policy = LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY
@@ -611,16 +615,20 @@ export async function executeLegalContractDraftCreate(
               "NOT_FOUND",
             )
           }
-          const [booking] = await transaction
-            .select()
+          const bookingRows = await transaction
+            .select({ booking: bookings, item: bookingItems })
             .from(bookings)
+            .leftJoin(bookingItems, eq(bookingItems.bookingId, bookings.id))
             .where(eq(bookings.id, bookingId))
-            .limit(1)
+            .for("share", { of: bookings })
+          const booking = bookingRows[0]?.booking ?? null
           if (!booking) {
             throw new ToolError(`Booking "${bookingId}" was not found.`, "NOT_FOUND", {
               bookingId,
             })
           }
+          const items = bookingRows.flatMap(({ item }) => (item ? [item] : []))
+          await testHooks?.afterBookingReviewSourceRead?.()
           language =
             requestedInput.language ?? previous?.language ?? resolveBookingContractLanguage(booking)
           const expectedChannelId = requestedInput.channelId ?? previous?.channelId ?? null
@@ -630,10 +638,6 @@ export async function executeLegalContractDraftCreate(
             template.currentVersionId === templateVersion.id &&
             template.language === language &&
             bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
-          const items = await transaction
-            .select()
-            .from(bookingItems)
-            .where(eq(bookingItems.bookingId, bookingId))
           const missingPrerequisites = bookingContractPrerequisites({
             templateApplicable,
             totalAmountCents: booking.sellAmountCents,
