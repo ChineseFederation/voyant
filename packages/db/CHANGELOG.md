@@ -1,5 +1,11 @@
 # @voyant-travel/db
 
+## 0.118.7
+
+### Patch Changes
+
+- 3389f33: Close idle postgres-js connections after 30 seconds by default so resident application processes do not prevent serverless Postgres computes from suspending. Applications that deliberately need permanent idle sockets can disable or override the timeout through `nodeIdleTimeoutSeconds`.
+
 ## 0.118.6
 
 ### Patch Changes
