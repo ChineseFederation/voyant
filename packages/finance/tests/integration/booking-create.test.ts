@@ -413,8 +413,10 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     productId: string
     optionId?: string | null
     capacity?: number
+    dateLocal?: string
   }) {
     const slotId = `avsl_bc_${productSeq}_${Date.now()}`
+    const dateLocal = input.dateLocal ?? "2026-07-01"
     const rows = await db.execute<{ id: string }>(sql`
       INSERT INTO availability_slots (
         id,
@@ -435,9 +437,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         ${slotId},
         ${input.productId},
         ${input.optionId ?? null},
-        '2026-07-01',
-        '2026-07-01T09:00:00.000Z',
-        '2026-07-01T11:00:00.000Z',
+        ${dateLocal},
+        ${`${dateLocal}T09:00:00.000Z`},
+        ${`${dateLocal}T11:00:00.000Z`},
         'Europe/Bucharest',
         'open',
         false,
@@ -460,6 +462,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     unitId: string
     unitAmountCents: number
     unitPricingMode?: "per_unit" | "per_person" | "per_booking"
+    baseSellAmountCents?: number | null
     currency?: string
     extra?: {
       productExtraId: string
@@ -467,6 +470,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       amountCents: number
       pricingMode: "included" | "per_person" | "per_booking" | "on_request" | "unavailable"
       pricedPerPerson?: boolean
+      active?: boolean
     }
   }) {
     const catalogId = `pcat_bc_${productSeq}`
@@ -480,10 +484,11 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     `)
     await db.execute(sql`
       INSERT INTO option_price_rules (
-        id, product_id, option_id, price_catalog_id, name, pricing_mode, is_default, active
+        id, product_id, option_id, price_catalog_id, name, pricing_mode,
+        base_sell_amount_cents, is_default, active
       ) VALUES (
         ${optionPriceRuleId}, ${input.productId}, ${input.optionId}, ${catalogId},
-        'Persisted booking rate', 'per_booking', true, true
+        'Persisted booking rate', 'per_booking', ${input.baseSellAmountCents ?? null}, true, true
       )
     `)
     await db.execute(sql`
@@ -522,7 +527,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         ) VALUES (
           ${`expr_bc_${productSeq}`}, ${optionPriceRuleId}, ${input.optionId},
           ${input.extra.productExtraId}, ${input.extra.optionExtraConfigId},
-          ${input.extra.pricingMode}, ${input.extra.amountCents}, true
+          ${input.extra.pricingMode}, ${input.extra.amountCents}, ${input.extra.active ?? true}
         )
       `)
     }
@@ -1978,6 +1983,39 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ unit: 4_000, total: 8_000 }])
   })
 
+  it("includes a persisted option rule base amount before adding selected unit totals", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      baseSellAmountCents: 7_000,
+      unitAmountCents: 12_000,
+      unitPricingMode: "per_unit",
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 2 }],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(31_000)
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 15_500, total: 31_000 }])
+  })
+
   it("uses selected extra quantity when the pricing mode is not per-booking", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     const productExtraId = `pex_bc_${productSeq}_quantity`
@@ -2028,6 +2066,111 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           ),
         ),
     ).resolves.toEqual([{ total: 3_000 }])
+  })
+
+  it.each([
+    { pricingMode: "per_person", quantity: 3 },
+    { pricingMode: "per_booking", quantity: 3 },
+  ] as const)("accepts an active $pricingMode extra with explicit zero sell amount", async ({
+    pricingMode,
+    quantity,
+  }) => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const productExtraId = `pex_bc_${productSeq}_${pricingMode}_zero`
+    const optionExtraConfigId = `oexc_bc_${productSeq}_${pricingMode}_zero`
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      extra: {
+        productExtraId,
+        optionExtraConfigId,
+        amountCents: 0,
+        pricingMode,
+      },
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      extraLines: [
+        {
+          productExtraId,
+          optionExtraConfigId,
+          name: "Zero amount extra",
+          quantity,
+          sellCurrency: "EUR",
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(10_000)
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(
+          and(
+            eq(bookingItems.bookingId, outcome.result.booking.id),
+            eq(bookingItems.itemType, "extra"),
+          ),
+        ),
+    ).resolves.toEqual([{ unit: 0, total: 0 }])
+  })
+
+  it("excludes an inactive zero-valued extra price rule", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    const productExtraId = `pex_bc_${productSeq}_inactive_zero`
+    const optionExtraConfigId = `oexc_bc_${productSeq}_inactive_zero`
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      extra: {
+        productExtraId,
+        optionExtraConfigId,
+        amountCents: 0,
+        pricingMode: "per_booking",
+        active: false,
+      },
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      extraLines: [
+        {
+          productExtraId,
+          optionExtraConfigId,
+          name: "Inactive zero extra",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
+      ],
+    })
+
+    expect(outcome).toEqual({
+      status: "invalid_pricing",
+      issues: [
+        {
+          path: ["extraLines"],
+          message: `Booking extra ${productExtraId} is not an active persisted catalog extra.`,
+        },
+      ],
+    })
   })
 
   it("rejects a persisted unavailable extra instead of pricing it as free", async () => {
@@ -2139,6 +2282,70 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     if (outcome.status !== "ok") return
     expect(outcome.result.booking.sellAmountCents).toBe(15_000)
     expect(outcome.result.booking.priceOverride).toBeNull()
+  })
+
+  it("matches canonical lowercase persisted schedule weekdays only on the intended date", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const wednesdaySlot = await seedSlot({ productId, optionId, dateLocal: "2026-07-01" })
+    const thursdaySlot = await seedSlot({ productId, optionId, dateLocal: "2026-07-02" })
+    const { catalogId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+    })
+    const scheduleId = `psch_bc_${productSeq}_wednesday`
+    const scheduledRuleId = `oprl_bc_${productSeq}_wednesday`
+    await db.execute(sql`
+      INSERT INTO price_schedules (
+        id, price_catalog_id, name, recurrence_rule, valid_from, valid_to,
+        weekdays, priority, active
+      ) VALUES (
+        ${scheduleId}, ${catalogId}, 'Wednesday special', 'FREQ=DAILY',
+        '2026-07-01', '2026-07-31', ${JSON.stringify(["wednesday"])}::jsonb, 20, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, price_schedule_id,
+        name, pricing_mode, is_default, active
+      ) VALUES (
+        ${scheduledRuleId}, ${productId}, ${optionId}, ${catalogId}, ${scheduleId},
+        'Wednesday', 'per_booking', false, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_wednesday`}, ${scheduledRuleId}, ${optionId}, ${unitId},
+        'per_unit', 15000, true
+      )
+    `)
+
+    const matching = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: wednesdaySlot.id,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+    })
+    const nonmatching = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: thursdaySlot.id,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      contactEmail: "thursday@example.com",
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+    })
+
+    expect(matching.status).toBe("ok")
+    expect(nonmatching.status).toBe("ok")
+    if (matching.status !== "ok" || nonmatching.status !== "ok") return
+    expect(matching.result.booking.sellAmountCents).toBe(15_000)
+    expect(nonmatching.result.booking.sellAmountCents).toBe(10_000)
   })
 
   it.each([

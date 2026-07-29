@@ -1196,7 +1196,13 @@ async function reconcileBookingCreatePricing(
   const chargedUnassignedTravelerBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
-  let appliedRuleBase = false
+  const ruleBaseTotal =
+    persistedPricing?.baseSellAmountCents == null
+      ? 0
+      : persistedPricing.pricingMode === "per_person"
+        ? persistedPricing.baseSellAmountCents * Math.max(1, booking.pax ?? 1)
+        : persistedPricing.baseSellAmountCents
+  let appliedRuleBase = ruleBaseTotal === 0
   for (const item of baseItems) {
     const unitRules =
       persistedPricing?.unitRules.filter((rule) => rule.unitId === item.optionUnitId) ?? []
@@ -1267,10 +1273,7 @@ async function reconcileBookingCreatePricing(
       continue
     }
     if (!appliedRuleBase && persistedPricing?.baseSellAmountCents != null) {
-      const total =
-        persistedPricing.pricingMode === "per_person"
-          ? persistedPricing.baseSellAmountCents * Math.max(1, booking.pax ?? 1)
-          : persistedPricing.baseSellAmountCents
+      const total = ruleBaseTotal
       pricedLines.set(item.id, {
         unit: Math.floor(total / quantity),
         total,
@@ -1280,6 +1283,17 @@ async function reconcileBookingCreatePricing(
       continue
     }
     unresolvedBaseItems += 1
+  }
+  if (!appliedRuleBase && baseItems.length > 0) {
+    const firstBaseItem = baseItems[0]!
+    const existing = pricedLines.get(firstBaseItem.id) ?? { unit: 0, total: 0 }
+    const quantity = Math.max(1, firstBaseItem.quantity)
+    const total = existing.total + ruleBaseTotal
+    pricedLines.set(firstBaseItem.id, {
+      unit: Math.floor(total / quantity),
+      total,
+    })
+    baseCatalogTotal += ruleBaseTotal
   }
 
   if (unresolvedBaseItems > 0) {
@@ -1335,7 +1349,10 @@ async function reconcileBookingCreatePricing(
     }
     const chargeQuantity = pricingMode === "per_booking" ? 1 : Math.max(1, item.quantity)
     const unitAmount = extra.sellAmountCents ?? 0
-    if (unitAmount === 0 && !["included", "free", "on_request"].includes(pricingMode)) {
+    if (
+      extra.sellAmountCents == null &&
+      !["included", "free", "on_request"].includes(pricingMode)
+    ) {
       return {
         booking,
         issues: [
@@ -1490,7 +1507,15 @@ const { rrulestr } =
     ? rrulePackageCompat
     : (rrulePackageCompat.default ?? rrulePackageCompat.rrule ?? rrulePackageCompat)
 
-const PRICE_WEEKDAY_CODES = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const
+const PRICE_WEEKDAY_NAMES = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const
 
 function persistedScheduleMatchesDate(rule: PersistedPriceRuleCandidate, isoDate: string) {
   if (!rule.priceScheduleId || rule.scheduleActive !== true || rule.recurrenceRule == null) {
@@ -1499,8 +1524,10 @@ function persistedScheduleMatchesDate(rule: PersistedPriceRuleCandidate, isoDate
   if (rule.validFrom && isoDate < rule.validFrom) return false
   if (rule.validTo && isoDate > rule.validTo) return false
   const date = new Date(`${isoDate}T00:00:00Z`)
-  const weekday = PRICE_WEEKDAY_CODES[date.getUTCDay()] ?? "MO"
-  if (rule.weekdays?.length && !rule.weekdays.includes(weekday)) return false
+  const weekday = PRICE_WEEKDAY_NAMES[date.getUTCDay()] ?? "monday"
+  if (rule.weekdays?.length && !rule.weekdays.map((day) => day.toLowerCase()).includes(weekday)) {
+    return false
+  }
 
   const recurrence = rule.recurrenceRule.trim()
   if (recurrence === "") return true
