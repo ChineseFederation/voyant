@@ -1826,7 +1826,7 @@ async function releaseAllocationCapacity(
   db: PostgresJsDatabase,
   allocation: Pick<
     typeof bookingAllocations.$inferSelect,
-    "availabilitySlotId" | "quantity" | "status" | "id"
+    "availabilitySlotId" | "bookingId" | "quantity" | "status" | "id"
   >,
   source: SlotChangeSource = "cancel",
 ): Promise<AvailabilitySlotChangedEventPayload | undefined> {
@@ -1845,6 +1845,22 @@ async function releaseAllocationCapacity(
     source,
     { allowTerminalCapacityRelease: source === "cancel" || source === "expire" },
   )
+  if (result.status === "slot_not_found") {
+    await db.insert(bookingActivityLog).values({
+      bookingId: allocation.bookingId,
+      actorId: "system",
+      activityType: "system_action",
+      description: "Allocation capacity release requires reconciliation: availability slot missing",
+      metadata: {
+        kind: "allocation_capacity_release_reconciliation",
+        allocationId: allocation.id,
+        availabilitySlotId: allocation.availabilitySlotId,
+        source,
+        problem: "slot_not_found",
+      },
+    })
+    return undefined
+  }
   if (result.status !== "ok") {
     throw new BookingServiceError(result.status)
   }

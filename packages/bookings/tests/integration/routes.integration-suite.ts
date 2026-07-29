@@ -21,6 +21,7 @@ import {
 import { bookingRoutes } from "../../src/routes.js"
 import { bookingTravelerTravelDetails } from "../../src/schema/travel-details.js"
 import {
+  bookingActivityLog,
   bookingAllocations,
   bookingDocuments,
   bookingFulfillments,
@@ -745,6 +746,60 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
   })
 
   describe("Booking Status", () => {
+    it("cancels after an allocation slot is deleted and records reconciliation evidence", async () => {
+      const slot = await seedSlot()
+      const booking = await seedBooking({ status: "confirmed" })
+      const [item] = await db
+        .insert(bookingItems)
+        .values({
+          bookingId: booking.id,
+          title: "Deleted-slot room",
+          itemType: "accommodation",
+          status: "confirmed",
+          quantity: 1,
+          sellCurrency: "USD",
+        })
+        .returning()
+      const [allocation] = await db
+        .insert(bookingAllocations)
+        .values({
+          bookingId: booking.id,
+          bookingItemId: item!.id,
+          availabilitySlotId: slot.id,
+          quantity: 1,
+          status: "confirmed",
+        })
+        .returning()
+
+      await db.delete(availabilitySlotsRef).where(eq(availabilitySlotsRef.id, slot.id))
+
+      const response = await app.request(`/${booking.id}/cancel`, {
+        method: "POST",
+        ...json({}),
+      })
+
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.status).toBe("cancelled")
+      await expect(
+        db
+          .select({
+            activityType: bookingActivityLog.activityType,
+            metadata: bookingActivityLog.metadata,
+          })
+          .from(bookingActivityLog)
+          .where(eq(bookingActivityLog.bookingId, booking.id)),
+      ).resolves.toContainEqual({
+        activityType: "system_action",
+        metadata: {
+          kind: "allocation_capacity_release_reconciliation",
+          allocationId: allocation!.id,
+          availabilitySlotId: slot.id,
+          source: "cancel",
+          problem: "slot_not_found",
+        },
+      })
+    })
+
     it("changes booking status", async () => {
       const booking = await seedBooking()
       const res = await app.request(`/${booking.id}/status`, {

@@ -2647,7 +2647,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ unit: 24_000, total: 24_000 }])
   })
 
-  it("prices the same unassigned traveler band on each category-priced item", async () => {
+  it("prices an unassigned traveler band once across repeated room items", async () => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const { optionPriceRuleId } = await seedPersistedPricing({
       productId,
@@ -2709,10 +2709,10 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(outcome.result.booking.sellAmountCents).toBe(48_000)
+    expect(outcome.result.booking.sellAmountCents).toBe(24_000)
     expect(outcome.result.invoice).toMatchObject({
-      subtotalCents: 48_000,
-      totalCents: 48_000,
+      subtotalCents: 24_000,
+      totalCents: 24_000,
     })
     await expect(
       db
@@ -2725,7 +2725,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .orderBy(asc(bookingItems.createdAt)),
     ).resolves.toEqual([
       { unit: 24_000, total: 24_000 },
-      { unit: 24_000, total: 24_000 },
+      { unit: 0, total: 0 },
     ])
   })
 

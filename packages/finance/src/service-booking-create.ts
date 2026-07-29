@@ -1193,6 +1193,7 @@ async function reconcileBookingCreatePricing(
     : null
 
   const pricedLines = new Map<string, { unit: number; total: number }>()
+  const chargedUnassignedRoomBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
   const ruleBaseTotal =
@@ -1219,6 +1220,18 @@ async function reconcileBookingCreatePricing(
         if (matchedBands.has(band)) continue
         const bandQuantity = bandAllocation.counts.get(band) ?? 0
         if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
+        if (
+          !bandAllocation.scopedToItem &&
+          rule.unitType === "room" &&
+          chargedUnassignedRoomBands.has(band)
+        ) {
+          // Public inventory quotes apply an unassigned traveler band once at
+          // booking level, regardless of how many room selections carry it.
+          // This repeated room line is valid, but already priced.
+          matchedCategoryPrice = true
+          matchedBands.add(band)
+          continue
+        }
         const departureAmount = item.optionUnitId
           ? persistedPricing?.departureOverrides.get(item.optionUnitId)
           : undefined
@@ -1234,6 +1247,9 @@ async function reconcileBookingCreatePricing(
         matchedCategoryPrice = true
         matchedBands.add(band)
         categoryTotal += (amount ?? 0) * chargeQuantity
+        if (!bandAllocation.scopedToItem && rule.unitType === "room") {
+          chargedUnassignedRoomBands.add(band)
+        }
       }
       if (!matchedCategoryPrice) {
         return {
@@ -1496,6 +1512,7 @@ async function reconcileBookingCreatePricing(
 type PersistedUnitPriceRule = {
   id: string
   unitId: string
+  unitType: string | null
   pricingMode: string
   pricingCategoryId: string | null
   travelerCategory: string | null
@@ -1671,6 +1688,7 @@ async function loadPersistedBookingCreatePricing(
       SELECT
         oupr.id,
         oupr.unit_id AS "unitId",
+        ou.unit_type AS "unitType",
         oupr.pricing_mode AS "pricingMode",
         oupr.pricing_category_id AS "pricingCategoryId",
         pc.category_type::text AS "travelerCategory",
@@ -1678,6 +1696,8 @@ async function loadPersistedBookingCreatePricing(
         oupr.min_quantity AS "minQuantity",
         oupr.max_quantity AS "maxQuantity"
       FROM option_unit_price_rules oupr
+      JOIN option_units ou
+        ON ou.id = oupr.unit_id
       LEFT JOIN pricing_categories pc
         ON pc.id = oupr.pricing_category_id
       WHERE oupr.option_price_rule_id = ${rule.id}
