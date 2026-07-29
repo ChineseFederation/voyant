@@ -49,18 +49,32 @@ function valueAtPath(value: unknown, path: string): unknown {
 
 export function bookingContractPrerequisites(input: {
   templateApplicable: boolean
-  customerEmail: string | null
   totalAmountCents: number | null
   itemCount: number
   missingRequiredVariables?: readonly string[]
 }): string[] {
   return [
     ...(input.templateApplicable ? [] : ["template.applicableCurrentVersion"]),
-    ...(input.customerEmail ? [] : ["customer.email"]),
     ...(input.totalAmountCents == null ? ["commercial.totalAmountCents"] : []),
     ...(input.itemCount > 0 ? [] : ["booking.items"]),
     ...(input.missingRequiredVariables ?? []),
   ].filter((value, index, values) => values.indexOf(value) === index)
+}
+
+export function resolveBookingContractLanguage(booking: {
+  communicationLanguage: string | null
+  contactPreferredLanguage: string | null
+}): string {
+  return booking.communicationLanguage ?? booking.contactPreferredLanguage ?? "en"
+}
+
+export function bookingContractTemplateMatchesChannel(
+  templateChannelId: string | null,
+  selectedChannelId: string | undefined | null,
+): boolean {
+  return selectedChannelId
+    ? templateChannelId == null || templateChannelId === selectedChannelId
+    : templateChannelId == null
 }
 
 export async function listApplicableBookingContractTemplates(
@@ -79,8 +93,7 @@ export async function listApplicableBookingContractTemplates(
     .where(eq(bookingItems.bookingId, booking.id))
   const primaryProduct = bookingProductRows[0]
 
-  const language =
-    input.language ?? booking.communicationLanguage ?? booking.contactPreferredLanguage ?? "en"
+  const language = input.language ?? resolveBookingContractLanguage(booking)
   const templates = await db
     .select()
     .from(contractTemplates)
@@ -118,9 +131,8 @@ export async function listApplicableBookingContractTemplates(
 
   const data = await Promise.all(
     templates
-      .filter(
-        (template) =>
-          !input.channelId || !template.channelId || template.channelId === input.channelId,
+      .filter((template) =>
+        bookingContractTemplateMatchesChannel(template.channelId, input.channelId),
       )
       .map(async (template) => {
         const version = template.currentVersionId
@@ -134,7 +146,6 @@ export async function listApplicableBookingContractTemplates(
         const required = requiredVariables(version?.variableSchema ?? template.variableSchema)
         const missing = bookingContractPrerequisites({
           templateApplicable: !!version,
-          customerEmail: booking.contactEmail,
           totalAmountCents: booking.sellAmountCents,
           itemCount: bookingProductRows.length,
           missingRequiredVariables: required.filter(

@@ -101,7 +101,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(results[0]).toMatchObject({
       transition: "send",
       contractId: contract.id,
-      commandPayload: commandInput,
+      commandPayload: normalizeInput("send", commandInput),
       result: first.value,
     })
     const eventId = legalContractLifecycleEventId(first.command)
@@ -138,8 +138,8 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Concurrent send")
     const command = await approvedCommand("send", "send-contract-concurrent", {
       contractId: contract.id,
-      recipient: "+40700000000",
-      channel: "sms",
+      recipient: "concurrent@example.com",
+      channel: "email",
       revision: 1,
       notificationsSuppressed: true,
       subject: null,

@@ -19,8 +19,10 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
   bookingContractPrerequisites,
+  bookingContractTemplateMatchesChannel,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
+  resolveBookingContractLanguage,
 } from "./booking-contract-review.js"
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
 import type { ContractDocumentRoutesOptions } from "./contract-document-routes.js"
@@ -34,7 +36,12 @@ import {
 import type { ContractLifecycleRuntimeOptions } from "./contracts/lifecycle.js"
 import { buildContractsRouteRuntime } from "./contracts/route-runtime.js"
 import { type ContractAttachment, type ContractTemplate, contracts } from "./contracts/schema.js"
-import { contractsService, validateTemplateVariables } from "./contracts/service.js"
+import {
+  allocateContractNumber,
+  contractsService,
+  mergeContractNumberIntoVariables,
+  validateTemplateVariables,
+} from "./contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY } from "./created-target-policy.js"
 import type { Policy, PolicyRule, PolicyVersion } from "./policies/schema.js"
 import { policiesService } from "./policies/service.js"
@@ -303,6 +310,37 @@ export function resolveLegalContractDraftExpiration(
   return previousExpiresAt ?? null
 }
 
+export async function resolveLegalContractDraftNumber(
+  db: PostgresJsDatabase,
+  input: {
+    bookingId: string | null
+    seriesId: string | null
+    previousSeriesId: string | null | undefined
+    previousContractNumber: string | null | undefined
+    variables: Record<string, unknown> | undefined
+  },
+  allocate: typeof allocateContractNumber = allocateContractNumber,
+): Promise<{
+  contractNumber: string | null
+  variables: Record<string, unknown> | undefined
+}> {
+  if (!input.bookingId || !input.seriesId) {
+    return { contractNumber: null, variables: input.variables }
+  }
+  const inheritedNumber =
+    input.previousSeriesId === input.seriesId ? (input.previousContractNumber ?? null) : null
+  const contractNumber = inheritedNumber ?? (await allocate(db, input.seriesId))?.number ?? null
+  if (!contractNumber) {
+    throw new ToolError(`Contract number series "${input.seriesId}" was not found.`, "NOT_FOUND", {
+      seriesId: input.seriesId,
+    })
+  }
+  return {
+    contractNumber,
+    variables: mergeContractNumberIntoVariables(input.variables ?? {}, contractNumber),
+  }
+}
+
 export function resolveLegalContractDraftMetadata(
   requestedMetadata: Record<string, unknown> | undefined,
   previousMetadata: Record<string, unknown> | null | undefined,
@@ -396,7 +434,7 @@ export async function executeLegalContractDraftCreate(
             ? (priorWorkflow as Record<string, unknown>).revision
             : null
         const revision = typeof priorRevision === "number" ? priorRevision + 1 : previous ? 2 : 1
-        const variables =
+        let variables =
           requestedInput.variables ??
           (previous?.variables as Record<string, unknown> | null) ??
           undefined
@@ -419,6 +457,10 @@ export async function executeLegalContractDraftCreate(
           )
         }
         const bookingId = requestedInput.bookingId ?? previous?.bookingId ?? null
+        let language = resolveLegalContractDraftLanguage(
+          requestedInput.language,
+          previous?.language,
+        )
         if (bookingId && templateVersion) {
           const [booking] = await transaction
             .select()
@@ -430,18 +472,19 @@ export async function executeLegalContractDraftCreate(
               bookingId,
             })
           }
+          language =
+            requestedInput.language ?? previous?.language ?? resolveBookingContractLanguage(booking)
           const template = await contractsService.getTemplateById(
             transaction,
             templateVersion.templateId,
           )
-          const expectedLanguage = requestedInput.language ?? previous?.language ?? "en"
           const expectedChannelId = requestedInput.channelId ?? previous?.channelId ?? null
           const templateApplicable =
             template?.active === true &&
             template.scope === "customer" &&
             template.currentVersionId === templateVersion.id &&
-            template.language === expectedLanguage &&
-            (!expectedChannelId || !template.channelId || template.channelId === expectedChannelId)
+            template.language === language &&
+            bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
           const itemCount = await transaction
             .select({ id: bookingItems.id })
             .from(bookingItems)
@@ -449,7 +492,6 @@ export async function executeLegalContractDraftCreate(
             .limit(1)
           const missingPrerequisites = bookingContractPrerequisites({
             templateApplicable,
-            customerEmail: booking.contactEmail,
             totalAmountCents: booking.sellAmountCents,
             itemCount: itemCount.length,
           })
@@ -461,6 +503,16 @@ export async function executeLegalContractDraftCreate(
             )
           }
         }
+        const seriesId = requestedInput.seriesId ?? previous?.seriesId ?? null
+        const numberedDraft = await resolveLegalContractDraftNumber(transaction, {
+          bookingId,
+          seriesId,
+          previousSeriesId: previous?.seriesId,
+          previousContractNumber: previous?.contractNumber,
+          variables,
+        })
+        const contractNumber = numberedDraft.contractNumber
+        variables = numberedDraft.variables
         const missingVariables = validateTemplateVariables(
           templateVersion?.variableSchema,
           variables ?? {},
@@ -484,14 +536,15 @@ export async function executeLegalContractDraftCreate(
         const row = await createContract(transaction, {
           ...requestedInput,
           status: "draft",
-          language: resolveLegalContractDraftLanguage(requestedInput.language, previous?.language),
+          language,
           bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
           personId: requestedInput.personId ?? previous?.personId ?? null,
           organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,
           supplierId: requestedInput.supplierId ?? previous?.supplierId ?? null,
           channelId: requestedInput.channelId ?? previous?.channelId ?? null,
           templateVersionId,
-          seriesId: requestedInput.seriesId ?? previous?.seriesId ?? null,
+          seriesId,
+          contractNumber,
           expiresAt: resolveLegalContractDraftExpiration(
             requestedInput.expiresAt,
             previous?.expiresAt,

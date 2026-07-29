@@ -10,6 +10,7 @@ import {
   resolveLegalContractDraftExpiration,
   resolveLegalContractDraftLanguage,
   resolveLegalContractDraftMetadata,
+  resolveLegalContractDraftNumber,
 } from "../../src/mcp-runtime.js"
 import { createLegalContractDraftTool } from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
@@ -33,6 +34,47 @@ describe("legal contract draft created-target command", () => {
         new Date("2026-12-31T23:59:59.000Z"),
       ),
     ).toBe("2027-01-31T23:59:59.000Z")
+  })
+
+  it("allocates managed booking numbers before review and reuses them for revisions", async () => {
+    let allocations = 0
+    const allocated = await resolveLegalContractDraftNumber(
+      {} as never,
+      {
+        bookingId: "book_1",
+        seriesId: "series_1",
+        previousSeriesId: null,
+        previousContractNumber: null,
+        variables: { booking: { reference: "BK-1" } },
+      },
+      async () => {
+        allocations += 1
+        return { number: "CTR-0042", sequence: 42 }
+      },
+    )
+    expect(allocated).toEqual({
+      contractNumber: "CTR-0042",
+      variables: {
+        booking: { reference: "BK-1" },
+        contract: { contractNumber: "CTR-0042", number: "CTR-0042" },
+      },
+    })
+    const revision = await resolveLegalContractDraftNumber(
+      {} as never,
+      {
+        bookingId: "book_1",
+        seriesId: "series_1",
+        previousSeriesId: "series_1",
+        previousContractNumber: "CTR-0042",
+        variables: allocated.variables,
+      },
+      async () => {
+        allocations += 1
+        return { number: "CTR-0043", sequence: 43 }
+      },
+    )
+    expect(revision.contractNumber).toBe("CTR-0042")
+    expect(allocations).toBe(1)
   })
 
   it("marks only booking drafts as managed booking revisions", () => {
