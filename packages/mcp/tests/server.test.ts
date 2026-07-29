@@ -1186,6 +1186,124 @@ describe("createMcpApiRoutes", () => {
     expect(called.result).toMatchObject({ structuredContent: { text: "echo: graph" } })
   })
 
+  it("propagates authenticated granted scopes into selected graph Tool contexts", async () => {
+    const reviewAccessCatalog = {
+      resources: [
+        ...accessCatalog.resources,
+        {
+          id: "legal",
+          unitId: "@voyant-travel/legal",
+          resource: "legal",
+          label: "Legal",
+          description: "Legal",
+          wildcard: "allow" as const,
+          actions: [{ action: "read", label: "Read", description: "Read legal records" }],
+        },
+        {
+          id: "bookings-pii",
+          unitId: "@voyant-travel/bookings",
+          resource: "bookings-pii",
+          label: "Booking PII",
+          description: "Booking PII",
+          wildcard: "allow" as const,
+          actions: [{ action: "read", label: "Read", description: "Read booking PII" }],
+        },
+      ],
+      presets: [],
+    }
+    const reviewTool = defineTool({
+      capabilityId: "@voyant-travel/legal#tool.get-booking-contract-review",
+      owner: "@voyant-travel/legal",
+      capabilityVersion: "v1",
+      name: "get_booking_contract_review",
+      description: "Read a booking contract review.",
+      inputSchema: z.object({ contractId: z.string() }),
+      outputSchema: z.object({ scopes: z.array(z.string()) }),
+      requiredScopes: ["legal:read", "bookings-pii:read"],
+      audience: { source: "grant", allowed: ["staff"] },
+      tier: "read",
+      riskPolicy: READ_ONLY_RISK,
+      async handler(_input, ctx) {
+        return { scopes: [...(ctx.scopes ?? [])] }
+      },
+    })
+    const runtimeTool = {
+      id: "@voyant-travel/legal#tool.get-booking-contract-review",
+      unitId: "@voyant-travel/legal",
+      name: "get_booking_contract_review",
+      requiredScopes: ["legal:read", "bookings-pii:read"],
+      risk: "low" as const,
+      referenceId: "legal-tools",
+      async load<T>() {
+        return reviewTool as T
+      },
+    }
+    const module = await createMcpVoyantRuntime({
+      graph: frameworkRuntime({
+        accessCatalog: reviewAccessCatalog,
+        tools: [runtimeTool],
+        references: [
+          {
+            id: "legal-tools",
+            importEntry: "@voyant-travel/legal/tools",
+            async loadModule<T extends Record<string, unknown>>() {
+              return {} as T
+            },
+          },
+        ],
+      }),
+      runtimePorts: {},
+    } as never)
+    const routes = await module.lazyAdminRoutes?.()
+    if (!routes) throw new Error("MCP selected runtime did not expose admin routes")
+
+    function app(scopes: string[]) {
+      const outer = new Hono()
+      outer.use("*", async (c, next) => {
+        c.set("scopes", scopes)
+        c.set("actor", "staff")
+        c.set("audience", "staff")
+        await next()
+      })
+      outer.route("/", routes)
+      return outer
+    }
+
+    const allowed = app(["legal:read", "bookings-pii:read"])
+    const called = await readRpc(
+      await allowed.request(
+        "/",
+        rpc("tools/call", {
+          name: "get_booking_contract_review",
+          arguments: { contractId: "contract_1" },
+        }),
+      ),
+    )
+    expect(called.result).toMatchObject({
+      structuredContent: { scopes: ["legal:read", "bookings-pii:read"] },
+    })
+
+    const denied = app(["legal:read"])
+    const listed = await readRpc(await denied.request("/", rpc("tools/list", {})))
+    expect(
+      (listed.result as { tools?: Array<{ name: string }> } | undefined)?.tools?.map(
+        ({ name }) => name,
+      ) ?? [],
+    ).not.toContain("get_booking_contract_review")
+    const deniedCall = await readRpc(
+      await denied.request(
+        "/",
+        rpc("tools/call", {
+          name: "get_booking_contract_review",
+          arguments: { contractId: "contract_1" },
+        }),
+      ),
+    )
+    expect(
+      deniedCall.error ?? (deniedCall.result as { isError?: boolean } | undefined)?.isError,
+    ).toBeTruthy()
+  })
+
   it.each([
     ["missing actor and audience", {}],
     ["missing audience", { actor: "staff" }],

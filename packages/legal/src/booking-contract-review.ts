@@ -5,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { legalContractDetail } from "./contract-dto.js"
 import { contracts, contractTemplates, contractTemplateVersions } from "./contracts/schema.js"
+import { resolveTemplateVariablePath } from "./contracts/service-shared.js"
 import {
   type ManagedBookingContractReviewSnapshot,
   parseManagedBookingContractReviewWorkflow,
@@ -61,10 +62,6 @@ function requiredVariables(schema: unknown): string[] {
     : []
 }
 
-function valueAtPath(value: unknown, path: string): unknown {
-  return path.split(".").reduce<unknown>((current, segment) => record(current)[segment], value)
-}
-
 export function bookingContractPrerequisites(input: {
   templateApplicable: boolean
   totalAmountCents: number | null
@@ -77,6 +74,16 @@ export function bookingContractPrerequisites(input: {
     ...(input.itemCount > 0 ? [] : ["booking.items"]),
     ...(input.missingRequiredVariables ?? []),
   ].filter((value, index, values) => values.indexOf(value) === index)
+}
+
+export function missingBookingContractRequiredVariables(
+  variables: unknown,
+  required: readonly string[],
+): string[] {
+  return required.filter((path) => {
+    const resolved = resolveTemplateVariablePath(variables, path)
+    return resolved === undefined || resolved === null || resolved === ""
+  })
 }
 
 export function resolveBookingContractLanguage(booking: {
@@ -215,8 +222,9 @@ export async function listApplicableBookingContractTemplates(
           templateApplicable: !!version,
           totalAmountCents: booking.sellAmountCents,
           itemCount: bookingProductRows.length,
-          missingRequiredVariables: required.filter(
-            (path) => valueAtPath(bookingVariables, path) == null,
+          missingRequiredVariables: missingBookingContractRequiredVariables(
+            bookingVariables,
+            required,
           ),
         })
         return {

@@ -4,6 +4,7 @@ import {
   bookingContractPrerequisites,
   bookingContractTemplateMatchesChannel,
   getBookingContractReview,
+  missingBookingContractRequiredVariables,
   resolveBookingContractLanguage,
 } from "../../src/booking-contract-review.js"
 
@@ -140,6 +141,37 @@ describe("booking contract prerequisites", () => {
         contactPhone: "+40700000000",
       }),
     ).toEqual({ name: "Ana Pop", email: null, phone: "+40700000000" })
+  })
+
+  it("uses shared template traversal for array and numeric required paths", () => {
+    const variables = {
+      booking: {
+        items: [
+          { title: "Original tour", quantity: 2 },
+          { title: "", quantity: 1 },
+        ],
+      },
+    }
+
+    expect(
+      missingBookingContractRequiredVariables(variables, [
+        "booking.items[0].title",
+        "booking.items.0.quantity",
+      ]),
+    ).toEqual([])
+    expect(
+      missingBookingContractRequiredVariables(variables, [
+        "booking.items[1].title",
+        "booking.items[2].title",
+        "booking.items[99].title",
+        "booking.items.title",
+      ]),
+    ).toEqual([
+      "booking.items[1].title",
+      "booking.items[2].title",
+      "booking.items[99].title",
+      "booking.items.title",
+    ])
   })
 })
 

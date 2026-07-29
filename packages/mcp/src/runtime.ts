@@ -39,6 +39,7 @@ function buildMcpBaseContext(c: Context): ToolContext {
     audience?: unknown
     db?: unknown
     organizationId?: unknown
+    scopes?: unknown
   }
   const env = (c.env ?? {}) as Record<string, unknown>
   const actor = requireVisibility(request.actor, "actor")
@@ -50,6 +51,7 @@ function buildMcpBaseContext(c: Context): ToolContext {
     audience,
     tenantId: stringValue(env.TENANT_ID) ?? "default",
     ...(organizationId ? { organizationId } : {}),
+    scopes: authenticatedGrantedScopes(request.scopes),
     resolverScope: {
       locale: stringValue(env.DEFAULT_LOCALE) ?? "en-GB",
       audience,
@@ -72,4 +74,9 @@ function requireVisibility(value: unknown, claim: "actor" | "audience"): Visibil
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined
+}
+
+function authenticatedGrantedScopes(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return []
+  return Object.freeze(value.filter((scope): scope is string => stringValue(scope) !== undefined))
 }
