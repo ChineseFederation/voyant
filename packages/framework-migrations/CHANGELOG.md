@@ -1,5 +1,11 @@
 # @voyant-travel/framework-migrations
 
+## 0.10.8
+
+### Patch Changes
+
+- abff5e0: Allow a deployment to verify and adopt selected materialized table DDL while executing the remainder of the migration atomically under its original content hash.
+
 ## 0.10.7
 
 ### Patch Changes
