@@ -7,6 +7,7 @@ import {
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
 import { authUser } from "@voyant-travel/db/schema/iam"
@@ -3005,6 +3006,9 @@ const bookingsServiceInternal = {
       data.baseCostAmountCents !== undefined
 
     return db.transaction(async (tx) => {
+      if (data.status === "cancelled") {
+        await lockBookingFinanceInsertionFence(tx, id)
+      }
       const rows = await tx.execute(
         sql`SELECT status, accepted_at, custom_fields
             FROM ${bookings}
@@ -3671,6 +3675,9 @@ const bookingsServiceInternal = {
     const slotChanges: AvailabilitySlotChangedEventPayload[] = []
     try {
       const result = await db.transaction(async (tx) => {
+        // Cancellation and Finance writers share an advisory-first, booking-row-second
+        // lock order. This central placement covers admin, Tool, and service callers.
+        await lockBookingFinanceInsertionFence(tx, id)
         const rows = await tx.execute(
           sql`SELECT id, status, booking_number, notifications_suppressed
               FROM ${bookings}
@@ -4052,6 +4059,9 @@ const bookingsServiceInternal = {
     const slotChanges: AvailabilitySlotChangedEventPayload[] = []
     try {
       const result = await db.transaction(async (tx) => {
+        if (data.status === "cancelled") {
+          await lockBookingFinanceInsertionFence(tx, id)
+        }
         const rows = await tx.execute(
           sql`SELECT id, booking_number, status, accepted_at
               FROM ${bookings}

@@ -1,3 +1,4 @@
+import { PgDialect } from "drizzle-orm/pg-core"
 import { describe, expect, it, vi } from "vitest"
 import {
   buildRefundBookingSaga,
@@ -20,6 +21,7 @@ interface FakeBooking {
 }
 
 function fakeDb(seedBooking: FakeBooking) {
+  const dialect = new PgDialect()
   const state = {
     booking: { ...seedBooking },
     activityLog: [] as Array<Record<string, unknown>>,
@@ -30,6 +32,7 @@ function fakeDb(seedBooking: FakeBooking) {
       quantity: number
       availabilitySlotId: string | null
     }>,
+    executedSql: [] as string[],
   }
 
   // Drizzle's query builder is thenable + chainable. The fake returns
@@ -80,8 +83,15 @@ function fakeDb(seedBooking: FakeBooking) {
     },
   })
 
+  const execute = async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+    const statement = dialect.sqlToQuery(query).sql
+    state.executedSql.push(statement)
+    return statement.includes('FROM "bookings"') ? [{ status: state.booking.status }] : []
+  }
+
   // biome-ignore lint/suspicious/noExplicitAny: structural fake for tests -- owner: bookings; existing suppression is intentional pending typed cleanup.
-  const transaction = async (fn: (tx: any) => Promise<unknown>) => fn({ select, update, insert })
+  const transaction = async (fn: (tx: any) => Promise<unknown>) =>
+    fn({ select, update, insert, execute })
 
   return {
     state,
@@ -166,6 +176,9 @@ describe("refund-booking saga", () => {
 
     expect(state.booking.status).toBe("cancelled")
     expect(state.activityLog).toHaveLength(1)
+    expect(state.executedSql[0]).toContain("pg_advisory_xact_lock")
+    expect(state.executedSql[1]).toContain('FROM "bookings"')
+    expect(state.executedSql[1]).toContain("FOR UPDATE")
     expect(result.results["create-credit-note"]).toEqual({
       creditNoteId: expect.stringMatching(/^cn_/),
       amountCents: 12000,

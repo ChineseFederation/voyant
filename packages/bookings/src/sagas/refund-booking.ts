@@ -1,4 +1,5 @@
 import { createSaga, type EventBus, sagaStep } from "@voyant-travel/core"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -241,8 +242,23 @@ export function buildRefundBookingSaga(deps: RefundBookingDeps) {
     sagaStep<RefundBookingInput, { status: BookingStatus }>("transition-booking").run(
       async (input, ctx) => {
         const validate = ctx.results["validate-state"] as ValidateOutput
-        const patch = transitionBooking(validate.previousStatus, "cancelled")
         await deps.db.transaction(async (tx) => {
+          await lockBookingFinanceInsertionFence(tx, input.bookingId)
+          const lockedRows = await tx.execute(
+            sql`SELECT status::text AS status
+                FROM ${bookings}
+                WHERE ${bookings.id} = ${input.bookingId}
+                FOR UPDATE`,
+          )
+          const rows = Array.isArray(lockedRows)
+            ? lockedRows
+            : ((lockedRows as { rows?: unknown[] }).rows ?? [])
+          const previousStatus = (rows[0] as { status?: BookingStatus } | undefined)?.status
+          if (!previousStatus) {
+            throw new Error(`refund-booking: booking ${input.bookingId} not found`)
+          }
+          const patch = transitionBooking(previousStatus, "cancelled")
+
           await tx
             .update(bookings)
             .set({ ...patch, updatedAt: new Date() })
@@ -251,9 +267,9 @@ export function buildRefundBookingSaga(deps: RefundBookingDeps) {
             bookingId: input.bookingId,
             actorId: input.userId ?? "system",
             activityType: "status_change",
-            description: `Refunded from ${validate.previousStatus}: ${input.reason}`,
+            description: `Refunded from ${previousStatus}: ${input.reason}`,
             metadata: {
-              oldStatus: validate.previousStatus,
+              oldStatus: previousStatus,
               newStatus: "cancelled",
               refundAmountCents: validate.refundAmount,
               reason: input.reason,

@@ -186,6 +186,11 @@ function makeDb(options: {
     })),
   }
 
+  Object.assign(tx, {
+    select: db.select,
+    transaction: vi.fn(async (callback: (writer: typeof tx) => Promise<unknown>) => callback(tx)),
+  })
+
   return {
     db: db as never,
     tx,
@@ -202,6 +207,7 @@ function expectOnlyBookingFinanceFence(execute: ReturnType<typeof vi.fn>) {
   expect(statements).toHaveLength(2)
   expect(statements[0]).toContain("pg_advisory_xact_lock")
   expect(statements[1]).toContain("FROM bookings")
+  expect(statements[1]).toContain("FOR UPDATE")
 }
 
 describe("financeService.createInvoiceFromBooking number allocation", () => {

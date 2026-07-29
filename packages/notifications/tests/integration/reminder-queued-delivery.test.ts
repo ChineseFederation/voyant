@@ -299,6 +299,85 @@ describe.skipIf(!DB_AVAILABLE)("Queued reminder delivery", () => {
     expect(recordedSends).toHaveLength(0)
   })
 
+  it("skips queued invoice reminders when booking notifications were suppressed after queueing", async () => {
+    const templateRes = await ctx.request("/templates", {
+      method: "POST",
+      ...json({
+        slug: "queued-invoice-suppressed-template",
+        name: "Queued invoice suppressed template",
+        channel: "email",
+        provider: "local",
+        status: "active",
+        subjectTemplate: "Invoice due",
+        textTemplate: "Invoice due",
+      }),
+    })
+    const { data: template } = await templateRes.json()
+    const ruleRes = await ctx.request("/reminder-rules", {
+      method: "POST",
+      ...json({
+        slug: "queued-invoice-suppressed-rule",
+        name: "Queued invoice suppressed rule",
+        status: "active",
+        targetType: "invoice",
+        channel: "email",
+        provider: "local",
+        templateId: template.id,
+      }),
+    })
+    const { data: rule } = await ruleRes.json()
+
+    await ctx.db.execute(sql`
+      INSERT INTO bookings (
+        id, booking_number, status, sell_currency, notifications_suppressed
+      ) VALUES (
+        'book_queued_invoice_suppressed_1', 'BK-Q-INV-SUP-1', 'confirmed', 'EUR', false
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO invoices (
+        id, invoice_number, invoice_type, booking_id, status, currency,
+        issue_date, due_date
+      ) VALUES (
+        'invc_queued_invoice_suppressed_1', 'INV-Q-SUP-1', 'invoice',
+        'book_queued_invoice_suppressed_1', 'issued', 'EUR',
+        DATE '2026-04-01', DATE '2026-04-12'
+      )
+    `)
+    await ctx.db.execute(sql`
+      INSERT INTO notification_reminder_runs (
+        id, reminder_rule_id, target_type, target_id, dedupe_key, booking_id,
+        status, recipient, scheduled_for
+      ) VALUES (
+        'nrr_queued_invoice_suppressed_1', ${rule.id}, 'invoice',
+        'invc_queued_invoice_suppressed_1', 'queued-invoice-suppressed-dedupe',
+        'book_queued_invoice_suppressed_1', 'queued', 'iris@example.com',
+        TIMESTAMPTZ '2026-04-09T09:00:00.000Z'
+      )
+    `)
+    await ctx.db.execute(sql`
+      UPDATE bookings
+      SET notifications_suppressed = true
+      WHERE id = 'book_queued_invoice_suppressed_1'
+    `)
+
+    const { deliverReminderRun } = await import("../../src/service-reminders.js")
+    const { createNotificationService } = await import("../../src/service.js")
+    const recordedSends: Array<Record<string, unknown>> = []
+    const localDispatcher = createNotificationService([
+      createTestDurableProvider({
+        sink: (payload) => recordedSends.push(payload as Record<string, unknown>),
+      }),
+    ])
+
+    const delivered = await deliverReminderRun(ctx.db as never, localDispatcher, {
+      reminderRunId: "nrr_queued_invoice_suppressed_1",
+    })
+    expect(delivered?.status).toBe("skipped")
+    expect(delivered?.errorMessage).toBe("Booking notifications are suppressed")
+    expect(recordedSends).toHaveLength(0)
+  })
+
   it("does not requeue failed one-shot reminder runs on later sweeps", async () => {
     const tmplRes = await ctx.request("/templates", {
       method: "POST",

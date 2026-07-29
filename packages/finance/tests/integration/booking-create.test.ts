@@ -11,6 +11,7 @@ import {
   bookings,
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { eventOutboxTable } from "@voyant-travel/db/schema"
 import {
   createToolRegistry,
@@ -35,6 +36,7 @@ import {
   financeBookingCreatedEventId,
 } from "../../src/booking-create-command.js"
 import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../../src/booking-create-policy.js"
+import { financeBookingLifecycle } from "../../src/booking-lifecycle.js"
 import {
   bookingItemTaxLines,
   bookingPaymentSchedules,
@@ -1434,6 +1436,80 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       }),
     )
     expect(concurrentInvoiceInsertionCompleted).toBe(true)
+  })
+
+  it("uses one deadlock-free lock order when a Finance writer enters before direct cancellation", async () => {
+    const { productId } = await seedProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "confirmed",
+      ...bookingParty(),
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    let releaseWriter = () => {}
+    const writerMayCommit = new Promise<void>((resolve) => {
+      releaseWriter = resolve
+    })
+    let writerLocked = () => {}
+    const writerHasLocks = new Promise<void>((resolve) => {
+      writerLocked = resolve
+    })
+    const insertion = withBookingFinanceInsertionFence(
+      db,
+      outcome.result.booking.id,
+      async (tx) => {
+        writerLocked()
+        await writerMayCommit
+        const [schedule] = await tx
+          .insert(bookingPaymentSchedules)
+          .values({
+            bookingId: outcome.result.booking.id,
+            scheduleType: "installment",
+            status: "pending",
+            dueDate: "2026-09-15",
+            currency: "EUR",
+            amountCents: 1_000,
+          })
+          .returning()
+        return schedule
+      },
+    )
+
+    await writerHasLocks
+    let cancellationCompleted = false
+    const cancellation = bookingsService
+      .cancelBooking(
+        db,
+        outcome.result.booking.id,
+        { note: "Direct cancellation after concurrent Finance writer" },
+        "user_direct_cancel_lock_order",
+        financeBookingLifecycle,
+      )
+      .finally(() => {
+        cancellationCompleted = true
+      })
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(cancellationCompleted).toBe(false)
+    } finally {
+      releaseWriter()
+    }
+
+    await expect(insertion).resolves.toMatchObject({ status: "pending" })
+    await expect(cancellation).resolves.toMatchObject({
+      status: "ok",
+      booking: expect.objectContaining({ status: "cancelled" }),
+    })
+    await expect(
+      db
+        .select({ status: bookingPaymentSchedules.status })
+        .from(bookingPaymentSchedules)
+        .where(eq(bookingPaymentSchedules.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ status: "cancelled" }])
   })
 
   it("requests an invoice rendition only when invoice document generation is enabled", async () => {

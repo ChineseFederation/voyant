@@ -418,10 +418,14 @@ export const financeInvoiceFromBookingService = {
       )
     }
 
-    const numberAssignment = await resolveInvoiceNumberForBooking(db, data)
+    let attemptedInvoiceNumber = data.invoiceNumber ?? null
 
     try {
       return await withBookingFinanceInsertionFence(db, booking.id, async (tx) => {
+        // Local series allocation must share the fenced insert transaction so
+        // a rejected/failed invoice rolls the sequence advance back as well.
+        const numberAssignment = await resolveInvoiceNumberForBooking(tx, data)
+        attemptedInvoiceNumber = numberAssignment.invoiceNumber
         const [invoice] = await tx
           .insert(invoices)
           .values({
@@ -493,7 +497,7 @@ export const financeInvoiceFromBookingService = {
       })
     } catch (error) {
       if (isInvoiceNumberUniqueConstraintError(error)) {
-        throw new InvoiceNumberConflictError(numberAssignment.invoiceNumber)
+        throw new InvoiceNumberConflictError(attemptedInvoiceNumber ?? "unknown")
       }
       throw error
     }

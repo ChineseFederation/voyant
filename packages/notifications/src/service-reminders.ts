@@ -1,4 +1,5 @@
-import { bookingPaymentSchedules } from "@voyant-travel/finance/schema"
+import { bookings } from "@voyant-travel/bookings/schema"
+import { bookingPaymentSchedules, invoices } from "@voyant-travel/finance/schema"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -140,6 +141,15 @@ async function sendQueuedInvoiceReminder(
 ) {
   if (!run.recipient) {
     return markReminderRunSkipped(db, run.id, now, "No recipient available for invoice reminder")
+  }
+  const [invoiceBooking] = await db
+    .select({ notificationsSuppressed: bookings.notificationsSuppressed })
+    .from(invoices)
+    .innerJoin(bookings, eq(bookings.id, invoices.bookingId))
+    .where(eq(invoices.id, run.targetId))
+    .limit(1)
+  if (invoiceBooking?.notificationsSuppressed) {
+    return markReminderRunSkipped(db, run.id, now, "Booking notifications are suppressed")
   }
   const delivery = await sendInvoiceReminderNotification(db, dispatcher, run.targetId, {
     idempotencyKey: `reminder:${run.dedupeKey}`,

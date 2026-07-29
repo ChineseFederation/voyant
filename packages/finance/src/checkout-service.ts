@@ -272,14 +272,14 @@ async function createCollectionInvoice(
   const issueDate = new Date().toISOString().slice(0, 10)
   const dueDate = plan.selectedSchedule?.dueDate ?? issueDate
   const documentType = plan.documentType ?? "invoice"
-  const invoiceNumber = await allocateDocumentNumber(
-    db,
-    context.booking.bookingNumber,
-    documentType,
-    amountCents,
-  )
 
   return withBookingFinanceInsertionFence(db, context.booking.id, async (tx) => {
+    const invoiceNumber = await allocateDocumentNumber(
+      tx,
+      context.booking.bookingNumber,
+      documentType,
+      amountCents,
+    )
     const [invoice] = await tx
       .insert(invoices)
       .values({

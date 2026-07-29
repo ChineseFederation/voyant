@@ -389,6 +389,13 @@ export async function lockBookingStatusConsequenceState(
   bookingId: string,
   action: BookingStatusToolAction,
 ) {
+  // Finance writers use advisory fence -> booking row. Cancellation preview
+  // locking must use the same order, and cancelBooking will re-enter this
+  // transaction-scoped advisory lock when it performs the mutation.
+  if (action === "cancel") {
+    await lockBookingFinanceInsertionFence(db, bookingId)
+  }
+
   // Lock the parent first. Booking-owned consequence rows have a booking FK,
   // so this also prevents new allocations from appearing during revalidation.
   await db.execute(sql`
@@ -409,7 +416,6 @@ export async function lockBookingStatusConsequenceState(
   // Finance is optional and its booking references are deliberately loose.
   // Lock every installed row for this booking, not just the currently visible
   // paid/pending subset, so status and amount changes cannot cross the preview.
-  await lockBookingFinanceInsertionFence(db, bookingId)
   const financeTables = await loadFinanceConsequenceTables(db)
   if (financeTables?.invoicesTable) {
     await db.execute(sql`

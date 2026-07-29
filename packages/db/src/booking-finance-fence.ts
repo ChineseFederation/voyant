@@ -30,6 +30,9 @@ export async function withBookingFinanceInsertionFence<T>(
   write: (tx: PostgresJsDatabase) => Promise<T>,
 ) {
   return db.transaction(async (tx) => {
+    // All Finance writers and booking cancellations take the advisory lock
+    // before the booking row lock. Keeping one order avoids deadlocks while
+    // the row lock prevents the booking status from changing through commit.
     await lockBookingFinanceInsertionFence(tx, bookingId)
     await assertBookingFinanceInsertionAllowed(tx, bookingId)
     return write(tx as PostgresJsDatabase)
@@ -44,6 +47,7 @@ export async function assertBookingFinanceInsertionAllowed(
     SELECT status::text AS status
     FROM bookings
     WHERE id = ${bookingId}
+    FOR UPDATE
   `)
   const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? [])
   const status = (rows[0] as { status?: string } | undefined)?.status

@@ -1,7 +1,13 @@
+import { bookings } from "@voyant-travel/bookings/schema"
 import { eq } from "drizzle-orm"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 
-import { invoiceExternalRefs, invoiceLineItems } from "../../src/schema.js"
+import {
+  invoiceExternalRefs,
+  invoiceLineItems,
+  invoiceNumberSeries,
+  invoices,
+} from "../../src/schema.js"
 import { financeService, type InvoiceFromBookingData } from "../../src/service.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -111,5 +117,54 @@ describe.skipIf(!DB_AVAILABLE)("createInvoiceFromBooking", () => {
       externalNumber: "42",
       status: "issued",
     })
+  })
+
+  it("rolls local number allocation back when the fenced invoice insert fails", async () => {
+    await db.insert(bookings).values({
+      id: bookingData.booking.id,
+      bookingNumber: bookingData.booking.bookingNumber,
+      status: "confirmed",
+      sellCurrency: bookingData.booking.sellCurrency,
+    })
+    const [series] = await db
+      .insert(invoiceNumberSeries)
+      .values({
+        code: next("series"),
+        name: "Rollback series",
+        prefix: "INV",
+        separator: "-",
+        padLength: 4,
+        currentSequence: 7,
+        scope: "invoice",
+        isDefault: true,
+        active: true,
+      })
+      .returning()
+    await db.insert(invoices).values({
+      invoiceNumber: "INV-0008",
+      invoiceType: "invoice",
+      bookingId: bookingData.booking.id,
+      currency: "RON",
+      issueDate: "2026-05-25",
+      dueDate: "2026-06-25",
+    })
+
+    await expect(
+      financeService.createInvoiceFromBooking(
+        db,
+        {
+          bookingId: bookingData.booking.id,
+          issueDate: "2026-05-25",
+          dueDate: "2026-06-25",
+        },
+        bookingData,
+      ),
+    ).rejects.toMatchObject({ code: "invoice_number_conflict", invoiceNumber: "INV-0008" })
+
+    const [storedSeries] = await db
+      .select({ currentSequence: invoiceNumberSeries.currentSequence })
+      .from(invoiceNumberSeries)
+      .where(eq(invoiceNumberSeries.id, series!.id))
+    expect(storedSeries?.currentSequence).toBe(7)
   })
 })
