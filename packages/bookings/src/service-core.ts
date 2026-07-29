@@ -3159,26 +3159,6 @@ const bookingsServiceInternal = {
         return { status: "ok" as const, booking: row ?? null }
       })
 
-      // Emit AFTER the transaction commits so subscribers can't observe a
-      // confirmed state that might still roll back. `emit` is fire-and-forget
-      // per the EventBus contract — subscriber errors are logged, not rethrown.
-      if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.confirmed",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            actorId: userId ?? null,
-            suppressNotifications: result.booking.notificationsSuppressed,
-          } satisfies BookingConfirmedEvent,
-          {
-            category: "domain",
-            source: "service",
-            eventId: `evt_booking_confirmed_${result.booking.id}`,
-          },
-        )
-      }
-
       return result
     } catch (error) {
       if (error instanceof BookingServiceError) {
@@ -3741,22 +3721,6 @@ const bookingsServiceInternal = {
       })
 
       if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.cancelled",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            previousStatus: result.previousStatus,
-            reason: data.note?.trim() || null,
-            actorId: userId ?? null,
-            suppressNotifications: result.booking.notificationsSuppressed,
-          } satisfies BookingCancelledEvent,
-          {
-            category: "domain",
-            source: "service",
-            eventId: `evt_booking_cancelled_${result.booking.id}`,
-          },
-        )
         await emitSlotChanges(runtime, slotChanges)
       }
 

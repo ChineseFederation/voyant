@@ -18,7 +18,7 @@ import {
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { and, asc, eq, sql } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import {
   availabilityHoldsRef as availabilityHolds,
@@ -1661,7 +1661,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(links).toHaveLength(2)
   })
 
-  it("holds and restores passenger capacity for one two-traveler room item (12 -> 10 -> 12)", async () => {
+  it("holds and restores passenger capacity while queuing confirm and cancel exactly once", async () => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const slot = await seedSlot({ productId, optionId, capacity: 12 })
     const outcome = await createBooking(db, {
@@ -1708,24 +1708,33 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       return row?.remainingPax
     }
     expect(await remaining()).toBe(10)
+    const directEmit = vi.fn().mockResolvedValue(undefined)
+    const eventBus = {
+      emit: directEmit,
+      subscribe: vi.fn(() => ({ unsubscribe() {} })),
+    } as never
 
     const confirmed = await bookingsService.confirmBooking(
       db,
       outcome.result.booking.id,
       { note: "QA confirmation", suppressNotifications: true },
       "user_qa",
+      { eventBus },
     )
     expect(confirmed.status).toBe("ok")
     expect(await remaining()).toBe(10)
+    expect(directEmit).not.toHaveBeenCalled()
 
     const cancelled = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
       { note: "QA lifecycle", suppressNotifications: true },
       "user_qa",
+      { eventBus },
     )
     expect(cancelled.status).toBe("ok")
     expect(await remaining()).toBe(12)
+    expect(directEmit.mock.calls.map(([name]) => name)).toEqual(["availability.slot.changed"])
 
     const replay = await bookingsService.cancelBooking(
       db,
@@ -1737,17 +1746,26 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(await remaining()).toBe(12)
     expect(
       await db
-        .select({ name: eventOutboxTable.name, payload: eventOutboxTable.payload })
+        .select({
+          eventId: eventOutboxTable.eventId,
+          name: eventOutboxTable.name,
+          payload: eventOutboxTable.payload,
+          status: eventOutboxTable.status,
+        })
         .from(eventOutboxTable)
         .orderBy(asc(eventOutboxTable.createdAt)),
     ).toEqual([
       {
+        eventId: `evt_booking_confirmed_${outcome.result.booking.id}`,
         name: "booking.confirmed",
         payload: expect.objectContaining({ suppressNotifications: true }),
+        status: "pending",
       },
       {
+        eventId: `evt_booking_cancelled_${outcome.result.booking.id}`,
         name: "booking.cancelled",
         payload: expect.objectContaining({ suppressNotifications: true }),
+        status: "pending",
       },
     ])
   })
