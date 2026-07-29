@@ -59,12 +59,15 @@ function readModelQuery(query: { languageTag?: string | null; include?: string |
 
 /**
  * Shared edge/CDN policy for the public catalog reads. These endpoints are
- * not personalized (they never read the authenticated identity), so short
- * shared caching keeps storefront list traffic off Worker isolates (#1686).
+ * not personalized (they never read the authenticated identity), so a
+ * fifteen-minute shared TTL keeps catalog browsing off application computes
+ * long enough for serverless databases to suspend between real changes.
+ * Availability, bookings, customer sessions, and payments use separate routes
+ * and are deliberately outside this policy.
  * Applied per-handler on successful responses only — a framework-level
  * cache middleware lives in `@voyant-travel/hono` and supersedes this later.
  */
-const PUBLIC_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300"
+const PUBLIC_CACHE_CONTROL = "public, s-maxage=900, stale-while-revalidate=3600"
 
 function setPublicCacheHeaders(c: Context) {
   c.header("Cache-Control", PUBLIC_CACHE_CONTROL)
