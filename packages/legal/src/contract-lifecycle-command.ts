@@ -447,7 +447,8 @@ async function voidContract(
       ? (contract.metadata as Record<string, unknown>)
       : {}
   const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
-  if (managedWorkflow && payload.revision !== managedWorkflow.revision) {
+  const expectedRevision = managedWorkflow?.revision ?? 1
+  if (payload.revision !== expectedRevision) {
     throw new ToolError(
       "The approved contract revision is no longer the selected revision.",
       "INVALID_INPUT",

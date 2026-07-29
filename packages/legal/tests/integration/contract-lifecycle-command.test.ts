@@ -589,9 +589,28 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Malformed command void", {
       metadata: legacyMetadata,
     })
-    const command = await approvedCommand("void", "void-malformed-command", {
+    const staleCommand = await approvedCommand("void", "void-malformed-command-stale", {
       contractId: contract.id,
       revision: 7,
+      reason: "Operator cancelled malformed legacy contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(staleCommand)).rejects.toMatchObject({
+      message: "The approved contract revision is no longer the selected revision.",
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "issued",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
+
+    const command = await approvedCommand("void", "void-malformed-command", {
+      contractId: contract.id,
+      revision: 1,
       reason: "Operator cancelled malformed legacy contract",
       acknowledgedConsequences: true,
     })
