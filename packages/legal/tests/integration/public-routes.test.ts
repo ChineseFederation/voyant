@@ -475,6 +475,43 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     const managedVoidDelete = await adminApp.request(`/${managedVoid!.id}`, { method: "DELETE" })
     expect(managedVoidDelete.status).toBe(409)
 
+    const [managedIssued] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed issued revision",
+        scope: "customer",
+        status: "issued",
+        metadata: { bookingContractWorkflow: { revision: 2, reviewOnly: false } },
+      })
+      .returning()
+    const managedSend = await adminApp.request(`/${managedIssued!.id}/send`, { method: "POST" })
+    expect(managedSend.status).toBe(400)
+    await expect(managedSend.json()).resolves.toEqual({
+      error:
+        "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+    })
+
+    const [managedSent] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed sent revision",
+        scope: "customer",
+        status: "sent",
+        metadata: { bookingContractWorkflow: { revision: 3, reviewOnly: false } },
+      })
+      .returning()
+    const managedVoidResponse = await adminApp.request(`/${managedSent!.id}/void`, {
+      method: "POST",
+    })
+    expect(managedVoidResponse.status).toBe(400)
+    await expect(managedVoidResponse.json()).resolves.toEqual({
+      error:
+        "Managed booking contract revisions must be voided through the reviewed lifecycle command.",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, managedSent!.id)),
+    ).resolves.toEqual([expect.objectContaining({ status: "sent" })])
+
     const [unmanagedDraft] = await db
       .insert(contracts)
       .values({ title: "Legacy disposable draft", scope: "customer" })

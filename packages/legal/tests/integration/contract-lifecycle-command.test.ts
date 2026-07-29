@@ -124,9 +124,9 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
 
     await db.update(contracts).set({ status: "void" }).where(eq(contracts.id, contract.id))
     await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
-      status: "deleted",
+      status: "immutable_revision",
     })
-    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
     await expect(executeCommand(command)).resolves.toMatchObject({
       replayed: true,

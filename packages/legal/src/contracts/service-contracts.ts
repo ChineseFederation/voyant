@@ -54,6 +54,22 @@ function assertGenericAttachmentKind(kind: string | null | undefined) {
   }
 }
 
+function isManagedBookingContract(metadata: unknown): boolean {
+  return Boolean(
+    metadata &&
+      typeof metadata === "object" &&
+      !Array.isArray(metadata) &&
+      (metadata as Record<string, unknown>).bookingContractWorkflow,
+  )
+}
+
+function assertGenericLifecycleMutationAllowed(metadata: unknown, transition: "send" | "void") {
+  if (!isManagedBookingContract(metadata)) return
+  throw new RequestValidationError(
+    `Managed booking contract revisions must be ${transition === "send" ? "sent" : "voided"} through the reviewed lifecycle command.`,
+  )
+}
+
 /**
  * Existence check for the cross-module party references on a contract. With the
  * hard cross-package FKs removed (module decoupling), this service-layer guard
@@ -332,6 +348,7 @@ export const contractRecordsService = {
         .for("update")
         .limit(1)
       if (!contract) return { status: "not_found" as const }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "send")
       const transition = checkContractLifecycleTransition(contract.status, "sent")
       if (!transition.ok) return { status: transition.reason }
       if (contract.status === "sent") {
@@ -395,6 +412,7 @@ export const contractRecordsService = {
         .for("update")
         .limit(1)
       if (!contract) return { status: "not_found" as const }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "void")
       const transition = checkContractLifecycleTransition(contract.status, "voided")
       if (!transition.ok) return { status: transition.reason }
       const now = new Date()
