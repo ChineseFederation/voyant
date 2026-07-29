@@ -15,7 +15,7 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
@@ -29,7 +29,11 @@ import {
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
 import type { ContractDocumentRoutesOptions } from "./contract-document-routes.js"
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
-import { legalContractDetail, legalContractSummary } from "./contract-dto.js"
+import {
+  hasManagedBookingWorkflow,
+  legalContractDetail,
+  legalContractSummary,
+} from "./contract-dto.js"
 import { executeLegalContractLifecycleCommand } from "./contract-lifecycle-command.js"
 import {
   type LegalDocumentArtifactProvider,
@@ -37,7 +41,13 @@ import {
 } from "./contracts/document-artifact-provider.js"
 import type { ContractLifecycleRuntimeOptions } from "./contracts/lifecycle.js"
 import { buildContractsRouteRuntime } from "./contracts/route-runtime.js"
-import { type ContractAttachment, type ContractTemplate, contracts } from "./contracts/schema.js"
+import {
+  type ContractAttachment,
+  type ContractTemplate,
+  contracts,
+  contractTemplates,
+  contractTemplateVersions,
+} from "./contracts/schema.js"
 import {
   allocateContractNumber,
   contractsService,
@@ -549,7 +559,13 @@ export async function executeLegalContractDraftCreate(
           )
         }
         const template = templateVersion
-          ? await contractsService.getTemplateById(transaction, templateVersion.templateId)
+          ? await transaction
+              .select()
+              .from(contractTemplates)
+              .where(eq(contractTemplates.id, templateVersion.templateId))
+              .for("update")
+              .limit(1)
+              .then(([row]) => row ?? null)
           : null
         if (templateVersion && !template) {
           throw new ToolError(
@@ -605,6 +621,32 @@ export async function executeLegalContractDraftCreate(
               { missingPrerequisites },
             )
           }
+          const [currentTemplateVersion] = await transaction
+            .select({ id: contractTemplateVersions.id })
+            .from(contractTemplateVersions)
+            .where(
+              and(
+                eq(contractTemplateVersions.id, templateVersion.id),
+                eq(contractTemplateVersions.templateId, template.id),
+              ),
+            )
+            .limit(1)
+          if (
+            !currentTemplateVersion ||
+            !(
+              template.active === true &&
+              template.scope === "customer" &&
+              template.currentVersionId === templateVersion.id &&
+              template.language === language &&
+              bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
+            )
+          ) {
+            throw new ToolError(
+              "Contract prerequisites are missing: template.applicableCurrentVersion.",
+              "INVALID_INPUT",
+              { missingPrerequisites: ["template.applicableCurrentVersion"] },
+            )
+          }
           reviewSnapshot = bookingContractReviewSnapshot({
             booking,
             items,
@@ -646,26 +688,30 @@ export async function executeLegalContractDraftCreate(
             reviewSnapshot,
           },
         )
-        const row = await createContract(transaction, {
-          ...requestedInput,
-          status: "draft",
-          scope: resolveLegalContractDraftScope(requestedInput.scope, bookingId, previous?.scope),
-          language,
-          bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
-          personId: requestedInput.personId ?? previous?.personId ?? null,
-          organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,
-          supplierId: requestedInput.supplierId ?? previous?.supplierId ?? null,
-          channelId: requestedInput.channelId ?? previous?.channelId ?? null,
-          templateVersionId,
-          seriesId,
-          contractNumber,
-          expiresAt: resolveLegalContractDraftExpiration(
-            requestedInput.expiresAt,
-            previous?.expiresAt,
-          ),
-          variables: variables ?? null,
-          metadata,
-        })
+        const row = await createContract(
+          transaction,
+          {
+            ...requestedInput,
+            status: "draft",
+            scope: resolveLegalContractDraftScope(requestedInput.scope, bookingId, previous?.scope),
+            language,
+            bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
+            personId: requestedInput.personId ?? previous?.personId ?? null,
+            organizationId: requestedInput.organizationId ?? previous?.organizationId ?? null,
+            supplierId: requestedInput.supplierId ?? previous?.supplierId ?? null,
+            channelId: requestedInput.channelId ?? previous?.channelId ?? null,
+            templateVersionId,
+            seriesId,
+            contractNumber,
+            expiresAt: resolveLegalContractDraftExpiration(
+              requestedInput.expiresAt,
+              previous?.expiresAt,
+            ),
+            variables: variables ?? null,
+            metadata,
+          },
+          { allowBookingContractWorkflow: true },
+        )
         if (!row) throw new Error("Contract draft creation did not return a row")
         if (templateVersion) {
           await transaction
@@ -764,7 +810,33 @@ export function createLegalContractDocumentToolServices(input: {
           "MISSING_SERVICE",
         )
       }
-      return input.runtime.resolveGeneratedDocument(input.env, input.db, attachmentId)
+      const row =
+        typeof (input.db as { select?: unknown }).select === "function"
+          ? await contractsService.getAttachmentWithContractById(input.db, attachmentId)
+          : null
+      const delivery = await input.runtime.resolveGeneratedDocument(
+        input.env,
+        input.db,
+        attachmentId,
+      )
+      if (delivery && row?.contract.bookingId && hasManagedBookingWorkflow(row.contract.metadata)) {
+        await input.db.insert(bookingPiiAccessLog).values({
+          bookingId: row.contract.bookingId,
+          travelerId: null,
+          actorId:
+            input.requestContext.userId ??
+            input.requestContext.agentId ??
+            input.requestContext.workflowPrincipalId ??
+            null,
+          actorType: input.requestContext.actor ?? null,
+          callerType: input.requestContext.callerType ?? null,
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_document_delivery_reveal",
+          metadata: { contractId: row.contract.id, attachmentId, reveal: true },
+        })
+      }
+      return delivery
     },
   }
 }

@@ -18,6 +18,7 @@
 // in-handler; multipart upload + redirect download legs declare their non-JSON
 // shapes explicitly. The factory/provider wiring + business logic are unchanged.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
   idempotencyKey,
@@ -73,6 +74,56 @@ import {
   updateContractSchema,
   updateContractTemplateSchema,
 } from "./validation.js"
+
+function hasBookingPiiReadScope(scopes: readonly string[] | undefined): boolean {
+  return Boolean(
+    scopes?.includes("*") ||
+      scopes?.includes("bookings-pii:*") ||
+      scopes?.includes("bookings-pii:read"),
+  )
+}
+
+function routeActorId(c: Context<Env>): string | null {
+  return c.get("userId") ?? c.get("agentId") ?? c.get("workflowPrincipalId") ?? null
+}
+
+async function auditManagedBookingAttachmentDelivery(
+  c: Context<Env>,
+  input: {
+    bookingId: string
+    contractId: string
+    attachmentId: string
+    outcome: "allowed" | "denied"
+    reason: "contract_document_delivery_reveal" | "insufficient_scope"
+  },
+) {
+  await c
+    .get("db")
+    .insert(bookingPiiAccessLog)
+    .values({
+      bookingId: input.bookingId,
+      travelerId: null,
+      actorId: routeActorId(c),
+      actorType: c.get("actor") ?? null,
+      callerType: c.get("callerType") ?? null,
+      action: "read",
+      outcome: input.outcome,
+      reason: input.reason,
+      metadata:
+        input.outcome === "denied"
+          ? {
+              contractId: input.contractId,
+              attachmentId: input.attachmentId,
+              reveal: false,
+              requiredScopes: ["legal:read", "bookings-pii:read"],
+            }
+          : {
+              contractId: input.contractId,
+              attachmentId: input.attachmentId,
+              reveal: true,
+            },
+    })
+}
 
 type Env = {
   Bindings: Record<string, unknown>
@@ -1564,11 +1615,26 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       asRouteResponse(replaceContractAttachmentUpload(c, options)),
     )
     .openapi(downloadAttachmentRoute, async (c) => {
-      const attachment = await contractsService.getAttachmentById(
+      const row = await contractsService.getAttachmentWithContractById(
         c.get("db"),
         c.req.valid("param").attachmentId,
       )
-      if (!attachment) return c.json({ error: "Attachment not found" }, 404)
+      if (!row) return c.json({ error: "Attachment not found" }, 404)
+      const attachment = row.attachment
+      if (
+        row.contract.bookingId &&
+        hasManagedBookingWorkflow(row.contract.metadata) &&
+        !hasBookingPiiReadScope(c.get("scopes"))
+      ) {
+        await auditManagedBookingAttachmentDelivery(c, {
+          bookingId: row.contract.bookingId,
+          contractId: row.contract.id,
+          attachmentId: attachment.id,
+          outcome: "denied",
+          reason: "insufficient_scope",
+        })
+        return c.json({ error: "Attachment not found" }, 404)
+      }
 
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
       const download = await resolveStoredDocumentDownload(
@@ -1583,6 +1649,15 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       }
       if (download.status !== "ready") {
         return c.json({ error: "Attachment file is not available" }, 404)
+      }
+      if (row.contract.bookingId && hasManagedBookingWorkflow(row.contract.metadata)) {
+        await auditManagedBookingAttachmentDelivery(c, {
+          bookingId: row.contract.bookingId,
+          contractId: row.contract.id,
+          attachmentId: attachment.id,
+          outcome: "allowed",
+          reason: "contract_document_delivery_reveal",
+        })
       }
 
       return c.redirect(download.download.url, 302)

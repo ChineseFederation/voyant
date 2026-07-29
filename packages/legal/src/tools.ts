@@ -10,8 +10,11 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "./contract-document-policy.js"
+import { hasManagedBookingWorkflow } from "./contract-dto.js"
+import { contractsService } from "./contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION } from "./created-target-policy.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "./existing-target-policy.js"
 
@@ -577,7 +580,7 @@ function hasBookingPiiReadScope(ctx: LegalToolContext): boolean {
 
 async function requireBookingPiiReadScope(
   ctx: LegalToolContext,
-  input: { bookingId?: string; contractId?: string },
+  input: { bookingId?: string | null; contractId?: string; attachmentId?: string },
 ) {
   if (hasBookingPiiReadScope(ctx)) return
   const db = ctx.db as { insert?: (table: unknown) => { values(input: unknown): Promise<unknown> } }
@@ -603,11 +606,37 @@ async function requireBookingPiiReadScope(
     metadata: {
       bookingId: input.bookingId ?? null,
       contractId: input.contractId ?? null,
+      attachmentId: input.attachmentId ?? null,
       requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
     },
   })
   throw new ToolError("Booking contract PII requires bookings-pii:read.", "AUTHORIZATION_DENIED", {
     requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
+  })
+}
+
+async function requireGeneratedAttachmentBookingPiiReadScope(
+  ctx: LegalToolContext,
+  attachmentId: string,
+) {
+  if (typeof (ctx.db as { select?: unknown }).select !== "function") return
+  const row = await contractsService.getAttachmentWithContractById(
+    ctx.db as PostgresJsDatabase,
+    attachmentId,
+  )
+  if (!row?.contract.bookingId || !hasManagedBookingWorkflow(row.contract.metadata)) return
+  if (hasBookingPiiReadScope(ctx)) return
+  await requireBookingPiiReadScope(ctx, {
+    bookingId: row.contract.bookingId,
+    contractId: row.contract.id,
+    attachmentId,
+  }).catch((error) => {
+    if (error instanceof ToolError && error.code === "AUTHORIZATION_DENIED") {
+      throw new ToolError(`Generated attachment "${attachmentId}" is unavailable.`, "NOT_FOUND", {
+        attachmentId,
+      })
+    }
+    throw error
   })
 }
 
@@ -941,7 +970,7 @@ export const voidLegalContractTool = defineTool({
 const contractDocumentReadMetadata = {
   owner: OWNER,
   capabilityVersion: VERSION,
-  requiredScopes: READ_SCOPES,
+  requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
   audience: STAFF_AUDIENCE,
   tier: "sensitive" as const,
   riskPolicy: READ_ONLY_RISK,
@@ -957,6 +986,7 @@ export const resolveContractDocumentDeliveryTool = defineTool({
   inputSchema: resolveContractDocumentDeliveryInputSchema,
   outputSchema: contractDocumentDeliverySchema,
   async handler(input, ctx: LegalToolContext) {
+    await requireGeneratedAttachmentBookingPiiReadScope(ctx, input.attachmentId)
     const result = await legalContractDocument(ctx).resolveDelivery(input)
     if (!result)
       throw new ToolError(

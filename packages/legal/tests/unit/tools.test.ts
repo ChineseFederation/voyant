@@ -66,6 +66,10 @@ describe("legal Tools", () => {
     ])
     expect(getBookingContractReviewTool.description).toContain("exact template version")
     expect(getBookingContractReviewTool.requiredScopes).toEqual(["legal:read", "bookings-pii:read"])
+    expect(resolveContractDocumentDeliveryTool.requiredScopes).toEqual([
+      "legal:read",
+      "bookings-pii:read",
+    ])
     expect(
       createLegalContractDraftTool.inputSchema.safeParse({
         title: "Revised agreement",

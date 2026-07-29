@@ -443,6 +443,55 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     )
   })
 
+  it("strips the reserved managed booking workflow marker from generic contract writes", async () => {
+    const createRes = await adminApp.request("/", {
+      method: "POST",
+      ...json({
+        title: "Generic contract with injected workflow",
+        scope: "customer",
+        metadata: {
+          source: "admin",
+          bookingContractWorkflow: {
+            revision: 99,
+            reviewOnly: false,
+            reviewSnapshot: { booking: { customerEmail: "leak@example.test" } },
+          },
+        },
+      }),
+    })
+    expect(createRes.status).toBe(201)
+    const created = (await createRes.json()).data
+    expect(created.metadata).toEqual({ source: "admin" })
+    await expect(db.select().from(contracts).where(eq(contracts.id, created.id))).resolves.toEqual([
+      expect.objectContaining({ metadata: { source: "admin" } }),
+    ])
+
+    const [draft] = await db
+      .insert(contracts)
+      .values({
+        title: "Generic patch target",
+        scope: "customer",
+        metadata: { retained: true },
+      })
+      .returning()
+    const patchRes = await adminApp.request(`/${draft!.id}`, {
+      method: "PATCH",
+      ...json({
+        metadata: {
+          retained: true,
+          source: "patch",
+          bookingContractWorkflow: { revision: 1, reviewOnly: true },
+        },
+      }),
+    })
+    expect(patchRes.status).toBe(200)
+    const patched = (await patchRes.json()).data
+    expect(patched.metadata).toEqual({ retained: true, source: "patch" })
+    await expect(db.select().from(contracts).where(eq(contracts.id, draft!.id))).resolves.toEqual([
+      expect.objectContaining({ metadata: { retained: true, source: "patch" } }),
+    ])
+  })
+
   it("refuses PATCH mutation of managed drafts and every non-draft revision", async () => {
     const [managedDraft] = await db
       .insert(contracts)

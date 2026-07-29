@@ -180,6 +180,16 @@ describe("legal deployment manifest", () => {
       "@voyant-travel/legal#tool.regenerate-booking-contract-document",
       "@voyant-travel/legal#tool.resolve-contract-document-delivery",
     ])
+    expect(
+      legalVoyantModule.tools?.find(
+        ({ id }) => id === "@voyant-travel/legal#tool.resolve-contract-document-delivery",
+      ),
+    ).toMatchObject({ requiredScopes: ["legal:read", "bookings-pii:read"] })
+    expect(
+      legalVoyantModule.actions?.find(
+        ({ id }) => id === "@voyant-travel/legal#action.resolve-contract-document-delivery",
+      ),
+    ).toMatchObject({ requiredScopes: ["legal:read", "bookings-pii:read"] })
     expect(legalVoyantModule.meta?.agentTools).toBeUndefined()
     for (const actionId of [
       "@voyant-travel/legal#action.generate-booking-contract-document",

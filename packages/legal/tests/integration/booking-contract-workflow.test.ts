@@ -2,7 +2,7 @@ import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/book
 import { createDbClient } from "@voyant-travel/db"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
 import type { ToolContext } from "@voyant-travel/tools"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { Hono } from "hono"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -11,7 +11,12 @@ import { createContractsAdminRoutes } from "../../src/contracts/routes.js"
 import { contractsService } from "../../src/contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_HANDLER_EXPECTATION } from "../../src/created-target-policy.js"
 import { createLegalToolServices, executeLegalContractDraftCreate } from "../../src/mcp-runtime.js"
-import { contracts, contractTemplates, contractTemplateVersions } from "../../src/schema.js"
+import {
+  contractAttachments,
+  contracts,
+  contractTemplates,
+  contractTemplateVersions,
+} from "../../src/schema.js"
 import {
   getBookingContractReviewTool,
   listApplicableBookingContractTemplatesTool,
@@ -257,6 +262,152 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
         tools: ["@voyant-travel/legal#tool.list-applicable-booking-contract-templates"],
       },
     })
+  })
+
+  it("requires bookings-pii:read and audits generic managed document delivery", async () => {
+    const { booking, version } = await seedBookingTemplate("BK-DOC-PII")
+    const contract = await createDraft("document-delivery-create", {
+      title: "Customer agreement",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+    })
+    const [managedAttachment] = await db
+      .insert(contractAttachments)
+      .values({
+        contractId: contract.value.id,
+        kind: "document",
+        name: "managed.pdf",
+        mimeType: "application/pdf",
+        storageKey: "contracts/managed.pdf",
+      })
+      .returning()
+    const [genericContract] = await db
+      .insert(contracts)
+      .values({ title: "Generic contract", scope: "customer" })
+      .returning()
+    const [genericAttachment] = await db
+      .insert(contractAttachments)
+      .values({
+        contractId: genericContract!.id,
+        kind: "document",
+        name: "generic.pdf",
+        mimeType: "application/pdf",
+        storageKey: "contracts/generic.pdf",
+      })
+      .returning()
+
+    function app(scopes: string[], userId: string) {
+      const route = new Hono()
+      route.use("*", async (c, next) => {
+        c.set("db" as never, db)
+        c.set("scopes" as never, scopes)
+        c.set("userId" as never, userId)
+        c.set("actor" as never, "staff")
+        c.set("callerType" as never, "session")
+        await next()
+      })
+      route.route(
+        "/",
+        createContractsAdminRoutes({
+          resolveDocumentDownloadUrl: (_bindings, key) => `https://signed.example.test/${key}`,
+        }),
+      )
+      return route
+    }
+
+    const denied = await app(["legal:read"], "usr_denied").request(
+      `/attachments/${managedAttachment!.id}/download`,
+    )
+    expect(denied.status).toBe(404)
+    await expect(denied.json()).resolves.toEqual({ error: "Attachment not found" })
+
+    const allowed = await app(["legal:read", "bookings-pii:read"], "usr_allowed").request(
+      `/attachments/${managedAttachment!.id}/download`,
+    )
+    expect(allowed.status).toBe(302)
+    expect(allowed.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/managed.pdf",
+    )
+
+    const generic = await app(["legal:read"], "usr_generic").request(
+      `/attachments/${genericAttachment!.id}/download`,
+    )
+    expect(generic.status).toBe(302)
+    expect(generic.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/generic.pdf",
+    )
+
+    const piiRows = await db
+      .select()
+      .from(bookingPiiAccessLog)
+      .where(eq(bookingPiiAccessLog.bookingId, booking.id))
+    expect(piiRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "read",
+          outcome: "denied",
+          reason: "insufficient_scope",
+          actorId: "usr_denied",
+          metadata: expect.objectContaining({ attachmentId: managedAttachment!.id }),
+        }),
+        expect.objectContaining({
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_document_delivery_reveal",
+          actorId: "usr_allowed",
+          metadata: expect.objectContaining({ attachmentId: managedAttachment!.id }),
+        }),
+      ]),
+    )
+  })
+
+  it("serializes template applicability with immutable draft creation", async () => {
+    const { booking, template, version } = await seedBookingTemplate("BK-TEMPLATE-LOCK")
+
+    let releaseCreate: () => void = () => undefined
+    const holdCreate = new Promise<void>((resolve) => {
+      releaseCreate = resolve
+    })
+    let createReached: () => void = () => undefined
+    const reached = new Promise<void>((resolve) => {
+      createReached = resolve
+    })
+    const createContract: NonNullable<
+      Parameters<typeof executeLegalContractDraftCreate>[5]
+    > = async (tx, data, options) => {
+      createReached()
+      await holdCreate
+      return contractsService.createContract(tx, data, options)
+    }
+
+    const creating = createDraft(
+      "template-lock-create",
+      {
+        title: "Template locked agreement",
+        bookingId: booking.id,
+        templateVersionId: version.id,
+        variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+      },
+      createContract,
+    )
+    await reached
+
+    await expect(
+      db.transaction(async (tx) => {
+        await tx.execute(sql`set local lock_timeout = '100ms'`)
+        await tx
+          .update(contractTemplates)
+          .set({ active: false, updatedAt: new Date() })
+          .where(eq(contractTemplates.id, template.id))
+      }),
+    ).rejects.toThrow()
+
+    releaseCreate()
+    await expect(creating).resolves.toMatchObject({ value: { id: expect.any(String) } })
+    await expect(
+      db.select().from(contractTemplates).where(eq(contractTemplates.id, template.id)),
+    ).resolves.toEqual([expect.objectContaining({ active: true, currentVersionId: version.id })])
   })
 
   it("serializes same-parent successor creation and rejects the second successor", async () => {

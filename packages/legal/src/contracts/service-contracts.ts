@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: legal; contract records, lifecycle, and attachment mutations remain co-located until a service split preserves route behavior and tests.
 import { suppliers } from "@voyant-travel/distribution"
 import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
@@ -61,6 +62,25 @@ function isManagedBookingContract(metadata: unknown): boolean {
       !Array.isArray(metadata) &&
       (metadata as Record<string, unknown>).bookingContractWorkflow,
   )
+}
+
+function scrubGenericContractMetadata<T extends { metadata?: unknown }>(data: T): T {
+  if (
+    !data.metadata ||
+    typeof data.metadata !== "object" ||
+    Array.isArray(data.metadata) ||
+    !("bookingContractWorkflow" in data.metadata)
+  ) {
+    return data
+  }
+  const { bookingContractWorkflow: _workflow, ...metadata } = data.metadata as Record<
+    string,
+    unknown
+  >
+  return {
+    ...data,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  }
 }
 
 function assertGenericLifecycleMutationAllowed(metadata: unknown, transition: "send" | "void") {
@@ -176,17 +196,22 @@ export const contractRecordsService = {
     const [row] = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1)
     return row ?? null
   },
-  async createContract(db: PostgresJsDatabase, data: CreateContractInput) {
-    await assertContractPartiesExist(db, data)
+  async createContract(
+    db: PostgresJsDatabase,
+    data: CreateContractInput,
+    options?: { allowBookingContractWorkflow?: boolean },
+  ) {
+    const insert = options?.allowBookingContractWorkflow ? data : scrubGenericContractMetadata(data)
+    await assertContractPartiesExist(db, insert)
     const now = new Date()
-    const stage = data.status ?? "draft"
+    const stage = insert.status ?? "draft"
     const [row] = await db
       .insert(contracts)
       .values({
-        ...data,
-        ...normalizeLegalTargetFields(data),
+        ...insert,
+        ...normalizeLegalTargetFields(insert),
         stageHistory: [createContractStageHistoryEntry(stage, { enteredAt: now })],
-        expiresAt: toTimestamp(data.expiresAt),
+        expiresAt: toTimestamp(insert.expiresAt),
       })
       .returning()
     return row ?? null
@@ -213,13 +238,17 @@ export const contractRecordsService = {
         "Booking contract revisions are immutable; create a new revision instead of patching.",
       )
     }
-    await assertContractPartiesExist(db, update)
+    const sanitizedUpdate = scrubGenericContractMetadata(update)
+    await assertContractPartiesExist(db, sanitizedUpdate)
     const [row] = await db
       .update(contracts)
       .set({
-        ...update,
-        ...normalizeLegalTargetUpdateFields(update),
-        expiresAt: update.expiresAt === undefined ? undefined : toTimestamp(update.expiresAt),
+        ...sanitizedUpdate,
+        ...normalizeLegalTargetUpdateFields(sanitizedUpdate),
+        expiresAt:
+          sanitizedUpdate.expiresAt === undefined
+            ? undefined
+            : toTimestamp(sanitizedUpdate.expiresAt),
         updatedAt: new Date(),
       })
       .where(and(eq(contracts.id, id), eq(contracts.status, "draft")))
@@ -558,6 +587,22 @@ export const contractRecordsService = {
     const [row] = await db
       .select()
       .from(contractAttachments)
+      .where(eq(contractAttachments.id, attachmentId))
+      .limit(1)
+    return row ?? null
+  },
+  async getAttachmentWithContractById(db: PostgresJsDatabase, attachmentId: string) {
+    const [row] = await db
+      .select({
+        attachment: contractAttachments,
+        contract: {
+          id: contracts.id,
+          bookingId: contracts.bookingId,
+          metadata: contracts.metadata,
+        },
+      })
+      .from(contractAttachments)
+      .innerJoin(contracts, eq(contractAttachments.contractId, contracts.id))
       .where(eq(contractAttachments.id, attachmentId))
       .limit(1)
     return row ?? null
