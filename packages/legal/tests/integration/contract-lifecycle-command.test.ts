@@ -10,7 +10,10 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
-
+import {
+  bookingContractContentFingerprint,
+  recordBookingContractDeliveryStatus,
+} from "../../src/booking-contract-review.js"
 import {
   executeLegalContractLifecycleCommand,
   legalContractLifecycleEventId,
@@ -31,6 +34,7 @@ import {
   type LegalLifecycleCommandToolServices,
   type LegalToolServices,
   sendLegalContractTool,
+  voidLegalContractTool,
 } from "../../src/tools.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
@@ -41,6 +45,13 @@ type Transition = keyof typeof LEGAL_CONTRACT_LIFECYCLE_POLICIES
 type CommandInput = {
   contractId: string
   recipientEmail?: string | null
+  recipient?: string
+  channel?: "email" | "sms" | "whatsapp"
+  revision?: number
+  contentFingerprint?: string
+  notificationsSuppressed?: boolean
+  reason?: string
+  acknowledgedConsequences?: true
   subject?: string | null
   message?: string | null
 }
@@ -64,7 +75,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Original title")
     const commandInput = {
       contractId: contract.id,
-      recipientEmail: "traveller@example.com",
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Your exact contract subject",
       message: "The operator's exact delivery message.",
     }
@@ -88,7 +102,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(results[0]).toMatchObject({
       transition: "send",
       contractId: contract.id,
-      commandPayload: commandInput,
+      commandPayload: normalizeInput("send", commandInput),
       result: first.value,
     })
     const eventId = legalContractLifecycleEventId(first.command)
@@ -99,11 +113,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         payload: expect.objectContaining({
           contractId: contract.id,
           transition: "sent",
-          delivery: {
-            recipientEmail: commandInput.recipientEmail,
+          delivery: expect.objectContaining({
+            recipientEmail: commandInput.recipient,
             subject: commandInput.subject,
             message: commandInput.message,
-          },
+          }),
         }),
         metadata: expect.objectContaining({ category: "domain", source: "service", eventId }),
       }),
@@ -111,9 +125,9 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
 
     await db.update(contracts).set({ status: "void" }).where(eq(contracts.id, contract.id))
     await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
-      status: "deleted",
+      status: "immutable_revision",
     })
-    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
     await expect(executeCommand(command)).resolves.toMatchObject({
       replayed: true,
@@ -125,7 +139,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Concurrent send")
     const command = await approvedCommand("send", "send-contract-concurrent", {
       contractId: contract.id,
-      recipientEmail: null,
+      recipient: "concurrent@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: true,
       subject: null,
       message: null,
     })
@@ -172,13 +189,19 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const contract = await insertContract("issued", "Concurrent target")
     const firstCommand = await approvedCommand("send", "send-target-first", {
       contractId: contract.id,
-      recipientEmail: "first@example.com",
+      recipient: "first@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "First",
       message: "First",
     })
     const secondCommand = await approvedCommand("send", "send-target-second", {
       contractId: contract.id,
-      recipientEmail: "second@example.com",
+      recipient: "second@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Second",
       message: "Second",
     })
@@ -226,7 +249,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const otherContract = await insertContract("issued", "Conflict target")
     const originalInput = {
       contractId: contract.id,
-      recipientEmail: "original@example.com",
+      recipient: "original@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Original",
       message: "Original",
     }
@@ -289,7 +315,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const idempotencyKey = "send-contract-rollback"
     const command = await approvedCommand("send", idempotencyKey, {
       contractId: contract.id,
-      recipientEmail: "rollback@example.com",
+      recipient: "rollback@example.com",
+      channel: "email",
+      revision: 1,
+      notificationsSuppressed: false,
       subject: "Rollback",
       message: "Rollback",
     })
@@ -346,7 +375,581 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(2)
   })
 
-  async function insertContract(status: ContractStatus, title: string) {
+  it("rejects standalone issue for managed booking review drafts without lifecycle side effects", async () => {
+    const contract = await insertContract("draft", "Managed standalone issue rejection", {
+      managed: true,
+    })
+    const command = await approvedCommand("issue", "issue-managed-review-draft", {
+      contractId: contract.id,
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message:
+        "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+      meta: { contractId: contract.id },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "draft",
+          issuedAt: null,
+          sentAt: null,
+          metadata: managedBookingWorkflowMetadata(),
+        }),
+      ],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.idempotencyKey, "issue-managed-review-draft")),
+    ).toEqual([expect.objectContaining({ status: "awaiting_approval" })])
+  })
+
+  it("rejects ordinary draft send with reviewed payload shape without lifecycle side effects", async () => {
+    const ordinaryMetadata = { retained: true, source: "ordinary-draft" }
+    const contract = await insertContract("draft", "Ordinary reviewed-shaped send rejection", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("send", "send-ordinary-draft-reviewed-shape", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+      subject: "Your agreement",
+      message: "Please review and sign.",
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "Only issued contracts can be sent.",
+      meta: { contractId: contract.id },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "draft",
+          issuedAt: null,
+          sentAt: null,
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect((await db.select().from(eventOutboxTable)).map(({ name }) => name)).not.toEqual(
+      expect.arrayContaining(["contract.issued", "contract.sent"]),
+    )
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+  })
+
+  it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
+    const contract = await insertContract("draft", "Review-first contract", { managed: true })
+    const contentFingerprint = await bookingContractContentFingerprint(contract)
+    const send = await approvedCommand("send", "send-reviewed-revision", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint,
+      notificationsSuppressed: false,
+      subject: "Your agreement",
+      message: "Please review and sign.",
+    })
+    await expect(executeCommand(send)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "sent" },
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toEqual([
+      expect.objectContaining({
+        status: "sent",
+        metadata: expect.objectContaining({
+          bookingContractWorkflow: expect.objectContaining({
+            delivery: expect.objectContaining({
+              recipient: "traveller@example.com",
+              channel: "email",
+              revision: 1,
+            }),
+          }),
+        }),
+      }),
+    ])
+    const viewedAt = new Date("2026-07-29T12:00:00.000Z")
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: viewedAt,
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: false })
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: viewedAt,
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: true })
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: new Date("2026-07-29T12:05:00.000Z"),
+        provider: "signature-provider",
+        externalReference: "delivery_1",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: true })
+
+    const voidCommand = await approvedCommand("void", "void-reviewed-revision", {
+      contractId: contract.id,
+      revision: 1,
+      reason: "Booking cancelled by customer",
+      acknowledgedConsequences: true,
+    })
+    await expect(executeCommand(voidCommand)).resolves.toMatchObject({
+      replayed: false,
+      value: { status: "void" },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: expect.objectContaining({
+            bookingContractWorkflow: expect.objectContaining({
+              revision: 1,
+              reviewOnly: false,
+              voidReason: "Booking cancelled by customer",
+              voidedRevision: 1,
+              delivery: expect.objectContaining({
+                recipient: "traveller@example.com",
+                channel: "email",
+                revision: 1,
+              }),
+              reviewSnapshot: expect.any(Object),
+            }),
+          }),
+        }),
+      ],
+    )
+    expect((await db.select().from(eventOutboxTable)).map(({ name }) => name).sort()).toEqual([
+      "contract.sent",
+      "contract.voided",
+    ])
+
+    const delayedViewedAt = new Date("2026-07-29T12:10:00.000Z")
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: delayedViewedAt,
+        provider: "signature-provider",
+        externalReference: "delivery-after-void",
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: false })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: expect.objectContaining({
+            bookingContractWorkflow: expect.objectContaining({
+              delivery: expect.objectContaining({ viewedAt: delayedViewedAt.toISOString() }),
+              deliveryHistory: expect.arrayContaining([
+                expect.objectContaining({
+                  status: "viewed",
+                  externalReference: "delivery-after-void",
+                }),
+              ]),
+            }),
+          }),
+        }),
+      ],
+    )
+  })
+
+  it("preserves ordinary legacy send metadata without adding a managed workflow marker", async () => {
+    const ordinaryMetadata = { retained: true, source: "legacy" }
+    const contract = await insertContract("issued", "Ordinary legacy send", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("send", "send-ordinary-legacy", {
+      contractId: contract.id,
+      recipientEmail: "traveller@example.com",
+      subject: "Your contract",
+      message: "Please sign.",
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "sent" },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "sent",
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.sendContract(db, contract.id)).resolves.toMatchObject({
+      status: "sent",
+    })
+  })
+
+  it("ignores malformed managed workflow markers in generic send and void compatibility paths", async () => {
+    const legacyMetadata = { bookingContractWorkflow: {}, retained: true }
+    const draft = await insertContract("draft", "Malformed legacy mutable draft", {
+      metadata: legacyMetadata,
+    })
+    const contract = await insertContract("issued", "Malformed legacy generic lifecycle", {
+      metadata: legacyMetadata,
+    })
+
+    await expect(
+      contractsService.updateContract(db, draft.id, { title: "Updated malformed legacy draft" }),
+    ).resolves.toMatchObject({
+      title: "Updated malformed legacy draft",
+      metadata: legacyMetadata,
+    })
+    await expect(contractsService.sendContract(db, contract.id)).resolves.toMatchObject({
+      status: "sent",
+    })
+    await expect(contractsService.voidContract(db, contract.id)).resolves.toMatchObject({
+      status: "voided",
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "deleted",
+    })
+  })
+
+  it("keeps valid managed revisions behind the reviewed lifecycle command", async () => {
+    const sendTarget = await insertContract("issued", "Managed generic send rejection", {
+      managed: true,
+    })
+    const voidTarget = await insertContract("sent", "Managed generic void rejection", {
+      managed: true,
+    })
+
+    await expect(contractsService.sendContract(db, sendTarget.id)).rejects.toMatchObject({
+      name: "RequestValidationError",
+    })
+    await expect(contractsService.voidContract(db, voidTarget.id)).rejects.toMatchObject({
+      name: "RequestValidationError",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, sendTarget.id)),
+    ).resolves.toEqual([
+      expect.objectContaining({ status: "issued", metadata: managedBookingWorkflowMetadata() }),
+    ])
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, voidTarget.id)),
+    ).resolves.toEqual([
+      expect.objectContaining({ status: "sent", metadata: managedBookingWorkflowMetadata() }),
+    ])
+  })
+
+  it("rejects sending a managed revision after a successor revision exists", async () => {
+    const contract = await insertContract("issued", "Superseded revision", { managed: true })
+    const workflow = managedBookingWorkflowMetadata().bookingContractWorkflow
+    const [successor] = await db
+      .insert(contracts)
+      .values({
+        scope: "customer",
+        status: "draft",
+        title: "Successor revision",
+        stageHistory: [],
+        variables: { commercial: { depositDueCents: 25_00 } },
+        renderedBody: "Updated reviewed body",
+        metadata: {
+          bookingContractWorkflow: {
+            ...workflow,
+            revision: 2,
+            previousRevisionId: contract.id,
+          },
+        },
+      })
+      .returning()
+    if (!successor) throw new Error("Test successor insert failed")
+    const command = await approvedCommand("send", "send-superseded-revision", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+      subject: null,
+      message: null,
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "A successor revision already exists for this contract revision.",
+      meta: { contractId: contract.id, successorRevisionId: successor.id },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "issued", sentAt: null })],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+  })
+
+  it("voids ordinary lifecycle-command targets without adding managed workflow metadata", async () => {
+    const ordinaryMetadata = { retained: true, source: "legacy" }
+    const contract = await insertContract("issued", "Ordinary command void", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("void", "void-ordinary-command", {
+      contractId: contract.id,
+      revision: 1,
+      reason: "Operator cancelled ordinary contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "void" },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "immutable_revision",
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
+  })
+
+  it("voids malformed lifecycle-command targets without promoting the legacy marker", async () => {
+    const legacyMetadata = { bookingContractWorkflow: {}, retained: true }
+    const contract = await insertContract("issued", "Malformed command void", {
+      metadata: legacyMetadata,
+    })
+    const staleCommand = await approvedCommand("void", "void-malformed-command-stale", {
+      contractId: contract.id,
+      revision: 7,
+      reason: "Operator cancelled malformed legacy contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(staleCommand)).rejects.toMatchObject({
+      message: "The approved contract revision is no longer the selected revision.",
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "issued",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
+
+    const command = await approvedCommand("void", "void-malformed-command", {
+      contractId: contract.id,
+      revision: 1,
+      reason: "Operator cancelled malformed legacy contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "void" },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "immutable_revision",
+    })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(1)
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(1)
+  })
+
+  it.each([
+    "signed",
+    "executed",
+  ] as const)("records delayed viewed delivery evidence after a contract is %s", async (status) => {
+    const contract = await insertContract(status, `Delayed viewed ${status}`, { managed: true })
+    const occurredAt = new Date("2026-07-29T12:30:00.000Z")
+
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt,
+        provider: "signature-provider",
+        externalReference: `delivery-${status}`,
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: false })
+
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toEqual([
+      expect.objectContaining({
+        status,
+        metadata: expect.objectContaining({
+          bookingContractWorkflow: expect.objectContaining({
+            delivery: expect.objectContaining({ viewedAt: occurredAt.toISOString() }),
+            deliveryHistory: [
+              expect.objectContaining({
+                status: "viewed",
+                externalReference: `delivery-${status}`,
+              }),
+            ],
+          }),
+        }),
+      }),
+    ])
+  })
+
+  it("does not promote an ordinary sent contract with malformed workflow metadata", async () => {
+    const contract = await insertContract("sent", "Ordinary sent callback target", {
+      metadata: { bookingContractWorkflow: {}, retained: true },
+    })
+    const before = await db.select().from(contracts).where(eq(contracts.id, contract.id))
+
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: new Date("2026-07-29T12:45:00.000Z"),
+        provider: "signature-provider",
+        externalReference: "ordinary-delivery",
+      }),
+    ).resolves.toEqual({ status: "not_managed" })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      before,
+    )
+  })
+
+  it("keeps delayed callbacks rejected for never-sent and malformed void contracts", async () => {
+    const neverSentManaged = await insertContract("void", "Never-sent void callback", {
+      managed: true,
+    })
+    const ordinaryVoid = await insertContract("void", "Ordinary void callback", {
+      metadata: { retained: true },
+    })
+    const malformedVoid = await insertContract("void", "Malformed void callback", {
+      metadata: { bookingContractWorkflow: {}, retained: true },
+    })
+
+    for (const contract of [neverSentManaged, ordinaryVoid, malformedVoid]) {
+      await expect(
+        recordBookingContractDeliveryStatus(db, {
+          contractId: contract.id,
+          status: "viewed",
+          occurredAt: new Date("2026-07-29T13:00:00.000Z"),
+          provider: "signature-provider",
+          externalReference: `void-${contract.id}`,
+        }),
+      ).resolves.toEqual({ status: "not_sent" })
+    }
+  })
+
+  it("rejects an approved revision when its reviewed content changed", async () => {
+    const contract = await insertContract("draft", "Reviewed title", { managed: true })
+    const command = await approvedCommand("send", "send-content-drift", {
+      contractId: contract.id,
+      recipient: "traveller@example.com",
+      channel: "email",
+      revision: 1,
+      contentFingerprint: await bookingContractContentFingerprint(contract),
+      notificationsSuppressed: false,
+    })
+    await db
+      .update(contracts)
+      .set({ title: "Changed after review" })
+      .where(eq(contracts.id, contract.id))
+
+    let error: unknown
+    try {
+      await executeCommand(command)
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toMatchObject({
+      code: "INVALID_INPUT",
+      meta: { contractId: contract.id },
+    })
+    expect(error).not.toHaveProperty("meta.currentFingerprint")
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "draft", title: "Changed after review" })],
+    )
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+  })
+
+  it("holds deletion eligibility through delete against a concurrent managed-workflow PATCH", async () => {
+    const contract = await insertContract("draft", "Concurrent delete")
+    let releaseDelete: () => void = () => undefined
+    const holdDelete = new Promise<void>((resolve) => {
+      releaseDelete = resolve
+    })
+    let lockReached: () => void = () => undefined
+    const locked = new Promise<void>((resolve) => {
+      lockReached = resolve
+    })
+    const deletion = contractsService.deleteContract(db, contract.id, {
+      async afterLock() {
+        lockReached()
+        await holdDelete
+      },
+    })
+    await locked
+
+    let patchSettled = false
+    const patch = contractsService
+      .updateContract(db, contract.id, {
+        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: true } },
+      })
+      .then(
+        () => {
+          patchSettled = true
+          throw new Error("Concurrent PATCH unexpectedly committed")
+        },
+        (error: unknown) => {
+          patchSettled = true
+          return error
+        },
+      )
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(patchSettled).toBe(false)
+
+    releaseDelete()
+    await expect(deletion).resolves.toEqual({ status: "deleted" })
+    await expect(patch).resolves.toMatchObject({ name: "RequestValidationError" })
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
+  })
+
+  async function insertContract(
+    status: ContractStatus,
+    title: string,
+    options: { managed?: boolean; metadata?: Record<string, unknown> } = {},
+  ) {
     const [row] = await db
       .insert(contracts)
       .values({
@@ -354,10 +957,52 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         status,
         title,
         stageHistory: [],
+        variables: options.managed ? { commercial: { depositDueCents: 25_00 } } : undefined,
+        renderedBody: options.managed ? "Reviewed body" : undefined,
+        metadata: options.managed ? managedBookingWorkflowMetadata() : options.metadata,
       })
       .returning()
     if (!row) throw new Error("Test contract insert failed")
     return row
+  }
+
+  function managedBookingWorkflowMetadata() {
+    return {
+      bookingContractWorkflow: {
+        revision: 1,
+        previousRevisionId: null,
+        reviewOnly: true,
+        reviewSnapshot: {
+          booking: {
+            id: "booking_review_1",
+            reference: "BK-REVIEW-1",
+            customerName: "Ana Pop",
+            customerEmail: "ana@example.test",
+            language: "en",
+            currency: "EUR",
+            totalAmountCents: 100_00,
+            startDate: "2026-09-01",
+            endDate: "2026-09-07",
+          },
+          products: [
+            {
+              title: "Original tour",
+              quantity: 1,
+              amountCents: 100_00,
+              currency: "EUR",
+            },
+          ],
+          commercialTerms: { depositDueCents: 25_00 },
+          template: {
+            id: "template_review_1",
+            name: "Customer review template",
+            versionId: "template_version_review_1",
+            version: 1,
+            language: "en",
+          },
+        },
+      },
+    }
   }
 
   async function executeCommand(
@@ -366,6 +1011,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const toolByTransition = {
       issue: issueLegalContractTool,
       send: sendLegalContractTool,
+      void: voidLegalContractTool,
       execute: executeLegalContractTool,
     } as const
     const tool = toolByTransition[command.transition]
@@ -384,12 +1030,13 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     const lifecycleServices = {
       issueContractCommand: (_input, admitted) => run("issue", admitted),
       sendContractCommand: (_input, admitted) => run("send", admitted),
+      voidContractCommand: (_input, admitted) => run("void", admitted),
       executeContractCommand: (_input, admitted) => run("execute", admitted),
     } satisfies LegalLifecycleCommandToolServices
-    await registry.dispatch(tool.name, command.commandInput, {
+    await registry.dispatch(tool.name, normalizeInput(command.transition, command.commandInput), {
       db: command.db,
-      actor: command.context.actor,
       audience: command.context.actor,
+      actor: command.context.actor,
       tenantId: command.context.organizationId,
       organizationId: command.context.organizationId,
       resolverScope: {
@@ -533,10 +1180,30 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
   }
 
   function normalizeInput(transition: Transition, input: CommandInput) {
+    if (transition === "void") {
+      return {
+        contractId: input.contractId,
+        revision: input.revision ?? 1,
+        reason: input.reason ?? "Operator voided contract",
+        acknowledgedConsequences: true as const,
+      }
+    }
     if (transition !== "send") return { contractId: input.contractId }
+    if (!input.contentFingerprint) {
+      return {
+        contractId: input.contractId,
+        recipientEmail: input.recipientEmail ?? input.recipient ?? null,
+        subject: input.subject ?? null,
+        message: input.message ?? null,
+      }
+    }
     return {
       contractId: input.contractId,
-      recipientEmail: input.recipientEmail ?? null,
+      recipient: input.recipient ?? "traveller@example.com",
+      channel: input.channel ?? "email",
+      revision: input.revision ?? 1,
+      contentFingerprint: input.contentFingerprint,
+      notificationsSuppressed: input.notificationsSuppressed ?? false,
       subject: input.subject ?? null,
       message: input.message ?? null,
     }

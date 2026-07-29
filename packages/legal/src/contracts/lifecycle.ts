@@ -58,6 +58,10 @@ export interface ContractLifecycleEvent {
    */
   delivery?: {
     recipientEmail: string | null
+    recipient?: string | null
+    channel?: "email" | "sms" | "whatsapp" | null
+    revision?: number | null
+    notificationsSuppressed?: boolean
     subject: string | null
     message: string | null
   } | null

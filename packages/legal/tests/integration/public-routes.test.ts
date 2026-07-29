@@ -1,5 +1,10 @@
 // agent-quality: file-size exception -- owner: legal; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
 import { createEventBus } from "@voyant-travel/core"
+import { infraPublicDocumentDeliveryGrantsTable } from "@voyant-travel/db/schema/infra"
+import {
+  createDrizzlePublicDocumentDeliveryGrantStore,
+  createPublicDocumentDeliveryGrant,
+} from "@voyant-travel/public-document-delivery"
 import type { StorageProvider, StorageUploadBody } from "@voyant-travel/storage"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -7,7 +12,12 @@ import { Hono } from "hono"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import { contractsPublicRoutes, createContractsAdminRoutes } from "../../src/contracts/routes.js"
-import { contractSignatures, contracts, contractTemplates } from "../../src/contracts/schema.js"
+import {
+  contractAttachments,
+  contractSignatures,
+  contracts,
+  contractTemplates,
+} from "../../src/contracts/schema.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -19,6 +29,50 @@ const jsonWithIdempotency = (body: Record<string, unknown>, key: string) => ({
   headers: { "Content-Type": "application/json", "Idempotency-Key": key },
   body: JSON.stringify(body),
 })
+function tokenFromPublicDeliveryUrl(url: string) {
+  const token = new URL(url).pathname.split("/").filter(Boolean).at(-1)
+  if (!token) throw new Error(`Public delivery URL did not include a token: ${url}`)
+  return token
+}
+
+function managedBookingWorkflowMetadata(revision = 1, reviewOnly = true) {
+  return {
+    bookingContractWorkflow: {
+      revision,
+      previousRevisionId: null,
+      reviewOnly,
+      reviewSnapshot: {
+        booking: {
+          id: "booking_review_route_1",
+          reference: "BK-ROUTE-1",
+          customerName: "Ana Pop",
+          customerEmail: "ana@example.test",
+          language: "en",
+          currency: "EUR",
+          totalAmountCents: 100_00,
+          startDate: "2026-09-01",
+          endDate: "2026-09-07",
+        },
+        products: [
+          {
+            title: "Original tour",
+            quantity: 1,
+            amountCents: 100_00,
+            currency: "EUR",
+          },
+        ],
+        commercialTerms: { depositDueCents: 25_00 },
+        template: {
+          id: "template_review_route_1",
+          name: "Customer review template",
+          versionId: "template_version_review_route_1",
+          version: 1,
+          language: "en",
+        },
+      },
+    },
+  }
+}
 
 describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
   let adminApp: Hono
@@ -349,6 +403,129 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     expect(signatures).toEqual([])
   })
 
+  it("allows attachment grants to read public contracts but not sign them", async () => {
+    const [contract] = await db
+      .insert(contracts)
+      .values({
+        title: "Attachment-readable contract",
+        scope: "customer",
+        status: "sent",
+        renderedBody: "<p>Hello traveler</p>",
+      })
+      .returning()
+    const [attachment] = await db
+      .insert(contractAttachments)
+      .values({
+        contractId: contract.id,
+        kind: "document",
+        name: "contract.pdf",
+        mimeType: "application/pdf",
+        storageKey: `contracts/${contract.id}/document.pdf`,
+      })
+      .returning()
+    const delivery = await createPublicDocumentDeliveryGrant(
+      createDrizzlePublicDocumentDeliveryGrantStore(db),
+      {
+        storageKey: attachment.storageKey!,
+        publicBaseUrl: "https://public.example.test",
+        filename: attachment.name,
+        contentType: attachment.mimeType,
+        source: { module: "legal", entity: "contract_attachment", id: attachment.id },
+        ttlSeconds: 60,
+      },
+    )
+    const token = tokenFromPublicDeliveryUrl(delivery.url)
+
+    const readRes = await publicApp.request(`/${contract.id}?token=${encodeURIComponent(token)}`)
+    expect(readRes.status).toBe(200)
+    expect((await readRes.json()).data).toMatchObject({
+      title: "Attachment-readable contract",
+      status: "sent",
+      renderedBody: "<p>Hello traveler</p>",
+    })
+
+    const [grantAfterRead] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterRead?.accessCount).toBe(1)
+
+    const signRes = await publicApp.request(
+      `/${contract.id}/sign?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        ...json({
+          signerName: "Ada Lovelace",
+          method: "manual",
+        }),
+      },
+    )
+    expect(signRes.status).toBe(404)
+    expect(await signRes.json()).toEqual({ error: "Contract not found" })
+
+    const signatures = await db
+      .select()
+      .from(contractSignatures)
+      .where(eq(contractSignatures.contractId, contract.id))
+    expect(signatures).toEqual([])
+    const [grantAfterSign] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterSign?.accessCount).toBe(1)
+  })
+
+  it("allows contract grants to sign public contracts", async () => {
+    const [contract] = await db
+      .insert(contracts)
+      .values({
+        title: "Contract-signable public contract",
+        scope: "customer",
+        status: "sent",
+        renderedBody: "<p>Please sign</p>",
+      })
+      .returning()
+    const delivery = await createPublicDocumentDeliveryGrant(
+      createDrizzlePublicDocumentDeliveryGrantStore(db),
+      {
+        storageKey: `contracts/${contract.id}/document.pdf`,
+        publicBaseUrl: "https://public.example.test",
+        filename: "contract.pdf",
+        contentType: "application/pdf",
+        source: { module: "legal", entity: "contract", id: contract.id },
+        ttlSeconds: 60,
+      },
+    )
+    const token = tokenFromPublicDeliveryUrl(delivery.url)
+
+    const signRes = await publicApp.request(
+      `/${contract.id}/sign?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        ...json({
+          signerName: "Ada Lovelace",
+          method: "manual",
+        }),
+      },
+    )
+    expect(signRes.status).toBe(200)
+    expect((await signRes.json()).data.signature).toMatchObject({
+      signerName: "Ada Lovelace",
+      method: "manual",
+    })
+
+    const signatures = await db
+      .select()
+      .from(contractSignatures)
+      .where(eq(contractSignatures.contractId, contract.id))
+    expect(signatures).toHaveLength(1)
+    const [grantAfterSign] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterSign?.accessCount).toBe(1)
+  })
+
   it("does not upload a stored document for a missing contract", async () => {
     const form = new FormData()
     form.set("name", "Missing contract.pdf")
@@ -426,7 +603,6 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
     expect(lifecycleEvents.map((event) => event.name)).toEqual([
       "contract.issued",
       "contract.sent",
-      "contract.signed",
       "contract.executed",
       "contract.voided",
     ])
@@ -441,6 +617,145 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         metadata: expect.anything(),
       }),
     )
+  })
+
+  it("strips the reserved managed booking workflow marker from generic contract writes", async () => {
+    const createRes = await adminApp.request("/", {
+      method: "POST",
+      ...json({
+        title: "Generic contract with injected workflow",
+        scope: "customer",
+        metadata: {
+          source: "admin",
+          bookingContractWorkflow: {
+            revision: 99,
+            reviewOnly: false,
+            reviewSnapshot: { booking: { customerEmail: "leak@example.test" } },
+          },
+        },
+      }),
+    })
+    expect(createRes.status).toBe(201)
+    const created = (await createRes.json()).data
+    expect(created.metadata).toEqual({ source: "admin" })
+    await expect(db.select().from(contracts).where(eq(contracts.id, created.id))).resolves.toEqual([
+      expect.objectContaining({ metadata: { source: "admin" } }),
+    ])
+
+    const [draft] = await db
+      .insert(contracts)
+      .values({
+        title: "Generic patch target",
+        scope: "customer",
+        metadata: { retained: true },
+      })
+      .returning()
+    const patchRes = await adminApp.request(`/${draft!.id}`, {
+      method: "PATCH",
+      ...json({
+        metadata: {
+          retained: true,
+          source: "patch",
+          bookingContractWorkflow: { revision: 1, reviewOnly: true },
+        },
+      }),
+    })
+    expect(patchRes.status).toBe(200)
+    const patched = (await patchRes.json()).data
+    expect(patched.metadata).toEqual({ retained: true, source: "patch" })
+    await expect(db.select().from(contracts).where(eq(contracts.id, draft!.id))).resolves.toEqual([
+      expect.objectContaining({ metadata: { retained: true, source: "patch" } }),
+    ])
+  })
+
+  it("refuses PATCH mutation of managed drafts and every non-draft revision", async () => {
+    const [managedDraft] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed revision",
+        scope: "customer",
+        metadata: managedBookingWorkflowMetadata(),
+      })
+      .returning()
+    const managedPatch = await adminApp.request(`/${managedDraft!.id}`, {
+      method: "PATCH",
+      ...json({ title: "Mutated revision" }),
+    })
+    expect(managedPatch.status).toBe(400)
+    const managedDelete = await adminApp.request(`/${managedDraft!.id}`, { method: "DELETE" })
+    expect(managedDelete.status).toBe(409)
+    await expect(managedDelete.json()).resolves.toEqual({
+      error: "Immutable contract revisions cannot be deleted",
+    })
+
+    const [managedVoid] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed void revision",
+        scope: "customer",
+        status: "void",
+        metadata: managedBookingWorkflowMetadata(1, false),
+      })
+      .returning()
+    const managedVoidDelete = await adminApp.request(`/${managedVoid!.id}`, { method: "DELETE" })
+    expect(managedVoidDelete.status).toBe(409)
+
+    const [managedIssued] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed issued revision",
+        scope: "customer",
+        status: "issued",
+        metadata: managedBookingWorkflowMetadata(2, false),
+      })
+      .returning()
+    const managedSend = await adminApp.request(`/${managedIssued!.id}/send`, { method: "POST" })
+    expect(managedSend.status).toBe(400)
+    await expect(managedSend.json()).resolves.toEqual({
+      error:
+        "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+    })
+
+    const [managedSent] = await db
+      .insert(contracts)
+      .values({
+        title: "Managed sent revision",
+        scope: "customer",
+        status: "sent",
+        metadata: managedBookingWorkflowMetadata(3, false),
+      })
+      .returning()
+    const managedVoidResponse = await adminApp.request(`/${managedSent!.id}/void`, {
+      method: "POST",
+    })
+    expect(managedVoidResponse.status).toBe(400)
+    await expect(managedVoidResponse.json()).resolves.toEqual({
+      error:
+        "Managed booking contract revisions must be voided through the reviewed lifecycle command.",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, managedSent!.id)),
+    ).resolves.toEqual([expect.objectContaining({ status: "sent" })])
+
+    const [unmanagedDraft] = await db
+      .insert(contracts)
+      .values({ title: "Legacy disposable draft", scope: "customer" })
+      .returning()
+    const unmanagedDelete = await adminApp.request(`/${unmanagedDraft!.id}`, { method: "DELETE" })
+    expect(unmanagedDelete.status).toBe(200)
+
+    const [sent] = await db
+      .insert(contracts)
+      .values({ title: "Sent revision", scope: "customer", status: "sent" })
+      .returning()
+    const sentPatch = await adminApp.request(`/${sent!.id}`, {
+      method: "PATCH",
+      ...json({ variables: { commercial: { totalAmountCents: 1 } } }),
+    })
+    expect(sentPatch.status).toBe(400)
+    await expect(db.select().from(contracts).where(eq(contracts.id, sent!.id))).resolves.toEqual([
+      expect.objectContaining({ title: "Sent revision", variables: null }),
+    ])
   })
 
   it("replays contract creates with the same idempotency key", async () => {

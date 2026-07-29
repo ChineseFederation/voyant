@@ -124,7 +124,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
 
   app.openapi(getManifestRoute, async (c) => {
     const permissions = callerPermissions(c)
-    const ctx = await buildContext(c)
+    const ctx = await buildAuthenticatedContext(c, buildContext)
     const tools = registry
       .list()
       .filter((tool) => isAuthorized(tool, permissions, accessCatalog, ctx.audience))
@@ -133,7 +133,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
 
   app.openapi(callMcpRoute, async (c) => {
     const permissions = callerPermissions(c)
-    const ctx = await buildContext(c)
+    const ctx = await buildAuthenticatedContext(c, buildContext)
     const server = new McpServer(serverInfo)
 
     for (const entry of registry.list()) {
@@ -358,8 +358,21 @@ function assertToolContextContribution(
 
 /** Resolve the caller's granted permissions from `c.var.scopes`. */
 function callerPermissions(c: Context): ApiKeyPermissions {
-  const scopes = (c.var as { scopes?: string[] | null }).scopes ?? []
-  return permissionStringsToPermissions(scopes)
+  return permissionStringsToPermissions(callerGrantedScopes(c))
+}
+
+async function buildAuthenticatedContext(
+  c: Context,
+  buildContext: McpApiRoutesOptions["buildContext"],
+): Promise<ToolContext> {
+  const context = await buildContext(c)
+  return { ...context, scopes: callerGrantedScopes(c) }
+}
+
+function callerGrantedScopes(c: Context): string[] {
+  const scopes = (c.var as { scopes?: unknown }).scopes
+  if (!Array.isArray(scopes)) return []
+  return scopes.filter((scope): scope is string => typeof scope === "string" && scope.length > 0)
 }
 
 /** AND semantics — the caller must hold every one of the tool's required scopes. */

@@ -307,6 +307,47 @@ describe("validateTemplateVariables", () => {
     expect(validateTemplateVariables(schema, { customer: { email: "a@example.com" } })).toEqual([])
   })
 
+  it("supports bracket and numeric dot indexes in required keys", () => {
+    const values = {
+      booking: {
+        items: [{ title: "Original tour", quantity: 2 }],
+      },
+    }
+
+    expect(
+      validateTemplateVariables(
+        { required: ["booking.items[0].title", "booking.items.0.quantity"] },
+        values,
+      ),
+    ).toEqual([])
+  })
+
+  it("reports missing and out-of-range array paths", () => {
+    const values = { booking: { items: [{ title: "Original tour" }] } }
+
+    expect(
+      validateTemplateVariables(
+        { required: ["booking.items[1].title", "booking.items[99].title"] },
+        values,
+      ),
+    ).toEqual([
+      "missing required variable: booking.items[1].title",
+      "missing required variable: booking.items[99].title",
+    ])
+  })
+
+  it("does not resolve unsafe prototype path segments", () => {
+    expect(
+      validateTemplateVariables(
+        { required: ["booking.__proto__.polluted", "booking.constructor.name"] },
+        { booking: {} },
+      ),
+    ).toEqual([
+      "missing required variable: booking.__proto__.polluted",
+      "missing required variable: booking.constructor.name",
+    ])
+  })
+
   it("accepts numeric and boolean values as present", () => {
     const schema = { required: ["count", "active"] }
     expect(validateTemplateVariables(schema, { count: 0, active: false })).toEqual([])

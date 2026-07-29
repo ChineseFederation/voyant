@@ -26,6 +26,8 @@ export interface ToolContext {
   tenantId: string
   /** Authenticated organization when the grant is organization-scoped. */
   organizationId?: string
+  /** Authenticated scopes granted by the transport for this request. */
+  scopes?: readonly string[]
   /** Default resolver scope for tools that need locale / audience / market. */
   resolverScope: ResolverScope
   /** Optional runtime hook to keep the isolate alive for background work. */

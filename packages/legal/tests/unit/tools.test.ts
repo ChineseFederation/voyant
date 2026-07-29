@@ -1,16 +1,21 @@
 import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it, vi } from "vitest"
 import { LEGAL_CONTRACT_DOCUMENT_HANDLER_EXPECTATIONS } from "../../src/contract-document-policy.js"
+import { contractsService } from "../../src/contracts/service.js"
 import { LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS } from "../../src/existing-target-policy.js"
 import { createLegalContractDocumentToolServices } from "../../src/mcp-runtime.js"
 import {
   createContractTemplateTool,
+  createLegalContractDraftTool,
   generateBookingContractDocumentTool,
+  getBookingContractReviewTool,
   issueLegalContractTool,
   legalContractDocumentTools,
   legalTools,
+  listApplicableBookingContractTemplatesTool,
   resolveContractDocumentDeliveryTool,
   sendLegalContractTool,
+  voidLegalContractTool,
 } from "../../src/tools.js"
 
 function baseContext(): ToolContext {
@@ -28,9 +33,11 @@ function baseContext(): ToolContext {
   }
 }
 
+const bookingContractContentFingerprint = `booking-contract-content:v1:sha256:${"a".repeat(64)}`
+
 describe("legal Tools", () => {
   it("publishes unique typed capabilities for both selected legal units", () => {
-    expect(legalTools).toHaveLength(18)
+    expect(legalTools).toHaveLength(21)
     expect(legalContractDocumentTools).toHaveLength(3)
     const tools = [...legalTools, ...legalContractDocumentTools]
     expect(new Set(tools.map((tool) => tool.capabilityId)).size).toBe(tools.length)
@@ -50,8 +57,144 @@ describe("legal Tools", () => {
       destructive: false,
       reversible: false,
       confirmationRequired: true,
-      sideEffects: ["data-write", "email"],
+      sideEffects: ["data-write", "email", "sms"],
     })
+  })
+
+  it("advertises the bounded review-first booking contract workflow", () => {
+    expect(listApplicableBookingContractTemplatesTool.description).toContain("missing prerequisite")
+    expect(listApplicableBookingContractTemplatesTool.requiredScopes).toEqual([
+      "legal:read",
+      "bookings-pii:read",
+    ])
+    expect(getBookingContractReviewTool.description).toContain("exact template version")
+    expect(getBookingContractReviewTool.requiredScopes).toEqual(["legal:read", "bookings-pii:read"])
+    expect(resolveContractDocumentDeliveryTool.requiredScopes).toEqual(["legal:read"])
+    expect(
+      createLegalContractDraftTool.inputSchema.safeParse({
+        title: "Revised agreement",
+        revisionOfContractId: "contract_1",
+      }).success,
+    ).toBe(true)
+    expect(sendLegalContractTool.inputSchema.safeParse({ contractId: "contract_1" }).success).toBe(
+      true,
+    )
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipientEmail: "legacy@example.com",
+      }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "not-an-email",
+        channel: "email",
+        revision: 2,
+        contentFingerprint: bookingContractContentFingerprint,
+      }).success,
+    ).toBe(false)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "+40700000000",
+        channel: "sms",
+        revision: 2,
+        contentFingerprint: bookingContractContentFingerprint,
+      }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "+40700000000",
+        channel: "whatsapp",
+        revision: 2,
+        contentFingerprint: bookingContractContentFingerprint,
+      }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        recipient: "traveller@example.com",
+        channel: "email",
+        revision: 2,
+        contentFingerprint: bookingContractContentFingerprint,
+        notificationsSuppressed: false,
+      }).success,
+    ).toBe(true)
+    expect(
+      voidLegalContractTool.inputSchema.safeParse({
+        contractId: "contract_1",
+        revision: 2,
+        reason: "Booking cancelled",
+        acknowledgedConsequences: false,
+      }).success,
+    ).toBe(false)
+  })
+
+  it("admits only canonical international phone recipients for sms and whatsapp sends", async () => {
+    const expected = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.send
+    const sendContractCommand = vi.fn(async () => {
+      throw new Error("sendContractCommand should not run for invalid recipient input")
+    })
+    const legal = {
+      issueContract: vi.fn(),
+      sendContract: vi.fn(),
+      executeContract: vi.fn(),
+      listContracts: vi.fn(),
+      getContract: vi.fn(),
+      listTemplates: vi.fn(),
+      getTemplate: vi.fn(),
+      createTemplate: vi.fn(),
+      listPolicies: vi.fn(),
+      getPolicy: vi.fn(),
+      resolvePolicy: vi.fn(),
+      evaluateCancellation: vi.fn(),
+      listTerms: vi.fn(),
+      listAttachments: vi.fn(),
+      issueContractCommand: vi.fn(),
+      sendContractCommand,
+      voidContractCommand: vi.fn(),
+      executeContractCommand: vi.fn(),
+    } as never
+    const registry = createToolRegistry()
+    registry.register(sendLegalContractTool, { actionPolicy: expected.actionPolicy })
+    const validInput = {
+      contractId: "contract_1",
+      recipient: "+40700000000",
+      revision: 2,
+      contentFingerprint: bookingContractContentFingerprint,
+    }
+
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({ ...validInput, channel: "sms" }).success,
+    ).toBe(true)
+    expect(
+      sendLegalContractTool.inputSchema.safeParse({ ...validInput, channel: "whatsapp" }).success,
+    ).toBe(true)
+
+    for (const channel of ["sms", "whatsapp"] as const) {
+      for (const recipient of [
+        "abc",
+        "40700000000",
+        "+40 700000000",
+        "+40-700000000",
+        "+1234567",
+        "+1234567890123456",
+        " +40700000000",
+        "+40700000000 ",
+      ]) {
+        await expect(
+          registry.dispatch(
+            sendLegalContractTool.name,
+            { ...validInput, channel, recipient },
+            { ...baseContext(), legal },
+          ),
+        ).rejects.toThrow()
+      }
+    }
+
+    expect(sendContractCommand).not.toHaveBeenCalled()
   })
 
   it("uses admitted lifecycle command methods", async () => {
@@ -94,6 +237,7 @@ describe("legal Tools", () => {
       issueContract,
       issueContractCommand,
       sendContractCommand: vi.fn(),
+      voidContractCommand: vi.fn(),
       executeContractCommand: vi.fn(),
     } as never
     const expected = LEGAL_CONTRACT_LIFECYCLE_HANDLER_EXPECTATIONS.issue
@@ -244,5 +388,136 @@ describe("legal Tools", () => {
     await expect(service.resolveDelivery({ attachmentId: "attachment_1" })).resolves.toMatchObject({
       filename: "contract.pdf",
     })
+  })
+
+  it("resolves non-managed contract document delivery without bookings PII scope", async () => {
+    const getAttachmentWithContractById = vi
+      .spyOn(contractsService, "getAttachmentWithContractById")
+      .mockResolvedValueOnce({
+        attachment: { id: "attachment_1" },
+        contract: { id: "contract_1", bookingId: null, metadata: {} },
+      } as never)
+    const resolveDelivery = vi.fn(async () => ({
+      url: "https://documents.example.test/signed",
+      filename: "contract.pdf",
+      contentType: "application/pdf",
+    }))
+
+    try {
+      await expect(
+        resolveContractDocumentDeliveryTool.handler(
+          { attachmentId: "attachment_1" },
+          {
+            ...baseContext(),
+            scopes: ["legal:read"],
+            db: { select: vi.fn() },
+            legalContractDocument: {
+              generate: vi.fn(),
+              regenerate: vi.fn(),
+              resolveDelivery,
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ filename: "contract.pdf" })
+      expect(getAttachmentWithContractById).toHaveBeenCalledWith(
+        expect.objectContaining({ select: expect.any(Function) }),
+        "attachment_1",
+      )
+      expect(resolveDelivery).toHaveBeenCalledWith({ attachmentId: "attachment_1" })
+    } finally {
+      getAttachmentWithContractById.mockRestore()
+    }
+  })
+
+  it("hides managed contract document delivery without bookings PII scope", async () => {
+    const auditValues = vi.fn(async () => undefined)
+    const getAttachmentWithContractById = vi
+      .spyOn(contractsService, "getAttachmentWithContractById")
+      .mockResolvedValueOnce({
+        attachment: { id: "attachment_1" },
+        contract: {
+          id: "contract_1",
+          bookingId: "booking_1",
+          metadata: { bookingContractWorkflow: { reviewSnapshot: {} } },
+        },
+      } as never)
+    const resolveDelivery = vi.fn(async () => ({
+      url: "https://documents.example.test/signed",
+      filename: "contract.pdf",
+      contentType: "application/pdf",
+    }))
+
+    try {
+      await expect(
+        resolveContractDocumentDeliveryTool.handler(
+          { attachmentId: "attachment_1" },
+          {
+            ...baseContext(),
+            scopes: ["legal:read"],
+            db: {
+              select: vi.fn(),
+              insert: vi.fn(() => ({ values: auditValues })),
+            },
+            legalContractDocument: {
+              generate: vi.fn(),
+              regenerate: vi.fn(),
+              resolveDelivery,
+            },
+          },
+        ),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" })
+    } finally {
+      getAttachmentWithContractById.mockRestore()
+    }
+
+    expect(resolveDelivery).not.toHaveBeenCalled()
+    expect(auditValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: "booking_1",
+        outcome: "denied",
+        reason: "insufficient_scope",
+        metadata: expect.objectContaining({ attachmentId: "attachment_1" }),
+      }),
+    )
+  })
+
+  it("resolves managed contract document delivery with bookings PII scope", async () => {
+    const getAttachmentWithContractById = vi
+      .spyOn(contractsService, "getAttachmentWithContractById")
+      .mockResolvedValueOnce({
+        attachment: { id: "attachment_1" },
+        contract: {
+          id: "contract_1",
+          bookingId: "booking_1",
+          metadata: { bookingContractWorkflow: { reviewSnapshot: {} } },
+        },
+      } as never)
+    const resolveDelivery = vi.fn(async () => ({
+      url: "https://documents.example.test/signed",
+      filename: "contract.pdf",
+      contentType: "application/pdf",
+    }))
+
+    try {
+      await expect(
+        resolveContractDocumentDeliveryTool.handler(
+          { attachmentId: "attachment_1" },
+          {
+            ...baseContext(),
+            scopes: ["legal:read", "bookings-pii:read"],
+            db: { select: vi.fn() },
+            legalContractDocument: {
+              generate: vi.fn(),
+              regenerate: vi.fn(),
+              resolveDelivery,
+            },
+          },
+        ),
+      ).resolves.toMatchObject({ filename: "contract.pdf" })
+    } finally {
+      getAttachmentWithContractById.mockRestore()
+    }
+
+    expect(resolveDelivery).toHaveBeenCalledWith({ attachmentId: "attachment_1" })
   })
 })

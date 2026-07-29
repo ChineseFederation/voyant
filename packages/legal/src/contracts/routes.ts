@@ -18,6 +18,8 @@
 // in-handler; multipart upload + redirect download legs declare their non-JSON
 // shapes explicitly. The factory/provider wiring + business logic are unchanged.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { shouldRevealBookingPii } from "@voyant-travel/bookings"
+import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
   idempotencyKey,
@@ -35,6 +37,10 @@ import type { StorageProvider } from "@voyant-travel/storage"
 import { listResponseSchema } from "@voyant-travel/types"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import {
+  hasManagedBookingWorkflow,
+  redactManagedBookingContractForGenericDetail,
+} from "../contract-dto.js"
 import type { ContractLifecycleHook } from "./lifecycle.js"
 import {
   buildContractsRouteRuntime,
@@ -69,6 +75,58 @@ import {
   updateContractSchema,
   updateContractTemplateSchema,
 } from "./validation.js"
+
+function shouldRevealBookingPiiForRoute(c: Context<Env>): boolean {
+  return shouldRevealBookingPii({
+    actor: c.get("actor"),
+    scopes: c.get("scopes"),
+    callerType: c.get("callerType"),
+    isInternalRequest: c.get("isInternalRequest"),
+    enforceRbac: true,
+  })
+}
+
+function routeActorId(c: Context<Env>): string | null {
+  return c.get("userId") ?? c.get("agentId") ?? c.get("workflowPrincipalId") ?? null
+}
+
+async function auditManagedBookingAttachmentDelivery(
+  c: Context<Env>,
+  input: {
+    bookingId: string
+    contractId: string
+    attachmentId: string
+    outcome: "allowed" | "denied"
+    reason: "contract_document_delivery_reveal" | "insufficient_scope"
+  },
+) {
+  await c
+    .get("db")
+    .insert(bookingPiiAccessLog)
+    .values({
+      bookingId: input.bookingId,
+      travelerId: null,
+      actorId: routeActorId(c),
+      actorType: c.get("actor") ?? null,
+      callerType: c.get("callerType") ?? null,
+      action: "read",
+      outcome: input.outcome,
+      reason: input.reason,
+      metadata:
+        input.outcome === "denied"
+          ? {
+              contractId: input.contractId,
+              attachmentId: input.attachmentId,
+              reveal: false,
+              requiredScopes: ["legal:read", "bookings-pii:read"],
+            }
+          : {
+              contractId: input.contractId,
+              attachmentId: input.attachmentId,
+              reveal: true,
+            },
+    })
+}
 
 type Env = {
   Bindings: Record<string, unknown>
@@ -641,6 +699,16 @@ function toPublicContract(contract: Contract): z.infer<typeof publicContractSche
   }
 }
 
+function toGenericAdminContract<T extends { variables: unknown; metadata: unknown }>(
+  contract: T,
+): T {
+  return redactManagedBookingContractForGenericDetail(contract)
+}
+
+function isGenericContractRenderAllowed(contract: Pick<Contract, "metadata">): boolean {
+  return !hasManagedBookingWorkflow(contract.metadata)
+}
+
 function toPublicSignature(
   signature: ContractSignature,
 ): z.infer<typeof publicContractSignatureSchema> {
@@ -657,6 +725,7 @@ async function authorizePublicContractAccess(
   c: Context<Env>,
   contractId: string,
   token: string | undefined,
+  capability: "read" | "sign",
 ): Promise<"ready" | "not_found" | "gone"> {
   if (!token) return "not_found"
 
@@ -675,6 +744,10 @@ async function authorizePublicContractAccess(
       userAgent: c.req.header("user-agent") ?? null,
     })
     return "ready"
+  }
+
+  if (capability === "sign") {
+    return "not_found"
   }
 
   if (grant.sourceEntity !== "contract_attachment" || !grant.sourceId) {
@@ -1123,21 +1196,24 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         content: { "application/json": { schema: successResponseSchema } },
       },
       404: notFoundResponse("Contract not found"),
-      409: conflictResponse("Only draft or void contracts can be deleted"),
+      409: conflictResponse("Contract cannot be deleted"),
     },
   })
 
   const contractRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-    .openapi(listContractsRoute, async (c) =>
-      c.json(await contractsService.listContracts(c.get("db"), c.req.valid("query")), 200),
-    )
+    .openapi(listContractsRoute, async (c) => {
+      const result = await contractsService.listContracts(c.get("db"), c.req.valid("query"))
+      return c.json({ ...result, data: result.data.map(toGenericAdminContract) }, 200)
+    })
     .openapi(createContractRoute, async (c) => {
       const row = await contractsService.createContract(c.get("db"), c.req.valid("json"))
-      return c.json({ data: row! }, 201)
+      return c.json({ data: toGenericAdminContract(row!) }, 201)
     })
     .openapi(getContractRoute, async (c) => {
       const row = await contractsService.getContractById(c.get("db"), c.req.valid("param").id)
-      return row ? c.json({ data: row }, 200) : c.json({ error: "Contract not found" }, 404)
+      return row
+        ? c.json({ data: toGenericAdminContract(row) }, 200)
+        : c.json({ error: "Contract not found" }, 404)
     })
     .openapi(updateContractRoute, async (c) => {
       const row = await contractsService.updateContract(
@@ -1145,13 +1221,18 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
         c.req.valid("param").id,
         c.req.valid("json"),
       )
-      return row ? c.json({ data: row }, 200) : c.json({ error: "Contract not found" }, 404)
+      return row
+        ? c.json({ data: toGenericAdminContract(row) }, 200)
+        : c.json({ error: "Contract not found" }, 404)
     })
     .openapi(deleteContractRoute, async (c) => {
       const result = await contractsService.deleteContract(c.get("db"), c.req.valid("param").id)
       if (result.status === "not_found") return c.json({ error: "Contract not found" }, 404)
       if (result.status === "not_deletable") {
         return c.json({ error: "Only draft or void contracts can be deleted" }, 409)
+      }
+      if (result.status === "immutable_revision") {
+        return c.json({ error: "Immutable contract revisions cannot be deleted" }, 409)
       }
       return c.json({ success: true } as const, 200)
     })
@@ -1274,7 +1355,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_draft") {
         return c.json({ error: "Only draft contracts can be issued" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(sendContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1293,7 +1374,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_issued") {
         return c.json({ error: "Only issued/sent contracts can be sent" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(signContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1307,7 +1388,15 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_signable") {
         return c.json({ error: "Contract is not in a signable state" }, 409)
       }
-      return c.json({ data: { contract: result.contract!, signature: result.signature! } }, 200)
+      return c.json(
+        {
+          data: {
+            contract: toGenericAdminContract(result.contract!),
+            signature: result.signature!,
+          },
+        },
+        200,
+      )
     })
     .openapi(executeContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1320,7 +1409,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "not_signed") {
         return c.json({ error: "Only signed contracts can be executed" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(voidContractRoute, async (c) => {
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
@@ -1333,7 +1422,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (result.status === "already_void") {
         return c.json({ error: "Contract is already void" }, 409)
       }
-      return c.json({ data: result.contract! }, 200)
+      return c.json({ data: toGenericAdminContract(result.contract!) }, 200)
     })
     .openapi(renderContractRoute, (c) =>
       asRouteResponse(
@@ -1344,6 +1433,9 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
             c.req.valid("param").id,
           )
           if (!contract) return c.json({ error: "Contract not found" }, 404)
+          if (!isGenericContractRenderAllowed(contract)) {
+            return c.json({ error: "Contract not found" }, 404)
+          }
           return renderPreviewResponse(c, input)
         })(),
       ),
@@ -1531,11 +1623,26 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       asRouteResponse(replaceContractAttachmentUpload(c, options)),
     )
     .openapi(downloadAttachmentRoute, async (c) => {
-      const attachment = await contractsService.getAttachmentById(
+      const row = await contractsService.getAttachmentWithContractById(
         c.get("db"),
         c.req.valid("param").attachmentId,
       )
-      if (!attachment) return c.json({ error: "Attachment not found" }, 404)
+      if (!row) return c.json({ error: "Attachment not found" }, 404)
+      const attachment = row.attachment
+      if (
+        row.contract.bookingId &&
+        hasManagedBookingWorkflow(row.contract.metadata) &&
+        !shouldRevealBookingPiiForRoute(c)
+      ) {
+        await auditManagedBookingAttachmentDelivery(c, {
+          bookingId: row.contract.bookingId,
+          contractId: row.contract.id,
+          attachmentId: attachment.id,
+          outcome: "denied",
+          reason: "insufficient_scope",
+        })
+        return c.json({ error: "Attachment not found" }, 404)
+      }
 
       const runtime = getRuntime(options, c.env, (key) => c.var.container?.resolve(key))
       const download = await resolveStoredDocumentDownload(
@@ -1550,6 +1657,15 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       }
       if (download.status !== "ready") {
         return c.json({ error: "Attachment file is not available" }, 404)
+      }
+      if (row.contract.bookingId && hasManagedBookingWorkflow(row.contract.metadata)) {
+        await auditManagedBookingAttachmentDelivery(c, {
+          bookingId: row.contract.bookingId,
+          contractId: row.contract.id,
+          attachmentId: attachment.id,
+          outcome: "allowed",
+          reason: "contract_document_delivery_reveal",
+        })
       }
 
       return c.redirect(download.download.url, 302)
@@ -1734,6 +1850,7 @@ export function createContractsPublicRoutes(options: ContractsRouteOptions = {})
         c,
         contractId,
         c.req.valid("query").token,
+        "read",
       )
       if (authorization === "gone") {
         return c.json({ error: "Contract access grant is no longer available" }, 410)
@@ -1751,6 +1868,7 @@ export function createContractsPublicRoutes(options: ContractsRouteOptions = {})
         c,
         contractId,
         c.req.valid("query").token,
+        "sign",
       )
       if (authorization === "gone") {
         return c.json({ error: "Contract access grant is no longer available" }, 410)
