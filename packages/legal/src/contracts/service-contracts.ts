@@ -80,10 +80,14 @@ function scrubGenericContractMetadata<T extends { metadata?: unknown }>(data: T)
   }
 }
 
-function assertGenericLifecycleMutationAllowed(metadata: unknown, transition: "send" | "void") {
+function assertGenericLifecycleMutationAllowed(
+  metadata: unknown,
+  transition: "issue" | "send" | "void",
+) {
   if (!isManagedBookingContract(metadata)) return
+  const label = transition === "issue" ? "issued" : transition === "send" ? "sent" : "voided"
   throw new RequestValidationError(
-    `Managed booking contract revisions must be ${transition === "send" ? "sent" : "voided"} through the reviewed lifecycle command.`,
+    `Managed booking contract revisions must be ${label} through the reviewed lifecycle command.`,
   )
 }
 
@@ -308,6 +312,7 @@ export const contractRecordsService = {
       if (!contract) return { status: "not_found" as const }
       const transition = checkContractLifecycleTransition(contract.status, "issued")
       if (!transition.ok) return { status: transition.reason }
+      assertGenericLifecycleMutationAllowed(contract.metadata, "issue")
 
       let contractNumber = contract.contractNumber
       if (!contractNumber && contract.seriesId) {

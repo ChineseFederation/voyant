@@ -18,6 +18,7 @@
 // in-handler; multipart upload + redirect download legs declare their non-JSON
 // shapes explicitly. The factory/provider wiring + business logic are unchanged.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+import { shouldRevealBookingPii } from "@voyant-travel/bookings"
 import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
 import type { EventBus, ModuleContainer } from "@voyant-travel/core"
 import {
@@ -75,12 +76,14 @@ import {
   updateContractTemplateSchema,
 } from "./validation.js"
 
-function hasBookingPiiReadScope(scopes: readonly string[] | undefined): boolean {
-  return Boolean(
-    scopes?.includes("*") ||
-      scopes?.includes("bookings-pii:*") ||
-      scopes?.includes("bookings-pii:read"),
-  )
+function shouldRevealBookingPiiForRoute(c: Context<Env>): boolean {
+  return shouldRevealBookingPii({
+    actor: c.get("actor"),
+    scopes: c.get("scopes"),
+    callerType: c.get("callerType"),
+    isInternalRequest: c.get("isInternalRequest"),
+    enforceRbac: true,
+  })
 }
 
 function routeActorId(c: Context<Env>): string | null {
@@ -1629,7 +1632,7 @@ export function createContractsAdminRoutes(options: ContractsRouteOptions = {}) 
       if (
         row.contract.bookingId &&
         hasManagedBookingWorkflow(row.contract.metadata) &&
-        !hasBookingPiiReadScope(c.get("scopes"))
+        !shouldRevealBookingPiiForRoute(c)
       ) {
         await auditManagedBookingAttachmentDelivery(c, {
           bookingId: row.contract.bookingId,

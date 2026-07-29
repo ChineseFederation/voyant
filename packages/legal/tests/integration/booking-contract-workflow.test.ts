@@ -1,8 +1,10 @@
 // agent-quality: file-size exception -- owner: legal; managed booking review workflow coverage stays co-located because revision, snapshot, delivery, and concurrency guards share the same database fixtures.
 import { bookingItems, bookingPiiAccessLog, bookings } from "@voyant-travel/bookings/schema"
+import { createEventBus } from "@voyant-travel/core"
 import { createDbClient } from "@voyant-travel/db"
 import { infraPublicDocumentDeliveryGrantsTable } from "@voyant-travel/db/schema/infra"
 import { cleanupTestDb } from "@voyant-travel/db/test-utils"
+import { handleApiError } from "@voyant-travel/hono"
 import type { ToolContext } from "@voyant-travel/tools"
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -299,14 +301,16 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
       })
       .returning()
 
-    function app(scopes: string[], userId: string) {
+    function app(scopes: string[], userId: string, isInternalRequest = false) {
       const route = new Hono()
+      route.onError(handleApiError)
       route.use("*", async (c, next) => {
         c.set("db" as never, db)
         c.set("scopes" as never, scopes)
         c.set("userId" as never, userId)
         c.set("actor" as never, "staff")
-        c.set("callerType" as never, "session")
+        c.set("callerType" as never, isInternalRequest ? "internal" : "session")
+        c.set("isInternalRequest" as never, isInternalRequest)
         await next()
       })
       route.route(
@@ -329,6 +333,14 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     )
     expect(allowed.status).toBe(302)
     expect(allowed.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/managed.pdf",
+    )
+
+    const internal = await app(["legal:read"], "svc_internal", true).request(
+      `/attachments/${managedAttachment!.id}/download`,
+    )
+    expect(internal.status).toBe(302)
+    expect(internal.headers.get("location")).toBe(
       "https://signed.example.test/contracts/managed.pdf",
     )
 
@@ -360,8 +372,76 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
           actorId: "usr_allowed",
           metadata: expect.objectContaining({ attachmentId: managedAttachment!.id }),
         }),
+        expect.objectContaining({
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_document_delivery_reveal",
+          actorId: "svc_internal",
+          metadata: expect.objectContaining({ attachmentId: managedAttachment!.id }),
+        }),
       ]),
     )
+  })
+
+  it("rejects admin standalone issue for managed review drafts without mutation or events", async () => {
+    const { booking, version } = await seedBookingTemplate("BK-ADMIN-ISSUE-GUARD")
+    const managed = await createDraft("admin-issue-managed-create", {
+      title: "Customer agreement",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+    })
+    const [ordinary] = await db
+      .insert(contracts)
+      .values({ title: "Ordinary draft", scope: "customer" })
+      .returning()
+    const [beforeManagedIssue] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.id, managed.value.id))
+      .limit(1)
+    const lifecycleEvents: Array<Record<string, unknown>> = []
+    const eventBus = createEventBus()
+    eventBus.subscribe("contract.issued", (event) => {
+      lifecycleEvents.push(event as Record<string, unknown>)
+    })
+
+    await expect(
+      contractsService.issueContract(db, managed.value.id, { eventBus }),
+    ).rejects.toMatchObject({
+      name: "RequestValidationError",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, managed.value.id)).limit(1),
+    ).resolves.toEqual([beforeManagedIssue])
+    expect(lifecycleEvents).toHaveLength(0)
+
+    const app = new Hono()
+    app.onError(handleApiError)
+    app.use("*", async (c, next) => {
+      c.set("db" as never, db)
+      await next()
+    })
+    app.route("/", createContractsAdminRoutes({ eventBus }))
+
+    const rejected = await app.request(`/${managed.value.id}/issue`, { method: "POST" })
+    expect(rejected.status).toBe(400)
+    await expect(rejected.json()).resolves.toMatchObject({
+      error:
+        "Managed booking contract revisions must be issued through the reviewed lifecycle command.",
+      code: "invalid_request",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.id, managed.value.id)).limit(1),
+    ).resolves.toEqual([beforeManagedIssue])
+    expect(lifecycleEvents).toHaveLength(0)
+
+    const issued = await app.request(`/${ordinary!.id}/issue`, { method: "POST" })
+    expect(issued.status).toBe(200)
+    await expect(issued.json()).resolves.toMatchObject({
+      data: { id: ordinary!.id, status: "issued" },
+    })
+    expect(lifecycleEvents).toHaveLength(1)
   })
 
   it("serializes template applicability with immutable draft creation", async () => {

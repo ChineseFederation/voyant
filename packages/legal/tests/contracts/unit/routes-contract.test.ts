@@ -484,6 +484,87 @@ describe("legal contracts managed booking generic redaction", () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ data: { rendered: "<p>Ada Lovelace</p>" } })
   })
+
+  it("uses shared booking PII policy for managed document downloads", async () => {
+    vi.spyOn(contractsService, "getAttachmentWithContractById").mockResolvedValue({
+      attachment: attachmentRow,
+      contract: {
+        ...contractRow,
+        bookingId: "bookings_000000000000000000000000000",
+        metadata: managedBookingWorkflowMetadata,
+      },
+    })
+
+    function app(input: { scopes: string[]; userId: string; isInternalRequest?: boolean }) {
+      const values = vi.fn(async () => undefined)
+      const route = new Hono()
+      route.use("*", async (c, next) => {
+        c.set("db" as never, {
+          insert: () => ({ values }),
+        })
+        c.set("scopes" as never, input.scopes)
+        c.set("userId" as never, input.userId)
+        c.set("actor" as never, "staff")
+        c.set("callerType" as never, input.isInternalRequest ? "internal" : "session")
+        c.set("isInternalRequest" as never, input.isInternalRequest ?? false)
+        await next()
+      })
+      route.route(
+        "/",
+        createContractsAdminRoutes({
+          resolveDocumentDownloadUrl: (_bindings, key) => `https://signed.example.test/${key}`,
+        }),
+      )
+      return { route, values }
+    }
+
+    const deniedApp = app({ scopes: ["legal:read"], userId: "usr_denied" })
+    const denied = await deniedApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(denied.status).toBe(404)
+    await expect(denied.json()).resolves.toEqual({ error: "Attachment not found" })
+    expect(deniedApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "usr_denied",
+        outcome: "denied",
+        reason: "insufficient_scope",
+      }),
+    )
+
+    const scopedApp = app({
+      scopes: ["legal:read", "bookings-pii:read"],
+      userId: "usr_scoped",
+    })
+    const scoped = await scopedApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(scoped.status).toBe(302)
+    expect(scoped.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/ctr/attachments/agreement.pdf",
+    )
+    expect(scopedApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "usr_scoped",
+        outcome: "allowed",
+        reason: "contract_document_delivery_reveal",
+      }),
+    )
+
+    const internalApp = app({
+      scopes: ["legal:read"],
+      userId: "svc_internal",
+      isInternalRequest: true,
+    })
+    const internal = await internalApp.route.request(`/attachments/${attachmentRow.id}/download`)
+    expect(internal.status).toBe(302)
+    expect(internal.headers.get("location")).toBe(
+      "https://signed.example.test/contracts/ctr/attachments/agreement.pdf",
+    )
+    expect(internalApp.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "svc_internal",
+        outcome: "allowed",
+        reason: "contract_document_delivery_reveal",
+      }),
+    )
+  })
 })
 
 describe("legal contracts public token guard", () => {
