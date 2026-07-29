@@ -34,6 +34,17 @@ export const storefrontVoyantModule = defineModule({
     requirePort(storefrontOffersRuntimePort),
     requirePort(storefrontIntakeRuntimePort),
   ],
+  subscribers: [
+    {
+      id: "@voyant-travel/storefront#subscriber.invalidate-departures-on-availability-change",
+      eventType: "availability.slot.changed",
+      source: "@voyant-travel/storefront",
+      runtime: {
+        entry: "@voyant-travel/storefront",
+        export: "storefrontAvailabilityReadModelInvalidationSubscriber",
+      },
+    },
+  ],
   api: [
     {
       id: "@voyant-travel/storefront#api.admin",

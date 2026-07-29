@@ -9,6 +9,10 @@ import {
 } from "@voyant-travel/hono"
 import type { Context } from "hono"
 
+import { departuresDocKey, readThroughDepartures } from "./departures-read-model.js"
+
+export { departuresDocKey, readThroughDepartures }
+
 import {
   createStorefrontService,
   type StorefrontRequestContext,
@@ -53,53 +57,6 @@ const PUBLIC_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300"
 
 function setPublicCacheHeaders(c: Context) {
   c.header("Cache-Control", PUBLIC_CACHE_CONTROL)
-}
-
-/**
- * KV read-model TTL for the departure list (RFC voyant#1687 Phase 2.2).
- * Departure availability shifts with every booking, so unlike the
- * product-detail documents (24h + exact invalidation in products) this
- * is purely TTL-bounded: browse-grade freshness within 2 minutes, and
- * checkout always re-verifies capacity on the live transactional path.
- */
-const DEPARTURES_DOC_TTL_SECONDS = 120
-
-export function departuresDocKey(productId: string, query: Record<string, unknown>): string {
-  const entries = Object.entries(query)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([key, value]) => `${key}=${String(value)}`)
-    .join("&")
-  return `rm:v1:departures:${productId}:${entries || "default"}`
-}
-
-/**
- * Read-through KV cache for a departures payload. Best-effort: any KV
- * failure (or a missing CACHE binding) degrades to the live query.
- */
-export async function readThroughDepartures<T>(
-  c: Context<Env>,
-  key: string,
-  compute: () => Promise<T>,
-): Promise<T> {
-  const kv = c.env?.CACHE
-  if (kv) {
-    try {
-      const hit = await kv.get<T>(key, { type: "json" })
-      if (hit !== null && hit !== undefined) return hit
-    } catch {
-      // fall through to live
-    }
-  }
-  const data = await compute()
-  if (kv && data !== null && data !== undefined) {
-    try {
-      await kv.put(key, JSON.stringify(data), { expirationTtl: DEPARTURES_DOC_TTL_SECONDS })
-    } catch {
-      // best-effort
-    }
-  }
-  return data
 }
 
 type Env = {

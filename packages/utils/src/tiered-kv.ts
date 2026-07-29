@@ -2,8 +2,8 @@ import type { KVStore } from "./cache.js"
 
 export interface TieredKvOptions {
   /**
-   * TTL for L2 hits promoted into L1 when the original remaining TTL is not
-   * visible through KVStore. Defaults to 60s to bound remote invalidation lag.
+   * Maximum TTL for values stored in L1, including writes and L2 promotions.
+   * Defaults to 60s to bound cross-process invalidation lag.
    */
   l2PromotionTtlSeconds?: number
 }
@@ -19,6 +19,10 @@ export function createTieredKvStore(
 ): KVStore {
   const promotionTtl = options.l2PromotionTtlSeconds ?? 60
   if (!l2) return l1
+
+  const l1PutOptions = (putOptions?: { expirationTtl?: number }) => ({
+    expirationTtl: Math.min(putOptions?.expirationTtl ?? promotionTtl, promotionTtl),
+  })
 
   return {
     async get<T = string>(
@@ -36,7 +40,7 @@ export function createTieredKvStore(
     async put(key: string, value: string, putOptions?: { expirationTtl?: number }): Promise<void> {
       await Promise.all([
         l2.put(key, value, putOptions),
-        l1.put(key, value, putOptions).catch(() => {}),
+        l1.put(key, value, l1PutOptions(putOptions)).catch(() => {}),
       ])
     },
     async delete(key: string): Promise<void> {

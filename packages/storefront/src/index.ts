@@ -7,6 +7,17 @@ import { createStorefrontAdminRoutes } from "./routes-admin.js"
 import { createStorefrontPublicRoutes } from "./routes-public.js"
 import { storefrontIntakeRuntimePort, storefrontOffersRuntimePort } from "./runtime-port.js"
 
+export {
+  createStorefrontAvailabilityReadModelInvalidationSubscriber,
+  DEPARTURES_DOC_TTL_SECONDS,
+  departuresDocKey,
+  departuresDocPrefix,
+  invalidateDeparturesReadModel,
+  readThroughDepartures,
+  STOREFRONT_AVAILABILITY_READ_MODEL_SUBSCRIBER_ID,
+  storefrontAvailabilityReadModelInvalidationSubscriber,
+} from "./departures-read-model.js"
+
 export type {
   GuestBookingGuardOptions,
   GuestBookingGuardRequest,
