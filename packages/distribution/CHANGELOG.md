@@ -1,5 +1,11 @@
 # @voyant-travel/distribution
 
+## 0.208.1
+
+### Patch Changes
+
+- fdb2b37: Encode channel-push reconciliation timestamps before they reach database drivers.
+
 ## 0.208.0
 
 ### Patch Changes
