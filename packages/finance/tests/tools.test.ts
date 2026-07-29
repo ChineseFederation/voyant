@@ -490,6 +490,8 @@ describe("finance tools", () => {
 
     expect(tool.description).toMatch(/personId/)
     expect(tool.description).toMatch(/organizationId/)
+    expect(tool.description).toMatch(/list_option_units/)
+    expect(tool.description).toMatch(/room quantity means number of rooms/i)
 
     // Assert on the same carrier `bookingNumber` already relies on to reach a
     // caller, so this pins the description actually shipping, not a doc comment.
@@ -510,6 +512,8 @@ describe("finance tools", () => {
     expect(shape.personId?.description).not.toMatch(/list_organizations/)
     expect(shape.organizationId?.description).toMatch(/list_organizations/)
     expect(shape.organizationId?.description).not.toMatch(/list_people/)
+    expect(shape.optionId?.description).toMatch(/list_product_options/)
+    expect(shape.itemLines?.description).toMatch(/room products/i)
 
     // "at least one", never "exactly one": createBookingMutation stores both,
     // for a traveller billed through their company, and no rule forbids it.

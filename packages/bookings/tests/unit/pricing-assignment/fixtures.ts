@@ -16,6 +16,7 @@ export function unit(
     minAge: partial.minAge ?? null,
     maxAge: partial.maxAge ?? null,
     unitType: partial.unitType ?? "person",
+    occupancyMax: partial.occupancyMax ?? null,
   }
 }
 

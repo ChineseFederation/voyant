@@ -395,6 +395,7 @@ export function validateManualBookingDraft(input: {
   contactFirstName: string
   contactLastName: string
   contactEmail: string
+  contactPhone: string
   travelers: TravelerListValue
   pricing: ManualBookingResolvedPricing | null
   manualOverrideRequiresReason?: boolean
@@ -411,8 +412,14 @@ export function validateManualBookingDraft(input: {
     return input.messages.validation.organization
   }
   if (!input.contactFirstName.trim()) return input.messages.validation.contact
+  if (billTo === "person" && !input.contactLastName.trim()) {
+    return input.messages.validation.contactName
+  }
   if (input.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.contactEmail)) {
     return input.messages.validation.email
+  }
+  if (billTo === "person" && !input.contactEmail.trim() && !input.contactPhone.trim()) {
+    return input.messages.validation.contactMethod
   }
   if (input.travelers.travelers.length === 0) return input.messages.validation.travelers
   if (
@@ -505,6 +512,7 @@ export function ManualBookingCreateForm({
   const [contactTouched, setContactTouched] = React.useState(false)
   const [notes, setNotes] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
+  const errorRef = React.useRef<HTMLParagraphElement>(null)
   const [submitting, setSubmitting] = React.useState(false)
   const [payloadMismatchUnitIds, setPayloadMismatchUnitIds] = React.useState<string[]>([])
   const [permissionState, setPermissionState] = React.useState<
@@ -513,6 +521,12 @@ export function ManualBookingCreateForm({
   const attemptRef = React.useRef<ManualBookingAttempt | null>(null)
   const submissionRef = React.useRef(false)
   const [slotsFromIso, setSlotsFromIso] = React.useState(() => new Date().toISOString())
+
+  React.useEffect(() => {
+    if (!error) return
+    errorRef.current?.focus()
+    errorRef.current?.scrollIntoView({ block: "nearest" })
+  }, [error])
 
   const defaultSlotQuery = useQuery({
     ...getSlotQueryOptions(availabilityClient, defaultSlotId),
@@ -570,10 +584,11 @@ export function ManualBookingCreateForm({
       return JSON.stringify(next) === JSON.stringify(current) ? current : next
     })
   }, [product.productId, productContent])
-  const billingPerson = usePerson(
+  const billingPersonQuery = usePerson(
     (billing.billTo ?? "person") === "person" ? billing.personId || undefined : undefined,
     { enabled: (billing.billTo ?? "person") === "person" && Boolean(billing.personId) },
-  ).data
+  )
+  const billingPerson = billingPersonQuery.data
   const billingOrganization = useOrganization(
     billing.billTo === "organization" ? (billing.organizationId ?? undefined) : undefined,
     { enabled: billing.billTo === "organization" && Boolean(billing.organizationId) },
@@ -1166,7 +1181,7 @@ export function ManualBookingCreateForm({
         slotId,
         quantities: displayDraft.quantities,
         units: bookingUnits,
-        travelers,
+        travelers: { travelers: displayDraft.travelers },
         pricingCategories: travelerPricingCategories,
         contact: quoteContact,
         extraLines: displayExtraLines,
@@ -1182,7 +1197,7 @@ export function ManualBookingCreateForm({
       slotId,
       displayDraft.quantities,
       bookingUnits,
-      travelers,
+      displayDraft.travelers,
       travelerPricingCategories,
       quoteContact,
       displayExtraLines,
@@ -1215,15 +1230,15 @@ export function ManualBookingCreateForm({
     product.sellCurrency ??
     pricing?.currency ??
     messages.bookingCreateDialog.labels.currency
-  const sourcedPreviewPricing = React.useMemo(() => {
-    const quotePricing = currentSourcedQuoteData?.pricing
+  const quotePreviewPricing = React.useMemo(() => {
+    const quotePricing = quote.data?.pricing
     if (!quotePricing) return undefined
     return {
       totalAmountCents: quotePricing.total,
       currency: quotePricing.currency,
       lines: quotePricing.lines,
     }
-  }, [currentSourcedQuoteData?.pricing])
+  }, [quote.data?.pricing])
   const resolvedPricing = resolveManualBookingPricing({
     pricing,
     quoteTotalAmountCents,
@@ -1301,7 +1316,8 @@ export function ManualBookingCreateForm({
       contactFirstName: contact.firstName,
       contactLastName: contact.lastName,
       contactEmail: contact.email,
-      travelers,
+      contactPhone: contact.phone,
+      travelers: { travelers: displayDraft.travelers },
       pricing: resolvedPricing,
       manualOverrideRequiresReason,
       paymentRows,
@@ -1318,8 +1334,8 @@ export function ManualBookingCreateForm({
     }
     const overCapacity = getOverCapacityInventoryAssignments(
       bookingUnits,
-      rooms.quantities,
-      travelers.travelers,
+      displayDraft.quantities,
+      displayDraft.travelers,
     )[0]
     if (overCapacity) {
       setError(
@@ -1345,7 +1361,7 @@ export function ManualBookingCreateForm({
             formatCurrency,
           ),
         )
-        .replace("{travelers}", String(travelers.travelers.length)),
+        .replace("{travelers}", String(displayDraft.travelers.length)),
       confirmLabel: copy.actions.confirmCreate,
       cancelLabel: messages.common.cancel,
     })
@@ -1523,9 +1539,20 @@ export function ManualBookingCreateForm({
     setContact((current) => ({ ...current, [field]: value }))
   }
 
+  const billingPersonContactIncomplete = Boolean(
+    billingPerson &&
+      (!billingPerson.firstName.trim() ||
+        !billingPerson.lastName.trim() ||
+        (!billingPerson.email?.trim() && !billingPerson.phone?.trim())),
+  )
+  const billingPersonContactUnavailable = Boolean(
+    billing.personId && !billingPersonQuery.isLoading && !billingPerson,
+  )
+
   return (
     <form
       className="grid min-h-0 flex-1 gap-6 lg:grid-cols-12"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault()
         void handleSubmit()
@@ -1664,38 +1691,67 @@ export function ManualBookingCreateForm({
                   organizationNone: messages.bookingCreateDialog.labels.organizationNone,
                 }}
               />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <EditableContactField
-                  id="manual-booking-contact-first-name"
-                  label={copy.fields.contactFirstName}
-                  value={contact.firstName}
-                  required
-                  onChange={(value) => updateContact("firstName", value)}
-                />
-                <EditableContactField
-                  id="manual-booking-contact-last-name"
-                  label={copy.fields.contactLastName}
-                  value={contact.lastName}
-                  onChange={(value) => updateContact("lastName", value)}
-                />
-                <EditableContactField
-                  id="manual-booking-contact-email"
-                  label={copy.fields.contactEmail}
-                  value={contact.email}
-                  type="email"
-                  onChange={(value) => updateContact("email", value)}
-                />
-                <Field className="gap-2">
-                  <FieldLabel htmlFor="manual-booking-contact-phone">
-                    {copy.fields.contactPhone}
-                  </FieldLabel>
-                  <PhoneInput
-                    id="manual-booking-contact-phone"
-                    value={contact.phone}
-                    onChange={(value) => updateContact("phone", value)}
+              {(billing.billTo ?? "person") === "person" ? (
+                billing.personId && billingPersonQuery.isLoading ? (
+                  <p className="text-sm text-muted-foreground">{copy.hints.contactLoading}</p>
+                ) : billingPersonContactUnavailable ? (
+                  <div
+                    className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+                    role="alert"
+                  >
+                    <p>{copy.hints.contactUnavailable}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => void billingPersonQuery.refetch()}
+                    >
+                      {copy.actions.retryContact}
+                    </Button>
+                  </div>
+                ) : billingPersonContactIncomplete ? (
+                  <p
+                    className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+                    role="alert"
+                  >
+                    {copy.hints.contactIncomplete}
+                  </p>
+                ) : null
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <EditableContactField
+                    id="manual-booking-contact-first-name"
+                    label={copy.fields.contactFirstName}
+                    value={contact.firstName}
+                    required
+                    onChange={(value) => updateContact("firstName", value)}
                   />
-                </Field>
-              </div>
+                  <EditableContactField
+                    id="manual-booking-contact-last-name"
+                    label={copy.fields.contactLastName}
+                    value={contact.lastName}
+                    onChange={(value) => updateContact("lastName", value)}
+                  />
+                  <EditableContactField
+                    id="manual-booking-contact-email"
+                    label={copy.fields.contactEmail}
+                    value={contact.email}
+                    type="email"
+                    onChange={(value) => updateContact("email", value)}
+                  />
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor="manual-booking-contact-phone">
+                      {copy.fields.contactPhone}
+                    </FieldLabel>
+                    <PhoneInput
+                      id="manual-booking-contact-phone"
+                      value={contact.phone}
+                      onChange={(value) => updateContact("phone", value)}
+                    />
+                  </Field>
+                </div>
+              )}
             </FieldSet>
           ) : null}
 
@@ -1839,7 +1895,9 @@ export function ManualBookingCreateForm({
         ) : null}
         {error ? (
           <p
+            ref={errorRef}
             role="alert"
+            tabIndex={-1}
             className="mt-3 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
             {error}
@@ -1880,7 +1938,7 @@ export function ManualBookingCreateForm({
           productId={product.productId}
           productName={productDisplayName}
           isSourcedProduct={isSourcedProduct}
-          quotePricing={isSourcedProduct ? sourcedPreviewPricing : undefined}
+          quotePricing={quotePreviewPricing}
           optionId={product.optionId}
           slotId={slotId}
           slotLabel={selectedSlot ? formatSlotLabel(selectedSlot) : null}
@@ -1889,7 +1947,7 @@ export function ManualBookingCreateForm({
           pricingCategoryQuantities={travelerPricingCategoryQuantities}
           pricingCategoryLabels={travelerPricingCategoryLabels}
           extraLines={displayExtraLines}
-          travelers={travelers.travelers}
+          travelers={displayDraft.travelers}
           messages={messages}
           onPricingChange={handlePricingChange}
         />

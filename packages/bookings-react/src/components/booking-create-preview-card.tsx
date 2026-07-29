@@ -46,6 +46,7 @@ export function BookingPreviewCard({
       quantity?: number
       unitAmount: number
       totalAmount: number
+      pricingBasis?: "per_person" | "per_unit" | "per_booking"
     }>
   }
   optionId: string | null
@@ -81,7 +82,7 @@ export function BookingPreviewCard({
     (value: PriceBreakdownValue) => {
       const extraTotal = extraLines.reduce((sum, line) => sum + (line.totalSellAmountCents ?? 0), 0)
       const next =
-        extraTotal > 0 && !isSourcedProduct
+        extraTotal > 0 && !isSourcedProduct && !quotePricing
           ? {
               ...value,
               catalogAmountCents:
@@ -108,7 +109,7 @@ export function BookingPreviewCard({
       setBreakdown(next)
       onPricingChange(next)
     },
-    [extraLines, isSourcedProduct, onPricingChange],
+    [extraLines, isSourcedProduct, onPricingChange, quotePricing],
   )
   const providedPricing = React.useMemo(
     () =>
@@ -201,6 +202,9 @@ export function BookingPreviewCard({
                 const categoryLabel = traveler.pricingCategoryId
                   ? pricingCategoryLabels[traveler.pricingCategoryId]
                   : null
+                const roomLabel = traveler.inventoryUnitId
+                  ? unitLabels[traveler.inventoryUnitId]
+                  : null
                 return (
                   <li
                     key={traveler.clientTravelerKey ?? traveler.personId ?? `traveler-${idx}`}
@@ -211,6 +215,7 @@ export function BookingPreviewCard({
                     </span>
                     <span className="shrink-0 text-xs uppercase tracking-wider text-muted-foreground">
                       {categoryLabel ?? traveler.role}
+                      {roomLabel ? ` · ${roomLabel}` : ""}
                     </span>
                   </li>
                 )
@@ -246,6 +251,9 @@ export function BookingPreviewCard({
                 overrideReason: labels.breakdownOverrideReason,
                 overrideReasonPlaceholder: labels.breakdownOverrideReasonPlaceholder,
                 overrideReasonRequired: labels.breakdownOverrideReasonRequired,
+                perPerson: labels.breakdownPerTraveler,
+                perUnit: labels.breakdownPerRoom,
+                perBooking: labels.breakdownPerBooking,
               }}
               onChange={handlePricingChange}
             />

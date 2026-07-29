@@ -246,6 +246,9 @@ export const pricingLineV1 = z.object({
   unitAmount: z.number().int(),
   totalAmount: z.number().int(),
   taxIncluded: z.boolean().optional(),
+  /** How quantity is interpreted for this line. Booking UIs use this to
+   * distinguish inventory held from travelers charged. */
+  pricingBasis: z.enum(["per_person", "per_unit", "per_booking"]).optional(),
 })
 
 export const pricingTaxV1 = z.object({

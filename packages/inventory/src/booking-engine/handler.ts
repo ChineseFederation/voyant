@@ -72,12 +72,16 @@ export interface DraftLike {
     address?: { country?: string }
   }
   travelers?: Array<{
+    rowId?: string
     firstName: string
     lastName: string
     email?: string
     phone?: string
     band?: string
   }>
+  accommodation?: {
+    travelerAssignments?: Record<string, string>
+  }
   addons?: Array<{
     extraId: string
     quantity: number
@@ -179,6 +183,7 @@ export interface ResolvedUnitPrice {
   unitId: string
   unitType: "person" | "room" | "vehicle" | "service" | "group" | "other" | string
   travelerCategory: "adult" | "child" | "infant" | "senior" | null
+  pricingMode?: "per_unit" | "per_person" | "per_booking" | "included" | "free" | "on_request"
   sellAmountCents: number | null
 }
 
@@ -493,6 +498,7 @@ export function createProductsBookingHandler(
                 slotDate,
                 effectivePax,
                 pax: draft.configure?.pax,
+                travelerAssignments: draft.accommodation?.travelerAssignments,
               })
             : priceQuote({
                 product,

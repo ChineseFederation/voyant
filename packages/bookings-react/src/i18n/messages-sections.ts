@@ -293,6 +293,9 @@ export type BookingsUiSectionsMessages = {
       overrideReason: string
       overrideReasonPlaceholder: string
       overrideReasonRequired: string
+      perPerson: string
+      perUnit: string
+      perBooking: string
     }
   }
   bookingDocumentDialog: {

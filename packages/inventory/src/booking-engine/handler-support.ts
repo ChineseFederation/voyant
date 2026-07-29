@@ -44,6 +44,7 @@ export interface PricedLine {
   quantity: number
   unitAmount: number
   totalAmount: number
+  pricingBasis?: "per_person" | "per_unit" | "per_booking"
   /** Internal quote provenance used to persist the accepted price per booking item. */
   optionId?: string
   optionUnitId?: string
@@ -110,6 +111,8 @@ export async function priceOptionSelections(input: {
   effectivePax: number
   /** Booking-level pax counts by band code, for per-traveler-type room prices. */
   pax?: Partial<Record<string, number>>
+  /** Explicit traveler-to-room assignments from the booking draft. */
+  travelerAssignments?: Record<string, string>
 }): Promise<PricedQuote> {
   const lines: PricedLine[] = []
   let totalCents = 0
@@ -153,12 +156,13 @@ export async function priceOptionSelections(input: {
       selection.optionUnitId && resolvedPrice?.unitPrices
         ? resolvedPrice.unitPrices.filter((unit) => unit.unitId === selection.optionUnitId)
         : []
-    // A category-less unit price charges flat per room (× quantity). Per-
+    // A category-less unit price follows its configured pricing mode. Per-
     // category rows (the Rooms & prices matrix — "Double / Adult") price per
     // traveler band instead, so collect them for the booking-level charge below
-    // and skip the flat per-room line for this selection.
+    // and skip the category-less line for this selection.
     const categoryUnitRows = unitRows.filter((unit) => unit.travelerCategory)
-    const unitPrice = unitRows.find((unit) => !unit.travelerCategory)?.sellAmountCents ?? null
+    const defaultUnitPrice = unitRows.find((unit) => !unit.travelerCategory) ?? null
+    const unitPrice = defaultUnitPrice?.sellAmountCents ?? null
     if (unitPrice == null && categoryUnitRows.length > 0) {
       const unitLabel =
         findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
@@ -178,6 +182,21 @@ export async function priceOptionSelections(input: {
       }
       continue
     }
+    const assignedTravelerCount = selection.optionUnitId
+      ? Object.values(input.travelerAssignments ?? {}).filter(
+          (assignedUnitId) => assignedUnitId === selection.optionUnitId,
+        ).length
+      : 0
+    const pricingQuantity =
+      defaultUnitPrice?.pricingMode === "per_person"
+        ? assignedTravelerCount > 0
+          ? assignedTravelerCount
+          : input.selections.length === 1
+            ? input.effectivePax
+            : selection.quantity
+        : defaultUnitPrice?.pricingMode === "per_booking"
+          ? 1
+          : selection.quantity
     const paxTier =
       unitPrice == null && selection.optionUnitId
         ? await resolveSelectionPaxTier({
@@ -210,17 +229,29 @@ export async function priceOptionSelections(input: {
       input.product.sellAmountCents ??
       0
     if (unitAmount <= 0) continue
-    const totalAmount = unitAmount * selection.quantity
+    const totalAmount = unitAmount * pricingQuantity
     totalCents += totalAmount
     lines.push({
       kind: "base",
       // Prefer the specific room/unit name ("Standard - Single"); fall back to
       // the option name, then the product name.
       label:
-        selection.optionUnitName ?? optionsById.get(selection.optionId)?.name ?? input.product.name,
-      quantity: selection.quantity,
+        (selection.optionUnitId
+          ? findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
+              ?.name
+          : null) ??
+        selection.optionUnitName ??
+        optionsById.get(selection.optionId)?.name ??
+        input.product.name,
+      quantity: pricingQuantity,
       unitAmount,
       totalAmount,
+      pricingBasis:
+        defaultUnitPrice?.pricingMode === "per_person"
+          ? "per_person"
+          : defaultUnitPrice?.pricingMode === "per_booking"
+            ? "per_booking"
+            : "per_unit",
       optionId: selection.optionId,
       ...(selection.optionUnitId ? { optionUnitId: selection.optionUnitId } : {}),
     })
@@ -240,6 +271,7 @@ export async function priceOptionSelections(input: {
       quantity: count,
       unitAmount: price.cents,
       totalAmount,
+      pricingBasis: "per_person",
       optionId: price.optionId,
       ...(price.optionUnitId ? { optionUnitId: price.optionUnitId } : {}),
     })
@@ -400,6 +432,8 @@ export function applyAddonSelections(input: {
       quantity,
       unitAmount,
       totalAmount,
+      pricingBasis:
+        extra.pricingMode === "per_person" || extra.pricedPerPerson ? "per_person" : "per_unit",
     })
   }
   return { totalCents, lines }
@@ -495,6 +529,7 @@ export function priceQuote(input: {
         quantity: count,
         unitAmount: sell,
         totalAmount: lineTotal,
+        pricingBasis: "per_person",
       })
     }
     if (bandLines.length > 0) {
@@ -514,6 +549,7 @@ export function priceQuote(input: {
           quantity: effectivePax,
           unitAmount: unitCents,
           totalAmount: totalCents,
+          pricingBasis: "per_person",
         },
       ],
     }
@@ -530,6 +566,7 @@ export function priceQuote(input: {
         quantity: effectivePax,
         unitAmount: unitCents,
         totalAmount: totalCents,
+        pricingBasis: "per_person",
       },
     ],
   }

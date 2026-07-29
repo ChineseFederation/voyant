@@ -72,6 +72,80 @@ describe("resolveBookingDraft — accommodation (Moldova DBL shape)", () => {
     expect(result.travelerIndexesByUnitId).toEqual({ u_dbl_room: [0, 1] })
   })
 
+  it("fills selected room capacity across room types", () => {
+    const roomUnits: PricingAssignmentUnit[] = [
+      unit({
+        optionId: "opto_rooms",
+        optionUnitId: "u_double",
+        unitName: "Double",
+        unitType: "room",
+        occupancyMax: 2,
+      }),
+      unit({
+        optionId: "opto_rooms",
+        optionUnitId: "u_single",
+        unitName: "Single",
+        unitType: "room",
+        occupancyMax: 1,
+      }),
+    ]
+    const result = resolveBookingDraft({
+      now: NOW,
+      quantities: { u_double: 1, u_single: 1 },
+      travelers: [
+        traveler({ role: "lead" }),
+        traveler({ role: "adult" }),
+        traveler({ role: "adult" }),
+      ],
+      units: roomUnits,
+    })
+
+    expect(result.quantities).toEqual({ u_double: 1, u_single: 1 })
+    expect(result.travelers.map((entry) => entry.inventoryUnitId)).toEqual([
+      "u_double",
+      "u_double",
+      "u_single",
+    ])
+    expect(result.travelerIndexesByUnitId).toEqual({ u_double: [0, 1], u_single: [2] })
+  })
+
+  it("respects manual room choices before assigning remaining travelers", () => {
+    const roomUnits: PricingAssignmentUnit[] = [
+      unit({
+        optionId: "opto_rooms",
+        optionUnitId: "u_double",
+        unitType: "room",
+        occupancyMax: 2,
+      }),
+      unit({
+        optionId: "opto_rooms",
+        optionUnitId: "u_single",
+        unitType: "room",
+        occupancyMax: 1,
+      }),
+    ]
+    const result = resolveBookingDraft({
+      now: NOW,
+      quantities: { u_double: 1, u_single: 1 },
+      travelers: [
+        traveler({
+          role: "lead",
+          inventoryUnitId: "u_single",
+          inventoryUnitSource: "manual",
+        }),
+        traveler({ role: "adult" }),
+        traveler({ role: "adult" }),
+      ],
+      units: roomUnits,
+    })
+
+    expect(result.travelers.map((entry) => entry.inventoryUnitId)).toEqual([
+      "u_single",
+      "u_double",
+      "u_double",
+    ])
+  })
+
   it("reassigns stale manual assignments when the option changes", () => {
     // Operator switched the room from DBL to TWN. The stale inventory
     // id is no longer in unitById, so the resolver re-derives both

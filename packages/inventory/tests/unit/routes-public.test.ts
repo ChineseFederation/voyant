@@ -21,7 +21,7 @@ import { publicProductsService } from "../../src/service-public.js"
 
 const mockedService = vi.mocked(publicProductsService)
 
-const PUBLIC_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300"
+const PUBLIC_CACHE_CONTROL = "public, s-maxage=900, stale-while-revalidate=3600"
 
 function emptyList(limit: number, offset = 0) {
   return { data: [], total: 0, limit, offset }

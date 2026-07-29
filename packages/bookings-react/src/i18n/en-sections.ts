@@ -307,6 +307,9 @@ export const bookingsUiEnSections = {
       overrideReason: "Override reason",
       overrideReasonPlaceholder: "Why is this total different?",
       overrideReasonRequired: "Add a reason for the manual total.",
+      perPerson: "per traveler",
+      perUnit: "per room",
+      perBooking: "per booking",
     },
   },
   bookingDocumentDialog: {

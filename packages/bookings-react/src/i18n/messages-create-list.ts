@@ -25,6 +25,9 @@ export type BookingsUiCreateListMessages = {
     hints: {
       departureOptional: string
       payment: string
+      contactLoading: string
+      contactUnavailable: string
+      contactIncomplete: string
     }
     validation: {
       product: string
@@ -33,6 +36,8 @@ export type BookingsUiCreateListMessages = {
       person: string
       organization: string
       contact: string
+      contactName: string
+      contactMethod: string
       email: string
       travelers: string
       travelerNames: string
@@ -63,6 +68,7 @@ export type BookingsUiCreateListMessages = {
     actions: {
       create: string
       confirmCreate: string
+      retryContact: string
     }
     confirm: {
       title: string
@@ -241,6 +247,9 @@ export type BookingsUiCreateListMessages = {
       breakdownOverrideReason: string
       breakdownOverrideReasonPlaceholder: string
       breakdownOverrideReasonRequired: string
+      breakdownPerTraveler: string
+      breakdownPerRoom: string
+      breakdownPerBooking: string
       breakdownSubtotal: string
       breakdownTax: string
       breakdownTaxIncluded: string

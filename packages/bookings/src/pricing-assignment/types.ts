@@ -83,6 +83,8 @@ export interface PricingAssignmentUnit {
   maxAge?: number | null
   /** Unit category — drives the pricing-tier vs inventory split. */
   unitType?: "person" | "group" | "room" | "vehicle" | "service" | "other" | null
+  /** Maximum travelers held by one selected inventory unit. */
+  occupancyMax?: number | null
 }
 
 export type BookingDraftQuantities = Record<string, number>

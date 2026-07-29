@@ -95,7 +95,7 @@ export async function loadRecentlyUpdatedAvailabilityPushSlots(
     sql`
       SELECT id, product_id, option_id, starts_at, unlimited, remaining_pax, updated_at
       FROM availability_slots
-      WHERE updated_at > ${input.updatedAfter}
+      WHERE updated_at > ${input.updatedAfter.toISOString()}
       ORDER BY updated_at ASC
       LIMIT ${input.limit}
     `,

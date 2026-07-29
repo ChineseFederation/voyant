@@ -1,5 +1,16 @@
 # @voyant-travel/commerce
 
+## 0.44.17
+
+### Patch Changes
+
+- a799849: Expose non-PII booking line details to Tools and add an exact, fingerprinted payer/line/tax preview plus an approval-gated command for atomically issuing a proforma without external synchronization. Serialize checkout tax materialization with approved invoice issuance so the issued tax snapshot cannot drift.
+- Updated dependencies [a799849]
+  - @voyant-travel/bookings@0.218.0
+  - @voyant-travel/finance@0.218.0
+  - @voyant-travel/catalog@0.216.0
+  - @voyant-travel/distribution@0.208.0
+
 ## 0.44.16
 
 ### Patch Changes

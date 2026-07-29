@@ -130,7 +130,7 @@ async function insertBookingCreatedOutbox(
   await insertOutboxEvents(tx, events)
 }
 
-function bookingCreateCommandError(
+export function bookingCreateCommandError(
   outcome: Exclude<Awaited<ReturnType<typeof createBookingMutation>>, { status: "ok" }>,
 ) {
   switch (outcome.status) {
@@ -142,6 +142,30 @@ function bookingCreateCommandError(
       // Surfaced verbatim to the operator, so it has to read as a next step
       // rather than an internal failure.
       return new ToolError(outcome.message, "INVALID_INPUT", { outcome })
+    case "room_occupancy_insufficient":
+      return new ToolError(
+        `The selected rooms fit ${outcome.occupancyMax} traveler(s), but the booking has ${outcome.pax}. Add room capacity for ${outcome.shortfall} more traveler(s), then assign every traveler to a room.`,
+        "INVALID_INPUT",
+        { outcome },
+      )
+    case "payload_resolver_mismatch":
+      return new ToolError(
+        "The traveler-to-room assignments do not match the selected booking items. Rebuild the room item lines, assign each traveler key to exactly one selected room, and try again.",
+        "INVALID_INPUT",
+        { outcome },
+      )
+    case "invalid_payment_schedules":
+      return new ToolError(
+        `The payment schedule is invalid: ${formatBookingCreateIssues(outcome.issues)}`,
+        "INVALID_INPUT",
+        { outcome },
+      )
+    case "invalid_tax_lines":
+      return new ToolError(
+        `The tax lines are invalid: ${formatBookingCreateIssues(outcome.issues)}`,
+        "INVALID_INPUT",
+        { outcome },
+      )
     case "duplicate_booking":
     case "travel_credit_inactive":
     case "travel_credit_not_started":
@@ -154,6 +178,14 @@ function bookingCreateCommandError(
     default:
       return new ToolError("The booking command failed validation.", "INVALID_INPUT", { outcome })
   }
+}
+
+function formatBookingCreateIssues(
+  issues: Array<{ path: Array<string | number>; message: string }>,
+) {
+  return issues
+    .map((issue) => `${issue.path.length > 0 ? `${issue.path.join(".")}: ` : ""}${issue.message}`)
+    .join("; ")
 }
 
 export function financeBookingCreatedEventId(bookingId: string) {

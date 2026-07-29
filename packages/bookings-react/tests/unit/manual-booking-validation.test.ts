@@ -26,6 +26,7 @@ const valid = {
   contactFirstName: "Ana",
   contactLastName: "Pop",
   contactEmail: "ana@example.com",
+  contactPhone: "",
   travelers: {
     travelers: [
       {
@@ -162,6 +163,12 @@ describe("manual booking validation", () => {
   })
 
   it("rejects invalid contact, traveler, lead, amount, and payment state", () => {
+    expect(validateManualBookingDraft({ ...valid, contactLastName: "" })).toBe(
+      bookingsUiEn.manualBookingCreate.validation.contactName,
+    )
+    expect(validateManualBookingDraft({ ...valid, contactEmail: "", contactPhone: "" })).toBe(
+      bookingsUiEn.manualBookingCreate.validation.contactMethod,
+    )
     expect(validateManualBookingDraft({ ...valid, contactEmail: "invalid" })).toBe(
       bookingsUiEn.manualBookingCreate.validation.email,
     )

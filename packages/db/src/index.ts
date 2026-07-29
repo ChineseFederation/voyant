@@ -28,6 +28,8 @@ export interface DbClientOptions<TSchema extends Record<string, unknown> = Recor
   adapter?: DbAdapter
   replicas?: string[]
   nodeMaxConnections?: number
+  /** Seconds before an idle Node/postgres-js socket closes. Default: 30. */
+  nodeIdleTimeoutSeconds?: number | false
   serverlessPool?: Omit<PoolConfig, "connectionString">
   /**
    * Query/connection timeouts (ms) applied per adapter. Defaults:
@@ -90,11 +92,16 @@ export function createDbClient<TSchema extends Record<string, unknown> = Record<
     schema,
     replicas = [],
     nodeMaxConnections,
+    nodeIdleTimeoutSeconds,
     timeouts,
   } = options || {}
 
   if (adapter === "node") {
-    const nodeOptions = resolveNodePostgresOptions({ max: nodeMaxConnections, timeouts })
+    const nodeOptions = resolveNodePostgresOptions({
+      max: nodeMaxConnections,
+      idleSeconds: nodeIdleTimeoutSeconds,
+      timeouts,
+    })
     const client = postgres(connectionString, nodeOptions)
     const primary = tagTransactionCapability(
       schema ? drizzlePostgres(client, { schema }) : drizzlePostgres(client),

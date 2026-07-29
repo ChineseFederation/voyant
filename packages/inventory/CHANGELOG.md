@@ -1,5 +1,24 @@
 # @voyant-travel/inventory
 
+## 0.23.2
+
+### Patch Changes
+
+- bc0b223: Cache non-personalized public product catalog responses in shared caches for fifteen minutes, keeping repeated storefront browsing off application and database computes while leaving availability, booking, customer, and payment routes untouched. Publish a new Framework runtime coordinate so managed images can roll this cache policy together with the serverless database idle-connection fix.
+
+## 0.23.1
+
+### Patch Changes
+
+- Updated dependencies [a799849]
+  - @voyant-travel/bookings@0.218.0
+  - @voyant-travel/commerce@0.44.17
+  - @voyant-travel/finance@0.218.0
+  - @voyant-travel/catalog@0.216.0
+  - @voyant-travel/relationships@0.132.14
+  - @voyant-travel/operator-settings@0.16.3
+  - @voyant-travel/operations@0.11.1
+
 ## 0.23.0
 
 ### Minor Changes

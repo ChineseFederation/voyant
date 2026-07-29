@@ -1,5 +1,74 @@
 # @voyant-travel/operator-standard
 
+## 0.15.45
+
+### Patch Changes
+
+- Updated dependencies [bc0b223]
+  - @voyant-travel/inventory@0.23.2
+
+## 0.15.44
+
+### Patch Changes
+
+- Updated dependencies [3389f33]
+  - @voyant-travel/db@0.118.7
+
+## 0.15.43
+
+### Patch Changes
+
+- Updated dependencies [fdb2b37]
+  - @voyant-travel/distribution@0.208.1
+  - @voyant-travel/distribution-react@0.208.1
+
+## 0.15.42
+
+### Patch Changes
+
+- Updated dependencies [a799849]
+  - @voyant-travel/bookings@0.218.0
+  - @voyant-travel/commerce@0.44.17
+  - @voyant-travel/finance@0.218.0
+  - @voyant-travel/accommodations@0.178.0
+  - @voyant-travel/bookings-react@0.218.0
+  - @voyant-travel/catalog@0.216.0
+  - @voyant-travel/distribution@0.208.0
+  - @voyant-travel/inventory@0.23.1
+  - @voyant-travel/legal@0.218.0
+  - @voyant-travel/mice@0.74.0
+  - @voyant-travel/notifications@0.142.6
+  - @voyant-travel/relationships@0.132.14
+  - @voyant-travel/storefront@0.220.0
+  - @voyant-travel/trips@0.211.0
+  - @voyant-travel/cruises@0.217.0
+  - @voyant-travel/finance-react@0.218.0
+  - @voyant-travel/flights@0.218.0
+  - @voyant-travel/flights-react@0.218.0
+  - @voyant-travel/inventory-react@0.100.0
+  - @voyant-travel/operator-settings@0.16.3
+  - @voyant-travel/operator-settings-react@0.73.0
+  - @voyant-travel/trips-react@0.211.0
+  - @voyant-travel/action-ledger-react@0.107.0
+  - @voyant-travel/distribution-react@0.208.0
+  - @voyant-travel/identity-react@0.218.0
+  - @voyant-travel/legal-react@0.218.0
+  - @voyant-travel/operations-react@0.99.0
+  - @voyant-travel/mice-react@0.86.0
+  - @voyant-travel/admin-app@0.110.0
+  - @voyant-travel/catalog-react@0.216.0
+  - @voyant-travel/commerce-react@0.100.0
+  - @voyant-travel/relationships-react@0.218.0
+  - @voyant-travel/storefront-react@0.220.0
+  - @voyant-travel/admin-host@0.68.0
+  - @voyant-travel/cruises-react@0.217.0
+  - @voyant-travel/quotes-react@0.216.0
+  - @voyant-travel/charters@0.216.0
+  - @voyant-travel/identity@0.218.0
+  - @voyant-travel/notifications-react@0.142.6
+  - @voyant-travel/operations@0.11.1
+  - @voyant-travel/quotes@0.135.10
+
 ## 0.15.41
 
 ### Patch Changes
