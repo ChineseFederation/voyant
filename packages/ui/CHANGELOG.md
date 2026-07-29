@@ -1,5 +1,11 @@
 # @voyant-travel/ui
 
+## 0.110.1
+
+### Patch Changes
+
+- 37ca2e3: Keep imperative confirmation and prompt dialogs connected to their mounted hosts when application bundling emits the caller and host in separate chunks.
+
 ## 0.110.0
 
 ### Minor Changes
