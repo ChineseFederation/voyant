@@ -254,6 +254,59 @@ describe("createProductsBookingHandler.computeQuote", () => {
     )
   })
 
+  it("prices the same traveler band independently for each selected room option", async () => {
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-07-27",
+      loadProductOptions: async () => [
+        {
+          id: "opt_standard",
+          name: "Standard",
+          units: [{ id: "unit_standard", name: "Standard room", unitType: "room" }],
+        },
+        {
+          id: "opt_upgrade",
+          name: "Upgrade",
+          units: [{ id: "unit_upgrade", name: "Upgrade room", unitType: "room" }],
+        },
+      ],
+      loadResolvedOptionPrice: async (_ctx, input) => ({
+        baseSellAmountCents: 0,
+        unitPrices: [
+          {
+            unitId: input.optionId === "opt_standard" ? "unit_standard" : "unit_upgrade",
+            unitType: "room",
+            travelerCategory: "adult",
+            sellAmountCents: input.optionId === "opt_standard" ? 12_000 : 15_000,
+          },
+        ],
+      }),
+    })
+
+    const result = await handler.computeQuote(
+      makeCtx([product]),
+      baseRequest({
+        configure: {
+          departureSlotId: "slot_1",
+          pax: { adult: 2 },
+          optionSelections: [
+            { optionId: "opt_standard", optionUnitId: "unit_standard", quantity: 1 },
+            { optionId: "opt_upgrade", optionUnitId: "unit_upgrade", quantity: 1 },
+          ],
+        },
+      }),
+    )
+
+    expect(result.available).toBe(true)
+    const breakdown = result.pricing?.breakdown as Record<string, unknown>
+    expect(breakdown?.total).toBe(54_000)
+    expect(breakdown?.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ optionId: "opt_standard", quantity: 2, totalAmount: 24_000 }),
+        expect.objectContaining({ optionId: "opt_upgrade", quantity: 2, totalAmount: 30_000 }),
+      ]),
+    )
+  })
+
   it("prices category-less per-person room rates from traveler room assignments", async () => {
     const handler = createProductsBookingHandler({
       loadSlotDate: async () => "2026-11-09",

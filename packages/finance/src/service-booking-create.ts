@@ -1512,13 +1512,11 @@ async function reconcileBookingCreatePricing(
       typeof metadata.productExtraId === "string" ? metadata.productExtraId : null
     const optionExtraConfigId =
       typeof metadata.optionExtraConfigId === "string" ? metadata.optionExtraConfigId : null
-    const extraOptionCandidates = optionExtraConfigId
-      ? selectedOptionIds
-      : selectedOptionIds.length === 1
-        ? selectedOptionIds
-        : []
-    let extra: Awaited<ReturnType<typeof loadPersistedExtraPricing>> = null
-    for (const optionId of extraOptionCandidates) {
+    const extraMatches: Array<{
+      optionId: string
+      extra: NonNullable<Awaited<ReturnType<typeof loadPersistedExtraPricing>>>
+    }> = []
+    for (const optionId of selectedOptionIds) {
       const optionPricing = persistedPricingByOption.get(optionId)
       if (!productExtraId || !optionPricing) continue
       const candidate = await loadPersistedExtraPricing(tx, {
@@ -1529,10 +1527,22 @@ async function reconcileBookingCreatePricing(
         optionPriceRuleId: optionPricing.ruleId,
       })
       if (!candidate) continue
-      extra = candidate
-      resolvedExtraOptionIds.set(item.id, optionId)
-      break
+      extraMatches.push({ optionId, extra: candidate })
     }
+    if (extraMatches.length > 1) {
+      return {
+        booking,
+        issues: [
+          {
+            path: ["extraLines"],
+            message: `Booking extra ${productExtraId ?? item.id} matches multiple selected options; provide optionExtraConfigId.`,
+          },
+        ],
+      }
+    }
+    const resolvedExtra = extraMatches.length === 1 ? extraMatches[0] : null
+    const extra = resolvedExtra?.extra ?? null
+    if (resolvedExtra) resolvedExtraOptionIds.set(item.id, resolvedExtra.optionId)
     if (!extra) {
       return {
         booking,

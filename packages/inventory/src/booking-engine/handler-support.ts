@@ -120,11 +120,12 @@ export async function priceOptionSelections(input: {
   // Per-traveler-category room prices (a Double room whose price is set per
   // "Adult"/"Child" via the product editor's Rooms & prices matrix) price
   // per-person by band — `pax[band] × price` — NOT per room, so they're
-  // collected here and charged once at the booking level after the per-unit
-  // loop, keyed by band so two same-band selections never double-count pax.
+  // collected here and charged once per selected option after the per-unit
+  // loop. Repeated rooms within one option share the rate; separate options
+  // keep their own authoritative rate for the same traveler band.
   const perBandPrice = new Map<
     string,
-    { cents: number; label: string; optionId: string; optionUnitId?: string }
+    { band: string; cents: number; label: string; optionId: string; optionUnitId?: string }
   >()
   const totalInventoryUnits = input.selections.reduce((sum, selection) => {
     const unit = findProductOptionUnit(
@@ -172,8 +173,10 @@ export async function priceOptionSelections(input: {
         input.product.name
       for (const row of categoryUnitRows) {
         const band = row.travelerCategory
-        if (!band || (row.sellAmountCents ?? 0) <= 0 || perBandPrice.has(band)) continue
-        perBandPrice.set(band, {
+        const optionBandKey = `${selection.optionId}\u0000${band ?? ""}`
+        if (!band || (row.sellAmountCents ?? 0) <= 0 || perBandPrice.has(optionBandKey)) continue
+        perBandPrice.set(optionBandKey, {
+          band,
           cents: row.sellAmountCents ?? 0,
           label: `${unitLabel} — ${band}`,
           optionId: selection.optionId,
@@ -257,11 +260,12 @@ export async function priceOptionSelections(input: {
     })
   }
 
-  // Per-traveler-category room prices: charge each band once at the booking
-  // level (`pax[band] × price`), independent of how many rooms were selected —
-  // rooms are capacity, the per-person rate is what the traveler pays.
-  for (const [band, price] of perBandPrice) {
-    const count = input.pax?.[band] ?? 0
+  // Per-traveler-category room prices: charge each band once per selected
+  // option (`pax[band] × option price`), independent of how many rooms were
+  // selected within that option — rooms are capacity, while the per-person
+  // rate is what the traveler pays.
+  for (const price of perBandPrice.values()) {
+    const count = input.pax?.[price.band] ?? 0
     if (count <= 0 || price.cents <= 0) continue
     const totalAmount = price.cents * count
     totalCents += totalAmount

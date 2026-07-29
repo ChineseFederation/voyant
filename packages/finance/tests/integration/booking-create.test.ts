@@ -2205,7 +2205,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
   it("reconciles every selected option against its own persisted price rule", async () => {
     const { productId, optionId, unitId } = await seedProduct()
-    const { catalogId } = await seedPersistedPricing({
+    const { catalogId, optionPriceRuleId } = await seedPersistedPricing({
       productId,
       optionId,
       unitId,
@@ -2217,6 +2217,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const secondRuleId = `oprl_bc_${productSeq}_second`
     const secondExtraId = `pex_bc_${productSeq}_second`
     const secondExtraConfigId = `oexc_bc_${productSeq}_second`
+    const globalExtraId = `pex_bc_${productSeq}_global`
     await db.execute(sql`
       INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
       VALUES (${secondOptionId}, ${productId}, 'Second option', 'active', false, 1)
@@ -2246,10 +2247,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     await db.execute(sql`
       INSERT INTO product_extras (
         id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
-      ) VALUES (
-        ${secondExtraId}, ${productId}, 'Second option extra',
-        'per_booking', false, 'booking_total', true
-      )
+      ) VALUES
+        (
+          ${secondExtraId}, ${productId}, 'Second option extra',
+          'per_booking', false, 'booking_total', true
+        ),
+        (
+          ${globalExtraId}, ${productId}, 'Global extra',
+          'per_booking', false, 'booking_total', true
+        )
     `)
     await db.execute(sql`
       INSERT INTO option_extra_configs (
@@ -2263,10 +2269,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       INSERT INTO extra_price_rules (
         id, option_price_rule_id, option_id, product_extra_id, option_extra_config_id,
         pricing_mode, sell_amount_cents, active
-      ) VALUES (
-        ${`expr_bc_${productSeq}_second`}, ${secondRuleId}, ${secondOptionId},
-        ${secondExtraId}, ${secondExtraConfigId}, 'per_booking', 5_000, true
-      )
+      ) VALUES
+        (
+          ${`expr_bc_${productSeq}_second`}, ${secondRuleId}, ${secondOptionId},
+          ${secondExtraId}, ${secondExtraConfigId}, 'per_booking', 5_000, true
+        ),
+        (
+          ${`expr_bc_${productSeq}_global_second`}, ${secondRuleId}, ${secondOptionId},
+          ${globalExtraId}, NULL, 'per_booking', 7_000, true
+        )
     `)
 
     const result = await createBooking(db, {
@@ -2285,16 +2296,23 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           quantity: 1,
           sellCurrency: "EUR",
         },
+        {
+          productExtraId: globalExtraId,
+          name: "Global extra",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
       ],
       catalogId,
     })
 
     expect(result.status).toBe("ok")
     if (result.status !== "ok") return
-    expect(result.result.booking.sellAmountCents).toBe(78_000)
+    expect(result.result.booking.sellAmountCents).toBe(85_000)
     const persistedItems = await db
       .select({
         itemType: bookingItems.itemType,
+        title: bookingItems.title,
         optionId: bookingItems.optionId,
         total: bookingItems.totalSellAmountCents,
       })
@@ -2302,11 +2320,54 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .where(eq(bookingItems.bookingId, result.result.booking.id))
     expect(persistedItems).toEqual(
       expect.arrayContaining([
-        { itemType: "unit", optionId, total: 41_000 },
-        { itemType: "unit", optionId: secondOptionId, total: 32_000 },
-        { itemType: "extra", optionId: secondOptionId, total: 5_000 },
+        { itemType: "unit", title: "Adult", optionId, total: 41_000 },
+        { itemType: "unit", title: "Second unit", optionId: secondOptionId, total: 32_000 },
+        {
+          itemType: "extra",
+          title: "Second option extra",
+          optionId: secondOptionId,
+          total: 5_000,
+        },
+        { itemType: "extra", title: "Global extra", optionId: secondOptionId, total: 7_000 },
       ]),
     )
+
+    await db.execute(sql`
+      INSERT INTO extra_price_rules (
+        id, option_price_rule_id, option_id, product_extra_id, option_extra_config_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`expr_bc_${productSeq}_global_first`}, ${optionPriceRuleId}, ${optionId},
+        ${globalExtraId}, NULL, 'per_booking', 6_000, true
+      )
+    `)
+    const ambiguous = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [
+        { optionUnitId: unitId, quantity: 1 },
+        { optionUnitId: secondUnitId, quantity: 1 },
+      ],
+      extraLines: [
+        {
+          productExtraId: globalExtraId,
+          name: "Global extra",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
+      ],
+      catalogId,
+    })
+    expect(ambiguous).toEqual({
+      status: "invalid_pricing",
+      issues: [
+        {
+          path: ["extraLines"],
+          message: `Booking extra ${globalExtraId} matches multiple selected options; provide optionExtraConfigId.`,
+        },
+      ],
+    })
   })
 
   it.each([
