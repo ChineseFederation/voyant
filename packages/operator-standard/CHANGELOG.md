@@ -1,5 +1,19 @@
 # @voyant-travel/operator-standard
 
+## 0.15.47
+
+### Patch Changes
+
+- d367d9f: Make quote-specific Realtime invalidation subscribers follow the Quotes module's standard-distribution lifecycle.
+- Updated dependencies [d367d9f]
+- Updated dependencies [d367d9f]
+  - @voyant-travel/realtime@0.7.1
+  - @voyant-travel/bookings@0.218.2
+  - @voyant-travel/commerce@0.44.18
+  - @voyant-travel/finance@0.218.2
+  - @voyant-travel/bookings-react@0.218.2
+  - @voyant-travel/finance-react@0.218.2
+
 ## 0.15.46
 
 ### Patch Changes
