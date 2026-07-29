@@ -1,5 +1,10 @@
 // agent-quality: file-size exception -- owner: legal; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
 import { createEventBus } from "@voyant-travel/core"
+import { infraPublicDocumentDeliveryGrantsTable } from "@voyant-travel/db/schema/infra"
+import {
+  createDrizzlePublicDocumentDeliveryGrantStore,
+  createPublicDocumentDeliveryGrant,
+} from "@voyant-travel/public-document-delivery"
 import type { StorageProvider, StorageUploadBody } from "@voyant-travel/storage"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -7,7 +12,12 @@ import { Hono } from "hono"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 
 import { contractsPublicRoutes, createContractsAdminRoutes } from "../../src/contracts/routes.js"
-import { contractSignatures, contracts, contractTemplates } from "../../src/contracts/schema.js"
+import {
+  contractAttachments,
+  contractSignatures,
+  contracts,
+  contractTemplates,
+} from "../../src/contracts/schema.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -19,6 +29,11 @@ const jsonWithIdempotency = (body: Record<string, unknown>, key: string) => ({
   headers: { "Content-Type": "application/json", "Idempotency-Key": key },
   body: JSON.stringify(body),
 })
+function tokenFromPublicDeliveryUrl(url: string) {
+  const token = new URL(url).pathname.split("/").filter(Boolean).at(-1)
+  if (!token) throw new Error(`Public delivery URL did not include a token: ${url}`)
+  return token
+}
 
 function managedBookingWorkflowMetadata(revision = 1, reviewOnly = true) {
   return {
@@ -386,6 +401,129 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
       .from(contractSignatures)
       .where(eq(contractSignatures.contractId, contract.id))
     expect(signatures).toEqual([])
+  })
+
+  it("allows attachment grants to read public contracts but not sign them", async () => {
+    const [contract] = await db
+      .insert(contracts)
+      .values({
+        title: "Attachment-readable contract",
+        scope: "customer",
+        status: "sent",
+        renderedBody: "<p>Hello traveler</p>",
+      })
+      .returning()
+    const [attachment] = await db
+      .insert(contractAttachments)
+      .values({
+        contractId: contract.id,
+        kind: "document",
+        name: "contract.pdf",
+        mimeType: "application/pdf",
+        storageKey: `contracts/${contract.id}/document.pdf`,
+      })
+      .returning()
+    const delivery = await createPublicDocumentDeliveryGrant(
+      createDrizzlePublicDocumentDeliveryGrantStore(db),
+      {
+        storageKey: attachment.storageKey!,
+        publicBaseUrl: "https://public.example.test",
+        filename: attachment.name,
+        contentType: attachment.mimeType,
+        source: { module: "legal", entity: "contract_attachment", id: attachment.id },
+        ttlSeconds: 60,
+      },
+    )
+    const token = tokenFromPublicDeliveryUrl(delivery.url)
+
+    const readRes = await publicApp.request(`/${contract.id}?token=${encodeURIComponent(token)}`)
+    expect(readRes.status).toBe(200)
+    expect((await readRes.json()).data).toMatchObject({
+      title: "Attachment-readable contract",
+      status: "sent",
+      renderedBody: "<p>Hello traveler</p>",
+    })
+
+    const [grantAfterRead] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterRead?.accessCount).toBe(1)
+
+    const signRes = await publicApp.request(
+      `/${contract.id}/sign?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        ...json({
+          signerName: "Ada Lovelace",
+          method: "manual",
+        }),
+      },
+    )
+    expect(signRes.status).toBe(404)
+    expect(await signRes.json()).toEqual({ error: "Contract not found" })
+
+    const signatures = await db
+      .select()
+      .from(contractSignatures)
+      .where(eq(contractSignatures.contractId, contract.id))
+    expect(signatures).toEqual([])
+    const [grantAfterSign] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterSign?.accessCount).toBe(1)
+  })
+
+  it("allows contract grants to sign public contracts", async () => {
+    const [contract] = await db
+      .insert(contracts)
+      .values({
+        title: "Contract-signable public contract",
+        scope: "customer",
+        status: "sent",
+        renderedBody: "<p>Please sign</p>",
+      })
+      .returning()
+    const delivery = await createPublicDocumentDeliveryGrant(
+      createDrizzlePublicDocumentDeliveryGrantStore(db),
+      {
+        storageKey: `contracts/${contract.id}/document.pdf`,
+        publicBaseUrl: "https://public.example.test",
+        filename: "contract.pdf",
+        contentType: "application/pdf",
+        source: { module: "legal", entity: "contract", id: contract.id },
+        ttlSeconds: 60,
+      },
+    )
+    const token = tokenFromPublicDeliveryUrl(delivery.url)
+
+    const signRes = await publicApp.request(
+      `/${contract.id}/sign?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        ...json({
+          signerName: "Ada Lovelace",
+          method: "manual",
+        }),
+      },
+    )
+    expect(signRes.status).toBe(200)
+    expect((await signRes.json()).data.signature).toMatchObject({
+      signerName: "Ada Lovelace",
+      method: "manual",
+    })
+
+    const signatures = await db
+      .select()
+      .from(contractSignatures)
+      .where(eq(contractSignatures.contractId, contract.id))
+    expect(signatures).toHaveLength(1)
+    const [grantAfterSign] = await db
+      .select()
+      .from(infraPublicDocumentDeliveryGrantsTable)
+      .where(eq(infraPublicDocumentDeliveryGrantsTable.id, delivery.grantId))
+    expect(grantAfterSign?.accessCount).toBe(1)
   })
 
   it("does not upload a stored document for a missing contract", async () => {

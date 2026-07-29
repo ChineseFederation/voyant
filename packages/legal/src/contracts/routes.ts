@@ -722,6 +722,7 @@ async function authorizePublicContractAccess(
   c: Context<Env>,
   contractId: string,
   token: string | undefined,
+  capability: "read" | "sign",
 ): Promise<"ready" | "not_found" | "gone"> {
   if (!token) return "not_found"
 
@@ -740,6 +741,10 @@ async function authorizePublicContractAccess(
       userAgent: c.req.header("user-agent") ?? null,
     })
     return "ready"
+  }
+
+  if (capability === "sign") {
+    return "not_found"
   }
 
   if (grant.sourceEntity !== "contract_attachment" || !grant.sourceId) {
@@ -1842,6 +1847,7 @@ export function createContractsPublicRoutes(options: ContractsRouteOptions = {})
         c,
         contractId,
         c.req.valid("query").token,
+        "read",
       )
       if (authorization === "gone") {
         return c.json({ error: "Contract access grant is no longer available" }, 410)
@@ -1859,6 +1865,7 @@ export function createContractsPublicRoutes(options: ContractsRouteOptions = {})
         c,
         contractId,
         c.req.valid("query").token,
+        "sign",
       )
       if (authorization === "gone") {
         return c.json({ error: "Contract access grant is no longer available" }, 410)
