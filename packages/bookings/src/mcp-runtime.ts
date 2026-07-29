@@ -343,7 +343,9 @@ export async function loadBookingStatusConsequencePreview(
       action,
     })
   }
-  const allocations = await bookingsService.listAllocations(db, bookingId)
+  const allocations = [...(await bookingsService.listAllocations(db, bookingId))].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
+  )
   const financialSettlement =
     action === "cancel"
       ? await loadCancellationFinancialConsequences(db, bookingId, settlementHookAvailable)

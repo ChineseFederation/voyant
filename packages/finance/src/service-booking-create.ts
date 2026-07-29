@@ -1196,12 +1196,9 @@ async function reconcileBookingCreatePricing(
   const chargedUnassignedRoomBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
-  const ruleBaseTotal =
-    persistedPricing?.baseSellAmountCents == null
-      ? 0
-      : persistedPricing.pricingMode === "per_person"
-        ? persistedPricing.baseSellAmountCents * Math.max(1, booking.pax ?? 1)
-        : persistedPricing.baseSellAmountCents
+  // Commerce quotes apply the option-rule base once. The pricing mode
+  // describes the rule, while only selected unit prices multiply by quantity.
+  const ruleBaseTotal = persistedPricing?.baseSellAmountCents ?? 0
   let appliedRuleBase = ruleBaseTotal === 0
   for (const item of baseItems) {
     const unitRules =
@@ -1209,17 +1206,20 @@ async function reconcileBookingCreatePricing(
     const quantity = Math.max(1, item.quantity)
     const flatUnitRules = unitRules.filter((rule) => rule.pricingCategoryId === null)
     const categoryRules = unitRules.filter((rule) => rule.pricingCategoryId !== null)
-    if (flatUnitRules.length === 0 && categoryRules.length > 0) {
+    if (categoryRules.length > 0) {
       const bandAllocation = bookingCreateTravelerBandCountsForItem(input, item, booking.pax)
       let categoryTotal = 0
       let matchedCategoryPrice = false
       const matchedBands = new Set<string>()
-      for (const rule of categoryRules) {
-        const band = rule.travelerCategory
-        if (!band) continue
-        if (matchedBands.has(band)) continue
-        const bandQuantity = bandAllocation.counts.get(band) ?? 0
-        if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
+      for (const [band, bandQuantity] of bandAllocation.counts) {
+        if (bandQuantity <= 0 || matchedBands.has(band)) continue
+        const categoryRule = categoryRules.find(
+          (rule) => rule.travelerCategory === band && unitRuleMatchesQuantity(rule, bandQuantity),
+        )
+        const rule =
+          categoryRule ??
+          flatUnitRules.find((candidate) => unitRuleMatchesQuantity(candidate, bandQuantity))
+        if (!rule) continue
         if (
           !bandAllocation.scopedToItem &&
           rule.unitType === "room" &&

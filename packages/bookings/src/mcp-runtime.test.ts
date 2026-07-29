@@ -166,6 +166,64 @@ describe("bookings MCP runtime lifecycle detail", () => {
     expect(execute).toHaveBeenCalledTimes(2)
     expect(cancelBooking).toHaveBeenCalledOnce()
   })
+
+  it("keeps approval consequences stable when tied allocations arrive in a different order", async () => {
+    const detail = bookingDetailWithDates("booking_1")
+    const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
+    const createdAt = new Date("2026-07-28T10:03:00.000Z")
+    const allocationA = {
+      id: "allocation_a",
+      bookingId: "booking_1",
+      status: "held",
+      availabilitySlotId: "slot_1",
+      quantity: 1,
+      createdAt,
+    }
+    const allocationB = {
+      id: "allocation_b",
+      bookingId: "booking_1",
+      status: "held",
+      availabilitySlotId: "slot_2",
+      quantity: 1,
+      createdAt,
+    }
+    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
+    vi.spyOn(bookingsService, "listAllocations")
+      .mockResolvedValueOnce([allocationB, allocationA] as never)
+      .mockResolvedValueOnce([allocationA, allocationB] as never)
+    vi.spyOn(bookingsService, "confirmBooking").mockResolvedValue({
+      status: "ok",
+      booking: detail.booking,
+    } as never)
+    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
+      await handlers.prepare(
+        input.db,
+        { causation: { claimActionId: "action_claim_stable_allocations" } },
+        input.commandInput,
+      )
+      return { replayed: false, value: detail.booking }
+    })
+
+    const contribution = await voyantToolContextContribution.contribute({
+      request: request(),
+      context: toolContext(db),
+      resources: {},
+    })
+    const runtime = contribution.bookings as {
+      confirmBooking: (
+        input: { id: string; idempotencyKey: string },
+        admitted: ToolHandlerActionPolicyContext,
+      ) => Promise<unknown>
+    }
+
+    await expect(
+      runtime.confirmBooking({ id: "booking_1", idempotencyKey: "stable-allocations" }, {
+        capabilityId: "booking.status.confirm",
+        invocation: {},
+      } as ToolHandlerActionPolicyContext),
+    ).resolves.toMatchObject({ status: "confirmed", replayed: false })
+    expect(bookingsService.confirmBooking).toHaveBeenCalledOnce()
+  })
 })
 
 function financeTablesUnavailable() {

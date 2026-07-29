@@ -26,6 +26,7 @@ import {
 } from "../../../bookings/src/availability-ref.js"
 import { loadBookingStatusConsequencePreview } from "../../../bookings/src/mcp-runtime.js"
 import { publicPricingService } from "../../../commerce/src/pricing/service-public.js"
+import { resolve as resolveSellability } from "../../../commerce/src/sellability/service-resolve.js"
 import {
   executeFinanceBookingCreateCommand,
   financeBookingCreatedEventId,
@@ -462,6 +463,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     unitId: string
     unitAmountCents: number
     unitPricingMode?: "per_unit" | "per_person" | "per_booking"
+    optionPricingMode?: "per_person" | "per_booking" | "starting_from"
     baseSellAmountCents?: number | null
     currency?: string
     extra?: {
@@ -488,7 +490,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         base_sell_amount_cents, is_default, active
       ) VALUES (
         ${optionPriceRuleId}, ${input.productId}, ${input.optionId}, ${catalogId},
-        'Persisted booking rate', 'per_booking', ${input.baseSellAmountCents ?? null}, true, true
+        'Persisted booking rate', ${input.optionPricingMode ?? "per_booking"},
+        ${input.baseSellAmountCents ?? null}, true, true
       )
     `)
     await db.execute(sql`
@@ -2080,6 +2083,57 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ unit: 15_500, total: 31_000 }])
   })
 
+  it("applies a per-person option-rule base once while unit prices multiply for two travelers", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      optionPricingMode: "per_person",
+      baseSellAmountCents: 7_000,
+      unitAmountCents: 12_000,
+      unitPricingMode: "per_person",
+    })
+    await db.execute(sql`UPDATE products SET status = 'active' WHERE id = ${productId}`)
+    const slot = await seedSlot({ productId, optionId })
+    const quote = await resolveSellability(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      requestedUnits: [{ unitId, quantity: 2 }],
+      limit: 25,
+    })
+    expect(quote.data[0]?.pricing.sellAmountCents).toBe(31_000)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 2,
+      itemLines: [{ optionUnitId: unitId, quantity: 2 }],
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          currency: "EUR",
+          amountCents: 31_000,
+          dueDate: "2026-08-15",
+        },
+      ],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(31_000)
+    expect(outcome.result.paymentSchedules).toEqual([
+      expect.objectContaining({ amountCents: 31_000, currency: "EUR" }),
+    ])
+    expect(outcome.result.invoice).toMatchObject({ subtotalCents: 31_000, totalCents: 31_000 })
+  })
+
   it("uses selected extra quantity when the pricing mode is not per-booking", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     const productExtraId = `pex_bc_${productSeq}_quantity`
@@ -2565,6 +2619,111 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .from(bookingItems)
         .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
     ).toEqual([{ unit: 12_000, total: 12_000 }])
+  })
+
+  it("prefers adult and child category prices over a general flat fallback", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 50_000,
+      unitPricingMode: "per_person",
+    })
+    const adultCategoryId = `prct_bc_${productSeq}_adult_with_flat`
+    const childCategoryId = `prct_bc_${productSeq}_child_with_flat`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES
+        (
+          ${adultCategoryId}, ${productId}, ${optionId}, ${unitId},
+          'adult_with_flat', 'Adult', 'adult', true
+        ),
+        (
+          ${childCategoryId}, ${productId}, ${optionId}, ${unitId},
+          'child_with_flat', 'Child', 'child', true
+        )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, sort_order, active
+      ) VALUES
+        (
+          ${`oupr_bc_${productSeq}_adult_with_flat`}, ${optionPriceRuleId}, ${optionId},
+          ${unitId}, ${adultCategoryId}, 'per_person', 10000, 1, true
+        ),
+        (
+          ${`oupr_bc_${productSeq}_child_with_flat`}, ${optionPriceRuleId}, ${optionId},
+          ${unitId}, ${childCategoryId}, 'per_person', 6000, 2, true
+        )
+    `)
+    await db.execute(sql`UPDATE products SET status = 'active' WHERE id = ${productId}`)
+    const slot = await seedSlot({ productId, optionId })
+    const quote = await resolveSellability(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      requestedUnits: [
+        { unitId, pricingCategoryId: adultCategoryId, quantity: 1 },
+        { unitId, pricingCategoryId: childCategoryId, quantity: 1 },
+      ],
+      limit: 25,
+    })
+    expect(quote.data[0]?.pricing.sellAmountCents).toBe(16_000)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      slotId: slot.id,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:adult",
+          firstName: "Alice",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:child",
+          firstName: "Bob",
+          lastName: "Child",
+          travelerCategory: "child",
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}:category-priority`,
+          optionUnitId: unitId,
+          quantity: 2,
+          travelerKeys: ["trav:adult", "trav:child"],
+        },
+      ],
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          currency: "EUR",
+          amountCents: 16_000,
+          dueDate: "2026-08-15",
+        },
+      ],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(16_000)
+    expect(outcome.result.paymentSchedules).toEqual([
+      expect.objectContaining({ amountCents: 16_000, currency: "EUR" }),
+    ])
+    expect(outcome.result.invoice).toMatchObject({ subtotalCents: 16_000, totalCents: 16_000 })
   })
 
   it("uses first-rule precedence for overlapping category-specific traveler bands", async () => {
