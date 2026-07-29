@@ -1512,6 +1512,79 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ status: "cancelled" }])
   })
 
+  it("avoids a booking-invoice deadlock when invoice mutation enters before approved cancellation", async () => {
+    const { productId } = await seedProduct()
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      initialStatus: "confirmed",
+      ...bookingParty(),
+    })
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const invoice = await financeInvoiceCoreService.createInvoice(db, {
+      invoiceNumber: `INV-MUTATION-LOCK-${productSeq}`,
+      bookingId: outcome.result.booking.id,
+      currency: "EUR",
+      issueDate: "2026-07-29",
+      dueDate: "2026-09-15",
+      subtotalCents: 1_000,
+      taxCents: 0,
+      totalCents: 1_000,
+      paidCents: 0,
+      balanceDueCents: 1_000,
+    })
+    expect(invoice).toBeDefined()
+    if (!invoice) return
+
+    let releaseInvoiceMutation = () => {}
+    const invoiceMutationMayProceed = new Promise<void>((resolve) => {
+      releaseInvoiceMutation = resolve
+    })
+    let invoiceLocked = () => {}
+    const invoiceWasLocked = new Promise<void>((resolve) => {
+      invoiceLocked = resolve
+    })
+    const invoiceMutation = db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT id FROM invoices WHERE id = ${invoice.id} FOR UPDATE`)
+      invoiceLocked()
+      await invoiceMutationMayProceed
+      await tx
+        .update(invoices)
+        .set({ notes: "concurrent invoice mutation", updatedAt: new Date() })
+        .where(eq(invoices.id, invoice.id))
+      await tx
+        .update(bookings)
+        .set({ updatedAt: new Date() })
+        .where(eq(bookings.id, outcome.result.booking.id))
+    })
+
+    await invoiceWasLocked
+    const cancellation = db.transaction(async (tx) => {
+      await lockBookingStatusConsequenceState(tx, outcome.result.booking.id, "cancel")
+      return bookingsService.cancelBooking(
+        tx,
+        outcome.result.booking.id,
+        { note: "Approved cancellation after concurrent invoice mutation" },
+        "user_invoice_mutation_lock_order",
+        financeBookingLifecycle,
+      )
+    })
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    } finally {
+      releaseInvoiceMutation()
+    }
+
+    await expect(invoiceMutation).resolves.toBeUndefined()
+    await expect(cancellation).resolves.toMatchObject({
+      status: "ok",
+      booking: expect.objectContaining({ status: "cancelled" }),
+    })
+  })
+
   it("requests an invoice rendition only when invoice document generation is enabled", async () => {
     const { productId } = await seedProduct()
 

@@ -470,6 +470,52 @@ describe("finance checkout service", () => {
     expect(insertedInvoices).toHaveLength(0)
   })
 
+  it("rejects a cancelled schedule checkout before creating its payment session", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      bookingStatus: "cancelled",
+    })
+    const createScheduleSession = vi.spyOn(
+      financeService,
+      "createPaymentSessionFromBookingSchedule",
+    )
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "card",
+        stage: "initial",
+        amountCents: 5_000,
+      }),
+    ).rejects.toThrow("no longer accepts new financial consequences")
+
+    expect(createScheduleSession).not.toHaveBeenCalled()
+    expect(insertedInvoices).toHaveLength(0)
+  })
+
+  it("rolls back a newly created schedule session when fenced invoice creation fails", async () => {
+    const insertedInvoices: Array<Record<string, unknown>> = []
+    const insertedPaymentSessions: Array<Record<string, unknown>> = []
+    const db = createCheckoutDb({
+      insertedInvoices,
+      insertedPaymentSessions,
+      series: { currentSequence: 7 },
+      invoiceInsertError: new Error("invoice insert failed"),
+    })
+
+    await expect(
+      initiateCheckoutCollection(db as never, "booking_123", {
+        method: "card",
+        stage: "initial",
+        amountCents: 5_000,
+      }),
+    ).rejects.toThrow("invoice insert failed")
+
+    expect(insertedPaymentSessions).toHaveLength(0)
+    expect(insertedInvoices).toHaveLength(0)
+    expect(db.getSeriesSequence()).toBe(7)
+  })
+
   it("rejects mismatched booking and session ids during bootstrap", async () => {
     await expect(
       bootstrapCheckoutCollection(
@@ -496,6 +542,7 @@ function createCheckoutDb({
   bookingStatus = "confirmed",
   series: seriesOverrides = null,
   invoiceInsertError,
+  insertedPaymentSessions = [],
 }: {
   insertedInvoices: Array<Record<string, unknown>>
   linkedSessions?: Array<Record<string, unknown>>
@@ -506,6 +553,7 @@ function createCheckoutDb({
   bookingStatus?: "confirmed" | "cancelled"
   series?: Partial<Record<string, unknown>> | null
   invoiceInsertError?: Error
+  insertedPaymentSessions?: Array<Record<string, unknown>>
 }) {
   const dialect = new PgDialect()
   const booking = {
@@ -586,10 +634,16 @@ function createCheckoutDb({
     }),
     transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => {
       const sequenceBeforeTransaction = seriesSequence
+      const invoiceCountBeforeTransaction = insertedInvoices.length
+      const sessionCountBeforeTransaction = insertedPaymentSessions.length
+      const linkCountBeforeTransaction = linkedSessions.length
       try {
         return await callback(db)
       } catch (error) {
         seriesSequence = sequenceBeforeTransaction
+        insertedInvoices.length = invoiceCountBeforeTransaction
+        insertedPaymentSessions.length = sessionCountBeforeTransaction
+        linkedSessions.length = linkCountBeforeTransaction
         throw error
       }
     }),
@@ -636,6 +690,20 @@ function createCheckoutDb({
           }
           if (table === invoiceLineItems) {
             return Promise.resolve(undefined)
+          }
+          if (table === paymentSessions) {
+            insertedPaymentSessions.push(values)
+            return {
+              returning() {
+                return Promise.resolve([
+                  {
+                    id: "ps_atomic_schedule",
+                    invoiceId: null,
+                    ...values,
+                  },
+                ])
+              },
+            }
           }
           return Promise.resolve(undefined)
         },

@@ -396,8 +396,34 @@ export async function lockBookingStatusConsequenceState(
     await lockBookingFinanceInsertionFence(db, bookingId)
   }
 
-  // Lock the parent first. Booking-owned consequence rows have a booking FK,
-  // so this also prevents new allocations from appearing during revalidation.
+  if (action === "cancel") {
+    // Existing Finance mutations lock their consequence row before touching the
+    // linked booking. Keep cancellation in that same row-before-booking order.
+    // New Finance rows cannot appear while we do this because every insertion
+    // must acquire the advisory fence above before taking any row lock.
+    const financeTables = await loadFinanceConsequenceTables(db)
+    if (financeTables?.invoicesTable) {
+      await db.execute(sql`
+        SELECT id
+        FROM invoices
+        WHERE booking_id = ${bookingId}
+        ORDER BY id
+        FOR UPDATE
+      `)
+    }
+    if (financeTables?.paymentSchedulesTable) {
+      await db.execute(sql`
+        SELECT id
+        FROM booking_payment_schedules
+        WHERE booking_id = ${bookingId}
+        ORDER BY id
+        FOR UPDATE
+      `)
+    }
+  }
+
+  // Lock the parent after Finance consequence rows. Booking-owned allocation
+  // rows have a booking FK, so the parent lock also prevents new allocations.
   await db.execute(sql`
     SELECT id
     FROM bookings
@@ -411,30 +437,6 @@ export async function lockBookingStatusConsequenceState(
     ORDER BY id
     FOR UPDATE
   `)
-  if (action !== "cancel") return
-
-  // Finance is optional and its booking references are deliberately loose.
-  // Lock every installed row for this booking, not just the currently visible
-  // paid/pending subset, so status and amount changes cannot cross the preview.
-  const financeTables = await loadFinanceConsequenceTables(db)
-  if (financeTables?.invoicesTable) {
-    await db.execute(sql`
-      SELECT id
-      FROM invoices
-      WHERE booking_id = ${bookingId}
-      ORDER BY id
-      FOR UPDATE
-    `)
-  }
-  if (financeTables?.paymentSchedulesTable) {
-    await db.execute(sql`
-      SELECT id
-      FROM booking_payment_schedules
-      WHERE booking_id = ${bookingId}
-      ORDER BY id
-      FOR UPDATE
-    `)
-  }
 }
 
 async function loadFinanceConsequenceTables(

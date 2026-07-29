@@ -420,59 +420,66 @@ export async function initiateCheckoutCollection(
         )
     }
   } else {
-    if (!plan.selectedSchedule) {
+    const selectedSchedule = plan.selectedSchedule
+    if (!selectedSchedule) {
       throw new Error("No outstanding payment schedule available for collection")
     }
 
-    // Create (or reuse) the schedule session first so idempotent retries return
-    // the existing row before we materialize any new proforma.
-    paymentSession = await financeService.createPaymentSessionFromBookingSchedule(
-      db,
-      plan.selectedSchedule.id,
-      {
-        ...(input.paymentSession ?? {}),
-        notes: input.notes ?? input.paymentSession?.notes ?? null,
-      },
-    )
+    const resources = await withBookingFinanceInsertionFence(db, context.booking.id, async (tx) => {
+      // Session creation, proforma creation/numbering, and linking share this
+      // outer transaction. A cancellation fence rejection or later write
+      // failure therefore cannot leave an orphaned schedule session.
+      let scheduleSession = await financeService.createPaymentSessionFromBookingSchedule(
+        tx,
+        selectedSchedule.id,
+        {
+          ...(input.paymentSession ?? {}),
+          notes: input.notes ?? input.paymentSession?.notes ?? null,
+        },
+      )
 
-    if (!paymentSession) {
-      throw new Error("Failed to create payment session from booking schedule")
-    }
-
-    if (paymentSession.invoiceId) {
-      const [existingInvoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, paymentSession.invoiceId))
-        .limit(1)
-      if (!existingInvoice) {
-        throw new Error(
-          `Payment session ${paymentSession.id} references missing invoice ${paymentSession.invoiceId}`,
-        )
+      if (!scheduleSession) {
+        throw new Error("Failed to create payment session from booking schedule")
       }
-      invoice = existingInvoice
-    } else {
+
+      if (scheduleSession.invoiceId) {
+        const [existingInvoice] = await tx
+          .select()
+          .from(invoices)
+          .where(eq(invoices.id, scheduleSession.invoiceId))
+          .limit(1)
+        if (!existingInvoice) {
+          throw new Error(
+            `Payment session ${scheduleSession.id} references missing invoice ${scheduleSession.invoiceId}`,
+          )
+        }
+        return { invoice: existingInvoice, paymentSession: scheduleSession }
+      }
+
       // Card settlement completion requires an outstanding booking invoice even
       // when the session is schedule-targeted. Materialize a proforma in the
       // schedule currency so status refresh can project paid without FX drift.
-      invoice = await createCollectionInvoice(
-        db,
+      const scheduleInvoice = await createCollectionInvoice(
+        tx,
         context,
         {
           ...plan,
           documentType: plan.documentType ?? "proforma",
-          currency: plan.selectedSchedule.currency,
+          currency: selectedSchedule.currency,
         },
         input.notes ?? null,
       )
 
-      const [linkedSession] = await db
+      const [linkedSession] = await tx
         .update(paymentSessions)
-        .set({ invoiceId: invoice.id, updatedAt: new Date() })
-        .where(eq(paymentSessions.id, paymentSession.id))
+        .set({ invoiceId: scheduleInvoice.id, updatedAt: new Date() })
+        .where(eq(paymentSessions.id, scheduleSession.id))
         .returning()
-      paymentSession = linkedSession ?? { ...paymentSession, invoiceId: invoice.id }
-    }
+      scheduleSession = linkedSession ?? { ...scheduleSession, invoiceId: scheduleInvoice.id }
+      return { invoice: scheduleInvoice, paymentSession: scheduleSession }
+    })
+    invoice = resources.invoice
+    paymentSession = resources.paymentSession
 
     if (
       runtime.notificationDispatcher?.sendPaymentSessionNotification &&
