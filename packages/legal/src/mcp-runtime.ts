@@ -315,8 +315,6 @@ export async function resolveLegalContractDraftNumber(
   input: {
     bookingId: string | null
     seriesId: string | null
-    previousSeriesId: string | null | undefined
-    previousContractNumber: string | null | undefined
     variables: Record<string, unknown> | undefined
   },
   allocate: typeof allocateContractNumber = allocateContractNumber,
@@ -327,9 +325,7 @@ export async function resolveLegalContractDraftNumber(
   if (!input.bookingId || !input.seriesId) {
     return { contractNumber: null, variables: input.variables }
   }
-  const inheritedNumber =
-    input.previousSeriesId === input.seriesId ? (input.previousContractNumber ?? null) : null
-  const contractNumber = inheritedNumber ?? (await allocate(db, input.seriesId))?.number ?? null
+  const contractNumber = (await allocate(db, input.seriesId))?.number ?? null
   if (!contractNumber) {
     throw new ToolError(`Contract number series "${input.seriesId}" was not found.`, "NOT_FOUND", {
       seriesId: input.seriesId,
@@ -507,8 +503,6 @@ export async function executeLegalContractDraftCreate(
         const numberedDraft = await resolveLegalContractDraftNumber(transaction, {
           bookingId,
           seriesId,
-          previousSeriesId: previous?.seriesId,
-          previousContractNumber: previous?.contractNumber,
           variables,
         })
         const contractNumber = numberedDraft.contractNumber

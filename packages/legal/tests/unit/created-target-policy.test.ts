@@ -36,15 +36,13 @@ describe("legal contract draft created-target command", () => {
     ).toBe("2027-01-31T23:59:59.000Z")
   })
 
-  it("allocates managed booking numbers before review and reuses them for revisions", async () => {
+  it("allocates a unique managed booking number for every immutable revision", async () => {
     let allocations = 0
     const allocated = await resolveLegalContractDraftNumber(
       {} as never,
       {
         bookingId: "book_1",
         seriesId: "series_1",
-        previousSeriesId: null,
-        previousContractNumber: null,
         variables: { booking: { reference: "BK-1" } },
       },
       async () => {
@@ -64,8 +62,6 @@ describe("legal contract draft created-target command", () => {
       {
         bookingId: "book_1",
         seriesId: "series_1",
-        previousSeriesId: "series_1",
-        previousContractNumber: "CTR-0042",
         variables: allocated.variables,
       },
       async () => {
@@ -73,8 +69,11 @@ describe("legal contract draft created-target command", () => {
         return { number: "CTR-0043", sequence: 43 }
       },
     )
-    expect(revision.contractNumber).toBe("CTR-0042")
-    expect(allocations).toBe(1)
+    expect(revision.contractNumber).toBe("CTR-0043")
+    expect(revision.variables).toMatchObject({
+      contract: { contractNumber: "CTR-0043", number: "CTR-0043" },
+    })
+    expect(allocations).toBe(2)
   })
 
   it("marks only booking drafts as managed booking revisions", () => {

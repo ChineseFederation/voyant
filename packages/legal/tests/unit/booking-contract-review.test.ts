@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  bookingContractCustomerVariables,
   bookingContractPrerequisites,
   bookingContractTemplateMatchesChannel,
   resolveBookingContractLanguage,
@@ -59,5 +60,16 @@ describe("booking contract prerequisites", () => {
     expect(bookingContractTemplateMatchesChannel(null, "channel_a")).toBe(true)
     expect(bookingContractTemplateMatchesChannel("channel_a", "channel_a")).toBe(true)
     expect(bookingContractTemplateMatchesChannel("channel_b", "channel_a")).toBe(false)
+  })
+
+  it("exposes phone contacts to template prerequisite evaluation", () => {
+    expect(
+      bookingContractCustomerVariables({
+        contactFirstName: "Ana",
+        contactLastName: "Pop",
+        contactEmail: null,
+        contactPhone: "+40700000000",
+      }),
+    ).toEqual({ name: "Ana Pop", email: null, phone: "+40700000000" })
   })
 })

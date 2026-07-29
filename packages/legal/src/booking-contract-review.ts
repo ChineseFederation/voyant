@@ -77,6 +77,19 @@ export function bookingContractTemplateMatchesChannel(
     : templateChannelId == null
 }
 
+export function bookingContractCustomerVariables(booking: {
+  contactFirstName: string | null
+  contactLastName: string | null
+  contactEmail: string | null
+  contactPhone: string | null
+}) {
+  return {
+    name: [booking.contactFirstName, booking.contactLastName].filter(Boolean).join(" ") || null,
+    email: booking.contactEmail,
+    phone: booking.contactPhone,
+  }
+}
+
 export async function listApplicableBookingContractTemplates(
   db: PostgresJsDatabase,
   input: { bookingId: string; language?: string; channelId?: string },
@@ -119,10 +132,7 @@ export async function listApplicableBookingContractTemplates(
         currency: item.sellCurrency,
       })),
     },
-    customer: {
-      name: [booking.contactFirstName, booking.contactLastName].filter(Boolean).join(" ") || null,
-      email: booking.contactEmail,
-    },
+    customer: bookingContractCustomerVariables(booking),
     commercial: { currency: booking.sellCurrency, totalAmountCents: booking.sellAmountCents },
     product: {
       title: primaryProduct?.productNameSnapshot ?? primaryProduct?.title ?? null,
