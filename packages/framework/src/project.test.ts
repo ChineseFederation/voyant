@@ -378,6 +378,19 @@ describe("framework project resolver", () => {
     ).toEqual(["@acme/z-foundation"])
   })
 
+  it("rejects a selected package whose required schema package is absent", async () => {
+    const root = projectRoot()
+    writePackage(root, {
+      name: "@acme/a-dependent",
+      manifest: `export default ${JSON.stringify(moduleManifest("@acme/a-dependent"))}\n`,
+      voyant: packageMetadata({ requiresSchemas: ["@acme/z-foundation"] }),
+    })
+
+    await expect(resolve(root, defineProject({ modules: ["@acme/a-dependent"] }))).rejects.toThrow(
+      "package schema dependency is not selected: @acme/a-dependent requires @acme/z-foundation",
+    )
+  })
+
   it("rejects non-Node application runtime targets", async () => {
     const root = projectRoot()
     writePackage(root, {

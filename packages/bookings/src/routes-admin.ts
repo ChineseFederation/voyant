@@ -562,6 +562,16 @@ async function authorizeBookingStatusMutation(
   return bookingStatusAuthorizationRouteResult(c, result)
 }
 
+function confirmBookingAuthorizationInput(bookingId: string, commandInput: unknown) {
+  return {
+    key: "confirm",
+    actionName: "booking.status.confirm",
+    routeOrToolName: "bookings.confirm",
+    bookingId,
+    commandInput,
+  } as const
+}
+
 async function bookingStatusAuthorizationRouteResult(
   c: Context<Env>,
   result: BookingStatusAuthorizationResult,
@@ -2251,12 +2261,10 @@ lifecycleRoutes
       (async () => {
         const bookingId = c.req.valid("param").id
         const data = c.req.valid("json") ?? {}
-        const auth = await authorizeBookingStatusMutation(c, {
-          key: "confirm",
-          actionName: "booking.status.confirm",
-          routeOrToolName: "bookings.confirm",
-          bookingId,
-        })
+        const auth = await authorizeBookingStatusMutation(
+          c,
+          confirmBookingAuthorizationInput(bookingId, data),
+        )
         if (!auth.allowed) return auth.response
         const result = await bookingsService.confirmBooking(
           c.get("db"),
@@ -3870,4 +3878,5 @@ export const __test__ = {
   bookingDetailSchema,
   bookingAggregatesSchema,
   sharingGroupSummarySchema,
+  confirmBookingAuthorizationInput,
 }
