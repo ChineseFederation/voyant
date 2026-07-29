@@ -520,9 +520,13 @@ export async function executeLegalContractDraftCreate(
             { revisionOfContractId },
           )
         }
-        if (previous?.status === "sent") {
+        if (
+          previous?.status === "sent" ||
+          previous?.status === "signed" ||
+          previous?.status === "executed"
+        ) {
           throw new ToolError(
-            "Sent contract revisions cannot be superseded by a draft revision.",
+            "Sent, signed, and executed contract revisions cannot be superseded by a draft revision.",
             "INVALID_INPUT",
             { revisionOfContractId },
           )
