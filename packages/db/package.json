@@ -42,6 +42,7 @@
     "./schema/iam/customer_profiles": "./src/schema/iam/customer_profiles.ts",
     "./schema/iam/invitations": "./src/schema/iam/invitations.ts",
     "./schema/iam/kms": "./src/schema/iam/kms.ts",
+    "./schema/iam/oauth_provider": "./src/schema/iam/oauth_provider.ts",
     "./schema/iam/roles": "./src/schema/iam/roles.ts",
     "./schema/iam/storefronts": "./src/schema/iam/storefronts.ts",
     "./schema/iam/user_profiles": "./src/schema/iam/user_profiles.ts",
@@ -241,6 +242,11 @@
         "types": "./dist/schema/iam/kms.d.ts",
         "import": "./dist/schema/iam/kms.js",
         "default": "./dist/schema/iam/kms.js"
+      },
+      "./schema/iam/oauth_provider": {
+        "types": "./dist/schema/iam/oauth_provider.d.ts",
+        "import": "./dist/schema/iam/oauth_provider.js",
+        "default": "./dist/schema/iam/oauth_provider.js"
       },
       "./schema/iam/roles": {
         "types": "./dist/schema/iam/roles.d.ts",

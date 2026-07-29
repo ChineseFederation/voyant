@@ -778,6 +778,7 @@
       ],
       "@voyant-travel/db/schema/iam/invitations": ["../db/dist/schema/iam/invitations.d.ts"],
       "@voyant-travel/db/schema/iam/kms": ["../db/dist/schema/iam/kms.d.ts"],
+      "@voyant-travel/db/schema/iam/oauth_provider": ["../db/dist/schema/iam/oauth_provider.d.ts"],
       "@voyant-travel/db/schema/iam/roles": ["../db/dist/schema/iam/roles.d.ts"],
       "@voyant-travel/db/schema/iam/storefronts": ["../db/dist/schema/iam/storefronts.d.ts"],
       "@voyant-travel/db/schema/iam/user_profiles": ["../db/dist/schema/iam/user_profiles.d.ts"],

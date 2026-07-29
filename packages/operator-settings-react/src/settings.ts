@@ -5,7 +5,7 @@ import {
   defineAdminExtension,
 } from "@voyant-travel/admin/extensions"
 import type { AdminCoreSettingsExtraPage } from "@voyant-travel/admin-app/core-extension"
-import { Building, CreditCard } from "lucide-react"
+import { Building, CreditCard, Plug } from "lucide-react"
 import { type ComponentType, createElement } from "react"
 
 import {
@@ -86,11 +86,41 @@ export function createPaymentsSettingsExtraPage(
   }
 }
 
+/**
+ * The packaged Settings → MCP page descriptor. Placed in the General group
+ * right after API tokens (order 32), because connecting an MCP client starts
+ * with minting a scoped token. Documents the in-deployment MCP server
+ * (`@voyant-travel/mcp`, mounted at `/v1/admin/mcp`) and lists the tool surface
+ * the signed-in staff member is authorized for.
+ */
+export function createMcpSettingsExtraPage(
+  options: { path?: string; order?: number } = {},
+): AdminCoreSettingsExtraPage {
+  return {
+    id: "mcp",
+    path: options.path ?? "/mcp",
+    title: "MCP",
+    label: (messages) => messages.settings.mcp,
+    icon: Plug,
+    group: "general",
+    order: options.order ?? 32,
+    ssr: false,
+    page: () =>
+      import("./mcp-settings-page.js").then((module) =>
+        adminRoutePageModule(module.McpSettingsPage),
+      ),
+  }
+}
+
 /** Selected-graph admin contribution owned by the operator-settings package. */
 export function createSelectedOperatorSettingsAdminExtension(): AdminExtension {
   return defineAdminExtension({
     id: "operator-settings",
-    settingsPages: [createOperatorProfileSettingsExtraPage(), createPaymentsSettingsExtraPage()],
+    settingsPages: [
+      createOperatorProfileSettingsExtraPage(),
+      createMcpSettingsExtraPage(),
+      createPaymentsSettingsExtraPage(),
+    ],
     setupSteps: [
       {
         id: OPERATOR_PROFILE_SETUP_STEP_ID,

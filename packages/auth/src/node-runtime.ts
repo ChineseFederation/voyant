@@ -9,8 +9,15 @@
  * Also provides /auth/status (user provisioning) and /auth/me (user info).
  */
 
+import { oauthProvider } from "@better-auth/oauth-provider"
+import type { VoyantAuthContext } from "@voyant-travel/core"
 import { type NodeDatabaseEnv, openNodeDatabase } from "@voyant-travel/db/runtime"
-import { authUser, type SelectApikey, userProfilesTable } from "@voyant-travel/db/schema/iam"
+import {
+  authUser,
+  oauthConsentTable,
+  type SelectApikey,
+  userProfilesTable,
+} from "@voyant-travel/db/schema/iam"
 import {
   parseJsonBody,
   type Reporter,
@@ -24,7 +31,19 @@ import {
 } from "@voyant-travel/hono/middleware/error-boundary"
 import { getRequestId } from "@voyant-travel/hono/observability"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
-import { eq, sql } from "drizzle-orm"
+import { verifyAccessToken } from "better-auth/oauth2"
+import { jwt } from "better-auth/plugins"
+import { and, eq, sql } from "drizzle-orm"
+
+/**
+ * Discovery documents are fetched cross-origin by MCP clients before any
+ * credential exists, and they are public by definition — no auth, no secrets.
+ */
+const OAUTH_DISCOVERY_HEADERS = {
+  "access-control-allow-origin": "*",
+  "cache-control": "public, max-age=300",
+} as const
+
 import { type Context, Hono } from "hono"
 import { z } from "zod"
 import {
@@ -54,6 +73,13 @@ import {
   resolveActiveCustomerBuyerContext,
   selectCustomerBuyerAccount,
 } from "./customer-buyer-accounts.js"
+import {
+  mcpOAuthProviderConfig,
+  mcpProtectedResourceMetadata,
+  parseOAuthScopeClaim,
+  resolveMcpGrantScopes,
+  withPublicApiEndpoints,
+} from "./mcp-oauth.js"
 import {
   type CreateBetterAuthOptions,
   type CustomerAuthMethods,
@@ -406,6 +432,21 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     "/auth/session",
     "/auth/sign-out",
     "/auth/token",
+    // MCP connector OAuth. Managed deployments broker staff sessions through
+    // Voyant Cloud, but the authorization server issuing connector grants is
+    // local to the deployment — discovery advertises it in every mode, so these
+    // must stay reachable or a managed operator gets a 404 the moment they try
+    // to connect an assistant.
+    "/auth/.well-known/oauth-authorization-server",
+    "/auth/oauth2/authorize",
+    "/auth/oauth2/consent",
+    "/auth/oauth2/delete-consent",
+    "/auth/oauth2/get-client",
+    "/auth/oauth2/get-consents",
+    "/auth/oauth2/public-client",
+    "/auth/oauth2/register",
+    "/auth/oauth2/revoke",
+    "/auth/oauth2/token",
   ])
 
   function resolveOperatorAuthMode(_env: Env): OperatorAuthMode {
@@ -809,18 +850,32 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       basePath: "/auth/admin",
       trustedOrigins: getTrustedOrigins(env),
       advanced: (runtimeOptions.cookieAdvanced ?? buildBetterAuthCookieAdvancedOptions)(env),
-      plugins: cloudAuthExchange
-        ? [
-            createVoyantCloudAdminAuthPlugin({
-              db: cloudAuthDb,
-              cookieSecret: env.SESSION_CLAIMS_ADMIN_SECRET,
-              secureStateCookie:
-                new URL(`${getPublicApiBaseUrl(env)}/auth/admin/cloud/callback`).protocol ===
-                "https:",
-              exchange: cloudAuthExchange,
-            }),
-          ]
-        : undefined,
+      // The OAuth 2.1 authorization server backing MCP connectors is always
+      // mounted: chat assistants discover it from the MCP endpoint's
+      // `WWW-Authenticate` challenge, and a deployment cannot know in advance
+      // that nobody will connect one. Registration on its own grants nothing —
+      // the consent screen is the trust boundary.
+      plugins: [
+        // Signs the JWT access tokens the OAuth provider issues. Must be
+        // registered before `oauthProvider`, which looks the plugin up to
+        // decide whether it can issue verifiable (non-opaque) tokens.
+        jwt(),
+        oauthProvider(
+          mcpOAuthProviderConfig({ resource: `${getPublicApiBaseUrl(env)}/v1/admin/mcp` }),
+        ),
+        ...(cloudAuthExchange
+          ? [
+              createVoyantCloudAdminAuthPlugin({
+                db: cloudAuthDb,
+                cookieSecret: env.SESSION_CLAIMS_ADMIN_SECRET,
+                secureStateCookie:
+                  new URL(`${getPublicApiBaseUrl(env)}/auth/admin/cloud/callback`).protocol ===
+                  "https:",
+                exchange: cloudAuthExchange,
+              }),
+            ]
+          : []),
+      ],
       sendResetPassword: async ({ user, url }) => {
         if (!emailSender) {
           // No email provider (e.g. local dev without a sending domain): with the
@@ -910,6 +965,160 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
         await emailSender.sendVerificationOtp({ email, otp, type })
       },
     })
+  }
+
+  /**
+   * Serve the OAuth discovery documents an MCP client fetches before it can
+   * connect, or `null` when the request is not a discovery request.
+   *
+   * These MUST live at the origin root rather than behind the API base path:
+   * after reading the `WWW-Authenticate` challenge, clients derive the metadata
+   * URL from the origin, per RFC 9728 and RFC 8414. Both specs also define a
+   * path-suffixed form (`/.well-known/oauth-protected-resource/api/v1/admin/mcp`),
+   * which clients use when the resource is not at the root — so both shapes are
+   * answered.
+   */
+  async function resolveOAuthDiscoveryRequest(
+    request: Request,
+    env: Env,
+  ): Promise<Response | null> {
+    const pathname = new URL(request.url).pathname.replace(/\/+$/, "")
+    const matches = (wellKnown: string) =>
+      pathname === wellKnown || pathname.startsWith(`${wellKnown}/`)
+
+    if (matches("/.well-known/oauth-protected-resource")) {
+      const publicApiBaseUrl = getPublicApiBaseUrl(env)
+      return Response.json(
+        mcpProtectedResourceMetadata({
+          resource: `${publicApiBaseUrl}/v1/admin/mcp`,
+          // RFC 9728 wants issuer IDENTIFIERS here, and Better Auth's issuer is
+          // its baseURL plus basePath. A client resolves this to
+          // `/.well-known/oauth-authorization-server/auth/admin`, which the
+          // path-suffixed branch below answers.
+          authorizationServer: `${getAuthBaseUrl(env)}/auth/admin`,
+          resourceName: "Voyant",
+        }),
+        { headers: OAUTH_DISCOVERY_HEADERS },
+      )
+    }
+
+    if (!matches("/.well-known/oauth-authorization-server")) return null
+
+    const { db, dispose } = openDatabase(env)
+    try {
+      const auth = buildAdminBetterAuth(env, db)
+      // Go through the plugin's own route rather than a typed API call: the
+      // provider is supplied as a generic plugin, so its endpoints are not on
+      // the inferred `auth.api` surface, and this keeps the document exactly
+      // what the authorization server itself would serve.
+      const response = await auth.handler(
+        new Request(`${getAuthBaseUrl(env)}/auth/admin/.well-known/oauth-authorization-server`, {
+          headers: request.headers,
+        }),
+      )
+      if (!response.ok) return null
+      const metadata = (await response.json()) as Record<string, unknown>
+      return Response.json(
+        withPublicApiEndpoints(metadata, {
+          authBaseUrl: getAuthBaseUrl(env),
+          publicApiBaseUrl: getPublicApiBaseUrl(env),
+        }),
+        { headers: OAUTH_DISCOVERY_HEADERS },
+      )
+    } finally {
+      await dispose()
+    }
+  }
+
+  /**
+   * Resolve an MCP connector's OAuth access token into a staff auth context.
+   *
+   * The token is a JWT signed by this deployment's own authorization server, so
+   * it is verified against the published JWKS rather than a database lookup —
+   * introspection would require the resource server to hold client credentials
+   * for itself.
+   *
+   * Authorization is deliberately re-derived on every request instead of being
+   * trusted from the token: the grant only says "this connector may act for
+   * this staff member, read-only or read-write". The actual permissions come
+   * from the staff member's current role, so narrowing someone's access
+   * immediately narrows every connector they approved.
+   */
+  async function resolveMcpAccessToken(
+    env: Env,
+    db: VoyantDb,
+    token: string,
+  ): Promise<VoyantAuthContext | null> {
+    const baseUrl = getPublicApiBaseUrl(env)
+    let claims: Record<string, unknown>
+    try {
+      claims = (await verifyAccessToken(token, {
+        jwksUrl: `${baseUrl}/auth/admin/jwks`,
+        verifyOptions: {
+          // The audience binds the token to the MCP resource specifically, so a
+          // grant issued for another audience on this server cannot be replayed
+          // here. The issuer is Better Auth's `baseURL` — the bare origin,
+          // because `entry.ts` strips `/api` before the auth handler sees it.
+          audience: `${baseUrl}/v1/admin/mcp`,
+          // Better Auth's issuer is its `baseURL` PLUS its `basePath`, not the
+          // bare origin — verified against the real published metadata in
+          // `tests/integration/mcp-oauth-flow.test.ts`. Using the origin alone
+          // rejects every token.
+          issuer: `${getAuthBaseUrl(env)}/auth/admin`,
+        },
+      })) as Record<string, unknown>
+    } catch {
+      // Expired, wrong audience, bad signature: all indistinguishable to a
+      // caller, and all mean "not authenticated".
+      return null
+    }
+
+    const userId = typeof claims.sub === "string" ? claims.sub.trim() : ""
+    if (!userId) return null
+    const clientId = typeof claims.client_id === "string" ? claims.client_id.trim() : ""
+    if (!clientId) return null
+
+    // A signed JWT stays valid until it expires, so the signature alone cannot
+    // honour "Disconnect". Re-check the consent row on every request: revoking a
+    // connector deletes it, and access stops on the very next call instead of
+    // whenever the token happens to lapse. This costs nothing extra in
+    // practice — the staff-access lookup below already goes to the database.
+    const [consent] = await db
+      .select({ id: oauthConsentTable.id })
+      .from(oauthConsentTable)
+      .where(and(eq(oauthConsentTable.clientId, clientId), eq(oauthConsentTable.userId, userId)))
+      .limit(1)
+    if (!consent) return null
+
+    const staffAccess = await resolveStaffAccess({
+      accessCatalog: runtimeOptions.accessCatalog,
+      authMode: resolveOperatorAuthMode(env),
+      db,
+      deploymentId: env.VOYANT_CLOUD_DEPLOYMENT_ID,
+      userId,
+    })
+    if (!staffAccess) return null
+
+    const scopes = resolveMcpGrantScopes({
+      staffScopes: staffAccess.scopes,
+      grantedOAuthScopes: parseOAuthScopeClaim(claims.scope),
+      accessCatalog: runtimeOptions.accessCatalog,
+    })
+    if (scopes.length === 0) return null
+
+    return {
+      userId,
+      organizationId: staffAccess.organizationId,
+      // Modelled as an api_key caller, not a session: a connector is a scoped
+      // machine credential, and every existing guard already treats api_key
+      // callers correctly (including the MCP surface's coarse-guard exemption,
+      // where per-tool scopes do the real gating).
+      callerType: "api_key",
+      actor: "staff",
+      audience: "staff",
+      realm: "admin",
+      scopes,
+    }
   }
 
   /** Resolve the authenticated session and its realm-specific access context. */
@@ -1840,6 +2049,8 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     getCurrentUserForRequest,
     hasAuthPermission,
     resolveAuthRequest,
+    resolveMcpAccessToken,
+    resolveOAuthDiscoveryRequest,
     resolveCustomerCorsOrigin,
     validateApiTokenAccess,
   }

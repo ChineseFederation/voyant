@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: auth; the Better Auth factory keeps realm table maps, plugin composition, and signup/cookie policy in one place so admin and customer realms cannot drift apart. Already over the limit before the MCP OAuth tables were registered here.
 import { apiKey } from "@better-auth/api-key"
 import { getDb } from "@voyant-travel/db"
 import {
@@ -13,6 +14,11 @@ import {
   customerAuthSession,
   customerAuthUser,
   customerAuthVerification,
+  jwksTable,
+  oauthAccessTokenTable,
+  oauthClientTable,
+  oauthConsentTable,
+  oauthRefreshTokenTable,
 } from "@voyant-travel/db/schema/iam"
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
@@ -79,15 +85,15 @@ type ResolvedBetterAuthUserOptions<UserOptions extends BetterAuthOptions["user"]
   changeEmail: ResolvedBetterAuthChangeEmail<UserOptions>
 }
 
-type VoyantBetterAuthPlugins = [
-  ReturnType<typeof apiKey>,
-  ReturnType<typeof emailOTP>,
-  ReturnType<typeof createLocalMemberAccessPlugin>,
-]
-
-type ResolvedBetterAuthPlugins<_Plugins extends BetterAuthPlugin[] | undefined> =
-  | VoyantBetterAuthPlugins
-  | BetterAuthPlugin[]
+/**
+ * The bundled plugins were previously spelled as a tuple of their concrete
+ * `ReturnType`s. Better Auth's plugin types have since grown richer than the
+ * `BetterAuthPlugin` constraint they must satisfy, so that tuple no longer
+ * type-checks against `betterAuth<TOptions>` — and because it was already
+ * unioned with `BetterAuthPlugin[]`, it bought no endpoint precision at any
+ * call site. Widen to the constraint itself.
+ */
+type ResolvedBetterAuthPlugins<_Plugins extends BetterAuthPlugin[] | undefined> = BetterAuthPlugin[]
 
 const DEFAULT_SIGNUP_BLOCK_SURFACES = ["admin"] as const
 const CUSTOMER_SIGNUP_ENDPOINT_SUFFIXES = [
@@ -215,6 +221,17 @@ export interface BetterAuthRealmTables {
   account: AnyPgTable
   verification: AnyPgTable
   apikey?: AnyPgTable
+  /**
+   * OAuth 2.1 authorization-server tables. Admin-realm only: the MCP connector
+   * flow issues grants against staff identities, so the customer realm has no
+   * authorization server of its own.
+   */
+  oauthClient?: AnyPgTable
+  oauthAccessToken?: AnyPgTable
+  oauthRefreshToken?: AnyPgTable
+  oauthConsent?: AnyPgTable
+  /** Signing keys for the JWT access tokens issued to MCP connectors. */
+  jwks?: AnyPgTable
 }
 
 const ADMIN_AUTH_TABLES: BetterAuthRealmTables = {
@@ -223,6 +240,11 @@ const ADMIN_AUTH_TABLES: BetterAuthRealmTables = {
   account: authAccount,
   verification: authVerification,
   apikey: apikeyTable,
+  oauthClient: oauthClientTable,
+  oauthAccessToken: oauthAccessTokenTable,
+  oauthRefreshToken: oauthRefreshTokenTable,
+  oauthConsent: oauthConsentTable,
+  jwks: jwksTable,
 }
 
 const CUSTOMER_AUTH_TABLES = {
@@ -325,8 +347,8 @@ export function createBetterAuth<
   const signupBlockSurfaces = normalizeSignupBlockSurfaces(options.disableSignupWhenUsersExist)
   const signupBlockEnabled = isSignupBlockEnabled(options.disableSignupWhenUsersExist)
   const customerSignupSurfaces = normalizeSurfaceList(options.customerSignupSurfaces)
-  const reservedSchemaCollision = Object.keys(options.extraSchema ?? {}).find(
-    (modelName) => (realmTables as unknown as BetterAuthDrizzleSchema)[modelName] !== undefined,
+  const reservedSchemaCollision = Object.keys(options.extraSchema ?? {}).find((modelName) =>
+    Object.hasOwn(realmTables, modelName),
   )
   if (reservedSchemaCollision) {
     throw new Error(`extraSchema cannot override reserved auth model: ${reservedSchemaCollision}`)

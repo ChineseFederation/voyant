@@ -336,6 +336,8 @@ export async function loadVoyantProject(
           authRuntime.resolveCustomerCorsOrigin(request, requireVoyantAuthEnv(requestEnv)),
         validateApiKey: ({ env: requestEnv, db, apiKey }) =>
           authRuntime.validateApiTokenAccess(requireVoyantAuthEnv(requestEnv), db, apiKey),
+        resolveMcpToken: ({ env: requestEnv, db, token }) =>
+          authRuntime.resolveMcpAccessToken(requireVoyantAuthEnv(requestEnv), db, token),
       },
     },
   })
@@ -392,6 +394,15 @@ export async function loadVoyantProject(
       if (new URL(request.url).pathname.startsWith("/api")) {
         return runtime.app.fetch(rewriteLegacyMediaRequest(request), bindings, ctx)
       }
+      // OAuth discovery must answer at the ORIGIN root, not behind `/api`:
+      // an MCP client derives these URLs from the origin alone, before it has
+      // any credential or knowledge of our API layout. Handled here, ahead of
+      // the SSR handler, which would otherwise return the admin app's HTML.
+      const discovery = await authRuntime.resolveOAuthDiscoveryRequest(
+        request,
+        requireVoyantAuthEnv(bindings),
+      )
+      if (discovery) return discovery
       const { createAdminSsrHandler } = await import("@voyant-travel/admin-host/ssr")
       return createAdminSsrHandler<VoyantNodeRuntimeEnv>()(request, bindings, ctx)
     },

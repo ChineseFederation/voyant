@@ -22,6 +22,7 @@ describe("local auth presentation", () => {
       "acceptInvitation",
       "acceptInvite",
       "forgotPassword",
+      "mcpConsent",
       "onboarding",
       "resetPassword",
       "signIn",

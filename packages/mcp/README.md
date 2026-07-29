@@ -29,7 +29,7 @@ contributions own service injection for their declared `tools[].context` keys;
 
 External MCP clients (Claude Desktop, ChatGPT, …) authenticate with a **Bearer
 scoped API key** — the operator's existing `voy_` key pipeline — sent as
-`Authorization: <key>`. No separate OAuth/runner is introduced (voyant#2801): the
+`Authorization: Bearer <key>`. No separate OAuth/runner is introduced (voyant#2801): the
 request auth middleware resolves the key into `scopes` + `audience` on `c.var`, and
 this server gates every tool by its `requiredScopes`.
 

@@ -407,6 +407,34 @@ export function requireAuth<TBindings extends VoyantBindings>(
       }
     }
 
+    // Strategy 2b: MCP connector OAuth token. A chat assistant that completed
+    // the consent flow presents an opaque OAuth access token — no `voy_`
+    // prefix, so strategy 2 skips it. The grant is scoped to the MCP surface
+    // alone: accepting it anywhere else under `/v1/admin/*` would turn a
+    // narrow, operator-approved tool grant into a full admin credential.
+    const isMcpApi = p === "/v1/admin/mcp" || p.startsWith("/v1/admin/mcp/")
+    if (token && isMcpApi && opts?.auth?.resolveMcpToken) {
+      const lease = acquireRequestDb(c, dbFactory)
+      try {
+        const resolved = await opts.auth.resolveMcpToken({
+          request: c.req.raw,
+          env: c.env,
+          db: lease.db,
+          // Guarded: Hono throws on `executionCtx` access outside Workers.
+          ctx: tryGetExecutionCtx(c),
+          token,
+        })
+
+        if (resolved?.actor) {
+          applyAuthContext(c, resolved)
+          // `await` is load-bearing — see strategy 2.
+          return await next()
+        }
+      } finally {
+        await lease.release()
+      }
+    }
+
     // Strategy 3: Remote app access token support. App grants authorize only
     // the installation-scoped App API; never resolve them on admin/public
     // surfaces where similarly named scopes may protect broader host routes.
@@ -516,6 +544,35 @@ export function requireAuth<TBindings extends VoyantBindings>(
       if (response) return response
     }
 
+    // The MCP surface answers with an RFC 9728 challenge instead of a bare 401.
+    // This is the first step of the connector handshake and the only thing that
+    // tells a chat assistant where the authorization server lives: it dials the
+    // pasted URL with no credential, reads `resource_metadata` off this header,
+    // and follows it to discovery. Without the header the client has a 401 and
+    // nowhere to go, so the whole flow is unreachable.
+    if (isMcpApi) {
+      return c.json({ error: "Unauthorized" }, 401, {
+        "WWW-Authenticate": `Bearer resource_metadata="${mcpResourceMetadataUrl(c.req.url)}"`,
+      })
+    }
+
     return c.json({ error: "Unauthorized" }, 401)
+  }
+}
+
+/**
+ * Absolute URL of the protected-resource document named in the challenge.
+ *
+ * Built from the request's own origin rather than a configured base URL: the
+ * client fetches exactly this URL, and the origin is the one piece of the
+ * deployment's public address the middleware can always observe. The root form
+ * is used because the API base path is already stripped by the time this
+ * middleware runs, so a path-derived form would omit that prefix.
+ */
+function mcpResourceMetadataUrl(requestUrl: string): string {
+  try {
+    return `${new URL(requestUrl).origin}/.well-known/oauth-protected-resource`
+  } catch {
+    return "/.well-known/oauth-protected-resource"
   }
 }

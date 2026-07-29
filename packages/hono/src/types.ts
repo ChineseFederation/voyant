@@ -242,6 +242,17 @@ export interface VoyantAuthIntegration<TBindings extends VoyantBindings = Voyant
   resolveAppToken?: (
     args: VoyantAuthAppTokenResolveArgs<TBindings>,
   ) => Promise<VoyantAuthContext | null> | VoyantAuthContext | null
+  /**
+   * Resolve an MCP connector's OAuth 2.1 access token (the grant a chat
+   * assistant obtains through the consent flow) into an auth context.
+   *
+   * Only consulted on the MCP surface: the grant authorizes tool dispatch for
+   * the staff member who approved the connector, and must never be accepted as
+   * a general admin credential on other `/v1/admin/*` routes.
+   */
+  resolveMcpToken?: (
+    args: VoyantAuthAppTokenResolveArgs<TBindings>,
+  ) => Promise<VoyantAuthContext | null> | VoyantAuthContext | null
   hasPermission?: (args: VoyantAuthPermissionArgs<TBindings>) => Promise<boolean> | boolean
   validateApiKey?: (args: VoyantAuthApiKeyValidationArgs<TBindings>) => Promise<boolean> | boolean
   onUnauthorized?: (

@@ -287,6 +287,7 @@
   },
   "dependencies": {
     "@better-auth/api-key": "1.6.23",
+    "@better-auth/oauth-provider": "1.6.23",
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
@@ -302,6 +303,8 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "jose": "^6.2.4",
+    "postgres": "^3.4.9",
     "typescript": "catalog:"
   },
   "voyant": {
