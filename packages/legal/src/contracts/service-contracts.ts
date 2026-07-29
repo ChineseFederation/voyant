@@ -4,6 +4,7 @@ import { RequestValidationError } from "@voyant-travel/hono"
 import { organizations, people, personDirectoryView } from "@voyant-travel/relationships/schema"
 import { and, desc, eq, getTableColumns, ilike, notInArray, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { parseManagedBookingContractReviewWorkflow } from "../managed-booking-contract-workflow.js"
 import { normalizeLegalTargetFields, normalizeLegalTargetUpdateFields } from "../targets/service.js"
 import {
   appendContractStageHistory,
@@ -56,12 +57,7 @@ function assertGenericAttachmentKind(kind: string | null | undefined) {
 }
 
 function isManagedBookingContract(metadata: unknown): boolean {
-  return Boolean(
-    metadata &&
-      typeof metadata === "object" &&
-      !Array.isArray(metadata) &&
-      (metadata as Record<string, unknown>).bookingContractWorkflow,
-  )
+  return parseManagedBookingContractReviewWorkflow(metadata) !== null
 }
 
 function scrubGenericContractMetadata<T extends { metadata?: unknown }>(data: T): T {
@@ -233,7 +229,7 @@ export const contractRecordsService = {
       !Array.isArray(existing.metadata)
         ? (existing.metadata as Record<string, unknown>)
         : {}
-    if (metadata.bookingContractWorkflow) {
+    if (isManagedBookingContract(metadata)) {
       throw new RequestValidationError(
         "Booking contract revisions are immutable; create a new revision instead of patching.",
       )
@@ -281,7 +277,7 @@ export const contractRecordsService = {
         !Array.isArray(existing.metadata)
           ? (existing.metadata as Record<string, unknown>)
           : {}
-      if (metadata.bookingContractWorkflow) {
+      if (isManagedBookingContract(metadata)) {
         return { status: "immutable_revision" as const }
       }
       await tx.delete(contracts).where(eq(contracts.id, id))

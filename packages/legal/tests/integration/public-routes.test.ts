@@ -20,6 +20,45 @@ const jsonWithIdempotency = (body: Record<string, unknown>, key: string) => ({
   body: JSON.stringify(body),
 })
 
+function managedBookingWorkflowMetadata(revision = 1, reviewOnly = true) {
+  return {
+    bookingContractWorkflow: {
+      revision,
+      previousRevisionId: null,
+      reviewOnly,
+      reviewSnapshot: {
+        booking: {
+          id: "booking_review_route_1",
+          reference: "BK-ROUTE-1",
+          customerName: "Ana Pop",
+          customerEmail: "ana@example.test",
+          language: "en",
+          currency: "EUR",
+          totalAmountCents: 100_00,
+          startDate: "2026-09-01",
+          endDate: "2026-09-07",
+        },
+        products: [
+          {
+            title: "Original tour",
+            quantity: 1,
+            amountCents: 100_00,
+            currency: "EUR",
+          },
+        ],
+        commercialTerms: { depositDueCents: 25_00 },
+        template: {
+          id: "template_review_route_1",
+          name: "Customer review template",
+          versionId: "template_version_review_route_1",
+          version: 1,
+          language: "en",
+        },
+      },
+    },
+  }
+}
+
 describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
   let adminApp: Hono
   let publicApp: Hono
@@ -498,7 +537,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
       .values({
         title: "Managed revision",
         scope: "customer",
-        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: true } },
+        metadata: managedBookingWorkflowMetadata(),
       })
       .returning()
     const managedPatch = await adminApp.request(`/${managedDraft!.id}`, {
@@ -518,7 +557,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         title: "Managed void revision",
         scope: "customer",
         status: "void",
-        metadata: { bookingContractWorkflow: { revision: 1, reviewOnly: false } },
+        metadata: managedBookingWorkflowMetadata(1, false),
       })
       .returning()
     const managedVoidDelete = await adminApp.request(`/${managedVoid!.id}`, { method: "DELETE" })
@@ -530,7 +569,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         title: "Managed issued revision",
         scope: "customer",
         status: "issued",
-        metadata: { bookingContractWorkflow: { revision: 2, reviewOnly: false } },
+        metadata: managedBookingWorkflowMetadata(2, false),
       })
       .returning()
     const managedSend = await adminApp.request(`/${managedIssued!.id}/send`, { method: "POST" })
@@ -546,7 +585,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal public routes", () => {
         title: "Managed sent revision",
         scope: "customer",
         status: "sent",
-        metadata: { bookingContractWorkflow: { revision: 3, reviewOnly: false } },
+        metadata: managedBookingWorkflowMetadata(3, false),
       })
       .returning()
     const managedVoidResponse = await adminApp.request(`/${managedSent!.id}/void`, {

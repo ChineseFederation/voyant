@@ -24,7 +24,6 @@ import {
   bookingContractTemplateMatchesChannel,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
-  parseManagedBookingContractReviewWorkflow,
   resolveBookingContractLanguage,
 } from "./booking-contract-review.js"
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
@@ -56,6 +55,7 @@ import {
   validateTemplateVariables,
 } from "./contracts/service.js"
 import { LEGAL_CONTRACT_DRAFT_CREATED_TARGET_POLICY } from "./created-target-policy.js"
+import { parseManagedBookingContractReviewWorkflow } from "./managed-booking-contract-workflow.js"
 import type { Policy, PolicyRule, PolicyVersion } from "./policies/schema.js"
 import { policiesService } from "./policies/service.js"
 import { legalRuntimePort } from "./runtime-port.js"

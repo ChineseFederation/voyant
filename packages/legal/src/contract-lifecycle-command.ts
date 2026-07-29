@@ -10,7 +10,6 @@ import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
   bookingContractContentFingerprint,
-  parseManagedBookingContractReviewWorkflow,
 } from "./booking-contract-review.js"
 import { legalContractDetail } from "./contract-dto.js"
 import {
@@ -32,6 +31,7 @@ import {
   renderTemplate,
 } from "./contracts/service-shared.js"
 import { LEGAL_CONTRACT_LIFECYCLE_POLICIES } from "./existing-target-policy.js"
+import { parseManagedBookingContractReviewWorkflow } from "./managed-booking-contract-workflow.js"
 import { type LegalContractDetail, legalContractDetailSchema } from "./tools.js"
 
 type LifecycleTransition = keyof typeof LEGAL_CONTRACT_LIFECYCLE_POLICIES
@@ -259,7 +259,7 @@ async function issueContract(
     contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
       ? (contract.metadata as Record<string, unknown>)
       : {}
-  const immutableReviewedRevision = !!metadata.bookingContractWorkflow
+  const immutableReviewedRevision = parseManagedBookingContractReviewWorkflow(metadata) !== null
   if (!immutableReviewedRevision && !contractNumber && contract.seriesId) {
     const allocated = await allocateContractNumber(db, contract.seriesId)
     if (allocated) contractNumber = allocated.number
@@ -446,14 +446,8 @@ async function voidContract(
     contract.metadata && typeof contract.metadata === "object" && !Array.isArray(contract.metadata)
       ? (contract.metadata as Record<string, unknown>)
       : {}
-  const workflow =
-    metadata.bookingContractWorkflow &&
-    typeof metadata.bookingContractWorkflow === "object" &&
-    !Array.isArray(metadata.bookingContractWorkflow)
-      ? (metadata.bookingContractWorkflow as Record<string, unknown>)
-      : {}
-  const expectedRevision = typeof workflow.revision === "number" ? workflow.revision : 1
-  if (payload.revision !== expectedRevision) {
+  const managedWorkflow = parseManagedBookingContractReviewWorkflow(metadata)
+  if (managedWorkflow && payload.revision !== managedWorkflow.revision) {
     throw new ToolError(
       "The approved contract revision is no longer the selected revision.",
       "INVALID_INPUT",
@@ -474,14 +468,16 @@ async function voidContract(
       status: "void",
       stageHistory,
       voidedAt: now,
-      metadata: {
-        ...metadata,
-        bookingContractWorkflow: {
-          ...workflow,
-          voidReason: payload.reason,
-          voidedRevision: payload.revision,
-        },
-      },
+      metadata: managedWorkflow
+        ? {
+            ...metadata,
+            bookingContractWorkflow: {
+              ...managedWorkflow,
+              voidReason: payload.reason,
+              voidedRevision: payload.revision,
+            },
+          }
+        : contract.metadata,
       updatedAt: now,
     })
     .where(eq(contracts.id, contract.id))

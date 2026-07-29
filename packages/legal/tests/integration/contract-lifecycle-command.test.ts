@@ -445,6 +445,27 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       replayed: false,
       value: { status: "void" },
     })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: expect.objectContaining({
+            bookingContractWorkflow: expect.objectContaining({
+              revision: 1,
+              reviewOnly: false,
+              voidReason: "Booking cancelled by customer",
+              voidedRevision: 1,
+              delivery: expect.objectContaining({
+                recipient: "traveller@example.com",
+                channel: "email",
+                revision: 1,
+              }),
+              reviewSnapshot: expect.any(Object),
+            }),
+          }),
+        }),
+      ],
+    )
     expect((await db.select().from(eventOutboxTable)).map(({ name }) => name).sort()).toEqual([
       "contract.sent",
       "contract.voided",
@@ -479,6 +500,114 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     await expect(contractsService.sendContract(db, contract.id)).resolves.toMatchObject({
       status: "sent",
     })
+  })
+
+  it("ignores malformed managed workflow markers in generic send and void compatibility paths", async () => {
+    const legacyMetadata = { bookingContractWorkflow: {}, retained: true }
+    const draft = await insertContract("draft", "Malformed legacy mutable draft", {
+      metadata: legacyMetadata,
+    })
+    const contract = await insertContract("issued", "Malformed legacy generic lifecycle", {
+      metadata: legacyMetadata,
+    })
+
+    await expect(
+      contractsService.updateContract(db, draft.id, { title: "Updated malformed legacy draft" }),
+    ).resolves.toMatchObject({
+      title: "Updated malformed legacy draft",
+      metadata: legacyMetadata,
+    })
+    await expect(contractsService.sendContract(db, contract.id)).resolves.toMatchObject({
+      status: "sent",
+    })
+    await expect(contractsService.voidContract(db, contract.id)).resolves.toMatchObject({
+      status: "voided",
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
+    await expect(contractsService.deleteContract(db, contract.id)).resolves.toEqual({
+      status: "deleted",
+    })
+  })
+
+  it("keeps valid managed revisions behind the reviewed lifecycle command", async () => {
+    const sendTarget = await insertContract("issued", "Managed generic send rejection", {
+      managed: true,
+    })
+    const voidTarget = await insertContract("sent", "Managed generic void rejection", {
+      managed: true,
+    })
+
+    await expect(contractsService.sendContract(db, sendTarget.id)).rejects.toMatchObject({
+      name: "RequestValidationError",
+    })
+    await expect(contractsService.voidContract(db, voidTarget.id)).rejects.toMatchObject({
+      name: "RequestValidationError",
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, sendTarget.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "issued", metadata: managedBookingWorkflowMetadata() })],
+    )
+    await expect(db.select().from(contracts).where(eq(contracts.id, voidTarget.id))).resolves.toEqual(
+      [expect.objectContaining({ status: "sent", metadata: managedBookingWorkflowMetadata() })],
+    )
+  })
+
+  it("voids ordinary lifecycle-command targets without adding managed workflow metadata", async () => {
+    const ordinaryMetadata = { retained: true, source: "legacy" }
+    const contract = await insertContract("issued", "Ordinary command void", {
+      metadata: ordinaryMetadata,
+    })
+    const command = await approvedCommand("void", "void-ordinary-command", {
+      contractId: contract.id,
+      revision: 1,
+      reason: "Operator cancelled ordinary contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "void" },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: ordinaryMetadata,
+        }),
+      ],
+    )
+  })
+
+  it("voids malformed lifecycle-command targets without promoting the legacy marker", async () => {
+    const legacyMetadata = { bookingContractWorkflow: {}, retained: true }
+    const contract = await insertContract("issued", "Malformed command void", {
+      metadata: legacyMetadata,
+    })
+    const command = await approvedCommand("void", "void-malformed-command", {
+      contractId: contract.id,
+      revision: 7,
+      reason: "Operator cancelled malformed legacy contract",
+      acknowledgedConsequences: true,
+    })
+
+    await expect(executeCommand(command)).resolves.toMatchObject({
+      replayed: false,
+      value: { id: contract.id, status: "void" },
+    })
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "void",
+          metadata: legacyMetadata,
+        }),
+      ],
+    )
   })
 
   it.each([
