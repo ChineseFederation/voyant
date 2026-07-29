@@ -40,7 +40,10 @@ export const FINANCE_INVOICE_ISSUE_TOOL_NAME = "finance.issue_invoice_from_booki
 
 export interface FinanceInvoiceIssueAuthorizationInput {
   db: PostgresJsDatabase
-  commandInput: CreateInvoiceFromBookingInput
+  commandInput: CreateInvoiceFromBookingInput & {
+    bookingUpdatedAt?: string
+    snapshotFingerprint?: string
+  }
   actor?: string | null
   callerType?: string | null
   scopes?: readonly string[] | null

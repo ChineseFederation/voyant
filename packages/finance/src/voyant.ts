@@ -409,6 +409,28 @@ export const financeVoyantModule = defineModule({
       context: ["finance"],
       risk: "high",
     },
+    {
+      id: "@voyant-travel/finance#tool.preview-unsynced-proforma-from-booking",
+      name: "preview_unsynced_proforma_from_booking",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "previewUnsyncedProformaFromBookingTool",
+      },
+      requiredScopes: ["finance:write", "bookings:read"],
+      context: ["finance"],
+      risk: "low",
+    },
+    {
+      id: "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
+      name: "issue_unsynced_proforma_from_booking",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "issueUnsyncedProformaFromBookingTool",
+      },
+      requiredScopes: ["finance:write", "bookings:read"],
+      context: ["finance"],
+      risk: "high",
+    },
   ],
   actions: [
     {
@@ -469,7 +491,12 @@ export const financeVoyantModule = defineModule({
       effectBoundary: "local",
       targetLifecycle: "existing",
       existingTarget: { durability: "handler-command-result-v1" },
-      from: { tools: ["@voyant-travel/finance#tool.issue-invoice-from-booking"] },
+      from: {
+        tools: [
+          "@voyant-travel/finance#tool.issue-invoice-from-booking",
+          "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
+        ],
+      },
     },
   ],
   admin: financeVoyantAdmin,

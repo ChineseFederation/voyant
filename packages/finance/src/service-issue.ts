@@ -1,5 +1,8 @@
 // agent-quality: file-size exception -- owner: finance; existing service module stays co-located until a dedicated split preserves behavior and tests.
-import { appendActionLedgerMutation } from "@voyant-travel/action-ledger"
+import {
+  appendActionLedgerMutation,
+  buildIdempotencyFingerprint,
+} from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -16,12 +19,14 @@ import {
   payments,
 } from "./schema.js"
 import {
+  bookingItemToInvoiceLine,
   buildInvoiceIssuedActionLedgerInput,
   type CreateInvoiceFromBookingInput,
   type FinanceServiceRuntime,
   financeService,
   type InvoiceFromBookingData,
   InvoiceNumberConflictError,
+  resolveInvoiceLineDescriptions,
   touchLinkedBookingUpdatedAt,
 } from "./service.js"
 
@@ -41,10 +46,198 @@ export type InvoiceFromBookingCommandOutcome =
   | { status: "issued"; invoice: typeof invoices.$inferSelect }
   | { status: "booking_not_found" }
   | { status: "payment_schedule_not_found" }
+  | {
+      status: "booking_changed"
+      bookingNumber: string
+      expectedUpdatedAt: string
+      currentUpdatedAt: string
+    }
+  | { status: "approval_snapshot_changed"; bookingNumber: string }
+
+export interface UnsyncedProformaApprovalSnapshot {
+  id: string
+  bookingId: string
+  bookingNumber: string
+  bookingUpdatedAt: string
+  snapshotFingerprint: string
+  payer: { type: "organization" | "person"; id: string | null }
+  currency: string
+  subtotalCents: number
+  taxCents: number
+  totalCents: number
+  lines: Array<{
+    bookingItemId: string | null
+    description: string
+    quantity: number
+    unitPriceCents: number
+    totalCents: number
+    taxes: Array<{
+      code: string | null
+      name: string
+      jurisdiction: string | null
+      scope: string
+      currency: string
+      amountCents: number
+      rateBasisPoints: number | null
+      includedInPrice: boolean
+      remittanceParty: string | null
+      sortOrder: number
+    }>
+  }>
+}
 
 interface ExistingConvertedInvoicePointer {
   id: string
   invoiceNumber: string
+}
+
+export async function buildUnsyncedProformaApprovalSnapshot(
+  db: PostgresJsDatabase,
+  bookingId: string,
+  runtime: InvoiceIssueRuntime = {},
+  options: { lockProjection?: boolean } = {},
+): Promise<UnsyncedProformaApprovalSnapshot | null> {
+  const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId)).limit(1)
+  if (!booking) return null
+
+  const itemsQuery = db
+    .select()
+    .from(bookingItems)
+    .where(eq(bookingItems.bookingId, booking.id))
+    .orderBy(asc(bookingItems.createdAt), asc(bookingItems.id))
+  const items = options.lockProjection ? await itemsQuery.for("update") : await itemsQuery
+  const itemIds = items.map((item) => item.id)
+  const taxQuery = db
+    .select()
+    .from(bookingItemTaxLines)
+    .where(inArray(bookingItemTaxLines.bookingItemId, itemIds))
+    .orderBy(
+      asc(bookingItemTaxLines.bookingItemId),
+      asc(bookingItemTaxLines.sortOrder),
+      asc(bookingItemTaxLines.createdAt),
+      asc(bookingItemTaxLines.id),
+    )
+  const taxes =
+    itemIds.length === 0
+      ? []
+      : options.lockProjection
+        ? await taxQuery.for("update")
+        : await taxQuery
+  const taxesByItem = new Map<string, typeof taxes>()
+  for (const tax of taxes) {
+    const current = taxesByItem.get(tax.bookingItemId) ?? []
+    current.push(tax)
+    taxesByItem.set(tax.bookingItemId, current)
+  }
+  const bookingData: InvoiceFromBookingData = {
+    booking: {
+      id: booking.id,
+      bookingNumber: booking.bookingNumber,
+      personId: booking.personId,
+      organizationId: booking.organizationId,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      sellCurrency: booking.sellCurrency,
+      baseCurrency: booking.baseCurrency,
+      fxRateSetId: booking.fxRateSetId,
+      sellAmountCents: booking.sellAmountCents,
+      baseSellAmountCents: booking.baseSellAmountCents,
+    },
+    paymentSchedule: null,
+    items: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      productId: item.productId,
+      productName: item.productNameSnapshot,
+      productNameSnapshot: item.productNameSnapshot,
+      optionNameSnapshot: item.optionNameSnapshot,
+      unitNameSnapshot: item.unitNameSnapshot,
+      departureLabelSnapshot: item.departureLabelSnapshot,
+      startDate: item.serviceDate ?? item.startsAt,
+      serviceDate: item.serviceDate,
+      startsAt: item.startsAt,
+      endDate: item.endsAt ?? item.serviceDate,
+      endsAt: item.endsAt,
+      quantity: item.quantity,
+      unitSellAmountCents: item.unitSellAmountCents,
+      totalSellAmountCents: item.totalSellAmountCents,
+    })),
+  }
+  const unresolvedLines =
+    bookingData.items.length > 0
+      ? bookingData.items.map((item, sortOrder) =>
+          bookingItemToInvoiceLine(item, taxesByItem.get(item.id) ?? [], sortOrder),
+        )
+      : [
+          {
+            bookingItemId: null,
+            bookingPaymentScheduleId: null,
+            description: `Booking ${booking.bookingNumber}`,
+            quantity: 1,
+            unitPriceCents: booking.sellAmountCents ?? 0,
+            totalCents: booking.sellAmountCents ?? 0,
+            taxAmountCents: 0,
+            taxRate: null,
+            sortOrder: 0,
+          },
+        ]
+  const resolvedLines = await resolveInvoiceLineDescriptions(unresolvedLines, {
+    booking: bookingData.booking,
+    paymentSchedule: null,
+    items: bookingData.items,
+    descriptionResolver: runtime.descriptionResolver,
+  })
+  const includedTaxCents = taxes.reduce(
+    (sum, tax) => (tax.scope !== "withheld" && tax.includedInPrice ? sum + tax.amountCents : sum),
+    0,
+  )
+  const excludedTaxCents = taxes.reduce(
+    (sum, tax) => (tax.scope !== "withheld" && !tax.includedInPrice ? sum + tax.amountCents : sum),
+    0,
+  )
+  const grossLineTotalCents = resolvedLines.reduce((sum, line) => sum + line.totalCents, 0)
+  const subtotalCents = Math.max(0, grossLineTotalCents - includedTaxCents)
+  const taxCents = includedTaxCents + excludedTaxCents
+  const snapshotWithoutFingerprint = {
+    id: booking.id,
+    bookingId: booking.id,
+    bookingNumber: booking.bookingNumber,
+    bookingUpdatedAt: booking.updatedAt.toISOString(),
+    payer: booking.organizationId
+      ? ({ type: "organization", id: booking.organizationId } as const)
+      : ({ type: "person", id: booking.personId } as const),
+    currency: booking.sellCurrency,
+    subtotalCents,
+    taxCents,
+    totalCents: subtotalCents + taxCents,
+    lines: resolvedLines.map((line) => ({
+      bookingItemId: line.bookingItemId,
+      description: line.description,
+      quantity: line.quantity,
+      unitPriceCents: line.unitPriceCents,
+      totalCents: line.totalCents,
+      taxes: (line.bookingItemId ? (taxesByItem.get(line.bookingItemId) ?? []) : []).map((tax) => ({
+        code: tax.code,
+        name: tax.name,
+        jurisdiction: tax.jurisdiction,
+        scope: tax.scope,
+        currency: tax.currency,
+        amountCents: tax.amountCents,
+        rateBasisPoints: tax.rateBasisPoints,
+        includedInPrice: tax.includedInPrice,
+        remittanceParty: tax.remittanceParty,
+        sortOrder: tax.sortOrder,
+      })),
+    })),
+  }
+  const snapshotFingerprint = await buildIdempotencyFingerprint({
+    actionName: "finance.unsynced_proforma.approval_snapshot",
+    actionVersion: "v1",
+    targetType: "booking",
+    targetId: booking.id,
+    commandInput: snapshotWithoutFingerprint,
+  })
+  return { ...snapshotWithoutFingerprint, snapshotFingerprint }
 }
 
 export interface InvoiceIssuedEvent {
@@ -167,13 +360,53 @@ export async function issueInvoiceFromBookingCommand(
   db: PostgresJsDatabase,
   input: CreateInvoiceFromBookingInput,
   runtime: InvoiceIssueRuntime = {},
+  options: {
+    expectedBookingUpdatedAt?: string
+    expectedSnapshotFingerprint?: string
+    atomicScope?: boolean
+  } = {},
 ): Promise<InvoiceFromBookingCommandOutcome> {
-  const [booking] = await db
-    .select()
-    .from(bookings)
-    .where(eq(bookings.id, input.bookingId))
-    .limit(1)
+  if (
+    !options.atomicScope &&
+    (options.expectedBookingUpdatedAt || options.expectedSnapshotFingerprint)
+  ) {
+    return db.transaction((tx) =>
+      issueInvoiceFromBookingCommand(tx, input, runtime, {
+        ...options,
+        atomicScope: true,
+      }),
+    )
+  }
+
+  const bookingQuery = db.select().from(bookings).where(eq(bookings.id, input.bookingId)).limit(1)
+  const [booking] = options.atomicScope ? await bookingQuery.for("update") : await bookingQuery
   if (!booking) return { status: "booking_not_found" }
+  if (
+    options.expectedBookingUpdatedAt &&
+    new Date(options.expectedBookingUpdatedAt).getTime() !== booking.updatedAt.getTime()
+  ) {
+    return {
+      status: "booking_changed",
+      bookingNumber: booking.bookingNumber,
+      expectedUpdatedAt: options.expectedBookingUpdatedAt,
+      currentUpdatedAt: booking.updatedAt.toISOString(),
+    }
+  }
+  if (options.expectedSnapshotFingerprint) {
+    // Lock every mutable row used by both fingerprint validation and invoice
+    // composition. The booking lock fences new booking items through their FK;
+    // item locks likewise fence new tax rows, while the tax locks prevent
+    // updates/deletes until this transaction has issued or refused the invoice.
+    const currentSnapshot = await buildUnsyncedProformaApprovalSnapshot(db, booking.id, runtime, {
+      lockProjection: true,
+    })
+    if (currentSnapshot?.snapshotFingerprint !== options.expectedSnapshotFingerprint) {
+      return {
+        status: "approval_snapshot_changed",
+        bookingNumber: booking.bookingNumber,
+      }
+    }
+  }
 
   const items = await db
     .select()
@@ -514,6 +747,7 @@ async function loadLineTaxMetadata(
       asc(bookingItemTaxLines.bookingItemId),
       asc(bookingItemTaxLines.sortOrder),
       asc(bookingItemTaxLines.createdAt),
+      asc(bookingItemTaxLines.id),
     )
 
   const taxLinesByBookingItemId = new Map<string, typeof taxLines>()

@@ -250,6 +250,9 @@ financeInvoiceIssueRoutes
     if (outcome.status === "payment_schedule_not_found") {
       return c.json({ error: "Booking payment schedule not found" }, 404)
     }
+    if (outcome.status === "booking_changed" || outcome.status === "approval_snapshot_changed") {
+      return c.json({ error: "Booking changed after review" }, 409)
+    }
     return c.json({ data: outcome.invoice }, 201)
   })
   .openapi(convertProformaToInvoiceRoute, async (c) => {

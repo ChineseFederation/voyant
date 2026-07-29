@@ -57,7 +57,7 @@ import {
   updateProductBookingQuestionTool as updateProductBookingQuestionDefinition,
   updateProductContactRequirementTool as updateProductContactRequirementDefinition,
 } from "./requirements/tools.js"
-import { bookingToolSchema } from "./tool-output-schemas.js"
+import { bookingDetailToolSchema, bookingToolSchema } from "./tool-output-schemas.js"
 import { bookingListQuerySchema } from "./validation.js"
 
 export interface BookingsToolServices {
@@ -112,12 +112,15 @@ export const getBookingTool = defineTool<
   name: "get_booking",
   description: "Read a single booking's non-PII state by id. Read-only.",
   inputSchema: getBookingArgs,
-  outputSchema: bookingToolSchema.nullable(),
+  outputSchema: bookingDetailToolSchema.nullable(),
   requiredScopes: ["bookings:read"],
   tier: "read",
   riskPolicy: READ_ONLY_RISK,
   async handler({ id }, ctx) {
-    return parseJsonResult(bookingToolSchema.nullable(), await bookings(ctx).getBookingById(id))
+    return parseJsonResult(
+      bookingDetailToolSchema.nullable(),
+      await bookings(ctx).getBookingById(id),
+    )
   },
 })
 

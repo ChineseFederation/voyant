@@ -131,11 +131,39 @@ describe("bookings tools", () => {
             redeemedAt: null,
             createdAt: "2026-07-15T10:00:00.000Z",
             updatedAt: "2026-07-15T10:00:00.000Z",
+            items: [
+              {
+                id: "item_1",
+                bookingId: id,
+                title: "Coastal day cruise",
+                quantity: 2,
+                sellCurrency: "EUR",
+                unitSellAmountCents: 40_000,
+                totalSellAmountCents: 80_000,
+                serviceDate: "2026-08-15",
+                startsAt: null,
+                endsAt: null,
+                productNameSnapshot: "Coastal day cruise",
+                optionNameSnapshot: null,
+                unitNameSnapshot: null,
+                departureLabelSnapshot: null,
+              },
+            ],
           }
         },
       }),
     )
-    expect(result).toMatchObject({ id: "bk_1" })
+    expect(result).toMatchObject({
+      id: "bk_1",
+      updatedAt: "2026-07-15T10:00:00.000Z",
+      items: [
+        {
+          title: "Coastal day cruise",
+          quantity: 2,
+          totalSellAmountCents: 80_000,
+        },
+      ],
+    })
   })
 
   it("throws MISSING_SERVICE when unwired", async () => {

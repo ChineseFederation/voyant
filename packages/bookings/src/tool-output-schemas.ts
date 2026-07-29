@@ -56,3 +56,26 @@ export const bookingToolSchema = z.object({
   createdAt: isoTimestamp,
   updatedAt: isoTimestamp,
 })
+
+/** Non-PII commercial lines needed to review booking-scoped document actions. */
+export const bookingToolItemSchema = z.object({
+  id: z.string(),
+  bookingId: z.string(),
+  title: z.string(),
+  quantity: z.number().int(),
+  sellCurrency: z.string(),
+  unitSellAmountCents: z.number().int().nullable(),
+  totalSellAmountCents: z.number().int().nullable(),
+  serviceDate: z.string().nullable(),
+  startsAt: isoTimestamp.nullable(),
+  endsAt: isoTimestamp.nullable(),
+  productNameSnapshot: z.string().nullable(),
+  optionNameSnapshot: z.string().nullable(),
+  unitNameSnapshot: z.string().nullable(),
+  departureLabelSnapshot: z.string().nullable(),
+})
+
+/** A known booking plus the exact sold lines used by downstream approval previews. */
+export const bookingDetailToolSchema = bookingToolSchema.extend({
+  items: z.array(bookingToolItemSchema),
+})

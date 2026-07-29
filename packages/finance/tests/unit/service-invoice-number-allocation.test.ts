@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
+  bookingItemTaxLines,
   invoiceExternalRefs,
   invoiceLineItems,
   invoiceNumberSeries,
@@ -134,6 +135,13 @@ function makeDb(options: {
                 orderBy: vi.fn(() => ({
                   limit: vi.fn(async () => rows),
                 })),
+              })),
+            }
+          }
+          if (table === bookingItemTaxLines) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => rows),
               })),
             }
           }

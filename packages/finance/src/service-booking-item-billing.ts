@@ -55,13 +55,27 @@ function validateBookingItemCommissionState(data: CommissionValidationInput) {
   }
 }
 
+async function lockBookingItemForTaxMutation(db: PostgresJsDatabase, bookingItemId: string) {
+  const [bookingItem] = await db
+    .select({ id: bookingItems.id })
+    .from(bookingItems)
+    .where(eq(bookingItems.id, bookingItemId))
+    .limit(1)
+    .for("update")
+  return bookingItem ?? null
+}
+
 export const financeBookingItemBillingService = {
   listBookingItemTaxLines(db: PostgresJsDatabase, bookingItemId: string) {
     return db
       .select()
       .from(bookingItemTaxLines)
       .where(eq(bookingItemTaxLines.bookingItemId, bookingItemId))
-      .orderBy(asc(bookingItemTaxLines.sortOrder), asc(bookingItemTaxLines.createdAt))
+      .orderBy(
+        asc(bookingItemTaxLines.sortOrder),
+        asc(bookingItemTaxLines.createdAt),
+        asc(bookingItemTaxLines.id),
+      )
   },
 
   async createBookingItemTaxLine(
@@ -69,22 +83,17 @@ export const financeBookingItemBillingService = {
     bookingItemId: string,
     data: CreateBookingItemTaxLineInput,
   ) {
-    const [bookingItem] = await db
-      .select({ id: bookingItems.id })
-      .from(bookingItems)
-      .where(eq(bookingItems.id, bookingItemId))
-      .limit(1)
+    return db.transaction(async (tx) => {
+      const bookingItem = await lockBookingItemForTaxMutation(tx, bookingItemId)
+      if (!bookingItem) return null
 
-    if (!bookingItem) {
-      return null
-    }
+      const [row] = await tx
+        .insert(bookingItemTaxLines)
+        .values({ ...data, bookingItemId })
+        .returning()
 
-    const [row] = await db
-      .insert(bookingItemTaxLines)
-      .values({ ...data, bookingItemId })
-      .returning()
-
-    return row ?? null
+      return row ?? null
+    })
   },
 
   async updateBookingItemTaxLine(
@@ -92,22 +101,46 @@ export const financeBookingItemBillingService = {
     taxLineId: string,
     data: UpdateBookingItemTaxLineInput,
   ) {
-    const [row] = await db
-      .update(bookingItemTaxLines)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(bookingItemTaxLines.id, taxLineId))
-      .returning()
+    return db.transaction(async (tx) => {
+      const [taxLine] = await tx
+        .select({ bookingItemId: bookingItemTaxLines.bookingItemId })
+        .from(bookingItemTaxLines)
+        .where(eq(bookingItemTaxLines.id, taxLineId))
+        .limit(1)
+      if (!taxLine) return null
 
-    return row ?? null
+      const bookingItem = await lockBookingItemForTaxMutation(tx, taxLine.bookingItemId)
+      if (!bookingItem) return null
+
+      const [row] = await tx
+        .update(bookingItemTaxLines)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(bookingItemTaxLines.id, taxLineId))
+        .returning()
+
+      return row ?? null
+    })
   },
 
   async deleteBookingItemTaxLine(db: PostgresJsDatabase, taxLineId: string) {
-    const [row] = await db
-      .delete(bookingItemTaxLines)
-      .where(eq(bookingItemTaxLines.id, taxLineId))
-      .returning({ id: bookingItemTaxLines.id })
+    return db.transaction(async (tx) => {
+      const [taxLine] = await tx
+        .select({ bookingItemId: bookingItemTaxLines.bookingItemId })
+        .from(bookingItemTaxLines)
+        .where(eq(bookingItemTaxLines.id, taxLineId))
+        .limit(1)
+      if (!taxLine) return null
 
-    return row ?? null
+      const bookingItem = await lockBookingItemForTaxMutation(tx, taxLine.bookingItemId)
+      if (!bookingItem) return null
+
+      const [row] = await tx
+        .delete(bookingItemTaxLines)
+        .where(eq(bookingItemTaxLines.id, taxLineId))
+        .returning({ id: bookingItemTaxLines.id })
+
+      return row ?? null
+    })
   },
 
   listBookingItemCommissions(db: PostgresJsDatabase, bookingItemId: string) {
