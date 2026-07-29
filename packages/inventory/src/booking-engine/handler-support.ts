@@ -113,6 +113,8 @@ export async function priceOptionSelections(input: {
   pax?: Partial<Record<string, number>>
   /** Explicit traveler-to-room assignments from the booking draft. */
   travelerAssignments?: Record<string, string>
+  /** Traveler band by draft row key, used to scope category pricing to assigned rooms. */
+  travelerBands?: Record<string, string>
 }): Promise<PricedQuote> {
   const lines: PricedLine[] = []
   let totalCents = 0
@@ -121,11 +123,18 @@ export async function priceOptionSelections(input: {
   // "Adult"/"Child" via the product editor's Rooms & prices matrix) price
   // per-person by band — `pax[band] × price` — NOT per room, so they're
   // collected here and charged once per selected option after the per-unit
-  // loop. Repeated rooms within one option share the rate; separate options
-  // keep their own authoritative rate for the same traveler band.
+  // loop when assignments are absent. Explicit assignments instead scope the
+  // band charge to that room unit, matching booking-create item allocation.
   const perBandPrice = new Map<
     string,
-    { band: string; cents: number; label: string; optionId: string; optionUnitId?: string }
+    {
+      band: string
+      cents: number
+      count: number
+      label: string
+      optionId: string
+      optionUnitId?: string
+    }
   >()
   const totalInventoryUnits = input.selections.reduce((sum, selection) => {
     const unit = findProductOptionUnit(
@@ -164,6 +173,16 @@ export async function priceOptionSelections(input: {
     const categoryUnitRows = unitRows.filter((unit) => unit.travelerCategory)
     const defaultUnitPrice = unitRows.find((unit) => !unit.travelerCategory) ?? null
     const unitPrice = defaultUnitPrice?.sellAmountCents ?? null
+    const assignedTravelerKeys = selection.optionUnitId
+      ? Object.entries(input.travelerAssignments ?? {}).flatMap(([travelerKey, assignedUnitId]) =>
+          assignedUnitId === selection.optionUnitId ? [travelerKey] : [],
+        )
+      : []
+    const assignedTravelerBandCounts = new Map<string, number>()
+    for (const travelerKey of assignedTravelerKeys) {
+      const band = input.travelerBands?.[travelerKey]?.trim() || "adult"
+      assignedTravelerBandCounts.set(band, (assignedTravelerBandCounts.get(band) ?? 0) + 1)
+    }
     if (unitPrice == null && categoryUnitRows.length > 0) {
       const unitLabel =
         findProductOptionUnit(input.productOptions, selection.optionId, selection.optionUnitId)
@@ -173,11 +192,27 @@ export async function priceOptionSelections(input: {
         input.product.name
       for (const row of categoryUnitRows) {
         const band = row.travelerCategory
-        const optionBandKey = `${selection.optionId}\u0000${band ?? ""}`
-        if (!band || (row.sellAmountCents ?? 0) <= 0 || perBandPrice.has(optionBandKey)) continue
+        const count = band
+          ? assignedTravelerKeys.length > 0
+            ? (assignedTravelerBandCounts.get(band) ?? 0)
+            : (input.pax?.[band] ?? 0)
+          : 0
+        const optionBandKey =
+          assignedTravelerKeys.length > 0
+            ? `${selection.optionId}\u0000${selection.optionUnitId ?? ""}\u0000${band ?? ""}`
+            : `${selection.optionId}\u0000${band ?? ""}`
+        if (
+          !band ||
+          count <= 0 ||
+          (row.sellAmountCents ?? 0) <= 0 ||
+          perBandPrice.has(optionBandKey)
+        ) {
+          continue
+        }
         perBandPrice.set(optionBandKey, {
           band,
           cents: row.sellAmountCents ?? 0,
+          count,
           label: `${unitLabel} — ${band}`,
           optionId: selection.optionId,
           ...(selection.optionUnitId ? { optionUnitId: selection.optionUnitId } : {}),
@@ -185,11 +220,7 @@ export async function priceOptionSelections(input: {
       }
       continue
     }
-    const assignedTravelerCount = selection.optionUnitId
-      ? Object.values(input.travelerAssignments ?? {}).filter(
-          (assignedUnitId) => assignedUnitId === selection.optionUnitId,
-        ).length
-      : 0
+    const assignedTravelerCount = assignedTravelerKeys.length
     const pricingQuantity =
       defaultUnitPrice?.pricingMode === "per_person"
         ? assignedTravelerCount > 0
@@ -263,9 +294,10 @@ export async function priceOptionSelections(input: {
   // Per-traveler-category room prices: charge each band once per selected
   // option (`pax[band] × option price`), independent of how many rooms were
   // selected within that option — rooms are capacity, while the per-person
-  // rate is what the traveler pays.
+  // rate is what the traveler pays. Explicit room assignments narrow each
+  // selection to the bands assigned to that unit, matching booking creation.
   for (const price of perBandPrice.values()) {
-    const count = input.pax?.[price.band] ?? 0
+    const count = price.count
     if (count <= 0 || price.cents <= 0) continue
     const totalAmount = price.cents * count
     totalCents += totalAmount
