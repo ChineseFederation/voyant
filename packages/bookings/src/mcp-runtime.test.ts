@@ -190,16 +190,16 @@ describe("bookings MCP runtime lifecycle detail", () => {
     }
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
     vi.spyOn(bookingsService, "listAllocations")
-      .mockImplementationOnce(async () => {
+      .mockImplementationOnce((() => {
         expect(execute).not.toHaveBeenCalled()
         return [allocationB, allocationA] as never
-      })
-      .mockImplementationOnce(async () => {
+      }) as never)
+      .mockImplementationOnce((() => {
         // Booking and allocation locks are both acquired before the approved
         // preview is reloaded inside the command transaction.
         expect(execute).toHaveBeenCalledTimes(2)
         return [allocationA, allocationB] as never
-      })
+      }) as never)
     vi.spyOn(bookingsService, "confirmBooking").mockResolvedValue({
       status: "ok",
       booking: detail.booking,
