@@ -556,10 +556,10 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
       voidContractCommand: (_input, admitted) => run("void", admitted),
       executeContractCommand: (_input, admitted) => run("execute", admitted),
     } satisfies LegalLifecycleCommandToolServices
-    await registry.dispatch(tool.name, command.commandInput, {
+    await registry.dispatch(tool.name, normalizeInput(command.transition, command.commandInput), {
       db: command.db,
-      actor: command.context.actor,
       audience: command.context.actor,
+      actor: command.context.actor,
       tenantId: command.context.organizationId,
       organizationId: command.context.organizationId,
       resolverScope: {
