@@ -2584,6 +2584,88 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     ).resolves.toEqual([{ unit: 24_000, total: 24_000 }])
   })
 
+  it("prices the same unassigned traveler band on each category-priced item", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: roomUnitId,
+      unitAmountCents: 1,
+    })
+    const categoryId = `prct_bc_${productSeq}_adult_unassigned_items`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${categoryId}, ${productId}, ${optionId}, ${roomUnitId},
+        'adult_unassigned_items', 'Adult', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult_unassigned_items`}, ${optionPriceRuleId}, ${optionId},
+        ${roomUnitId}, ${categoryId}, 'per_unit', 12000, true
+      )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:one",
+          firstName: "Alice",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:two",
+          firstName: "Bob",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+      ],
+      itemLines: [
+        { clientLineKey: "room:one", optionUnitId: roomUnitId, quantity: 1 },
+        { clientLineKey: "room:two", optionUnitId: roomUnitId, quantity: 1 },
+      ],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(48_000)
+    expect(outcome.result.invoice).toMatchObject({
+      subtotalCents: 48_000,
+      totalCents: 48_000,
+    })
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+        .orderBy(asc(bookingItems.createdAt)),
+    ).resolves.toEqual([
+      { unit: 24_000, total: 24_000 },
+      { unit: 24_000, total: 24_000 },
+    ])
+  })
+
   it.each([
     "included",
     "free",

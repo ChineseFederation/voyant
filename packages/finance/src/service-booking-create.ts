@@ -1193,7 +1193,6 @@ async function reconcileBookingCreatePricing(
     : null
 
   const pricedLines = new Map<string, { unit: number; total: number }>()
-  const chargedUnassignedTravelerBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
   const ruleBaseTotal =
@@ -1218,7 +1217,6 @@ async function reconcileBookingCreatePricing(
         const band = rule.travelerCategory
         if (!band) continue
         if (matchedBands.has(band)) continue
-        if (!bandAllocation.scopedToItem && chargedUnassignedTravelerBands.has(band)) continue
         const bandQuantity = bandAllocation.counts.get(band) ?? 0
         if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
         const departureAmount = item.optionUnitId
@@ -1236,7 +1234,6 @@ async function reconcileBookingCreatePricing(
         matchedCategoryPrice = true
         matchedBands.add(band)
         categoryTotal += (amount ?? 0) * chargeQuantity
-        if (!bandAllocation.scopedToItem) chargedUnassignedTravelerBands.add(band)
       }
       if (!matchedCategoryPrice) {
         return {
