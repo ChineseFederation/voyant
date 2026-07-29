@@ -375,6 +375,41 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(2)
   })
 
+  it("rejects standalone issue for managed booking review drafts without lifecycle side effects", async () => {
+    const contract = await insertContract("draft", "Managed standalone issue rejection", {
+      managed: true,
+    })
+    const command = await approvedCommand("issue", "issue-managed-review-draft", {
+      contractId: contract.id,
+    })
+
+    await expect(executeCommand(command)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message:
+        "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+      meta: { contractId: contract.id },
+    })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      [
+        expect.objectContaining({
+          status: "draft",
+          issuedAt: null,
+          sentAt: null,
+          metadata: managedBookingWorkflowMetadata(),
+        }),
+      ],
+    )
+    expect(await db.select().from(contractLifecycleCommandResults)).toHaveLength(0)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(0)
+    expect(
+      await db
+        .select()
+        .from(actionLedgerEntries)
+        .where(eq(actionLedgerEntries.idempotencyKey, "issue-managed-review-draft")),
+    ).toEqual([expect.objectContaining({ status: "awaiting_approval" })])
+  })
+
   it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
     const contract = await insertContract("draft", "Review-first contract", { managed: true })
     const contentFingerprint = await bookingContractContentFingerprint(contract)

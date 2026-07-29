@@ -231,7 +231,7 @@ async function applyLifecycleTransition(
       return issueContract(db, contract)
     case "send":
       if (contract.status === "draft" && "contentFingerprint" in payload) {
-        const issued = await issueContract(db, contract)
+        const issued = await issueContract(db, contract, { allowManagedReviewWorkflow: true })
         return sendContract(db, issued.contract, payload)
       }
       return sendContract(db, contract, payload)
@@ -245,6 +245,7 @@ async function applyLifecycleTransition(
 async function issueContract(
   db: PostgresJsDatabase,
   contract: Contract,
+  options: { allowManagedReviewWorkflow?: boolean } = {},
 ): Promise<{ contract: Contract; event: ContractLifecycleEvent }> {
   if (contract.status !== "draft") {
     throw new ToolError("Only draft contracts can be issued.", "INVALID_INPUT", {
@@ -258,6 +259,13 @@ async function issueContract(
       ? (contract.metadata as Record<string, unknown>)
       : {}
   const immutableReviewedRevision = parseManagedBookingContractReviewWorkflow(metadata) !== null
+  if (immutableReviewedRevision && !options.allowManagedReviewWorkflow) {
+    throw new ToolError(
+      "Managed booking contract revisions must be sent through the reviewed lifecycle command.",
+      "INVALID_INPUT",
+      { contractId: contract.id },
+    )
+  }
   if (!immutableReviewedRevision && !contractNumber && contract.seriesId) {
     const allocated = await allocateContractNumber(db, contract.seriesId)
     if (allocated) contractNumber = allocated.number
