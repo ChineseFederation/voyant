@@ -1,5 +1,14 @@
 # @voyant-travel/inventory
 
+## 0.23.3
+
+### Patch Changes
+
+- 87668e8: Make manual booking creation actionable and predictable: submit errors are visible, existing CRM contacts no longer require duplicate data entry, room assignments fill selected capacity, authoritative quotes preserve per-person/per-room pricing, and Finance tool failures explain how to correct invalid room or payment inputs.
+- Updated dependencies [87668e8]
+  - @voyant-travel/bookings@0.218.1
+  - @voyant-travel/finance@0.218.1
+
 ## 0.23.2
 
 ### Patch Changes
