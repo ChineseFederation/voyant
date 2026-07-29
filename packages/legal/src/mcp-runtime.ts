@@ -329,16 +329,25 @@ export function resolveLegalContractDraftExpiration(
 }
 
 export function resolveLegalContractDraftScope(
-  requestedScope: "customer" | "supplier" | "partner" | "channel" | "other",
+  requestedScope: "customer" | "supplier" | "partner" | "channel" | "other" | undefined,
   bookingId: string | null,
+  previousScope?: "customer" | "supplier" | "partner" | "channel" | "other",
 ) {
-  if (bookingId && requestedScope !== "customer") {
+  const scope = requestedScope ?? previousScope ?? "customer"
+  if (bookingId && scope !== "customer") {
     throw new ToolError("Booking contracts must use customer scope.", "INVALID_INPUT", {
       bookingId,
-      scope: requestedScope,
+      scope,
     })
   }
-  return bookingId ? ("customer" as const) : requestedScope
+  return bookingId ? ("customer" as const) : scope
+}
+
+export function resolveLegalContractDraftVariableSchema(
+  versionSchema: unknown,
+  templateSchema: unknown,
+) {
+  return versionSchema ?? templateSchema
 }
 
 export async function resolveLegalContractDraftNumber(
@@ -483,6 +492,9 @@ export async function executeLegalContractDraftCreate(
             "NOT_FOUND",
           )
         }
+        const template = templateVersion
+          ? await contractsService.getTemplateById(transaction, templateVersion.templateId)
+          : null
         const bookingId = requestedInput.bookingId ?? previous?.bookingId ?? null
         let language = resolveLegalContractDraftLanguage(
           requestedInput.language,
@@ -501,10 +513,6 @@ export async function executeLegalContractDraftCreate(
           }
           language =
             requestedInput.language ?? previous?.language ?? resolveBookingContractLanguage(booking)
-          const template = await contractsService.getTemplateById(
-            transaction,
-            templateVersion.templateId,
-          )
           const expectedChannelId = requestedInput.channelId ?? previous?.channelId ?? null
           const templateApplicable =
             template?.active === true &&
@@ -539,7 +547,10 @@ export async function executeLegalContractDraftCreate(
         const contractNumber = numberedDraft.contractNumber
         variables = numberedDraft.variables
         const missingVariables = validateTemplateVariables(
-          templateVersion?.variableSchema,
+          resolveLegalContractDraftVariableSchema(
+            templateVersion?.variableSchema,
+            template?.variableSchema,
+          ),
           variables ?? {},
         )
         if (missingVariables.length > 0) {
@@ -561,7 +572,7 @@ export async function executeLegalContractDraftCreate(
         const row = await createContract(transaction, {
           ...requestedInput,
           status: "draft",
-          scope: resolveLegalContractDraftScope(requestedInput.scope, bookingId),
+          scope: resolveLegalContractDraftScope(requestedInput.scope, bookingId, previous?.scope),
           language,
           bookingId: requestedInput.bookingId ?? previous?.bookingId ?? null,
           personId: requestedInput.personId ?? previous?.personId ?? null,

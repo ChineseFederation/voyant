@@ -450,6 +450,41 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     ])
   })
 
+  it.each([
+    "signed",
+    "executed",
+  ] as const)("records delayed viewed delivery evidence after a contract is %s", async (status) => {
+    const contract = await insertContract(status, `Delayed viewed ${status}`)
+    const occurredAt = new Date("2026-07-29T12:30:00.000Z")
+
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt,
+        provider: "signature-provider",
+        externalReference: `delivery-${status}`,
+      }),
+    ).resolves.toEqual({ status: "recorded", replayed: false })
+
+    expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toEqual([
+      expect.objectContaining({
+        status,
+        metadata: expect.objectContaining({
+          bookingContractWorkflow: expect.objectContaining({
+            delivery: expect.objectContaining({ viewedAt: occurredAt.toISOString() }),
+            deliveryHistory: [
+              expect.objectContaining({
+                status: "viewed",
+                externalReference: `delivery-${status}`,
+              }),
+            ],
+          }),
+        }),
+      }),
+    ])
+  })
+
   it("rejects an approved revision when its reviewed content changed", async () => {
     const contract = await insertContract("draft", "Reviewed title")
     const command = await approvedCommand("send", "send-content-drift", {

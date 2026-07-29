@@ -12,6 +12,7 @@ import {
   resolveLegalContractDraftMetadata,
   resolveLegalContractDraftNumber,
   resolveLegalContractDraftScope,
+  resolveLegalContractDraftVariableSchema,
 } from "../../src/mcp-runtime.js"
 import { createLegalContractDraftTool } from "../../src/tools.js"
 import { legalVoyantModule } from "../../src/voyant.js"
@@ -38,11 +39,23 @@ describe("legal contract draft created-target command", () => {
   })
 
   it("rejects non-customer scopes for managed booking revisions", () => {
+    expect(
+      createLegalContractDraftTool.inputSchema.parse({ title: "Revision" }),
+    ).not.toHaveProperty("scope")
     expect(resolveLegalContractDraftScope("customer", "book_1")).toBe("customer")
     expect(resolveLegalContractDraftScope("supplier", null)).toBe("supplier")
+    expect(resolveLegalContractDraftScope(undefined, null, "supplier")).toBe("supplier")
+    expect(resolveLegalContractDraftScope(undefined, null)).toBe("customer")
     expect(() => resolveLegalContractDraftScope("supplier", "book_1")).toThrow(
       "Booking contracts must use customer scope",
     )
+  })
+
+  it("falls back to the parent template schema when a version has no override", () => {
+    const parentSchema = { required: ["customer.email"] }
+    const versionSchema = { required: ["customer.phone"] }
+    expect(resolveLegalContractDraftVariableSchema(null, parentSchema)).toBe(parentSchema)
+    expect(resolveLegalContractDraftVariableSchema(versionSchema, parentSchema)).toBe(versionSchema)
   })
 
   it("allocates a unique managed booking number for every immutable revision", async () => {

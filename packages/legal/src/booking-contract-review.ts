@@ -306,7 +306,11 @@ export async function recordBookingContractDeliveryStatus(
       .for("update")
       .limit(1)
     if (!contract) return { status: "not_found" as const }
-    if (contract.status !== "sent") return { status: "not_sent" as const }
+    const acceptsStatus =
+      contract.status === "sent" ||
+      (input.status === "viewed" &&
+        (contract.status === "signed" || contract.status === "executed"))
+    if (!acceptsStatus) return { status: "not_sent" as const }
     const metadata = record(contract.metadata)
     const workflow = record(metadata.bookingContractWorkflow)
     const delivery = record(workflow.delivery)
