@@ -24,6 +24,14 @@ export {
   BOOKING_STATUS_CAPABILITIES,
   bookingActionLedgerCapabilityRegistry,
 } from "./action-ledger-capabilities.js"
+export {
+  assertMonthlyBookingLimitAvailable,
+  BookingMonthlyLimitConfigurationError,
+  type BookingMonthlyLimitReachedDetails,
+  BookingMonthlyLimitReachedError,
+  resolveMonthlyBookingLimit,
+  VOYANT_BOOKINGS_MONTHLY_LIMIT_BINDING,
+} from "./booking-plan-limit.js"
 export { bookingsSupplierExtension } from "./extensions/suppliers.js"
 export {
   BOOKINGS_EXPIRE_STALE_HOLDS_RUNTIME_KEY,

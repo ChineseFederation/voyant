@@ -166,6 +166,8 @@ export function bookingCreateCommandError(
         "INVALID_INPUT",
         { outcome },
       )
+    case "monthly_booking_limit_reached":
+      return new ToolError(outcome.message, "INVALID_INPUT", { outcome })
     case "duplicate_booking":
     case "travel_credit_inactive":
     case "travel_credit_not_started":

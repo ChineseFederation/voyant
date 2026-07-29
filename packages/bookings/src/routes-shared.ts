@@ -3,6 +3,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
 export type KmsBindings = Partial<{
+  VOYANT_BOOKINGS_MONTHLY_LIMIT: string
   KMS_PROVIDER: string
   KMS_ENV_KEY: string
   KMS_LOCAL_KEY: string

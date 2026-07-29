@@ -95,6 +95,12 @@ export const bookings = pgTable(
      */
     customFields: jsonb("custom_fields").$type<NamespacedCustomFieldValues>().notNull().default({}),
     holdExpiresAt: timestamp("hold_expires_at", { withTimezone: true }),
+    /**
+     * Immutable, server-controlled timestamp for the booking's first accepted
+     * state. Unlike `confirmedAt`, this is never cleared by later lifecycle
+     * transitions and is therefore safe for plan-usage accounting.
+     */
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     expiredAt: timestamp("expired_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
@@ -112,6 +118,7 @@ export const bookings = pgTable(
     index("idx_bookings_organization").on(table.organizationId),
     index("idx_bookings_source_type").on(table.sourceType),
     index("idx_bookings_number").on(table.bookingNumber),
+    index("idx_bookings_accepted_at").on(table.acceptedAt),
     // base_currency covers the base_*_amount_cents columns. If any base
     // amount is set, base_currency must be set so downstream FX/reporting
     // code can interpret it. Both null is fine (FX deferred until quote

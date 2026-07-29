@@ -4,6 +4,7 @@ import type { CreatedTargetMutationLease } from "@voyant-travel/action-ledger"
 import { bookingGroupsService } from "@voyant-travel/bookings"
 import {
   BookingItemsUnresolvedError,
+  BookingMonthlyLimitReachedError,
   settleBookingCreateDomain,
 } from "@voyant-travel/bookings/booking-create-command-domain"
 import {
@@ -595,6 +596,14 @@ export type BookingCreateOutcome =
       candidateUnitCount: number
       message: string
     }
+  | {
+      status: "monthly_booking_limit_reached"
+      limit: number
+      current: number
+      periodStart: string
+      periodEnd: string
+      message: string
+    }
   | { status: "product_not_found" }
   | { status: "travel_credit_not_found" }
   | { status: "travel_credit_inactive" }
@@ -642,6 +651,13 @@ async function settleBookingCreateWithItemGuard(
   try {
     return await settleBookingCreateDomain(...args)
   } catch (error) {
+    if (error instanceof BookingMonthlyLimitReachedError) {
+      throw new BookingCreateAbort({
+        status: error.code,
+        ...error.details,
+        message: error.message,
+      })
+    }
     if (error instanceof BookingItemsUnresolvedError) {
       throw new BookingCreateAbort({
         status: "booking_items_unresolved",
@@ -2150,7 +2166,10 @@ export async function createBookingMutation(
           itemLines: normalizedItemLines,
         },
         userId,
-        { availabilityHoldToken: input.availabilityHoldToken },
+        {
+          availabilityHoldToken: input.availabilityHoldToken,
+          monthlyBookingLimit: runtime?.monthlyBookingLimit,
+        },
       )
       if (!booking) {
         // Caller gave us a product that doesn't resolve. Throw so drizzle

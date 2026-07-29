@@ -23,7 +23,7 @@ describe("framework project import boundary", () => {
     })
     const config = authoring.defineConfig()
     expect(config.modules.map((unit) => unit.id)).toContain("@voyant-travel/bookings#extras")
-    expect(config.extensions).toHaveLength(24)
+    expect(config.extensions).toHaveLength(25)
     expect(config.plugins).toEqual([])
     expect(authoring.resolveProject).toBeTypeOf("function")
   })

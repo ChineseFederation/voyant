@@ -1,4 +1,9 @@
-import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+import {
+  defineExtension,
+  defineModule,
+  providePort,
+  requirePort,
+} from "@voyant-travel/core/project"
 import { realtimeRuntimePort } from "./runtime-port.js"
 
 /** Import-cheap deployment declaration owned by the realtime package. */
@@ -121,9 +126,6 @@ export const realtimeVoyantModule = defineModule({
     ["supplier.created", "realtimeSupplierCreatedInvalidationSubscriber"],
     ["supplier.updated", "realtimeSupplierUpdatedInvalidationSubscriber"],
     ["supplier.deleted", "realtimeSupplierDeletedInvalidationSubscriber"],
-    ["quote.created", "realtimeQuoteCreatedInvalidationSubscriber"],
-    ["quote.updated", "realtimeQuoteUpdatedInvalidationSubscriber"],
-    ["quote.deleted", "realtimeQuoteDeletedInvalidationSubscriber"],
     ["invoice.issued", "realtimeInvoiceIssuedInvalidationSubscriber"],
     ["invoice.voided", "realtimeInvoiceVoidedInvalidationSubscriber"],
     ["invoice.settled", "realtimeInvoiceSettledInvalidationSubscriber"],
@@ -160,6 +162,29 @@ export const realtimeVoyantModule = defineModule({
       rationale:
         "Realtime is a transport and invalidation module, not an agent-callable domain surface.",
     },
+  },
+})
+
+/** Quote-owned invalidations are selected only when both Quotes and Realtime are active. */
+export const realtimeQuotesInvalidationVoyantExtension = defineExtension({
+  id: "@voyant-travel/realtime#quotes-invalidation-extension",
+  packageName: "@voyant-travel/realtime",
+  localId: "realtime.quotes-invalidation-extension",
+  subscribers: [
+    ["quote.created", "realtimeQuoteCreatedInvalidationSubscriber"],
+    ["quote.updated", "realtimeQuoteUpdatedInvalidationSubscriber"],
+    ["quote.deleted", "realtimeQuoteDeletedInvalidationSubscriber"],
+  ].map(([eventType, exportName]) => ({
+    id: `@voyant-travel/realtime#subscriber.admin-invalidation.${eventType}`,
+    eventType,
+    source: "@voyant-travel/realtime/runtime",
+    runtime: {
+      entry: "@voyant-travel/realtime/runtime",
+      export: exportName,
+    },
+  })),
+  meta: {
+    ownership: "standard-product",
   },
 })
 

@@ -1,3 +1,4 @@
+import { resolveMonthlyBookingLimit } from "@voyant-travel/bookings"
 import type { BootstrapContext, EventBus, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -98,6 +99,16 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
     eventType: "payment.completed",
     register: ({ bindings, eventBus }) => {
       const runtimeBindings = bindings as TBindings
+      const processEnv =
+        (
+          globalThis as typeof globalThis & {
+            process?: { env?: Record<string, string | undefined> }
+          }
+        ).process?.env ?? {}
+      const monthlyBookingLimit = resolveMonthlyBookingLimit({
+        ...processEnv,
+        ...(bindings as Record<string, unknown>),
+      })
       eventBus.subscribe<PaymentCompletedPayload>(
         "payment.completed",
         async ({ data }, context) => {
@@ -115,6 +126,7 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
                   paymentSessionId: data.paymentSessionId,
                   paymentIntent: data.paymentIntent,
                 },
+                monthlyBookingLimit,
               }),
             )
           } catch (error) {

@@ -402,6 +402,13 @@ export const bookingsVoyantModule = defineModule({
       source: "./migrations",
     },
   ],
+  config: [
+    {
+      id: "@voyant-travel/bookings#config.monthly-booking-limit",
+      key: "VOYANT_BOOKINGS_MONTHLY_LIMIT",
+      required: false,
+    },
+  ],
   links: [
     {
       id: "@voyant-travel/bookings#linkable.booking",

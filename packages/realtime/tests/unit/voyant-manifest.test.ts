@@ -9,7 +9,10 @@ import {
   realtimeTransportRuntimePort,
 } from "../../src/index.js"
 import { createLocalRealtimeProvider } from "../../src/providers/local.js"
-import { realtimeVoyantModule } from "../../src/voyant.js"
+import {
+  realtimeQuotesInvalidationVoyantExtension,
+  realtimeVoyantModule,
+} from "../../src/voyant.js"
 
 describe("realtime deployment manifest", () => {
   it("owns both authenticated route surfaces", () => {
@@ -101,7 +104,7 @@ describe("realtime deployment manifest", () => {
     expect(realtimeVoyantModule.provides?.ports).toContainEqual({
       id: "realtime.admin-invalidation-publication",
     })
-    expect(realtimeVoyantModule.subscribers).toHaveLength(33)
+    expect(realtimeVoyantModule.subscribers).toHaveLength(30)
     expect(realtimeVoyantModule.subscribers?.map(({ eventType }) => eventType)).toEqual(
       expect.arrayContaining([
         "product.created",
@@ -111,6 +114,9 @@ describe("realtime deployment manifest", () => {
       ]),
     )
     expect(realtimeVoyantModule.subscribers?.every(({ runtime }) => runtime != null)).toBe(true)
+    expect(
+      realtimeQuotesInvalidationVoyantExtension.subscribers?.map(({ eventType }) => eventType),
+    ).toEqual(["quote.created", "quote.updated", "quote.deleted"])
   })
 
   it("ships a conformance kit for deployment realtime providers", async () => {
