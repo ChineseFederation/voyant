@@ -52,6 +52,21 @@ test("accepts a compatible published caret peer without creating a workspace edg
   )
 })
 
+test("accepts a compatible published union of caret peers", () => {
+  assert.deepEqual(
+    collectWorkspaceRangeProblems(
+      createPackages({
+        "@fixture/consumer": {
+          version: "1.1.0",
+          peerDependencies: { "@fixture/provider": "^0.64.24 || ^1.0.0" },
+        },
+        "@fixture/provider": { version: "0.64.24" },
+      }),
+    ),
+    [],
+  )
+})
+
 test("rejects a future internal peer range when either package is absent from the release plan", () => {
   const packages = createPackages({
     "@fixture/consumer": {

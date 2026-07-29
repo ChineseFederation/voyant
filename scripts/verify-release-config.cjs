@@ -77,6 +77,8 @@ const DEPENDENCY_FIELDS = [
   "optionalDependencies",
 ]
 const REQUIRED_WORKSPACE_RANGE = "workspace:^"
+const COMPATIBLE_PUBLISHED_CARET_RANGE =
+  /^\^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\s*\|\|\s*\^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)*$/
 
 // The standard product distribution pins its runtime modules to the EXACT current version
 // (`workspace:*` → `X.Y.Z` on publish) so the published set is deterministic and
@@ -117,7 +119,7 @@ function collectWorkspaceRangeProblems(packages, projectedVersions = new Map()) 
         const currentProviderVersion = workspacePackageVersions.get(name)
         const isCompatiblePublishedPeerRange =
           field === "peerDependencies" &&
-          /^\^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version) &&
+          COMPATIBLE_PUBLISHED_CARET_RANGE.test(version) &&
           semver.satisfies(currentProviderVersion, version)
         const isExactStagedPeerRange =
           field === "peerDependencies" &&
