@@ -42,6 +42,13 @@ export const DEFAULT_DB_TIMEOUTS = {
 } as const
 
 /**
+ * Close idle postgres-js sockets well before a typical serverless Postgres
+ * suspend window. Resident application processes must not keep an otherwise
+ * idle database compute awake indefinitely.
+ */
+export const DEFAULT_NODE_IDLE_TIMEOUT_SECONDS = 30
+
+/**
  * Build the `PoolConfig` for the `serverless` adapter (Neon WebSocket Pool).
  *
  * Defaults are applied first and caller-supplied `pool` values spread after,
@@ -87,6 +94,8 @@ export function resolveServerlessPoolConfig(
  */
 export interface NodePostgresOptions {
   max?: number
+  /** Seconds before postgres-js closes an idle socket. */
+  idle_timeout?: number
   /** Connection-establishment timeout in SECONDS (postgres-js convention). */
   connect_timeout?: number
   /** Startup parameters sent to Postgres; `statement_timeout` is in ms. */
@@ -98,18 +107,25 @@ export interface NodePostgresOptions {
  *
  * - `statementMs` → `connection.statement_timeout` (ms, server-side).
  * - `connectMs` → `connect_timeout` (postgres-js takes seconds; rounded up).
+ * - `idleSeconds` → `idle_timeout` (defaults to 30 seconds; `false` disables it).
  * - `queryMs` is ignored — postgres-js has no client-side per-query timeout.
  */
 export function resolveNodePostgresOptions(options?: {
   max?: number
+  idleSeconds?: number | false
   timeouts?: DbTimeoutOptions
 }): NodePostgresOptions {
   const statementMs = options?.timeouts?.statementMs ?? DEFAULT_DB_TIMEOUTS.statementMs
   const connectMs = options?.timeouts?.connectMs ?? DEFAULT_DB_TIMEOUTS.connectMs
 
   const config: NodePostgresOptions = {}
+  const idleSeconds =
+    options?.idleSeconds === undefined ? DEFAULT_NODE_IDLE_TIMEOUT_SECONDS : options.idleSeconds
   if (options?.max !== undefined) {
     config.max = options.max
+  }
+  if (idleSeconds !== false) {
+    config.idle_timeout = idleSeconds
   }
   if (connectMs !== false) {
     config.connect_timeout = Math.ceil(connectMs / 1000)

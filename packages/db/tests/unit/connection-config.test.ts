@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   DEFAULT_DB_TIMEOUTS,
+  DEFAULT_NODE_IDLE_TIMEOUT_SECONDS,
   isNeonConnectionString,
   isPooledNeonConnectionString,
   resolveNodePostgresOptions,
@@ -83,6 +84,7 @@ describe("resolveNodePostgresOptions", () => {
 
     expect(config).toEqual({
       connect_timeout: 10,
+      idle_timeout: DEFAULT_NODE_IDLE_TIMEOUT_SECONDS,
       connection: { statement_timeout: 10_000 },
     })
   })
@@ -96,6 +98,12 @@ describe("resolveNodePostgresOptions", () => {
   it("passes max connections through when provided", () => {
     expect(resolveNodePostgresOptions({ max: 7 }).max).toBe(7)
     expect("max" in resolveNodePostgresOptions()).toBe(false)
+  })
+
+  it("closes idle resident sockets by default and allows an explicit override", () => {
+    expect(resolveNodePostgresOptions().idle_timeout).toBe(30)
+    expect(resolveNodePostgresOptions({ idleSeconds: 90 }).idle_timeout).toBe(90)
+    expect("idle_timeout" in resolveNodePostgresOptions({ idleSeconds: false })).toBe(false)
   })
 
   it("lets the timeouts option override defaults", () => {
@@ -112,7 +120,7 @@ describe("resolveNodePostgresOptions", () => {
       timeouts: { statementMs: false, connectMs: false },
     })
 
-    expect(config).toEqual({})
+    expect(config).toEqual({ idle_timeout: DEFAULT_NODE_IDLE_TIMEOUT_SECONDS })
   })
 })
 
