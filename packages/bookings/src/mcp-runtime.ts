@@ -5,6 +5,7 @@ import {
   executeAdmittedExistingTargetCommand,
 } from "@voyant-travel/action-ledger"
 import type { EventBus } from "@voyant-travel/core"
+import { lockBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { isStaffRbacEnforced } from "@voyant-travel/hono"
 import {
   defineToolContextContribution,
@@ -408,6 +409,7 @@ export async function lockBookingStatusConsequenceState(
   // Finance is optional and its booking references are deliberately loose.
   // Lock every installed row for this booking, not just the currently visible
   // paid/pending subset, so status and amount changes cannot cross the preview.
+  await lockBookingFinanceInsertionFence(db, bookingId)
   const financeTables = await loadFinanceConsequenceTables(db)
   if (financeTables?.invoicesTable) {
     await db.execute(sql`

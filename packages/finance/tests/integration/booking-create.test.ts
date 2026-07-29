@@ -47,6 +47,8 @@ import {
 } from "../../src/schema.js"
 import type { FinanceServiceRuntime } from "../../src/service.js"
 import { bookingCreateSchema, createBookingMutation } from "../../src/service-booking-create.js"
+import { financeBookingPaymentScheduleService } from "../../src/service-booking-payment-schedules.js"
+import { financeInvoiceCoreService } from "../../src/service-invoice-core.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 let directCreateSequence = 0
@@ -1315,7 +1317,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
   })
 
-  it("holds mutable cancellation consequences locked from preview revalidation through transition", async () => {
+  it("fences new payment schedules from preview revalidation through cancellation", async () => {
     const { productId } = await seedProduct()
     const outcome = await createBooking(db, {
       productId,
@@ -1366,18 +1368,48 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
 
     await previewWasRevalidated
-    let concurrentMutationCompleted = false
-    const concurrentMutation = db
-      .update(bookingPaymentSchedules)
-      .set({ amountCents: 49_000, updatedAt: new Date() })
-      .where(eq(bookingPaymentSchedules.id, outcome.result.paymentSchedules[0]!.id))
-      .then(() => {
-        concurrentMutationCompleted = true
+    let concurrentInsertionCompleted = false
+    const concurrentInsertion = financeBookingPaymentScheduleService
+      .createBookingPaymentSchedule(db, outcome.result.booking.id, {
+        scheduleType: "installment",
+        status: "pending",
+        dueDate: "2026-09-15",
+        currency: "EUR",
+        amountCents: 1_000,
+      })
+      .then(
+        (value) => ({ value, error: null }),
+        (error: unknown) => ({ value: null, error }),
+      )
+      .finally(() => {
+        concurrentInsertionCompleted = true
+      })
+    let concurrentInvoiceInsertionCompleted = false
+    const concurrentInvoiceInsertion = financeInvoiceCoreService
+      .createInvoice(db, {
+        invoiceNumber: `INV-FENCE-${productSeq}`,
+        bookingId: outcome.result.booking.id,
+        currency: "EUR",
+        issueDate: "2026-07-29",
+        dueDate: "2026-09-15",
+        subtotalCents: 1_000,
+        taxCents: 0,
+        totalCents: 1_000,
+        paidCents: 0,
+        balanceDueCents: 1_000,
+      })
+      .then(
+        (value) => ({ value, error: null }),
+        (error: unknown) => ({ value: null, error }),
+      )
+      .finally(() => {
+        concurrentInvoiceInsertionCompleted = true
       })
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 50))
-      expect(concurrentMutationCompleted).toBe(false)
+      expect(concurrentInsertionCompleted).toBe(false)
+      expect(concurrentInvoiceInsertionCompleted).toBe(false)
     } finally {
       releaseTransition()
     }
@@ -1386,8 +1418,22 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       status: "ok",
       booking: expect.objectContaining({ status: "cancelled" }),
     })
-    await concurrentMutation
-    expect(concurrentMutationCompleted).toBe(true)
+    const insertionResult = await concurrentInsertion
+    expect(insertionResult.value).toBeNull()
+    expect(insertionResult.error).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("no longer accepts new financial consequences"),
+      }),
+    )
+    expect(concurrentInsertionCompleted).toBe(true)
+    const invoiceInsertionResult = await concurrentInvoiceInsertion
+    expect(invoiceInsertionResult.value).toBeNull()
+    expect(invoiceInsertionResult.error).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("no longer accepts new financial consequences"),
+      }),
+    )
+    expect(concurrentInvoiceInsertionCompleted).toBe(true)
   })
 
   it("requests an invoice rendition only when invoice document generation is enabled", async () => {
@@ -3308,6 +3354,61 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           ),
         ),
     ).toEqual([])
+  })
+
+  it("ignores matching legacy totals when they disagree with authoritative catalog pricing", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 40_000,
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      catalogSellAmountCents: 10_000,
+      confirmedSellAmountCents: 10_000,
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(40_000)
+    expect(outcome.result.booking.priceOverride).toBeNull()
+  })
+
+  it("accepts a reasoned legacy confirmed total as an explicit override", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 40_000,
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      catalogSellAmountCents: 10_000,
+      confirmedSellAmountCents: 10_000,
+      priceOverrideReason: "Legacy operator-approved discount",
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(10_000)
+    expect(outcome.result.booking.priceOverride).toMatchObject({
+      originalAmountCents: 40_000,
+      overriddenAmountCents: 10_000,
+      reason: "Legacy operator-approved discount",
+    })
   })
 
   it("rejects an extra whose only persisted price belongs to another option", async () => {

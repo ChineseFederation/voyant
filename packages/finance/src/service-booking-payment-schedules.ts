@@ -29,6 +29,7 @@ import {
   settleCoveredBookingPaymentSchedules,
   startOfUtcDay,
   toDateString,
+  withBookingFinanceInsertionFence,
 } from "./service-shared.js"
 
 export interface SettleBookingPaymentSchedulesResult {
@@ -68,10 +69,12 @@ export const financeBookingPaymentScheduleService = {
         return null
       }
 
-      const [row] = await writer
-        .insert(bookingPaymentSchedules)
-        .values({ ...data, bookingId })
-        .returning()
+      const [row] = await withBookingFinanceInsertionFence(writer, bookingId, (tx) =>
+        tx
+          .insert(bookingPaymentSchedules)
+          .values({ ...data, bookingId })
+          .returning(),
+      )
 
       return row ?? null
     }
@@ -171,7 +174,9 @@ export const financeBookingPaymentScheduleService = {
       }
     })
 
-    return db.insert(bookingPaymentSchedules).values(rows).returning()
+    return withBookingFinanceInsertionFence(db, bookingId, (tx) =>
+      tx.insert(bookingPaymentSchedules).values(rows).returning(),
+    )
   },
 
   async applyDefaultBookingPaymentPlan(
@@ -267,17 +272,19 @@ export const financeBookingPaymentScheduleService = {
         })
       }
 
-      const createdSchedules = await writer
-        .insert(bookingPaymentSchedules)
-        .values(
-          scheduleRows.map((row) => ({
-            ...row,
-            bookingId,
-            bookingItemId: row.bookingItemId ?? null,
-            notes: row.notes ?? null,
-          })),
-        )
-        .returning()
+      const createdSchedules = await withBookingFinanceInsertionFence(writer, bookingId, (tx) =>
+        tx
+          .insert(bookingPaymentSchedules)
+          .values(
+            scheduleRows.map((row) => ({
+              ...row,
+              bookingId,
+              bookingItemId: row.bookingItemId ?? null,
+              notes: row.notes ?? null,
+            })),
+          )
+          .returning(),
+      )
 
       let createdGuarantee: BookingGuaranteeRecord | null = null
       if (data.createGuarantee) {

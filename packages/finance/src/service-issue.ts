@@ -4,7 +4,11 @@ import {
   buildIdempotencyFingerprint,
 } from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm"
+import {
+  assertBookingFinanceInsertionAllowed,
+  lockBookingFinanceInsertionFence,
+} from "@voyant-travel/db"
+import { and, asc, eq, inArray, ne } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { resolveBookingSellTaxRate } from "./booking-tax.js"
@@ -891,10 +895,8 @@ export async function convertProformaToInvoice(
   const now = new Date()
   const result = await db
     .transaction(async (tx) => {
-      const guardKey = `finance:invoice:convert:${proforma.bookingId}`
-      // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${guardKey}, 0))`)
-
+      await lockBookingFinanceInsertionFence(tx, proforma.bookingId)
+      await assertBookingFinanceInsertionAllowed(tx, proforma.bookingId)
       const [lockedProforma] = await tx
         .select()
         .from(invoices)

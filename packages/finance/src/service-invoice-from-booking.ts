@@ -35,6 +35,7 @@ import {
   resolveInvoiceLineDescriptions,
   resolvePaymentScheduleDisplayItem,
   touchLinkedBookingUpdatedAt,
+  withBookingFinanceInsertionFence,
 } from "./service-shared.js"
 
 function allocateScheduleAmountCents(
@@ -420,7 +421,7 @@ export const financeInvoiceFromBookingService = {
     const numberAssignment = await resolveInvoiceNumberForBooking(db, data)
 
     try {
-      return await db.transaction(async (tx) => {
+      return await withBookingFinanceInsertionFence(db, booking.id, async (tx) => {
         const [invoice] = await tx
           .insert(invoices)
           .values({

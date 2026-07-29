@@ -20,6 +20,7 @@ import {
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
 import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import * as rrulePackage from "rrule"
@@ -1466,9 +1467,16 @@ async function reconcileBookingCreatePricing(
   }
 
   const catalogTotal = baseCatalogTotal + extrasCatalogTotal + excludedTaxTotal
+  const reasonedLegacyOverride =
+    input.confirmedSellAmountCents != null && input.priceOverrideReason
+      ? {
+          amountCents: input.confirmedSellAmountCents,
+          reason: input.priceOverrideReason,
+        }
+      : null
   const requestedTotal =
     input.manualPriceOverride?.amountCents ??
-    input.confirmedSellAmountCents ??
+    reasonedLegacyOverride?.amountCents ??
     input.sellAmountCentsOverride ??
     catalogTotal
   const baseRequestedTotal = requestedTotal - extrasCatalogTotal - excludedTaxTotal
@@ -1502,14 +1510,7 @@ async function reconcileBookingCreatePricing(
       .where(eq(bookingItems.id, item.id))
   }
 
-  const manualOverride =
-    input.manualPriceOverride ??
-    (input.confirmedSellAmountCents != null
-      ? {
-          amountCents: input.confirmedSellAmountCents,
-          reason: input.priceOverrideReason ?? "Manual price override",
-        }
-      : null)
+  const manualOverride = input.manualPriceOverride ?? reasonedLegacyOverride
   await tx
     .delete(bookingActivityLog)
     .where(
@@ -2260,18 +2261,20 @@ export async function createBookingMutation(
       // 3. Payment schedules
       const paymentSchedules: BookingPaymentSchedule[] = []
       for (const schedule of input.paymentSchedules ?? []) {
-        const [row] = await tx
-          .insert(bookingPaymentSchedules)
-          .values({
-            bookingId: booking.id,
-            scheduleType: schedule.scheduleType,
-            status: schedule.status,
-            dueDate: schedule.dueDate,
-            currency: schedule.currency,
-            amountCents: schedule.amountCents,
-            notes: schedule.notes ?? null,
-          })
-          .returning()
+        const [row] = await withBookingFinanceInsertionFence(tx, booking.id, (writer) =>
+          writer
+            .insert(bookingPaymentSchedules)
+            .values({
+              bookingId: booking.id,
+              scheduleType: schedule.scheduleType,
+              status: schedule.status,
+              dueDate: schedule.dueDate,
+              currency: schedule.currency,
+              amountCents: schedule.amountCents,
+              notes: schedule.notes ?? null,
+            })
+            .returning(),
+        )
         if (row) paymentSchedules.push(row)
       }
 

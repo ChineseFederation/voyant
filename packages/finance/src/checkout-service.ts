@@ -1,4 +1,5 @@
 import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings"
+import { withBookingFinanceInsertionFence } from "@voyant-travel/db"
 import { and, asc, desc, eq, gt, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
@@ -278,51 +279,53 @@ async function createCollectionInvoice(
     amountCents,
   )
 
-  const [invoice] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber,
-      bookingId: context.booking.id,
-      personId: context.booking.personId,
-      organizationId: context.booking.organizationId,
-      invoiceType: documentType,
-      status: "issued",
-      currency,
-      baseCurrency: alignsWithBookingSell ? context.booking.baseCurrency : null,
-      fxRateSetId: null,
-      subtotalCents: amountCents,
-      baseSubtotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      taxCents: 0,
-      baseTaxCents: null,
+  return withBookingFinanceInsertionFence(db, context.booking.id, async (tx) => {
+    const [invoice] = await tx
+      .insert(invoices)
+      .values({
+        invoiceNumber,
+        bookingId: context.booking.id,
+        personId: context.booking.personId,
+        organizationId: context.booking.organizationId,
+        invoiceType: documentType,
+        status: "issued",
+        currency,
+        baseCurrency: alignsWithBookingSell ? context.booking.baseCurrency : null,
+        fxRateSetId: null,
+        subtotalCents: amountCents,
+        baseSubtotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        taxCents: 0,
+        baseTaxCents: null,
+        totalCents: amountCents,
+        baseTotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        paidCents: 0,
+        basePaidCents: alignsWithBookingSell && context.booking.baseCurrency != null ? 0 : null,
+        balanceDueCents: amountCents,
+        baseBalanceDueCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
+        commissionAmountCents: null,
+        issueDate,
+        dueDate,
+        notes: notes ?? plan.selectedSchedule?.notes ?? null,
+      })
+      .returning()
+
+    if (!invoice) {
+      throw new Error("Failed to create collection invoice")
+    }
+
+    await tx.insert(invoiceLineItems).values({
+      invoiceId: invoice.id,
+      bookingItemId: plan.selectedSchedule?.bookingItemId ?? null,
+      description: lineDescription(context.booking, plan.selectedSchedule, plan.stage),
+      quantity: 1,
+      unitPriceCents: amountCents,
       totalCents: amountCents,
-      baseTotalCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      paidCents: 0,
-      basePaidCents: alignsWithBookingSell && context.booking.baseCurrency != null ? 0 : null,
-      balanceDueCents: amountCents,
-      baseBalanceDueCents: alignsWithBookingSell ? context.booking.baseSellAmountCents : null,
-      commissionAmountCents: null,
-      issueDate,
-      dueDate,
-      notes: notes ?? plan.selectedSchedule?.notes ?? null,
+      taxRate: null,
+      sortOrder: 0,
     })
-    .returning()
 
-  if (!invoice) {
-    throw new Error("Failed to create collection invoice")
-  }
-
-  await db.insert(invoiceLineItems).values({
-    invoiceId: invoice.id,
-    bookingItemId: plan.selectedSchedule?.bookingItemId ?? null,
-    description: lineDescription(context.booking, plan.selectedSchedule, plan.stage),
-    quantity: 1,
-    unitPriceCents: amountCents,
-    totalCents: amountCents,
-    taxRate: null,
-    sortOrder: 0,
+    return invoice
   })
-
-  return invoice
 }
 
 export async function initiateCheckoutCollection(

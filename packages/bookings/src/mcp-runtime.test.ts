@@ -163,7 +163,7 @@ describe("bookings MCP runtime lifecycle detail", () => {
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
-    expect(execute).toHaveBeenCalledTimes(5)
+    expect(execute).toHaveBeenCalledTimes(6)
     expect(cancelBooking).toHaveBeenCalledOnce()
   })
 
