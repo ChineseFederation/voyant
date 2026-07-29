@@ -1267,8 +1267,6 @@ async function reconcileBookingCreatePricing(
 
   const baseItems = items.filter((item) => item.itemType !== "extra")
   const extraItems = items.filter((item) => item.itemType === "extra")
-  const selectedOptionId =
-    input.optionId ?? baseItems.find((item) => item.optionId)?.optionId ?? null
   const selectedOptionIds = [
     ...new Set(
       baseItems
@@ -1301,9 +1299,6 @@ async function reconcileBookingCreatePricing(
       }
     }
   }
-  const selectedPersistedPricing = selectedOptionId
-    ? (persistedPricingByOption.get(selectedOptionId) ?? null)
-    : null
   if (input.catalogId != null && selectedOptionIds.length === 0) {
     return {
       booking,
@@ -1370,14 +1365,15 @@ async function reconcileBookingCreatePricing(
             ],
           }
         }
+        const unassignedRoomBandKey = `${itemOptionId ?? ""}\u0000${band}`
         if (
           !bandAllocation.scopedToItem &&
           rule.unitType === "room" &&
-          chargedUnassignedRoomBands.has(band)
+          chargedUnassignedRoomBands.has(unassignedRoomBandKey)
         ) {
-          // Public inventory quotes apply an unassigned traveler band once at
-          // booking level, regardless of how many room selections carry it.
-          // This repeated room line is valid, but already priced.
+          // Public inventory quotes apply an unassigned traveler band once per
+          // selected option, regardless of how many room selections within
+          // that option carry it. Another option owns a distinct price rule.
           matchedCategoryPrice = true
           matchedBands.add(band)
           continue
@@ -1408,7 +1404,7 @@ async function reconcileBookingCreatePricing(
         matchedBands.add(band)
         categoryTotal += (amount ?? 0) * chargeQuantity
         if (!bandAllocation.scopedToItem && rule.unitType === "room") {
-          chargedUnassignedRoomBands.add(band)
+          chargedUnassignedRoomBands.add(unassignedRoomBandKey)
         }
       }
       if (!matchedCategoryPrice) {
@@ -1509,21 +1505,34 @@ async function reconcileBookingCreatePricing(
   }
 
   let extrasCatalogTotal = 0
+  const resolvedExtraOptionIds = new Map<string, string>()
   for (const item of extraItems) {
     const metadata = (item.metadata ?? {}) as Record<string, unknown>
     const productExtraId =
       typeof metadata.productExtraId === "string" ? metadata.productExtraId : null
     const optionExtraConfigId =
       typeof metadata.optionExtraConfigId === "string" ? metadata.optionExtraConfigId : null
-    const extra = productExtraId
-      ? await loadPersistedExtraPricing(tx, {
-          productId: input.productId,
-          optionId: selectedOptionId,
-          productExtraId,
-          optionExtraConfigId,
-          optionPriceRuleId: selectedPersistedPricing?.ruleId ?? null,
-        })
-      : null
+    const extraOptionCandidates = optionExtraConfigId
+      ? selectedOptionIds
+      : selectedOptionIds.length === 1
+        ? selectedOptionIds
+        : []
+    let extra: Awaited<ReturnType<typeof loadPersistedExtraPricing>> = null
+    for (const optionId of extraOptionCandidates) {
+      const optionPricing = persistedPricingByOption.get(optionId)
+      if (!productExtraId || !optionPricing) continue
+      const candidate = await loadPersistedExtraPricing(tx, {
+        productId: input.productId,
+        optionId,
+        productExtraId,
+        optionExtraConfigId,
+        optionPriceRuleId: optionPricing.ruleId,
+      })
+      if (!candidate) continue
+      extra = candidate
+      resolvedExtraOptionIds.set(item.id, optionId)
+      break
+    }
     if (!extra) {
       return {
         booking,
@@ -1623,6 +1632,7 @@ async function reconcileBookingCreatePricing(
     await tx
       .update(bookingItems)
       .set({
+        optionId: resolvedExtraOptionIds.get(item.id) ?? item.optionId,
         sellCurrency: pricingCurrency,
         unitSellAmountCents: price.unit,
         totalSellAmountCents: price.total,

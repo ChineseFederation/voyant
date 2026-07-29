@@ -2215,6 +2215,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const secondOptionId = `popt_bc_${productSeq}_second`
     const secondUnitId = `opun_bc_${productSeq}_second`
     const secondRuleId = `oprl_bc_${productSeq}_second`
+    const secondExtraId = `pex_bc_${productSeq}_second`
+    const secondExtraConfigId = `oexc_bc_${productSeq}_second`
     await db.execute(sql`
       INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
       VALUES (${secondOptionId}, ${productId}, 'Second option', 'active', false, 1)
@@ -2241,6 +2243,31 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         'per_unit', 30_000, true
       )
     `)
+    await db.execute(sql`
+      INSERT INTO product_extras (
+        id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
+      ) VALUES (
+        ${secondExtraId}, ${productId}, 'Second option extra',
+        'per_booking', false, 'booking_total', true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_extra_configs (
+        id, option_id, product_extra_id, pricing_mode, priced_per_person, active
+      ) VALUES (
+        ${secondExtraConfigId}, ${secondOptionId}, ${secondExtraId},
+        'per_booking', false, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO extra_price_rules (
+        id, option_price_rule_id, option_id, product_extra_id, option_extra_config_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`expr_bc_${productSeq}_second`}, ${secondRuleId}, ${secondOptionId},
+        ${secondExtraId}, ${secondExtraConfigId}, 'per_booking', 5_000, true
+      )
+    `)
 
     const result = await createBooking(db, {
       productId,
@@ -2250,22 +2277,36 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         { optionUnitId: unitId, quantity: 1 },
         { optionUnitId: secondUnitId, quantity: 1 },
       ],
+      extraLines: [
+        {
+          productExtraId: secondExtraId,
+          optionExtraConfigId: secondExtraConfigId,
+          name: "Second option extra",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
+      ],
       catalogId,
     })
 
     expect(result.status).toBe("ok")
     if (result.status !== "ok") return
-    expect(result.result.booking.sellAmountCents).toBe(73_000)
-    await expect(
-      db
-        .select({ optionId: bookingItems.optionId, total: bookingItems.totalSellAmountCents })
-        .from(bookingItems)
-        .where(eq(bookingItems.bookingId, result.result.booking.id))
-        .orderBy(asc(bookingItems.optionId)),
-    ).resolves.toEqual([
-      { optionId, total: 41_000 },
-      { optionId: secondOptionId, total: 32_000 },
-    ])
+    expect(result.result.booking.sellAmountCents).toBe(78_000)
+    const persistedItems = await db
+      .select({
+        itemType: bookingItems.itemType,
+        optionId: bookingItems.optionId,
+        total: bookingItems.totalSellAmountCents,
+      })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, result.result.booking.id))
+    expect(persistedItems).toEqual(
+      expect.arrayContaining([
+        { itemType: "unit", optionId, total: 41_000 },
+        { itemType: "unit", optionId: secondOptionId, total: 32_000 },
+        { itemType: "extra", optionId: secondOptionId, total: 5_000 },
+      ]),
+    )
   })
 
   it.each([
@@ -3462,6 +3503,120 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       { unit: 24_000, total: 24_000 },
       { unit: 0, total: 0 },
     ])
+  })
+
+  it("prices the same unassigned room band once for each selected option", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const { catalogId, optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: roomUnitId,
+      unitAmountCents: 1,
+    })
+    const secondOptionId = `popt_bc_accom_${productSeq}_second`
+    const secondRoomUnitId = `opun_bc_accom_${productSeq}_second`
+    const secondRuleId = `oprl_bc_accom_${productSeq}_second`
+    const firstCategoryId = `prct_bc_${productSeq}_adult_first_option`
+    const secondCategoryId = `prct_bc_${productSeq}_adult_second_option`
+    await db.execute(sql`
+      INSERT INTO product_options (id, product_id, name, status, is_default, sort_order)
+      VALUES (${secondOptionId}, ${productId}, 'Second rooms', 'active', false, 1)
+    `)
+    await db.execute(sql`
+      INSERT INTO option_units (
+        id, option_id, name, code, unit_type, occupancy_min, occupancy_max,
+        is_required, min_quantity, sort_order
+      ) VALUES (
+        ${secondRoomUnitId}, ${secondOptionId}, 'Second DBL room', 'second_dbl',
+        'room', 1, 2, true, 1, 0
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES
+        (
+          ${firstCategoryId}, ${productId}, ${optionId}, ${roomUnitId},
+          'adult_first_option', 'Adult first option', 'adult', true
+        ),
+        (
+          ${secondCategoryId}, ${productId}, ${secondOptionId}, ${secondRoomUnitId},
+          'adult_second_option', 'Adult second option', 'adult', true
+        )
+    `)
+    await db.execute(sql`
+      DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult_first_option`}, ${optionPriceRuleId}, ${optionId},
+        ${roomUnitId}, ${firstCategoryId}, 'per_unit', 12_000, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode,
+        is_default, active
+      ) VALUES (
+        ${secondRuleId}, ${productId}, ${secondOptionId}, ${catalogId},
+        'Second room rate', 'per_booking', true, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult_second_option`}, ${secondRuleId}, ${secondOptionId},
+        ${secondRoomUnitId}, ${secondCategoryId}, 'per_unit', 15_000, true
+      )
+    `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:one",
+          firstName: "Alice",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:two",
+          firstName: "Bob",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+      ],
+      itemLines: [
+        { optionUnitId: roomUnitId, quantity: 1 },
+        { optionUnitId: secondRoomUnitId, quantity: 1 },
+      ],
+      catalogId,
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(54_000)
+    const lineTotals = await db
+      .select({ optionId: bookingItems.optionId, total: bookingItems.totalSellAmountCents })
+      .from(bookingItems)
+      .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+    expect(lineTotals).toEqual(
+      expect.arrayContaining([
+        { optionId, total: 24_000 },
+        { optionId: secondOptionId, total: 30_000 },
+      ]),
+    )
   })
 
   it.each([
