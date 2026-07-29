@@ -13,6 +13,12 @@ type BookingContractReviewSnapshot = Pick<
   "booking" | "products" | "commercialTerms" | "template"
 >
 
+export type ManagedBookingContractReviewWorkflow = {
+  revision: number
+  previousRevisionId?: string | null
+  reviewSnapshot: BookingContractReviewSnapshot
+} & Record<string, unknown>
+
 export async function bookingContractContentFingerprint(contract: {
   id: string
   bookingId: string | null
@@ -295,6 +301,14 @@ export async function getBookingContractReview(
   }
 }
 
+export function parseManagedBookingContractReviewWorkflow(
+  metadata: unknown,
+): ManagedBookingContractReviewWorkflow | null {
+  const workflow = record(record(metadata).bookingContractWorkflow)
+  const parsed = bookingContractReviewWorkflowSchema.safeParse(workflow)
+  return parsed.success ? parsed.data : null
+}
+
 const bookingContractReviewSnapshotSchema = z.object({
   booking: z.object({
     id: z.string(),
@@ -325,6 +339,14 @@ const bookingContractReviewSnapshotSchema = z.object({
   }),
 })
 
+const bookingContractReviewWorkflowSchema = z
+  .object({
+    revision: z.number().int().positive(),
+    previousRevisionId: z.string().nullable().optional(),
+    reviewSnapshot: bookingContractReviewSnapshotSchema,
+  })
+  .passthrough()
+
 /**
  * Trusted delivery/signature adapters use this narrow durable seam for the two
  * provider states that are not legal lifecycle transitions themselves. It does
@@ -354,7 +376,8 @@ export async function recordBookingContractDeliveryStatus(
         (contract.status === "signed" || contract.status === "executed"))
     if (!acceptsStatus) return { status: "not_sent" as const }
     const metadata = record(contract.metadata)
-    const workflow = record(metadata.bookingContractWorkflow)
+    const workflow = parseManagedBookingContractReviewWorkflow(metadata)
+    if (!workflow) return { status: "not_managed" as const }
     const delivery = record(workflow.delivery)
     const history = Array.isArray(workflow.deliveryHistory) ? workflow.deliveryHistory : []
     const timestamp = input.occurredAt.toISOString()

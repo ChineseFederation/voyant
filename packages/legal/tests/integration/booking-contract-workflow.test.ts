@@ -483,6 +483,59 @@ describe.skipIf(!DB_AVAILABLE)("managed booking contract workflow", () => {
     ).toBe(2)
   })
 
+  it("rejects unmanaged predecessors while preserving valid managed successor revisions", async () => {
+    const { booking, version } = await seedBookingTemplate("BK-REVISION-GUARD")
+    const [unmanaged] = await db
+      .insert(contracts)
+      .values({
+        title: "Editable generic booking contract",
+        scope: "customer",
+        bookingId: booking.id,
+        templateVersionId: version.id,
+        metadata: { source: "legacy-admin" },
+      })
+      .returning()
+
+    await expect(
+      createDraft("reject-unmanaged-predecessor", {
+        title: "Invalid successor",
+        revisionOfContractId: unmanaged!.id,
+        variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+      }),
+    ).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+      message: "A contract revision must continue a managed booking review workflow.",
+    })
+    await expect(
+      db.select().from(contracts).where(eq(contracts.bookingId, booking.id)),
+    ).resolves.toHaveLength(1)
+
+    const parent = await createDraft("managed-parent-create", {
+      title: "Managed parent",
+      bookingId: booking.id,
+      templateVersionId: version.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 10_00 } },
+    })
+    const successor = await createDraft("managed-successor-create", {
+      title: "Managed successor",
+      revisionOfContractId: parent.value.id,
+      variables: { customer: { name: "Ana Pop" }, commercial: { depositDueCents: 20_00 } },
+    })
+    const [row] = await db.select().from(contracts).where(eq(contracts.id, successor.value.id))
+    expect(row?.metadata).toEqual(
+      expect.objectContaining({
+        bookingContractWorkflow: expect.objectContaining({
+          revision: 2,
+          previousRevisionId: parent.value.id,
+          reviewSnapshot: expect.objectContaining({
+            booking: expect.objectContaining({ id: booking.id }),
+            template: expect.objectContaining({ versionId: version.id }),
+          }),
+        }),
+      }),
+    )
+  })
+
   async function seedBookingTemplate(bookingNumber = "BK-SNAPSHOT-1") {
     const [booking] = await db
       .insert(bookings)

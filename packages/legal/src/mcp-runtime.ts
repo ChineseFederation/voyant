@@ -24,6 +24,7 @@ import {
   bookingContractTemplateMatchesChannel,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
+  parseManagedBookingContractReviewWorkflow,
   resolveBookingContractLanguage,
 } from "./booking-contract-review.js"
 import { executeLegalContractDocumentCommand } from "./contract-document-command.js"
@@ -498,6 +499,40 @@ export async function executeLegalContractDraftCreate(
             { revisionOfContractId },
           )
         }
+        const priorWorkflow = previous
+          ? parseManagedBookingContractReviewWorkflow(previous.metadata)
+          : null
+        if (previous && !priorWorkflow) {
+          throw new ToolError(
+            "A contract revision must continue a managed booking review workflow.",
+            "INVALID_INPUT",
+            { revisionOfContractId },
+          )
+        }
+        if (previous && !previous.bookingId) {
+          throw new ToolError(
+            "A contract revision must remain attached to a booking.",
+            "INVALID_INPUT",
+            { revisionOfContractId },
+          )
+        }
+        if (previous && priorWorkflow?.reviewSnapshot.booking.id !== previous.bookingId) {
+          throw new ToolError(
+            "A contract revision predecessor has inconsistent booking workflow metadata.",
+            "INVALID_INPUT",
+            { revisionOfContractId },
+          )
+        }
+        if (
+          previous?.templateVersionId &&
+          priorWorkflow?.reviewSnapshot.template.versionId !== previous.templateVersionId
+        ) {
+          throw new ToolError(
+            "A contract revision predecessor has inconsistent template workflow metadata.",
+            "INVALID_INPUT",
+            { revisionOfContractId },
+          )
+        }
         if (previous) {
           const [successor] = await transaction
             .select({ id: contracts.id })
@@ -525,17 +560,17 @@ export async function executeLegalContractDraftCreate(
             "INVALID_INPUT",
           )
         }
-        const priorWorkflow =
-          previous?.metadata &&
-          typeof previous.metadata === "object" &&
-          !Array.isArray(previous.metadata)
-            ? (previous.metadata as Record<string, unknown>).bookingContractWorkflow
-            : null
-        const priorRevision =
-          priorWorkflow && typeof priorWorkflow === "object" && !Array.isArray(priorWorkflow)
-            ? (priorWorkflow as Record<string, unknown>).revision
-            : null
-        const revision = typeof priorRevision === "number" ? priorRevision + 1 : previous ? 2 : 1
+        if (
+          previous &&
+          requestedInput.templateVersionId &&
+          requestedInput.templateVersionId !== priorWorkflow?.reviewSnapshot.template.versionId
+        ) {
+          throw new ToolError(
+            "A contract revision must remain attached to the same template version.",
+            "INVALID_INPUT",
+          )
+        }
+        const revision = priorWorkflow ? priorWorkflow.revision + 1 : 1
         let variables =
           requestedInput.variables ??
           (previous?.variables as Record<string, unknown> | null) ??

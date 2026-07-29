@@ -375,7 +375,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
   })
 
   it("sends one exact draft revision with one approval, records provider status, then voids with audit", async () => {
-    const contract = await insertContract("draft", "Review-first contract")
+    const contract = await insertContract("draft", "Review-first contract", { managed: true })
     const contentFingerprint = await bookingContractContentFingerprint(contract)
     const send = await approvedCommand("send", "send-reviewed-revision", {
       contractId: contract.id,
@@ -454,7 +454,7 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     "signed",
     "executed",
   ] as const)("records delayed viewed delivery evidence after a contract is %s", async (status) => {
-    const contract = await insertContract(status, `Delayed viewed ${status}`)
+    const contract = await insertContract(status, `Delayed viewed ${status}`, { managed: true })
     const occurredAt = new Date("2026-07-29T12:30:00.000Z")
 
     await expect(
@@ -485,8 +485,29 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     ])
   })
 
+  it("does not promote an ordinary sent contract with malformed workflow metadata", async () => {
+    const contract = await insertContract("sent", "Ordinary sent callback target", {
+      metadata: { bookingContractWorkflow: {}, retained: true },
+    })
+    const before = await db.select().from(contracts).where(eq(contracts.id, contract.id))
+
+    await expect(
+      recordBookingContractDeliveryStatus(db, {
+        contractId: contract.id,
+        status: "viewed",
+        occurredAt: new Date("2026-07-29T12:45:00.000Z"),
+        provider: "signature-provider",
+        externalReference: "ordinary-delivery",
+      }),
+    ).resolves.toEqual({ status: "not_managed" })
+
+    await expect(db.select().from(contracts).where(eq(contracts.id, contract.id))).resolves.toEqual(
+      before,
+    )
+  })
+
   it("rejects an approved revision when its reviewed content changed", async () => {
-    const contract = await insertContract("draft", "Reviewed title")
+    const contract = await insertContract("draft", "Reviewed title", { managed: true })
     const command = await approvedCommand("send", "send-content-drift", {
       contractId: contract.id,
       recipient: "traveller@example.com",
@@ -549,7 +570,11 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
     expect(await db.select().from(contracts).where(eq(contracts.id, contract.id))).toHaveLength(0)
   })
 
-  async function insertContract(status: ContractStatus, title: string) {
+  async function insertContract(
+    status: ContractStatus,
+    title: string,
+    options: { managed?: boolean; metadata?: Record<string, unknown> } = {},
+  ) {
     const [row] = await db
       .insert(contracts)
       .values({
@@ -557,10 +582,52 @@ describe.skipIf(!DB_AVAILABLE)("Legal contract lifecycle existing-target command
         status,
         title,
         stageHistory: [],
+        variables: options.managed ? { commercial: { depositDueCents: 25_00 } } : undefined,
+        renderedBody: options.managed ? "Reviewed body" : undefined,
+        metadata: options.managed ? managedBookingWorkflowMetadata() : options.metadata,
       })
       .returning()
     if (!row) throw new Error("Test contract insert failed")
     return row
+  }
+
+  function managedBookingWorkflowMetadata() {
+    return {
+      bookingContractWorkflow: {
+        revision: 1,
+        previousRevisionId: null,
+        reviewOnly: true,
+        reviewSnapshot: {
+          booking: {
+            id: "booking_review_1",
+            reference: "BK-REVIEW-1",
+            customerName: "Ana Pop",
+            customerEmail: "ana@example.test",
+            language: "en",
+            currency: "EUR",
+            totalAmountCents: 100_00,
+            startDate: "2026-09-01",
+            endDate: "2026-09-07",
+          },
+          products: [
+            {
+              title: "Original tour",
+              quantity: 1,
+              amountCents: 100_00,
+              currency: "EUR",
+            },
+          ],
+          commercialTerms: { depositDueCents: 25_00 },
+          template: {
+            id: "template_review_1",
+            name: "Customer review template",
+            versionId: "template_version_review_1",
+            version: 1,
+            language: "en",
+          },
+        },
+      },
+    }
   }
 
   async function executeCommand(
