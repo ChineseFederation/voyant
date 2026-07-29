@@ -156,7 +156,9 @@ export const financeInvoiceFromBookingService = {
 
     const shouldUseBookingItems = overrideLineItems === null && !paymentSchedule
     const invoiceItems = shouldUseBookingItems ? items : []
-    const itemIds = invoiceItems.map((item) => item.id)
+    const taxSourceItems = overrideLineItems ? [] : paymentSchedule ? items : invoiceItems
+    const itemIds = taxSourceItems.map((item) => item.id)
+    const commissionItemIds = invoiceItems.map((item) => item.id)
 
     const taxes =
       itemIds.length === 0
@@ -167,12 +169,14 @@ export const financeInvoiceFromBookingService = {
             .where(or(...itemIds.map((id) => eq(bookingItemTaxLines.bookingItemId, id))))
 
     const commissions =
-      itemIds.length === 0
+      commissionItemIds.length === 0
         ? []
         : await db
             .select()
             .from(bookingItemCommissions)
-            .where(or(...itemIds.map((id) => eq(bookingItemCommissions.bookingItemId, id))))
+            .where(
+              or(...commissionItemIds.map((id) => eq(bookingItemCommissions.bookingItemId, id))),
+            )
 
     const taxesByBookingItemId = new Map<string, typeof taxes>()
     for (const tax of taxes) {
@@ -224,19 +228,35 @@ export const financeInvoiceFromBookingService = {
     })
 
     const grossLineTotalCents = lineItems.reduce((sum, line) => sum + line.totalCents, 0)
+    const scheduleTaxShare = (amountCents: number) => {
+      if (!paymentSchedule || !booking.sellAmountCents || booking.sellAmountCents <= 0) {
+        return amountCents
+      }
+      return Math.round((amountCents * paymentSchedule.amountCents) / booking.sellAmountCents)
+    }
     const includedTaxCents = overrideLineItems
       ? 0
-      : taxes.reduce((sum, tax) => {
-          if (tax.scope === "withheld" || !tax.includedInPrice) return sum
-          return sum + tax.amountCents
-        }, 0)
+      : scheduleTaxShare(
+          taxes.reduce((sum, tax) => {
+            if (tax.scope === "withheld" || !tax.includedInPrice) return sum
+            return sum + tax.amountCents
+          }, 0),
+        )
     const excludedTaxCents = overrideLineItems
       ? overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0)
-      : taxes.reduce((sum, tax) => {
-          if (tax.scope === "withheld" || tax.includedInPrice) return sum
-          return sum + tax.amountCents
-        }, 0)
-    const subtotalCents = Math.max(0, grossLineTotalCents - includedTaxCents)
+      : scheduleTaxShare(
+          taxes.reduce((sum, tax) => {
+            if (tax.scope === "withheld" || tax.includedInPrice) return sum
+            return sum + tax.amountCents
+          }, 0),
+        )
+    // Payment schedule amounts are portions of the persisted booking total and
+    // therefore already include excluded tax. Remove that tax from the schedule
+    // line's gross amount before adding it back to the invoice total.
+    const subtotalCents = Math.max(
+      0,
+      grossLineTotalCents - includedTaxCents - (paymentSchedule ? excludedTaxCents : 0),
+    )
     const taxCents = includedTaxCents + excludedTaxCents
     const totalCents = subtotalCents + taxCents
     assertInvoiceFromBookingOverrideTotals(data, { subtotalCents, taxCents, totalCents })

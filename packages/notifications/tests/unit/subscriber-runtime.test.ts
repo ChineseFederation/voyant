@@ -224,8 +224,12 @@ describe("Notifications subscriber runtime descriptors", () => {
 
   it("maps booking expiry to non-payment cancellation rules", async () => {
     const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(false)
     const harness = createHarness()
-    createBookingExpiredReminderSubscriberRuntime({ dispatchReminderRules }).register(harness)
+    createBookingExpiredReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
 
     await harness.eventBus.emit("booking.expired", {
       bookingId: "book_1",
@@ -243,6 +247,28 @@ describe("Notifications subscriber runtime descriptors", () => {
       }),
       { documentAttachmentResolver: attachmentResolver },
     )
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_1")
+  })
+
+  it("clears queued reminders but does not dispatch an expired reminder for a persistently suppressed booking", async () => {
+    const dispatchReminderRules = vi.fn().mockResolvedValue(undefined)
+    const isNotificationsSuppressed = vi.fn().mockResolvedValue(true)
+    const harness = createHarness()
+    createBookingExpiredReminderSubscriberRuntime({
+      dispatchReminderRules,
+      isNotificationsSuppressed,
+    }).register(harness)
+
+    await harness.eventBus.emit("booking.expired", {
+      bookingId: "book_silent",
+      bookingNumber: "BK-SILENT",
+      cause: "sweep",
+      actorId: null,
+    })
+
+    expect(db.update).toHaveBeenCalled()
+    expect(isNotificationsSuppressed).toHaveBeenCalledWith(db, "book_silent")
+    expect(dispatchReminderRules).not.toHaveBeenCalled()
   })
 
   it("catches and logs runtime failures without rejecting the event", async () => {

@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
+  bookingItemTaxLines,
   invoiceExternalRefs,
   invoiceLineItems,
   invoiceNumberSeries,
@@ -59,6 +60,7 @@ function makeDb(options: {
   executeRowsObject?: boolean
   invoiceInsertError?: unknown
   invoiceLineItemsReturning?: Array<Record<string, unknown>>
+  bookingItemTaxRows?: Array<Record<string, unknown>>
 }) {
   const insertedInvoices: Array<Record<string, unknown>> = []
   const insertedInvoiceExternalRefs: Array<Record<string, unknown>> = []
@@ -127,7 +129,7 @@ function makeDb(options: {
     select: vi.fn((selection?: unknown) => ({
       from: vi.fn((table) => {
         if (table !== invoiceNumberSeries) {
-          const rows: Array<Record<string, unknown>> = []
+          const rows = table === bookingItemTaxLines ? (options.bookingItemTaxRows ?? []) : []
           if (selection) {
             return {
               where: vi.fn(() => ({
@@ -542,6 +544,62 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
         sortOrder: 0,
       }),
     ])
+  })
+
+  it("counts excluded booking tax exactly once in a payment-schedule invoice", async () => {
+    const { db, insertedInvoices, insertedInvoiceLineItems } = makeDb({
+      bookingItemTaxRows: [
+        {
+          bookingItemId: "bkit_123",
+          scope: "excluded",
+          includedInPrice: false,
+          amountCents: 10_000,
+        },
+      ],
+    })
+
+    await financeService.createInvoiceFromBooking(
+      db,
+      {
+        bookingId: "book_123",
+        invoiceNumber: "MANUAL-1",
+        issueDate: "2026-05-23",
+        dueDate: "2026-06-23",
+      },
+      {
+        booking: {
+          ...bookingData.booking,
+          sellAmountCents: 60_000,
+        },
+        paymentSchedule: {
+          id: "bps_123",
+          bookingId: "book_123",
+          bookingItemId: "bkit_123",
+          scheduleType: "balance",
+          dueDate: "2026-06-23",
+          currency: "RON",
+          amountCents: 60_000,
+        },
+        items: [
+          {
+            id: "bkit_123",
+            title: "Taxable booking",
+            quantity: 1,
+            unitSellAmountCents: 50_000,
+            totalSellAmountCents: 50_000,
+          },
+        ],
+      },
+    )
+
+    expect(insertedInvoiceLineItems).toEqual([
+      expect.objectContaining({ unitPriceCents: 60_000, totalCents: 60_000 }),
+    ])
+    expect(insertedInvoices[0]).toMatchObject({
+      subtotalCents: 50_000,
+      taxCents: 10_000,
+      totalCents: 60_000,
+    })
   })
 
   it("uses booking item snapshots for schedule descriptions without an item link", async () => {

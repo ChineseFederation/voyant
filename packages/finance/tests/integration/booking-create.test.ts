@@ -460,6 +460,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     unitId: string
     unitAmountCents: number
     unitPricingMode?: "per_unit" | "per_person" | "per_booking"
+    currency?: string
     extra?: {
       productExtraId: string
       optionExtraConfigId: string
@@ -472,7 +473,10 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const optionPriceRuleId = `oprl_bc_${productSeq}`
     await db.execute(sql`
       INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
-      VALUES (${catalogId}, ${`PUBLIC-${productSeq}`}, 'Public', 'EUR', 'public', true, true)
+      VALUES (
+        ${catalogId}, ${`PUBLIC-${productSeq}`}, 'Public', ${input.currency ?? "EUR"},
+        'public', true, true
+      )
     `)
     await db.execute(sql`
       INSERT INTO option_price_rules (
@@ -613,6 +617,40 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .from(availabilitySlots)
       .where(eq(availabilitySlots.id, slot.id))
     expect(slotAfter?.remainingPax).toBe(8)
+  })
+
+  it("persists the selected public catalog currency with repriced booking amounts", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 23_000,
+      currency: "USD",
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      documentGeneration: { invoiceDocument: true },
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking).toMatchObject({
+      sellCurrency: "USD",
+      sellAmountCents: 23_000,
+    })
+    await expect(
+      db
+        .select({ sellCurrency: bookingItems.sellCurrency })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ sellCurrency: "USD" }])
+    expect(outcome.result.invoice).toMatchObject({ currency: "USD", totalCents: 23_000 })
   })
 
   it("atomically converts a live availability hold into one on-hold pax allocation", async () => {
@@ -2089,6 +2127,87 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .from(bookingItems)
         .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
     ).toEqual([{ unit: 24_000, total: 24_000 }])
+  })
+
+  it("allocates traveler-category pricing independently across assigned room lines", async () => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: roomUnitId,
+      unitAmountCents: 1,
+    })
+    const categoryId = `prct_bc_${productSeq}_adult_rooms`
+    await db.execute(sql`
+      INSERT INTO pricing_categories (
+        id, product_id, option_id, unit_id, code, name, category_type, active
+      ) VALUES (
+        ${categoryId}, ${productId}, ${optionId}, ${roomUnitId},
+        'adult_rooms', 'Adult', 'adult', true
+      )
+    `)
+    await db.execute(sql`
+      DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+        pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_adult_rooms`}, ${optionPriceRuleId}, ${optionId}, ${roomUnitId},
+        ${categoryId}, 'per_unit', 12000, true
+      )
+    `)
+    const travelers = ["one", "two", "three", "four"].map((suffix, index) => ({
+      clientTravelerKey: `trav:${suffix}`,
+      firstName: `Traveler ${index + 1}`,
+      lastName: "Adult",
+      travelerCategory: "adult" as const,
+      isPrimary: index === 0,
+    }))
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 4,
+      travelers,
+      itemLines: [
+        {
+          clientLineKey: "room:one",
+          optionUnitId: roomUnitId,
+          quantity: 1,
+          travelerKeys: ["trav:one", "trav:two"],
+        },
+        {
+          clientLineKey: "room:two",
+          optionUnitId: roomUnitId,
+          quantity: 1,
+          travelerKeys: ["trav:three", "trav:four"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(48_000)
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id))
+        .orderBy(asc(bookingItems.createdAt)),
+    ).resolves.toEqual([
+      { unit: 24_000, total: 24_000 },
+      { unit: 24_000, total: 24_000 },
+    ])
   })
 
   it("audits manual overrides only after comparing against persisted catalog pricing", async () => {

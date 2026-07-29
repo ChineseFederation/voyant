@@ -197,6 +197,8 @@ export function createBookingExpiredReminderSubscriberRuntime(
   dependencies: NotificationsSubscriberDependencies = {},
 ): SubscriberRuntimeDescriptor {
   const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
+  const isNotificationsSuppressed =
+    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
   const logger = dependencies.logger ?? console
 
   return {
@@ -208,6 +210,7 @@ export function createBookingExpiredReminderSubscriberRuntime(
           const runtime = resolveRuntime(container)
           const db = runtime.resolveDb(bindings)
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "expired")
+          if (await isNotificationsSuppressed(db, data.bookingId)) return
           await dispatchReminderRules(
             db,
             runtime.dispatcher,

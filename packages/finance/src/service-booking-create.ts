@@ -1193,8 +1193,7 @@ async function reconcileBookingCreatePricing(
     : null
 
   const pricedLines = new Map<string, { unit: number; total: number }>()
-  const travelerBandCounts = bookingCreateTravelerBandCounts(input, booking.pax)
-  const chargedTravelerBands = new Set<string>()
+  const chargedUnassignedTravelerBands = new Set<string>()
   let baseCatalogTotal = 0
   let unresolvedBaseItems = 0
   let appliedRuleBase = false
@@ -1205,12 +1204,14 @@ async function reconcileBookingCreatePricing(
     const flatUnitRules = unitRules.filter((rule) => rule.pricingCategoryId === null)
     const categoryRules = unitRules.filter((rule) => rule.pricingCategoryId !== null)
     if (flatUnitRules.length === 0 && categoryRules.length > 0) {
+      const bandAllocation = bookingCreateTravelerBandCountsForItem(input, item, booking.pax)
       let categoryTotal = 0
       let matchedCategoryPrice = false
       for (const rule of categoryRules) {
         const band = rule.travelerCategory
-        if (!band || chargedTravelerBands.has(band)) continue
-        const bandQuantity = travelerBandCounts.get(band) ?? 0
+        if (!band) continue
+        if (!bandAllocation.scopedToItem && chargedUnassignedTravelerBands.has(band)) continue
+        const bandQuantity = bandAllocation.counts.get(band) ?? 0
         if (bandQuantity <= 0 || !unitRuleMatchesQuantity(rule, bandQuantity)) continue
         const departureAmount = item.optionUnitId
           ? persistedPricing?.departureOverrides.get(item.optionUnitId)
@@ -1221,7 +1222,7 @@ async function reconcileBookingCreatePricing(
         if (amount == null) continue
         matchedCategoryPrice = true
         categoryTotal += amount * bandQuantity
-        chargedTravelerBands.add(band)
+        if (!bandAllocation.scopedToItem) chargedUnassignedTravelerBands.add(band)
       }
       if (!matchedCategoryPrice) {
         return {
@@ -1366,12 +1367,13 @@ async function reconcileBookingCreatePricing(
     distributeBookingCreateTotal(baseItems, baseRequestedTotal, pricedLines)
   }
 
+  const pricingCurrency = persistedPricing?.currencyCode ?? booking.sellCurrency
   for (const item of items) {
     const price = pricedLines.get(item.id) ?? { unit: 0, total: 0 }
     await tx
       .update(bookingItems)
       .set({
-        sellCurrency: booking.sellCurrency,
+        sellCurrency: pricingCurrency,
         unitSellAmountCents: price.unit,
         totalSellAmountCents: price.total,
         updatedAt: new Date(),
@@ -1401,7 +1403,7 @@ async function reconcileBookingCreatePricing(
           isManual: true as const,
           originalAmountCents: catalogTotal,
           overriddenAmountCents: manualOverride.amountCents,
-          currency: booking.sellCurrency,
+          currency: pricingCurrency,
           reason: manualOverride.reason,
           overriddenBy: userId ?? "system",
           overriddenAt: new Date().toISOString(),
@@ -1411,6 +1413,7 @@ async function reconcileBookingCreatePricing(
     .update(bookings)
     .set({
       sellAmountCents: requestedTotal,
+      sellCurrency: pricingCurrency,
       priceOverride: finalPriceOverride,
       updatedAt: new Date(),
     })
@@ -1425,7 +1428,14 @@ async function reconcileBookingCreatePricing(
       metadata: { kind: "booking_price_overridden", ...finalPriceOverride },
     })
   }
-  return { booking: updatedBooking ?? booking, issues: [] }
+  return {
+    booking: updatedBooking ?? {
+      ...booking,
+      sellAmountCents: requestedTotal,
+      sellCurrency: pricingCurrency,
+    },
+    issues: [],
+  }
 }
 
 type PersistedUnitPriceRule = {
@@ -1523,9 +1533,9 @@ async function loadPersistedBookingCreatePricing(
   tx: PostgresJsDatabase,
   input: { productId: string; optionId: string; slotId: string | null },
 ) {
-  const [catalog] = toRows<{ id: string }>(
+  const [catalog] = toRows<{ id: string; currencyCode: string | null }>(
     await tx.execute(sql`
-      SELECT id
+      SELECT id, currency_code AS "currencyCode"
       FROM price_catalogs
       WHERE active = true
         AND catalog_type = 'public'
@@ -1627,7 +1637,14 @@ async function loadPersistedBookingCreatePricing(
       departureOverrides.set(override.optionUnitId, override.sellAmountCents)
     }
   }
-  return { ...rule, unitRules, tiers, departureOverrides, ruleId: rule.id }
+  return {
+    ...rule,
+    unitRules,
+    tiers,
+    departureOverrides,
+    ruleId: rule.id,
+    currencyCode: catalog.currencyCode ?? null,
+  }
 }
 
 function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: number | null) {
@@ -1639,6 +1656,42 @@ function bookingCreateTravelerBandCounts(input: BookingCreateInput, bookingPax: 
   }
   if (counts.size === 0 && bookingPax && bookingPax > 0) counts.set("adult", bookingPax)
   return counts
+}
+
+function bookingCreateTravelerBandCountsForItem(
+  input: BookingCreateInput,
+  item: { optionUnitId: string | null; metadata: unknown },
+  bookingPax: number | null,
+) {
+  const lineKey = (item.metadata as { bookingCreateLineKey?: unknown } | null | undefined)
+    ?.bookingCreateLineKey
+  const matchingLines = (input.itemLines ?? []).filter((line) =>
+    typeof lineKey === "string"
+      ? line.clientLineKey === lineKey
+      : line.optionUnitId === item.optionUnitId,
+  )
+  const line = matchingLines.length === 1 ? matchingLines[0] : undefined
+  const travelerKeys = uniqueTravelerKeys(line?.travelerKeys)
+  if (travelerKeys.length === 0) {
+    return {
+      counts: bookingCreateTravelerBandCounts(input, bookingPax),
+      scopedToItem: false,
+    }
+  }
+
+  const travelersByKey = new Map(
+    (input.travelers ?? []).flatMap((traveler) => {
+      const key = traveler.clientTravelerKey?.trim()
+      return key ? [[key, traveler] as const] : []
+    }),
+  )
+  const counts = new Map<string, number>()
+  for (const travelerKey of travelerKeys) {
+    const band = travelersByKey.get(travelerKey)?.travelerCategory ?? "adult"
+    if (!["adult", "child", "infant", "senior"].includes(band)) continue
+    counts.set(band, (counts.get(band) ?? 0) + 1)
+  }
+  return { counts, scopedToItem: true }
 }
 
 function unitRuleMatchesQuantity(rule: PersistedUnitPriceRule, quantity: number) {
