@@ -1216,12 +1216,17 @@ async function reconcileBookingCreatePricing(
         const departureAmount = item.optionUnitId
           ? persistedPricing?.departureOverrides.get(item.optionUnitId)
           : undefined
+        const chargeQuantity = ["included", "free"].includes(rule.pricingMode)
+          ? 0
+          : rule.pricingMode === "per_booking"
+            ? 1
+            : bandQuantity
         const amount =
           departureAmount ??
           selectPersistedUnitAmount(rule, persistedPricing?.tiers ?? [], bandQuantity)
-        if (amount == null) continue
+        if (amount == null && chargeQuantity > 0) continue
         matchedCategoryPrice = true
-        categoryTotal += amount * bandQuantity
+        categoryTotal += (amount ?? 0) * chargeQuantity
         if (!bandAllocation.scopedToItem) chargedUnassignedTravelerBands.add(band)
       }
       if (!matchedCategoryPrice) {
@@ -1245,7 +1250,7 @@ async function reconcileBookingCreatePricing(
     const unitRule = flatUnitRules.find((rule) => unitRuleMatchesQuantity(rule, quantity))
     const chargeQuantity =
       unitRule?.pricingMode === "per_person"
-        ? Math.max(1, booking.pax ?? quantity)
+        ? quantity
         : unitRule?.pricingMode === "per_booking"
           ? 1
           : quantity
@@ -1317,16 +1322,20 @@ async function reconcileBookingCreatePricing(
       }
     }
     const pricingMode = extra.pricingMode
-    const chargeQuantity = extra.pricedPerPerson
-      ? Math.max(1, booking.pax ?? item.quantity)
-      : pricingMode === "per_booking"
-        ? 1
-        : Math.max(1, item.quantity)
+    if (pricingMode === "unavailable") {
+      return {
+        booking,
+        issues: [
+          {
+            path: ["extraLines"],
+            message: `Booking extra ${productExtraId} is unavailable and cannot be booked.`,
+          },
+        ],
+      }
+    }
+    const chargeQuantity = pricingMode === "per_booking" ? 1 : Math.max(1, item.quantity)
     const unitAmount = extra.sellAmountCents ?? 0
-    if (
-      unitAmount === 0 &&
-      !["included", "free", "on_request", "unavailable"].includes(pricingMode)
-    ) {
+    if (unitAmount === 0 && !["included", "free", "on_request"].includes(pricingMode)) {
       return {
         booking,
         issues: [
@@ -1337,7 +1346,7 @@ async function reconcileBookingCreatePricing(
         ],
       }
     }
-    const total = ["included", "free", "on_request", "unavailable"].includes(pricingMode)
+    const total = ["included", "free", "on_request"].includes(pricingMode)
       ? 0
       : unitAmount * chargeQuantity
     pricedLines.set(item.id, { unit: unitAmount, total })

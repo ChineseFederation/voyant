@@ -259,6 +259,7 @@
     },
     "schema": "./schema",
     "requiresSchemas": [
+      "@voyant-travel/commerce",
       "@voyant-travel/db"
     ]
   }

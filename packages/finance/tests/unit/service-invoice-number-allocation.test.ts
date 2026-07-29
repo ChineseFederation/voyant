@@ -617,13 +617,19 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
     })
   })
 
-  it("allocates indivisible tax cents exactly once across payment schedules", async () => {
+  it("allocates combined included and excluded tax cents once across payment schedules", async () => {
     const { db, insertedInvoices } = makeDb({
       bookingItemTaxRows: [
         {
           bookingItemId: "bkit_123",
           scope: "included",
           includedInPrice: true,
+          amountCents: 1,
+        },
+        {
+          bookingItemId: "bkit_123",
+          scope: "excluded",
+          includedInPrice: false,
           amountCents: 1,
         },
       ],
@@ -636,7 +642,7 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
         scheduleType: "deposit" as const,
         dueDate: "2026-06-01",
         currency: "RON",
-        amountCents: 50,
+        amountCents: 1,
       },
       {
         id: "bps_b",
@@ -645,19 +651,19 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
         scheduleType: "balance" as const,
         dueDate: "2026-06-23",
         currency: "RON",
-        amountCents: 50,
+        amountCents: 1,
       },
     ]
     const data = {
-      booking: { ...bookingData.booking, sellAmountCents: 100 },
+      booking: { ...bookingData.booking, sellAmountCents: 2 },
       paymentSchedules,
       items: [
         {
           id: "bkit_123",
           title: "Taxable booking",
           quantity: 1,
-          unitSellAmountCents: 100,
-          totalSellAmountCents: 100,
+          unitSellAmountCents: 2,
+          totalSellAmountCents: 2,
         },
       ],
     }
@@ -675,8 +681,11 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       )
     }
 
-    expect(insertedInvoices.map((invoice) => invoice.taxCents)).toEqual([1, 0])
-    expect(insertedInvoices.reduce((sum, invoice) => sum + Number(invoice.taxCents), 0)).toBe(1)
+    expect(insertedInvoices.map((invoice) => invoice.taxCents)).toEqual([1, 1])
+    expect(insertedInvoices.reduce((sum, invoice) => sum + Number(invoice.taxCents), 0)).toBe(2)
+    for (const invoice of insertedInvoices) {
+      expect(invoice.taxCents).toBeLessThanOrEqual(invoice.totalCents)
+    }
   })
 
   it("converts booking tax before allocating it to cross-currency schedules", async () => {

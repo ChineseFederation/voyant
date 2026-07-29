@@ -465,7 +465,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       productExtraId: string
       optionExtraConfigId: string
       amountCents: number
-      pricingMode: "per_person" | "per_booking"
+      pricingMode: "included" | "per_person" | "per_booking" | "on_request" | "unavailable"
       pricedPerPerson?: boolean
     }
   }) {
@@ -495,6 +495,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       )
     `)
     if (input.extra) {
+      const legacyPricingMode =
+        input.extra.pricingMode === "unavailable" ? "on_request" : input.extra.pricingMode
       const pricedPerPerson =
         input.extra.pricedPerPerson ?? input.extra.pricingMode === "per_person"
       await db.execute(sql`
@@ -502,7 +504,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
         ) VALUES (
           ${input.extra.productExtraId}, ${input.productId}, 'Airport transfer',
-          ${input.extra.pricingMode}, ${pricedPerPerson}, 'booking_total', true
+          ${legacyPricingMode}, ${pricedPerPerson}, 'booking_total', true
         )
       `)
       await db.execute(sql`
@@ -510,7 +512,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           id, option_id, product_extra_id, pricing_mode, priced_per_person, active
         ) VALUES (
           ${input.extra.optionExtraConfigId}, ${input.optionId}, ${input.extra.productExtraId},
-          ${input.extra.pricingMode}, ${pricedPerPerson}, true
+          ${legacyPricingMode}, ${pricedPerPerson}, true
         )
       `)
       await db.execute(sql`
@@ -1910,7 +1912,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
           scheduleType: "balance",
           status: "pending",
           currency: "EUR",
-          amountCents: 30_000,
+          amountCents: 27_000,
           dueDate: "2026-08-15",
         },
       ],
@@ -1919,7 +1921,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
 
-    expect(outcome.result.booking).toMatchObject({ pax: 2, sellAmountCents: 30_000 })
+    expect(outcome.result.booking).toMatchObject({ pax: 2, sellAmountCents: 27_000 })
     const pricedItems = await db
       .select({
         itemType: bookingItems.itemType,
@@ -1931,15 +1933,145 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       .orderBy(asc(bookingItems.itemType))
     expect(pricedItems).toEqual([
       { itemType: "unit", unitSellAmountCents: 12_000, totalSellAmountCents: 24_000 },
-      { itemType: "extra", unitSellAmountCents: 3_000, totalSellAmountCents: 6_000 },
+      { itemType: "extra", unitSellAmountCents: 3_000, totalSellAmountCents: 3_000 },
     ])
     expect(outcome.result.paymentSchedules).toEqual([
-      expect.objectContaining({ amountCents: 30_000, currency: "EUR" }),
+      expect.objectContaining({ amountCents: 27_000, currency: "EUR" }),
     ])
     expect(outcome.result.invoice).toMatchObject({
-      subtotalCents: 30_000,
+      subtotalCents: 27_000,
       taxCents: 0,
-      totalCents: 30_000,
+      totalCents: 27_000,
+    })
+  })
+
+  it("multiplies a flat per-person unit by its selected quantity, not booking pax", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 4_000,
+      unitPricingMode: "per_person",
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 4,
+      itemLines: [{ optionUnitId: unitId, quantity: 2 }],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(8_000)
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 4_000, total: 8_000 }])
+  })
+
+  it("uses selected extra quantity when the pricing mode is not per-booking", async () => {
+    const { productId, optionId, unitId } = await seedProduct({ pax: null })
+    const productExtraId = `pex_bc_${productSeq}_quantity`
+    const optionExtraConfigId = `oexc_bc_${productSeq}_quantity`
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      extra: {
+        productExtraId,
+        optionExtraConfigId,
+        amountCents: 1_000,
+        pricingMode: "per_person",
+        pricedPerPerson: false,
+      },
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      pax: 5,
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      extraLines: [
+        {
+          productExtraId,
+          optionExtraConfigId,
+          name: "Airport transfer",
+          quantity: 3,
+          sellCurrency: "EUR",
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(13_000)
+    await expect(
+      db
+        .select({ total: bookingItems.totalSellAmountCents })
+        .from(bookingItems)
+        .where(
+          and(
+            eq(bookingItems.bookingId, outcome.result.booking.id),
+            eq(bookingItems.itemType, "extra"),
+          ),
+        ),
+    ).resolves.toEqual([{ total: 3_000 }])
+  })
+
+  it("rejects a persisted unavailable extra instead of pricing it as free", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    const productExtraId = `pex_bc_${productSeq}_unavailable`
+    const optionExtraConfigId = `oexc_bc_${productSeq}_unavailable`
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 10_000,
+      extra: {
+        productExtraId,
+        optionExtraConfigId,
+        amountCents: 1_000,
+        pricingMode: "unavailable",
+      },
+    })
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      extraLines: [
+        {
+          productExtraId,
+          optionExtraConfigId,
+          name: "Unavailable transfer",
+          quantity: 1,
+          sellCurrency: "EUR",
+        },
+      ],
+    })
+
+    expect(outcome).toEqual({
+      status: "invalid_pricing",
+      issues: [
+        {
+          path: ["extraLines"],
+          message: `Booking extra ${productExtraId} is unavailable and cannot be booked.`,
+        },
+      ],
     })
   })
 
@@ -2078,7 +2210,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
   })
 
-  it("charges one twin room for two adults using traveler-category pricing", async () => {
+  it("charges a category-specific per-booking unit once", async () => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const { optionPriceRuleId } = await seedPersistedPricing({
       productId,
@@ -2104,7 +2236,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         pricing_mode, sell_amount_cents, active
       ) VALUES (
         ${`oupr_bc_${productSeq}_adult`}, ${optionPriceRuleId}, ${optionId}, ${roomUnitId},
-        ${categoryId}, 'per_unit', 12000, true
+        ${categoryId}, 'per_booking', 12000, true
       )
     `)
     const outcome = await createBooking(db, {
@@ -2135,7 +2267,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(outcome.result.booking.sellAmountCents).toBe(24_000)
+    expect(outcome.result.booking.sellAmountCents).toBe(12_000)
     expect(
       await db
         .select({
@@ -2144,7 +2276,80 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         })
         .from(bookingItems)
         .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
-    ).toEqual([{ unit: 24_000, total: 24_000 }])
+    ).toEqual([{ unit: 12_000, total: 12_000 }])
+  })
+
+  it.each([
+    "included",
+    "free",
+  ] as const)("prices a category-specific %s unit at zero", async (pricingMode) => {
+    const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
+    const { optionPriceRuleId } = await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId: roomUnitId,
+      unitAmountCents: 1,
+    })
+    const categoryId = `prct_bc_${productSeq}_${pricingMode}`
+    await db.execute(sql`
+        INSERT INTO pricing_categories (
+          id, product_id, option_id, unit_id, code, name, category_type, active
+        ) VALUES (
+          ${categoryId}, ${productId}, ${optionId}, ${roomUnitId},
+          ${pricingMode}, ${pricingMode}, 'adult', true
+        )
+      `)
+    await db.execute(sql`
+        DELETE FROM option_unit_price_rules WHERE option_price_rule_id = ${optionPriceRuleId}
+      `)
+    await db.execute(sql`
+        INSERT INTO option_unit_price_rules (
+          id, option_price_rule_id, option_id, unit_id, pricing_category_id,
+          pricing_mode, sell_amount_cents, active
+        ) VALUES (
+          ${`oupr_bc_${productSeq}_${pricingMode}`}, ${optionPriceRuleId}, ${optionId},
+          ${roomUnitId}, ${categoryId}, ${pricingMode}, NULL, true
+        )
+      `)
+
+    const outcome = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      personId: "pers_booking_create",
+      contactFirstName: "Alice",
+      contactLastName: "Adult",
+      contactEmail: "alice@example.com",
+      pax: 2,
+      travelers: [
+        {
+          clientTravelerKey: "trav:one",
+          firstName: "Alice",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+        {
+          clientTravelerKey: "trav:two",
+          firstName: "Bob",
+          lastName: "Adult",
+          travelerCategory: "adult",
+        },
+      ],
+      itemLines: [{ optionUnitId: roomUnitId, quantity: 1 }],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+    expect(outcome.result.booking.sellAmountCents).toBe(0)
+    await expect(
+      db
+        .select({
+          unit: bookingItems.unitSellAmountCents,
+          total: bookingItems.totalSellAmountCents,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, outcome.result.booking.id)),
+    ).resolves.toEqual([{ unit: 0, total: 0 }])
   })
 
   it("allocates traveler-category pricing independently across assigned room lines", async () => {

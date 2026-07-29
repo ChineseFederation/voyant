@@ -342,19 +342,31 @@ export const financeInvoiceFromBookingService = {
       if (tax.scope === "withheld" || tax.includedInPrice) return sum
       return sum + tax.amountCents
     }, 0)
-    const includedTaxCents = overrideLineItems
-      ? 0
-      : allocateScheduleTax(await convertBookingTaxToInvoiceCurrency(bookingIncludedTaxCents))
-    const excludedTaxCents = overrideLineItems
-      ? overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0)
-      : allocateScheduleTax(await convertBookingTaxToInvoiceCurrency(bookingExcludedTaxCents))
+    const { includedTaxCents, excludedTaxCents } = overrideLineItems
+      ? {
+          includedTaxCents: 0,
+          excludedTaxCents: overrideLineItems.reduce((sum, line) => sum + line.taxAmountCents, 0),
+        }
+      : paymentSchedule
+        ? {
+            // A schedule amount is already gross of both tax kinds. Convert and
+            // allocate their combined amount once so indivisible cents cannot
+            // be awarded twice to the same installment.
+            includedTaxCents: allocateScheduleTax(
+              await convertBookingTaxToInvoiceCurrency(
+                bookingIncludedTaxCents + bookingExcludedTaxCents,
+              ),
+            ),
+            excludedTaxCents: 0,
+          }
+        : {
+            includedTaxCents: await convertBookingTaxToInvoiceCurrency(bookingIncludedTaxCents),
+            excludedTaxCents: await convertBookingTaxToInvoiceCurrency(bookingExcludedTaxCents),
+          }
     // Payment schedule amounts are portions of the persisted booking total and
     // therefore already include excluded tax. Remove that tax from the schedule
     // line's gross amount before adding it back to the invoice total.
-    const subtotalCents = Math.max(
-      0,
-      grossLineTotalCents - includedTaxCents - (paymentSchedule ? excludedTaxCents : 0),
-    )
+    const subtotalCents = Math.max(0, grossLineTotalCents - includedTaxCents)
     const taxCents = includedTaxCents + excludedTaxCents
     const totalCents = subtotalCents + taxCents
     assertInvoiceFromBookingOverrideTotals(data, { subtotalCents, taxCents, totalCents })
