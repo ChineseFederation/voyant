@@ -174,6 +174,20 @@ pending allowlisted identity before a normal migration can commit:
 - an exact footprint is recorded with the current immutable SQL content hash and
   reported through both `adopted` and the existing `baselined` result/hook.
 
+An allowlist entry may instead name an exact `tables` subset when only part of a
+migration was materialized. The verifier selects the `CREATE TABLE`, owned
+`ALTER TABLE` constraint, and owned `CREATE INDEX` statements for those tables
+and proves that selected footprint against the PostgreSQL catalogs with the same
+strict comparison used for whole-migration adoption. It then skips only those
+verified statements and executes every remaining migration statement inside the
+normal migration transaction. After that transaction succeeds, the collector
+records the migration's original, complete immutable SQL content hash. The
+migration therefore appears in both `executed` (because its remaining SQL ran)
+and `adopted` (because selected DDL was already present); it is not reported as
+`baselined`. An empty `tables` list, an unknown table name, a table without a
+supported `CREATE TABLE` statement, or any unsupported or mismatched selected
+DDL fails closed before execution or a ledger write.
+
 Fresh databases always execute from scratch. Migrations not named in the
 allowlist are never considered for materialized adoption. The verifier supports
 only DDL forms it can prove from PostgreSQL catalogs and fails closed for an

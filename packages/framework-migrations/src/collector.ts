@@ -83,6 +83,11 @@ export interface ApplyMigrationsOptions {
   onBaselined?: (id: string) => void
 }
 
+interface ApplyMigrationsInternalOptions extends ApplyMigrationsOptions {
+  /** Statement indexes proven materialized by the exact-footprint verifier. */
+  materializedStatementIndexes?: Readonly<Record<string, readonly number[]>>
+}
+
 /** Thrown when an already-applied `(source, tag)` arrives with changed SQL. */
 export class MigrationImmutabilityError extends Error {
   constructor(
@@ -287,10 +292,10 @@ async function ensureLedger(
  * migration. Returns the `"{source}/{tag}"` ids executed and import-baselined
  * this run, in apply order.
  */
-export async function applyMigrations(
+async function applyMigrationsInternal(
   client: MigrationClient,
   sources: MigrationSource[],
-  options?: ApplyMigrationsOptions,
+  options?: ApplyMigrationsInternalOptions,
 ): Promise<{ executed: string[]; baselined: string[] }> {
   const ledger = await ensureLedger(client, options)
   const existing = options?.existing ?? false
@@ -349,7 +354,9 @@ export async function applyMigrations(
       for (const statement of compatibilityPreflightStatementsForMigration(m)) {
         await client.query(statement)
       }
-      for (const statement of splitStatements(m.sql)) {
+      const materializedStatements = new Set(options?.materializedStatementIndexes?.[id] ?? [])
+      for (const [index, statement] of splitStatements(m.sql).entries()) {
+        if (materializedStatements.has(index)) continue
         await client.query(statement)
       }
       await client.query(
@@ -366,4 +373,25 @@ export async function applyMigrations(
   }
 
   return { executed, baselined }
+}
+
+export async function applyMigrations(
+  client: MigrationClient,
+  sources: MigrationSource[],
+  options?: ApplyMigrationsOptions,
+): Promise<{ executed: string[]; baselined: string[] }> {
+  return applyMigrationsInternal(client, sources, options)
+}
+
+/** @internal Deployment-runner path after exact statement-footprint verification. */
+export async function applyMigrationsWithMaterializedStatements(
+  client: MigrationClient,
+  sources: MigrationSource[],
+  materializedStatementIndexes: Readonly<Record<string, readonly number[]>>,
+  options?: ApplyMigrationsOptions,
+): Promise<{ executed: string[]; baselined: string[] }> {
+  return applyMigrationsInternal(client, sources, {
+    ...options,
+    materializedStatementIndexes,
+  })
 }

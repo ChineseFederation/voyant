@@ -5,6 +5,11 @@ import type { MigrationClient, PlannedMigration } from "./collector.js"
 export interface MaterializedMigrationAdoption {
   source: string
   tag: string
+  /**
+   * Exact tables whose DDL is already materialized while the remainder of the
+   * migration is still pending. Omit to adopt the migration's whole footprint.
+   */
+  tables?: readonly string[]
 }
 
 interface ExpectedColumn {
@@ -67,6 +72,10 @@ interface LiveFootprint {
 }
 
 export type MaterializedMigrationClassification = { status: "absent" } | { status: "materialized" }
+
+export type MaterializedMigrationTableClassification =
+  | { status: "absent" }
+  | { status: "materialized"; statementIndexes: number[] }
 
 const identifier = `"([^"]+)"`
 
@@ -535,6 +544,60 @@ function createdTables(migration: PlannedMigration): string[] {
   return tables
 }
 
+function migrationForTables(
+  migration: PlannedMigration,
+  requestedTables: readonly string[],
+): { migration: PlannedMigration; statementIndexes: number[] } {
+  const tables = [...new Set(requestedTables.map(postgresIdentifier))]
+  if (tables.length === 0) {
+    unsupported(migration, "a partial adoption must name at least one table")
+  }
+
+  const selected = new Set(tables)
+  const found = new Set<string>()
+  const statements = splitStatements(migration.sql)
+  const statementIndexes: number[] = []
+  const selectedStatements: string[] = []
+
+  for (const [index, statement] of statements.entries()) {
+    const create = statement.match(
+      new RegExp(`^CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?${identifier}\\s*\\(`, "i"),
+    )
+    const alter = statement.match(
+      new RegExp(`^ALTER\\s+TABLE\\s+${identifier}\\s+ADD\\s+CONSTRAINT\\s+`, "i"),
+    )
+    const indexTarget = statement.match(
+      new RegExp(
+        `^CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?${identifier}\\s+ON\\s+${identifier}\\s+`,
+        "i",
+      ),
+    )
+    const table = create?.[1] ?? alter?.[1] ?? indexTarget?.[2]
+    if (!table) continue
+    const normalized = postgresIdentifier(table)
+    if (!selected.has(normalized)) continue
+    if (create) found.add(normalized)
+    statementIndexes.push(index)
+    selectedStatements.push(statement)
+  }
+
+  const unknown = tables.filter((table) => !found.has(table))
+  if (unknown.length > 0) {
+    unsupported(
+      migration,
+      `partial adoption names table(s) not created here: ${unknown.join(", ")}`,
+    )
+  }
+
+  return {
+    migration: {
+      ...migration,
+      sql: selectedStatements.join("\n--> statement-breakpoint\n"),
+    },
+    statementIndexes,
+  }
+}
+
 function strings(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String)
   if (typeof value !== "string") return []
@@ -744,4 +807,27 @@ export async function classifyMaterializedMigration(
   )
   compareFootprint(migration, expected, live)
   return { status: "materialized" }
+}
+
+/**
+ * Classify an explicitly allowlisted subset of one migration's table DDL.
+ * The selected CREATE TABLE statements and every constraint/index statement
+ * owned by those tables must already match exactly. The returned statement
+ * indexes are safe for the deployment runner to omit while it executes the
+ * migration's remaining immutable SQL and records the original content hash.
+ */
+export async function classifyMaterializedMigrationTables(
+  client: MigrationClient,
+  migration: PlannedMigration,
+  tables: readonly string[],
+): Promise<MaterializedMigrationTableClassification> {
+  const selected = migrationForTables(migration, tables)
+  const expected = parseExpectedFootprint(selected.migration)
+  const tableNames = expected.tables.map((table) => table.name)
+  const liveTables = await readLiveTables(client, tableNames)
+  if (liveTables.length === 0) return { status: "absent" }
+
+  const live = await readLiveFootprint(client, tableNames, liveTables)
+  compareFootprint(selected.migration, expected, live)
+  return { status: "materialized", statementIndexes: selected.statementIndexes }
 }

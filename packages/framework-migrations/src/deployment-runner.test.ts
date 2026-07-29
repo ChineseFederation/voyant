@@ -600,6 +600,49 @@ CREATE INDEX "idx_product_itinerary_translations_itinerary" ON "product_itinerar
     expect(statements.some((sql) => sql.startsWith('CREATE TABLE "product_'))).toBe(false)
   })
 
+  it("adopts selected exact table DDL and executes the migration remainder", async () => {
+    const selectedTable = "product_day_service_translations"
+    const { client, ledgerRows, statements } = adoptionClient({
+      tables: [selectedTable],
+      columns: exactColumns.filter((row) => row.table_name === selectedTable),
+      constraints: exactConstraints.filter((row) => row.table_name === selectedTable),
+      indexes: exactIndexes.filter((row) => row.table_name === selectedTable),
+    })
+
+    const result = await runDeploymentMigrations(
+      client,
+      [materializedSource],
+      {},
+      {
+        materializedMigrationAdoptions: [
+          {
+            source: "inventory",
+            tag: "0001_inventory_baseline",
+            tables: [selectedTable],
+          },
+        ],
+      },
+    )
+
+    expect(result.adopted).toEqual(["inventory/0001_inventory_baseline"])
+    expect(result.baselined).toEqual([])
+    expect(result.executed).toEqual(["inventory/0001_inventory_baseline"])
+    expect(ledgerRows).toHaveLength(1)
+    expect(ledgerRows[0]?.content_hash).toMatch(/^[a-f0-9]{64}$/)
+    expect(
+      statements.some((sql) => sql.startsWith('CREATE TABLE "product_day_service_translations"')),
+    ).toBe(false)
+    expect(
+      statements.some((sql) => sql.startsWith('CREATE TABLE "product_itinerary_translations"')),
+    ).toBe(true)
+    expect(statements.some((sql) => sql.includes("uidx_product_day_service_translations"))).toBe(
+      false,
+    )
+    expect(
+      statements.some((sql) => sql.includes("idx_product_itinerary_translations_itinerary")),
+    ).toBe(true)
+  })
+
   it("leaves a wholly absent candidate on the normal execute path for an existing database", async () => {
     const { client, statements } = adoptionClient({ existing: true, tables: [] })
     const result = await runDeploymentMigrations(

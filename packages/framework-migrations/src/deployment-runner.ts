@@ -20,6 +20,7 @@
 import type { MigrationClient, MigrationSource } from "./collector.js"
 import {
   applyMigrations,
+  applyMigrationsWithMaterializedStatements,
   MigrationImmutabilityError,
   type PlannedMigration,
   planMigrations,
@@ -28,6 +29,7 @@ import {
 import type { Cutline } from "./cutline.js"
 import {
   classifyMaterializedMigration,
+  classifyMaterializedMigrationTables,
   type MaterializedMigrationAdoption,
 } from "./materialized-adoption.js"
 
@@ -49,7 +51,7 @@ export interface RunResult {
   executed: string[]
   /** `"{source}/{tag}"` ids import-baselined (recorded, not executed) this run. */
   baselined: string[]
-  /** Allowlisted materialized migrations included in `baselined`. */
+  /** Allowlisted migrations whose whole or selected exact footprint was adopted. */
   adopted: string[]
 }
 
@@ -81,6 +83,7 @@ async function recordedCollectorSources(client: MigrationClient): Promise<Set<st
 }
 
 interface AdoptionCandidate {
+  adoption: MaterializedMigrationAdoption
   migration: PlannedMigration
   source: MigrationSource
 }
@@ -89,24 +92,26 @@ function resolveAdoptionCandidates(
   sources: MigrationSource[],
   adoptions: readonly MaterializedMigrationAdoption[],
 ): AdoptionCandidate[] {
-  const requested = new Set<string>()
+  const requested = new Map<string, MaterializedMigrationAdoption>()
   for (const adoption of adoptions) {
     const id = `${adoption.source}/${adoption.tag}`
     if (requested.has(id)) throw new Error(`duplicate materialized migration adoption: ${id}`)
-    requested.add(id)
+    requested.set(id, adoption)
   }
   const sourceByName = new Map(sources.map((source) => [source.name, source]))
   const candidates: AdoptionCandidate[] = []
   for (const migration of planMigrations(sources)) {
     const id = `${migration.source}/${migration.tag}`
-    if (!requested.delete(id)) continue
+    const adoption = requested.get(id)
+    if (!adoption) continue
+    requested.delete(id)
     const source = sourceByName.get(migration.source)
     if (!source) throw new Error(`migration source disappeared while resolving ${id}`)
-    candidates.push({ migration, source })
+    candidates.push({ adoption, migration, source })
   }
   if (requested.size > 0) {
     throw new Error(
-      `unknown materialized migration adoption(s): ${[...requested].sort().join(", ")}. ` +
+      `unknown materialized migration adoption(s): ${[...requested.keys()].sort().join(", ")}. ` +
         "Every adoption must name an exact source/tag in the current migration plan.",
     )
   }
@@ -435,6 +440,29 @@ function cutlineCovered(sources: MigrationSource[], cutline: Cutline): Migration
     .filter((s) => s.migrations.length > 0)
 }
 
+function withoutMigrationIds(
+  sources: MigrationSource[],
+  excluded: ReadonlySet<string>,
+): MigrationSource[] {
+  return sources
+    .map((source) => ({
+      ...source,
+      migrations: source.migrations.filter(
+        (migration) => !excluded.has(`${source.name}/${migration.tag}`),
+      ),
+    }))
+    .filter((source) => source.migrations.length > 0)
+}
+
+function withoutCutlineMigrationIds(cutline: Cutline, excluded: ReadonlySet<string>): Cutline {
+  return Object.fromEntries(
+    Object.entries(cutline).map(([source, tags]) => [
+      source,
+      tags.filter((tag) => !excluded.has(`${source}/${tag}`)),
+    ]),
+  )
+}
+
 /**
  * Drop migrations already recorded in the ledger (under the source's stable OR
  * legacy names). The baseline parity gate must only assert the schema of
@@ -483,19 +511,41 @@ export async function runDeploymentMigrations(
     const existing = await detectExisting(client)
     let effectiveCutline = cutline
     const materialized: AdoptionCandidate[] = []
+    const partiallyAdopted: string[] = []
+    const materializedStatementIndexes: Record<string, readonly number[]> = {}
     if (existing) {
       // Classify every pending opt-in candidate before any ledger write or
       // normal migration transaction. A partial or definition mismatch aborts
       // the whole run without mutation; wholly absent candidates execute later.
       for (const candidate of await pendingAdoptionCandidates(client, adoptionCandidates)) {
+        const tables = candidate.adoption.tables
+        if (tables) {
+          const classification = await classifyMaterializedMigrationTables(
+            client,
+            candidate.migration,
+            tables,
+          )
+          if (classification.status === "materialized") {
+            const id = `${candidate.migration.source}/${candidate.migration.tag}`
+            partiallyAdopted.push(id)
+            materializedStatementIndexes[id] = classification.statementIndexes
+          }
+          continue
+        }
         const classification = await classifyMaterializedMigration(client, candidate.migration)
         if (classification.status === "materialized") materialized.push(candidate)
       }
 
+      const partiallyAdoptedIds = new Set(partiallyAdopted)
+      effectiveCutline = withoutCutlineMigrationIds(effectiveCutline, partiallyAdoptedIds)
+
       // Parity-gate only the cutline entries this run will import-baseline;
       // already-recorded entries' objects may have been legitimately reshaped by
       // applied post-cutline migrations.
-      const pending = await withoutRecordedMigrations(client, cutlineCovered(sources, cutline))
+      const pending = withoutMigrationIds(
+        await withoutRecordedMigrations(client, cutlineCovered(sources, cutline)),
+        partiallyAdoptedIds,
+      )
       if (pending.length > 0) {
         const [recordedSources, live] = await Promise.all([
           recordedCollectorSources(client),
@@ -519,7 +569,7 @@ export async function runDeploymentMigrations(
         }
         if (expandingSources.size > 0) {
           effectiveCutline = Object.fromEntries(
-            Object.entries(cutline).filter(([source]) => !expandingSources.has(source)),
+            Object.entries(effectiveCutline).filter(([source]) => !expandingSources.has(source)),
           )
         }
       }
@@ -528,7 +578,7 @@ export async function runDeploymentMigrations(
     // Record proven materialized migrations before normal migration commits.
     // Reusing the collector's baseline path guarantees the exact current SQL
     // hash, idempotent inserts, and the ordinary baseline hook semantics.
-    let adopted: string[] = []
+    let fullyAdopted: string[] = []
     if (materialized.length > 0) {
       const materializedSources = sourcesForAdoptions(materialized)
       const adoptionCutline = Object.fromEntries(
@@ -542,15 +592,29 @@ export async function runDeploymentMigrations(
         cutline: adoptionCutline,
         onBaselined: options?.onBaselined,
       })
-      adopted = adoptionResult.baselined
+      fullyAdopted = adoptionResult.baselined
     }
 
-    const { executed, baselined } = await applyMigrations(client, sources, {
+    const applyOptions = {
       cutline: effectiveCutline,
       existing,
       onApplied: options?.onApplied,
       onBaselined: options?.onBaselined,
-    })
-    return { existing, executed, baselined: [...adopted, ...baselined], adopted }
+    }
+    const { executed, baselined } =
+      partiallyAdopted.length > 0
+        ? await applyMigrationsWithMaterializedStatements(
+            client,
+            sources,
+            materializedStatementIndexes,
+            applyOptions,
+          )
+        : await applyMigrations(client, sources, applyOptions)
+    return {
+      existing,
+      executed,
+      baselined: [...fullyAdopted, ...baselined],
+      adopted: [...fullyAdopted, ...partiallyAdopted],
+    }
   })
 }
