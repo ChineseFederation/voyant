@@ -36,6 +36,14 @@ describe("materializeBookingItemTaxLine", () => {
   it("writes a snapshot-fallback tax line when no policy line resolves", async () => {
     const inserted: Array<Record<string, unknown>> = []
     const db = {
+      transaction: async (callback: (tx: unknown) => unknown) => callback(db),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: () => ({ for: async () => [{ id: "item_1" }] }),
+          }),
+        }),
+      }),
       insert: () => ({
         values: (v: Record<string, unknown>) => ({
           onConflictDoNothing: async () => {
@@ -68,6 +76,14 @@ describe("materializeBookingItemTaxLine", () => {
   it("writes nothing when there is no policy line and no snapshot tax", async () => {
     const inserted: Array<Record<string, unknown>> = []
     const db = {
+      transaction: async (callback: (tx: unknown) => unknown) => callback(db),
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: () => ({ for: async () => [{ id: "item_1" }] }),
+          }),
+        }),
+      }),
       insert: () => ({
         values: (v: Record<string, unknown>) => ({
           onConflictDoNothing: async () => {

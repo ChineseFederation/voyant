@@ -139,6 +139,13 @@ function makeDb(options: {
               })),
             }
           }
+          if (table === bookingItemTaxLines) {
+            return {
+              where: vi.fn(() => ({
+                orderBy: vi.fn(async () => rows),
+              })),
+            }
+          }
           return { where: vi.fn(async () => rows) }
         }
         return {

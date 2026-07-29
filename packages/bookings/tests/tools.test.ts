@@ -206,11 +206,51 @@ describe("bookings tools", () => {
           return { data: [] }
         },
         async getBookingById(id) {
-          return bookingDetail(id, "draft")
+          return {
+            ...bookingDetail(id, "draft"),
+            items: [
+              {
+                id: "item_1",
+                bookingId: id,
+                title: "Coastal day cruise",
+                description: null,
+                itemType: "product",
+                status: "confirmed",
+                serviceDate: "2026-08-15",
+                startsAt: null,
+                endsAt: null,
+                quantity: 2,
+                sellCurrency: "EUR",
+                unitSellAmountCents: 40_000,
+                totalSellAmountCents: 80_000,
+                productId: null,
+                optionId: null,
+                optionUnitId: null,
+                availabilitySlotId: null,
+                productNameSnapshot: "Coastal day cruise",
+                optionNameSnapshot: null,
+                unitNameSnapshot: null,
+                departureLabelSnapshot: null,
+                metadata: null,
+                createdAt: "2026-07-15T10:00:00.000Z",
+                updatedAt: "2026-07-15T10:00:00.000Z",
+              },
+            ],
+          }
         },
       }),
     )
-    expect(result).toMatchObject({ id: "bk_1" })
+    expect(result).toMatchObject({
+      id: "bk_1",
+      updatedAt: "2026-07-15T10:00:00.000Z",
+      items: [
+        {
+          title: "Coastal day cruise",
+          quantity: 2,
+          totalSellAmountCents: 80_000,
+        },
+      ],
+    })
   })
 
   it("throws MISSING_SERVICE when unwired", async () => {

@@ -15,42 +15,46 @@ export async function rebuildBookingItemTaxLines(
   bookingId: string,
   options: Pick<CheckoutModuleOptions, "resolveBookingTaxSettings">,
 ): Promise<{ rebuilt: number; itemsWithoutSnapshot: number }> {
-  const { bookingItems: bookingItemsTable, bookings: bookingsTable } = await import(
-    "@voyant-travel/bookings/schema"
-  )
-  const { bookingCatalogSnapshotTable } = await import("@voyant-travel/catalog")
-  const [booking] = await db
-    .select()
-    .from(bookingsTable)
-    .where(eq(bookingsTable.id, bookingId))
-    .limit(1)
-  if (!booking) return { rebuilt: 0, itemsWithoutSnapshot: 0 }
-
-  const items = await db
-    .select()
-    .from(bookingItemsTable)
-    .where(eq(bookingItemsTable.bookingId, bookingId))
-
-  let rebuilt = 0
-  let itemsWithoutSnapshot = 0
-  for (const item of items) {
-    const snapshot = await loadSnapshotForItem(db, bookingCatalogSnapshotTable, item)
-    if (!snapshot) {
-      itemsWithoutSnapshot += 1
-      continue
-    }
-    await db.delete(bookingItemTaxLines).where(eq(bookingItemTaxLines.bookingItemId, item.id))
-    await materializeBookingItemTaxLine(
-      db,
-      booking,
-      item.id,
-      item.totalSellAmountCents ?? 0,
-      snapshot,
-      options,
+  return db.transaction(async (tx) => {
+    const { bookingItems: bookingItemsTable, bookings: bookingsTable } = await import(
+      "@voyant-travel/bookings/schema"
     )
-    rebuilt += 1
-  }
-  return { rebuilt, itemsWithoutSnapshot }
+    const { bookingCatalogSnapshotTable } = await import("@voyant-travel/catalog")
+    const [booking] = await tx
+      .select()
+      .from(bookingsTable)
+      .where(eq(bookingsTable.id, bookingId))
+      .limit(1)
+      .for("update")
+    if (!booking) return { rebuilt: 0, itemsWithoutSnapshot: 0 }
+
+    const items = await tx
+      .select()
+      .from(bookingItemsTable)
+      .where(eq(bookingItemsTable.bookingId, bookingId))
+      .for("update")
+
+    let rebuilt = 0
+    let itemsWithoutSnapshot = 0
+    for (const item of items) {
+      const snapshot = await loadSnapshotForItem(tx, bookingCatalogSnapshotTable, item)
+      if (!snapshot) {
+        itemsWithoutSnapshot += 1
+        continue
+      }
+      await tx.delete(bookingItemTaxLines).where(eq(bookingItemTaxLines.bookingItemId, item.id))
+      await materializeBookingItemTaxLineLocked(
+        tx,
+        booking,
+        item.id,
+        item.totalSellAmountCents ?? 0,
+        snapshot,
+        options,
+      )
+      rebuilt += 1
+    }
+    return { rebuilt, itemsWithoutSnapshot }
+  })
 }
 
 async function loadSnapshotForItem(
@@ -97,6 +101,34 @@ function toMaterializationSnapshot(
 }
 
 export async function materializeBookingItemTaxLine(
+  db: PostgresJsDatabase,
+  booking: typeof bookings.$inferSelect,
+  bookingItemId: string,
+  amountCents: number,
+  snapshot: MaterializationSnapshot,
+  options: Pick<CheckoutModuleOptions, "resolveBookingTaxSettings">,
+) {
+  const { bookingItems: bookingItemsTable } = await import("@voyant-travel/bookings/schema")
+  return db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({ id: bookingItemsTable.id })
+      .from(bookingItemsTable)
+      .where(eq(bookingItemsTable.id, bookingItemId))
+      .limit(1)
+      .for("update")
+    if (!item) return
+    return materializeBookingItemTaxLineLocked(
+      tx,
+      booking,
+      bookingItemId,
+      amountCents,
+      snapshot,
+      options,
+    )
+  })
+}
+
+async function materializeBookingItemTaxLineLocked(
   db: PostgresJsDatabase,
   booking: typeof bookings.$inferSelect,
   bookingItemId: string,

@@ -73,6 +73,10 @@ export interface FinanceToolServices {
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
+  previewUnsyncedProformaFromBooking(input: { bookingId: string }): Promise<unknown>
+  issueUnsyncedProformaFromBooking(
+    input: z.infer<typeof issueUnsyncedProformaFromBookingToolInputSchema>,
+  ): Promise<unknown>
 }
 
 export type FinanceToolContext = ToolContext & { finance?: FinanceToolServices }
@@ -350,12 +354,136 @@ export const issueInvoiceFromBookingTool = defineTool<
   },
 })
 
+export const unsyncedProformaApprovalSnapshotSchema = z.object({
+  id: z.string(),
+  bookingId: z.string(),
+  bookingNumber: z.string(),
+  bookingUpdatedAt: z.string().datetime(),
+  snapshotFingerprint: z.string().min(1),
+  payer: z.object({
+    type: z.enum(["organization", "person"]),
+    id: z.string().nullable(),
+  }),
+  currency: z.string(),
+  subtotalCents: z.number().int(),
+  taxCents: z.number().int(),
+  totalCents: z.number().int(),
+  lines: z.array(
+    z.object({
+      bookingItemId: z.string().nullable(),
+      description: z.string(),
+      quantity: z.number().int(),
+      unitPriceCents: z.number().int(),
+      totalCents: z.number().int(),
+      taxes: z.array(
+        z.object({
+          code: z.string().nullable(),
+          name: z.string(),
+          jurisdiction: z.string().nullable(),
+          scope: z.string(),
+          currency: z.string(),
+          amountCents: z.number().int(),
+          rateBasisPoints: z.number().int().nullable(),
+          includedInPrice: z.boolean(),
+          remittanceParty: z.string().nullable(),
+          sortOrder: z.number().int(),
+        }),
+      ),
+    }),
+  ),
+})
+
+export const previewUnsyncedProformaFromBookingTool = defineTool<
+  { bookingId: string },
+  z.infer<typeof unsyncedProformaApprovalSnapshotSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.preview-unsynced-proforma-from-booking",
+  capabilityVersion: "v1",
+  name: "preview_unsynced_proforma_from_booking",
+  description:
+    "Read the exact authoritative payer, amount, line, and tax snapshot for an unsynced proforma. Call once before issue_unsynced_proforma_from_booking and pass its revision and fingerprint unchanged.",
+  inputSchema: z.strictObject({ bookingId: z.string().min(1) }),
+  outputSchema: unsyncedProformaApprovalSnapshotSchema,
+  requiredScopes: ["finance:write", "bookings:read"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  async handler(input, ctx) {
+    return unsyncedProformaApprovalSnapshotSchema.parse(
+      await finance(ctx).previewUnsyncedProformaFromBooking(input),
+    )
+  },
+})
+
+export const issueUnsyncedProformaFromBookingToolInputSchema = z.strictObject({
+  bookingId: z.string().min(1).describe("The booking id returned by the preview Tool."),
+  bookingUpdatedAt: z
+    .string()
+    .datetime()
+    .describe(
+      "The booking revision returned by the same preview call. A changed booking is refused before document creation.",
+    ),
+  snapshotFingerprint: z
+    .string()
+    .min(1)
+    .describe("The exact approval snapshot fingerprint returned by the preview Tool."),
+  issueDate: z.string().min(1).describe("The proforma issue date (YYYY-MM-DD)."),
+  dueDate: z.string().min(1).describe("The proforma due date (YYYY-MM-DD)."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Stable key used when requesting approval and replaying the exact command."),
+  approvalId: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("Approval id returned after the exact prior command is approved."),
+})
+
+export const issueUnsyncedProformaFromBookingTool = defineTool<
+  z.infer<typeof issueUnsyncedProformaFromBookingToolInputSchema>,
+  z.infer<typeof issueInvoiceFromBookingToolOutputSchema>,
+  FinanceToolContext
+>({
+  owner: "@voyant-travel/finance",
+  capabilityId: "@voyant-travel/finance#tool.issue-unsynced-proforma-from-booking",
+  capabilityVersion: "v1",
+  name: "issue_unsynced_proforma_from_booking",
+  description:
+    "Create and issue one proforma from a known booking after exact approval, without fiscalizing it, syncing it to an external accounting provider, sending it, or creating a payment link. This capability cannot create a draft: for a draft-only request, do not call it; explain that draft-only is unsupported and offer either this created/issued unsynced proforma or no document. Call preview_unsynced_proforma_from_booking once, then pass its booking id, revision, and snapshot fingerprint unchanged. Amount, currency, payer, line items, and taxes are derived from that authoritative snapshot.",
+  inputSchema: issueUnsyncedProformaFromBookingToolInputSchema,
+  outputSchema: issueInvoiceFromBookingToolOutputSchema,
+  requiredScopes: ["finance:write", "bookings:read"],
+  audience: { source: "grant", allowed: ["staff"] },
+  actionPolicyEnforcement: "handler",
+  tier: "destructive",
+  riskPolicy: {
+    destructive: false,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write"],
+  },
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    return issueInvoiceFromBookingToolOutputSchema.parse(
+      await finance(ctx).issueUnsyncedProformaFromBooking(input),
+    )
+  },
+})
+
 export const financeTools = [
   listInvoicesTool,
   getInvoiceTool,
   voidInvoiceTool,
   issueInvoiceRefundTool,
   issueInvoiceFromBookingTool,
+  previewUnsyncedProformaFromBookingTool,
+  issueUnsyncedProformaFromBookingTool,
 ] as const
 
 function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {

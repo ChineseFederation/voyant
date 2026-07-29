@@ -5,7 +5,12 @@ import {
 } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../src/booking-create-policy.js"
-import { type FinanceToolServices, financeBookingsCreateTools, financeTools } from "../src/tools.js"
+import {
+  type FinanceToolServices,
+  financeBookingsCreateTools,
+  financeTools,
+  issueUnsyncedProformaFromBookingToolInputSchema,
+} from "../src/tools.js"
 import { financeBookingsCreateVoyantPlugin } from "../src/voyant.js"
 
 function ctx(
@@ -78,6 +83,30 @@ function bookingDetail(id = "booking_1") {
 }
 
 describe("finance tools", () => {
+  it("refuses draft-only and raw external-sync controls before mutation", () => {
+    const base = {
+      bookingId: "booking_1",
+      bookingUpdatedAt: "2026-07-15T09:30:00.000Z",
+      snapshotFingerprint: "snapshot_1",
+      issueDate: "2026-07-15",
+      dueDate: "2026-08-15",
+      idempotencyKey: "proforma-booking-1-v1",
+    }
+
+    expect(
+      issueUnsyncedProformaFromBookingToolInputSchema.safeParse({
+        ...base,
+        documentState: "draft",
+      }).success,
+    ).toBe(false)
+    expect(
+      issueUnsyncedProformaFromBookingToolInputSchema.safeParse({
+        ...base,
+        skipExternalSync: false,
+      }).success,
+    ).toBe(false)
+  })
+
   it("registers read tools and destructive finance actions", () => {
     const registry = createToolRegistry()
     registry.registerAll(financeTools)
@@ -86,7 +115,9 @@ describe("finance tools", () => {
       "get_invoice",
       "issue_invoice_from_booking",
       "issue_invoice_refund",
+      "issue_unsynced_proforma_from_booking",
       "list_invoices",
+      "preview_unsynced_proforma_from_booking",
       "void_invoice",
     ])
     const voidTool = list.find((t) => t.name === "void_invoice")
@@ -220,6 +251,53 @@ describe("finance tools", () => {
           replayed: false,
         }
       },
+      async previewUnsyncedProformaFromBooking({ bookingId }) {
+        return {
+          id: bookingId,
+          bookingId,
+          bookingNumber: "BK-1",
+          bookingUpdatedAt: "2026-07-15T09:30:00.000Z",
+          snapshotFingerprint: "snapshot_1",
+          payer: { type: "organization", id: "org_1" },
+          currency: "EUR",
+          subtotalCents: 80_000,
+          taxCents: 0,
+          totalCents: 80_000,
+          lines: [],
+        }
+      },
+      async issueUnsyncedProformaFromBooking(input) {
+        expect(input).toEqual({
+          bookingId: "booking_1",
+          bookingUpdatedAt: "2026-07-15T09:30:00.000Z",
+          snapshotFingerprint: "snapshot_1",
+          issueDate: "2026-07-15",
+          dueDate: "2026-08-15",
+          idempotencyKey: "proforma-booking-1-v1",
+        })
+        return {
+          status: "approval_required",
+          requestedAction: {
+            id: "act_proforma_1",
+            status: "awaiting_approval",
+            actionName: "finance.invoice.issue_from_booking",
+            targetType: "booking",
+            targetId: "booking_1",
+          },
+          approval: {
+            id: "apr_proforma_1",
+            status: "pending",
+            requestedActionId: "act_proforma_1",
+            policyName: "finance-invoice-issue-approval-v1",
+            policyVersion: "v1",
+            riskSnapshot: "high",
+            reasonCode: "invoice_issue_from_booking_requested_by_agent",
+            expiresAt: null,
+            createdAt: "2026-07-15T10:00:00.000Z",
+          },
+          replayed: false,
+        }
+      },
     }
     expect(await registry.dispatch("get_invoice", { id: "inv_1" }, ctx(services))).toMatchObject({
       id: "inv_1",
@@ -258,6 +336,32 @@ describe("finance tools", () => {
         ctx(services),
       ),
     ).toMatchObject({ status: "approval_required", approval: { id: "apr_invoice_1" } })
+    expect(
+      await registry.dispatch(
+        "preview_unsynced_proforma_from_booking",
+        { bookingId: "booking_1" },
+        ctx(services),
+      ),
+    ).toMatchObject({
+      bookingId: "booking_1",
+      payer: { type: "organization", id: "org_1" },
+      snapshotFingerprint: "snapshot_1",
+      totalCents: 80_000,
+    })
+    expect(
+      await registry.dispatch(
+        "issue_unsynced_proforma_from_booking",
+        {
+          bookingId: "booking_1",
+          bookingUpdatedAt: "2026-07-15T09:30:00.000Z",
+          snapshotFingerprint: "snapshot_1",
+          issueDate: "2026-07-15",
+          dueDate: "2026-08-15",
+          idempotencyKey: "proforma-booking-1-v1",
+        },
+        ctx(services),
+      ),
+    ).toMatchObject({ status: "approval_required", approval: { id: "apr_proforma_1" } })
   })
 
   it("allocates the booking reference through a Tool instead of leaving it to the caller", async () => {

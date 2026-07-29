@@ -6,6 +6,7 @@ import type {
   PostgresJsDatabase,
 } from "./service-shared.js"
 import {
+  asc,
   assertInvoiceFromBookingOverrideTotals,
   bookingItemCommissions,
   bookingItemTaxLines,
@@ -167,6 +168,12 @@ export const financeInvoiceFromBookingService = {
             .select()
             .from(bookingItemTaxLines)
             .where(or(...itemIds.map((id) => eq(bookingItemTaxLines.bookingItemId, id))))
+            .orderBy(
+              asc(bookingItemTaxLines.bookingItemId),
+              asc(bookingItemTaxLines.sortOrder),
+              asc(bookingItemTaxLines.createdAt),
+              asc(bookingItemTaxLines.id),
+            )
 
     const commissions =
       commissionItemIds.length === 0

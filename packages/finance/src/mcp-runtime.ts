@@ -30,7 +30,10 @@ import {
 import { getFinanceRouteRuntime } from "./routes-runtime.js"
 import type { Env } from "./routes-shared.js"
 import { type CreateInvoiceFromBookingInput, financeService } from "./service.js"
-import { issueInvoiceFromBookingCommand } from "./service-issue.js"
+import {
+  buildUnsyncedProformaApprovalSnapshot,
+  issueInvoiceFromBookingCommand,
+} from "./service-issue.js"
 
 export * from "./tools.js"
 
@@ -96,61 +99,51 @@ export const voyantToolContextContribution = defineToolContextContribution({
           idempotencyKey: string
           approvalId?: string
         }) {
-          const { command, idempotencyKey, approvalId } = input
-          const requestContext = financeToolActionLedgerContext(c)
-          const authorization = await authorizeFinanceInvoiceIssue({
+          return executeInvoiceIssueTool({ db, c, ...input })
+        },
+        async previewUnsyncedProformaFromBooking(input: { bookingId: string }) {
+          const snapshot = await buildUnsyncedProformaApprovalSnapshot(
             db,
-            commandInput: command,
-            actor: c.get("actor"),
-            callerType: c.get("callerType"),
-            scopes: c.get("scopes"),
-            isInternalRequest: c.get("isInternalRequest"),
-            requestContext,
-            approvalId: approvalId ?? null,
-            idempotencyKey,
+            input.bookingId,
+            getFinanceRouteRuntime(c),
+          )
+          if (!snapshot) {
+            throw new ToolError("Booking was not found.", "NOT_FOUND", {
+              bookingId: input.bookingId,
+            })
+          }
+          return snapshot
+        },
+        async issueUnsyncedProformaFromBooking(input: {
+          bookingId: string
+          bookingUpdatedAt: string
+          snapshotFingerprint: string
+          issueDate: string
+          dueDate: string
+          idempotencyKey: string
+          approvalId?: string
+        }) {
+          const command = {
+            bookingId: input.bookingId,
+            issueDate: input.issueDate,
+            dueDate: input.dueDate,
+            invoiceType: "proforma" as const,
+            skipExternalSync: true,
+          }
+          return executeInvoiceIssueTool({
+            db,
+            c,
+            command,
+            authorizationCommand: {
+              ...command,
+              bookingUpdatedAt: input.bookingUpdatedAt,
+              snapshotFingerprint: input.snapshotFingerprint,
+            },
+            expectedBookingUpdatedAt: input.bookingUpdatedAt,
+            expectedSnapshotFingerprint: input.snapshotFingerprint,
+            idempotencyKey: input.idempotencyKey,
+            approvalId: input.approvalId,
           })
-          if (authorization.status === "approval_required") {
-            return pendingApprovalResult(authorization)
-          }
-          if (authorization.status === "already_executed") {
-            const invoice = await financeService.getInvoiceById(db, authorization.invoiceId)
-            if (!invoice) {
-              throw new ToolError("The previously issued invoice was not found.", "NOT_FOUND", {
-                invoiceId: authorization.invoiceId,
-              })
-            }
-            return { status: "issued" as const, invoice: toJsonValue(invoice), replayed: true }
-          }
-          if (authorization.status !== "authorized") {
-            throw financeInvoiceIssueAuthorizationError(authorization)
-          }
-
-          const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
-          const outcome = await issueInvoiceFromBookingCommand(db, command, {
-            ...getFinanceRouteRuntime(c),
-            actionLedgerContext: requestContext,
-            actionLedgerAuthorizationSource: authorization.access.authorizationSource,
-            actionLedgerActionName: FINANCE_INVOICE_ISSUE_ACTION_NAME,
-            actionLedgerRouteOrToolName: FINANCE_INVOICE_ISSUE_TOOL_NAME,
-            actionLedgerCapabilityId: FINANCE_INVOICE_ISSUE_CAPABILITY.id,
-            actionLedgerCapabilityVersion: FINANCE_INVOICE_ISSUE_CAPABILITY.version,
-            actionLedgerEvaluatedRisk: FINANCE_INVOICE_ISSUE_CAPABILITY.risk,
-            actionLedgerCausationActionId: approved.causationActionId,
-            actionLedgerApprovalId: approved.approvalId,
-            actionLedgerIdempotencyScope: approved.idempotencyScope,
-            actionLedgerIdempotencyKey: approved.idempotencyKey,
-            actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
-          })
-          if (outcome.status !== "issued") {
-            const subject =
-              outcome.status === "booking_not_found" ? "Booking" : "Booking payment schedule"
-            throw new ToolError(`${subject} was not found.`, "NOT_FOUND", { outcome })
-          }
-          return {
-            status: "issued" as const,
-            invoice: toJsonValue(outcome.invoice),
-            replayed: false,
-          }
         },
         async issueInvoiceRefund(input: {
           invoiceId: string
@@ -274,6 +267,89 @@ export const voyantToolContextContribution = defineToolContextContribution({
     }
   },
 })
+
+async function executeInvoiceIssueTool(input: {
+  db: PostgresJsDatabase
+  c: Context<Env>
+  command: CreateInvoiceFromBookingInput
+  authorizationCommand?: CreateInvoiceFromBookingInput & {
+    bookingUpdatedAt?: string
+    snapshotFingerprint?: string
+  }
+  expectedBookingUpdatedAt?: string
+  expectedSnapshotFingerprint?: string
+  idempotencyKey: string
+  approvalId?: string
+}) {
+  const requestContext = financeToolActionLedgerContext(input.c)
+  const authorization = await authorizeFinanceInvoiceIssue({
+    db: input.db,
+    commandInput: input.authorizationCommand ?? input.command,
+    actor: input.c.get("actor"),
+    callerType: input.c.get("callerType"),
+    scopes: input.c.get("scopes"),
+    isInternalRequest: input.c.get("isInternalRequest"),
+    requestContext,
+    approvalId: input.approvalId ?? null,
+    idempotencyKey: input.idempotencyKey,
+  })
+  if (authorization.status === "approval_required") {
+    return pendingApprovalResult(authorization)
+  }
+  if (authorization.status === "already_executed") {
+    const invoice = await financeService.getInvoiceById(input.db, authorization.invoiceId)
+    if (!invoice) {
+      throw new ToolError("The previously issued invoice was not found.", "NOT_FOUND", {
+        invoiceId: authorization.invoiceId,
+      })
+    }
+    return { status: "issued" as const, invoice: toJsonValue(invoice), replayed: true }
+  }
+  if (authorization.status !== "authorized") {
+    throw financeInvoiceIssueAuthorizationError(authorization)
+  }
+
+  const approved = buildActionLedgerApprovedExecutionFields(authorization.approvedAction)
+  const outcome = await issueInvoiceFromBookingCommand(
+    input.db,
+    input.command,
+    {
+      ...getFinanceRouteRuntime(input.c),
+      actionLedgerContext: requestContext,
+      actionLedgerAuthorizationSource: authorization.access.authorizationSource,
+      actionLedgerActionName: FINANCE_INVOICE_ISSUE_ACTION_NAME,
+      actionLedgerRouteOrToolName: FINANCE_INVOICE_ISSUE_TOOL_NAME,
+      actionLedgerCapabilityId: FINANCE_INVOICE_ISSUE_CAPABILITY.id,
+      actionLedgerCapabilityVersion: FINANCE_INVOICE_ISSUE_CAPABILITY.version,
+      actionLedgerEvaluatedRisk: FINANCE_INVOICE_ISSUE_CAPABILITY.risk,
+      actionLedgerCausationActionId: approved.causationActionId,
+      actionLedgerApprovalId: approved.approvalId,
+      actionLedgerIdempotencyScope: approved.idempotencyScope,
+      actionLedgerIdempotencyKey: approved.idempotencyKey,
+      actionLedgerIdempotencyFingerprint: approved.idempotencyFingerprint,
+    },
+    {
+      expectedBookingUpdatedAt: input.expectedBookingUpdatedAt,
+      expectedSnapshotFingerprint: input.expectedSnapshotFingerprint,
+    },
+  )
+  if (outcome.status === "booking_changed" || outcome.status === "approval_snapshot_changed") {
+    throw new ToolError(
+      `Booking ${outcome.bookingNumber} changed after it was reviewed. Read it once more and ask for approval again; no proforma was created.`,
+      "INVALID_INPUT",
+      { reason: "booking_changed", outcome },
+    )
+  }
+  if (outcome.status !== "issued") {
+    const subject = outcome.status === "booking_not_found" ? "Booking" : "Booking payment schedule"
+    throw new ToolError(`${subject} was not found.`, "NOT_FOUND", { outcome })
+  }
+  return {
+    status: "issued" as const,
+    invoice: toJsonValue(outcome.invoice),
+    replayed: false,
+  }
+}
 
 function financeToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues {
   return {
