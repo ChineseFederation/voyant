@@ -2136,6 +2136,73 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
   })
 
+  it("prices against the selected non-default catalog instead of the default one", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    // Default public catalog priced at 40_000 per unit.
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 40_000,
+    })
+    // A second, non-default public catalog the quote can select explicitly,
+    // priced lower. When the quote used this catalog's id, create-time
+    // reconciliation must re-derive from it rather than collapsing to the
+    // default catalog and its 40_000 rule.
+    const selectedCatalogId = `pcat_bc_${productSeq}_selected`
+    const selectedRuleId = `oprl_bc_${productSeq}_selected`
+    await db.execute(sql`
+      INSERT INTO price_catalogs (id, code, name, currency_code, catalog_type, is_default, active)
+      VALUES (
+        ${selectedCatalogId}, ${`PUBLIC-${productSeq}-SEL`}, 'Public selected', 'EUR',
+        'public', false, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_price_rules (
+        id, product_id, option_id, price_catalog_id, name, pricing_mode,
+        base_sell_amount_cents, is_default, active
+      ) VALUES (
+        ${selectedRuleId}, ${productId}, ${optionId}, ${selectedCatalogId},
+        'Selected catalog rate', 'per_booking', null, true, true
+      )
+    `)
+    await db.execute(sql`
+      INSERT INTO option_unit_price_rules (
+        id, option_price_rule_id, option_id, unit_id, pricing_mode, sell_amount_cents, active
+      ) VALUES (
+        ${`oupr_bc_${productSeq}_selected`}, ${selectedRuleId}, ${optionId}, ${unitId},
+        'per_unit', 25_000, true
+      )
+    `)
+
+    // Sanity: omitting catalogId still prices against the default catalog.
+    const defaultPriced = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+    })
+    expect(defaultPriced.status).toBe("ok")
+    if (defaultPriced.status !== "ok") return
+    expect(defaultPriced.result.booking.sellAmountCents).toBe(40_000)
+
+    // Selecting the non-default catalog reprices from that catalog's rule.
+    const selectedPriced = await createBooking(db, {
+      productId,
+      optionId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      itemLines: [{ optionUnitId: unitId, quantity: 1 }],
+      catalogId: selectedCatalogId,
+    })
+    expect(selectedPriced.status).toBe("ok")
+    if (selectedPriced.status !== "ok") return
+    expect(selectedPriced.result.booking.sellAmountCents).toBe(25_000)
+    expect(selectedPriced.result.booking.priceOverride).toBeNull()
+  })
+
   it("prices selected units and extras from persisted rules and keeps invoice totals aligned", async () => {
     const { productId, optionId, unitId } = await seedProduct({ pax: null })
     const productExtraId = `pex_bc_${productSeq}`

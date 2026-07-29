@@ -378,6 +378,24 @@ const bookingCreateBaseSchema = z.object({
       "Chosen product option id. Resolve it with `list_product_options`; supply it explicitly when the product has rooms or multiple options.",
     ),
   slotId: z.string().optional().nullable(),
+  /**
+   * Public price catalog the quote was priced against. When a booking is quoted
+   * through the explicit `catalogId` path (a non-default public catalog),
+   * thread that same id here so create-time reconciliation re-derives the
+   * persisted price from the approved catalog instead of silently falling back
+   * to the default one. Only used to constrain the authoritative persisted
+   * lookup — never trusted as a price — so an inactive or unknown id resolves to
+   * no persisted pricing, exactly like the public quote. Omit it to price
+   * against the default public catalog.
+   */
+  catalogId: z
+    .string()
+    .min(1)
+    .optional()
+    .nullable()
+    .describe(
+      "Public price catalog id the quote used. Resolve it from the quote's `catalog.id`; omit to use the default public catalog.",
+    ),
   /** Pre-booking availability hold converted inside the create transaction. */
   availabilityHoldToken: z.string().min(1).optional(),
   /**
@@ -1256,6 +1274,7 @@ async function reconcileBookingCreatePricing(
         productId: input.productId,
         optionId: selectedOptionId,
         slotId: input.slotId ?? null,
+        catalogId: input.catalogId ?? null,
       })
     : null
 
@@ -1720,17 +1739,36 @@ function selectPersistedPriceRule(rules: PersistedPriceRuleCandidate[], slotDate
 
 async function loadPersistedBookingCreatePricing(
   tx: PostgresJsDatabase,
-  input: { productId: string; optionId: string; slotId: string | null },
+  input: { productId: string; optionId: string; slotId: string | null; catalogId?: string | null },
 ) {
+  // Honor the catalog the quote was priced against. Mirrors the public quote's
+  // `resolvePublicCatalog`: an explicit id pins the lookup to that active public
+  // catalog (so a non-default selection isn't discarded for the default), while
+  // an omitted id falls back to the default public catalog. The id only
+  // constrains this authoritative lookup — the price is always re-derived from
+  // persisted rules — so an unknown or inactive id resolves to no catalog and
+  // reconciliation reports no persisted pricing rather than trusting a stale
+  // caller amount.
   const [catalog] = toRows<{ id: string; currencyCode: string | null }>(
-    await tx.execute(sql`
-      SELECT id, currency_code AS "currencyCode"
-      FROM price_catalogs
-      WHERE active = true
-        AND catalog_type = 'public'
-      ORDER BY is_default DESC, name ASC
-      LIMIT 1
-    `),
+    await tx.execute(
+      input.catalogId
+        ? sql`
+            SELECT id, currency_code AS "currencyCode"
+            FROM price_catalogs
+            WHERE active = true
+              AND catalog_type = 'public'
+              AND id = ${input.catalogId}
+            LIMIT 1
+          `
+        : sql`
+            SELECT id, currency_code AS "currencyCode"
+            FROM price_catalogs
+            WHERE active = true
+              AND catalog_type = 'public'
+            ORDER BY is_default DESC, name ASC
+            LIMIT 1
+          `,
+    ),
   )
   if (!catalog) return null
   const [slot] = input.slotId
