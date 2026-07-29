@@ -2,12 +2,16 @@ import { sha256 } from "@voyant-travel/action-ledger"
 import { bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import type { z } from "zod"
+import { z } from "zod"
 import { legalContractDetail } from "./contract-dto.js"
 import { contracts, contractTemplates, contractTemplateVersions } from "./contracts/schema.js"
 import type { bookingContractReviewSchema } from "./tools.js"
 
 type BookingContractReview = z.infer<typeof bookingContractReviewSchema>
+type BookingContractReviewSnapshot = Pick<
+  BookingContractReview,
+  "booking" | "products" | "commercialTerms"
+>
 
 export async function bookingContractContentFingerprint(contract: {
   id: string
@@ -17,7 +21,10 @@ export async function bookingContractContentFingerprint(contract: {
   templateVersionId: string | null
   variables: unknown
   renderedBody: string | null
+  metadata?: unknown
 }): Promise<string> {
+  const metadata = record(contract.metadata)
+  const workflow = record(metadata.bookingContractWorkflow)
   const digest = await sha256({
     contractId: contract.id,
     bookingId: contract.bookingId,
@@ -26,6 +33,7 @@ export async function bookingContractContentFingerprint(contract: {
     templateVersionId: contract.templateVersionId,
     variables: contract.variables,
     renderedBody: contract.renderedBody,
+    reviewSnapshot: workflow.reviewSnapshot ?? null,
   })
   return `booking-contract-content:v1:sha256:${digest}`
 }
@@ -87,6 +95,36 @@ export function bookingContractCustomerVariables(booking: {
     name: [booking.contactFirstName, booking.contactLastName].filter(Boolean).join(" ") || null,
     email: booking.contactEmail,
     phone: booking.contactPhone,
+  }
+}
+
+export function bookingContractReviewSnapshot(input: {
+  booking: typeof bookings.$inferSelect
+  items: readonly (typeof bookingItems.$inferSelect)[]
+  language: string
+  commercialTerms: Record<string, unknown>
+}): BookingContractReviewSnapshot {
+  return {
+    booking: {
+      id: input.booking.id,
+      reference: input.booking.bookingNumber,
+      customerName:
+        [input.booking.contactFirstName, input.booking.contactLastName].filter(Boolean).join(" ") ||
+        null,
+      customerEmail: input.booking.contactEmail,
+      language: input.language,
+      currency: input.booking.sellCurrency,
+      totalAmountCents: input.booking.sellAmountCents,
+      startDate: input.booking.startDate,
+      endDate: input.booking.endDate,
+    },
+    products: input.items.map((item) => ({
+      title: item.productNameSnapshot ?? item.title,
+      quantity: item.quantity,
+      amountCents: item.totalSellAmountCents,
+      currency: item.sellCurrency,
+    })),
+    commercialTerms: input.commercialTerms as BookingContractReview["commercialTerms"],
   }
 }
 
@@ -205,13 +243,10 @@ export async function getBookingContractReview(
     .where(eq(contracts.id, contractId))
     .limit(1)
   if (!row) return null
-  const items = await db
-    .select()
-    .from(bookingItems)
-    .where(eq(bookingItems.bookingId, row.booking.id))
   const metadata = record(row.contract.metadata)
   const workflow = record(metadata.bookingContractWorkflow)
   const delivery = record(workflow.delivery)
+  const snapshot = bookingContractReviewSnapshotSchema.parse(workflow.reviewSnapshot)
   const effectiveStatus =
     row.contract.status === "void"
       ? "void"
@@ -232,25 +267,8 @@ export async function getBookingContractReview(
     revision: typeof workflow.revision === "number" ? workflow.revision : 1,
     previousRevisionId:
       typeof workflow.previousRevisionId === "string" ? workflow.previousRevisionId : null,
-    booking: {
-      id: row.booking.id,
-      reference: row.booking.bookingNumber,
-      customerName:
-        [row.booking.contactFirstName, row.booking.contactLastName].filter(Boolean).join(" ") ||
-        null,
-      customerEmail: row.booking.contactEmail,
-      language: row.contract.language,
-      currency: row.booking.sellCurrency,
-      totalAmountCents: row.booking.sellAmountCents,
-      startDate: row.booking.startDate,
-      endDate: row.booking.endDate,
-    },
-    products: items.map((item) => ({
-      title: item.productNameSnapshot ?? item.title,
-      quantity: item.quantity,
-      amountCents: item.totalSellAmountCents,
-      currency: item.sellCurrency,
-    })),
+    booking: snapshot.booking,
+    products: snapshot.products,
     template: {
       id: row.template.id,
       name: row.template.name,
@@ -258,9 +276,7 @@ export async function getBookingContractReview(
       version: row.version.version,
       language: row.template.language,
     },
-    commercialTerms: record(
-      record(row.contract.variables).commercial,
-    ) as BookingContractReview["commercialTerms"],
+    commercialTerms: snapshot.commercialTerms,
     delivery: {
       recipient: typeof delivery.recipient === "string" ? delivery.recipient : null,
       channel:
@@ -282,6 +298,29 @@ export async function getBookingContractReview(
     ],
   }
 }
+
+const bookingContractReviewSnapshotSchema = z.object({
+  booking: z.object({
+    id: z.string(),
+    reference: z.string(),
+    customerName: z.string().nullable(),
+    customerEmail: z.string().nullable(),
+    language: z.string(),
+    currency: z.string(),
+    totalAmountCents: z.number().int().nullable(),
+    startDate: z.string().nullable(),
+    endDate: z.string().nullable(),
+  }),
+  products: z.array(
+    z.object({
+      title: z.string(),
+      quantity: z.number().int().positive(),
+      amountCents: z.number().int().nullable(),
+      currency: z.string(),
+    }),
+  ),
+  commercialTerms: z.record(z.string(), z.json()),
+})
 
 /**
  * Trusted delivery/signature adapters use this narrow durable seam for the two

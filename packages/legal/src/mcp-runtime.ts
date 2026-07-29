@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: legal; tool runtime contribution stays co-located with legal Tool services and durable command execution so admission, audit, and workflow snapshots share one service boundary.
 import {
   type ActionLedgerRequestContextValues,
   type ExecuteAdmittedCreatedTargetCommandInput,
@@ -14,11 +15,12 @@ import {
   ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import {
   bookingContractPrerequisites,
+  bookingContractReviewSnapshot,
   bookingContractTemplateMatchesChannel,
   getBookingContractReview,
   listApplicableBookingContractTemplates,
@@ -83,6 +85,12 @@ type LegalMcpContext = Context<{
   }
 }>
 
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["legal", "legalContractDocument"],
   async contribute({ request, context, resources }) {
@@ -141,8 +149,30 @@ export function createLegalToolServices(
       const result = await contractsService.listTemplates(db, query)
       return { data: result.data.map(templateSummary), meta: pageMeta(result) }
     },
-    listApplicableBookingTemplates(input) {
-      return listApplicableBookingContractTemplates(db, input)
+    async listApplicableBookingTemplates(input) {
+      const result = await listApplicableBookingContractTemplates(db, input)
+      if (result.bookingFound) {
+        await db.insert(bookingPiiAccessLog).values({
+          bookingId: input.bookingId,
+          travelerId: null,
+          actorId:
+            requestContext.userId ??
+            requestContext.agentId ??
+            requestContext.workflowPrincipalId ??
+            null,
+          actorType: requestContext.actor ?? null,
+          callerType: requestContext.callerType ?? null,
+          action: "read",
+          outcome: "allowed",
+          reason: "contract_template_applicability_reveal",
+          metadata: {
+            bookingId: input.bookingId,
+            candidateCount: result.data.length,
+            reveal: true,
+          },
+        })
+      }
+      return result
     },
     async getBookingContractReview({ contractId }) {
       const review = await getBookingContractReview(db, contractId)
@@ -384,9 +414,11 @@ export function resolveLegalContractDraftMetadata(
     bookingId: string | null
     revision: number
     previousRevisionId: string | null
+    reviewSnapshot?: unknown
   },
 ): Record<string, unknown> {
-  const merged = { ...(previousMetadata ?? {}), ...(requestedMetadata ?? {}) }
+  const { bookingContractReviewSnapshot, ...safeRequestedMetadata } = requestedMetadata ?? {}
+  const merged = { ...(previousMetadata ?? {}), ...safeRequestedMetadata }
   if (!input.bookingId) {
     const { bookingContractWorkflow: _workflow, ...genericMetadata } = merged
     return genericMetadata
@@ -397,6 +429,7 @@ export function resolveLegalContractDraftMetadata(
       revision: input.revision,
       previousRevisionId: input.previousRevisionId,
       reviewOnly: true,
+      reviewSnapshot: input.reviewSnapshot,
     },
   }
 }
@@ -440,7 +473,13 @@ export async function executeLegalContractDraftCreate(
         const transaction = tx as PostgresJsDatabase
         const { revisionOfContractId, ...requestedInput } = commandInput
         const previous = revisionOfContractId
-          ? await contractsService.getContractById(transaction, revisionOfContractId)
+          ? await transaction
+              .select()
+              .from(contracts)
+              .where(eq(contracts.id, revisionOfContractId))
+              .for("update")
+              .limit(1)
+              .then(([row]) => row ?? null)
           : null
         if (revisionOfContractId && !previous) {
           throw new ToolError(
@@ -448,6 +487,23 @@ export async function executeLegalContractDraftCreate(
             "NOT_FOUND",
             { revisionOfContractId },
           )
+        }
+        if (previous) {
+          const [successor] = await transaction
+            .select({ id: contracts.id })
+            .from(contracts)
+            .where(
+              // agent-quality: raw-sql reviewed -- owner: legal; JSONB metadata lookup is parameterized and locks are held on the durable parent row before this successor probe.
+              sql`${contracts.metadata}->'bookingContractWorkflow'->>'previousRevisionId' = ${previous.id}`,
+            )
+            .limit(1)
+          if (successor) {
+            throw new ToolError(
+              "A successor revision already exists for this contract revision.",
+              "INVALID_INPUT",
+              { revisionOfContractId, successorRevisionId: successor.id },
+            )
+          }
         }
         if (
           previous &&
@@ -500,6 +556,7 @@ export async function executeLegalContractDraftCreate(
           requestedInput.language,
           previous?.language,
         )
+        let reviewSnapshot: unknown
         if (bookingId && templateVersion) {
           const [booking] = await transaction
             .select()
@@ -520,15 +577,14 @@ export async function executeLegalContractDraftCreate(
             template.currentVersionId === templateVersion.id &&
             template.language === language &&
             bookingContractTemplateMatchesChannel(template.channelId, expectedChannelId)
-          const itemCount = await transaction
-            .select({ id: bookingItems.id })
+          const items = await transaction
+            .select()
             .from(bookingItems)
             .where(eq(bookingItems.bookingId, bookingId))
-            .limit(1)
           const missingPrerequisites = bookingContractPrerequisites({
             templateApplicable,
             totalAmountCents: booking.sellAmountCents,
-            itemCount: itemCount.length,
+            itemCount: items.length,
           })
           if (missingPrerequisites.length > 0) {
             throw new ToolError(
@@ -537,6 +593,12 @@ export async function executeLegalContractDraftCreate(
               { missingPrerequisites },
             )
           }
+          reviewSnapshot = bookingContractReviewSnapshot({
+            booking,
+            items,
+            language,
+            commercialTerms: record(record(variables).commercial),
+          })
         }
         const seriesId = requestedInput.seriesId ?? previous?.seriesId ?? null
         const numberedDraft = await resolveLegalContractDraftNumber(transaction, {
@@ -567,6 +629,7 @@ export async function executeLegalContractDraftCreate(
             bookingId,
             revision,
             previousRevisionId: previous?.id ?? null,
+            reviewSnapshot,
           },
         )
         const row = await createContract(transaction, {

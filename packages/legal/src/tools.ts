@@ -1,4 +1,6 @@
 // agent-quality: file-size exception -- owner: legal; contract lifecycle tools stay co-located because create/read/update/document handlers share one admission and schema surface.
+
+import { bookingPiiAccessLog } from "@voyant-travel/bookings/schema"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -564,6 +566,51 @@ function legalContractDocument(ctx: LegalToolContext): LegalContractDocumentTool
   return requireService(ctx.legalContractDocument, "legalContractDocument")
 }
 
+function hasBookingPiiReadScope(ctx: LegalToolContext): boolean {
+  const scopes = (ctx as LegalToolContext & { scopes?: readonly string[] }).scopes ?? []
+  return (
+    scopes.includes("*") ||
+    scopes.includes("bookings-pii:*") ||
+    scopes.includes("bookings-pii:read")
+  )
+}
+
+async function requireBookingPiiReadScope(
+  ctx: LegalToolContext,
+  input: { bookingId?: string; contractId?: string },
+) {
+  if (hasBookingPiiReadScope(ctx)) return
+  const db = ctx.db as { insert?: (table: unknown) => { values(input: unknown): Promise<unknown> } }
+  await db.insert?.(bookingPiiAccessLog).values({
+    bookingId: input.bookingId ?? null,
+    travelerId: null,
+    actorId:
+      (
+        ctx as LegalToolContext & {
+          userId?: string
+          agentId?: string
+          workflowPrincipalId?: string
+        }
+      ).userId ??
+      (ctx as LegalToolContext & { agentId?: string }).agentId ??
+      (ctx as LegalToolContext & { workflowPrincipalId?: string }).workflowPrincipalId ??
+      null,
+    actorType: ctx.actor ?? null,
+    callerType: (ctx as LegalToolContext & { callerType?: string }).callerType ?? null,
+    action: "read",
+    outcome: "denied",
+    reason: "insufficient_scope",
+    metadata: {
+      bookingId: input.bookingId ?? null,
+      contractId: input.contractId ?? null,
+      requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
+    },
+  })
+  throw new ToolError("Booking contract PII requires bookings-pii:read.", "AUTHORIZATION_DENIED", {
+    requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
+  })
+}
+
 const readMetadata = {
   owner: OWNER,
   capabilityVersion: VERSION,
@@ -642,6 +689,7 @@ export const listContractTemplatesTool = defineTool({
 })
 export const listApplicableBookingContractTemplatesTool = defineTool({
   ...readMetadata,
+  requiredScopes: BOOKING_CONTRACT_REVIEW_SCOPES,
   capabilityId: `${OWNER}#tool.list-applicable-booking-contract-templates`,
   name: "list_applicable_booking_contract_templates",
   description:
@@ -651,7 +699,10 @@ export const listApplicableBookingContractTemplatesTool = defineTool({
     bookingFound: z.boolean(),
     data: z.array(bookingContractTemplateCandidateSchema),
   }),
-  handler: (input, ctx: LegalToolContext) => legal(ctx).listApplicableBookingTemplates(input),
+  async handler(input, ctx: LegalToolContext) {
+    await requireBookingPiiReadScope(ctx, { bookingId: input.bookingId })
+    return legal(ctx).listApplicableBookingTemplates(input)
+  },
 })
 export const getBookingContractReviewTool = defineTool({
   ...readMetadata,
@@ -663,6 +714,7 @@ export const getBookingContractReviewTool = defineTool({
   inputSchema: bookingContractReviewInputSchema,
   outputSchema: bookingContractReviewSchema,
   async handler(input, ctx: LegalToolContext) {
+    await requireBookingPiiReadScope(ctx, { contractId: input.contractId })
     const result = await legal(ctx).getBookingContractReview(input)
     if (!result) throw new ToolError(`Contract "${input.contractId}" was not found.`, "NOT_FOUND")
     return result

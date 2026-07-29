@@ -114,6 +114,7 @@ describe("legal contract draft created-target command", () => {
           bookingId: "book_1",
           revision: 2,
           previousRevisionId: "cont_1",
+          reviewSnapshot: { booking: { id: "book_1" } },
         },
       ),
     ).toEqual({
@@ -122,6 +123,7 @@ describe("legal contract draft created-target command", () => {
         revision: 2,
         previousRevisionId: "cont_1",
         reviewOnly: true,
+        reviewSnapshot: { booking: { id: "book_1" } },
       },
     })
   })
