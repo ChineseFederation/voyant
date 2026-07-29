@@ -1,4 +1,5 @@
 // agent-quality: file-size exception -- owner: finance; existing coverage file stays co-located until a dedicated split preserves behavior and tests.
+import { PgDialect } from "drizzle-orm/pg-core"
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -66,7 +67,12 @@ function makeDb(options: {
   const insertedInvoices: Array<Record<string, unknown>> = []
   const insertedInvoiceExternalRefs: Array<Record<string, unknown>> = []
   const insertedInvoiceLineItems: Array<Record<string, unknown>> = []
-  const execute = vi.fn(async () => {
+  const dialect = new PgDialect()
+  const execute = vi.fn(async (query: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+    const { sql } = dialect.sqlToQuery(query)
+    if (sql.includes("pg_advisory_xact_lock")) return []
+    if (sql.includes("FROM bookings")) return [{ status: "confirmed" }]
+
     const row = options.explicitSeries ?? options.defaultSeries
     const rows = row
       ? [
@@ -189,6 +195,15 @@ function makeDb(options: {
   }
 }
 
+function expectOnlyBookingFinanceFence(execute: ReturnType<typeof vi.fn>) {
+  const dialect = new PgDialect()
+  const statements = execute.mock.calls.map(([query]) => dialect.sqlToQuery(query).sql)
+
+  expect(statements).toHaveLength(2)
+  expect(statements[0]).toContain("pg_advisory_xact_lock")
+  expect(statements[1]).toContain("FROM bookings")
+}
+
 describe("financeService.createInvoiceFromBooking number allocation", () => {
   it("uses a caller-supplied invoice number without allocating a series", async () => {
     const { db, tx, insertedInvoices } = makeDb({})
@@ -204,7 +219,7 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       bookingData,
     )
 
-    expect(tx.execute).not.toHaveBeenCalled()
+    expectOnlyBookingFinanceFence(tx.execute)
     expect(insertedInvoices[0]).toMatchObject({
       invoiceNumber: "MANUAL-1",
       seriesId: null,
@@ -315,7 +330,7 @@ describe("financeService.createInvoiceFromBooking number allocation", () => {
       bookingData,
     )
 
-    expect(tx.execute).not.toHaveBeenCalled()
+    expectOnlyBookingFinanceFence(tx.execute)
     expect(insertedInvoices[0]?.invoiceNumber).toMatch(/^PENDING-INVOICE-/)
     expect(insertedInvoices[0]).toMatchObject({
       seriesId: "ins_123",

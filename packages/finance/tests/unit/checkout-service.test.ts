@@ -479,7 +479,9 @@ function createCheckoutDb({
     return []
   }
 
-  return {
+  const db = {
+    execute: vi.fn(async () => [{ status: "confirmed" }]),
+    transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(db)),
     select() {
       let selectedTable: unknown = null
       const query = {
@@ -550,4 +552,6 @@ function createCheckoutDb({
       }
     },
   }
+
+  return db
 }
