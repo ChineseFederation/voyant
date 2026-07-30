@@ -1,5 +1,14 @@
 # @voyant-travel/webhook-delivery
 
+## 0.5.7
+
+### Patch Changes
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/hono@0.136.0
+
 ## 0.5.6
 
 ### Patch Changes

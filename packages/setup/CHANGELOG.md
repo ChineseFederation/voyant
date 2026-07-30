@@ -1,5 +1,17 @@
 # @voyant-travel/setup
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+
 ## 0.7.1
 
 ### Patch Changes

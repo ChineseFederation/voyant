@@ -1,5 +1,189 @@
 # @voyant-travel/catalog
 
+## 0.219.0
+
+### Minor Changes
+
+- 52c794d: Provide `finance.self-service-booking-source.runtime` from the catalog booking
+  engine, so a deployment that selects catalog gets public self-service booking
+  creation without extra wiring.
+
+  The provider resolves the owned-handler registry per request, matching how the
+  draft reaper already reaches it. `SelfServiceBookingSourceProviderDeps` now
+  takes `resolveOwnedHandlers()` rather than a pre-built registry.
+
+  No billing-person resolver is wired yet: an authenticated customer can book
+  (they already are the billing party), while a verified guest is rejected as
+  `incomplete_draft` until a deployment supplies one.
+
+- 52c794d: Scope booking drafts to a capability, and close three more review findings.
+
+  **Draft access control (breaking).** A booking draft holds traveller names and
+  contact details, and its id is supplied by the caller on `PUT /drafts/{id}` —
+  so anyone who learned or guessed one could read it, overwrite it, delete it, or
+  book it. Creating a draft now issues a draft-scoped capability, returned in the
+  response and set as an HttpOnly cookie, and reading, writing, deleting, or
+  booking that draft requires it. Uses the same capability primitive as checkout.
+
+  **Bearer token no longer cached.** The create response carries a checkout
+  capability, and the idempotency middleware persisted response bodies for 24
+  hours — putting an HMAC bearer credential at rest in a general-purpose infra
+  table, and returning it on replay _without_ its `Set-Cookie`, silently dropping
+  the caller's session. The endpoint now opts out of body replay: the durable
+  command claim still prevents duplicate bookings, and a retry is issued a fresh
+  capability and cookie.
+
+  **A hold is required where the vertical manages inventory.** A draft with no
+  `hold_expires_at` skipped every hold check, and hold conversion only runs for
+  slot-backed products — so a slotless one could oversell. Creation now requires
+  a live hold whenever the vertical implements holds.
+
+  **OpenAPI coverage checks parameters.** `diffOpenApiCoverage` compared only
+  request-body field names, so the bookings document could declare a required
+  `Idempotency-Key` header the runtime route never did — and the check stayed
+  green. It now compares parameters by name, location and requiredness, and its
+  documentation states plainly what it does not verify (responses, security, and
+  anything behind a `$ref`).
+
+- 52c794d: Add public self-service booking creation.
+
+  `POST /v1/public/finance/bookings` is the customer-facing adapter to the same
+  durable command the staff Tool drives. A caller supplies three identifiers —
+  draft, quote, and (for a guest) verification challenge — and nothing else;
+  booking numbers, prices, tax lines, relationship ids, and status are derived
+  server-side. `Idempotency-Key` is required, because a create without a stable
+  key cannot be retried safely.
+
+  Catalog provides `finance.self-service-booking-source.runtime`: it verifies
+  ownership, public scope, expiry, entity, price, and hold, requires the draft's
+  billing contact to match the contact the challenge was verified for, and asks
+  the owning vertical to derive the command. Billing-person resolution runs only
+  once the whole party would pass the create command's own validation, so a
+  rejected attempt cannot orphan a CRM row.
+
+  The draft, quote, and challenge are all spent inside the create transaction, so
+  they commit or roll back with the booking, and an exact idempotent retry
+  replays the original booking without re-consuming any of them.
+
+- 52c794d: Add a per-vertical derivation primitive for public self-service booking.
+
+  `OwnedBookingHandler.deriveSelfServiceCommand()` turns a public draft plus an
+  accepted quote into a durable create command. It is pure — Finance still owns
+  the mutation inside its claim — which is what distinguishes it from the removed
+  `commit()`: the handler now describes the booking, it does not make one.
+
+  Implementations must ignore operator-only draft fields, and the products
+  handler does: a public caller can write the draft, so honouring `priceOverride`
+  would let them name their own price, `suppressNotifications` would let them
+  silence the operator, and `internalNotes` / `documentGeneration` would let them
+  write operator-facing state. All four are dropped, with tests asserting each is
+  absent from the derived command rather than merely falsy.
+
+  A vertical that does not implement the primitive has no public creation path,
+  and the deployment's create action stays unavailable for it. Products is the
+  first and only implementation.
+
+  `@voyant-travel/finance` gains a `consumeSources` hook that runs inside the
+  booking-create transaction, so the draft, quote, hold, and verification
+  challenge commit or roll back with the booking.
+
+- 52c794d: Resolve the billing party for a verified guest, completing self-service
+  booking creation.
+
+  A guest has no account, so the booking's billing party is resolved from the
+  contact they proved control of, via the existing `bookings.relationships.runtime`
+  port. That port is consumed optionally: a deployment without it still serves
+  authenticated customers, who already are the billing party.
+
+  `upsertPersonFromContact` matches on email then phone before creating, so a
+  retry reuses the same person rather than creating another, and resolution stays
+  outside the durable command rather than changing what it fingerprints.
+
+- 52c794d: Close price, identity, and double-spend holes in self-service booking creation.
+
+  **Price.** `catalog_quotes` records what a quote cost but not what it was priced
+  for, and the only other binding was `draft.current_quote_id` — a value the
+  caller writes on the public draft PUT. A caller could quote one traveller for
+  one night, rewrite the draft to a larger party keeping the cheap quote id, and
+  every check still passed. Resolution now re-prices the current draft through
+  the owning vertical, in the quote's own scope, and rejects any difference.
+
+  **Identity.** The guest contact check passed if _either_ email or phone
+  matched, while `upsertPersonFromContact` resolves by email then phone — so an
+  SMS-verified caller could put a victim's email in the draft and have the
+  booking attached to the victim's CRM person, with confirmations delivered to an
+  address they never proved control of. The unverified channel is now dropped
+  rather than merely unchecked.
+
+  **Double spend.** Draft and quote consumption are now conditional UPDATEs that
+  throw when they claim no row, so two concurrent creates cannot both commit from
+  one draft, one quote, and one hold.
+
+  **Attribution.** `verificationChallengeId` is refused when the caller is already
+  authenticated — it reached both the ledger principal and the durable
+  idempotency scope, letting an authenticated caller choose either. An
+  authenticated customer now audits under their own account instead of as
+  `verified_guest`.
+
+  Also: checkout capability issuance reads the merged runtime env (it previously
+  threw after the booking had committed on Node deployments); an idempotent
+  replay reports the original booking's number and real status rather than a
+  speculatively allocated one; `checkout/start` accepts the `guest-booking`
+  capability that also grants `payment:start`, matching the Finance collection
+  routes.
+
+### Patch Changes
+
+- 52c794d: Require a booking-scoped capability to start checkout.
+
+  `POST /v1/public/catalog/checkout/start` accepted a bare `bookingId` and loaded
+  the booking with no authorization check, so starting a payment against someone
+  else's booking was a matter of guessing an id. It now requires the same
+  `payment:start` capability the Finance collection routes require — the one
+  booking creation issues and sets as an HttpOnly cookie.
+
+  **Breaking.** Any caller that reached this route with only a booking id now
+  receives 401 (no capability) or 403 (a capability for a different booking).
+  Storefronts should obtain the capability from the booking-create response,
+  which returns it in the body and as the `voyant_checkout_session` cookie.
+
+- 52c794d: Actually wire public self-service booking creation.
+
+  `POST /v1/public/bookings` returned 501 in every deployment: Finance declared
+  `providePort(bookingsSelfServiceCreateRuntimePort)` but never contributed an
+  implementation under that id, Bookings never resolved it, the route action was
+  registered only inside a test, and `peekVerifiedDestination` had no
+  implementation at all. Nothing caught it because no test exercised the route.
+
+  Finance now contributes the create runtime — only when a booking-source
+  provider is selected, so the route reports 501 rather than half-working — and
+  mints the route admission against the graph-registered action. Bookings
+  resolves both that port and the new `bookings.guest-verification.runtime`,
+  which Storefront provides, and reads the authenticated customer from the
+  customer realm. Storefront gains `peekVerifiedChallengeDestination`, which
+  applies the same binding predicate as consumption so a caller cannot probe a
+  challenge that could not authorize their booking.
+
+  Regression tests cover both halves of what was missing: that Finance
+  contributes the port when a source is selected and omits it otherwise, and that
+  the route itself refuses an unauthenticated caller, refuses a challenge id from
+  an authenticated one, and returns a booking with its checkout capability.
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/bookings@0.221.0
+  - @voyant-travel/finance@0.221.0
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+
 ## 0.218.0
 
 ### Patch Changes

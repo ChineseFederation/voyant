@@ -1,5 +1,79 @@
 # @voyant-travel/commerce
 
+## 0.45.0
+
+### Minor Changes
+
+- 52c794d: Require a booking-scoped capability to start checkout.
+
+  `POST /v1/public/catalog/checkout/start` accepted a bare `bookingId` and loaded
+  the booking with no authorization check, so starting a payment against someone
+  else's booking was a matter of guessing an id. It now requires the same
+  `payment:start` capability the Finance collection routes require — the one
+  booking creation issues and sets as an HttpOnly cookie.
+
+  **Breaking.** Any caller that reached this route with only a booking id now
+  receives 401 (no capability) or 403 (a capability for a different booking).
+  Storefronts should obtain the capability from the booking-create response,
+  which returns it in the body and as the `voyant_checkout_session` cookie.
+
+### Patch Changes
+
+- 52c794d: Close price, identity, and double-spend holes in self-service booking creation.
+
+  **Price.** `catalog_quotes` records what a quote cost but not what it was priced
+  for, and the only other binding was `draft.current_quote_id` — a value the
+  caller writes on the public draft PUT. A caller could quote one traveller for
+  one night, rewrite the draft to a larger party keeping the cheap quote id, and
+  every check still passed. Resolution now re-prices the current draft through
+  the owning vertical, in the quote's own scope, and rejects any difference.
+
+  **Identity.** The guest contact check passed if _either_ email or phone
+  matched, while `upsertPersonFromContact` resolves by email then phone — so an
+  SMS-verified caller could put a victim's email in the draft and have the
+  booking attached to the victim's CRM person, with confirmations delivered to an
+  address they never proved control of. The unverified channel is now dropped
+  rather than merely unchecked.
+
+  **Double spend.** Draft and quote consumption are now conditional UPDATEs that
+  throw when they claim no row, so two concurrent creates cannot both commit from
+  one draft, one quote, and one hold.
+
+  **Attribution.** `verificationChallengeId` is refused when the caller is already
+  authenticated — it reached both the ledger principal and the durable
+  idempotency scope, letting an authenticated caller choose either. An
+  authenticated customer now audits under their own account instead of as
+  `verified_guest`.
+
+  Also: checkout capability issuance reads the merged runtime env (it previously
+  threw after the booking had committed on Node deployments); an idempotent
+  replay reports the original booking's number and real status rather than a
+  speculatively allocated one; `checkout/start` accepts the `guest-booking`
+  capability that also grants `payment:start`, matching the Finance collection
+  routes.
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/catalog@0.219.0
+  - @voyant-travel/action-ledger@0.115.5
+  - @voyant-travel/bookings@0.221.0
+  - @voyant-travel/finance@0.221.0
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+  - @voyant-travel/distribution@0.211.0
+
 ## 0.44.20
 
 ### Patch Changes

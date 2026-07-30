@@ -1,5 +1,109 @@
 # @voyant-travel/storefront
 
+## 0.223.0
+
+### Minor Changes
+
+- 52c794d: Remove the anonymous `contact-exists` endpoints.
+
+  `GET /v1/public/customer-portal/contact-exists` and its `/phone` sibling told
+  any unauthenticated caller whether an address had an auth account, whether it
+  had a customer record, and whether that record was already claimed by someone
+  else. That is an account enumeration oracle, and rate limiting only slows it
+  down.
+
+  **Breaking.** Both routes are gone, along with `getCustomerPortalContactExists`,
+  `getCustomerPortalPhoneContactExists`, their query options, hooks, filters, and
+  result types. The customer-portal public bundle now declares no anonymous
+  routes at all.
+
+  Storefronts should start a verification challenge instead: the API response is
+  identical whether or not an account exists, the delivered message differs, and
+  the client branches on what the user does next rather than on an answer the
+  server should not give an anonymous caller.
+
+- 52c794d: Bind storefront verification challenges to a subject and make them single-use.
+
+  A verified challenge is a bearer credential. Until now nothing stopped one from
+  being replayed indefinitely, or from authorizing an action it was never
+  verified against. Challenges can now carry a `subjectRef` (the booking draft,
+  for a self-service create) recorded at start, and `consumeVerifiedChallenge()`
+  spends one in a single conditional `UPDATE` that requires the challenge to be
+  verified, unconsumed, within its consumption window, and to match the expected
+  purpose, subject, and destination.
+
+  Because every condition lives in the `UPDATE` predicate rather than in a
+  preceding read, there is no check-then-spend window and concurrent callers
+  cannot both win. The function takes a transaction so it commits atomically with
+  whatever it authorizes.
+
+  Adds `subject_ref`, `consumed_at`, and `consumed_ref` columns to
+  `storefront_verification_challenges`.
+
+- 52c794d: Actually wire public self-service booking creation.
+
+  `POST /v1/public/bookings` returned 501 in every deployment: Finance declared
+  `providePort(bookingsSelfServiceCreateRuntimePort)` but never contributed an
+  implementation under that id, Bookings never resolved it, the route action was
+  registered only inside a test, and `peekVerifiedDestination` had no
+  implementation at all. Nothing caught it because no test exercised the route.
+
+  Finance now contributes the create runtime — only when a booking-source
+  provider is selected, so the route reports 501 rather than half-working — and
+  mints the route admission against the graph-registered action. Bookings
+  resolves both that port and the new `bookings.guest-verification.runtime`,
+  which Storefront provides, and reads the authenticated customer from the
+  customer realm. Storefront gains `peekVerifiedChallengeDestination`, which
+  applies the same binding predicate as consumption so a caller cannot probe a
+  challenge that could not authorize their booking.
+
+  Regression tests cover both halves of what was missing: that Finance
+  contributes the port when a source is selected and omits it otherwise, and that
+  the route itself refuses an unauthenticated caller, refuses a challenge id from
+  an authenticated one, and returns a booking with its checkout capability.
+
+### Patch Changes
+
+- 52c794d: Check committed OpenAPI documents against the routes actually served.
+
+  The published artifacts are the contract, but nothing tied them to the runtime,
+  so a new route, a removed route, or a renamed request field could all land
+  without the document noticing — adding `subjectRef` to the public verification
+  schemas did exactly that.
+
+  `diffOpenApiCoverage` (from `@voyant-travel/hono/openapi`) compares a document
+  generated from the live router against the committed one and reports
+  undocumented routes, stale operations, and request-field drift. Request bodies
+  are compared by property and required-field names rather than by full schema,
+  because generated and hand-authored schemas describe the same contract in
+  different but equivalent shapes.
+
+  Finance and storefront-verification now assert zero drift. Applying the check
+  surfaced pre-existing drift: three public payment-session operations accept
+  `providerConnectionId`, which the published document omitted. It is now
+  documented.
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/commerce@0.45.0
+  - @voyant-travel/bookings@0.221.0
+  - @voyant-travel/finance@0.221.0
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+  - @voyant-travel/legal@0.221.0
+  - @voyant-travel/relationships@0.132.17
+  - @voyant-travel/auth@0.146.1
+  - @voyant-travel/identity@0.221.0
+
 ## 0.222.0
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @voyant-travel/media
 
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/hono@0.136.0
+
 ## 0.6.1
 
 ### Patch Changes

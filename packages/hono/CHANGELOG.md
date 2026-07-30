@@ -1,5 +1,81 @@
 # @voyant-travel/hono
 
+## 0.136.0
+
+### Minor Changes
+
+- 52c794d: Scope booking drafts to a capability, and close three more review findings.
+
+  **Draft access control (breaking).** A booking draft holds traveller names and
+  contact details, and its id is supplied by the caller on `PUT /drafts/{id}` —
+  so anyone who learned or guessed one could read it, overwrite it, delete it, or
+  book it. Creating a draft now issues a draft-scoped capability, returned in the
+  response and set as an HttpOnly cookie, and reading, writing, deleting, or
+  booking that draft requires it. Uses the same capability primitive as checkout.
+
+  **Bearer token no longer cached.** The create response carries a checkout
+  capability, and the idempotency middleware persisted response bodies for 24
+  hours — putting an HMAC bearer credential at rest in a general-purpose infra
+  table, and returning it on replay _without_ its `Set-Cookie`, silently dropping
+  the caller's session. The endpoint now opts out of body replay: the durable
+  command claim still prevents duplicate bookings, and a retry is issued a fresh
+  capability and cookie.
+
+  **A hold is required where the vertical manages inventory.** A draft with no
+  `hold_expires_at` skipped every hold check, and hold conversion only runs for
+  slot-backed products — so a slotless one could oversell. Creation now requires
+  a live hold whenever the vertical implements holds.
+
+  **OpenAPI coverage checks parameters.** `diffOpenApiCoverage` compared only
+  request-body field names, so the bookings document could declare a required
+  `Idempotency-Key` header the runtime route never did — and the check stayed
+  green. It now compares parameters by name, location and requiredness, and its
+  documentation states plainly what it does not verify (responses, security, and
+  anything behind a `$ref`).
+
+- 52c794d: Check committed OpenAPI documents against the routes actually served.
+
+  The published artifacts are the contract, but nothing tied them to the runtime,
+  so a new route, a removed route, or a renamed request field could all land
+  without the document noticing — adding `subjectRef` to the public verification
+  schemas did exactly that.
+
+  `diffOpenApiCoverage` (from `@voyant-travel/hono/openapi`) compares a document
+  generated from the live router against the committed one and reports
+  undocumented routes, stale operations, and request-field drift. Request bodies
+  are compared by property and required-field names rather than by full schema,
+  because generated and hand-authored schemas describe the same contract in
+  different but equivalent shapes.
+
+  Finance and storefront-verification now assert zero drift. Applying the check
+  surfaced pre-existing drift: three public payment-session operations accept
+  `providerConnectionId`, which the published document omitted. It is now
+  documented.
+
+### Patch Changes
+
+- 52c794d: Serve public booking creation from `POST /v1/public/bookings`.
+
+  The route was briefly mounted under Finance, which put a `bookings` resource in
+  the `finance` namespace while `/v1/public/bookings` already existed and was
+  owned by Bookings — two booking namespaces on one public surface. The cause was
+  a package dependency, not domain ownership: Finance depends on Bookings and not
+  the reverse, so a route in Bookings could not reach the durable create command.
+
+  Bookings now owns the route and Finance supplies the command through the new
+  `bookings.self-service-create.runtime` port, inverting that edge exactly as
+  `bookings.finance.runtime` already does. The dependency direction is unchanged,
+  the public surface has one booking namespace, and the operation is documented in
+  the bookings contract where a consumer would look for it.
+
+  **Breaking:** `createPublicBookingCreateRoutes` and
+  `PublicBookingCreateRouteOptions` are gone from `@voyant-travel/finance`,
+  replaced by `createSelfServiceCreateRuntime`.
+
+  `diffOpenApiCoverage` now scopes stale-operation reporting to the caller's own
+  mount, since one committed document can aggregate several API bundles, and
+  normalises a root-mounted route's trailing slash.
+
 ## 0.135.0
 
 ### Minor Changes

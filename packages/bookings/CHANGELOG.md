@@ -1,5 +1,127 @@
 # @voyant-travel/bookings
 
+## 0.221.0
+
+### Minor Changes
+
+- 52c794d: Scope booking drafts to a capability, and close three more review findings.
+
+  **Draft access control (breaking).** A booking draft holds traveller names and
+  contact details, and its id is supplied by the caller on `PUT /drafts/{id}` —
+  so anyone who learned or guessed one could read it, overwrite it, delete it, or
+  book it. Creating a draft now issues a draft-scoped capability, returned in the
+  response and set as an HttpOnly cookie, and reading, writing, deleting, or
+  booking that draft requires it. Uses the same capability primitive as checkout.
+
+  **Bearer token no longer cached.** The create response carries a checkout
+  capability, and the idempotency middleware persisted response bodies for 24
+  hours — putting an HMAC bearer credential at rest in a general-purpose infra
+  table, and returning it on replay _without_ its `Set-Cookie`, silently dropping
+  the caller's session. The endpoint now opts out of body replay: the durable
+  command claim still prevents duplicate bookings, and a retry is issued a fresh
+  capability and cookie.
+
+  **A hold is required where the vertical manages inventory.** A draft with no
+  `hold_expires_at` skipped every hold check, and hold conversion only runs for
+  slot-backed products — so a slotless one could oversell. Creation now requires
+  a live hold whenever the vertical implements holds.
+
+  **OpenAPI coverage checks parameters.** `diffOpenApiCoverage` compared only
+  request-body field names, so the bookings document could declare a required
+  `Idempotency-Key` header the runtime route never did — and the check stayed
+  green. It now compares parameters by name, location and requiredness, and its
+  documentation states plainly what it does not verify (responses, security, and
+  anything behind a `$ref`).
+
+- 52c794d: Serve public booking creation from `POST /v1/public/bookings`.
+
+  The route was briefly mounted under Finance, which put a `bookings` resource in
+  the `finance` namespace while `/v1/public/bookings` already existed and was
+  owned by Bookings — two booking namespaces on one public surface. The cause was
+  a package dependency, not domain ownership: Finance depends on Bookings and not
+  the reverse, so a route in Bookings could not reach the durable create command.
+
+  Bookings now owns the route and Finance supplies the command through the new
+  `bookings.self-service-create.runtime` port, inverting that edge exactly as
+  `bookings.finance.runtime` already does. The dependency direction is unchanged,
+  the public surface has one booking namespace, and the operation is documented in
+  the bookings contract where a consumer would look for it.
+
+  **Breaking:** `createPublicBookingCreateRoutes` and
+  `PublicBookingCreateRouteOptions` are gone from `@voyant-travel/finance`,
+  replaced by `createSelfServiceCreateRuntime`.
+
+  `diffOpenApiCoverage` now scopes stale-operation reporting to the caller's own
+  mount, since one committed document can aggregate several API bundles, and
+  normalises a root-mounted route's trailing slash.
+
+- 52c794d: Close price, identity, and double-spend holes in self-service booking creation.
+
+  **Price.** `catalog_quotes` records what a quote cost but not what it was priced
+  for, and the only other binding was `draft.current_quote_id` — a value the
+  caller writes on the public draft PUT. A caller could quote one traveller for
+  one night, rewrite the draft to a larger party keeping the cheap quote id, and
+  every check still passed. Resolution now re-prices the current draft through
+  the owning vertical, in the quote's own scope, and rejects any difference.
+
+  **Identity.** The guest contact check passed if _either_ email or phone
+  matched, while `upsertPersonFromContact` resolves by email then phone — so an
+  SMS-verified caller could put a victim's email in the draft and have the
+  booking attached to the victim's CRM person, with confirmations delivered to an
+  address they never proved control of. The unverified channel is now dropped
+  rather than merely unchecked.
+
+  **Double spend.** Draft and quote consumption are now conditional UPDATEs that
+  throw when they claim no row, so two concurrent creates cannot both commit from
+  one draft, one quote, and one hold.
+
+  **Attribution.** `verificationChallengeId` is refused when the caller is already
+  authenticated — it reached both the ledger principal and the durable
+  idempotency scope, letting an authenticated caller choose either. An
+  authenticated customer now audits under their own account instead of as
+  `verified_guest`.
+
+  Also: checkout capability issuance reads the merged runtime env (it previously
+  threw after the booking had committed on Node deployments); an idempotent
+  replay reports the original booking's number and real status rather than a
+  speculatively allocated one; `checkout/start` accepts the `guest-booking`
+  capability that also grants `payment:start`, matching the Finance collection
+  routes.
+
+- 52c794d: Actually wire public self-service booking creation.
+
+  `POST /v1/public/bookings` returned 501 in every deployment: Finance declared
+  `providePort(bookingsSelfServiceCreateRuntimePort)` but never contributed an
+  implementation under that id, Bookings never resolved it, the route action was
+  registered only inside a test, and `peekVerifiedDestination` had no
+  implementation at all. Nothing caught it because no test exercised the route.
+
+  Finance now contributes the create runtime — only when a booking-source
+  provider is selected, so the route reports 501 rather than half-working — and
+  mints the route admission against the graph-registered action. Bookings
+  resolves both that port and the new `bookings.guest-verification.runtime`,
+  which Storefront provides, and reads the authenticated customer from the
+  customer realm. Storefront gains `peekVerifiedChallengeDestination`, which
+  applies the same binding predicate as consumption so a caller cannot probe a
+  challenge that could not authorize their booking.
+
+  Regression tests cover both halves of what was missing: that Finance
+  contributes the port when a source is selected and omits it otherwise, and that
+  the route itself refuses an unauthenticated caller, refuses a challenge id from
+  an authenticated one, and returns a booking with its checkout capability.
+
+### Patch Changes
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/action-ledger@0.115.5
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+
 ## 0.220.0
 
 ### Minor Changes

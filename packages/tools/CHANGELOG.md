@@ -1,5 +1,47 @@
 # @voyant-travel/tools
 
+## 0.8.0
+
+### Minor Changes
+
+- 52c794d: Admit handler-owned actions bound to a route as well as to a Tool.
+
+  An action policy can now declare `transport: "tool" | "route" | "both"`,
+  defaulting to `tool` so every existing action keeps its current MCP-only reach.
+  A route obtains an admission by asking the registry for one
+  (`registerRouteAction` / `admitRouteAction`); the minting function stays
+  package-private, so a route still cannot fabricate a
+  `ToolHandlerActionPolicyContext`. Admissions record the boundary that minted
+  them, and `admitHandlerActionPolicy` refuses one minted anywhere other than the
+  boundary the calling handler serves — a route-bound action is unreachable
+  through Tool dispatch, and a Tool-bound action is unreachable through a route.
+
+  The action ledger derives its `authorizationSource` from that boundary rather
+  than assuming MCP, so a route-admitted command records
+  `selected_graph_route_handler`.
+
+  The Tool registry's manifest-construction half moved to `registered-tool.ts`;
+  `createToolRegistry` and its dispatch behaviour are unchanged.
+
+- 52c794d: Add a separate self-service action over the durable booking-create command.
+
+  `create-booking-self-service` is a second action, not a widening of the staff
+  Tool: it carries its own capability identity (and therefore its own fingerprint
+  domain), allows only the `customer` actor, is bound to the route transport so
+  it is unreachable from MCP, and declares a narrow public invocation contract in
+  which the caller supplies only an idempotency key.
+
+  `executeFinanceBookingCreateCommand` is replaced by two explicit entrypoints —
+  `executeFinanceStaffBookingCreateCommand` and
+  `executeFinanceSelfServiceBookingCreateCommand` — over one private mutation
+  core. Each validates exactly one static policy expectation rather than
+  selecting it from caller-supplied admission metadata, so neither can be driven
+  by the other's admission. `verify:booking-create-authority` now enforces that
+  boundary mechanically.
+
+  `@voyant-travel/tools` gains `assertAdmittedActionPolicy` for command
+  entrypoints that hold an admission but no `ToolContext`.
+
 ## 0.7.2
 
 ### Patch Changes

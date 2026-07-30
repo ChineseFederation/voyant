@@ -1,5 +1,22 @@
 # @voyant-travel/operator-settings-react
 
+## 0.76.0
+
+### Patch Changes
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/finance@0.221.0
+  - @voyant-travel/finance-react@0.221.0
+  - @voyant-travel/admin-app@0.113.0
+
 ## 0.75.0
 
 ### Minor Changes

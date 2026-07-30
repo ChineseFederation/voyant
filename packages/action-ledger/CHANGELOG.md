@@ -1,5 +1,47 @@
 # @voyant-travel/action-ledger
 
+## 0.115.5
+
+### Patch Changes
+
+- 52c794d: Let an admitted created-target command name a concrete non-user principal.
+
+  `executeAdmittedCreatedTargetCommand` now accepts `fallbackPrincipalId` and
+  forwards it to the inner command, so a request that authenticates something
+  other than a user account — a verified storefront guest, for example — ledgers
+  under its own principal instead of failing the existing `unknown_request`
+  guard. The fallback is only consulted when the context carries no `userId`, so
+  it can never displace an authenticated account, and the synthetic identity
+  stays out of `userId` (and therefore out of `createdByUserId`). The
+  idempotency scope is now derived from that same concrete principal.
+
+- 52c794d: Admit handler-owned actions bound to a route as well as to a Tool.
+
+  An action policy can now declare `transport: "tool" | "route" | "both"`,
+  defaulting to `tool` so every existing action keeps its current MCP-only reach.
+  A route obtains an admission by asking the registry for one
+  (`registerRouteAction` / `admitRouteAction`); the minting function stays
+  package-private, so a route still cannot fabricate a
+  `ToolHandlerActionPolicyContext`. Admissions record the boundary that minted
+  them, and `admitHandlerActionPolicy` refuses one minted anywhere other than the
+  boundary the calling handler serves — a route-bound action is unreachable
+  through Tool dispatch, and a Tool-bound action is unreachable through a route.
+
+  The action ledger derives its `authorizationSource` from that boundary rather
+  than assuming MCP, so a route-admitted command records
+  `selected_graph_route_handler`.
+
+  The Tool registry's manifest-construction half moved to `registered-tool.ts`;
+  `createToolRegistry` and its dispatch behaviour are unchanged.
+
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+- Updated dependencies [52c794d]
+  - @voyant-travel/hono@0.136.0
+  - @voyant-travel/tools@0.8.0
+
 ## 0.115.4
 
 ### Patch Changes
