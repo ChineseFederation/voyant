@@ -32,7 +32,7 @@ import {
 import { publicPricingService } from "../../../commerce/src/pricing/service-public.js"
 import { resolve as resolveSellability } from "../../../commerce/src/sellability/service-resolve.js"
 import {
-  executeFinanceBookingCreateCommand,
+  executeFinanceStaffBookingCreateCommand,
   financeBookingCreatedEventId,
 } from "../../src/booking-create-command.js"
 import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../../src/booking-create-policy.js"
@@ -4977,8 +4977,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       taxLines: [{ name: "VAT", currency: "EUR", amountCents: 9500, includedInPrice: true }],
     })
 
-    const first = await executeFinanceBookingCreateCommand(command)
-    const replay = await executeFinanceBookingCreateCommand(command)
+    const first = await executeFinanceStaffBookingCreateCommand(command)
+    const replay = await executeFinanceStaffBookingCreateCommand(command)
 
     expect(first).toMatchObject({ replayed: false })
     expect(replay).toEqual(
@@ -5017,8 +5017,8 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     })
 
     const results = await Promise.all([
-      executeFinanceBookingCreateCommand(command),
-      executeFinanceBookingCreateCommand(command),
+      executeFinanceStaffBookingCreateCommand(command),
+      executeFinanceStaffBookingCreateCommand(command),
     ])
 
     expect(results.map((result) => result.replayed).sort()).toEqual([false, true])
@@ -5048,7 +5048,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const { productId, unitId } = await seedProduct()
     const idempotencyKey = "finance-booking-create-crash"
     await expect(
-      executeFinanceBookingCreateCommand({
+      executeFinanceStaffBookingCreateCommand({
         ...(await durableCommand(idempotencyKey, {
           productId,
           bookingNumber: nextBookingNumber(),
@@ -5077,7 +5077,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
   async function durableCommand(
     idempotencyKey: string,
-    commandInput: Parameters<typeof executeFinanceBookingCreateCommand>[0]["commandInput"],
+    commandInput: Parameters<typeof executeFinanceStaffBookingCreateCommand>[0]["commandInput"],
   ) {
     const admitted = await mintFinanceBookingCreateAdmission(idempotencyKey)
     return {

@@ -1,4 +1,5 @@
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/ports"
+import { bookingsGuestVerificationRuntimePort } from "@voyant-travel/bookings/runtime-port"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 
 // Lightweight reference (id only) so the deployment-graph manifest stays
@@ -159,7 +160,9 @@ export const storefrontCustomerPortalVoyantModule = defineModule({
       mount: "customer-portal",
       resource: "storefront",
       openapi: { document: "customer-portal" },
-      anonymous: ["/contact-exists"],
+      // No anonymous routes: the customer portal answers only for an
+      // authenticated customer. `contact-exists` used to sit here and told any
+      // caller whether an address had an account.
       runtime: {
         entry: "@voyant-travel/storefront/customer-portal",
         export: "createCustomerPortalApiModule",
@@ -392,6 +395,9 @@ export const storefrontVerificationVoyantModule = defineModule({
     export: "createStorefrontVerificationVoyantRuntime",
   },
   runtimePorts: [requirePort(storefrontVerificationRuntimePort)],
+  provides: {
+    ports: [providePort(bookingsGuestVerificationRuntimePort)],
+  },
   api: [
     {
       id: "@voyant-travel/storefront#verification.api",

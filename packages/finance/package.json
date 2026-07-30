@@ -35,7 +35,8 @@
     "./openapi/admin": "./openapi/admin/finance.json",
     "./openapi/admin/booking-tax-settings": "./openapi/admin/booking-tax-settings.json",
     "./openapi/admin/booking-tax-preview": "./openapi/admin/booking-tax-preview.json",
-    "./openapi/storefront": "./openapi/storefront/finance.json"
+    "./openapi/storefront": "./openapi/storefront/finance.json",
+    "./self-service-booking-source": "./src/self-service-booking-source.ts"
   },
   "scripts": {
     "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.typecheck.json",
@@ -228,7 +229,12 @@
       "./openapi/admin": "./openapi/admin/finance.json",
       "./openapi/admin/booking-tax-settings": "./openapi/admin/booking-tax-settings.json",
       "./openapi/admin/booking-tax-preview": "./openapi/admin/booking-tax-preview.json",
-      "./openapi/storefront": "./openapi/storefront/finance.json"
+      "./openapi/storefront": "./openapi/storefront/finance.json",
+      "./self-service-booking-source": {
+        "types": "./dist/self-service-booking-source.d.ts",
+        "import": "./dist/self-service-booking-source.js",
+        "default": "./dist/self-service-booking-source.js"
+      }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"

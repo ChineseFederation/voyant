@@ -19,18 +19,10 @@ export {
   useCustomerPortalCompanions,
 } from "./use-customer-portal-companions.js"
 export {
-  type UseCustomerPortalContactExistsOptions,
-  useCustomerPortalContactExists,
-} from "./use-customer-portal-contact-exists.js"
-export {
   type DeleteCustomerPortalCompanionMutationInput,
   type UpdateCustomerPortalCompanionMutationInput,
   useCustomerPortalMutation,
 } from "./use-customer-portal-mutation.js"
-export {
-  type UseCustomerPortalPhoneContactExistsOptions,
-  useCustomerPortalPhoneContactExists,
-} from "./use-customer-portal-phone-contact-exists.js"
 export {
   type UseCustomerPortalProfileOptions,
   useCustomerPortalProfile,

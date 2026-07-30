@@ -47,8 +47,6 @@ import type {
   CustomerPortalBookingSummary,
   CustomerPortalBootstrapCandidate,
   CustomerPortalCompanion,
-  CustomerPortalContactExistsResult,
-  CustomerPortalPhoneContactExistsResult,
   CustomerPortalProfile,
   ImportCustomerPortalBookingTravelersInput,
   ImportCustomerPortalBookingTravelersResult,
@@ -1684,60 +1682,6 @@ async function buildBookingDetail(
 }
 
 export const publicCustomerPortalService = {
-  async contactExists(
-    db: PostgresJsDatabase,
-    email: string,
-  ): Promise<CustomerPortalContactExistsResult> {
-    const normalizedEmail = normalizeEmail(email)
-
-    const [authAccount, customerCandidates] = await Promise.all([
-      db
-        .select({ id: customerAuthUser.id })
-        .from(customerAuthUser)
-        // agent-quality: raw-sql reviewed -- owner: customer-portal; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        .where(sql`lower(${customerAuthUser.email}) = ${normalizedEmail}`)
-        .limit(1),
-      listCustomerRecordCandidatesByEmail(db, normalizedEmail),
-    ])
-
-    return {
-      email: normalizedEmail,
-      authAccountExists: Boolean(authAccount[0]),
-      customerRecordExists: customerCandidates.length > 0,
-      linkedCustomerRecordExists: customerCandidates.some(
-        (candidate) => candidate.claimedByAnotherUser,
-      ),
-    }
-  },
-
-  async phoneContactExists(
-    db: PostgresJsDatabase,
-    phone: string,
-  ): Promise<CustomerPortalPhoneContactExistsResult> {
-    const normalizedPhone = normalizePhone(phone)
-    const [authAccount, customerCandidates] = await Promise.all([
-      db
-        .select({
-          id: customerAuthUser.id,
-          phoneNumberVerified: customerAuthUser.phoneNumberVerified,
-        })
-        .from(customerAuthUser)
-        .where(eq(customerAuthUser.phoneNumber, normalizedPhone))
-        .limit(1),
-      listCustomerRecordCandidatesByPhone(db, normalizedPhone),
-    ])
-
-    return {
-      phone: normalizedPhone,
-      authAccountExists: Boolean(authAccount[0]),
-      authAccountVerified: Boolean(authAccount[0]?.phoneNumberVerified),
-      customerRecordExists: customerCandidates.length > 0,
-      linkedCustomerRecordExists: customerCandidates.some(
-        (candidate) => candidate.claimedByAnotherUser,
-      ),
-    }
-  },
-
   async getProfile(db: PostgresJsDatabase, userId: string): Promise<CustomerPortalProfile | null> {
     return this.getProfileWithOptions(db, userId)
   },

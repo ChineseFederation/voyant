@@ -1,6 +1,9 @@
 // agent-quality: file-size exception -- owner: finance; the package-owned deployment declarations remain centralized in one manifest.
 import { actionLedgerFinanceDriftRuntimePort } from "@voyant-travel/action-ledger/runtime-port"
-import { bookingsFinanceRuntimePort } from "@voyant-travel/bookings/runtime-port"
+import {
+  bookingsFinanceRuntimePort,
+  bookingsSelfServiceCreateRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import {
   defineExtension,
   defineModule,
@@ -25,6 +28,7 @@ import {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
+  financeSelfServiceBookingSourceRuntimePort,
 } from "./runtime-port.js"
 import { financeVoyantAdmin } from "./voyant-admin.js"
 import {
@@ -67,6 +71,9 @@ export const financeVoyantModule = defineModule({
       providePort(bookingsFinanceRuntimePort),
       providePort(financeHostRuntimePort),
       providePort(financeAppApiRuntimePort),
+      // The public booking-create route lives in Bookings; Finance supplies
+      // the durable command it dispatches.
+      providePort(bookingsSelfServiceCreateRuntimePort),
     ],
   },
   api: [
@@ -582,6 +589,7 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   id: "@voyant-travel/finance#bookings-create-extension",
   packageName: "@voyant-travel/finance",
   localId: "finance.bookings-create-extension",
+  runtimePorts: [requirePort(financeSelfServiceBookingSourceRuntimePort, { optional: true })],
   tools: [
     {
       id: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
@@ -629,6 +637,54 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
       allowedActorTypes: ["staff"],
       from: {
         tools: ["@voyant-travel/finance#bookings-create-extension.tool.create-booking"],
+      },
+    },
+    {
+      id: "@voyant-travel/finance#bookings-create-extension.action.create-booking-self-service",
+      capabilityId:
+        "@voyant-travel/finance#bookings-create-extension.action.create-booking-self-service",
+      version: "v1",
+      kind: "execute",
+      targetType: "booking",
+      // Fail closed. Self-service creation is only advertised once a
+      // deployment selects a provider that can resolve a public draft/quote
+      // into a server-derived command for the chosen vertical.
+      availability: {
+        status: "unavailable",
+        reasonCode: "self-service-booking-source-unavailable",
+        enableWhen: {
+          selectedProviderPorts: {
+            mode: "all",
+            ports: [financeSelfServiceBookingSourceRuntimePort.id],
+          },
+        },
+      },
+      effectBoundary: "multistage",
+      durability: {
+        strategy: "outbox",
+        testReference: "tests/integration/booking-create.test.ts",
+      },
+      targetLifecycle: "created",
+      // The same durable command the staff action composes. Only the admission
+      // identity, actor, and transport differ.
+      createdTarget: {
+        commandTargetType: "finance_booking_create_command",
+        resultReferenceType: "booking",
+        durability: "handler-command-claim-v1",
+      },
+      resource: "bookings",
+      action: "write",
+      requiredScopes: [],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["customer"],
+      // Served by the public Bookings API bundle: the resource is a booking,
+      // and Finance supplies the command through
+      // bookings.self-service-create.runtime rather than owning the route.
+      from: {
+        routes: ["@voyant-travel/bookings#api.public"],
       },
     },
   ],

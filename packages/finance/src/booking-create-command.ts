@@ -3,10 +3,18 @@ import {
   executeAdmittedCreatedTargetCommand,
 } from "@voyant-travel/action-ledger"
 import { insertOutboxEvents } from "@voyant-travel/db/outbox"
-import { ToolError, type ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import {
+  assertAdmittedActionPolicy,
+  ToolError,
+  type ToolHandlerActionPolicyContext,
+} from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { FINANCE_BOOKING_CREATE_POLICY } from "./booking-create-policy.js"
+import {
+  FINANCE_BOOKING_CREATE_HANDLER_POLICY,
+  FINANCE_BOOKING_CREATE_POLICY,
+  FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY,
+} from "./booking-create-policy.js"
 import type { FinanceServiceRuntime } from "./service.js"
 import {
   type BookingCreateInput,
@@ -14,7 +22,7 @@ import {
   createBookingMutation,
 } from "./service-booking-create.js"
 
-export async function executeFinanceBookingCreateCommand(input: {
+export interface FinanceBookingCreateCommandInput {
   db: PostgresJsDatabase
   context: ActionLedgerRequestContextValues
   commandInput: BookingCreateInput
@@ -23,12 +31,71 @@ export async function executeFinanceBookingCreateCommand(input: {
   testHooks?: {
     afterDomainCreate?: (tx: PostgresJsDatabase, bookingId: string) => Promise<void>
   }
-}) {
+}
+
+export interface FinanceSelfServiceBookingCreateCommandInput
+  extends FinanceBookingCreateCommandInput {
+  /**
+   * Audit principal for a verified guest, who has no user account. Required —
+   * a self-service create must never ledger as an anonymous request.
+   */
+  fallbackPrincipalId: string
+  /**
+   * Runs inside the command transaction, immediately after the booking graph
+   * is created and before the claim commits. This is where the draft, quote,
+   * hold, and verification challenge are spent, so all of it either commits
+   * with the booking or rolls back with it.
+   *
+   * Deliberately inside rather than around: an exact idempotent retry
+   * short-circuits at the claim and never reaches this, so a legitimate retry
+   * replays the original booking instead of failing as already-consumed.
+   */
+  consumeSources?: (tx: PostgresJsDatabase, bookingId: string) => Promise<void>
+}
+
+/**
+ * Staff creation through the `create_booking` Tool.
+ *
+ * Pins the staff policy expectation and nothing else, so a self-service
+ * admission cannot drive it even though both compose the same command.
+ */
+export async function executeFinanceStaffBookingCreateCommand(
+  input: FinanceBookingCreateCommandInput,
+) {
+  assertAdmittedActionPolicy(input.admitted, FINANCE_BOOKING_CREATE_HANDLER_POLICY)
+  return executeBookingCreateCommand(input)
+}
+
+/**
+ * Verified-guest or authenticated-customer creation through the public route.
+ *
+ * Pins the self-service policy expectation, which is bound to the route
+ * transport and to the customer actor — the mirror image of the staff
+ * entrypoint above, and the reason neither can be confused for the other.
+ */
+export async function executeFinanceSelfServiceBookingCreateCommand(
+  input: FinanceSelfServiceBookingCreateCommandInput,
+) {
+  assertAdmittedActionPolicy(input.admitted, FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY)
+  return executeBookingCreateCommand(input, input.fallbackPrincipalId, input.consumeSources)
+}
+
+/**
+ * The shared mutation core. Deliberately not exported: an exported executor
+ * that selected its expectation from caller-supplied admission metadata would
+ * be exactly the confused deputy the two entrypoints above prevent.
+ */
+async function executeBookingCreateCommand(
+  input: FinanceBookingCreateCommandInput,
+  fallbackPrincipalId?: string,
+  consumeSources?: (tx: PostgresJsDatabase, bookingId: string) => Promise<void>,
+) {
   return executeAdmittedCreatedTargetCommand(
     {
       db: input.db,
       context: input.context,
       admitted: input.admitted,
+      ...(fallbackPrincipalId ? { fallbackPrincipalId } : {}),
       commandTargetType: FINANCE_BOOKING_CREATE_POLICY.commandTargetType,
       canonicalTargetType: FINANCE_BOOKING_CREATE_POLICY.canonicalTargetType,
       resultReferenceType: FINANCE_BOOKING_CREATE_POLICY.resultReferenceType,
@@ -47,6 +114,9 @@ export async function executeFinanceBookingCreateCommand(input: {
         if (outcome.status !== "ok") throw bookingCreateCommandError(outcome)
         const result = outcome.result
         await input.testHooks?.afterDomainCreate?.(transaction, result.booking.id)
+        // Spend the draft, quote, hold, and challenge in the same transaction
+        // as the booking graph. Throwing here rolls the whole create back.
+        await consumeSources?.(transaction, result.booking.id)
         await insertBookingCreatedOutbox(transaction, input.commandInput, result, input.context)
         return {
           value: { bookingId: result.booking.id },

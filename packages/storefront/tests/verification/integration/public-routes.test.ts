@@ -47,6 +47,14 @@ async function ensureVerificationSchema(db: PostgresJsDatabase) {
     );
   `),
   )
+  await db.execute(
+    sql.raw(`
+    ALTER TABLE storefront_verification_challenges
+      ADD COLUMN IF NOT EXISTS subject_ref text,
+      ADD COLUMN IF NOT EXISTS consumed_at timestamptz,
+      ADD COLUMN IF NOT EXISTS consumed_ref text;
+  `),
+  )
 }
 
 describe.skipIf(!DB_AVAILABLE)("Storefront verification public routes", () => {

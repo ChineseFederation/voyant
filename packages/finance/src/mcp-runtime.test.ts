@@ -1,10 +1,10 @@
 import type { ToolContext, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-const executeFinanceBookingCreateCommand = vi.hoisted(() => vi.fn())
+const executeFinanceStaffBookingCreateCommand = vi.hoisted(() => vi.fn())
 
 vi.mock("./booking-create-command.js", () => ({
-  executeFinanceBookingCreateCommand,
+  executeFinanceStaffBookingCreateCommand,
 }))
 
 import { bookingsService } from "@voyant-travel/bookings"
@@ -12,13 +12,13 @@ import { voyantToolContextContribution } from "./mcp-runtime.js"
 
 afterEach(() => {
   vi.restoreAllMocks()
-  executeFinanceBookingCreateCommand.mockReset()
+  executeFinanceStaffBookingCreateCommand.mockReset()
 })
 
 describe("finance create_booking MCP runtime", () => {
   it("normalizes Date-shaped created booking detail to the booking Tool wire format", async () => {
     const detail = bookingDetailWithDates("booking_1")
-    executeFinanceBookingCreateCommand.mockResolvedValue({
+    executeFinanceStaffBookingCreateCommand.mockResolvedValue({
       replayed: false,
       value: { bookingId: "booking_1" },
     })

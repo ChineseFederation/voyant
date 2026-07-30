@@ -127,19 +127,30 @@ export async function updateBookingDraft(
   return rows[0] ?? null
 }
 
+/**
+ * Claim a draft for exactly one booking.
+ *
+ * The `consumed_booking_id IS NULL` predicate is load-bearing: without it two
+ * concurrent creates against the same draft both succeed and the second simply
+ * overwrites the first's stamp, yielding two bookings from one draft and one
+ * hold. Returns false when the draft was already spent, so the caller can roll
+ * its transaction back.
+ */
 export async function markDraftConsumed(
   db: AnyDrizzleDb,
   id: string,
   bookingId: string,
-): Promise<void> {
-  await db
+): Promise<boolean> {
+  const rows = (await db
     .update(bookingDraftsTable)
     .set({
       consumed_booking_id: bookingId,
       consumed_at: new Date(),
       updated_at: new Date(),
     })
-    .where(eq(bookingDraftsTable.id, id))
+    .where(and(eq(bookingDraftsTable.id, id), isNull(bookingDraftsTable.consumed_booking_id)))
+    .returning()) as SelectBookingDraft[]
+  return rows.length > 0
 }
 
 /**

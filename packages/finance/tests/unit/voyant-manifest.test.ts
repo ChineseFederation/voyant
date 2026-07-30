@@ -1,3 +1,7 @@
+// agent-quality: file-size exception -- owner: finance; one assertion per
+// declared extension in a single package manifest, so the file tracks the
+// manifest's own size; splitting it would separate contracts that must be read
+// together.
 import { createContainer } from "@voyant-travel/core"
 import { prepareExternalWebhookEvent } from "@voyant-travel/webhook-delivery"
 import { describe, expect, it } from "vitest"
@@ -26,6 +30,9 @@ describe("finance deployment manifest", () => {
           { id: "bookings.finance.runtime" },
           { id: "finance.host.runtime" },
           { id: "finance.app-api.runtime" },
+          // The public booking-create route lives in Bookings; Finance
+          // supplies the durable command it dispatches.
+          { id: "bookings.self-service-create.runtime" },
         ],
       },
       runtime: { entry: "@voyant-travel/finance", export: "createFinanceVoyantRuntime" },
@@ -559,6 +566,36 @@ describe("finance deployment manifest", () => {
               durability: "handler-command-claim-v1",
             },
             ledger: "required",
+            allowedActorTypes: ["staff"],
+            from: {
+              tools: ["@voyant-travel/finance#bookings-create-extension.tool.create-booking"],
+            },
+          }),
+          // Self-service creation is a separate action over the same command:
+          // customer-only, route-bound, and never exposed as a Tool.
+          expect.objectContaining({
+            id: "@voyant-travel/finance#bookings-create-extension.action.create-booking-self-service",
+            targetLifecycle: "created",
+            createdTarget: {
+              commandTargetType: "finance_booking_create_command",
+              resultReferenceType: "booking",
+              durability: "handler-command-claim-v1",
+            },
+            ledger: "required",
+            allowedActorTypes: ["customer"],
+            from: { routes: ["@voyant-travel/bookings#api.public"] },
+            // Fail closed: unavailable until a deployment selects a provider
+            // that can resolve a public draft/quote into a create command.
+            availability: {
+              status: "unavailable",
+              reasonCode: "self-service-booking-source-unavailable",
+              enableWhen: {
+                selectedProviderPorts: {
+                  mode: "all",
+                  ports: ["finance.self-service-booking-source.runtime"],
+                },
+              },
+            },
           }),
         ],
       },

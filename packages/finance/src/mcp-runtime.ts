@@ -14,7 +14,7 @@ import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
-import { executeFinanceBookingCreateCommand } from "./booking-create-command.js"
+import { executeFinanceStaffBookingCreateCommand } from "./booking-create-command.js"
 import { allocateBookingNumber } from "./booking-number.js"
 import {
   authorizeFinanceInvoiceIssue,
@@ -56,10 +56,10 @@ export const voyantToolContextContribution = defineToolContextContribution({
           bookingNumber: await allocateBookingNumber(db as PostgresJsDatabase),
         }),
         createBooking: (
-          input: Parameters<typeof executeFinanceBookingCreateCommand>[0]["commandInput"],
-          admitted: Parameters<typeof executeFinanceBookingCreateCommand>[0]["admitted"],
+          input: Parameters<typeof executeFinanceStaffBookingCreateCommand>[0]["commandInput"],
+          admitted: Parameters<typeof executeFinanceStaffBookingCreateCommand>[0]["admitted"],
         ) =>
-          executeFinanceBookingCreateCommand({
+          executeFinanceStaffBookingCreateCommand({
             db,
             context: financeToolActionLedgerContext(c),
             commandInput: input,

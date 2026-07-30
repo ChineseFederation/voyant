@@ -11,12 +11,19 @@ export const storefrontVerificationStatusSchema = z.enum([
 
 const purposeSchema = z.string().trim().min(1).max(100).default("contact_confirmation")
 const metadataSchema = z.record(z.string(), z.unknown()).optional().nullable()
+/**
+ * What the challenge authorizes, beyond its purpose — the booking draft id for
+ * a self-service create. Bound here at start so a verified challenge cannot be
+ * redirected at a different draft later.
+ */
+const subjectRefSchema = z.string().trim().min(1).max(255).optional().nullable()
 
 export const startEmailVerificationChallengeSchema = z.object({
   email: z.email(),
   purpose: purposeSchema,
   locale: z.string().trim().min(2).max(16).optional().nullable(),
   metadata: metadataSchema,
+  subjectRef: subjectRefSchema,
 })
 
 export const startSmsVerificationChallengeSchema = z.object({
@@ -24,6 +31,7 @@ export const startSmsVerificationChallengeSchema = z.object({
   purpose: purposeSchema,
   locale: z.string().trim().min(2).max(16).optional().nullable(),
   metadata: metadataSchema,
+  subjectRef: subjectRefSchema,
 })
 
 export const confirmEmailVerificationChallengeSchema = z.object({

@@ -43,13 +43,55 @@ for (const [file, path, method] of [
 assertPackageExportAbsent("packages/finance/package.json", "./booking-create-command")
 assertPackageExportAbsent("packages/catalog/package.json", "./booking-engine/book")
 
+// Two explicit entrypoints over one private core. Each pins exactly one static
+// policy expectation, so neither can be driven by the other's admission.
 assertReferencesWithin(
-  "executeFinanceBookingCreateCommand",
+  "executeFinanceStaffBookingCreateCommand",
   new Set([
     "packages/finance/src/booking-create-command.ts",
     "packages/finance/src/mcp-runtime.ts",
   ]),
 )
+assertReferencesWithin(
+  "executeFinanceSelfServiceBookingCreateCommand",
+  new Set([
+    "packages/finance/src/booking-create-command.ts",
+    "packages/finance/src/self-service-create-runtime.ts",
+  ]),
+)
+// The shared core must stay private to its own module.
+assertReferencesWithin(
+  "executeBookingCreateCommand",
+  new Set(["packages/finance/src/booking-create-command.ts"]),
+)
+// The route module is composed into the public API bundle, never exported.
+assertPackageExportAbsent("packages/finance/package.json", "./self-service-create-runtime")
+
+// The confused-deputy boundary, mechanically: the staff Tool never names the
+// self-service policy, and the route runtime never names the staff policy.
+assertReferencesWithin(
+  "FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY",
+  new Set([
+    "packages/finance/src/booking-create-policy.ts",
+    "packages/finance/src/booking-create-command.ts",
+  ]),
+)
+assertReferencesWithin(
+  "FINANCE_BOOKING_CREATE_HANDLER_POLICY",
+  new Set([
+    "packages/finance/src/booking-create-policy.ts",
+    "packages/finance/src/booking-create-command.ts",
+    "packages/finance/src/tools.ts",
+  ]),
+)
+// A self-service action reachable from a Tool definition would defeat the
+// transport split, so its identity must never appear in the Tool module.
+for (const identifier of [
+  "FINANCE_BOOKING_CREATE_SELF_SERVICE_ACTION",
+  "FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION",
+]) {
+  assertAbsentFrom(identifier, "packages/finance/src/tools.ts")
+}
 assertReferencesWithin(
   "executeCreatedTargetCommand",
   new Set(["packages/action-ledger/src/created-command-internal.ts"]),
@@ -105,7 +147,7 @@ for (const [file, source] of sources) {
 assertImportAndCall(
   "packages/finance/src/mcp-runtime.ts",
   "./booking-create-command.js",
-  "executeFinanceBookingCreateCommand",
+  "executeFinanceStaffBookingCreateCommand",
 )
 assertImportAndCall(
   "packages/finance/src/booking-create-command.ts",
@@ -210,6 +252,16 @@ function assertImportAndCall(file, moduleName, importedName) {
 
 function assertCall(file, name) {
   if (!callNames(file).has(name)) fail(file, `required authority call ${name} is absent`)
+}
+
+function assertAbsentFrom(identifier, file) {
+  const source = sources.get(file)
+  if (!source) return
+  walk(source, (node) => {
+    if (ts.isIdentifier(node) && node.text === identifier) {
+      fail(file, `${identifier} must not be referenced here`)
+    }
+  })
 }
 
 function assertReferencesWithin(identifier, allowedFiles) {

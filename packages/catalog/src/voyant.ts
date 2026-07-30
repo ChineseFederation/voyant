@@ -1,10 +1,16 @@
+import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
 import {
   defineExtension,
   defineModule,
   providePort,
   requirePort,
 } from "@voyant-travel/core/project"
-import { financeOperatorSettingsRuntimePort } from "@voyant-travel/finance/runtime-port"
+import {
+  financeOperatorSettingsRuntimePort,
+  // Re-exported by the port barrel so the manifest stays import-cheap; the
+  // contract module it is defined in pulls in the create-command types.
+  financeSelfServiceBookingSourceRuntimePort,
+} from "@voyant-travel/finance/runtime-port"
 import {
   catalogBookingRuntimePort,
   catalogOffersRuntimePort,
@@ -401,8 +407,21 @@ export const catalogBookingEngineVoyantModule = defineModule({
   packageName: "@voyant-travel/catalog",
   localId: "catalog.booking-engine",
   requires: { capabilities: ["catalog.data-owner"] },
-  provides: { ports: [providePort(catalogBookingRuntimePort)] },
-  runtimePorts: [requirePort(catalogBookingRuntimePort)],
+  provides: {
+    ports: [
+      providePort(catalogBookingRuntimePort),
+      // Catalog owns the draft, quote, and hold a public caller books from, so
+      // it provides the source-resolution port Finance's self-service create
+      // action is gated on.
+      providePort(financeSelfServiceBookingSourceRuntimePort),
+    ],
+  },
+  runtimePorts: [
+    requirePort(catalogBookingRuntimePort),
+    // Resolves the billing party for a verified guest, who has no account.
+    // Optional: without it only authenticated customers can self-serve.
+    requirePort(bookingsRelationshipsRuntimePort, { optional: true }),
+  ],
   api: [
     {
       id: "@voyant-travel/catalog#booking-engine.api.admin",

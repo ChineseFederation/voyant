@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("../", import.meta.url))
 const ignoredDirectories = new Set([
+  // Gitignored agent scratch and worktrees. A checkout of another branch
+  // living here is not this tree's source, and scanning it fails the check
+  // locally for content that CI never sees.
+  ".claude",
   ".git",
   ".next",
   ".turbo",

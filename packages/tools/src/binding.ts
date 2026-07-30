@@ -39,6 +39,16 @@ export const TOOL_ACTION_INVOCATION_FIELD = "_voyant" as const
 
 export type ToolActionPolicyEnforcement = "generic" | "handler"
 
+/**
+ * Which admission boundaries may select an action.
+ *
+ * `tool` is the established Tool-dispatch boundary and stays the default, so an
+ * action that says nothing keeps its current MCP-only reach. `route` admits an
+ * action bound to one HTTP route instead — the route never fabricates an
+ * admission, it asks the registry to mint one, exactly as Tool dispatch does.
+ */
+export type ToolActionTransport = "tool" | "route" | "both"
+
 /** Selected graph action policy bound to one stable Tool capability. */
 export interface ToolActionPolicyBinding {
   id: string
@@ -68,6 +78,19 @@ export interface ToolActionPolicyBinding {
   policy?: string
   reversible?: boolean
   allowedActorTypes?: readonly string[]
+  /** Admission boundaries allowed to select this action. Defaults to `tool`. */
+  transport?: ToolActionTransport
+}
+
+/** The boundary that actually minted an admission, as opposed to what is allowed. */
+export type ToolAdmissionTransport = Exclude<ToolActionTransport, "both">
+
+export function actionTransportAdmits(
+  policy: Pick<ToolActionPolicyBinding, "transport">,
+  transport: ToolAdmissionTransport,
+): boolean {
+  const allowed = policy.transport ?? "tool"
+  return allowed === "both" || allowed === transport
 }
 
 export interface ToolActionInvocationPolicy {

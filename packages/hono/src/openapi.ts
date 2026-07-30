@@ -501,3 +501,9 @@ export function stampModuleMetadata(
   }
   return { ...doc, paths } as OpenApiDocument
 }
+
+export {
+  diffOpenApiCoverage,
+  type OpenApiCoverageDiff,
+  type OperationKey,
+} from "./openapi-coverage.js"

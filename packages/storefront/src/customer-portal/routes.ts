@@ -1,14 +1,19 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
+/**
+ * Anonymous customer-portal routes.
+ *
+ * The `contact-exists` pair was removed: it answered, without any proof of
+ * control, whether an address had an auth account, a customer record, and
+ * whether that record was already claimed by someone else. That is an account
+ * enumeration oracle, and rate limiting only slows it down.
+ *
+ * The storefront now starts a verification challenge instead. The API response
+ * is identical whether or not an account exists; the delivered message differs,
+ * and the client branches on what the user does next rather than on an answer
+ * the server should not give an anonymous caller.
+ */
+import { OpenAPIHono } from "@hono/zod-openapi"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
-import { publicCustomerPortalService } from "./service-public.js"
-import {
-  customerPortalContactExistsQuerySchema,
-  customerPortalContactExistsResultSchema,
-  customerPortalPhoneContactExistsQuerySchema,
-  customerPortalPhoneContactExistsResultSchema,
-} from "./validation-public.js"
 
 type Env = {
   Variables: {
@@ -16,54 +21,6 @@ type Env = {
   }
 }
 
-const contactExistsRoute = createRoute({
-  method: "get",
-  path: "/contact-exists",
-  request: { query: customerPortalContactExistsQuerySchema },
-  responses: {
-    200: {
-      description: "Whether an auth account and/or customer record exists for an email",
-      content: {
-        "application/json": {
-          schema: z.object({ data: customerPortalContactExistsResultSchema }),
-        },
-      },
-    },
-  },
-})
-
-const phoneContactExistsRoute = createRoute({
-  method: "get",
-  path: "/contact-exists/phone",
-  request: { query: customerPortalPhoneContactExistsQuerySchema },
-  responses: {
-    200: {
-      description: "Whether an auth account and/or customer record exists for a phone number",
-      content: {
-        "application/json": {
-          schema: z.object({ data: customerPortalPhoneContactExistsResultSchema }),
-        },
-      },
-    },
-  },
-})
-
 export const customerPortalRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
-  .openapi(contactExistsRoute, async (c) => {
-    const query = c.req.valid("query")
-
-    return c.json(
-      { data: await publicCustomerPortalService.contactExists(c.get("db"), query.email) },
-      200,
-    )
-  })
-  .openapi(phoneContactExistsRoute, async (c) => {
-    const query = c.req.valid("query")
-
-    return c.json(
-      { data: await publicCustomerPortalService.phoneContactExists(c.get("db"), query.phone) },
-      200,
-    )
-  })
 
 export type CustomerPortalRoutes = typeof customerPortalRoutes

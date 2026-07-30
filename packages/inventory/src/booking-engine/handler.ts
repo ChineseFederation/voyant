@@ -40,10 +40,14 @@ import {
 
 import {
   applyAddonSelections,
+  bookingExtraLinesFromAddonSelections,
+  bookingItemLinesFromOptionSelections,
+  fillMissingBookingItemSellAmounts,
   loadProduct,
   normalizeOptionSelections,
   priceOptionSelections,
   priceQuote,
+  resolveSellAmountCentsOverride,
   sumPax,
 } from "./handler-support.js"
 
@@ -638,6 +642,103 @@ export function createProductsBookingHandler(
       // — the journey commit will revalidate via the engine's
       // re-quote and reject if capacity has dried up.
       return { holdToken: token, expiresAt }
+    },
+
+    /**
+     * Derive the create command for one public self-service booking.
+     *
+     * This is the pricing and party half of the removed owned-commit path,
+     * with every write taken out — Finance owns the mutation inside its
+     * durable claim, and the billing person is resolved by the caller before
+     * this runs.
+     *
+     * Operator-only draft fields are deliberately never read. A public caller
+     * can write the draft, so honouring `priceOverride` would let them name
+     * their own price, `suppressNotifications` would let them silence the
+     * operator, and `internalNotes` / `documentGeneration` would let them
+     * write operator-facing state. The staff Tool keeps all four.
+     */
+    async deriveSelfServiceCommand(ctx: OwnedHandlerContext, request) {
+      const product = await loadProduct(ctx.db, request.entityId)
+      if (!product) return { status: "rejected" as const, reason: "entity_not_found" as const }
+      if (product.status !== "active") {
+        return { status: "rejected" as const, reason: "entity_not_bookable" as const }
+      }
+
+      const draft = (request.draft ?? {}) as DraftLike
+      const travelers = (draft.travelers ?? []).map((traveler) => ({
+        firstName: traveler.firstName,
+        lastName: traveler.lastName,
+        email: traveler.email,
+        phone: traveler.phone,
+        participantType: "traveler" as const,
+        travelerCategory:
+          traveler.band === "child" || traveler.band === "infant"
+            ? (traveler.band as "child" | "infant")
+            : ("adult" as const),
+      }))
+      if (travelers.length === 0) {
+        return { status: "rejected" as const, reason: "incomplete_draft" as const }
+      }
+      if (!request.billing.personId && !request.billing.organizationId) {
+        return { status: "rejected" as const, reason: "incomplete_draft" as const }
+      }
+
+      const configuredPax = sumPax(draft.configure?.pax)
+      const optionSelections = normalizeOptionSelections(draft.configure?.optionSelections)
+      const selectedOptionIds = [...new Set(optionSelections.map((s) => s.optionId))]
+      const primaryOptionId =
+        selectedOptionIds.length === 1
+          ? selectedOptionIds[0]
+          : optionSelections.length === 0
+            ? (draft.configure?.variantId ?? null)
+            : null
+
+      // The quoted amount is authoritative. There is no override path here:
+      // the customer pays what the accepted quote said.
+      const sellAmountCentsOverride = resolveSellAmountCentsOverride(request.pricing)
+      const extraLines = bookingExtraLinesFromAddonSelections({
+        addons: draft.addons,
+        addonCatalog: await options.loadAddonCatalog?.(ctx, product.id),
+        currency: product.sellCurrency,
+        quantityMultiplier: Math.max(1, travelers.length),
+      })
+
+      let itemLines: ReturnType<typeof fillMissingBookingItemSellAmounts> | undefined
+      try {
+        itemLines = fillMissingBookingItemSellAmounts({
+          itemLines: bookingItemLinesFromOptionSelections(optionSelections),
+          pricing: request.pricing,
+          targetSellAmountCents: sellAmountCentsOverride,
+          extraLines,
+        })
+      } catch {
+        // The accepted quote no longer reconciles against the selection.
+        return { status: "rejected" as const, reason: "price_changed" as const }
+      }
+
+      return {
+        status: "ok" as const,
+        command: {
+          productId: product.id,
+          optionId: primaryOptionId,
+          slotId: draft.configure?.departureSlotId ?? null,
+          pax: configuredPax > 0 ? configuredPax : travelers.length,
+          ...(request.availabilityHoldToken
+            ? { availabilityHoldToken: request.availabilityHoldToken }
+            : {}),
+          personId: request.billing.personId,
+          organizationId: request.billing.organizationId,
+          contactFirstName: request.billing.contactFirstName,
+          contactLastName: request.billing.contactLastName,
+          contactEmail: request.billing.contactEmail,
+          contactPhone: request.billing.contactPhone,
+          travelers,
+          ...(itemLines ? { itemLines } : {}),
+          ...(extraLines && extraLines.length > 0 ? { extraLines } : {}),
+          ...(sellAmountCentsOverride != null ? { sellAmountCentsOverride } : {}),
+        },
+      }
     },
 
     async extendHold(_ctx: OwnedHandlerContext, holdToken: string, request?: { ttlMs?: number }) {

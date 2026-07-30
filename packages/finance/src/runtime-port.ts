@@ -246,6 +246,13 @@ export const financeCheckoutPaymentStartersRuntimePort =
   objectPort<FinanceCheckoutPaymentStartersRuntime>("finance.checkout-payment-starters.runtime", [
     "resolvePaymentStarters",
   ])
+/**
+ * Resolves a public draft + quote into a server-derived create command.
+ *
+ * Defined alongside its contract rather than here, because the conditionally
+ * available create action needs an importable conformance reference to it.
+ */
+export { financeSelfServiceBookingSourceRuntimePort } from "./self-service-booking-source.js"
 export const financeInvoiceSettlementPollerRuntimePort =
   definePort<FinanceInvoiceSettlementPollerProvider>({
     id: "finance.invoice-settlement-poller",

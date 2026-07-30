@@ -1,4 +1,5 @@
 export {
+  actionTransportAdmits,
   type RemoteToolRef,
   TOOL_ACTION_INVOCATION_FIELD,
   TOOL_CONTRACT_VERSION,
@@ -6,6 +7,8 @@ export {
   type ToolActionPolicyBinding,
   type ToolActionPolicyEnforcement,
   type ToolActionPolicyManifest,
+  type ToolActionTransport,
+  type ToolAdmissionTransport,
   type ToolAnnotations,
   type ToolAudience,
   type ToolAudiencePolicy,
@@ -40,6 +43,8 @@ export {
 } from "./errors.js"
 export {
   admitHandlerActionPolicy,
+  assertAdmissionTransport,
+  assertAdmittedActionPolicy,
   assertAuthenticHandlerActionPolicyContext,
   type HandlerActionPolicyExpectation,
 } from "./handler-action-policy.js"
@@ -58,3 +63,9 @@ export {
   type ToolDeploymentRiskTier,
   type ToolSideEffect,
 } from "./risk.js"
+export {
+  createRouteActionRegistry,
+  type RouteActionAdmissionInput,
+  type RouteActionBinding,
+  type RouteActionRegistry,
+} from "./route-action.js"

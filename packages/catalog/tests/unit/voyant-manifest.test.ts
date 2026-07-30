@@ -167,7 +167,14 @@ describe("catalog deployment manifest", () => {
       id: "@voyant-travel/catalog#booking-engine",
       packageName: "@voyant-travel/catalog",
       requires: { capabilities: ["catalog.data-owner"] },
-      provides: { ports: [{ id: "catalog.booking-runtime" }] },
+      provides: {
+        ports: [
+          { id: "catalog.booking-runtime" },
+          // Catalog owns the draft/quote/hold a public caller books from, so
+          // it provides the port Finance's self-service create is gated on.
+          { id: "finance.self-service-booking-source.runtime" },
+        ],
+      },
       api: [
         {
           id: "@voyant-travel/catalog#booking-engine.api.admin",
@@ -192,7 +199,12 @@ describe("catalog deployment manifest", () => {
           },
         },
       ],
-      runtimePorts: [{ id: "catalog.booking-runtime" }],
+      runtimePorts: [
+        { id: "catalog.booking-runtime" },
+        // Optional: resolves the billing party for a verified guest. Without
+        // it only authenticated customers can self-serve.
+        { id: "bookings.relationships.runtime", optional: true },
+      ],
     })
     expect(catalogBookingEngineVoyantModule.tools).toEqual(
       expect.arrayContaining([expect.objectContaining({ context: ["catalogBooking"] })]),

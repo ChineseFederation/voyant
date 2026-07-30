@@ -1051,6 +1051,9 @@
       "@voyant-travel/finance/runtime-contributor": ["../finance/dist/runtime-contributor.d.ts"],
       "@voyant-travel/finance/runtime-port": ["../finance/dist/runtime-port.d.ts"],
       "@voyant-travel/finance/schema": ["../finance/dist/schema.d.ts"],
+      "@voyant-travel/finance/self-service-booking-source": [
+        "../finance/dist/self-service-booking-source.d.ts"
+      ],
       "@voyant-travel/finance/setup/travel-credits": [
         "../finance/dist/service-travel-credits-migration.d.ts"
       ],

@@ -181,6 +181,7 @@ async function startChallenge(
   destination: string,
   purpose: string,
   metadata: Record<string, unknown> | null | undefined,
+  subjectRef: string | null | undefined,
   options?: StorefrontVerificationServiceOptions,
 ) {
   const now = options?.now?.() ?? new Date()
@@ -204,6 +205,7 @@ async function startChallenge(
         failedAt: null,
         verifiedAt: null,
         metadata: metadata ?? null,
+        subjectRef: subjectRef ?? null,
         updatedAt: now,
       })
       .where(eq(storefrontVerificationChallenges.id, existing.id))
@@ -236,6 +238,7 @@ async function startChallenge(
       expiresAt,
       lastSentAt: now,
       metadata: metadata ?? null,
+      subjectRef: subjectRef ?? null,
       createdAt: now,
       updatedAt: now,
     })
@@ -397,6 +400,7 @@ export function createStorefrontVerificationService(
         email,
         input.purpose,
         input.metadata,
+        input.subjectRef,
         options,
       )
 
@@ -444,6 +448,7 @@ export function createStorefrontVerificationService(
         phone,
         input.purpose,
         input.metadata,
+        input.subjectRef,
         options,
       )
 

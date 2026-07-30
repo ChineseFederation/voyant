@@ -8,8 +8,6 @@ import {
   customerPortalBookingDocumentSchema,
   customerPortalBookingSummarySchema,
   customerPortalCompanionSchema,
-  customerPortalContactExistsResultSchema,
-  customerPortalPhoneContactExistsResultSchema,
   customerPortalProfileDocumentSchema,
   customerPortalProfileSchema,
   importCustomerPortalBookingTravelersResultSchema,
@@ -39,8 +37,6 @@ export {
   customerPortalBookingDocumentSchema,
   customerPortalBookingSummarySchema,
   customerPortalCompanionSchema,
-  customerPortalContactExistsResultSchema,
-  customerPortalPhoneContactExistsResultSchema,
   customerPortalProfileDocumentSchema,
   customerPortalProfileSchema,
   importCustomerPortalBookingTravelersResultSchema,
@@ -75,12 +71,6 @@ export const customerPortalProfileDocumentsResponseSchema = arrayEnvelope(
 export const customerPortalProfileDocumentResponseSchema = singleEnvelope(
   customerPortalProfileDocumentSchema,
 )
-export const customerPortalContactExistsResponseSchema = singleEnvelope(
-  customerPortalContactExistsResultSchema,
-)
-export const customerPortalPhoneContactExistsResponseSchema = singleEnvelope(
-  customerPortalPhoneContactExistsResultSchema,
-)
 
 export type CustomerPortalProfileRecord = z.infer<typeof customerPortalProfileSchema>
 export type BootstrapCustomerPortalInput = z.input<typeof bootstrapCustomerPortalSchema>
@@ -114,10 +104,4 @@ export type CreateCustomerPortalProfileDocumentInput = z.input<
 >
 export type UpdateCustomerPortalProfileDocumentInput = z.input<
   typeof updateCustomerPortalProfileDocumentSchema
->
-export type CustomerPortalContactExistsRecord = z.infer<
-  typeof customerPortalContactExistsResultSchema
->
-export type CustomerPortalPhoneContactExistsRecord = z.infer<
-  typeof customerPortalPhoneContactExistsResultSchema
 >

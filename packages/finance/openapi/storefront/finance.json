@@ -1791,6 +1791,12 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
                   }
                 }
               }
@@ -2459,6 +2465,12 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
                   }
                 }
               }
@@ -3119,6 +3131,12 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "providerConnectionId": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "Selects a specific payment provider connection when the deployment has more than one."
                   }
                 }
               }

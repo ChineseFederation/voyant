@@ -6,19 +6,13 @@ import type { FetchWithValidationOptions } from "./client.js"
 import {
   getCustomerPortalBooking,
   getCustomerPortalBookingBillingContact,
-  getCustomerPortalContactExists,
-  getCustomerPortalPhoneContactExists,
   getCustomerPortalProfile,
   listCustomerPortalBookingDocuments,
   listCustomerPortalBookings,
   listCustomerPortalCompanions,
   listCustomerPortalProfileDocuments,
 } from "./operations.js"
-import {
-  type CustomerPortalContactExistsFilters,
-  type CustomerPortalPhoneContactExistsFilters,
-  customerPortalQueryKeys,
-} from "./query-keys.js"
+import { customerPortalQueryKeys } from "./query-keys.js"
 
 export function getCustomerPortalProfileQueryOptions(client: FetchWithValidationOptions) {
   return queryOptions({
@@ -78,27 +72,4 @@ export function getCustomerPortalBookingDocumentsQueryOptions(
   })
 }
 
-export function getCustomerPortalContactExistsQueryOptions(
-  filters: CustomerPortalContactExistsFilters,
-  client: FetchWithValidationOptions,
-) {
-  return queryOptions({
-    queryKey: customerPortalQueryKeys.contactExistsLookup(filters),
-    queryFn: () => getCustomerPortalContactExists(client, filters.email),
-  })
-}
-
-export function getCustomerPortalPhoneContactExistsQueryOptions(
-  filters: CustomerPortalPhoneContactExistsFilters,
-  client: FetchWithValidationOptions,
-) {
-  return queryOptions({
-    queryKey: customerPortalQueryKeys.phoneContactExistsLookup(filters),
-    queryFn: () => getCustomerPortalPhoneContactExists(client, filters.phone),
-  })
-}
-
-export type {
-  CustomerPortalContactExistsFilters,
-  CustomerPortalPhoneContactExistsFilters,
-} from "./query-keys.js"
+export type {} from "./query-keys.js"

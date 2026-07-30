@@ -70,7 +70,14 @@ export interface ToolActionPolicyExecutionInput {
 }
 
 export type ToolHandlerActionPolicyContext = Readonly<
-  Omit<ToolActionPolicyExecutionInput, "commandInput">
+  Omit<ToolActionPolicyExecutionInput, "commandInput"> & {
+    /**
+     * The boundary that minted this admission. Set by the registry at mint
+     * time, never by a caller — downstream audit derives its authorization
+     * source from it. Absent on an unminted candidate.
+     */
+    transport?: import("./binding.js").ToolAdmissionTransport
+  }
 >
 
 /** Transport-neutral gate: the implementation owns policy checks and audited dispatch. */

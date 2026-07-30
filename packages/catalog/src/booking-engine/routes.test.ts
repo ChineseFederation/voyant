@@ -4,6 +4,7 @@ import { Hono } from "hono"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { PricingBasis } from "../snapshot/schema.js"
+import { issueBookingDraftCapability } from "./draft-capability.js"
 
 import {
   createBookingDraft,
@@ -61,6 +62,16 @@ const pricing: PricingBasis = {
   fees: 250,
   surcharges: 0,
   currency: "EUR",
+}
+
+const DRAFT_CAPABILITY_ENV = {
+  VOYANT_BOOKING_DRAFT_CAPABILITY_SECRET: "draft-capability-test-secret-32c",
+}
+
+/** Drafts are capability-scoped: the id alone no longer grants access. */
+async function draftHeaders(draftId: string) {
+  const capability = await issueBookingDraftCapability(draftId, DRAFT_CAPABILITY_ENV)
+  return { "X-Voyant-Booking-Draft": capability.token }
 }
 
 describe("createCatalogBookingRoutes", () => {
@@ -317,17 +328,21 @@ describe("createCatalogBookingRoutes", () => {
     } as never)
     const { app } = createTestApp({ resolveActorId: () => "user_1" })
 
-    const response = await app.request("/v1/public/catalog/drafts/draft_1", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        entityModule: "products",
-        entityId: "prod_1",
-        sourceKind: "owned",
-        draftPayload: { entity: { id: "prod_1" } },
-        currentStep: "configure",
-      }),
-    })
+    const response = await app.request(
+      "/v1/public/catalog/drafts/draft_1",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          entityModule: "products",
+          entityId: "prod_1",
+          sourceKind: "owned",
+          draftPayload: { entity: { id: "prod_1" } },
+          currentStep: "configure",
+        }),
+      },
+      DRAFT_CAPABILITY_ENV,
+    )
 
     expect(response.status).toBe(201)
     expect(createBookingDraft).toHaveBeenCalledWith(
@@ -363,7 +378,11 @@ describe("createCatalogBookingRoutes", () => {
     } as never)
     const { app } = createTestApp()
 
-    const response = await app.request("/v1/public/catalog/drafts/draft_1")
+    const response = await app.request(
+      "/v1/public/catalog/drafts/draft_1",
+      { headers: await draftHeaders("draft_1") },
+      DRAFT_CAPABILITY_ENV,
+    )
 
     expect(response.status).toBe(200)
     const body = (await response.json()) as Record<string, unknown>
@@ -385,7 +404,11 @@ describe("createCatalogBookingRoutes", () => {
     vi.mocked(getBookingDraft).mockResolvedValue(null)
     const { app } = createTestApp()
 
-    const response = await app.request("/v1/public/catalog/drafts/missing")
+    const response = await app.request(
+      "/v1/public/catalog/drafts/missing",
+      { headers: await draftHeaders("missing") },
+      DRAFT_CAPABILITY_ENV,
+    )
 
     expect(response.status).toBe(404)
     await expect(response.json()).resolves.toEqual({ error: "draft not found" })

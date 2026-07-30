@@ -1,11 +1,3 @@
-export interface CustomerPortalContactExistsFilters {
-  email: string
-}
-
-export interface CustomerPortalPhoneContactExistsFilters {
-  phone: string
-}
-
 export const customerPortalQueryKeys = {
   all: ["customer-portal"] as const,
   profile: () => [...customerPortalQueryKeys.all, "profile"] as const,
@@ -17,10 +9,4 @@ export const customerPortalQueryKeys = {
     [...customerPortalQueryKeys.booking(bookingId), "billing-contact"] as const,
   bookingDocuments: (bookingId: string) =>
     [...customerPortalQueryKeys.booking(bookingId), "documents"] as const,
-  contactExists: () => [...customerPortalQueryKeys.all, "contact-exists"] as const,
-  contactExistsLookup: (filters: CustomerPortalContactExistsFilters) =>
-    [...customerPortalQueryKeys.contactExists(), filters] as const,
-  phoneContactExists: () => [...customerPortalQueryKeys.all, "phone-contact-exists"] as const,
-  phoneContactExistsLookup: (filters: CustomerPortalPhoneContactExistsFilters) =>
-    [...customerPortalQueryKeys.phoneContactExists(), filters] as const,
 }

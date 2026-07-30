@@ -19,6 +19,7 @@
  *     engine consults it on every dispatch.
  */
 
+export type { PricingBasis } from "../snapshot/schema.js"
 export {
   type CancelEntityDeps,
   type CancelEntityRequest,
@@ -156,6 +157,8 @@ export {
   type ComputeQuoteResult,
   type ComputeQuotesRequest,
   createOwnedBookingHandlerRegistry,
+  type DeriveSelfServiceCommandRequest,
+  type DeriveSelfServiceCommandResult,
   type HoldRequest,
   type HoldResult,
   OWNED_SOURCE_KIND,
@@ -163,6 +166,8 @@ export {
   type OwnedBookingHandlerRegistry,
   type OwnedHandlerContext,
   type OwnedQuoteScope,
+  type SelfServiceBillingParty,
+  type SelfServiceCommandRejection,
 } from "./owned-handler.js"
 export type {
   AppliedOffer,
@@ -211,6 +216,11 @@ export {
   type InsertCatalogQuote,
   type SelectCatalogQuote,
 } from "./schema.js"
+export {
+  createSelfServiceBookingSourceProvider,
+  type ResolveSelfServiceBillingPerson,
+  type SelfServiceBookingSourceProviderDeps,
+} from "./self-service-source.js"
 export {
   type SyncAdapterSummary,
   type SyncProgressEvent,

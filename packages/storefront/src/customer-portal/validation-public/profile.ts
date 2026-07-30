@@ -177,29 +177,6 @@ export const updateCustomerPortalProfileDocumentSchema = createCustomerPortalPro
     message: "At least one field must be provided",
   })
 
-export const customerPortalContactExistsQuerySchema = z.object({
-  email: z.string().email(),
-})
-
-export const customerPortalContactExistsResultSchema = z.object({
-  email: z.string().email(),
-  authAccountExists: z.boolean(),
-  customerRecordExists: z.boolean(),
-  linkedCustomerRecordExists: z.boolean(),
-})
-
-export const customerPortalPhoneContactExistsQuerySchema = z.object({
-  phone: z.string().min(1).max(50),
-})
-
-export const customerPortalPhoneContactExistsResultSchema = z.object({
-  phone: z.string(),
-  authAccountExists: z.boolean(),
-  authAccountVerified: z.boolean(),
-  customerRecordExists: z.boolean(),
-  linkedCustomerRecordExists: z.boolean(),
-})
-
 export const bootstrapCustomerPortalSchema = z
   .object({
     customerRecordId: z.string().optional(),
@@ -355,18 +332,6 @@ export type CreateCustomerPortalProfileDocumentInput = z.infer<
 >
 export type UpdateCustomerPortalProfileDocumentInput = z.infer<
   typeof updateCustomerPortalProfileDocumentSchema
->
-export type CustomerPortalContactExistsQuery = z.infer<
-  typeof customerPortalContactExistsQuerySchema
->
-export type CustomerPortalContactExistsResult = z.infer<
-  typeof customerPortalContactExistsResultSchema
->
-export type CustomerPortalPhoneContactExistsQuery = z.infer<
-  typeof customerPortalPhoneContactExistsQuerySchema
->
-export type CustomerPortalPhoneContactExistsResult = z.infer<
-  typeof customerPortalPhoneContactExistsResultSchema
 >
 export type BootstrapCustomerPortalInput = z.infer<typeof bootstrapCustomerPortalSchema>
 export type BootstrapCustomerPortalResult = z.infer<typeof bootstrapCustomerPortalResultSchema>

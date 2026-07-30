@@ -154,6 +154,13 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "subjectRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft."
                   }
                 },
                 "required": ["email"]
@@ -320,6 +327,13 @@
                   "metadata": {
                     "type": ["object", "null"],
                     "additionalProperties": {}
+                  },
+                  "subjectRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "nullable": true,
+                    "description": "What this challenge authorizes beyond its purpose - the booking draft id for a self-service create. Bound at start so a verified challenge cannot be redirected at another draft."
                   }
                 },
                 "required": ["phone"]

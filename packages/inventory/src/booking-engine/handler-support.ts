@@ -2,6 +2,7 @@
 import type {
   AddonOffer,
   OwnedHandlerContext,
+  PricingBasis,
   ProductVariantOption,
 } from "@voyant-travel/catalog/booking-engine"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
@@ -606,4 +607,293 @@ export function priceQuote(input: {
       },
     ],
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Self-service command derivation helpers
+//
+// Restored from the pricing half of the removed owned-commit path. These
+// are pure: they turn an accepted quote plus the selected units into the
+// booking item lines a create command needs, and never write anything.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Booking item lines as the create command expects them. */
+export type SelfServiceItemLines = Array<{
+  optionId?: string
+  optionUnitId?: string
+  title?: string | null
+  quantity: number
+  unitSellAmountCents?: number | null
+  totalSellAmountCents?: number | null
+}>
+
+export function bookingItemLinesFromOptionSelections(
+  selections: ReadonlyArray<NormalizedOptionSelection>,
+): SelfServiceItemLines | undefined {
+  const lines = selections.flatMap((selection) =>
+    selection.optionUnitId
+      ? [
+          {
+            optionId: selection.optionId,
+            optionUnitId: selection.optionUnitId,
+            quantity: selection.quantity,
+          },
+        ]
+      : [],
+  )
+  return lines.length > 0 ? lines : undefined
+}
+
+interface AcceptedBasePriceLine {
+  optionId?: string
+  optionUnitId?: string
+  quantity: number
+  unitAmountCents: number
+  totalAmountCents: number
+  label: string | null
+}
+
+/**
+ * Populate missing booking-item amounts from the accepted quote.
+ *
+ * Quote lines carrying option provenance are matched directly. Legacy quotes
+ * without provenance retain their itemized amounts when their line ordering
+ * and quantities still identify the selected units. Any residual (promotion,
+ * operator override, or cent rounding) is allocated by the accepted base-line
+ * weights, with quantity as the final fallback. Explicit caller amounts are
+ * never replaced and the authoritative line totals sum exactly to `target`.
+ * `target` is the booking sell amount: gross when tax is included, pre-tax
+ * when tax is excluded (the separate booking tax lines carry excluded tax).
+ */
+export function fillMissingBookingItemSellAmounts(input: {
+  itemLines: SelfServiceItemLines | undefined
+  pricing: PricingBasis | undefined
+  targetSellAmountCents: number | null
+  extraLines?: readonly BookingExtraLine[]
+}): SelfServiceItemLines | undefined {
+  if (!input.itemLines?.length) return input.itemLines
+
+  const target = input.targetSellAmountCents
+  if (target == null || target < 0) return input.itemLines
+
+  const extraTotal = (input.extraLines ?? []).reduce(
+    (sum, line) => sum + Math.max(0, line.totalSellAmountCents ?? 0),
+    0,
+  )
+  if (extraTotal > target) {
+    throw new Error("Accepted booking pricing is inconsistent: add-ons exceed the sell total.")
+  }
+  const itemTarget = target - extraTotal
+  const quoteLines = acceptedBasePriceLines(input.pricing)
+  const quoteBySelection = matchAcceptedBasePriceLines(input.itemLines, quoteLines)
+
+  const explicitTotal = input.itemLines.reduce(
+    (sum, line) => sum + Math.max(0, line.totalSellAmountCents ?? 0),
+    0,
+  )
+  if (explicitTotal > itemTarget) {
+    throw new Error(
+      "Accepted booking pricing is inconsistent: explicit item lines exceed the item total.",
+    )
+  }
+  const missingIndexes = input.itemLines.flatMap((line, index) =>
+    line.totalSellAmountCents == null ? [index] : [],
+  )
+  if (missingIndexes.length === 0) {
+    if (explicitTotal !== itemTarget) {
+      throw new Error(
+        "Accepted booking pricing is inconsistent: explicit item lines do not equal the item total.",
+      )
+    }
+    return input.itemLines
+  }
+
+  const remaining = itemTarget - explicitTotal
+  const weights = missingIndexes.map((index) => {
+    const quoted = quoteBySelection.get(index)?.totalAmountCents
+    return quoted != null && quoted > 0
+      ? quoted
+      : Math.max(1, input.itemLines?.[index]?.quantity ?? 1)
+  })
+  const allocated = allocateExactTotal(remaining, weights)
+
+  return input.itemLines.map((line, index) => {
+    if (line.totalSellAmountCents != null) return line
+    const missingIndex = missingIndexes.indexOf(index)
+    if (missingIndex < 0) return line
+    const totalSellAmountCents = allocated[missingIndex] ?? 0
+    const quoted = quoteBySelection.get(index)
+    const unitSellAmountCents =
+      quoted && quoted.totalAmountCents === totalSellAmountCents
+        ? quoted.unitAmountCents
+        : Math.floor(totalSellAmountCents / Math.max(1, line.quantity))
+    return {
+      ...line,
+      ...(line.title == null && quoted?.label ? { title: quoted.label } : {}),
+      unitSellAmountCents,
+      totalSellAmountCents,
+    }
+  })
+}
+
+function acceptedBasePriceLines(pricing: PricingBasis | undefined): AcceptedBasePriceLine[] {
+  const breakdown = pricing?.breakdown
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return []
+  const lines = (breakdown as { lines?: unknown }).lines
+  if (!Array.isArray(lines)) return []
+  return lines.flatMap((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return []
+    const line = value as Record<string, unknown>
+    if (line.kind !== "base") return []
+    const quantity = asFiniteInteger(line.quantity)
+    const unitAmountCents = asFiniteInteger(line.unitAmount)
+    const totalAmountCents = asFiniteInteger(line.totalAmount)
+    if (
+      quantity == null ||
+      quantity <= 0 ||
+      unitAmountCents == null ||
+      unitAmountCents < 0 ||
+      totalAmountCents == null ||
+      totalAmountCents < 0
+    ) {
+      return []
+    }
+    return [
+      {
+        ...(typeof line.optionId === "string" ? { optionId: line.optionId } : {}),
+        ...(typeof line.optionUnitId === "string" ? { optionUnitId: line.optionUnitId } : {}),
+        quantity,
+        unitAmountCents,
+        totalAmountCents,
+        label: typeof line.label === "string" ? line.label : null,
+      },
+    ]
+  })
+}
+
+function matchAcceptedBasePriceLines(
+  itemLines: NonNullable<SelfServiceItemLines>,
+  quoteLines: readonly AcceptedBasePriceLine[],
+): Map<number, AcceptedBasePriceLine> {
+  const matched = new Map<number, AcceptedBasePriceLine>()
+  const claimed = new Set<number>()
+  for (const [itemIndex, item] of itemLines.entries()) {
+    const quoteIndexes = quoteLines.flatMap((line, index) =>
+      !claimed.has(index) &&
+      line.optionUnitId === item.optionUnitId &&
+      (line.optionId == null || item.optionId == null || line.optionId === item.optionId)
+        ? [index]
+        : [],
+    )
+    if (quoteIndexes.length > 0) {
+      for (const quoteIndex of quoteIndexes) claimed.add(quoteIndex)
+      const quoted = quoteIndexes.flatMap((index) => (quoteLines[index] ? [quoteLines[index]] : []))
+      const totalAmountCents = quoted.reduce((sum, line) => sum + line.totalAmountCents, 0)
+      matched.set(itemIndex, {
+        optionId: item.optionId ?? undefined,
+        optionUnitId: item.optionUnitId,
+        quantity: item.quantity,
+        unitAmountCents:
+          quoted.length === 1 && quoted[0]?.quantity === item.quantity
+            ? quoted[0].unitAmountCents
+            : Math.floor(totalAmountCents / Math.max(1, item.quantity)),
+        totalAmountCents,
+        label: quoted[0]?.label ?? null,
+      })
+    }
+  }
+
+  const unmatchedItems = itemLines.flatMap((_, index) => (matched.has(index) ? [] : [index]))
+  const unmatchedQuotes = quoteLines.flatMap((line, index) =>
+    claimed.has(index) || line.optionUnitId != null ? [] : [{ line, index }],
+  )
+  if (
+    unmatchedItems.length === unmatchedQuotes.length &&
+    unmatchedItems.every(
+      (itemIndex, index) =>
+        itemLines[itemIndex]?.quantity === unmatchedQuotes[index]?.line.quantity,
+    )
+  ) {
+    for (const [index, itemIndex] of unmatchedItems.entries()) {
+      const quoted = unmatchedQuotes[index]?.line
+      if (quoted) matched.set(itemIndex, quoted)
+    }
+  }
+  return matched
+}
+
+function allocateExactTotal(total: number, weights: readonly number[]): number[] {
+  if (weights.length === 0) return []
+  const positiveWeights = weights.map((weight) => Math.max(0, weight))
+  const denominator = positiveWeights.reduce((sum, weight) => sum + weight, 0)
+  if (denominator <= 0) return positiveWeights.map((_, index) => (index === 0 ? total : 0))
+
+  let allocated = 0
+  return positiveWeights.map((weight, index) => {
+    const amount =
+      index === positiveWeights.length - 1
+        ? total - allocated
+        : Math.floor((total * weight) / denominator)
+    allocated += amount
+    return amount
+  })
+}
+
+// Mirrors `isRealEmail` in @voyant-travel/finance's `requireCompleteBookingParty`
+// (and the trips copy). The owned booking handler resolves a CRM person from the
+// billing contact before calling `createBooking`, which rejects a blank or
+// placeholder email — so the resolver must apply the same rule up front, or it
+// orphans a CRM person on every failed checkout. Keep this set in sync with
+// finance's `placeholderEmails`.
+const placeholderBillingEmails = new Set([
+  "noreply@example.com",
+  "tbd@example.com",
+  "traveler@example.com",
+])
+
+export function isRealBillingEmail(value: string | null | undefined): value is string {
+  const normalized = value?.trim().toLowerCase() ?? ""
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !placeholderBillingEmails.has(normalized)
+}
+
+export function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+export function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+export function resolveSellAmountCentsOverride(pricing: PricingBasis | undefined): number | null {
+  if (!pricing) return null
+  const breakdown = pricing.breakdown
+  if (hasInclusiveTaxLine(breakdown)) {
+    const total = readBreakdownTotal(breakdown)
+    if (total != null) return total
+  }
+  return pricing.base_amount != null ? Math.round(pricing.base_amount) : null
+}
+
+export function hasInclusiveTaxLine(breakdown: unknown): boolean {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return false
+  const taxes = (breakdown as { taxes?: unknown }).taxes
+  if (!Array.isArray(taxes)) return false
+  return taxes.some((tax) => {
+    if (!tax || typeof tax !== "object" || Array.isArray(tax)) return false
+    const row = tax as Record<string, unknown>
+    return row.includedInPrice === true || row.scope === "included"
+  })
+}
+
+export function readBreakdownTotal(breakdown: unknown): number | null {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return null
+  const total = (breakdown as { total?: unknown }).total
+  return typeof total === "number" && Number.isFinite(total) ? Math.round(total) : null
+}
+
+export function asFiniteInteger(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null
+  return Math.round(value)
 }

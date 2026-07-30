@@ -1,3 +1,6 @@
+// agent-quality: file-size exception -- owner: catalog; one reconciliation
+// protocol exercised against a single filesystem-and-adapter double; splitting
+// it would duplicate that double rather than separate concerns.
 /// <reference types="node" />
 
 import type { createReadStream as CreateReadStream } from "node:fs"
@@ -509,7 +512,13 @@ describe("reconcileIndexer", () => {
     expect(state.dispose).toHaveBeenCalledTimes(2)
   })
 
-  it("keeps open resources small while processing default bucket partitions", async () => {
+  // 2,000 documents through real temp files, so wall-clock here tracks machine
+  // load rather than the behaviour under test. The default 5s budget tips over
+  // whenever the suite gains work elsewhere; the assertion is about open
+  // resource count, not speed.
+  it("keeps open resources small while processing default bucket partitions", {
+    timeout: 30_000,
+  }, async () => {
     const directory = mkdtempSync(join(tmpdir(), "voyant-reconciliation-buckets-"))
     const expected = Array.from({ length: 1_000 }, (_, index) => document(`owned-live-${index}`))
     const stale = Array.from({ length: 1_000 }, (_, index) => document(`owned-stale-${index}`))

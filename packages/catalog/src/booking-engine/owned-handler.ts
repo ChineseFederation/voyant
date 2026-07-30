@@ -120,6 +120,50 @@ export interface HoldResult {
 // Handler interface
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Billing party the provider already resolved, before derivation runs.
+ *
+ * Resolving (or creating) a CRM person is a write, so it stays outside the
+ * handler — derivation itself must not mutate anything.
+ */
+export interface SelfServiceBillingParty {
+  personId: string | null
+  organizationId: string | null
+  contactFirstName: string | null
+  contactLastName: string | null
+  contactEmail: string | null
+  contactPhone: string | null
+}
+
+export interface DeriveSelfServiceCommandRequest {
+  entityModule: string
+  entityId: string
+  /** The saved public draft. Operator-only fields on it are ignored. */
+  draft: unknown
+  /** Pricing from the quote the caller is booking against. */
+  pricing?: PricingBasis
+  billing: SelfServiceBillingParty
+  /** Live availability hold to convert, when the draft placed one. */
+  availabilityHoldToken?: string
+}
+
+export type SelfServiceCommandRejection =
+  | "entity_not_found"
+  | "entity_not_bookable"
+  | "incomplete_draft"
+  | "price_changed"
+
+/**
+ * The derived create command, minus the booking number.
+ *
+ * Typed `Record<string, unknown>` here rather than as Finance's
+ * `BookingCreateInput` so `@voyant-travel/catalog` keeps no type dependency on
+ * the command's owner; Finance validates the shape when it executes.
+ */
+export type DeriveSelfServiceCommandResult =
+  | { status: "ok"; command: Record<string, unknown> }
+  | { status: "rejected"; reason: SelfServiceCommandRejection }
+
 export interface OwnedBookingHandler {
   /** Vertical this handler claims. One handler per `entity_module`. */
   readonly entityModule: string
@@ -154,6 +198,25 @@ export interface OwnedBookingHandler {
     ctx: OwnedHandlerContext,
     request: ComputeQuotesRequest,
   ): Promise<ReadonlyArray<ComputeQuoteBatchResult>>
+
+  /**
+   * Derive the durable create command for one public self-service booking.
+   *
+   * Pure: it reads the vertical's own state and returns a command, and must
+   * not write anything — Finance owns the mutation, inside its durable claim.
+   *
+   * Implementations must ignore operator-only draft fields (price overrides,
+   * notification suppression, internal notes, document-generation requests).
+   * A public caller can write the draft, so honouring those would let them set
+   * their own price or suppress the operator's notifications.
+   *
+   * A vertical that does not implement this simply has no public creation
+   * path; the deployment's create action stays unavailable for it.
+   */
+  deriveSelfServiceCommand?(
+    ctx: OwnedHandlerContext,
+    request: DeriveSelfServiceCommandRequest,
+  ): Promise<DeriveSelfServiceCommandResult>
 
   /** Optional: place / extend / release a soft hold on the row. */
   placeHold?(ctx: OwnedHandlerContext, request: HoldRequest): Promise<HoldResult>

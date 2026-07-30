@@ -135,6 +135,10 @@ export {
   type SupplierInvoiceRoutes,
   supplierInvoiceRoutes,
 } from "./routes-supplier-invoices.js"
+export {
+  createSelfServiceCreateRuntime,
+  type SelfServiceCreateRuntimeDeps,
+} from "./self-service-create-runtime.js"
 export { type PublicFinanceRuntimeOptions, publicFinanceService } from "./service-public.js"
 
 export const financeModule: Module = {
@@ -409,6 +413,7 @@ export {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
+  financeSelfServiceBookingSourceRuntimePort,
 } from "./runtime-port.js"
 export type {
   BookingGuarantee,
@@ -506,6 +511,13 @@ export {
   travelCreditStatusEnum,
   travelCredits,
 } from "./schema.js"
+export type {
+  SelfServiceBookingCaller,
+  SelfServiceBookingSourceRejection,
+  SelfServiceBookingSourceResolution,
+  SelfServiceBookingSourceResolved,
+  SelfServiceBookingSourceRuntime,
+} from "./self-service-booking-source.js"
 export type {
   BindInvoiceRenditionInput,
   BookingPaymentSchedulePaidEvent,

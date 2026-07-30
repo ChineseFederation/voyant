@@ -142,7 +142,6 @@ describe("storefront deployment manifest", () => {
             mount: "customer-portal",
             resource: "storefront",
             openapi: { document: "customer-portal" },
-            anonymous: ["/contact-exists"],
             runtime: {
               entry: "@voyant-travel/storefront/customer-portal",
               export: "createCustomerPortalApiModule",

@@ -1,4 +1,9 @@
-import type { ToolActionPolicyBinding, ToolActionPolicyManifest } from "./binding.js"
+import {
+  actionTransportAdmits,
+  type ToolActionPolicyBinding,
+  type ToolActionPolicyManifest,
+  type ToolAdmissionTransport,
+} from "./binding.js"
 import type { ToolContext, ToolHandlerActionPolicyContext } from "./context.js"
 import { ToolError } from "./errors.js"
 
@@ -9,6 +14,12 @@ export interface HandlerActionPolicyExpectation {
   capabilityVersion: string
   canonicalName: string
   actionPolicy: ToolActionPolicyBinding
+  /**
+   * The boundary the calling handler is served by. A handler that states this
+   * refuses an admission minted at any other boundary, so a route-bound action
+   * cannot be driven by Tool dispatch and vice versa.
+   */
+  transport?: ToolAdmissionTransport
 }
 
 /**
@@ -23,23 +34,7 @@ export function admitHandlerActionPolicy(
   expected: HandlerActionPolicyExpectation,
 ): ToolHandlerActionPolicyContext {
   const admitted = context.handlerActionPolicy
-  assertAuthenticHandlerActionPolicyContext(admitted)
-  if (admitted?.actionPolicy.enforcement !== "handler") {
-    throw new ToolError(
-      "Handler-owned action policy context is required for this Tool.",
-      "ACTION_POLICY_REQUIRED",
-      { capabilityId: expected.capabilityId },
-    )
-  }
-
-  const mismatch = firstHandlerActionPolicyIdentityMismatch(admitted, expected)
-  if (mismatch) {
-    throw new ToolError(
-      "Handler-owned action policy context does not match this Tool contract.",
-      "ACTION_POLICY_REQUIRED",
-      { capabilityId: expected.capabilityId, mismatch },
-    )
-  }
+  assertAdmittedActionPolicy(admitted, expected)
 
   const allowedActorTypes = admitted.actionPolicy.allowedActorTypes
   if (allowedActorTypes?.length && !allowedActorTypes.includes(context.actor)) {
@@ -53,6 +48,66 @@ export function admitHandlerActionPolicy(
     )
   }
   return admitted
+}
+
+/**
+ * Assert an admission against exactly one static policy expectation.
+ *
+ * Route-served command entrypoints use this: they have an admission but no
+ * `ToolContext`, and each entrypoint must pin one expectation rather than
+ * selecting it from caller-supplied admission metadata.
+ */
+export function assertAdmittedActionPolicy(
+  admitted: ToolHandlerActionPolicyContext | undefined,
+  expected: HandlerActionPolicyExpectation,
+): asserts admitted is ToolHandlerActionPolicyContext {
+  assertAuthenticHandlerActionPolicyContext(admitted)
+  if (admitted.actionPolicy.enforcement !== "handler") {
+    throw new ToolError(
+      "Handler-owned action policy context is required for this action.",
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: expected.capabilityId },
+    )
+  }
+
+  const mismatch = firstHandlerActionPolicyIdentityMismatch(admitted, expected)
+  if (mismatch) {
+    throw new ToolError(
+      "Handler-owned action policy context does not match this action contract.",
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: expected.capabilityId, mismatch },
+    )
+  }
+
+  assertAdmissionTransport(admitted, expected)
+}
+
+/**
+ * Reject an admission minted at a boundary the handler does not serve.
+ *
+ * This is the confused-deputy boundary between two policies over the same
+ * command: a route-bound action must not be reachable through Tool dispatch,
+ * and a Tool-bound action must not be reachable through a route.
+ */
+export function assertAdmissionTransport(
+  admitted: ToolHandlerActionPolicyContext,
+  expected: HandlerActionPolicyExpectation,
+): void {
+  const mintedAt = admitted.transport ?? "tool"
+  if (expected.transport && mintedAt !== expected.transport) {
+    throw new ToolError(
+      "Handler-owned action admission was minted at a different boundary.",
+      "ACTION_POLICY_REQUIRED",
+      { capabilityId: expected.capabilityId, expected: expected.transport, minted: mintedAt },
+    )
+  }
+  if (!actionTransportAdmits(admitted.actionPolicy, mintedAt)) {
+    throw new ToolError(
+      "The selected action does not admit this transport.",
+      "ACTION_POLICY_REQUIRED",
+      { actionId: admitted.actionPolicy.id, minted: mintedAt },
+    )
+  }
 }
 
 /**
@@ -85,9 +140,11 @@ export function assertAuthenticHandlerActionPolicyContext(
  */
 export function mintHandlerActionPolicyContext(
   admitted: ToolHandlerActionPolicyContext,
+  transport: ToolAdmissionTransport = "tool",
 ): ToolHandlerActionPolicyContext {
   const minted = deepFreezeAdmission({
     ...admitted,
+    transport,
     actionPolicy: {
       ...admitted.actionPolicy,
       ...(admitted.actionPolicy.existingTarget
@@ -161,6 +218,9 @@ export function firstHandlerActionPolicyIdentityMismatch(
   if (!sameCreatedTarget(actual, expected.actionPolicy)) return "actionPolicy.createdTarget"
   for (const field of ["risk", "ledger", "approval", "policy", "reversible"] as const) {
     if (actual[field] !== expected.actionPolicy[field]) return `actionPolicy.${field}`
+  }
+  if ((actual.transport ?? "tool") !== (expected.actionPolicy.transport ?? "tool")) {
+    return "actionPolicy.transport"
   }
   if (!sameStrings(actual.allowedActorTypes, expected.actionPolicy.allowedActorTypes)) {
     return "actionPolicy.allowedActorTypes"

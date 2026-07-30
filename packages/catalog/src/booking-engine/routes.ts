@@ -25,7 +25,6 @@ import type { Context } from "hono"
 import type { SourceAdapterContext } from "../adapter/contract.js"
 import { readSourcedEntry } from "../services/sourced-entry-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
-
 import {
   type PricingBreakdownV1,
   type QuoteBatchResponseV1,
@@ -33,6 +32,11 @@ import {
   quoteBatchResponseV1,
   quoteResponseV1,
 } from "./contracts.js"
+import {
+  bookingDraftCapabilityCookie,
+  issueBookingDraftCapability,
+  requireBookingDraftCapability,
+} from "./draft-capability.js"
 import {
   createBookingDraft,
   DEFAULT_DRAFT_TTL_MS,
@@ -556,6 +560,14 @@ async function handleBatchQuote(
   }
 }
 
+/** Capability verification reads its secret from process env plus bindings. */
+function draftEnv(c: Context): Record<string, string | undefined> {
+  const processEnv =
+    (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } })
+      .process?.env ?? {}
+  return { ...processEnv, ...((c.env as Record<string, string | undefined>) ?? {}) }
+}
+
 async function handleDraftPut(
   c: Context,
   options: CatalogBookingRoutesOptions,
@@ -565,6 +577,10 @@ async function handleDraftPut(
   const db = options.resolveDb(c)
   const existing = await getBookingDraft(db, id)
   if (existing) {
+    // The draft id is caller-supplied on this route, so without this anyone
+    // who learns or guesses one can overwrite someone else's party, contact
+    // details, and chosen quote.
+    await requireBookingDraftCapability(c, id, "draft:write", draftEnv(c))
     const updated = await updateBookingDraft(db, id, {
       draftPayload: body.draftPayload,
       currentStep: body.currentStep,
@@ -599,7 +615,22 @@ async function handleDraftPut(
     createdBy: resolveActorId(c, options),
     ttlMs: body.ttlMs,
   })
-  return c.json(created, 201)
+
+  // Creating the draft is what grants access to it. The token is returned in
+  // the body for non-browser callers and set as an HttpOnly cookie for
+  // browsers; every later read, write, or booking of this draft requires it.
+  const capability = await issueBookingDraftCapability(created.id, draftEnv(c))
+  c.header("Set-Cookie", bookingDraftCapabilityCookie(capability.token, capability.expiresAt))
+  return c.json(
+    {
+      ...created,
+      draftCapability: {
+        token: capability.token,
+        expiresAt: capability.expiresAt.toISOString(),
+      },
+    },
+    201,
+  )
 }
 
 async function handleDraftGet(
@@ -607,6 +638,9 @@ async function handleDraftGet(
   options: CatalogBookingRoutesOptions,
   id: string,
 ): Promise<Response> {
+  // A draft holds traveller names and contact details; the id alone is not
+  // authorization to read them.
+  await requireBookingDraftCapability(c, id, "draft:read", draftEnv(c))
   const row = await getBookingDraft(options.resolveDb(c), id)
   if (!row) return c.json({ error: "draft not found" }, 404)
   return c.json(row)
@@ -617,6 +651,7 @@ async function handleDraftDelete(
   options: CatalogBookingRoutesOptions,
   id: string,
 ): Promise<Response> {
+  await requireBookingDraftCapability(c, id, "draft:write", draftEnv(c))
   await deleteBookingDraft(options.resolveDb(c), id)
   return c.body(null, 204)
 }

@@ -4089,6 +4089,193 @@
         "x-voyant-module": "bookings",
         "x-voyant-surface": "storefront"
       }
+    },
+    "/v1/public/bookings": {
+      "post": {
+        "summary": "Create a booking from a public draft and quote",
+        "description": "Self-service booking creation for an authenticated customer or a verified guest. The caller supplies only identifiers; booking numbers, prices, tax lines, relationship ids, and status are derived server-side. Requires an Idempotency-Key header.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "draftId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quoteId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "verificationChallengeId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Omitted for an authenticated customer."
+                  }
+                },
+                "required": ["draftId", "quoteId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created, with the scoped checkout capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "bookingNumber": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "checkoutCapability": {
+                          "type": "object",
+                          "properties": {
+                            "token": {
+                              "type": "string"
+                            },
+                            "expiresAt": {
+                              "type": "string"
+                            },
+                            "actions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": ["token", "expiresAt", "actions"]
+                        }
+                      },
+                      "required": ["bookingId", "bookingNumber", "status", "checkoutCapability"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed validation or Idempotency-Key is missing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Neither an authenticated customer nor a verified challenge",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Draft or quote not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Draft, quote, or hold is no longer spendable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Draft cannot produce a booking for this caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "This deployment has no self-service booking create provider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

@@ -31,6 +31,16 @@ export const storefrontVerificationChallenges = pgTable(
     lastSentAt: timestamp("last_sent_at", { withTimezone: true }).notNull().defaultNow(),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
+    /**
+     * What this challenge authorizes, beyond its purpose — the booking draft
+     * id for a self-service create. Bound at start, so a challenge verified
+     * for one draft cannot authorize another.
+     */
+    subjectRef: text("subject_ref"),
+    /** Set exactly once, when the challenge is spent. */
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    /** What consumed it — the created booking id. */
+    consumedRef: text("consumed_ref"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -47,6 +57,7 @@ export const storefrontVerificationChallenges = pgTable(
       table.updatedAt,
       table.createdAt,
     ),
+    index("idx_storefront_verification_subject").on(table.purpose, table.subjectRef),
   ],
 )
 

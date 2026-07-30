@@ -1,6 +1,6 @@
 "use client"
 
-import { type FetchWithValidationOptions, fetchWithValidation, withQueryParams } from "./client.js"
+import { type FetchWithValidationOptions, fetchWithValidation } from "./client.js"
 import {
   type BootstrapCustomerPortalInput,
   type CreateCustomerPortalCompanionInput,
@@ -13,8 +13,6 @@ import {
   customerPortalCompanionImportResponseSchema,
   customerPortalCompanionResponseSchema,
   customerPortalCompanionsResponseSchema,
-  customerPortalContactExistsResponseSchema,
-  customerPortalPhoneContactExistsResponseSchema,
   customerPortalProfileDocumentResponseSchema,
   customerPortalProfileDocumentsResponseSchema,
   customerPortalProfileResponseSchema,
@@ -24,25 +22,6 @@ import {
   type UpdateCustomerPortalProfileDocumentInput,
   type UpdateCustomerPortalProfileInput,
 } from "./schemas.js"
-
-export function getCustomerPortalContactExists(client: FetchWithValidationOptions, email: string) {
-  return fetchWithValidation(
-    withQueryParams("/v1/public/customer-portal/contact-exists", { email }),
-    customerPortalContactExistsResponseSchema,
-    client,
-  )
-}
-
-export function getCustomerPortalPhoneContactExists(
-  client: FetchWithValidationOptions,
-  phone: string,
-) {
-  return fetchWithValidation(
-    withQueryParams("/v1/public/customer-portal/contact-exists/phone", { phone }),
-    customerPortalPhoneContactExistsResponseSchema,
-    client,
-  )
-}
 
 export function getCustomerPortalProfile(client: FetchWithValidationOptions) {
   return fetchWithValidation(
