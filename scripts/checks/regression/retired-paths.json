@@ -1,0 +1,369 @@
+{
+  "$comment": [
+    "Paths that were deliberately removed and must stay removed.",
+    "Extracted from the per-module *authority* scripts, which each pinned their own",
+    "literal list. See docs/adr/0016-modules-as-components-of-one-deployable.md.",
+    "Adding a path here is how you retire a surface; deleting one is how you un-retire it."
+  ],
+  "retiredPaths": [
+    {
+      "path": "packages/admin-host/src/standard-api-docs.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-frontend.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-route-files.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/admin-host/src/standard-styles.css",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "packages/bookings-node/package.json",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/bookings-react/src/hooks/use-booking-convert-mutation.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/bookings-react/src/storefront/storefront-checkout-bodies.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/catalog-node",
+      "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/catalog-react/src/booking-engine/use-booking-commit.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/book.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/snapshot-content.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/charters/src/service-bookings-local.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/charters/src/service-bookings.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/cruises/src/service-bookings.ts",
+      "retiredBy": ["booking-create-authority"]
+    },
+    {
+      "path": "packages/finance/src/standard-node-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "packages/framework/src/managed-jobs.ts",
+      "retiredBy": ["starter-executable-surface-authority"]
+    },
+    {
+      "path": "packages/framework/src/runtime-contributors.generated.ts",
+      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
+    },
+    {
+      "path": "packages/framework/src/runtime-packages.generated.ts",
+      "retiredBy": ["catalog-runtime-authority", "generated-runtime-contributor-authority"]
+    },
+    {
+      "path": "packages/legal-node",
+      "retiredBy": ["legal-document-runtime-authority"]
+    },
+    {
+      "path": "packages/operator-runtime",
+      "retiredBy": ["node-runtime-authority"]
+    },
+    {
+      "path": "packages/relationships-contracts/src/validation/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/routes/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields-registry.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields-value-mapping.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/src/service/custom-fields.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/integration/custom-fields-values.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/integration/custom-fields.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/relationships/tests/unit/custom-fields-value-mapping.test.ts",
+      "retiredBy": ["custom-fields-settings-authority"]
+    },
+    {
+      "path": "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts",
+      "retiredBy": ["storefront-subscriber-authority"]
+    },
+    {
+      "path": "starters/operator/src/api-dispatch.test.ts",
+      "retiredBy": ["node-host-dispatch-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/app.ts",
+      "retiredBy": [
+        "catalog-subscriber-authority",
+        "commerce-promotion-subscriber-authority",
+        "generic-node-bootstrap-authority",
+        "storefront-subscriber-authority",
+        "trips-subscriber-authority"
+      ]
+    },
+    {
+      "path": "starters/operator/src/api/lib/booking-engine-db.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/booking-engine-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/booking-requirements-product-snapshot.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/catalog-listability.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/catalog-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority", "operator-catalog-backend-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/cruise-adapters-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/lib/owned-booking-handlers.ts",
+      "retiredBy": ["node-runtime-product-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/catalog-booking-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority", "operator-catalog-backend-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/catalog-booking-shape-enricher.ts",
+      "retiredBy": ["node-runtime-product-authority", "operator-catalog-backend-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/catalog-offers-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority", "operator-catalog-backend-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/catalog-subscriber-runtime.ts",
+      "retiredBy": ["node-runtime-product-authority", "operator-catalog-backend-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/contract-document-runtime.ts",
+      "retiredBy": ["legal-document-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/contract-document-variables.ts",
+      "retiredBy": ["legal-document-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/operator-workflow-services.ts",
+      "retiredBy": ["commerce-promotion-subscriber-authority", "operator-domain-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/runtime-adapter.ts",
+      "retiredBy": [
+        "bookings-runtime-authority",
+        "catalog-runtime-authority",
+        "commerce-promotion-subscriber-authority",
+        "commerce-starter-executable-authority",
+        "flights-runtime-authority",
+        "generated-runtime-contributor-authority",
+        "generic-node-bootstrap-authority",
+        "legal-document-runtime-authority",
+        "legal-subscriber-authority",
+        "node-runtime-product-authority",
+        "operator-booking-finance-runtime-authority",
+        "operator-catalog-commerce-runtime-authority",
+        "operator-final-runtime-authority",
+        "operator-storefront-legal-inventory-runtime-authority",
+        "realtime-runtime-authority",
+        "relationships-runtime-authority",
+        "storage-media-runtime-authority",
+        "storefront-subscriber-authority",
+        "trips-runtime-authority",
+        "trips-subscriber-authority"
+      ]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/storefront-intake-runtime.ts",
+      "retiredBy": ["storefront-presentation-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/trips-catalog-runtime.ts",
+      "retiredBy": ["operator-domain-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/trips-checkout-runtime.ts",
+      "retiredBy": ["operator-domain-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/trips-flight-runtime.ts",
+      "retiredBy": ["operator-domain-runtime-authority"]
+    },
+    {
+      "path": "starters/operator/src/api/runtime/trips-runtime.ts",
+      "retiredBy": ["operator-domain-runtime-authority", "trips-subscriber-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/booking-journey/resolve-contract-variables.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/booking-journey/resolve-contract-variables.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/booking-journey/storefront-booking-errors.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/booking-journey/storefront-booking-journey.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/checkout/payment-link-booking-summary.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/checkout/payment-link-trip-summary.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/components/voyant/trips/storefront-composer-block.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/custom-fields",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/lib/customer-account.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/lib/customer-account.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/lib/storefront-i18n.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/lib/storefront-scope.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/operator-node-provider-plan.ts",
+      "retiredBy": ["generic-node-bootstrap-authority"]
+    },
+    {
+      "path": "starters/operator/src/routeTree.gen.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations-ui.test.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-content.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-content.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-cruises.test.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-cruises.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-products.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-shared.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-slots.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop-product-detail-slots.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/shop.test.ts",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/(storefront)/storefront-market-selector.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/__root.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/routes/_workspace/route.tsx",
+      "retiredBy": ["operator-product-ui-authority"]
+    },
+    {
+      "path": "starters/operator/src/scheduled-crons.test.ts",
+      "retiredBy": ["node-host-dispatch-authority"]
+    },
+    {
+      "path": "starters/operator/src/workflow-runtime.test.ts",
+      "retiredBy": ["node-host-dispatch-authority"]
+    }
+  ]
+}
