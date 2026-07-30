@@ -15,6 +15,8 @@
  * own caching (it sits closer to the source replica) over wrapping at this layer.
  */
 
+import type { MemoizeOptions } from "@voyant-travel/charters-contracts"
+
 import type {
   CharterAdapter,
   ExternalCharterProduct,
@@ -25,15 +27,11 @@ import type {
   SourceRef,
 } from "./index.js"
 
-export type MemoizeOptions = {
-  /** Cache TTL in milliseconds. Default 60_000 (60 seconds). */
-  ttlMs?: number
-  /**
-   * Maximum cache entries before LRU eviction kicks in. Default 1000.
-   * Set to 0 to disable size cap (only TTL evicts).
-   */
-  maxEntries?: number
-}
+// `MemoizeOptions` is a pure options contract and lives in
+// `@voyant-travel/charters-contracts` so external consumers can reference it
+// without a runtime dependency on this module (ADR-0002). Re-exported here so
+// existing `@voyant-travel/charters` importers keep working.
+export type { MemoizeOptions }
 
 type CacheEntry<T> = { value: T; expiresAt: number }
 
