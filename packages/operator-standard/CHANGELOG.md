@@ -1,5 +1,82 @@
 # @voyant-travel/operator-standard
 
+## 0.17.0
+
+### Minor Changes
+
+- 90361d6: Ship the MCP connector consent screen in every admin auth mode.
+
+  `/mcp-consent` was contributed as part of the local-auth presentation, alongside
+  `sign-in`, `sign-up`, and the password-reset pages. A deployment running
+  `VOYANT_ADMIN_AUTH_MODE=voyant-cloud` deliberately does not select that
+  contribution, so it shipped no consent page: an MCP connector registered and
+  authorized successfully, then landed on a 404 at the last step before the grant.
+
+  That was a miscategorisation. The consent screen is not a local-auth page — it
+  is an OAuth authorization decision point, and the authorization server issuing
+  connector grants is local to the deployment in every auth mode, which is why
+  `/auth/oauth2/consent` and `/auth/oauth2/get-client` are already reachable in
+  cloud mode.
+
+  The screen now has its own presentation, `@voyant-travel/mcp#presentation.consent`,
+  declared by the MCP module and mounted from a new
+  `@voyant-travel/auth-react/mcp-consent-routes` export. It ships whenever the MCP
+  transport ships, and a broker-authenticated Operator gets it without also
+  getting a local sign-in and sign-up page. `createLocalAuthRouteContribution` no
+  longer returns an `mcpConsent` route, and the generated route host moved from
+  `(auth)/mcp-consent.tsx` to `(mcp)/mcp-consent.tsx`; the public path
+  `/mcp-consent` is unchanged.
+
+### Patch Changes
+
+- Updated dependencies [90361d6]
+  - @voyant-travel/auth-react@0.147.0
+  - @voyant-travel/mcp@0.11.0
+  - @voyant-travel/admin-app@0.114.0
+  - @voyant-travel/navigation-preferences-react@0.21.0
+  - @voyant-travel/quotes-react@0.220.0
+  - @voyant-travel/storefront-react@0.224.0
+  - @voyant-travel/admin-host@0.72.0
+  - @voyant-travel/operator-settings-react@0.77.0
+  - @voyant-travel/bookings-react@0.222.0
+  - @voyant-travel/cruises-react@0.221.0
+  - @voyant-travel/inventory-react@0.104.0
+  - @voyant-travel/action-ledger-react@0.111.0
+  - @voyant-travel/distribution-react@0.212.0
+  - @voyant-travel/finance-react@0.222.0
+  - @voyant-travel/identity-react@0.222.0
+  - @voyant-travel/legal-react@0.222.0
+  - @voyant-travel/operations-react@0.103.0
+  - @voyant-travel/trips-react@0.215.0
+  - @voyant-travel/catalog-react@0.220.0
+  - @voyant-travel/commerce-react@0.104.0
+  - @voyant-travel/flights-react@0.222.0
+  - @voyant-travel/relationships-react@0.222.0
+  - @voyant-travel/mice-react@0.90.0
+  - @voyant-travel/auth@0.147.0
+  - @voyant-travel/bookings@0.222.0
+  - @voyant-travel/catalog@0.220.0
+  - @voyant-travel/charters@0.220.0
+  - @voyant-travel/cruises@0.221.0
+  - @voyant-travel/distribution@0.212.0
+  - @voyant-travel/finance@0.222.0
+  - @voyant-travel/flights@0.222.0
+  - @voyant-travel/identity@0.222.0
+  - @voyant-travel/legal@0.222.0
+  - @voyant-travel/navigation-preferences@0.21.0
+  - @voyant-travel/storefront@0.224.0
+  - @voyant-travel/trips@0.215.0
+  - @voyant-travel/accommodations@0.182.0
+  - @voyant-travel/commerce@0.45.2
+  - @voyant-travel/inventory@0.24.2
+  - @voyant-travel/mice@0.78.0
+  - @voyant-travel/notifications@0.142.11
+  - @voyant-travel/relationships@0.132.19
+  - @voyant-travel/operations@0.11.6
+  - @voyant-travel/operator-settings@0.16.8
+  - @voyant-travel/quotes@0.135.15
+  - @voyant-travel/notifications-react@0.142.11
+
 ## 0.16.4
 
 ### Patch Changes
