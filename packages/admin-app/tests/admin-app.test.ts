@@ -3,20 +3,11 @@ import { createSelectedAuthTeamAdminExtension } from "@voyant-travel/auth-react/
 import { describe, expect, it } from "vitest"
 
 import { createAdminCoreExtension as createAdminCoreExtensionShim } from "../src/core-extension/index.js"
-import { adminRootHead as adminRootHeadShim } from "../src/root.js"
-import { createAdminQueryClient as createAdminQueryClientShim } from "../src/router.js"
-import { createAdminWorkspaceBeforeLoad as createAdminWorkspaceBeforeLoadShim } from "../src/workspace.js"
 
-describe("@voyant-travel/admin-app compatibility exports", () => {
-  it("re-exports the admin app shell surface", async () => {
-    const { adminRootHead } = await import("@voyant-travel/admin/app/root")
-    const { createAdminQueryClient } = await import("@voyant-travel/admin/app/router")
-    const { createAdminWorkspaceBeforeLoad } = await import("@voyant-travel/admin/app/workspace")
-
-    expect(adminRootHeadShim).toBe(adminRootHead)
-    expect(createAdminQueryClientShim).toBe(createAdminQueryClient)
-    expect(createAdminWorkspaceBeforeLoadShim).toBe(createAdminWorkspaceBeforeLoad)
-  })
+describe("@voyant-travel/admin-app exports", () => {
+  // The ./root, ./router, ./workspace and ./extension-routes shims are gone —
+  // they re-exported @voyant-travel/admin/app/* and had no consumer. The case
+  // that asserted they forwarded identically went with them.
 
   it("exports the domain-backed core extension from admin-app", async () => {
     const { createAdminCoreExtension } = await import("../src/index.js")

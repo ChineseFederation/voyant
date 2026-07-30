@@ -6,10 +6,6 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./root": "./src/root.tsx",
-    "./router": "./src/router.tsx",
-    "./workspace": "./src/workspace.tsx",
-    "./extension-routes": "./src/extension-routes.tsx",
     "./core-extension": "./src/core-extension/index.tsx",
     "./runtime": "./src/runtime.ts"
   },
@@ -71,26 +67,6 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
-      },
-      "./root": {
-        "types": "./dist/root.d.ts",
-        "import": "./dist/root.js",
-        "default": "./dist/root.js"
-      },
-      "./router": {
-        "types": "./dist/router.d.ts",
-        "import": "./dist/router.js",
-        "default": "./dist/router.js"
-      },
-      "./workspace": {
-        "types": "./dist/workspace.d.ts",
-        "import": "./dist/workspace.js",
-        "default": "./dist/workspace.js"
-      },
-      "./extension-routes": {
-        "types": "./dist/extension-routes.d.ts",
-        "import": "./dist/extension-routes.js",
-        "default": "./dist/extension-routes.js"
       },
       "./core-extension": {
         "types": "./dist/core-extension/index.d.ts",
