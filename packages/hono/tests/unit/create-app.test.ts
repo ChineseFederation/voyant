@@ -94,3 +94,76 @@ describe("createApp (config-driven front door)", () => {
     expect(loads).toBe(1)
   })
 })
+
+describe("observability sink on the request context (RFC #1553)", () => {
+  it("exposes the deployment reporter so composed modules can emit their own telemetry", async () => {
+    const captured: string[] = []
+    const seen: { reporter?: unknown; appName?: unknown } = {}
+
+    const app = createApp<Record<string, never>, Caps>({
+      manifest: { modules: ["@voyant-travel/probe"] },
+      registry: {
+        modules: {
+          "@voyant-travel/probe": () => ({
+            module: { name: "probe" },
+            adminRoutes: new Hono().get("/ping", (c) => {
+              seen.reporter = c.get("reporter")
+              seen.appName = c.get("appName")
+              return c.text("ok")
+            }),
+          }),
+        },
+      },
+      capabilities: { greeting: "pong" },
+      appName: "probe-app",
+      reporter: { captureException: (event) => captured.push(String(event.message)) },
+      // biome-ignore lint/suspicious/noExplicitAny: stub db for the mount smoke test.
+      db: () => ({}) as any,
+      auth: {
+        resolve: () => ({ userId: "u1", actor: "staff" as Actor, realm: "admin" as const }),
+      },
+    })
+
+    const response = await app.request("/v1/admin/probe/ping", {}, {} as never)
+
+    expect(response.status).toBe(200)
+    // A composed module must reach the SAME sink the error boundary uses,
+    // without the deployment threading a reporter through every seam.
+    expect(seen.appName).toBe("probe-app")
+    expect(seen.reporter).toBeDefined()
+    ;(seen.reporter as { captureException: (e: { message: string }) => void }).captureException({
+      message: "from a composed module",
+    })
+    expect(captured).toContain("from a composed module")
+  })
+
+  it("falls back to a no-op sink rather than leaving the context empty", async () => {
+    let reporter: unknown
+    const app = createApp<Record<string, never>, Caps>({
+      manifest: { modules: ["@voyant-travel/probe"] },
+      registry: {
+        modules: {
+          "@voyant-travel/probe": () => ({
+            module: { name: "probe" },
+            adminRoutes: new Hono().get("/ping", (c) => {
+              reporter = c.get("reporter")
+              return c.text("ok")
+            }),
+          }),
+        },
+      },
+      capabilities: { greeting: "pong" },
+      // biome-ignore lint/suspicious/noExplicitAny: stub db for the mount smoke test.
+      db: () => ({}) as any,
+      auth: {
+        resolve: () => ({ userId: "u1", actor: "staff" as Actor, realm: "admin" as const }),
+      },
+    })
+
+    await app.request("/v1/admin/probe/ping", {}, {} as never)
+
+    // Never undefined: a module that emits unconditionally must not crash on a
+    // deployment that configured no sink.
+    expect(reporter).toBeDefined()
+  })
+})

@@ -63,6 +63,18 @@ export type VoyantVariables = CoreVoyantVariables & {
   link?: LinkService
   /** Shared cross-module query runtime, when the app wires one in. */
   query?: VoyantQueryRuntime
+  /**
+   * The deployment's observability sink (RFC #1553), resolved once by
+   * `createVoyantApp`. Exposed here so a composed route module can emit its own
+   * telemetry through the same sink as the error boundary, without the
+   * deployment having to thread a reporter through every composition seam.
+   *
+   * Always present on a request served by `createVoyantApp` — it falls back to
+   * `noopReporter` when the deployment configured none.
+   */
+  reporter?: Reporter
+  /** Logical app name stamped on telemetry, alongside {@link reporter}. */
+  appName?: string
 }
 
 /** Handler contract for application-authored Hono API routes. */

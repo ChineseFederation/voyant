@@ -185,6 +185,16 @@ export function mountApp<TBindings extends VoyantBindings>(
   const appName = config.appName ?? "voyant"
   app.onError((err, c) => handleApiError(err, c, { reporter, appName }))
 
+  // Expose the same sink on the request context so a composed route module can
+  // emit its own telemetry without the deployment threading a reporter through
+  // every composition seam. Registered before everything else so it is present
+  // even on requests that fail early.
+  app.use("*", async (c, next) => {
+    c.set("reporter", reporter)
+    c.set("appName", appName)
+    await next()
+  })
+
   const basePath = normalizeBaseDispatchPath(config.basePath)
   if (basePath) {
     const dispatchWithoutBasePath = (request: Request): Request => {
