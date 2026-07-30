@@ -271,9 +271,9 @@ defect class it exists to prevent.
 
 ## Sequencing
 
-1. **`dependency-cruiser` with a generated baseline**, encoding decision 2 (browser safety) and
-   the ADR-0002 arrow. Strict, no ratchet needed for decision 2 — it is already clean.
-2. **Fix `finance-contracts`'s `drizzle-orm` dependency.**
+1. **DONE** — `dependency-cruiser` encoding decision 2 (browser safety) and the ADR-0002 arrow.
+   Strict, no ratchet: 47 packages, zero violations. See Implementation notes.
+2. **DONE** — `finance-contracts`'s `drizzle-orm` dependency removed (#3911).
 3. **Retire the subsetting narrative** in `packages/hono/src` and the architecture docs.
 4. **Re-derive the checker consolidation** by reading all 47, then collapse them under the
    naming convention agreed in #3902 item 1.
@@ -283,6 +283,46 @@ defect class it exists to prevent.
 Connect's ADR-0002 migration (#3898 W3) is tracked separately: `connect-cruises`,
 `connect-adapter`, and `plugin-voyant-connect` live in `../connect-sdk`, carry no
 `voyant.package.v1` manifest, and none of the checkers added here will see them.
+
+## Implementation notes
+
+Recorded because three of these are the difference between a checker that works and one that
+reports success while measuring nothing.
+
+**Workspace `exports` maps point at TypeScript source.** `packages/operations/package.json`
+resolves `./validation` to `./src/validation.ts` in-repo (`publishConfig.exports` swaps to
+`dist` on publish). dependency-cruiser's resolver will not follow a `.ts` target by default, so
+without `enhancedResolveOptions` every cross-package import resolves to **`unknown`**, the graph
+dead-ends at the package boundary, and every reachability rule passes vacuously. Verified
+directly: before configuring the resolver, `@voyant-travel/operations/validation` resolved to
+`unknown`; after, to `packages/operations/src/validation.ts`. Note `symlinks` is rejected by
+dependency-cruiser's config schema — the accepted keys are `extensions`, `conditionNames`,
+`exportsFields`, and `mainFields`.
+
+**`tsPreCompilationDeps: false` is what implements type erasure.** With it, only dependencies
+that survive compilation are in the graph, so `import type` edges are excluded — exactly the
+rule this ADR states. Flipping it to `true` silently converts the browser-safety rule into
+something much stricter that the codebase does not satisfy.
+
+**`packages/db` is deliberately not in the forbidden set.** The first draft of the rule named it
+and immediately produced violations against `packages/db/src/helpers.ts`, which is
+dependency-light by design: it imports Drizzle with `import type` only and re-exports its single
+value from `@voyant-travel/schema-kit` — "pure, below the data layer", per its own comment.
+Naming the package forbids a legitimate entry point. The rule names `drizzle-orm` and `hono` and
+lets the graph decide, which is the property we actually care about.
+
+**A `no-unresolvable` rule is part of the boundary, not a nicety.** An import that does not
+resolve is invisible to every reachability rule, so it turns a red check green. It earned its
+place immediately by catching a stray probe file left behind during development.
+
+**The checker cruises one package at a time.** A single whole-graph reachability pass over all
+browser packages exhausts a 12 GB heap. Per-package keeps each graph small, names the offending
+package in the failure, and takes ~80s for 47 packages; `--only <pkg>` narrows it to ~5s.
+
+**`scripts/tests/boundary-checker.test.mjs` guards against vacuity.** It asserts the checker
+still goes red: a value import reaching Drizzle fails, the same import as `import type` passes,
+an unresolvable import fails, and a contracts package importing its runtime sibling fails. A
+green `verify:boundary` only means something if it can still fail.
 
 ## Corrections from review
 
