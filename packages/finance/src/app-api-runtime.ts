@@ -21,6 +21,7 @@ import type {
 import { FinanceAppApiNumberConflictError } from "@voyant-travel/finance-contracts/app-api"
 import type { StorageProvider } from "@voyant-travel/storage"
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
   invoiceExternalLifecycleOperations,
   invoiceExternalPaymentIdentifiers,
@@ -41,7 +42,7 @@ type ArtifactRuntimePrimitives = Pick<VoyantRuntimeHostPrimitives, "storage">
 
 export function createFinanceAppApiRuntime(
   primitives?: ArtifactRuntimePrimitives,
-): FinanceAppApiRuntime {
+): FinanceAppApiRuntime<PostgresJsDatabase> {
   return {
     async getIssuanceDocument(db, documentId) {
       const [invoice] = await db.select().from(invoices).where(eq(invoices.id, documentId)).limit(1)
@@ -616,7 +617,7 @@ export function createFinanceAppApiRuntime(
 }
 
 async function validateNativeLifecycleState(
-  db: Parameters<FinanceAppApiRuntime["updateExternalLifecycleState"]>[0],
+  db: Parameters<FinanceAppApiRuntime<PostgresJsDatabase>["updateExternalLifecycleState"]>[0],
   document: { invoice_type: string; status: string },
   documentId: string,
   input: FinanceAppApiExternalLifecycleStateInput,
@@ -847,7 +848,7 @@ function isExternalSyncStatus(
 }
 
 async function findAppArtifact(
-  db: Parameters<FinanceAppApiRuntime["attachPdfArtifact"]>[0],
+  db: Parameters<FinanceAppApiRuntime<PostgresJsDatabase>["attachPdfArtifact"]>[0],
   documentId: string,
   provider: string,
   idempotencyDigest: string,

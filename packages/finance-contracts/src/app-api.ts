@@ -1,4 +1,3 @@
-import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { financeAppApiRuntimePort as importCheapFinanceAppApiRuntimePort } from "./runtime-port.js"
 
 export interface FinanceAppApiIssuanceDocument {
@@ -236,43 +235,52 @@ export class FinanceAppApiNumberConflictError extends Error {
   }
 }
 
-export interface FinanceAppApiRuntime {
+/**
+ * Database handle supplied by the implementing runtime.
+ *
+ * `finance-contracts` is dependency-light per ADR-0002 and must not depend on
+ * Drizzle, so the handle is a type parameter rather than a concrete
+ * `PostgresJsDatabase`. The interface only ever passes it through - it never
+ * calls a method on it - so the contract loses nothing by leaving it opaque.
+ * Implementers instantiate it, e.g. `FinanceAppApiRuntime<PostgresJsDatabase>`.
+ */
+export interface FinanceAppApiRuntime<TDatabase = unknown> {
   getIssuanceDocument(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
   ): Promise<FinanceAppApiIssuanceDocument | null>
   getExternalReference(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
     provider: string,
   ): Promise<FinanceAppApiExternalReference | null>
   upsertExternalReference(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
     provider: string,
     input: FinanceAppApiExternalReferenceUpsertInput,
   ): Promise<FinanceAppApiReferenceMutationResult>
   attachPdfArtifact(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     environment: unknown,
     documentId: string,
     provider: string,
     input: FinanceAppApiPdfArtifactInput,
   ): Promise<FinanceAppApiPdfArtifactMutationResult>
   updateExternalSyncState(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
     provider: string,
     input: FinanceAppApiExternalSyncStateInput,
   ): Promise<FinanceAppApiExternalSyncMutationResult>
   updateExternalLifecycleState(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
     provider: string,
     input: FinanceAppApiExternalLifecycleStateInput,
   ): Promise<FinanceAppApiExternalLifecycleMutationResult>
   recordSettlementObservation(
-    db: PostgresJsDatabase,
+    db: TDatabase,
     documentId: string,
     provider: string,
     input: FinanceAppApiSettlementObservationInput,

@@ -49,7 +49,7 @@ export interface AppApiEntityReader {
   list(db: PostgresJsDatabase, query: AppApiEntityReadQuery): Promise<unknown>
 }
 
-export interface AppApiFinanceRuntime extends Partial<FinanceAppApiRuntime> {
+export interface AppApiFinanceRuntime extends Partial<FinanceAppApiRuntime<PostgresJsDatabase>> {
   listDocuments?(db: PostgresJsDatabase, query: AppApiFinanceDocumentQuery): Promise<unknown>
   executeAction?(db: PostgresJsDatabase, input: AppApiFinanceActionInput): Promise<unknown>
 }
