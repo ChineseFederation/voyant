@@ -7,7 +7,7 @@ const standardFrontendImport = "@voyant-travel/operator-standard/standard-fronte
 const contributionRoute = (
   path: string,
   routeId: string,
-  contribution: "localAuth" | "storefront",
+  contribution: "localAuth" | "mcpConsent" | "storefront",
   member: string,
 ): VoyantGeneratedRouteFile => ({
   path,
@@ -36,6 +36,7 @@ export const Route = createFileRoute(${JSON.stringify(routeId)})(operatorFronten
 
 const STOREFRONT_PRESENTATION_ID = "@voyant-travel/storefront#presentation.customer"
 const AUTH_PRESENTATION_ID = "@voyant-travel/auth#presentation.local-auth"
+const MCP_CONSENT_PRESENTATION_ID = "@voyant-travel/mcp#presentation.consent"
 const FINANCE_PRESENTATION_ID = "@voyant-travel/finance#presentation.public"
 const QUOTES_PRESENTATION_ID = "@voyant-travel/quotes#presentation.public"
 
@@ -141,10 +142,6 @@ const authRouteFiles: readonly VoyantGeneratedRouteFile[] = [
     "localAuth",
     "forgotPassword",
   ),
-  // The OAuth consent screen an MCP connector sends the operator to. It lives
-  // in the chrome-less auth group because it is a decision point handed over
-  // from an external client, not a page inside the workspace.
-  contributionRoute("(auth)/mcp-consent.tsx", "/(auth)/mcp-consent", "localAuth", "mcpConsent"),
   contributionRoute("(auth)/onboarding.tsx", "/(auth)/onboarding", "localAuth", "onboarding"),
   contributionRoute(
     "(auth)/reset-password.tsx",
@@ -155,6 +152,16 @@ const authRouteFiles: readonly VoyantGeneratedRouteFile[] = [
   contributionRoute("(auth)/sign-in.tsx", "/(auth)/sign-in", "localAuth", "signIn"),
   contributionRoute("(auth)/sign-up.tsx", "/(auth)/sign-up", "localAuth", "signUp"),
   contributionRoute("(auth)/verify-email.tsx", "/(auth)/verify-email", "localAuth", "verifyEmail"),
+]
+
+// The OAuth consent screen an MCP connector sends the operator to. It gets its
+// own chrome-less group rather than riding along with local auth: the
+// authorization server issuing connector grants is local to the deployment in
+// every admin auth mode, so a broker-authenticated deployment — which ships no
+// sign-in or sign-up page — must still answer /mcp-consent.
+const mcpConsentRouteFiles: readonly VoyantGeneratedRouteFile[] = [
+  contributionRoute("(mcp)/route.tsx", "/(mcp)", "mcpConsent", "layout"),
+  contributionRoute("(mcp)/mcp-consent.tsx", "/(mcp)/mcp-consent", "mcpConsent", "consent"),
 ]
 
 const workspaceRouteFiles: readonly VoyantGeneratedRouteFile[] = [
@@ -238,6 +245,7 @@ export function createStandardOperatorRouteFiles(
     ...standardOperatorRouteFiles,
     ...(selected.has(AUTH_PRESENTATION_ID) ? authRouteFiles : []),
     ...(selected.has(FINANCE_PRESENTATION_ID) ? financeRouteFiles : []),
+    ...(selected.has(MCP_CONSENT_PRESENTATION_ID) ? mcpConsentRouteFiles : []),
     ...(selected.has(QUOTES_PRESENTATION_ID) ? quotesRouteFiles : []),
     ...(selected.has(STOREFRONT_PRESENTATION_ID) ? storefrontRouteFiles : []),
     ...workspaceRouteFiles,

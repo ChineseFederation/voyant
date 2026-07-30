@@ -29,6 +29,7 @@ import type {
   LocalAuthPresentationRuntime,
   LocalAuthRouteContribution,
 } from "@voyant-travel/auth-react/local-auth-routes"
+import type { McpConsentRouteContribution } from "@voyant-travel/auth-react/mcp-consent-routes"
 import type { RedeemInvitationStatus } from "@voyant-travel/auth-react/ui"
 import { RealtimeChannel } from "@voyant-travel/cloud-sdk"
 import type { VoyantGraphJsonValue } from "@voyant-travel/core/project"
@@ -101,6 +102,7 @@ export interface StandardOperatorFrontend {
     docs: ReturnType<typeof createApiDocsRouteOptions>
     finance?: ReturnType<typeof createFinancePublicRouteContribution>["routes"]
     localAuth?: LocalAuthRouteContribution["routes"]
+    mcpConsent?: McpConsentRouteContribution["routes"]
     quotes?: ReturnType<typeof createQuotesPublicRouteContribution>["routes"]
     storefront?: StorefrontPresentationContribution["routes"]
   }
@@ -224,6 +226,11 @@ function createPresentationRuntime(
   const localAuthFactory = presentationFactories["@voyant-travel/auth#presentation.local-auth"] as
     | LocalAuthPresentationFactory
     | undefined
+  // The consent screen needs no host runtime: it reads the signed query from the
+  // address bar and posts it back through the shared React context.
+  const mcpConsentFactory = presentationFactories["@voyant-travel/mcp#presentation.consent"] as
+    | (() => McpConsentRouteContribution)
+    | undefined
   const financeFactory = presentationFactories["@voyant-travel/finance#presentation.public"] as
     | FinancePublicPresentationFactory
     | undefined
@@ -321,7 +328,8 @@ function createPresentationRuntime(
       useSession: authClient.useSession,
     },
   })
-  return { finance, localAuth, quotes, storefront, workspace }
+  const mcpConsent = mcpConsentFactory?.()
+  return { finance, localAuth, mcpConsent, quotes, storefront, workspace }
 }
 
 export function createStandardOperatorFrontend(
@@ -369,6 +377,7 @@ export function createStandardOperatorFrontend(
       docs: createApiDocsRouteOptions(options.openApiSpecs ?? {}),
       ...(runtime.finance ? { finance: runtime.finance.routes } : {}),
       ...(runtime.localAuth ? { localAuth: runtime.localAuth.routes } : {}),
+      ...(runtime.mcpConsent ? { mcpConsent: runtime.mcpConsent.routes } : {}),
       ...(runtime.quotes ? { quotes: runtime.quotes.routes } : {}),
       ...(runtime.storefront ? { storefront: runtime.storefront.routes } : {}),
     },

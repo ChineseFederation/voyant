@@ -2,12 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 import { Outlet, redirect, useNavigate, useSearch } from "@tanstack/react-router"
 import { formatMessage } from "@voyant-travel/admin/lib/i18n"
 import type { AdminAuthMessages } from "@voyant-travel/i18n"
-import { useVoyantReactContext } from "@voyant-travel/react"
 import type { ReactNode } from "react"
 import { z } from "zod"
 import { AcceptInvitationPage } from "./components/accept-invitation-page.js"
 import { AuthLayout } from "./components/auth-layout.js"
-import { McpConsentPage } from "./components/mcp-consent-page.js"
 import {
   ForgotPasswordPage,
   type ForgotPasswordPageMessages,
@@ -57,7 +55,6 @@ export interface LocalAuthRouteContribution {
     readonly acceptInvitation: LocalAuthRouteOptions
     readonly acceptInvite: LocalAuthRouteOptions
     readonly forgotPassword: LocalAuthRouteOptions
-    readonly mcpConsent: LocalAuthRouteOptions
     readonly onboarding: LocalAuthRouteOptions
     readonly resetPassword: LocalAuthRouteOptions
     readonly signIn: LocalAuthRouteOptions
@@ -315,44 +312,6 @@ export function createLocalAuthRouteContribution<TUser>(
     )
   }
 
-  function McpConsentRoute() {
-    const { client_id, scope } = useSearch({ strict: false }) as {
-      client_id?: string
-      scope?: string
-    }
-    const { baseUrl, fetcher } = useVoyantReactContext()
-    // The authorization server signs the whole query and expects it back
-    // verbatim, so read it from the address bar rather than reserializing the
-    // parsed params (which would reorder them and break the signature).
-    const oauthQuery =
-      typeof window === "undefined" ? "" : window.location.search.replace(/^\?/, "")
-
-    // The redirect carries `client_id` but no display name; look it up so the
-    // operator sees "Claude", not an opaque identifier.
-    const client = useQuery({
-      queryKey: ["mcp-consent-client", client_id],
-      enabled: Boolean(client_id),
-      queryFn: async () => {
-        const response = await fetcher(
-          `${baseUrl}/auth/admin/oauth2/public-client?client_id=${encodeURIComponent(client_id ?? "")}`,
-          { credentials: "include" },
-        )
-        if (!response.ok) return null
-        return (await response.json()) as { name?: string | null; client_name?: string | null }
-      },
-    })
-
-    return (
-      <McpConsentPage
-        clientName={client.data?.name ?? client.data?.client_name ?? null}
-        scope={scope ?? null}
-        oauthQuery={oauthQuery}
-        baseUrl={baseUrl}
-        fetcher={fetcher}
-      />
-    )
-  }
-
   return {
     id: "@voyant-travel/auth#presentation.local-auth",
     routes: {
@@ -369,16 +328,6 @@ export function createLocalAuthRouteContribution<TUser>(
       forgotPassword: {
         loader: localAuthLoader("forgot-password"),
         component: ForgotPasswordRoute,
-      },
-      mcpConsent: {
-        // No `localAuthLoader`: the authorization server sends the operator
-        // through sign-in first, so reaching this route already implies a
-        // session. Guarding again here would bounce a mid-flight consent.
-        // Permissive: the authorization server forwards its entire signed
-        // query (including `sig`, `exp`, and repeated `ba_param` entries), and
-        // a strict schema would reject the redirect outright.
-        validateSearch: z.object({}).passthrough(),
-        component: McpConsentRoute,
       },
       onboarding: {
         loader: async ({ location }) => {

@@ -17,6 +17,7 @@
     "./query-keys": "./src/query-keys.ts",
     "./ui": "./src/ui.ts",
     "./local-auth-routes": "./src/local-auth-routes.tsx",
+    "./mcp-consent-routes": "./src/mcp-consent-routes.tsx",
     "./admin": "./src/admin.tsx",
     "./account": "./src/components/account-page.tsx",
     "./organization-members": "./src/components/organization-members-page.tsx",
@@ -122,6 +123,11 @@
         "types": "./dist/local-auth-routes.d.ts",
         "import": "./dist/local-auth-routes.js",
         "default": "./dist/local-auth-routes.js"
+      },
+      "./mcp-consent-routes": {
+        "types": "./dist/mcp-consent-routes.d.ts",
+        "import": "./dist/mcp-consent-routes.js",
+        "default": "./dist/mcp-consent-routes.js"
       },
       "./admin": {
         "types": "./dist/admin.d.ts",

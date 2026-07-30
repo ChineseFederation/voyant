@@ -8,6 +8,7 @@ describe("createStandardOperatorRouteFiles", () => {
       presentationIds: [
         "@voyant-travel/auth#presentation.local-auth",
         "@voyant-travel/finance#presentation.public",
+        "@voyant-travel/mcp#presentation.consent",
         "@voyant-travel/quotes#presentation.public",
         "@voyant-travel/storefront#presentation.customer",
       ],
@@ -34,6 +35,7 @@ describe("createStandardOperatorRouteFiles", () => {
     const cases = [
       ["@voyant-travel/auth#presentation.local-auth", "(auth)/"],
       ["@voyant-travel/finance#presentation.public", "pay.tsx"],
+      ["@voyant-travel/mcp#presentation.consent", "(mcp)/"],
       ["@voyant-travel/quotes#presentation.public", "proposal.$quoteVersionId.tsx"],
     ] as const
 
@@ -43,6 +45,18 @@ describe("createStandardOperatorRouteFiles", () => {
       expect(selected.some(({ path }) => path.startsWith(expectedPath))).toBe(true)
       expect(absent.some(({ path }) => path.startsWith(expectedPath))).toBe(false)
     }
+  })
+
+  it("emits the MCP consent screen without the local-auth pages", () => {
+    // A broker-authenticated deployment ships no sign-in, sign-up, or
+    // password-reset page, but the authorization server issuing connector
+    // grants is still local to it — so consent has to be reachable anyway.
+    const cloudAuth = createStandardOperatorRouteFiles({
+      presentationIds: ["@voyant-travel/mcp#presentation.consent"],
+    })
+
+    expect(cloudAuth.map(({ path }) => path)).toContain("(mcp)/mcp-consent.tsx")
+    expect(cloudAuth.some(({ path }) => path.startsWith("(auth)/"))).toBe(false)
   })
 
   it("emits Storefront routes only when its presentation is selected", () => {

@@ -231,6 +231,9 @@
       "@voyant-travel/auth-react/i18n/en": ["../auth-react/dist/i18n/en.d.ts"],
       "@voyant-travel/auth-react/i18n/ro": ["../auth-react/dist/i18n/ro.d.ts"],
       "@voyant-travel/auth-react/local-auth-routes": ["../auth-react/dist/local-auth-routes.d.ts"],
+      "@voyant-travel/auth-react/mcp-consent-routes": [
+        "../auth-react/dist/mcp-consent-routes.d.ts"
+      ],
       "@voyant-travel/auth-react/organization-members": [
         "../auth-react/dist/components/organization-members-page.d.ts"
       ],

@@ -56,8 +56,9 @@ const routeRegistry = readFileSync(
 for (const token of [
   "createStandardOperatorFrontend",
   "operatorFrontend.routes.docs",
-  'contribution: "localAuth" | "storefront"',
+  'contribution: "localAuth" | "mcpConsent" | "storefront"',
   'contribution: "finance" | "quotes"',
+  "MCP_CONSENT_PRESENTATION_ID",
   "operatorFrontend.workspace",
   "createStandardOperatorRouteFiles",
   "STOREFRONT_PRESENTATION_ID",

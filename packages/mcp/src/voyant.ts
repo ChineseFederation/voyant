@@ -18,6 +18,19 @@ export const mcpVoyantModule = defineModule({
       },
     },
   ],
+  presentations: [
+    // The OAuth grant screen for this transport. It belongs to MCP rather than
+    // to local auth: the authorization server issuing connector grants is local
+    // to the deployment in every admin auth mode, so a broker-authenticated
+    // deployment that ships no sign-in page must still answer /mcp-consent.
+    {
+      id: "@voyant-travel/mcp#presentation.consent",
+      runtime: {
+        entry: "@voyant-travel/auth-react/mcp-consent-routes",
+        export: "createMcpConsentRouteContribution",
+      },
+    },
+  ],
   access: {
     resources: [
       {
