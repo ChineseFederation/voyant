@@ -1,46 +1,9 @@
 #!/usr/bin/env node
 /** Runner: extracts pgTable declarations from packages/ and checks *Ref mirrors. */
-import { readdirSync, readFileSync } from "node:fs"
-import { extname, join, sep } from "node:path"
-
-import ts from "typescript"
+import { readFileSync } from "node:fs"
 
 import { checkRefMirrors, type TableDecl } from "./ref-mirrors.ts"
-
-function sourceFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name).split(sep).join("/")
-    if (entry.isDirectory()) {
-      return entry.name === "dist" || entry.name === "node_modules" ? [] : sourceFiles(path)
-    }
-    return entry.isFile() && extname(entry.name) === ".ts" ? [path] : []
-  })
-}
-
-/**
- * Comments must be removed before matching: `packages/db/src/lib/typeid-column.ts`
- * carries a `@example` JSDoc containing `pgTable("products", { ... })`, which a
- * naive text scan reads as the owner of the products table and then reports
- * every real mirror column as unknown. Blanking comment ranges with the
- * TypeScript scanner keeps offsets stable so the brace matching below still works.
- */
-function stripComments(text: string): string {
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, text)
-  const out = text.split("")
-  let token = scanner.scan()
-  while (token !== ts.SyntaxKind.EndOfFileToken) {
-    if (
-      token === ts.SyntaxKind.SingleLineCommentTrivia ||
-      token === ts.SyntaxKind.MultiLineCommentTrivia
-    ) {
-      for (let i = scanner.getTokenStart(); i < scanner.getTokenEnd(); i += 1) {
-        if (out[i] !== "\n") out[i] = " "
-      }
-    }
-    token = scanner.scan()
-  }
-  return out.join("")
-}
+import { collectSourceFiles, stripComments } from "./source-scan.ts"
 
 /** Matches the `{...}` column object of a pgTable call, brace-balanced. */
 export function extractDeclarations(file: string, rawText: string): TableDecl[] {
@@ -70,9 +33,9 @@ export function extractDeclarations(file: string, rawText: string): TableDecl[] 
 }
 
 function main(): void {
-  const declarations = sourceFiles("packages")
-    .filter((file) => !file.includes("/tests/") && !/\.test\.ts$/.test(file))
-    .flatMap((file) => extractDeclarations(file, readFileSync(file, "utf8")))
+  const declarations = collectSourceFiles("packages").flatMap((file) =>
+    extractDeclarations(file, readFileSync(file, "utf8")),
+  )
 
   const { violations, checked } = checkRefMirrors(declarations)
 
