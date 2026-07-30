@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { z } from "zod"
 
-import { toMcpInputSchema } from "../src/server.js"
+import { toMcpInputSchema } from "../src/schema-projection.js"
 
 /**
  * The schema registered with the MCP SDK is parsed BEFORE the tool callback
