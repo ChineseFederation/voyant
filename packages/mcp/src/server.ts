@@ -26,9 +26,12 @@ import {
   createToolRegistry,
   TOOL_CONTEXT_CONTRIBUTION_EXPORT,
   TOOL_CONTRACT_VERSION,
+  type ToolContext,
   type ToolContextContribution,
+  type ToolManifestEntry,
   type ToolRegistry,
 } from "@voyant-travel/tools"
+import type { Context } from "hono"
 
 import { buildAuthenticatedContext, callerPermissions, isAuthorized } from "./authorization.js"
 import {
@@ -36,6 +39,13 @@ import {
   buildContributedContext,
   indexActionsByTool,
 } from "./graph-composition.js"
+import {
+  callerFromContext,
+  classifyToolCallResult,
+  createMcpObserver,
+  jsonByteLength,
+  type McpObserver,
+} from "./observability.js"
 import { registerMcpTool } from "./register.js"
 import type { GraphMcpApiRoutesOptions, McpApiRoutesOptions, McpServerInfo } from "./types.js"
 
@@ -92,24 +102,42 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   const serverInfo = options.serverInfo ?? DEFAULT_SERVER_INFO
   const app = new OpenAPIHono()
 
+  const observerFor = (ctx: ToolContext): McpObserver =>
+    createMcpObserver({
+      ...(options.reporter ? { reporter: options.reporter } : {}),
+      ...(options.appName ? { appName: options.appName } : {}),
+      ...(ctx.waitUntil ? { waitUntil: ctx.waitUntil } : {}),
+    })
+
   app.openapi(getManifestRoute, async (c) => {
     const permissions = callerPermissions(c)
     const ctx = await buildAuthenticatedContext(c, buildContext)
     const tools = registry
       .list()
       .filter((tool) => isAuthorized(tool, permissions, accessCatalog, ctx.audience))
+    observerFor(ctx).toolsList({
+      payloadBytes: jsonByteLength(tools),
+      toolCount: tools.length,
+      caller: callerFromContext(ctx),
+    })
     return c.json({ version: TOOL_CONTRACT_VERSION, serverInfo, tools })
   })
 
   app.openapi(callMcpRoute, async (c) => {
     const permissions = callerPermissions(c)
     const ctx = await buildAuthenticatedContext(c, buildContext)
+    const observer = observerFor(ctx)
     const server = new McpServer(serverInfo)
 
+    // The invocation names the caller could actually reach, so an unknown-tool
+    // event is a name that was never registered *or* was filtered by scope —
+    // both of which reveal what the model expected but could not call.
+    const authorizedTools = new Map<string, ToolManifestEntry>()
     for (const entry of registry.list()) {
       if (!isAuthorized(entry, permissions, accessCatalog, ctx.audience)) continue
       const def = registry.get(entry.name)
       if (!def) continue
+      authorizedTools.set(entry.name, entry)
       registerMcpTool(
         server,
         registry,
@@ -121,6 +149,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
         options.requireActionPolicies,
       )
       for (const alias of entry.aliases) {
+        authorizedTools.set(alias, entry)
         registerMcpTool(
           server,
           registry,
@@ -139,10 +168,78 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       enableJsonResponse: true,
     })
     await server.connect(transport)
-    return (await transport.handleRequest(c)) ?? c.body(null, 204)
+    const startedAt = Date.now()
+    const response = (await transport.handleRequest(c)) ?? c.body(null, 204)
+    await instrumentRpc(c, response, Date.now() - startedAt, authorizedTools, ctx, observer)
+    return response
   })
 
   return app
+}
+
+/**
+ * Emit the boundary telemetry for the request that just completed. Best-effort:
+ * a parsing slip here must never change the response the caller receives, so the
+ * whole body is defensive and swallows its own failures.
+ */
+async function instrumentRpc(
+  c: Context,
+  response: Response,
+  durationMs: number,
+  authorizedTools: Map<string, ToolManifestEntry>,
+  ctx: ToolContext,
+  observer: McpObserver,
+): Promise<void> {
+  try {
+    // Hono caches the parsed body, so this reuses the parse the transport read.
+    const request = asRecord(await c.req.json())
+    const method = request?.method
+    if (method !== "tools/call" && method !== "tools/list") return
+    const caller = callerFromContext(ctx)
+    const payload = await readJsonRpcResponse(response)
+    if (method === "tools/list") {
+      const tools = asRecord(payload?.result)?.tools
+      const list = Array.isArray(tools) ? tools : []
+      observer.toolsList({
+        payloadBytes: jsonByteLength(list),
+        toolCount: list.length,
+        caller,
+      })
+      return
+    }
+    const name = asRecord(request?.params)?.name
+    if (typeof name !== "string") return
+    const entry = authorizedTools.get(name)
+    const { outcome, code } = classifyToolCallResult(payload, entry !== undefined)
+    observer.toolCall({
+      tool: name,
+      outcome,
+      durationMs,
+      write: entry ? entry.annotations.readOnlyHint !== true : false,
+      ...(code ? { code } : {}),
+      caller,
+    })
+  } catch {
+    // Instrumentation is best-effort and must never break a tools/call.
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+/** Read a JSON-RPC response body without consuming the response returned to the caller. */
+async function readJsonRpcResponse(
+  response: Response,
+): Promise<Record<string, unknown> | undefined> {
+  if (!response.body && response.status === 204) return undefined
+  try {
+    return asRecord(await response.clone().json())
+  } catch {
+    return undefined
+  }
 }
 
 /** Compose selected tools and their package-owned context contributors from one graph. */
@@ -241,6 +338,8 @@ export async function createGraphMcpApiRoutes(
     registry,
     requireActionPolicies: true,
     ...(options.serverInfo ? { serverInfo: options.serverInfo } : {}),
+    ...(options.reporter ? { reporter: options.reporter } : {}),
+    ...(options.appName ? { appName: options.appName } : {}),
     buildContext: (c) => buildContributedContext(c, options, contributions.values()),
   })
 }

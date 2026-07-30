@@ -4,6 +4,7 @@
  * them without importing the route factories back.
  */
 import type { VoyantGraphRuntime } from "@voyant-travel/framework/runtime-attestation"
+import type { Reporter } from "@voyant-travel/hono/observability"
 import type { ToolContext, ToolRegistry } from "@voyant-travel/tools"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import type { Context } from "hono"
@@ -24,6 +25,10 @@ export interface McpApiRoutesOptions {
   serverInfo?: McpServerInfo
   /** Graph-composed hosts fail closed when a selected Tool has no selected action policy. */
   requireActionPolicies?: boolean
+  /** Observability sink for MCP transport telemetry (RFC #1553). Defaults to no-op. */
+  reporter?: Reporter
+  /** Logical app name stamped on emitted telemetry events. Defaults to `"voyant"`. */
+  appName?: string
 }
 
 export interface GraphMcpApiRoutesOptions {
@@ -35,6 +40,10 @@ export interface GraphMcpApiRoutesOptions {
   /** Context keys supplied by the deployment while packages migrate to contributions. */
   providedContext?: readonly string[]
   serverInfo?: McpServerInfo
+  /** Observability sink for MCP transport telemetry (RFC #1553). Defaults to no-op. */
+  reporter?: Reporter
+  /** Logical app name stamped on emitted telemetry events. Defaults to `"voyant"`. */
+  appName?: string
 }
 
 export type GraphMcpRuntime = VoyantGraphRuntime
