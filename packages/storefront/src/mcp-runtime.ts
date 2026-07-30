@@ -375,7 +375,7 @@ export function createVerificationToolServices(input: {
   const enforceStartLimit = async (channel: "email" | "sms", value: string) => {
     const limited = await enforceVerificationStartLimits(input.request as never, channel, value)
     if (limited) {
-      throw new ToolError("Verification challenge rate limit exceeded.", "PROVIDER_ERROR", {
+      throw new ToolError("Verification challenge rate limit exceeded.", "PROVIDER_UNAVAILABLE", {
         retryAfter: limited.headers.get("retry-after"),
       })
     }

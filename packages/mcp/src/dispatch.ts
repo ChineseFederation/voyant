@@ -81,17 +81,27 @@ export async function dispatchToResult(
       structuredContent: toStructuredContent(data, envelopeResult),
     }
   } catch (err) {
-    const code = err instanceof ToolError ? err.code : "PROVIDER_ERROR"
-    const message = err instanceof Error ? err.message : String(err)
+    // Normalize any thrown value into a ToolError so the envelope always carries
+    // the actionable fields. An unknown throw maps to PROVIDER_ERROR (terminal),
+    // the safe-for-writes default — a blind retry of an unknown failure could
+    // duplicate a write.
+    const toolError =
+      err instanceof ToolError
+        ? err
+        : new ToolError(err instanceof Error ? err.message : String(err), "PROVIDER_ERROR")
     const error = {
       contractVersion: TOOL_CONTRACT_VERSION,
-      code,
-      message,
-      ...(err instanceof ToolError && err.meta ? { meta: err.meta } : {}),
+      code: toolError.code,
+      message: toolError.message,
+      retryable: toolError.retryable,
+      nextSteps: toolError.nextSteps,
+      ...(toolError.candidates ? { candidates: toolError.candidates } : {}),
+      ...(toolError.didYouMean ? { didYouMean: toolError.didYouMean } : {}),
+      ...(toolError.meta ? { meta: toolError.meta } : {}),
     }
     return {
       isError: true,
-      content: [{ type: "text", text: `[${code}] ${message}` }],
+      content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],
       _meta: { "voyant.travel/error": error },
     }
   }

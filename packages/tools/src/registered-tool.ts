@@ -18,7 +18,7 @@ import { isToolDeploymentRiskCompatible } from "./risk.js"
  * fail closed on any mismatch. Dispatch lives in `registry.ts`.
  */
 
-// biome-ignore lint/suspicious/noExplicitAny: the registry is a heterogeneous container over each tool's distinct input/output/context types.
+// biome-ignore lint/suspicious/noExplicitAny: because the registry is a heterogeneous container over each tool's distinct input/output/context types.
 export type AnyToolDefinition = ToolDefinition<any, any, any>
 
 export interface RegisteredTool {

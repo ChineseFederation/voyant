@@ -38,8 +38,10 @@ export { defineTool, type ToolDefinition } from "./define-tool.js"
 export {
   enforceAudienceAuthorization,
   requireService,
+  TOOL_ERROR_DEFAULTS,
   ToolError,
   type ToolErrorCode,
+  type ToolErrorDetails,
 } from "./errors.js"
 export {
   admitHandlerActionPolicy,
