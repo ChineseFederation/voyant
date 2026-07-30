@@ -1,5 +1,14 @@
 # @voyant-travel/operator-standard
 
+## 0.16.3
+
+### Patch Changes
+
+- Updated dependencies [6da86c6]
+  - @voyant-travel/cruises@0.220.1
+  - @voyant-travel/charters@0.219.1
+  - @voyant-travel/cruises-react@0.220.1
+
 ## 0.16.2
 
 ### Patch Changes
