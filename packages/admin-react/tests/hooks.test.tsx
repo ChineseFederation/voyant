@@ -1,10 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { bookingsOperations, crmOperations, type FetchLike } from "@voyant-travel/admin-client"
 import type { ReactNode } from "react"
 import { describe, expect, it } from "vitest"
-
 import { useAdminMutation, useAdminQuery, useCapabilities } from "../src/hooks.js"
+import { bookingsOperations, crmOperations, type FetchLike } from "../src/index.js"
 import { AdminClientProvider } from "../src/provider.js"
 import { adminQueryKey } from "../src/query-keys.js"
 

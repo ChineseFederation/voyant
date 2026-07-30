@@ -15,7 +15,7 @@ export const adminErrorSchema = z.object({
 export type AdminError = z.infer<typeof adminErrorSchema>
 
 /**
- * Thrown by `@voyant-travel/admin-client` when a deployment returns a non-2xx
+ * Thrown by `@voyant-travel/admin-react/client` when a deployment returns a non-2xx
  * response. Carries the HTTP status and the parsed error envelope so callers
  * can branch on `status` / `code` without re-reading the body.
  */
@@ -76,7 +76,7 @@ export const approvalRequiredSchema = z.object({
 export type ApprovalRequired = z.infer<typeof approvalRequiredSchema>
 
 /**
- * Thrown by `@voyant-travel/admin-client` when a `requires_confirmation` operation
+ * Thrown by `@voyant-travel/admin-react/client` when a `requires_confirmation` operation
  * returns HTTP 202 with an approval-required envelope instead of the entity.
  * Catch it to drive the approval flow — the approval id is on `.approvalId`.
  */

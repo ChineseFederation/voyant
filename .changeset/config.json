@@ -3,7 +3,7 @@
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "fixed": [
-    ["@voyant-travel/admin", "@voyant-travel/admin-client", "@voyant-travel/admin-react"],
+    ["@voyant-travel/admin", "@voyant-travel/admin-react"],
     ["@voyant-travel/auth", "@voyant-travel/auth-react"],
     ["@voyant-travel/bookings", "@voyant-travel/bookings-react"],
     ["@voyant-travel/catalog", "@voyant-travel/catalog-react"],

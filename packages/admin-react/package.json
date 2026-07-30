@@ -11,8 +11,9 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
-    "./provider": "./src/provider.tsx",
+    "./client": "./src/client/index.ts",
     "./hooks": "./src/hooks.ts",
+    "./provider": "./src/provider.tsx",
     "./query-keys": "./src/query-keys.ts",
     "./user": "./src/user.tsx",
     "./user-bindings": "./src/user-bindings.tsx"
@@ -30,7 +31,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@voyant-travel/admin-client": "workspace:^"
+    "@voyant-travel/admin-contracts": "workspace:^"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.101.2",
@@ -56,15 +57,19 @@
         "import": "./dist/index.js",
         "default": "./dist/index.js"
       },
-      "./provider": {
-        "types": "./dist/provider.d.ts",
-        "import": "./dist/provider.js",
-        "default": "./dist/provider.js"
+      "./client": {
+        "types": "./dist/client/index.d.ts",
+        "import": "./dist/client/index.js"
       },
       "./hooks": {
         "types": "./dist/hooks.d.ts",
         "import": "./dist/hooks.js",
         "default": "./dist/hooks.js"
+      },
+      "./provider": {
+        "types": "./dist/provider.d.ts",
+        "import": "./dist/provider.js",
+        "default": "./dist/provider.js"
       },
       "./query-keys": {
         "types": "./dist/query-keys.d.ts",

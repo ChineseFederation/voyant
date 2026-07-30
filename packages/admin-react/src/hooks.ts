@@ -12,7 +12,7 @@ import type {
   InferInput,
   InferOutput,
   InferParams,
-} from "@voyant-travel/admin-client"
+} from "./client/index.js"
 
 import { useAdminClient } from "./provider.js"
 import { ADMIN_QUERY_ROOT, adminQueryKey } from "./query-keys.js"

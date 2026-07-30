@@ -1,9 +1,5 @@
-import {
-  type AdminClient,
-  type AdminClientConfig,
-  createAdminClient,
-} from "@voyant-travel/admin-client"
 import { createContext, type ReactNode, useContext, useMemo } from "react"
+import { type AdminClient, type AdminClientConfig, createAdminClient } from "./client/index.js"
 
 const AdminClientContext = createContext<AdminClient | null>(null)
 

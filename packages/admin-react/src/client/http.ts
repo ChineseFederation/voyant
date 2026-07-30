@@ -46,7 +46,7 @@ export interface AdminClientConfig {
 function resolveFetch(config: AdminClientConfig): FetchLike {
   const impl = config.fetch ?? (globalThis as { fetch?: FetchLike }).fetch
   if (!impl) {
-    throw new Error("@voyant-travel/admin-client: no fetch implementation; pass config.fetch")
+    throw new Error("@voyant-travel/admin-react: no fetch implementation; pass config.fetch")
   }
   return impl
 }
