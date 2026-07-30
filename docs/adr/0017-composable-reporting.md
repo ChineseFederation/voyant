@@ -1,4 +1,4 @@
-# ADR-0015: Reporting is composed from semantic datasets and grid widgets
+# ADR-0017: Reporting is composed from semantic datasets and grid widgets
 
 - **Status:** Accepted (2026-07-18)
 - **Relates to:** [ADR-0002](./0002-contract-packages.md),
