@@ -19,6 +19,8 @@ import { createQuotesNotificationsRuntime } from "./quotes-runtime.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
 import { createNotificationsRuntime } from "./runtime.js"
 import { notificationsRuntimePort } from "./runtime-port.js"
+import { toStorefrontVerificationNotificationProviders } from "./storefront-verification-runtime.js"
+import type { NotificationProvider } from "./types.js"
 
 export interface NotificationsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
@@ -33,8 +35,9 @@ export function createNotificationsRuntimePortContribution(
   const runtime = createNotificationsRuntime(host.primitives)
   const verification = {
     resolveProviders(bindings: Record<string, unknown>) {
-      const resolver = host.primitives.config.read(bindings, "notificationProviders")
-      return typeof resolver === "function" ? resolver(host.primitives.env(bindings)) : []
+      return toStorefrontVerificationNotificationProviders(
+        configuredNotificationProviders(host, bindings),
+      )
     },
     email: { subject: "Your verification code" },
   } satisfies StorefrontVerificationRoutesOptions
@@ -55,4 +58,20 @@ export function createNotificationsRuntimePortContribution(
     )
   }
   return contribution
+}
+
+/**
+ * Read the app's configured provider set. The host config primitive is untyped,
+ * so the narrowing happens here once and callers work against
+ * `NotificationProvider` instead of `any` — the `any` is what let a durable
+ * provider reach Storefront's `send`-shaped contract unchallenged (voyant#3923).
+ */
+function configuredNotificationProviders(
+  host: NotificationsRuntimeContributorHost,
+  bindings: Record<string, unknown>,
+): ReadonlyArray<NotificationProvider> {
+  const resolver = host.primitives.config.read(bindings, "notificationProviders")
+  return typeof resolver === "function"
+    ? (resolver(host.primitives.env(bindings)) as ReadonlyArray<NotificationProvider>)
+    : []
 }
