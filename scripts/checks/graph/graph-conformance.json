@@ -1,0 +1,16 @@
+{
+  "$comment": [
+    "Facts each package must contribute to the resolved deployment graph.",
+    "These replace source-text substring pins in the *authority* scripts, which",
+    "matched how a module was written rather than what it contributes.",
+    "See docs/adr/0016-modules-as-components-of-one-deployable.md and issue #3898."
+  ],
+  "packages": {
+    "@voyant-travel/flights": {
+      "requiresSchemas": ["@voyant-travel/finance"],
+      "requiredCapabilities": ["finance.payment-sessions"],
+      "portIds": ["flights.runtime", "flights.durable-action-runtime"],
+      "runtimeExport": "createFlightsRuntimePortContribution"
+    }
+  }
+}

@@ -41,19 +41,11 @@ const runtime = readRequired(join(flightsRoot, "src/runtime.ts"))
 if (packageJson.dependencies?.["@voyant-travel/finance"] !== "workspace:^") {
   violations.push("Flights must own its @voyant-travel/finance runtime dependency")
 }
-if (!packageJson.voyant?.requiresSchemas?.includes("@voyant-travel/finance")) {
-  violations.push("Flights must declare its Finance payment-session schema dependency")
+if (!manifest.includes('export: "createFlightsVoyantRuntime"')) {
+  violations.push("Flights manifest must name its package-owned runtime factory")
 }
-if (
-  !manifest.includes("requirePort(flightsRuntimePort)") ||
-  !manifest.includes("requirePort(durableFlightActionRuntimePort, { optional: true })") ||
-  !manifest.includes('requires: { capabilities: ["finance.payment-sessions"] }') ||
-  !manifest.includes('export: "createFlightsVoyantRuntime"')
-) {
-  violations.push(
-    "Flights manifest must declare its typed ports (runtime + optional durable-action), Finance capability, and package-owned runtime factory",
-  )
-}
+// The typed ports and the Finance capability are asserted against the resolved
+// graph by verify:graph-conformance, not by matching manifest source text.
 if (
   !hono.includes("defineGraphRuntimeFactory") ||
   !hono.includes("getPort(flightsRuntimePort)") ||
