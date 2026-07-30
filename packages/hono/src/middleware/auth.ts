@@ -552,7 +552,7 @@ export function requireAuth<TBindings extends VoyantBindings>(
     // nowhere to go, so the whole flow is unreachable.
     if (isMcpApi) {
       return c.json({ error: "Unauthorized" }, 401, {
-        "WWW-Authenticate": `Bearer resource_metadata="${mcpResourceMetadataUrl(c.req.url)}"`,
+        "WWW-Authenticate": `Bearer resource_metadata="${mcpResourceMetadataUrl(c.env, c.req.url)}"`,
       })
     }
 
@@ -563,16 +563,56 @@ export function requireAuth<TBindings extends VoyantBindings>(
 /**
  * Absolute URL of the protected-resource document named in the challenge.
  *
- * Built from the request's own origin rather than a configured base URL: the
- * client fetches exactly this URL, and the origin is the one piece of the
- * deployment's public address the middleware can always observe. The root form
- * is used because the API base path is already stripped by the time this
- * middleware runs, so a path-derived form would omit that prefix.
+ * Derived from the deployment's configured public address, not from the
+ * request: behind an edge that terminates TLS and re-points `Host` at the
+ * upstream service — how managed deployments are fronted — the runtime
+ * observes the internal origin, so a request-derived challenge advertises an
+ * address the client cannot reach. The configured address is the same source
+ * the issuer and the protected-resource document itself derive from, so the
+ * challenge and the document it names agree under any proxy topology.
+ *
+ * The request origin remains the fallback for deployments that configure no
+ * public address at all (local development), where it is the only signal there
+ * is. The root form is used because OAuth discovery answers at the origin root,
+ * ahead of the API layer, so a path-derived form would point at nothing.
  */
-function mcpResourceMetadataUrl(requestUrl: string): string {
+function mcpResourceMetadataUrl(env: VoyantBindings, requestUrl: string): string {
+  const origin = configuredPublicOrigin(env) ?? httpOrigin(requestUrl)
+  return origin
+    ? `${origin}/.well-known/oauth-protected-resource`
+    : "/.well-known/oauth-protected-resource"
+}
+
+/**
+ * Public origin of this deployment, read from configuration in the same
+ * precedence order the auth runtime's `getPublicApiBaseUrl`/`getAuthBaseUrl`
+ * use, so every document in the connector handshake names one address.
+ */
+function configuredPublicOrigin(env: VoyantBindings): string | null {
+  const candidates = [
+    env.API_BASE_URL,
+    env.APP_URL,
+    env.DASH_BASE_URL,
+    env.CORS_ALLOWLIST?.split(",")[0],
+  ]
+  for (const candidate of candidates) {
+    const origin = httpOrigin(candidate)
+    // A malformed or relative value says nothing about the public address;
+    // keep reading the lower-precedence candidates rather than giving up.
+    if (origin) return origin
+  }
+  return null
+}
+
+/** Origin of an absolute http(s) URL, or `null` for anything else. */
+function httpOrigin(url: string | undefined): string | null {
+  const value = url?.trim()
+  if (!value) return null
   try {
-    return `${new URL(requestUrl).origin}/.well-known/oauth-protected-resource`
+    const parsed = new URL(value)
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null
+    return parsed.origin
   } catch {
-    return "/.well-known/oauth-protected-resource"
+    return null
   }
 }
