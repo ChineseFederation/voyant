@@ -1,0 +1,17 @@
+{
+  "$comment": [
+    "Where a symbol may and may not appear. Replaces substring pins in the",
+    "*authority* scripts that matched source text rather than identifiers.",
+    "Keyed by the authority the rule belongs to, so failures name their owner.",
+    "See docs/adr/0016-modules-as-components-of-one-deployable.md and issue #3898."
+  ],
+  "policies": {
+    "flights-runtime-authority": {
+      "absentFrom": {
+        "operatorGraphRuntimeBindings": ["packages/runtime/src/deployment-resources.ts"],
+        "loadFlightAdminRoutes": ["packages/runtime/src/deployment-resources.ts"],
+        "loadFlightsRuntime": ["packages/runtime/src/deployment-resources.ts"]
+      }
+    }
+  }
+}

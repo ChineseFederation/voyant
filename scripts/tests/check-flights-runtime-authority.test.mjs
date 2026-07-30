@@ -75,10 +75,13 @@ describe("check-flights-runtime-authority", () => {
         'function createDeploymentPortResources() { return {} }\nexport const operatorGraphRuntimeBindings = { "@voyant-travel/flights": legacy }\nconst loadFlightAdminRoutes = legacy\nconst loadFlightsRuntime = () => import("./flights-runtime")\n',
     })
 
+    // The `operatorGraphRuntimeBindings` and `loadFlightAdminRoutes` identifier
+    // rules moved to verify:symbol-policy, which matches identifiers in a parsed
+    // AST against the real tree rather than a fixture root — see
+    // scripts/tests/symbol-policy.test.mjs for their coverage. What remains here
+    // is the module-specifier rule, which is a string literal, not an identifier.
     await assert.rejects(runChecker(root), (error) => {
-      assert.match(error.stderr, /compatibility runtime bindings must stay deleted/)
-      assert.match(error.stderr, /must not retain the Flights compatibility route loader/)
-      assert.match(error.stderr, /must not retain a Flights runtime loader or facade/)
+      assert.match(error.stderr, /must not retain a Flights runtime facade module/)
       return true
     })
   })

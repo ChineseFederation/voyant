@@ -71,12 +71,9 @@ if (existsSync(retiredFlightsNodeRoot)) {
 if (existsSync(retiredAdapterPath)) {
   violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
-if (composition.includes("operatorGraphRuntimeBindings")) {
-  violations.push("Operator compatibility runtime bindings must stay deleted")
-}
-if (composition.includes("loadFlightAdminRoutes")) {
-  violations.push("Operator must not retain the Flights compatibility route loader")
-}
+// operatorGraphRuntimeBindings, loadFlightAdminRoutes and loadFlightsRuntime are
+// asserted absent from the composition by verify:symbol-policy, which matches
+// identifiers in a parsed AST rather than substrings of the source text.
 if (
   !nodeContributor.includes("primitives: VoyantRuntimeHostPrimitives") ||
   !nodeContributor.includes("createFlightsRuntime(host.primitives)")
@@ -91,8 +88,10 @@ for (const token of [
   if (!runtime.includes(token))
     violations.push(`Flights standard Node runtime must preserve ${token}`)
 }
-if (composition.includes("loadFlightsRuntime") || composition.includes("./flights-runtime")) {
-  violations.push("Operator must not retain a Flights runtime loader or facade")
+// The identifier half of this rule moved to verify:symbol-policy; the module
+// specifier is a string literal, not an identifier, so it stays here.
+if (composition.includes("./flights-runtime")) {
+  violations.push("Operator must not retain a Flights runtime facade module")
 }
 
 if (violations.length > 0) {
