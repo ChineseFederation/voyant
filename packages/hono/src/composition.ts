@@ -100,64 +100,6 @@ export function composeFromManifest<TCapabilities>(
   return { modules, extensions }
 }
 
-/**
- * A module's place in the capability dependency graph (ADR-0007). `provides`
- * are capability tokens the module supplies (e.g. `"people-directory"`);
- * `requires` are tokens it depends on another mounted module — or an injected
- * substitute — to supply. Tokens are opaque strings; the graph is the contract
- * between modules, decoupled from concrete service shapes.
- *
- * `isRequired` marks a module the platform cannot run without: it can be
- * *overridden* by a substitute (a future capability) but never `exclude`d.
- */
-export interface CapabilityDeclaration {
-  provides?: readonly string[]
-  requires?: readonly string[]
-  isRequired?: boolean
-}
-
-/** Maps a module specifier to its capability declaration. */
-export type CapabilityGraph = Record<string, CapabilityDeclaration>
-
-/** An unmet `requires`: a capability no mounted module (nor a substitute) provides. */
-export interface CapabilityGap {
-  capability: string
-  /** Specifiers of the still-mounted modules that require the missing capability. */
-  requiredBy: string[]
-}
-
-/**
- * Pure dependency-graph check for module subsetting (ADR-0007). Given the
- * specifiers that will actually mount (after any `exclude`) and the capability
- * graph, return the gaps: required capabilities that nothing still-mounted
- * provides. An empty array means the subset is safe to compose. Callers turn a
- * non-empty result into a build/boot error so dropping a depended-on module
- * fails loudly here rather than as a runtime 500.
- */
-export function findCapabilityGaps(
-  mountedSpecifiers: readonly string[],
-  graph: CapabilityGraph,
-): CapabilityGap[] {
-  const provided = new Set<string>()
-  for (const spec of mountedSpecifiers) {
-    for (const cap of graph[spec]?.provides ?? []) provided.add(cap)
-  }
-
-  const gaps = new Map<string, Set<string>>()
-  for (const spec of mountedSpecifiers) {
-    for (const cap of graph[spec]?.requires ?? []) {
-      if (provided.has(cap)) continue
-      const by = gaps.get(cap) ?? new Set<string>()
-      by.add(spec)
-      gaps.set(cap, by)
-    }
-  }
-
-  return [...gaps.entries()]
-    .map(([capability, by]) => ({ capability, requiredBy: [...by].sort() }))
-    .sort((a, b) => a.capability.localeCompare(b.capability))
-}
-
 export interface ManifestRegistryDiff {
   /** In the manifest but with no registered factory. */
   missingFactories: string[]

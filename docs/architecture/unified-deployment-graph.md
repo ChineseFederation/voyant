@@ -11,7 +11,9 @@ Status: accepted architecture rule
 Related:
 
 - `voyant#3080` - unified deployment profiles and target adapters
+- [ADR-0016 modules as components of one deployable](../adr/0016-modules-as-components-of-one-deployable.md)
 - [ADR-0007 module subsetting and capability ports](../adr/0007-module-subsetting-and-capability-ports.md)
+  — **superseded**; deployments do not select or drop modules
 - [ADR-0008 convention-driven deployment surface](../adr/0008-convention-driven-deployment-surface.md)
 - [ADR-0012 application authoring and product defaults](../adr/0012-application-authoring-and-product-defaults.md)
 - [deployment targets](./deployment-targets.md)
@@ -22,6 +24,11 @@ Related:
 
 **A Voyant application is a versioned, declarative package graph selected at
 build time and lowered to one resident Node application.**
+
+Modules are **components of that one deployable, not deployment units.** A
+deployment does not drop, subtract, or substitute a standard module; there is no
+`exclude` and no capability-port mechanism. See
+[ADR-0016](../adr/0016-modules-as-components-of-one-deployable.md).
 
 The authored project describes only differences from the standard product. The
 resolved `voyant.resolved-graph.v1` artifact describes the complete application.

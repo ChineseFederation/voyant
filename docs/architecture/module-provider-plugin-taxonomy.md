@@ -26,6 +26,12 @@ system.
 Modules are the primary way Voyant packages business and infrastructure
 capabilities.
 
+A module is a **component of one resident deployable**, not a deployment unit. A
+deployment cannot drop or replace a standard module, and packaging a domain as a
+module does not make it selectable — see
+[ADR-0016](../adr/0016-modules-as-components-of-one-deployable.md). Substitution
+happens at adapters and providers, never at business modules.
+
 Examples:
 
 - `bookings`
