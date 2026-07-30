@@ -50,3 +50,16 @@ describe("ToolError actionable fields", () => {
     expect(error.nextSteps).toEqual(["Use trip_1."])
   })
 })
+
+describe("ToolError with a code outside the union", () => {
+  it("does not throw while constructing, so the real failure is not masked", () => {
+    // A domain may raise its own code; the transport forwards it verbatim.
+    // Constructing must never crash — a TypeError here would replace the real
+    // failure with an unrelated one and lose the cause.
+    const error = new ToolError("record is locked", "RECORD_LOCKED" as ToolErrorCode)
+
+    expect(error.code).toBe("RECORD_LOCKED")
+    expect(error.retryable).toBe(false)
+    expect(error.nextSteps.length).toBeGreaterThan(0)
+  })
+})
