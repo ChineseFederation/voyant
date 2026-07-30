@@ -174,25 +174,99 @@ export interface StorefrontVerificationRoutesOptions
 export const STOREFRONT_VERIFICATION_SENDERS_CONTAINER_KEY =
   "providers.storefrontVerification.senders"
 
-export function buildStorefrontVerificationSenders(
+export interface StorefrontVerificationChannelCoverage {
+  /** Channels this deployment can deliver a challenge on. */
+  supported: ReadonlyArray<"email" | "sms">
+  /** Channels a shopper can reach but that no provider can deliver. */
+  unsupported: ReadonlyArray<"email" | "sms">
+}
+
+export interface StorefrontVerificationSenderBundle {
+  senders: StorefrontVerificationSenders
+  coverage: StorefrontVerificationChannelCoverage
+}
+
+/**
+ * The app's provider resolver runs at most once per call, and only when
+ * something actually needs the provider set — an explicitly injected sender for
+ * every channel answers both questions without resolving anything.
+ */
+function providerResolver(
   bindings: Record<string, unknown>,
   options?: StorefrontVerificationRoutesOptions,
-): StorefrontVerificationSenders {
+) {
+  let cached: ReadonlyArray<StorefrontVerificationNotificationProvider> | undefined
+  return () => (cached ??= options?.resolveProviders?.(bindings) ?? options?.providers ?? [])
+}
+
+function channelCoverage(
+  resolveProviders: () => ReadonlyArray<StorefrontVerificationNotificationProvider>,
+  options?: StorefrontVerificationRoutesOptions,
+): StorefrontVerificationChannelCoverage {
+  const supported: Array<"email" | "sms"> = []
+  const unsupported: Array<"email" | "sms"> = []
+  let providerChannels: Set<string> | undefined
+
+  for (const channel of ["email", "sms"] as const) {
+    const explicitSender =
+      channel === "email" ? options?.sendEmailChallenge : options?.sendSmsChallenge
+    if (explicitSender) {
+      supported.push(channel)
+      continue
+    }
+    providerChannels ??= new Set(resolveProviders().flatMap((provider) => [...provider.channels]))
+    if (providerChannels.has(channel)) supported.push(channel)
+    else unsupported.push(channel)
+  }
+
+  return { supported, unsupported }
+}
+
+/**
+ * Build the senders and report which channels they can actually reach, off one
+ * resolution of the provider set.
+ *
+ * Both start routes mount unconditionally, so a channel with no provider behind
+ * it is otherwise only discovered when a shopper asks for a code and gets a 501
+ * (voyant#3948). The provider set comes from configuration, so the gap is
+ * knowable at bootstrap — but the resolver must still run exactly once, which
+ * is why coverage is returned alongside the senders rather than resolved again.
+ */
+export function buildStorefrontVerificationSenderBundle(
+  bindings: Record<string, unknown>,
+  options?: StorefrontVerificationRoutesOptions,
+): StorefrontVerificationSenderBundle {
+  const resolveProviders = providerResolver(bindings, options)
   const senders: StorefrontVerificationSenders = {
     sendEmailChallenge: options?.sendEmailChallenge,
     sendSmsChallenge: options?.sendSmsChallenge,
   }
 
   if (!senders.sendEmailChallenge || !senders.sendSmsChallenge) {
-    const providers = options?.resolveProviders?.(bindings) ?? options?.providers
-    if (providers?.length) {
+    const providers = resolveProviders()
+    if (providers.length) {
       const providerSenders = createStorefrontVerificationSendersFromProviders(providers, options)
       senders.sendEmailChallenge ??= providerSenders.sendEmailChallenge
       senders.sendSmsChallenge ??= providerSenders.sendSmsChallenge
     }
   }
 
-  return senders
+  return { senders, coverage: channelCoverage(resolveProviders, options) }
+}
+
+export function buildStorefrontVerificationSenders(
+  bindings: Record<string, unknown>,
+  options?: StorefrontVerificationRoutesOptions,
+): StorefrontVerificationSenders {
+  return buildStorefrontVerificationSenderBundle(bindings, options).senders
+}
+
+/** Which channels this deployment can actually deliver a challenge on. */
+export function resolveStorefrontVerificationChannelCoverage(
+  bindings: Record<string, unknown>,
+  options?: StorefrontVerificationRoutesOptions,
+): StorefrontVerificationChannelCoverage {
+  return channelCoverage(providerResolver(bindings, options), options)
 }
 
 function getSenders(

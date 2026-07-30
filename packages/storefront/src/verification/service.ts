@@ -308,6 +308,29 @@ async function confirmChallenge(
   return requireChallengeRow(verified, "confirm")
 }
 
+/**
+ * Name what a deployment *can* deliver on, not just what it cannot.
+ *
+ * A bare "no provider for sms" tells an operator nothing they can act on and
+ * tells a storefront nothing it can fall back to (voyant#3948). Listing the
+ * covered channels does both: the operator sees the provider set was resolved
+ * and only misses this channel, and a storefront that collected a phone number
+ * learns email is still a usable route to a verified contact. The channel names
+ * are not sensitive — a storefront has to know them to offer them.
+ */
+function unconfiguredChannelMessage(
+  payload: StorefrontVerificationNotificationPayload,
+  coveredChannels: ReadonlyArray<StorefrontVerificationNotificationChannel>,
+): string {
+  if (payload.provider) {
+    return `No verification notification provider named "${payload.provider}" is registered`
+  }
+  if (coveredChannels.length === 0) {
+    return `No verification notification provider is registered, so no channel can deliver a challenge. Configure a provider that declares the "${payload.channel}" channel.`
+  }
+  return `No verification notification provider registered for channel "${payload.channel}". Registered providers cover: ${[...coveredChannels].sort().join(", ")}.`
+}
+
 export function createStorefrontVerificationSendersFromProviders(
   providers: ReadonlyArray<StorefrontVerificationNotificationProvider>,
   options: StorefrontVerificationProviderOptions = {},
@@ -331,7 +354,7 @@ export function createStorefrontVerificationSendersFromProviders(
       : byChannel.get(payload.channel)
     if (!provider) {
       throw new StorefrontVerificationError(
-        `No verification notification provider registered for channel "${payload.channel}"`,
+        unconfiguredChannelMessage(payload, [...byChannel.keys()]),
         "sender_not_configured",
       )
     }
