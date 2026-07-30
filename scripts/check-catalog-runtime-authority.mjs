@@ -39,9 +39,6 @@ const cyclicPackages = [
   "@voyant-travel/operations",
 ]
 
-if (existsSync(path.join(root, "packages/catalog-node"))) {
-  violations.push("the retired Catalog target package still exists")
-}
 if (
   catalog.voyant?.runtime?.entry !== "./runtime-contributor" ||
   catalog.voyant?.runtime?.export !== "createCatalogRuntimePortContribution"
@@ -161,9 +158,6 @@ const operatorResources = [
   read("packages/runtime/src/deployment-resources.ts"),
 ].join("\n")
 const runtimeHost = read("packages/core/src/runtime-host.ts")
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
-}
 if (
   /\bmodules\s*:|modules\.import|primitives\.modules/.test(`${runtimeHost}\n${operatorResources}`)
 ) {

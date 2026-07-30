@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs"
 import { access, readFile } from "node:fs/promises"
 import path from "node:path"
 
@@ -40,9 +39,6 @@ const commercePorts = [
 ]
 
 const violations = []
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
-}
 for (const port of [...catalogPorts, ...commercePorts]) {
   if (deploymentResources.includes(port)) {
     violations.push(`deployment-resources.ts must not register or import ${port}`)

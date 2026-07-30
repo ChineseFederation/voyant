@@ -12,9 +12,6 @@ const runtimePackage = JSON.parse(await read("packages/runtime/package.json"))
 const runtimeCorePackage = JSON.parse(await read("packages/runtime-core/package.json"))
 const violations = []
 
-if (existsSync(path.join(root, "packages/operator-runtime"))) {
-  violations.push("the retired packages/operator-runtime directory must stay deleted")
-}
 if (runtimePackage.name !== "@voyant-travel/runtime") {
   violations.push("packages/runtime must be the public @voyant-travel/runtime host")
 }

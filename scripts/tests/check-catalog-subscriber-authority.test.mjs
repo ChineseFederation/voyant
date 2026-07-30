@@ -68,15 +68,9 @@ describe("Catalog subscriber authority checker", () => {
     assert.match(result.stdout, /Catalog subscriber authority: OK/)
   })
 
-  it("rejects a restored starter app", async () => {
-    const root = await createFixture({
-      "starters/operator/src/api/app.ts": "plugins: [catalogBridgeBundle]\n",
-    })
-    await assert.rejects(
-      runChecker(root),
-      /starters\/operator\/src\/api\/app\.ts must stay deleted/,
-    )
-  })
+  // The "restored starter app" case moved: that path is declared in
+  // scripts/checks/regression/retired-paths.json and asserted by
+  // verify:retired-surfaces, which covers every retired path in one place.
 
   it("rejects a retained legacy bridge file", async () => {
     const root = await createFixture({

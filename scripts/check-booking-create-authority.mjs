@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { extname, join, relative, sep } from "node:path"
 import ts from "typescript"
 
@@ -7,19 +7,6 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx",
 const failures = []
 const files = sourceFiles("packages").filter(isProductionSource)
 const sources = new Map(files.map((file) => [file, parse(file)]))
-
-for (const file of [
-  "packages/charters/src/service-bookings.ts",
-  "packages/charters/src/service-bookings-local.ts",
-  "packages/cruises/src/service-bookings.ts",
-  "packages/bookings-react/src/hooks/use-booking-convert-mutation.ts",
-  "packages/catalog/src/booking-engine/book.ts",
-  "packages/catalog/src/booking-engine/snapshot-content.ts",
-  "packages/catalog-react/src/booking-engine/use-booking-commit.ts",
-  "packages/bookings-react/src/storefront/storefront-checkout-bodies.ts",
-]) {
-  if (existsSync(file)) fail(file, "retired raw booking-create module still exists")
-}
 
 for (const [file, routePath] of [
   ["packages/bookings/src/routes-admin.ts", "/reserve"],

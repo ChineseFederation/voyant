@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 
@@ -47,9 +46,6 @@ const [deploymentResources, smartbillAdapter, ...contributors] = await Promise.a
 ])
 
 const violations = []
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
-}
 const directRegistrations = deploymentResources.match(/\[[A-Za-z][A-Za-z0-9]*Port\.id\]/g) ?? []
 if (directRegistrations.length > 0) {
   violations.push(

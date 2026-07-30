@@ -29,9 +29,6 @@ const violations = inspectBookingsRuntimeAuthority({
   manifests: readWorkspaceManifests(root),
   policy,
 })
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
-}
 
 if (violations.length > 0) {
   throw new Error(`check-bookings-runtime-authority:\n- ${violations.join("\n- ")}`)

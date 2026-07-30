@@ -55,10 +55,6 @@ for (const [relativePath, tokens] of requiredSourceTokens) {
   }
 }
 
-if (existsSync(join(root, "packages/framework/src/managed-jobs.ts"))) {
-  violations.push("packages/framework/src/managed-jobs.ts must remain deleted")
-}
-
 if (violations.length > 0) {
   console.error("Starter executable-surface authority check failed.\n")
   for (const violation of violations) console.error(`  - ${violation}`)

@@ -53,14 +53,9 @@ describe("Trips subscriber authority checker", () => {
     )
   })
 
-  it("rejects a restored Operator Trips runtime", async () => {
-    const root = await createFixture({
-      "starters/operator/src/api/runtime/trips-runtime.ts": `
-export const restored = true
-`,
-    })
-    await assert.rejects(runChecker(root), /Operator Trips runtime must stay deleted/)
-  })
+  // The "restored Operator Trips runtime" case moved: that path is declared in
+  // scripts/checks/regression/retired-paths.json and asserted by
+  // verify:retired-surfaces, which covers every retired path in one place.
 
   it("rejects manual descriptor registration in composition", async () => {
     const root = await createFixture({

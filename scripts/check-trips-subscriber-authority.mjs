@@ -31,9 +31,6 @@ for (const retiredPath of [
   if (existsSync(path.join(repoRoot, retiredPath)))
     failures.push(`${retiredPath} must stay deleted`)
 }
-if (existsSync(path.join(repoRoot, "starters/operator/src/api/runtime/trips-runtime.ts"))) {
-  failures.push("Operator Trips runtime must stay deleted")
-}
 const requireMatch = (source, pattern, message) => {
   if (!pattern.test(source)) failures.push(message)
 }

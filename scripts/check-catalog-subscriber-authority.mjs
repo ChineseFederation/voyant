@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs"
 import { access, readFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -65,9 +64,6 @@ requireMatch(
   /bookingSnapshot:\s*RuntimePortValue<CatalogBookingSnapshotRuntimeProvider>/,
   "Catalog snapshot contribution must satisfy its package-owned type",
 )
-if (existsSync(path.join(repoRoot, "starters/operator/src/api/app.ts"))) {
-  failures.push("starters/operator/src/api/app.ts must stay deleted")
-}
 
 for (const legacyPath of [
   "starters/operator/src/api/subscribers/catalog-bridge.ts",
