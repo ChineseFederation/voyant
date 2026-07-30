@@ -15,6 +15,7 @@ import {
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
+  ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
@@ -71,6 +72,7 @@ import { bookingListQuerySchema } from "./validation.js"
 export interface BookingsToolServices {
   listBookings(query: z.infer<typeof bookingListQuerySchema>): Promise<unknown>
   getBookingById(id: string): Promise<unknown>
+  getBookingByNumber(bookingNumber: string): Promise<unknown>
   getBookingAggregates(query: {
     from?: string
     to?: string
@@ -112,7 +114,20 @@ export const listBookingsTool = defineTool<
   },
 })
 
-const getBookingArgs = z.object({ id: z.string().min(1).describe("The booking id.") })
+const getBookingArgs = z.object({
+  id: z
+    .string()
+    .min(1)
+    .optional()
+    .describe("The booking id (book_…). Provide this or bookingNumber."),
+  bookingNumber: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "The unique human-readable booking reference (e.g. B-1001). Accepted as an alternative to id.",
+    ),
+})
 
 export const getBookingTool = defineTool<
   z.infer<typeof getBookingArgs>,
@@ -120,17 +135,22 @@ export const getBookingTool = defineTool<
   BookingsToolContext
 >({
   name: "get_booking",
-  description: "Read a single booking's non-PII state by id. Read-only.",
+  description:
+    "Read a single booking's non-PII state by id or by its human-readable booking reference. Read-only.",
   inputSchema: getBookingArgs,
   outputSchema: bookingToolDetailSchema.nullable(),
   requiredScopes: ["bookings:read"],
   tier: "read",
   riskPolicy: READ_ONLY_RISK,
-  async handler({ id }, ctx) {
-    return parseJsonResult(
-      bookingToolDetailSchema.nullable(),
-      await bookings(ctx).getBookingById(id),
-    )
+  async handler({ id, bookingNumber }, ctx) {
+    const service = bookings(ctx)
+    if (!id && !bookingNumber) {
+      throw new ToolError("Provide either id or bookingNumber.", "INVALID_INPUT")
+    }
+    const row = id
+      ? await service.getBookingById(id)
+      : await service.getBookingByNumber(bookingNumber as string)
+    return parseJsonResult(bookingToolDetailSchema.nullable(), row)
   },
 })
 

@@ -429,6 +429,32 @@ describe("inventory tools", () => {
     expect(result.product).toBeNull()
   })
 
+  it("resolves a product by its human-readable slug alongside the id", async () => {
+    const registry = makeRegistry()
+    let resolvedSlug: string | undefined
+    const result = await registry.dispatch<{ product: { id: string; name: string } | null }>(
+      "get_product",
+      { slug: "cairo-discovery" },
+      ctxWith({
+        async getProductById() {
+          throw new Error("getProductById must not be called when a slug is supplied")
+        },
+        async getProductBySlug(slug) {
+          resolvedSlug = slug
+          return product({ status: "active", visibility: "public", activated: true, slug })
+        },
+      }),
+    )
+    expect(resolvedSlug).toBe("cairo-discovery")
+    expect(result.product).toMatchObject({ id: "prod_1", name: "Cairo discovery" })
+  })
+
+  it("rejects get_product when neither id nor slug is supplied", async () => {
+    await expect(makeRegistry().dispatch("get_product", {}, ctxWith({}))).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    })
+  })
+
   it("hides non-public products by id for non-staff actors", async () => {
     const registry = makeRegistry()
     const result = await registry.dispatch<{ product: unknown }>(

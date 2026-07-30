@@ -1,3 +1,7 @@
+// agent-quality: file-size exception -- owner: inventory; #3929 the selected Tool
+// service wiring, created-command execution, slug resolution, and content runtime
+// binding stay co-located until a dedicated runtime split preserves the public
+// contribution entry and its tests.
 import {
   buildCreatedTargetCommandFingerprint,
   executeAdmittedCreatedTargetCommand,
@@ -113,13 +117,18 @@ export const voyantToolContextContribution = defineToolContextContribution({
           : null
       },
     }
+    const loadProductById = async (id: string) => {
+      const row = await productsService.getProductById(db, id)
+      if (!row) return null
+      const slug = await primaryProductSlug(db, id)
+      return { ...row, slug }
+    }
     const inventory: InventoryToolServices = {
       listProducts: (query) => productsService.listProducts(db, query),
-      async getProductById(id) {
-        const row = await productsService.getProductById(db, id)
-        if (!row) return null
-        const slug = await primaryProductSlug(db, id)
-        return { ...row, slug }
+      getProductById: loadProductById,
+      async getProductBySlug(slug) {
+        const productId = await resolveProductIdBySlug(db, slug)
+        return productId ? loadProductById(productId) : null
       },
       getProductAggregates: (query) => productsService.getProductAggregates(db, query),
       async createProduct({ idempotencyKey: legacyIdempotencyKey, ...input }, admitted) {
@@ -703,4 +712,40 @@ async function primaryProductSlug(
     if (slug) return slug
   }
   return null
+}
+
+/**
+ * Reverse of {@link primaryProductSlug}: resolve the owning product id from a
+ * catalog slug so `get_product` can accept the human-readable slug in place of
+ * the opaque product typeid.
+ *
+ * **The slug is NOT unique.** `productTranslations.slug` is a nullable `text`
+ * column with no unique constraint; the only unique index on the table is
+ * `(productId, languageTag)`. Several translations of the *same* product legitimately
+ * share a slug across languages, but nothing prevents two *different* products
+ * from sharing one either.
+ *
+ * So this fails closed. Picking the earliest match would silently return the
+ * wrong product — an agent asking for "santorini-7-night" would get a different
+ * trip and have no way to detect it. An ambiguous slug is reported as invalid
+ * input with the matching ids, so the caller can retry with a product id.
+ */
+async function resolveProductIdBySlug(
+  db: PostgresJsDatabase,
+  slug: string,
+): Promise<string | null> {
+  const rows = await db
+    .selectDistinct({ productId: productTranslations.productId })
+    .from(productTranslations)
+    .where(eq(productTranslations.slug, slug))
+    .limit(2)
+  if (rows.length === 0) return null
+  if (rows.length > 1) {
+    throw new ToolError(
+      `The slug "${slug}" matches more than one product. Retry with an explicit product id.`,
+      "INVALID_INPUT",
+      { slug, candidates: rows.map(({ productId }) => productId) },
+    )
+  }
+  return rows[0]?.productId ?? null
 }

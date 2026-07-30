@@ -52,12 +52,13 @@ export const voyantToolContextContribution = defineToolContextContribution({
       isInternalRequest: c.var.isInternalRequest,
       enforceRbac: isStaffRbacEnforced(c.env),
     })
-    const loadBookingDetail = async (id: string) => {
-      const row = await bookingsService.getBookingById(db, id)
+    const buildBookingDetail = async (
+      row: Awaited<ReturnType<typeof bookingsService.getBookingById>>,
+    ) => {
       if (!row) return null
       const [items, travelers] = await Promise.all([
-        bookingsService.listItems(db, id),
-        bookingsService.listTravelers(db, id),
+        bookingsService.listItems(db, row.id),
+        bookingsService.listTravelers(db, row.id),
       ])
       const detail = {
         ...(reveal ? row : redactBookingRow(row)),
@@ -68,6 +69,8 @@ export const voyantToolContextContribution = defineToolContextContribution({
       }
       return bookingToolDetailSchema.parse(toJsonValue(detail))
     }
+    const loadBookingDetail = async (id: string) =>
+      buildBookingDetail(await bookingsService.getBookingById(db, id))
     return Object.assign(
       {
         bookings: {
@@ -78,6 +81,9 @@ export const voyantToolContextContribution = defineToolContextContribution({
           },
           async getBookingById(id: string) {
             return loadBookingDetail(id)
+          },
+          async getBookingByNumber(bookingNumber: string) {
+            return buildBookingDetail(await bookingsService.getBookingByNumber(db, bookingNumber))
           },
           getBookingAggregates: (
             query: Parameters<typeof bookingsService.getBookingAggregates>[1],

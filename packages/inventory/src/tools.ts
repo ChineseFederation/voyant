@@ -1,3 +1,7 @@
+// agent-quality: file-size exception -- owner: inventory; #3929 the product,
+// option, and unit Tool surface stays co-located so one schema + admission
+// vocabulary backs every read/write; splitting it would fan the shared context
+// type and result serializer across files without reducing review surface.
 /**
  * Inventory (products) agent tools on the framework tool contract.
  *
@@ -16,6 +20,7 @@ import {
   READ_ONLY_RISK,
   requireService,
   type ToolContext,
+  ToolError,
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
@@ -205,6 +210,7 @@ export interface ProductListResult {
 export interface InventoryToolServices {
   listProducts(query: z.infer<typeof productListQuerySchema>): Promise<ProductListResult>
   getProductById(id: string): Promise<unknown | null>
+  getProductBySlug(slug: string): Promise<unknown | null>
   getProductAggregates(query: { from?: string; to?: string }): Promise<unknown>
   createProduct(
     input: z.output<typeof createProductToolSchema>,
@@ -326,7 +332,16 @@ export const listProductsTool = defineTool<
   },
 })
 
-const getProductArgs = z.object({ id: z.string().min(1).describe("The product id.") })
+const getProductArgs = z.object({
+  id: z.string().min(1).optional().describe("The product id (prod_…). Provide this or slug."),
+  slug: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "The product's catalog slug. Accepted as a human-readable alternative to id; resolve it from list_products or get_product output.",
+    ),
+})
 export type GetProductArgs = z.infer<typeof getProductArgs>
 
 export const getProductTool = defineTool<
@@ -335,14 +350,20 @@ export const getProductTool = defineTool<
   InventoryToolContext
 >({
   name: "get_product",
-  description: "Read a single product by id. Returns null when not found. Read-only.",
+  description:
+    "Read a single product by id or by its catalog slug. Returns null when not found. Read-only.",
   inputSchema: getProductArgs,
   outputSchema: z.object({ product: productToolSchema.nullable() }),
   requiredScopes: ["products:read"],
   tier: "read",
   riskPolicy: READ_ONLY_RISK,
-  async handler({ id }, ctx) {
-    const product = await inventory(ctx).getProductById(id)
+  async handler({ id, slug }, ctx) {
+    if (!id && !slug) {
+      throw new ToolError("Provide either id or slug.", "INVALID_INPUT")
+    }
+    const product = id
+      ? await inventory(ctx).getProductById(id)
+      : await inventory(ctx).getProductBySlug(slug as string)
     return parseJsonResult(z.object({ product: productToolSchema.nullable() }), {
       product: product && isVisibleProduct(product, ctx) ? product : null,
     })

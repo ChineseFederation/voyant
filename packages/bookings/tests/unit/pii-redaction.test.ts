@@ -187,4 +187,41 @@ describe("redactTravelerIdentity()", () => {
     expect(output.participantType).toBe("traveler")
     expect(output.isPrimary).toBe(true)
   })
+
+  // Regression guard for the semantic-identifier work (voyant#3929): a booking's
+  // human-readable reference is non-PII and returned to bookings:read callers,
+  // but a traveller's name IS PII and must stay behind bookings-pii:read. Any
+  // read path (get_booking by id OR by bookingNumber) applies this redaction
+  // whenever shouldRevealBookingPii() is false, so identity never leaks without
+  // the scope.
+  it("keeps traveller identity behind the PII scope while the booking reference stays visible", () => {
+    const traveler = {
+      id: "bkpt_1",
+      bookingId: "book_1",
+      participantType: "traveler" as const,
+      firstName: "Mihai",
+      lastName: "Popa",
+      email: "mihai@example.com",
+      phone: "+40712345678",
+      isPrimary: true,
+    }
+    const readerWithoutPiiScope = {
+      actor: "staff" as const,
+      scopes: ["bookings:read"],
+      enforceRbac: true,
+    }
+    expect(shouldRevealBookingPii(readerWithoutPiiScope)).toBe(false)
+    const redacted = redactTravelerIdentity(traveler)
+    expect(redacted.firstName).toBe("***")
+    expect(redacted.lastName).toBe("***")
+    expect(redacted.email).toBe("m***i@example.com")
+    expect(redacted.phone).toBe("***5678")
+
+    const readerWithPiiScope = {
+      actor: "staff" as const,
+      scopes: ["bookings-pii:read"],
+      enforceRbac: true,
+    }
+    expect(shouldRevealBookingPii(readerWithPiiScope)).toBe(true)
+  })
 })

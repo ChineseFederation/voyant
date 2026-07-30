@@ -293,6 +293,35 @@ describe("bookings tools", () => {
     })
   })
 
+  it("resolves a booking by its human-readable booking number", async () => {
+    const registry = createToolRegistry()
+    registry.registerAll(bookingsTools)
+    let resolvedNumber: string | undefined
+    const result = await registry.dispatch(
+      "get_booking",
+      { bookingNumber: "B-1001" },
+      ctx({
+        async getBookingById() {
+          throw new Error("getBookingById must not be called when a bookingNumber is supplied")
+        },
+        async getBookingByNumber(bookingNumber) {
+          resolvedNumber = bookingNumber
+          return bookingDetail("bk_1", "confirmed")
+        },
+      }),
+    )
+    expect(resolvedNumber).toBe("B-1001")
+    expect(result).toMatchObject({ id: "bk_1", bookingNumber: "B-1001", status: "confirmed" })
+  })
+
+  it("rejects get_booking when neither id nor bookingNumber is supplied", async () => {
+    const registry = createToolRegistry()
+    registry.registerAll(bookingsTools)
+    await expect(registry.dispatch("get_booking", {}, ctx({}))).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    })
+  })
+
   it("throws MISSING_SERVICE when unwired", async () => {
     const registry = createToolRegistry()
     registry.registerAll(bookingsTools)

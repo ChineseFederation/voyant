@@ -3017,6 +3017,18 @@ const bookingsServiceInternal = {
     return row ?? null
   },
 
+  // The booking number is the unique human-readable reference operators quote
+  // and agents carry between tools, so a lookup by it lets a `get_booking` call
+  // resolve a booking without the opaque typeid.
+  async getBookingByNumber(db: PostgresJsDatabase, bookingNumber: string) {
+    const [row] = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.bookingNumber, bookingNumber))
+      .limit(1)
+    return row ?? null
+  },
+
   listAllocations(db: PostgresJsDatabase, bookingId: string) {
     return db
       .select()
