@@ -77,8 +77,17 @@ const DEPENDENCY_FIELDS = [
   "optionalDependencies",
 ]
 const REQUIRED_WORKSPACE_RANGE = "workspace:^"
-const COMPATIBLE_PUBLISHED_CARET_RANGE =
-  /^\^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\s*\|\|\s*\^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)*$/
+// A peer may state a published range instead of `workspace:^` as long as the
+// range is a real semver range that admits the version currently in the
+// workspace. This deliberately accepts comparator spans such as
+// `>=0.65.0 <2.0.0` and not only caret unions: with
+// `onlyUpdatePeerDependentsWhenOutOfRange` set in .changeset/config.json, a wide
+// span is what stops changesets rewriting the range on every provider bump, so
+// requiring caret shape here forced exactly the churn that setting prevents.
+const isPublishedRange = (version) =>
+  typeof version === "string" &&
+  !version.startsWith("workspace:") &&
+  semver.validRange(version) !== null
 
 // The standard product distribution pins its runtime modules to the EXACT current version
 // (`workspace:*` → `X.Y.Z` on publish) so the published set is deterministic and
@@ -119,7 +128,7 @@ function collectWorkspaceRangeProblems(packages, projectedVersions = new Map()) 
         const currentProviderVersion = workspacePackageVersions.get(name)
         const isCompatiblePublishedPeerRange =
           field === "peerDependencies" &&
-          COMPATIBLE_PUBLISHED_CARET_RANGE.test(version) &&
+          isPublishedRange(version) &&
           semver.satisfies(currentProviderVersion, version)
         const isExactStagedPeerRange =
           field === "peerDependencies" &&

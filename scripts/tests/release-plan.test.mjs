@@ -67,6 +67,53 @@ test("accepts a compatible published union of caret peers", () => {
   )
 })
 
+test("accepts a compatible published comparator span", () => {
+  // A wide span is what keeps changesets from rewriting the peer range on every
+  // provider bump when onlyUpdatePeerDependentsWhenOutOfRange is set.
+  assert.deepEqual(
+    collectWorkspaceRangeProblems(
+      createPackages({
+        "@fixture/consumer": {
+          version: "1.1.0",
+          peerDependencies: { "@fixture/provider": ">=0.64.0 <2.0.0" },
+        },
+        "@fixture/provider": { version: "0.65.0" },
+      }),
+    ),
+    [],
+  )
+})
+
+test("rejects a published peer range the current provider version falls outside", () => {
+  assert.notDeepEqual(
+    collectWorkspaceRangeProblems(
+      createPackages({
+        "@fixture/consumer": {
+          version: "1.1.0",
+          peerDependencies: { "@fixture/provider": ">=0.64.0 <0.65.0" },
+        },
+        "@fixture/provider": { version: "0.66.0" },
+      }),
+    ),
+    [],
+  )
+})
+
+test("rejects a peer range that is not valid semver", () => {
+  assert.notDeepEqual(
+    collectWorkspaceRangeProblems(
+      createPackages({
+        "@fixture/consumer": {
+          version: "1.1.0",
+          peerDependencies: { "@fixture/provider": "not-a-range" },
+        },
+        "@fixture/provider": { version: "0.66.0" },
+      }),
+    ),
+    [],
+  )
+})
+
 test("rejects a future internal peer range when either package is absent from the release plan", () => {
   const packages = createPackages({
     "@fixture/consumer": {
