@@ -41,22 +41,10 @@ if (existsSync(retiredAdapterPath)) {
   violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 
-if (
-  !manifest.includes("requirePort(tripsRoutesRuntimePort)") ||
-  !manifest.includes("requirePort(tripsDatabaseRuntimePort)") ||
-  !manifest.includes('catalogRuntimeServicesPortReference = { id: "catalog.runtime-services" }') ||
-  !manifest.includes(
-    'catalogCheckoutApiRuntimePortReference = { id: "commerce.checkout-api-options" }',
-  ) ||
-  !manifest.includes('flightsRuntimePortReference = { id: "flights.runtime" }') ||
-  !manifest.includes("catalogRuntimeServicesPortReference,") ||
-  !manifest.includes("catalogCheckoutApiRuntimePortReference,") ||
-  !manifest.includes("flightsRuntimePortReference,") ||
-  !manifest.includes('export: "createTripsVoyantRuntime"')
-) {
-  violations.push(
-    "Trips manifest must own its local ports, neutral runtime dependencies, and graph factory",
-  )
+// Ports and the runtime-dependency references are asserted against the resolved
+// graph by verify:graph-conformance, not by matching manifest source text.
+if (!manifest.includes('export: "createTripsVoyantRuntime"')) {
+  violations.push("Trips manifest must name its package-owned graph factory")
 }
 if (
   !runtimePort.includes("definePort<TripsRoutesOptionsProvider>") ||

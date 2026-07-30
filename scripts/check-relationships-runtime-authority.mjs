@@ -40,13 +40,10 @@ if (existsSync(retiredAdapterPath)) {
   violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 
-if (
-  !manifest.includes("requirePort(customFieldsRuntimePort)") ||
-  !manifest.includes("requirePort(relationshipsRouteRuntimePort)") ||
-  !manifest.includes('export: "createRelationshipsVoyantRuntime"') ||
-  !manifest.includes("relationshipsMiceRuntimePort")
-) {
-  violations.push("Relationships manifest must own and publish its route runtime dependency")
+// Ports and the runtime-dependency references are asserted against the resolved
+// graph by verify:graph-conformance, not by matching manifest source text.
+if (!manifest.includes('export: "createRelationshipsVoyantRuntime"')) {
+  violations.push("Relationships manifest must name its package-owned graph factory")
 }
 if (
   !runtimePort.includes("definePort<RelationshipsRouteRuntimeOptions>") ||

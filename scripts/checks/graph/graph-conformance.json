@@ -11,6 +11,26 @@
       "requiredCapabilities": ["finance.payment-sessions"],
       "portIds": ["flights.runtime", "flights.durable-action-runtime"],
       "runtimeExport": "createFlightsRuntimePortContribution"
+    },
+    "@voyant-travel/trips": {
+      "requiresSchemas": ["@voyant-travel/db"],
+      "portIds": [
+        "trips.routes-runtime",
+        "trips.database-runtime",
+        "catalog.runtime-services",
+        "commerce.checkout-api-options",
+        "flights.runtime"
+      ],
+      "runtimeExport": "createTripsRuntimePortContribution"
+    },
+    "@voyant-travel/relationships": {
+      "requiresSchemas": ["@voyant-travel/db", "@voyant-travel/identity"],
+      "portIds": [
+        "relationships.route-runtime",
+        "relationships.mice.runtime",
+        "custom-fields.runtime"
+      ],
+      "runtimeExport": "createRelationshipsRuntimePortContribution"
     }
   }
 }

@@ -47,5 +47,7 @@ export function requiredCapabilities(graph: GraphLike, packageName: string): rea
 export function declaredPortIds(graph: GraphLike, packageName: string): string[] {
   const unit = unitForPackage(graph, packageName)
   const ports = [...(unit?.provides?.ports ?? []), ...(unit?.runtimePorts ?? [])]
-  return ports.map((port) => (typeof port === "string" ? port : port.id)).filter(Boolean)
+  return [
+    ...new Set(ports.map((port) => (typeof port === "string" ? port : port.id)).filter(Boolean)),
+  ]
 }
