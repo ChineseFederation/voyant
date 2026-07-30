@@ -178,26 +178,33 @@ Both premises fail inspection.
 This requires a full TypeScript program with export-star flattening and *type*-based
 identification, not a grep.
 
-**And the prescribed remediation is unsafe.** The 31 `*Ref` mirrors are undocumented — zero
-mentions in `docs/`, `AGENTS.md`, or any of the 125 `scripts/check-*` — and have already
-silently diverged from their sources:
+**Correction (measured after the review): the `*Ref` pattern is sound.** The review
+reported it as "undocumented and demonstrably drifted", and the first draft of this decision
+repeated that as a correctness hazard. Measuring all 31 mirrors against their owning tables
+does not support it:
 
-- `priceCatalogsRef` (`bookings/src/pricing-ref.ts:4`) is missing 4 columns versus
-  `commerce/src/pricing/schema-catalogs.ts:16`, and types `catalogType` as `text()` where the
-  owner uses an enum with a default.
-- `availabilitySlotsRef` (`bookings/src/availability-ref.ts:15`) is missing `itineraryId`, two
-  FKs, and nine indexes versus `availability/src/schema-core.ts:102`.
-- **Two mirrors of the same table disagree with each other**: `productExtrasRef` in
-  `storefront/` is missing 6 columns that the `bookings/` mirror has.
-- `bookings/src/availability-ref.ts:9` cites `scripts/check-retail-spine-closure.mjs` as its
-  enforcement; that script only reads `package.json` dependency lists and has no knowledge of
-  the pattern.
+- **Zero mirrors declare a column their owner does not have.** That is the only difference
+  that breaks at query time, and there are none.
+- 19 mirrors do differ from their owners, but every difference is the weakening a read-only
+  partial view requires. `typeId()` and `typeIdRef()` are *literally* `text()`
+  (`packages/db/src/lib/typeid-column.ts:32,70`), so a mirror declaring `text()` has the same
+  SQL column and merely omits the primary key and id default — correct, since a mirror must
+  not generate ids. The remaining 23 are enum columns mirrored as `text()`, which avoids
+  importing the owner's `pgEnum` and reintroducing the very cross-module schema dependency
+  the mirror exists to prevent.
+- "Two mirrors of one table disagree" is true and benign: they are two partial views, each
+  declaring the columns its own module reads.
 
-Directing ~137 cross-package table import sites into a hand-maintained mirror pattern that
-already disagrees with itself would institutionalise silent schema drift. **Prerequisite:**
-either generate `*Ref` declarations from the owning table with a drift check, or abandon the
-pattern and make the service call the only sanctioned route. Table privacy is revisited after
-that lands.
+What the review got right is that the pattern was **undocumented** — no mention in `docs/`,
+`AGENTS.md`, or any checker. That is fixed: the convention is described in
+`scripts/checks/schema/ref-mirrors.ts` and enforced by `verify:ref-mirrors`, which asserts the
+one property that matters — a mirror may declare fewer columns than its owner, never
+different ones. It runs strict at zero violations across 31 mirrors.
+
+**Consequence: table privacy is no longer blocked on `*Ref` remediation.** The prerequisite
+this decision imposed is discharged. What remains for table privacy is the static-analysis
+difficulty described above — `pgSchema().table()`, re-export aliasing, and cross-package
+`export *` — which is unchanged and still needs a TypeScript program rather than a grep.
 
 ## Capability tokens cannot carry layer semantics
 
@@ -277,8 +284,10 @@ defect class it exists to prevent.
 3. **Retire the subsetting narrative** in `packages/hono/src` and the architecture docs.
 4. **Re-derive the checker consolidation** by reading all 47, then collapse them under the
    naming convention agreed in #3902 item 1.
-5. **`*Ref` remediation** — generate-and-drift-check, or abandon the pattern.
-6. **Table privacy**, only after step 5.
+5. **DONE** — `*Ref` mirrors measured and found sound; the convention is documented and
+   enforced by `verify:ref-mirrors`. No remediation was required.
+6. **Table privacy**, now unblocked. The remaining difficulty is static analysis, not the
+   mirror pattern.
 
 Connect's ADR-0002 migration (#3898 W3) is tracked separately: `connect-cruises`,
 `connect-adapter`, and `plugin-voyant-connect` live in `../connect-sdk`, carry no
@@ -335,7 +344,7 @@ Recorded because the first draft was confidently wrong in ways worth remembering
 | Package-ness by three clauses | Cannot reject any package. Restored to clause-1-only for new packages. |
 | Tier declared in `package.json` | ~110 patch bumps. Moved to a sidecar. |
 | Table privacy is v1-checkable | Defeated by `pgSchema().table()`, re-export aliasing, and cross-package `export *`. Deferred. |
-| `*Ref` is a sanctioned escape hatch | Undocumented and already drifted; two mirrors of one table disagree. Must be fixed first. |
+| `*Ref` is a sanctioned escape hatch | Half right. It WAS undocumented, now fixed and enforced by `verify:ref-mirrors`. But the "already drifted" claim, which this ADR repeated from the review, does not survive measurement: zero mirrors declare a column their owner lacks, and every observed difference is the weakening a read-only partial view requires. |
 | 22 checkers assert one identical rule | Only 19 overlap; several assert ~15 distinct things. Estimate withdrawn. |
 | `verify:v1-package-cleanup` is a ratchet precedent | It is a hardcoded allowlist and currently a no-op. |
 | No `VOYANT_GRAPH_*` code expresses prohibition | False; several do. Argument withdrawn. |
