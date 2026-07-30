@@ -1,5 +1,29 @@
 # @voyant-travel/finance
 
+## 0.221.1
+
+### Patch Changes
+
+- c30b6b0: Remove the `drizzle-orm` dependency from `@voyant-travel/finance-contracts`.
+
+  `FinanceAppApiRuntime` took a concrete `PostgresJsDatabase` for a handle it only
+  ever passes through — it never calls a method on it — which forced a Drizzle
+  dependency into a package ADR-0002 requires to stay dependency-light. The handle
+  is now a type parameter, `FinanceAppApiRuntime<TDatabase = unknown>`, and the
+  implementing runtimes instantiate it as
+  `FinanceAppApiRuntime<PostgresJsDatabase>`.
+
+  Consumers that write the bare `FinanceAppApiRuntime` still compile; the handle
+  resolves to `unknown` for them, so an implementer relying on the previous
+  implicit `PostgresJsDatabase` should instantiate the parameter explicitly.
+
+- Updated dependencies [c30b6b0]
+- Updated dependencies [d92a98a]
+  - @voyant-travel/finance-contracts@0.108.0
+  - @voyant-travel/hono@0.137.0
+  - @voyant-travel/action-ledger@0.115.6
+  - @voyant-travel/bookings@0.221.1
+
 ## 0.221.0
 
 ### Minor Changes

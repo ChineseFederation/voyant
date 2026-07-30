@@ -1,5 +1,7 @@
 # @voyant-travel/storefront-react
 
+## 0.223.1
+
 ## 0.223.0
 
 ### Minor Changes

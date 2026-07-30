@@ -1,5 +1,7 @@
 # @voyant-travel/flights-react
 
+## 0.221.1
+
 ## 0.221.0
 
 ### Patch Changes

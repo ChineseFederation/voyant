@@ -1,5 +1,59 @@
 # @voyant-travel/operator-standard
 
+## 0.16.4
+
+### Patch Changes
+
+- Updated dependencies [c30b6b0]
+  - @voyant-travel/finance-contracts@0.108.0
+  - @voyant-travel/finance@0.221.1
+  - @voyant-travel/apps@0.12.16
+  - @voyant-travel/accommodations@0.181.1
+  - @voyant-travel/action-ledger@0.115.6
+  - @voyant-travel/admin-host@0.71.1
+  - @voyant-travel/auth@0.146.2
+  - @voyant-travel/bookings@0.221.1
+  - @voyant-travel/catalog@0.219.1
+  - @voyant-travel/catalog-authoring@0.107.33
+  - @voyant-travel/charters@0.219.2
+  - @voyant-travel/commerce@0.45.1
+  - @voyant-travel/cruises@0.220.2
+  - @voyant-travel/custom-fields@0.2.20
+  - @voyant-travel/distribution@0.211.1
+  - @voyant-travel/event-catalog@0.2.20
+  - @voyant-travel/flights@0.221.1
+  - @voyant-travel/identity@0.221.1
+  - @voyant-travel/inventory@0.24.1
+  - @voyant-travel/legal@0.221.1
+  - @voyant-travel/mcp@0.10.1
+  - @voyant-travel/media@0.6.3
+  - @voyant-travel/mice@0.77.1
+  - @voyant-travel/navigation-preferences@0.20.2
+  - @voyant-travel/notifications@0.142.10
+  - @voyant-travel/operations@0.11.5
+  - @voyant-travel/operator-settings@0.16.7
+  - @voyant-travel/quotes@0.135.14
+  - @voyant-travel/realtime@0.7.4
+  - @voyant-travel/relationships@0.132.18
+  - @voyant-travel/reporting@0.3.11
+  - @voyant-travel/setup@0.7.3
+  - @voyant-travel/storefront@0.223.1
+  - @voyant-travel/trips@0.214.1
+  - @voyant-travel/webhook-delivery@0.5.8
+  - @voyant-travel/auth-react@0.146.2
+  - @voyant-travel/bookings-react@0.221.1
+  - @voyant-travel/catalog-react@0.219.1
+  - @voyant-travel/cruises-react@0.220.2
+  - @voyant-travel/distribution-react@0.211.1
+  - @voyant-travel/finance-react@0.221.1
+  - @voyant-travel/flights-react@0.221.1
+  - @voyant-travel/identity-react@0.221.1
+  - @voyant-travel/legal-react@0.221.1
+  - @voyant-travel/notifications-react@0.142.10
+  - @voyant-travel/navigation-preferences-react@0.20.2
+  - @voyant-travel/storefront-react@0.223.1
+  - @voyant-travel/trips-react@0.214.1
+
 ## 0.16.3
 
 ### Patch Changes

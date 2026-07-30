@@ -1,5 +1,16 @@
 # @voyant-travel/cruises
 
+## 0.220.2
+
+### Patch Changes
+
+- Updated dependencies [c30b6b0]
+- Updated dependencies [d92a98a]
+  - @voyant-travel/finance@0.221.1
+  - @voyant-travel/hono@0.137.0
+  - @voyant-travel/action-ledger@0.115.6
+  - @voyant-travel/catalog@0.219.1
+
 ## 0.220.1
 
 ### Patch Changes
