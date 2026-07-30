@@ -1,5 +1,12 @@
 # @voyant-travel/navigation-preferences
 
+## 0.21.1
+
+### Patch Changes
+
+- Updated dependencies [fae0f36]
+  - @voyant-travel/tools@0.9.0
+
 ## 0.21.0
 
 ## 0.20.2

@@ -1,5 +1,28 @@
 # @voyant-travel/inventory
 
+## 0.25.0
+
+### Minor Changes
+
+- d02a4e8: `get_product` now accepts the product's catalog `slug` as a human-readable
+  alternative to the opaque product id, resolving the owning product through the
+  existing translation slug. Product read outputs already carried `name` and
+  `slug` alongside the typeid. Added `getProductBySlug` to the inventory Tool
+  service surface.
+
+### Patch Changes
+
+- Updated dependencies [fae0f36]
+- Updated dependencies [d02a4e8]
+  - @voyant-travel/tools@0.9.0
+  - @voyant-travel/bookings@0.223.0
+  - @voyant-travel/action-ledger@0.115.7
+  - @voyant-travel/catalog@0.221.0
+  - @voyant-travel/commerce@0.45.3
+  - @voyant-travel/finance@0.223.0
+  - @voyant-travel/operations@0.11.7
+  - @voyant-travel/operator-settings@0.16.9
+
 ## 0.24.2
 
 ### Patch Changes

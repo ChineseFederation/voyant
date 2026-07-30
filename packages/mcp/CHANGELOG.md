@@ -1,5 +1,56 @@
 # @voyant-travel/mcp
 
+## 0.12.0
+
+### Minor Changes
+
+- fae0f36: Make tool errors actionable. `ToolError` now carries `retryable`, `nextSteps`,
+  and optional `candidates`/`didYouMean` alongside the existing `code`/`meta`. Each
+  `ToolErrorCode` has a documented remediation and defensible retry semantics
+  (`AUTHORIZATION_DENIED`, `INVALID_INPUT`, `NOT_FOUND`, a permanent
+  `PROVIDER_ERROR` and the rest are terminal; only the new transient
+  `PROVIDER_UNAVAILABLE` is retryable), so a caller can tell "retry" from "stop".
+  The fields default per code, so existing throw sites stay valid.
+
+  `APPROVAL_REQUIRED` and `CONFIRMATION_REQUIRED` now state their exact
+  remediations ("request approval via request_action_approval, then re-call with
+  \_voyant.approvalId" / "re-call with \_voyant.confirmed=true"). The storefront
+  verification rate limit now reports the transient, retryable
+  `PROVIDER_UNAVAILABLE` instead of `PROVIDER_ERROR`.
+
+  The MCP error envelope in `dispatchToResult` surfaces `retryable`, `nextSteps`,
+  `candidates`, and `didYouMean` as first-class properties, not buried in `meta`.
+
+- 682ba21: Instrument the MCP transport so agent behaviour is observable. A new
+  `observability.ts` hangs off the shipped vendor-neutral Reporter seam
+  (`@voyant-travel/hono/observability`, RFC #1553) — no new logging framework, no
+  vendor SDK, no `console.log`. The `POST /` handler now emits one structured
+  event per `tools/call` carrying the tool name, caller identity, granted scopes,
+  duration, outcome, and — on failure — the error code. Unknown-tool and
+  argument-validation failures are captured as distinct outcomes (`unknown_tool`,
+  `validation_error`) rather than blurring into a successful call, and both
+  `tools/list` and `GET /manifest` emit the served payload size.
+
+  Telemetry carries shapes, names, and codes only — never argument or result
+  payloads (`docs/architecture/booking-pii.md`), covered by a test. Instrumentation
+  is best-effort and can never break a `tools/call`. `createMcpApiRoutes` and
+  `createGraphMcpApiRoutes` accept an optional `reporter` and `appName`, defaulting
+  to the no-op reporter so the behaviour is opt-in.
+
+### Patch Changes
+
+- 1cc6c25: Split the MCP transport into focused modules. `server.ts` was 939 lines holding
+  route wiring, authorization, registration, dispatch, the action-policy gate, and
+  Zod schema projection in one file. It now owns route wiring and graph
+  composition, delegating to `authorization.ts`, `register.ts`, `dispatch.ts`,
+  `schema-projection.ts`, and `graph-composition.ts`.
+
+  No behaviour change and no change to the package's public surface — the option
+  and identity types moved to `types.ts` and are re-exported from `server.ts`.
+
+- Updated dependencies [fae0f36]
+  - @voyant-travel/tools@0.9.0
+
 ## 0.11.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @voyant-travel/auth
 
+## 0.147.1
+
+### Patch Changes
+
+- Updated dependencies [fae0f36]
+  - @voyant-travel/tools@0.9.0
+
 ## 0.147.0
 
 ## 0.146.2

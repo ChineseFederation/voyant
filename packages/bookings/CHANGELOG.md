@@ -1,5 +1,21 @@
 # @voyant-travel/bookings
 
+## 0.223.0
+
+### Minor Changes
+
+- d02a4e8: `get_booking` now accepts the unique human-readable `bookingNumber` as an
+  alternative to the opaque booking id, so an agent can resolve a booking with the
+  reference operators actually quote. The booking output already carried
+  `bookingNumber` and per-item product/option/unit name snapshots alongside their
+  typeids. Added `bookingsService.getBookingByNumber` to back the lookup.
+
+### Patch Changes
+
+- Updated dependencies [fae0f36]
+  - @voyant-travel/tools@0.9.0
+  - @voyant-travel/action-ledger@0.115.7
+
 ## 0.222.0
 
 ## 0.221.1

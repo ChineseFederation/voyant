@@ -1,5 +1,12 @@
 # @voyant-travel/setup
 
+## 0.7.4
+
+### Patch Changes
+
+- Updated dependencies [fae0f36]
+  - @voyant-travel/tools@0.9.0
+
 ## 0.7.3
 
 ### Patch Changes
