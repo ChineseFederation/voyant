@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/runtime",
-  "version": "0.19.8",
+  "version": "0.19.9",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

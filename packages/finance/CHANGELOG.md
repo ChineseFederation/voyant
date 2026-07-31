@@ -1,5 +1,19 @@
 # @voyant-travel/finance
 
+## 0.226.0
+
+### Patch Changes
+
+- 6beffa2: Fix `book_product` failing every call with `invalid_mutation_lease`. The
+  created-target mutation lease was consumed against a hardcoded `create-booking`
+  action name while the ledger mints it with the executing action's identity, so
+  the second legitimate entrypoint was rejected by a fail-closed check working as
+  designed. `settleBookingCreateDomain` now takes the action identity from its
+  caller — `bookings` cannot import Finance's constants, since Finance depends on
+  Bookings — defaulting to the original action so existing callers are unchanged.
+- Updated dependencies [6beffa2]
+  - @voyant-travel/bookings@0.226.0
+
 ## 0.225.0
 
 ### Minor Changes

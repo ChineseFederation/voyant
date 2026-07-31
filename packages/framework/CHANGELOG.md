@@ -1,5 +1,12 @@
 # @voyant-travel/framework
 
+## 0.69.1
+
+### Patch Changes
+
+- @voyant-travel/operator-standard@0.18.1
+- @voyant-travel/cruises@0.225.0
+
 ## 0.69.0
 
 ### Minor Changes
