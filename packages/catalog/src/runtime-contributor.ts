@@ -90,7 +90,6 @@ export function createCatalogRuntimePortContribution(
   host: CatalogRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   const hasIndexerPort = host.hasRuntimePort?.(catalogIndexerProviderPort) === true
-  const hasRelationshipsPort = host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) === true
   const dependencies = Promise.resolve().then(() =>
     Promise.all([
       host.getRuntimePort<CatalogAccommodationsRuntimeExtension>(
@@ -171,21 +170,28 @@ export function createCatalogRuntimePortContribution(
       // matches on email then phone, so a retry reuses the same person rather
       // than creating another. Absent the port, only authenticated customers
       // can book — they already are the billing party.
-      ...(hasRelationshipsPort
-        ? {
-            async resolveBillingPerson(contact, provenance) {
-              const relationships = await host.getRuntimePort<BookingsRelationshipsRuntime>(
-                bookingsRelationshipsRuntimePort,
-              )
-              const person = await relationships.upsertPersonFromContact(
-                host.primitives.database.resolve(undefined) as never,
-                { ...contact, preferredLanguage: null },
-                { source: provenance.source, sourceRef: provenance.sourceRef },
-              )
-              return person?.id ?? null
-            },
-          }
-        : {}),
+      //
+      // The port check happens HERE, on call, not while this contributor is
+      // being built. Contributors load in alphabetical order by package name,
+      // and `bookings.relationships.runtime` is provided by
+      // @voyant-travel/relationships — which sorts after @voyant-travel/catalog
+      // and therefore cannot ever have run yet. Deciding at build time read the
+      // port as permanently absent and dropped this method from every runtime,
+      // so `resolveBilling` returned null and every guest self-service booking
+      // was refused with `incomplete_draft`. By the time a request calls this,
+      // every contributor has run.
+      async resolveBillingPerson(contact, provenance) {
+        if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
+        const relationships = await host.getRuntimePort<BookingsRelationshipsRuntime>(
+          bookingsRelationshipsRuntimePort,
+        )
+        const person = await relationships.upsertPersonFromContact(
+          host.primitives.database.resolve(undefined) as never,
+          { ...contact, preferredLanguage: null },
+          { source: provenance.source, sourceRef: provenance.sourceRef },
+        )
+        return person?.id ?? null
+      },
     }),
     [catalogDraftReaperJobRuntimePort.id]: {
       async withDb<T>(operation: (db: AnyDrizzleDb) => Promise<T>) {
