@@ -1,5 +1,81 @@
 # @voyant-travel/mcp
 
+## 0.13.0
+
+### Minor Changes
+
+- a180f00: Add an MCP guide layer: the server now advertises `instructions` on `initialize`
+  and registers read-only guide Tools (`voyant_guide`, `voyant_glossary`). The
+  instructions explain that the deployment is a travel-operator platform and how
+  to discover capabilities via `tools/list` / the manifest; the guide Tools cover
+  the booking journey and supply models, quote versioning (acceptance is not
+  confirmation), product authoring vs publication, room/unit/traveller vocabulary,
+  and the `_voyant` confirmation/approval protocol. All content is sourced from
+  `docs/architecture/` and `UBIQUITOUS_LANGUAGE.md`, and the guidance is
+  scope-aware so a read-only key is never shown write workflows as available.
+- a1d8160: Progressive disclosure for the MCP tool surface (voyant#3927). `tools/list` used
+  to serialize every authorized tool on every connection — 264 tools / ~310 KB /
+  ~78k tokens — before the agent had read the request. It now advertises only a
+  tier-0 of three meta-tools and discovers the long tail on demand:
+
+  - `search_tools(query, domain)` — names + one-line descriptions (no schemas).
+  - `describe_tool(name)` — the full projected input schema, output contract, and
+    discovery metadata for one tool.
+  - `call_tool(name, args)` — dispatch a tool that is not eagerly registered.
+
+  Flat-name `tools/call` still dispatches the full authorized surface, so existing
+  clients keep working unchanged. Authorization is re-checked at both the index
+  (`search_tools` / `describe_tool`) and the dispatch (`call_tool` / flat name)
+  layers: an unauthorized tool is neither discoverable nor callable. The
+  scope-filtered `GET /manifest` index stays fine-grained. Measured for a full-scope
+  staff key, `tools/list` drops to ~1.5 KB / ~370 tokens (a ~210x reduction).
+
+  `McpApiRoutesOptions` gains an optional `eagerToolNames` allowlist to promote
+  specific tools into the resident tier-0 surface; it defaults to empty.
+
+  `ToolError` no longer throws when constructed with a `code` outside the documented
+  set — it falls back to the terminal `PROVIDER_ERROR` remediation instead of
+  crashing while computing `retryable`/`nextSteps`.
+
+- fc45425: Response budgets, `response_format`, and guided truncation for the MCP tool
+  surface (voyant#3928, RFC voyant#3921 Finding 7). Tool responses used to be
+  uncapped — a single `list_bookings` at the maximum page size could put more into
+  an agent's context than the entire tool catalog, and unlike the catalog that cost
+  is charged on every call.
+
+  - **Transport-level response budget.** `dispatchToResult` now enforces a
+    serialized byte ceiling on every tool result, so the cap covers every tool
+    uniformly instead of relying on each domain. Configurable through
+    `McpApiRoutesOptions.responseBudgetBytes` / `GraphMcpApiRoutesOptions`;
+    defaults to `DEFAULT_RESPONSE_BUDGET_BYTES` (~24 KB).
+
+  - **Guided truncation, never silent.** An over-budget list result has whole rows
+    dropped until it fits, and the result states how many of the total it is
+    showing and which of the tool's own input filters would narrow it (e.g.
+    "narrow with `status`, `dateFrom`"). The `content` text and `structuredContent`
+    are trimmed to the same row set, `structuredContent` stays valid against the
+    untouched output schema, `_meta["voyant.travel/truncation"]` records what was
+    withheld, and the call remains a success.
+
+  - **`response_format: "concise" | "detailed"`** is advertised on list-shaped
+    tools and defaults to `concise`, which renders the text content as compact rows
+    projected to their populated scalar fields; `detailed` renders the full nested
+    records. `structuredContent` always carries the full-field rows. Measured on a
+    booking-shaped list: detailed ~255 tokens/row vs concise ~109 tokens/row — 57%
+    smaller — on the `content` block agents read.
+
+  Also documents in `@voyant-travel/types` `paginationSchema` that a row count is
+  not a payload budget (200 bookings and 200 contact points are not the same
+  bytes): `limit` stays a page-size ergonomic while the MCP byte budget is the real
+  ceiling on what a response costs an agent's context.
+
+### Patch Changes
+
+- Updated dependencies [a1d8160]
+- Updated dependencies [fc45425]
+  - @voyant-travel/tools@0.9.2
+  - @voyant-travel/types@0.109.11
+
 ## 0.12.1
 
 ### Patch Changes
