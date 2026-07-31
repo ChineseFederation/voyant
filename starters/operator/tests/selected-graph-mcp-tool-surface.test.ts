@@ -34,13 +34,18 @@ import {
 /**
  * Ceiling for the serialized eager `tools/list` payload, in bytes.
  *
- * Measured 2026-07-30 at **1,472 bytes across 3 tier-0 meta-tools** (was 310,502
- * bytes / 264 tools before voyant#3927 — a ~210x reduction). The headroom above
- * the measured value is deliberately tight: it tolerates meta-tool description
- * edits but trips the moment a domain tool is registered eagerly again (each costs
- * roughly the old ~880-byte median), which is exactly the regression to catch.
+ * Measured at **2,940 bytes across 5 tier-0 tools** — the 3 meta-tools of
+ * voyant#3927 plus the 2 resident guide Tools of voyant#3931 (was 1,472 bytes (was 310,502
+ * for the meta-tools alone, and 310,502 bytes / 264 tools before voyant#3927 — a
+ * ~105x reduction).
+ *
+ * The headroom is sized to tolerate guide and meta-tool description edits while
+ * still tripping the moment a domain tool is registered eagerly again — each costs
+ * roughly the old ~880-byte median, which is the regression worth catching. A
+ * ceiling only a few bytes above the measurement would be a tripwire that fires on
+ * routine wording changes, which trains people to raise it without reading.
  */
-const PAYLOAD_CEILING_BYTES = 3_000
+const PAYLOAD_CEILING_BYTES = 3_800
 
 /**
  * Ceiling for the AGGREGATE size of every selected tool's advertised schema.
@@ -147,13 +152,19 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(totalBytes, diagnose(tools, totalBytes)).toBeLessThanOrEqual(PAYLOAD_CEILING_BYTES)
   })
 
-  it("advertises exactly the tier-0 meta-tools eagerly", async () => {
+  it("advertises exactly the tier-0 resident surface eagerly", async () => {
     const { tools } = await serializeEagerToolSurface()
 
     expect(tools.map(({ name }) => name).sort()).toEqual([
       "call_tool",
       "describe_tool",
       "search_tools",
+      // The guide layer (voyant#3931) is resident by design: with no eager domain
+      // surface, it is the only thing that tells a connecting agent what this
+      // deployment is for. A guide reachable only by first guessing a search query
+      // would be useless at exactly the moment it is needed.
+      "voyant_glossary",
+      "voyant_guide",
     ])
   })
 

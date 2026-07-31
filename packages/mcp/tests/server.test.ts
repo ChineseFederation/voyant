@@ -537,8 +537,16 @@ describe("createMcpApiRoutes", () => {
   it("advertises only tier-0 meta-tools and describes an authorized tool on demand", async () => {
     const app = appWithScopes(["catalog:read"])
 
-    // tools/list is now just the tier-0 meta-tools — the ~8x win of #3927.
-    expect((await listedNames(app)).sort()).toEqual(["call_tool", "describe_tool", "search_tools"])
+    // tools/list is now just tier 0 — the meta-tools of #3927 plus the guide
+    // layer of #3931, which has to be resident because there is no eager domain
+    // surface left to hint at what this deployment does.
+    expect((await listedNames(app)).sort()).toEqual([
+      "call_tool",
+      "describe_tool",
+      "search_tools",
+      "voyant_glossary",
+      "voyant_guide",
+    ])
 
     // The lazy tool is discoverable through search_tools and its full descriptor
     // — output schema, annotations, discovery metadata — comes from describe_tool.
@@ -1201,8 +1209,15 @@ describe("createMcpApiRoutes", () => {
     })
     app.route("/", routes)
 
-    // tools/list is the tier-0 meta-tools; the domain tool is found via search.
-    expect((await listedNames(app)).sort()).toEqual(["call_tool", "describe_tool", "search_tools"])
+    // tools/list is tier 0 — meta-tools plus the resident guide layer; the domain
+    // tool is found via search.
+    expect((await listedNames(app)).sort()).toEqual([
+      "call_tool",
+      "describe_tool",
+      "search_tools",
+      "voyant_glossary",
+      "voyant_guide",
+    ])
     expect(await searchToolNames(app)).toContain("echo")
 
     const called = await readRpc(

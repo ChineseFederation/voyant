@@ -39,6 +39,7 @@ import {
   buildContributedContext,
   indexActionsByTool,
 } from "./graph-composition.js"
+import { buildServerInstructions, registerGuideTools } from "./guide.js"
 import {
   type AuthorizedSurface,
   collectAuthorizedTools,
@@ -149,7 +150,6 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     const permissions = callerPermissions(c)
     const ctx = await buildAuthenticatedContext(c, buildContext)
     const observer = observerFor(c, ctx)
-    const server = new McpServer(serverInfo)
     const requireActionPolicy = options.requireActionPolicies ?? false
 
     // The caller's full authorized surface (canonical + alias names). Progressive
@@ -158,6 +158,20 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     // neither discoverable nor callable. Pruning at the index and dispatch layers,
     // not just the register loop, is the security property of the server.
     const surface = collectAuthorizedTools(registry, permissions, accessCatalog, ctx.audience)
+
+    // The guide layer's `instructions` are scope-aware — a read-only key is told
+    // the write journeys are unreachable rather than shown workflows it cannot
+    // perform — so whether any write Tool is reachable must be known before the
+    // server is constructed.
+    const guideScope = {
+      writeEnabled: [...surface.values()].some(
+        ({ entry }) => entry.annotations.readOnlyHint !== true,
+      ),
+    }
+    const server = new McpServer(serverInfo, {
+      instructions: buildServerInstructions(guideScope),
+    })
+    const guideToolNames = new Set(registerGuideTools(server, guideScope))
 
     // Register only the tier-0 domain tools eagerly; the long tail stays lazy.
     const eagerNames = selectEagerToolNames(surface, options.eagerToolNames)
@@ -198,7 +212,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     await server.connect(transport)
     const startedAt = Date.now()
     const response = (await transport.handleRequest(c)) ?? c.body(null, 204)
-    await instrumentRpc(c, response, Date.now() - startedAt, surface, ctx, observer)
+    await instrumentRpc(c, response, Date.now() - startedAt, surface, guideToolNames, ctx, observer)
     return response
   })
 
@@ -263,6 +277,7 @@ async function instrumentRpc(
   response: Response,
   durationMs: number,
   surface: AuthorizedSurface,
+  guideToolNames: ReadonlySet<string>,
   ctx: ToolContext,
   observer: McpObserver,
 ): Promise<void> {
@@ -288,8 +303,13 @@ async function instrumentRpc(
     // A meta-tool call (`search_tools` / `describe_tool` / `call_tool`) is a
     // known invocation with no write; a domain name resolves through `surface`.
     // `call_tool` additionally emits an event for the tool it dispatches.
+    //
+    // Guide Tools are registered directly on the server rather than through the
+    // registry, so they carry no manifest entry — mark them known reads instead of
+    // misclassifying a legitimate guide call as an unknown-tool miss, which is one
+    // of the highest-signal events we record.
     const entry = surface.get(name)?.entry
-    const known = entry !== undefined || META_TOOL_NAMES.includes(name)
+    const known = entry !== undefined || META_TOOL_NAMES.includes(name) || guideToolNames.has(name)
     const { outcome, code } = classifyToolCallResult(payload, known)
     observer.toolCall({
       tool: name,
