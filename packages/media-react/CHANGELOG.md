@@ -1,5 +1,12 @@
 # @voyant-travel/media-react
 
+## 0.8.0
+
+### Patch Changes
+
+- @voyant-travel/media@0.6.4
+- @voyant-travel/admin@0.132.0
+
 ## 0.7.2
 
 ### Patch Changes

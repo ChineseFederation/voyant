@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/setup-react",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Composable first-run setup UI for Voyant admin.",
   "license": "Apache-2.0",
   "type": "module",

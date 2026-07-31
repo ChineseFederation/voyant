@@ -1,5 +1,11 @@
 # @voyant-travel/event-catalog-react
 
+## 0.22.0
+
+### Patch Changes
+
+- @voyant-travel/admin@0.132.0
+
 ## 0.21.1
 
 ### Patch Changes

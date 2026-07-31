@@ -1,5 +1,11 @@
 # @voyant-travel/reporting-react
 
+## 0.8.0
+
+### Patch Changes
+
+- @voyant-travel/admin@0.132.0
+
 ## 0.7.0
 
 ### Patch Changes

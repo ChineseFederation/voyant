@@ -1,5 +1,12 @@
 # @voyant-travel/custom-fields-react
 
+## 0.8.0
+
+### Patch Changes
+
+- @voyant-travel/custom-fields@0.2.21
+- @voyant-travel/admin@0.132.0
+
 ## 0.7.1
 
 ### Patch Changes

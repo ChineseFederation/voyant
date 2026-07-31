@@ -1,5 +1,30 @@
 # @voyant-travel/admin-app
 
+## 0.116.0
+
+### Minor Changes
+
+- d1f96d1: Remove four unused subpath exports from `@voyant-travel/admin-app`: `./root`,
+  `./router`, `./workspace`, and `./extension-routes`.
+
+  Each was a one-line module re-exporting the matching `@voyant-travel/admin/app/*`
+  subpath, and none had a consumer anywhere — in this repo, in the operator
+  starter, or in the sibling repositories. The only references were generated
+  tsconfig `paths` entries, which regenerate.
+
+  The subpaths that carry real code are unchanged: `.`, `./core-extension`, and
+  `./runtime`. Anything that did want the removed surfaces should import
+  `@voyant-travel/admin/app/*` directly, which is what these forwarded to.
+
+### Patch Changes
+
+- @voyant-travel/admin@0.132.0
+- @voyant-travel/auth-react@0.148.0
+- @voyant-travel/distribution-react@0.214.0
+- @voyant-travel/finance-react@0.224.0
+- @voyant-travel/commerce-react@0.106.0
+- @voyant-travel/inventory-react@0.106.0
+
 ## 0.115.0
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @voyant-travel/admin-host
 
+## 0.74.0
+
+### Patch Changes
+
+- Updated dependencies [d1f96d1]
+- Updated dependencies [0f7888e]
+- Updated dependencies [e87d4de]
+  - @voyant-travel/admin-app@0.116.0
+  - @voyant-travel/admin-react@0.132.0
+  - @voyant-travel/hono@0.138.0
+  - @voyant-travel/admin@0.132.0
+
 ## 0.73.0
 
 ### Patch Changes
