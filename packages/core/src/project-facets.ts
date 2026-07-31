@@ -147,9 +147,22 @@ export interface VoyantGraphAdminDeclaration {
   setupSteps?: readonly VoyantGraphAdminSetupStep[]
 }
 
+export interface VoyantGraphPresentationRouteDeclaration {
+  /** Router path as passed to `createFileRoute`, e.g. "/(auth)/sign-in". */
+  route: string
+  /** Member on the presentation's frontend route contribution, e.g. "signIn". */
+  member: string
+}
+
 /** A package-owned frontend presentation selected through the deployment graph. */
 export interface VoyantGraphPresentationDeclaration extends VoyantGraphFacetEntity {
   runtime: VoyantGraphRuntimeReference
+  /**
+   * Key on `operatorFrontend.routes` carrying this presentation's route
+   * contribution. Required when `routes` is present.
+   */
+  contribution?: string
+  routes?: readonly VoyantGraphPresentationRouteDeclaration[]
 }
 
 export interface VoyantGraphReportingGridSize {

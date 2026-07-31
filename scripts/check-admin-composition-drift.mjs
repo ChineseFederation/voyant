@@ -336,6 +336,10 @@ for (const name of presentationImports) {
       "@voyant-travel/operator-standard/standard-frontend",
       "@voyant-travel/ui/components",
       "@voyant-travel/vite-config",
+      // Type-only: the route generator is driven by the resolved graph's
+      // presentation declarations, so it consumes their shape from core. This
+      // carries no package admin authority — it is the graph schema itself.
+      "@voyant-travel/core/project",
     ].includes(name)
   )
     continue

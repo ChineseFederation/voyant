@@ -310,6 +310,25 @@ describe("deployment graph v1", () => {
       ]),
     )
 
+    expect(
+      validateGraphUnitManifest({
+        ...module,
+        presentations: [
+          {
+            id: "@acme/storefront#presentation.customer",
+            runtime: { entry: "./customer", export: "createCustomerPresentation" },
+            routes: [{ route: "shop", member: "" }],
+          },
+        ],
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ facet: "presentations[0].contribution" }),
+        expect.objectContaining({ facet: "presentations[0].routes[0].route" }),
+        expect.objectContaining({ facet: "presentations[0].routes[0].member" }),
+      ]),
+    )
+
     const graph = await resolveDeploymentGraph({ project: defineProject({ modules: [module] }) })
     expect(graph.modules[0]?.presentations?.map(({ id }) => id)).toEqual([
       "@acme/storefront#presentation.customer",

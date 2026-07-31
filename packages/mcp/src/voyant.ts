@@ -29,6 +29,17 @@ export const mcpVoyantModule = defineModule({
         entry: "@voyant-travel/auth-react/mcp-consent-routes",
         export: "createMcpConsentRouteContribution",
       },
+      contribution: "mcpConsent",
+      routes: [
+        { route: "/(mcp)", member: "layout" },
+        // The OAuth consent screen an MCP connector sends the operator to. It
+        // gets its own chrome-less group rather than riding along with local
+        // auth: the authorization server issuing connector grants is local to
+        // the deployment in every admin auth mode, so a broker-authenticated
+        // deployment — which ships no sign-in or sign-up page — must still
+        // answer /mcp-consent.
+        { route: "/(mcp)/mcp-consent", member: "consent" },
+      ],
     },
   ],
   access: {

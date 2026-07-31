@@ -1,47 +1,44 @@
+import type { VoyantGraphPresentationDeclaration } from "@voyant-travel/core/project"
 import type { VoyantGeneratedRouteFile } from "@voyant-travel/vite-config"
 
 const runtimeImport = (path: string) =>
   path.includes("/") ? "../_lib/operator-frontend.js" : "./_lib/operator-frontend.js"
 const standardFrontendImport = "@voyant-travel/operator-standard/standard-frontend"
 
-const contributionRoute = (
-  path: string,
-  routeId: string,
-  contribution: "localAuth" | "mcpConsent" | "storefront",
+/**
+ * Derive a route file path from a router path. The mapping is mechanical:
+ * strip the leading `/`, keep a leading group segment `(x)` as a directory,
+ * turn the remaining `/` into `.`, and emit `route.tsx` for a bare group path.
+ */
+const routeFilePath = (route: string): string => {
+  const withoutLeadingSlash = route.slice(1)
+  const groupMatch = /^(\([^)]+\))(?:\/(.*))?$/.exec(withoutLeadingSlash)
+  if (groupMatch) {
+    const [, group, rest] = groupMatch
+    return rest === undefined ? `${group}/route.tsx` : `${group}/${rest.replaceAll("/", ".")}.tsx`
+  }
+  return `${withoutLeadingSlash.replaceAll("/", ".")}.tsx`
+}
+
+const presentationRoute = (
+  route: string,
+  contribution: string,
   member: string,
-): VoyantGeneratedRouteFile => ({
-  path,
-  source: `
+): VoyantGeneratedRouteFile => {
+  const path = routeFilePath(route)
+  return {
+    path,
+    source: `
 import { createFileRoute } from "@tanstack/react-router"
 import { operatorFrontend } from ${JSON.stringify(runtimeImport(path))}
 
-export const Route = createFileRoute(${JSON.stringify(routeId)})(operatorFrontend.routes.${contribution}!.${member})
+export const Route = createFileRoute(${JSON.stringify(route)})(operatorFrontend.routes.${contribution}!.${member})
 `,
-})
-
-const contributedPublicRoute = (
-  path: string,
-  routeId: string,
-  contribution: "finance" | "quotes",
-  member: string,
-): VoyantGeneratedRouteFile => ({
-  path,
-  source: `
-import { createFileRoute } from "@tanstack/react-router"
-import { operatorFrontend } from ${JSON.stringify(runtimeImport(path))}
-
-export const Route = createFileRoute(${JSON.stringify(routeId)})(operatorFrontend.routes.${contribution}!.${member})
-`,
-})
-
-const STOREFRONT_PRESENTATION_ID = "@voyant-travel/storefront#presentation.customer"
-const AUTH_PRESENTATION_ID = "@voyant-travel/auth#presentation.local-auth"
-const MCP_CONSENT_PRESENTATION_ID = "@voyant-travel/mcp#presentation.consent"
-const FINANCE_PRESENTATION_ID = "@voyant-travel/finance#presentation.public"
-const QUOTES_PRESENTATION_ID = "@voyant-travel/quotes#presentation.public"
+  }
+}
 
 export interface CreateStandardOperatorRouteFilesOptions {
-  presentationIds: readonly string[]
+  presentations: readonly VoyantGraphPresentationDeclaration[]
 }
 
 const standardOperatorRouteFiles: readonly VoyantGeneratedRouteFile[] = [
@@ -107,63 +104,6 @@ export const Route = createFileRoute("/docs")(operatorFrontend.routes.docs)
   },
 ]
 
-const financeRouteFiles: readonly VoyantGeneratedRouteFile[] = [
-  contributedPublicRoute("accountant.$token.tsx", "/accountant/$token", "finance", "accountant"),
-  contributedPublicRoute("pay.tsx", "/pay", "finance", "pay"),
-  contributedPublicRoute("pay_.$sessionId.tsx", "/pay_/$sessionId", "finance", "paymentLink"),
-]
-
-const quotesRouteFiles: readonly VoyantGeneratedRouteFile[] = [
-  contributedPublicRoute(
-    "proposal.$quoteVersionId.tsx",
-    "/proposal/$quoteVersionId",
-    "quotes",
-    "proposal",
-  ),
-]
-
-const authRouteFiles: readonly VoyantGeneratedRouteFile[] = [
-  contributionRoute("(auth)/route.tsx", "/(auth)", "localAuth", "layout"),
-  contributionRoute(
-    "(auth)/accept-invitation.tsx",
-    "/(auth)/accept-invitation",
-    "localAuth",
-    "acceptInvitation",
-  ),
-  contributionRoute(
-    "(auth)/accept-invite.tsx",
-    "/(auth)/accept-invite",
-    "localAuth",
-    "acceptInvite",
-  ),
-  contributionRoute(
-    "(auth)/forgot-password.tsx",
-    "/(auth)/forgot-password",
-    "localAuth",
-    "forgotPassword",
-  ),
-  contributionRoute("(auth)/onboarding.tsx", "/(auth)/onboarding", "localAuth", "onboarding"),
-  contributionRoute(
-    "(auth)/reset-password.tsx",
-    "/(auth)/reset-password",
-    "localAuth",
-    "resetPassword",
-  ),
-  contributionRoute("(auth)/sign-in.tsx", "/(auth)/sign-in", "localAuth", "signIn"),
-  contributionRoute("(auth)/sign-up.tsx", "/(auth)/sign-up", "localAuth", "signUp"),
-  contributionRoute("(auth)/verify-email.tsx", "/(auth)/verify-email", "localAuth", "verifyEmail"),
-]
-
-// The OAuth consent screen an MCP connector sends the operator to. It gets its
-// own chrome-less group rather than riding along with local auth: the
-// authorization server issuing connector grants is local to the deployment in
-// every admin auth mode, so a broker-authenticated deployment — which ships no
-// sign-in or sign-up page — must still answer /mcp-consent.
-const mcpConsentRouteFiles: readonly VoyantGeneratedRouteFile[] = [
-  contributionRoute("(mcp)/route.tsx", "/(mcp)", "mcpConsent", "layout"),
-  contributionRoute("(mcp)/mcp-consent.tsx", "/(mcp)/mcp-consent", "mcpConsent", "consent"),
-]
-
 const workspaceRouteFiles: readonly VoyantGeneratedRouteFile[] = [
   {
     path: "_workspace/route.tsx",
@@ -189,65 +129,26 @@ function WorkspaceLayout() {
   },
 ]
 
-const storefrontRouteFiles: readonly VoyantGeneratedRouteFile[] = [
-  contributionRoute("(storefront)/route.tsx", "/(storefront)", "storefront", "layout"),
-  contributionRoute("(storefront)/shop.tsx", "/(storefront)/shop", "storefront", "shop"),
-  contributionRoute(
-    "(storefront)/shop_.account.tsx",
-    "/(storefront)/shop_/account",
-    "storefront",
-    "account",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.account.sign-in.tsx",
-    "/(storefront)/shop_/account/sign-in",
-    "storefront",
-    "accountSignIn",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.account.sign-up.tsx",
-    "/(storefront)/shop_/account/sign-up",
-    "storefront",
-    "accountSignUp",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.account.verify-email.tsx",
-    "/(storefront)/shop_/account/verify-email",
-    "storefront",
-    "accountVerifyEmail",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.composer.tsx",
-    "/(storefront)/shop_/composer",
-    "storefront",
-    "composer",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.confirmation.$bookingId.tsx",
-    "/(storefront)/shop_/confirmation/$bookingId",
-    "storefront",
-    "confirmation",
-  ),
-  contributionRoute(
-    "(storefront)/shop_.products.$entityModule.$entityId.tsx",
-    "/(storefront)/shop_/products/$entityModule/$entityId",
-    "storefront",
-    "productDetail",
-  ),
-]
+/**
+ * Emit the route files a selected presentation contributes, in declared order.
+ * A presentation without a `contribution`/`routes` table contributes nothing.
+ */
+const presentationRouteFiles = (
+  presentation: VoyantGraphPresentationDeclaration,
+): readonly VoyantGeneratedRouteFile[] => {
+  if (!presentation.contribution || !presentation.routes?.length) return []
+  const contribution = presentation.contribution
+  return presentation.routes.map((route) =>
+    presentationRoute(route.route, contribution, route.member),
+  )
+}
 
 /** Standard package-owned route registrations emitted into `.voyant/routes`. */
 export function createStandardOperatorRouteFiles(
   options: CreateStandardOperatorRouteFilesOptions,
 ): readonly VoyantGeneratedRouteFile[] {
-  const selected = new Set(options.presentationIds)
-  return [
-    ...standardOperatorRouteFiles,
-    ...(selected.has(AUTH_PRESENTATION_ID) ? authRouteFiles : []),
-    ...(selected.has(FINANCE_PRESENTATION_ID) ? financeRouteFiles : []),
-    ...(selected.has(MCP_CONSENT_PRESENTATION_ID) ? mcpConsentRouteFiles : []),
-    ...(selected.has(QUOTES_PRESENTATION_ID) ? quotesRouteFiles : []),
-    ...(selected.has(STOREFRONT_PRESENTATION_ID) ? storefrontRouteFiles : []),
-    ...workspaceRouteFiles,
-  ]
+  const presentationFamilies = [...options.presentations]
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .flatMap(presentationRouteFiles)
+  return [...standardOperatorRouteFiles, ...presentationFamilies, ...workspaceRouteFiles]
 }

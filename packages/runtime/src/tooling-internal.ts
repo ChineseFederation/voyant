@@ -10,6 +10,7 @@ import { devtools } from "@tanstack/devtools-vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import { Generator, getConfig } from "@tanstack/router-generator"
 import viteReact from "@vitejs/plugin-react"
+import type { VoyantGraphPresentationDeclaration } from "@voyant-travel/core/project"
 import {
   createAnalyzePlugin,
   VOYANT_ROUTE_FILE_IGNORE_PATTERN,
@@ -615,7 +616,7 @@ async function generateRouteTree(options: ProjectRouteGenerationOptions): Promis
 export async function loadStandardRouteFiles(
   projectRoot: string,
 ): Promise<readonly VoyantGeneratedRouteFile[]> {
-  const { productBomId, presentationIds } = await loadProductBomSelection(projectRoot)
+  const { productBomId, presentations } = await loadProductBomSelection(projectRoot)
   const routeFilesExport = `${productBomId}/${PRODUCT_ROUTE_FILES_EXPORT}`
   const resolveFromProject = createRequire(path.join(projectRoot, "package.json"))
   let resolved: string
@@ -637,7 +638,7 @@ export async function loadStandardRouteFiles(
       `${routeFilesExport} must export createStandardOperatorRouteFiles as a function`,
     )
   }
-  const files = module.createStandardOperatorRouteFiles({ presentationIds })
+  const files = module.createStandardOperatorRouteFiles({ presentations })
   if (!isGeneratedRouteFileArray(files)) {
     throw new TypeError(`${routeFilesExport} createStandardOperatorRouteFiles must return an array`)
   }
@@ -648,9 +649,10 @@ export async function loadProductBomId(projectRoot: string): Promise<string> {
   return (await loadProductBomSelection(projectRoot)).productBomId
 }
 
-async function loadProductBomSelection(
-  projectRoot: string,
-): Promise<{ productBomId: string; presentationIds: readonly string[] }> {
+async function loadProductBomSelection(projectRoot: string): Promise<{
+  productBomId: string
+  presentations: readonly VoyantGraphPresentationDeclaration[]
+}> {
   const artifactPath = path.join(projectRoot, PRODUCT_BOM_ARTIFACT)
   let source: string
   try {
@@ -682,13 +684,21 @@ async function loadProductBomSelection(
       `Voyant product BOM artifact at ${artifactPath} must declare productBom.id as a canonical package name.`,
     )
   }
-  const presentationIds = (artifact as { graph?: { presentations?: unknown } }).graph?.presentations
-  if (!Array.isArray(presentationIds) || presentationIds.some((id) => typeof id !== "string")) {
+  const presentations = (artifact as { graph?: { presentations?: unknown } }).graph?.presentations
+  if (
+    !Array.isArray(presentations) ||
+    presentations.some(
+      (entry) => typeof entry !== "object" || entry === null || typeof entry.id !== "string",
+    )
+  ) {
     throw new TypeError(
-      `Voyant product BOM artifact at ${artifactPath} must declare graph.presentations as a string array.`,
+      `Voyant product BOM artifact at ${artifactPath} must declare graph.presentations as an array of presentation declarations.`,
     )
   }
-  return { productBomId, presentationIds }
+  return {
+    productBomId,
+    presentations: presentations as readonly VoyantGraphPresentationDeclaration[],
+  }
 }
 
 async function pathExists(file: string): Promise<boolean> {

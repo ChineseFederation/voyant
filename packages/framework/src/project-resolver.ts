@@ -351,8 +351,7 @@ function buildProductBomExpansionArtifact(graph: ResolvedVoyantProjectGraph): st
         providers: graph.providers.map(({ id }) => id),
         presentations: allResolvedGraphUnits(graph)
           .flatMap((unit) => unit.presentations ?? [])
-          .map(({ id }) => id)
-          .sort(),
+          .sort((left, right) => left.id.localeCompare(right.id)),
       },
     },
     null,

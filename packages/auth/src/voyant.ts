@@ -124,6 +124,18 @@ export const authInvitationsVoyantModule = defineModule({
         entry: "@voyant-travel/auth-react/local-auth-routes",
         export: "createLocalAuthRouteContribution",
       },
+      contribution: "localAuth",
+      routes: [
+        { route: "/(auth)", member: "layout" },
+        { route: "/(auth)/accept-invitation", member: "acceptInvitation" },
+        { route: "/(auth)/accept-invite", member: "acceptInvite" },
+        { route: "/(auth)/forgot-password", member: "forgotPassword" },
+        { route: "/(auth)/onboarding", member: "onboarding" },
+        { route: "/(auth)/reset-password", member: "resetPassword" },
+        { route: "/(auth)/sign-in", member: "signIn" },
+        { route: "/(auth)/sign-up", member: "signUp" },
+        { route: "/(auth)/verify-email", member: "verifyEmail" },
+      ],
     },
   ],
   meta: {

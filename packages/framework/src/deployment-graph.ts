@@ -2319,6 +2319,34 @@ function validatePromotedFacets(
         "Presentation runtime references require a named factory export.",
       )
     }
+    if (entry.routes !== undefined) {
+      if (!Array.isArray(entry.routes)) {
+        invalidFacet(
+          `${facet}.routes`,
+          source,
+          diagnostics,
+          "Presentation routes must be an array.",
+        )
+      } else if (entry.routes.length > 0) {
+        requireNonEmptyString(entry.contribution, `${facet}.contribution`, source, diagnostics)
+        entry.routes.forEach((route, index) => {
+          const routeFacet = `${facet}.routes[${index}]`
+          if (!isRecord(route)) {
+            invalidFacet(routeFacet, source, diagnostics, "Presentation route must be an object.")
+            return
+          }
+          if (typeof route.route !== "string" || !route.route.startsWith("/")) {
+            invalidFacet(
+              `${routeFacet}.route`,
+              source,
+              diagnostics,
+              'Presentation route paths must start with "/".',
+            )
+          }
+          requireNonEmptyString(route.member, `${routeFacet}.member`, source, diagnostics)
+        })
+      }
+    }
   })
   validateReportingFacet(input.reporting, source, diagnostics)
   if (input.lifecycle !== undefined) {

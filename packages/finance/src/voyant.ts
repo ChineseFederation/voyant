@@ -514,6 +514,12 @@ export const financeVoyantModule = defineModule({
         entry: "@voyant-travel/finance-react/public-routes",
         export: "createFinancePublicRouteContribution",
       },
+      contribution: "finance",
+      routes: [
+        { route: "/accountant/$token", member: "accountant" },
+        { route: "/pay", member: "pay" },
+        { route: "/pay_/$sessionId", member: "paymentLink" },
+      ],
     },
   ],
   lifecycle: {

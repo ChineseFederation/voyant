@@ -568,6 +568,8 @@ export const quotesProposalVoyantPlugin = defineExtension({
         entry: "@voyant-travel/quotes-react/public-routes",
         export: "createQuotesPublicRouteContribution",
       },
+      contribution: "quotes",
+      routes: [{ route: "/proposal/$quoteVersionId", member: "proposal" }],
     },
   ],
   meta: {

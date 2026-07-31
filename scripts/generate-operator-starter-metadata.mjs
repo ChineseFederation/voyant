@@ -199,7 +199,7 @@ import productBom from "./product-bom.generated.json" with { type: "json" }
 const appRoot = fileURLToPath(new URL("..", import.meta.url))
 const generatedRoutes = voyantGeneratedRoutes({
   appRootUrl: new URL("../generated-config-anchor.ts", import.meta.url).href,
-  files: createStandardOperatorRouteFiles({ presentationIds: productBom.graph.presentations }),
+  files: createStandardOperatorRouteFiles({ presentations: productBom.graph.presentations }),
 })
 const config = getConfig(
   {
@@ -234,7 +234,7 @@ import productBom from "./product-bom.generated.json" with { type: "json" }
 const appRootUrl = new URL("../generated-config-anchor.ts", import.meta.url).href
 const generatedRoutes = voyantGeneratedRoutes({
   appRootUrl,
-  files: createStandardOperatorRouteFiles({ presentationIds: productBom.graph.presentations }),
+  files: createStandardOperatorRouteFiles({ presentations: productBom.graph.presentations }),
 })
 
 export default defineConfig(

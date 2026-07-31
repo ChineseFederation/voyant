@@ -442,7 +442,7 @@ describe("Voyant project tooling", () => {
   it("loads selected presentation routes from the product BOM package", async () => {
     const projectRoot = await createTemporaryDirectory()
     await writeProductBom(projectRoot, "@voyant-travel/operator-standard", [
-      "@voyant-travel/storefront#presentation.customer",
+      { id: "@voyant-travel/storefront#presentation.customer" },
     ])
     const packageRoot = path.join(projectRoot, "node_modules/@voyant-travel/operator-standard")
     await mkdir(packageRoot, { recursive: true })
@@ -457,8 +457,8 @@ describe("Voyant project tooling", () => {
     await writeFile(
       path.join(packageRoot, "standard-route-files.ts"),
       `interface RouteFile { readonly path: string; readonly source: string }
-export function createStandardOperatorRouteFiles(options: { presentationIds: readonly string[] }): readonly RouteFile[] {
-  return [{ path: "project.tsx", source: options.presentationIds.join(",") }]
+export function createStandardOperatorRouteFiles(options: { presentations: readonly { id: string }[] }): readonly RouteFile[] {
+  return [{ path: "project.tsx", source: options.presentations.map((entry) => entry.id).join(",") }]
 }
 `,
     )
@@ -737,7 +737,7 @@ async function createTemporaryDirectory(): Promise<string> {
 async function writeProductBom(
   projectRoot: string,
   id: string,
-  presentationIds: readonly string[] = [],
+  presentations: readonly { id: string }[] = [],
 ): Promise<void> {
   const artifactDirectory = path.join(projectRoot, ".voyant")
   await mkdir(artifactDirectory, { recursive: true })
@@ -750,7 +750,7 @@ async function writeProductBom(
         id,
         version: "1",
       },
-      graph: { presentations: presentationIds },
+      graph: { presentations },
     }),
   )
 }

@@ -84,6 +84,21 @@ describe("standard package manifests", () => {
           entry: "@voyant-travel/storefront-react/storefront",
           export: "createStorefrontPresentationContribution",
         },
+        contribution: "storefront",
+        routes: [
+          { route: "/(storefront)", member: "layout" },
+          { route: "/(storefront)/shop", member: "shop" },
+          { route: "/(storefront)/shop_/account", member: "account" },
+          { route: "/(storefront)/shop_/account/sign-in", member: "accountSignIn" },
+          { route: "/(storefront)/shop_/account/sign-up", member: "accountSignUp" },
+          { route: "/(storefront)/shop_/account/verify-email", member: "accountVerifyEmail" },
+          { route: "/(storefront)/shop_/composer", member: "composer" },
+          { route: "/(storefront)/shop_/confirmation/$bookingId", member: "confirmation" },
+          {
+            route: "/(storefront)/shop_/products/$entityModule/$entityId",
+            member: "productDetail",
+          },
+        ],
       },
     ])
   })
