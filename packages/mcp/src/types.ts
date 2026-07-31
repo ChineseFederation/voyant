@@ -9,6 +9,8 @@ import type { ToolContext, ToolRegistry } from "@voyant-travel/tools"
 import type { AccessCatalog } from "@voyant-travel/types/api-keys"
 import type { Context } from "hono"
 
+import type { McpRateLimitOptions } from "./rate-limit.js"
+
 export interface McpServerInfo {
   name: string
   version: string
@@ -42,6 +44,12 @@ export interface McpApiRoutesOptions {
    * defaults to `DEFAULT_RESPONSE_BUDGET_BYTES` (~24 KB).
    */
   responseBudgetBytes?: number
+  /**
+   * Per-key rate limiting for the JSON-RPC endpoint. Enabled with safe defaults
+   * (see {@link McpRateLimitOptions}); pass `false` to disable, or an object to
+   * tune the window, limits, key derivation, or backing store.
+   */
+  rateLimit?: McpRateLimitOptions | false
 }
 
 export interface GraphMcpApiRoutesOptions {
@@ -59,6 +67,8 @@ export interface GraphMcpApiRoutesOptions {
   appName?: string
   /** Serialized byte ceiling for a single tool response (voyant#3928). */
   responseBudgetBytes?: number
+  /** Per-key rate limiting for the JSON-RPC endpoint. See {@link McpApiRoutesOptions.rateLimit}. */
+  rateLimit?: McpRateLimitOptions | false
 }
 
 export type GraphMcpRuntime = VoyantGraphRuntime

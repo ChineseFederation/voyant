@@ -1,4 +1,11 @@
 export {
+  createMcpRateLimiter,
+  DEFAULT_MCP_RATE_LIMIT,
+  isRestrictedTool,
+  type McpRateLimitBucket,
+  type McpRateLimitOptions,
+} from "./rate-limit.js"
+export {
   DEFAULT_RESPONSE_BUDGET_BYTES,
   isListShapedOutput,
   RESPONSE_FORMAT_FIELD,

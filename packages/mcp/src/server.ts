@@ -54,6 +54,7 @@ import {
   jsonByteLength,
   type McpObserver,
 } from "./observability.js"
+import { createMcpRateLimiter } from "./rate-limit.js"
 import { registerMcpTool } from "./register.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES } from "./response-budget.js"
 import type { GraphMcpApiRoutesOptions, McpApiRoutesOptions, McpServerInfo } from "./types.js"
@@ -110,6 +111,12 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   const { accessCatalog, registry, buildContext } = options
   const serverInfo = options.serverInfo ?? DEFAULT_SERVER_INFO
   const app = new OpenAPIHono()
+
+  // Throttle the JSON-RPC endpoint per caller before it can reach dispatch, with
+  // a tighter bucket for write/destructive/ledgered calls than for reads.
+  if (options.rateLimit !== false) {
+    app.use(callMcpRoute.path, createMcpRateLimiter(registry, options.rateLimit ?? {}))
+  }
 
   /**
    * Resolve the telemetry sink, preferring an explicitly configured reporter and
@@ -457,6 +464,7 @@ export async function createGraphMcpApiRoutes(
     ...(options.responseBudgetBytes !== undefined
       ? { responseBudgetBytes: options.responseBudgetBytes }
       : {}),
+    ...(options.rateLimit !== undefined ? { rateLimit: options.rateLimit } : {}),
     buildContext: (c) => buildContributedContext(c, options, contributions.values()),
   })
 }
