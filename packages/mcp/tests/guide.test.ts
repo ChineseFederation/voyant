@@ -164,6 +164,20 @@ describe("MCP guide layer", () => {
     expect(writeInstructions).not.toMatch(/READ-ONLY/i)
   })
 
+  it("tells a key that authorizes nothing that it is a permissions problem", async () => {
+    // A key with no granted scopes reaches NO Tool — not even a read. Before this
+    // it was told "READ-ONLY: it can list and read", which is worse than silence:
+    // every `search_tools` query comes back empty and the agent, trusting the
+    // orientation, blames its own queries instead of reporting a grant problem.
+    const none = await readRpc(await app([]).request("/", rpc("initialize", INITIALIZE_PARAMS)))
+    const instructions = (none.result as { instructions?: string }).instructions ?? ""
+
+    expect(instructions).toMatch(/authorizes NO Tools/i)
+    expect(instructions).toMatch(/permissions problem/i)
+    // It must NOT claim reads work.
+    expect(instructions).not.toMatch(/can list and read/i)
+  })
+
   it("puts the guide Tools in the resident tier, not the lazy long tail", async () => {
     const listed = await readRpc(await app(["catalog:read"]).request("/", rpc("tools/list", {})))
     const names =

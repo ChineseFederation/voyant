@@ -62,6 +62,17 @@ export interface ToolDefinition<In, Out, Ctx extends ToolContext = ToolContext> 
   /** Use only when the handler already enforces the selected action-ledger policy itself. */
   actionPolicyEnforcement?: ToolActionPolicyEnforcement
   /**
+   * Set when the handler mints its own idempotency key (via
+   * `withServerResolvedIdempotencyKey`) instead of accepting one from the caller.
+   *
+   * Without it a handler-enforced ledgered `execute` advertises `idempotencyKey`
+   * as a REQUIRED invocation field, which is exactly backwards for an
+   * intent-level Tool whose purpose is that the caller carries no token across
+   * calls. An agent reading the manifest would believe it must supply a key it
+   * must not supply.
+   */
+  resolvesIdempotencyKeyServerSide?: boolean
+  /**
    * Resolve the durable action target from validated domain input.
    *
    * Use this for targets that cannot be selected by the graph action's

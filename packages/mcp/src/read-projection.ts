@@ -251,6 +251,11 @@ export async function dispatchQueryTool(
     requireActionPolicy,
     output.envelopeResult,
     budgetBytes,
+    // A query tool advertises QUERY_OUTPUT_SCHEMA (permissive
+    // `additionalProperties`), so trimming null/nested fields from the structured
+    // result cannot fail validation — and without this a client reading
+    // `structuredContent` sees none of the concise saving.
+    true,
   )
   return { result, member }
 }

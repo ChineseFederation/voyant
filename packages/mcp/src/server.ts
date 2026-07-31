@@ -184,6 +184,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       writeEnabled: [...surface.values()].some(
         ({ entry }) => entry.annotations.readOnlyHint !== true,
       ),
+      anyToolReachable: surface.size > 0,
     }
     const server = new McpServer(serverInfo, {
       instructions: buildServerInstructions(guideScope),

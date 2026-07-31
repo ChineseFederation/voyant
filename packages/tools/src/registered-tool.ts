@@ -158,7 +158,13 @@ function deriveActionPolicy(
       }
     }
   } else {
-    if (action.kind === "execute" && action.ledger === "required") {
+    // A handler that mints its own key must not advertise one as caller-required:
+    // the whole point of an intent-level Tool is that no token crosses calls.
+    if (
+      action.kind === "execute" &&
+      action.ledger === "required" &&
+      !tool.resolvesIdempotencyKeyServerSide
+    ) {
       requiredFields.push("idempotencyKey")
     }
     if (action.approval === "required") {

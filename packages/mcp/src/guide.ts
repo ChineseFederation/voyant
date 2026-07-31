@@ -27,6 +27,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 export interface GuideScope {
   /** Whether the caller can reach any state-mutating Tool with its granted key. */
   writeEnabled: boolean
+  /**
+   * Whether the caller can reach ANY Tool at all. A key with no granted
+   * permissions authorizes nothing — not even reads — and must be told so.
+   * Without this the read-only branch below claims the key "can list and read"
+   * when every `search_tools` query will come back empty, which is worse than
+   * silence: the agent trusts the orientation and blames its own queries.
+   */
+  anyToolReachable: boolean
 }
 
 /** Names of the guide Tools registered on every MCP server, for instrumentation. */
@@ -49,9 +57,11 @@ type GuideTopic = (typeof GUIDE_TOPICS)[number]
  * agent and points at the guide Tools for depth, rather than reproducing them.
  */
 export function buildServerInstructions(scope: GuideScope): string {
-  const access = scope.writeEnabled
-    ? "This key can read catalog and booking data and invoke state-changing Tools (subject to per-Tool scopes and the confirmation protocol below)."
-    : "This key is READ-ONLY: it can list and read, but the create/update/publish/book Tools below are not reachable with it. Ignore write instructions."
+  const access = !scope.anyToolReachable
+    ? "This key currently authorizes NO Tools — not reads either. `search_tools` will return nothing and the guide below describes capabilities you cannot reach. This is a permissions problem, not a query problem: ask the operator to grant scopes on the API key before retrying."
+    : scope.writeEnabled
+      ? "This key can read catalog and booking data and invoke state-changing Tools (subject to per-Tool scopes and the confirmation protocol below)."
+      : "This key is READ-ONLY: it can list and read, but the create/update/publish/book Tools below are not reachable with it. Ignore write instructions."
   return [
     "This MCP server is the admin surface of a Voyant deployment — an online travel agency, tour-operator, and destination-management platform. Through it you can discover and operate the operator's catalog (Products, Options, and dated departures/Slots), the sales pipeline (Quotes and Quote Versions), Bookings and their Travelers, and downstream Invoices and Payments.",
     "",

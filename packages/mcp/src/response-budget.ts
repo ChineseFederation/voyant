@@ -124,6 +124,18 @@ export interface ShapeResponseOptions {
   filterFields: readonly string[]
   /** Wrap pure data in the same MCP structured-content envelope dispatch uses. */
   toWire: (data: unknown) => Record<string, unknown>
+  /**
+   * Apply the concise projection to `structuredContent` too, not only the text
+   * block.
+   *
+   * Off by default: a tool advertises its real output schema, and dropping fields
+   * would make the structured result fail the SDK's validation. It is safe — and
+   * necessary — for a `<domain>_query` tool, which advertises a permissive
+   * `additionalProperties` output. Without it a client that reads
+   * `structuredContent` (the modern MCP path) receives every null field on every
+   * row and sees none of the concise saving.
+   */
+  conciseStructuredContent?: boolean
 }
 
 export interface ShapedResponse {
@@ -153,8 +165,13 @@ export function shapeResponse(data: unknown, options: ShapeResponseOptions): Sha
 
   const render = (count: number) => {
     const truncated = count < n
-    const nextData = rebuild(rows.slice(0, count))
-    const wire = options.toWire(nextData)
+    const kept = rows.slice(0, count)
+    const nextData = rebuild(kept)
+    const wire = options.toWire(
+      format === "concise" && options.conciseStructuredContent
+        ? rebuild(kept.map((row) => conciseRow(row)))
+        : nextData,
+    )
     const notice = truncated
       ? buildTruncationNotice({ shown: count, total, filterFields: options.filterFields })
       : undefined

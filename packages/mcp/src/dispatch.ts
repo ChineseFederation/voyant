@@ -38,6 +38,7 @@ export async function dispatchToResult(
   requireActionPolicy: boolean,
   envelopeResult: boolean,
   budgetBytes: number,
+  conciseStructuredContent = false,
 ): Promise<CallToolResult> {
   try {
     // `response_format` is a transport-only control, never a domain input — strip
@@ -93,6 +94,7 @@ export async function dispatchToResult(
     const shaped = shapeResponse(data, {
       format: format ?? (listShaped ? "concise" : undefined),
       budgetBytes,
+      conciseStructuredContent,
       filterFields: def ? listFilterFieldsFromInput(def.inputSchema) : [],
       toWire: (value) => toStructuredContent(value, envelopeResult),
     })

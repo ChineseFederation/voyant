@@ -293,6 +293,7 @@ export const bookProductTool = defineTool({
   outputSchema: bookProductToolOutputSchema,
   requiredScopes: ["bookings:write", "finance:write"],
   audience: { source: "grant", allowed: ["staff"] },
+  resolvesIdempotencyKeyServerSide: true,
   tier: "destructive",
   riskPolicy: {
     destructive: true,
