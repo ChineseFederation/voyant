@@ -55,6 +55,7 @@ import {
   type McpObserver,
 } from "./observability.js"
 import { registerMcpTool } from "./register.js"
+import { DEFAULT_RESPONSE_BUDGET_BYTES } from "./response-budget.js"
 import type { GraphMcpApiRoutesOptions, McpApiRoutesOptions, McpServerInfo } from "./types.js"
 
 export type {
@@ -151,6 +152,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     const ctx = await buildAuthenticatedContext(c, buildContext)
     const observer = observerFor(c, ctx)
     const requireActionPolicy = options.requireActionPolicies ?? false
+    const budgetBytes = options.responseBudgetBytes ?? DEFAULT_RESPONSE_BUDGET_BYTES
 
     // The caller's full authorized surface (canonical + alias names). Progressive
     // disclosure means only tier 0 is *registered* — but search / describe / call
@@ -176,7 +178,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     // Register only the tier-0 domain tools eagerly; the long tail stays lazy.
     const eagerNames = selectEagerToolNames(surface, options.eagerToolNames)
     for (const name of eagerNames)
-      registerSurfaceTool(server, registry, surface, name, ctx, requireActionPolicy)
+      registerSurfaceTool(server, registry, surface, name, ctx, requireActionPolicy, budgetBytes)
 
     registerMetaTools({
       server,
@@ -187,6 +189,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       observer,
       caller: callerFromContext(ctx),
       now: () => Date.now(),
+      budgetBytes,
     })
 
     // Backwards compatibility: a flat-name `tools/call` for a lazy (non-eager)
@@ -202,7 +205,15 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       !META_TOOL_NAMES.includes(requestedName) &&
       surface.has(requestedName)
     ) {
-      registerSurfaceTool(server, registry, surface, requestedName, ctx, requireActionPolicy)
+      registerSurfaceTool(
+        server,
+        registry,
+        surface,
+        requestedName,
+        ctx,
+        requireActionPolicy,
+        budgetBytes,
+      )
     }
 
     const transport = new StreamableHTTPTransport({
@@ -227,6 +238,7 @@ function registerSurfaceTool(
   invocationName: string,
   ctx: ToolContext,
   requireActionPolicy: boolean,
+  budgetBytes: number,
 ): void {
   const binding = surface.get(invocationName)
   if (!binding) return
@@ -241,6 +253,7 @@ function registerSurfaceTool(
     ctx,
     binding.aliasFor,
     requireActionPolicy,
+    budgetBytes,
   )
   // A canonical eager tool also advertises its deprecated aliases, matching the
   // pre-disclosure behavior for the tools that remain resident.
@@ -255,6 +268,7 @@ function registerSurfaceTool(
         ctx,
         binding.entry.name,
         requireActionPolicy,
+        budgetBytes,
       )
     }
   }
@@ -440,6 +454,9 @@ export async function createGraphMcpApiRoutes(
     ...(options.serverInfo ? { serverInfo: options.serverInfo } : {}),
     ...(options.reporter ? { reporter: options.reporter } : {}),
     ...(options.appName ? { appName: options.appName } : {}),
+    ...(options.responseBudgetBytes !== undefined
+      ? { responseBudgetBytes: options.responseBudgetBytes }
+      : {}),
     buildContext: (c) => buildContributedContext(c, options, contributions.values()),
   })
 }

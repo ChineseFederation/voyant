@@ -31,6 +31,7 @@ import { dispatchToResult } from "./dispatch.js"
 import { isRecord } from "./guards.js"
 import type { McpCaller, McpCallOutcome, McpObserver } from "./observability.js"
 import { toMcpMeta } from "./register.js"
+import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
 
 /** The eager tier-0 meta-tool names, reserved so a domain tool can never shadow one. */
@@ -123,10 +124,13 @@ export function advertiseTool(
   if (!def) {
     throw new ToolError(`Tool "${invocationName}" is not registered.`, "NOT_FOUND")
   }
-  const inputSchema = z.toJSONSchema(toMcpInputSchema(def.inputSchema, entry), {
-    io: "input",
-    unrepresentable: "any",
-  })
+  const inputSchema = z.toJSONSchema(
+    toMcpInputSchema(def.inputSchema, entry, isListShapedOutput(def.outputSchema)),
+    {
+      io: "input",
+      unrepresentable: "any",
+    },
+  )
   const output = toMcpOutputContract(def.outputSchema)
   const outputSchema = z.toJSONSchema(output.schema, { unrepresentable: "any" })
   return {
@@ -148,6 +152,8 @@ export interface RegisterMetaToolsInput {
   observer: McpObserver
   caller: McpCaller
   now: () => number
+  /** Serialized response byte budget applied to every dispatched tool result. */
+  budgetBytes?: number
 }
 
 /** Register the three tier-0 meta-tools on the per-request server. */
@@ -265,6 +271,7 @@ function describeTool(
 
 function registerCallTool(input: RegisterMetaToolsInput): void {
   const { server, registry, surface, ctx, requireActionPolicy, observer, caller, now } = input
+  const budgetBytes = input.budgetBytes ?? DEFAULT_RESPONSE_BUDGET_BYTES
   server.registerTool(
     CALL_TOOL_NAME,
     {
@@ -292,6 +299,7 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
         ctx,
         requireActionPolicy,
         output.envelopeResult,
+        budgetBytes,
       )
       // Emit telemetry for the DISPATCHED tool, not the call_tool wrapper, so a
       // write routed through call_tool is as observable as a flat-name write.

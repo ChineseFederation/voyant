@@ -39,6 +39,18 @@ export function listResponse<T>(
  * `limit` coerces to an int in `[1, 200]` (default 50); `offset` coerces to a
  * non-negative int (default 0). Domain list-query schemas should extend this
  * rather than re-declaring `limit`/`offset` privately.
+ *
+ * ## Row count is not a payload budget (voyant#3928)
+ *
+ * A row count is the wrong lever for bounding what a response costs an agent's
+ * context: 200 bookings and 200 contact points are not remotely the same number
+ * of bytes, so a single cap of 200 cannot mean the same thing for both. The real
+ * ceiling on a tool response is therefore enforced at the MCP transport as a
+ * **byte budget** — see `shapeResponse` / `DEFAULT_RESPONSE_BUDGET_BYTES` in
+ * `@voyant-travel/mcp`, which row-truncates an over-budget list result with
+ * guidance rather than clipping it silently. This `limit` stays a page-size
+ * ergonomic (kept at 50/200 so REST callers and their tests are undisturbed);
+ * the byte budget is what actually bounds the payload on the agent surface.
  */
 export const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),

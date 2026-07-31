@@ -12,6 +12,7 @@ import { z } from "@hono/zod-openapi"
 import { TOOL_ACTION_INVOCATION_FIELD, type ToolManifestEntry } from "@voyant-travel/tools"
 
 import { isRecord } from "./guards.js"
+import { RESPONSE_FORMAT_FIELD, responseFormatSchema } from "./response-budget.js"
 
 export interface McpOutputContract {
   schema: z.ZodType
@@ -57,12 +58,16 @@ type ZodDiscoveryDef = ZodCompositionDef & {
  * Wire clients send ISO strings; before registry dispatch those strings are
  * revived to `Date` wherever the domain schema expects a date node.
  */
-export function toMcpInputSchema(schema: z.ZodType, entry: ToolManifestEntry): z.ZodObject {
+export function toMcpInputSchema(
+  schema: z.ZodType,
+  entry: ToolManifestEntry,
+  listShaped = false,
+): z.ZodObject {
   const shape =
     schema instanceof z.ZodObject
       ? schema.shape
       : Object.assign({}, ...collectInputObjectShapes(schema))
-  const projectedShape = projectShapeForMcpDiscovery(shape)
+  const projectedShape = withResponseFormat(projectShapeForMcpDiscovery(shape), listShaped)
   if (!entry.actionPolicy) {
     return z.looseObject(projectedShape)
   }
@@ -75,6 +80,16 @@ export function toMcpInputSchema(schema: z.ZodType, entry: ToolManifestEntry): z
     ...projectedShape,
     [TOOL_ACTION_INVOCATION_FIELD]: actionInvocationSchemaFor(entry).optional(),
   })
+}
+
+/**
+ * Advertise `response_format` on a list-shaped tool so callers can pick concise
+ * (the default) or detailed. A domain schema that already owns the field is left
+ * untouched — the domain's own meaning wins over the transport control.
+ */
+function withResponseFormat(shape: z.ZodRawShape, listShaped: boolean): z.ZodRawShape {
+  if (!listShaped || RESPONSE_FORMAT_FIELD in shape) return shape
+  return { ...shape, [RESPONSE_FORMAT_FIELD]: responseFormatSchema }
 }
 
 const mcpDateTimeSchema = z.iso.datetime({ offset: true })

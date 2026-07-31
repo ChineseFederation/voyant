@@ -12,6 +12,7 @@ import {
 } from "@voyant-travel/tools"
 
 import { dispatchToResult } from "./dispatch.js"
+import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
 
 export function registerMcpTool(
@@ -23,13 +24,14 @@ export function registerMcpTool(
   ctx: ToolContext,
   aliasFor?: string,
   requireActionPolicy = false,
+  budgetBytes: number = DEFAULT_RESPONSE_BUDGET_BYTES,
 ): void {
   const output = toMcpOutputContract(def.outputSchema)
   server.registerTool(
     invocationName,
     {
       description: entry.description,
-      inputSchema: toMcpInputSchema(def.inputSchema, entry),
+      inputSchema: toMcpInputSchema(def.inputSchema, entry, isListShapedOutput(def.outputSchema)),
       outputSchema: output.schema,
       annotations: entry.annotations,
       _meta: toMcpMeta(entry, aliasFor),
@@ -43,6 +45,7 @@ export function registerMcpTool(
         ctx,
         requireActionPolicy,
         output.envelopeResult,
+        budgetBytes,
       ),
   )
 }

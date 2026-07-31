@@ -19,6 +19,13 @@ import {
 } from "@voyant-travel/tools"
 
 import { isRecord } from "./guards.js"
+import {
+  isListShapedOutput,
+  listFilterFieldsFromInput,
+  RESPONSE_FORMAT_FIELD,
+  type ResponseFormat,
+  shapeResponse,
+} from "./response-budget.js"
 import { actionInvocationSchemaFor, reviveDateInputs } from "./schema-projection.js"
 
 /** Dispatch through the registry (validates in + out) and wrap pure data in an MCP envelope. */
@@ -30,11 +37,16 @@ export async function dispatchToResult(
   ctx: ToolContext,
   requireActionPolicy: boolean,
   envelopeResult: boolean,
+  budgetBytes: number,
 ): Promise<CallToolResult> {
   try {
+    // `response_format` is a transport-only control, never a domain input — strip
+    // it before the registry re-validates against the untouched domain schema,
+    // which would otherwise reject an unexpected key.
+    const { format, rest } = extractResponseFormat(args)
     const { commandInput, invocation } = entry.actionPolicy
-      ? splitInvocation(args, entry)
-      : { commandInput: args, invocation: {} }
+      ? splitInvocation(rest, entry)
+      : { commandInput: rest, invocation: {} }
     if (requireActionPolicy && !entry.actionPolicy && entry.deploymentRisk !== "low") {
       throw new ToolError(
         `Tool "${entry.name}" has no selected graph action policy.`,
@@ -76,9 +88,18 @@ export async function dispatchToResult(
               ? handlerDispatchContext(baseDispatchContext, entry, invocation)
               : baseDispatchContext,
           )
+    const def = registry.get(name)
+    const listShaped = def ? isListShapedOutput(def.outputSchema) : false
+    const shaped = shapeResponse(data, {
+      format: format ?? (listShaped ? "concise" : undefined),
+      budgetBytes,
+      filterFields: def ? listFilterFieldsFromInput(def.inputSchema) : [],
+      toWire: (value) => toStructuredContent(value, envelopeResult),
+    })
     return {
-      content: [{ type: "text", text: safeStringify(data) }],
-      structuredContent: toStructuredContent(data, envelopeResult),
+      content: [{ type: "text", text: shaped.text }],
+      structuredContent: shaped.structuredContent,
+      ...(shaped.meta ? { _meta: shaped.meta } : {}),
     }
   } catch (err) {
     // Normalize any thrown value into a ToolError so the envelope always carries
@@ -249,10 +270,10 @@ function requireActionGate(ctx: ToolContext) {
   return ctx.toolActionPolicy
 }
 
-function safeStringify(data: unknown): string {
-  try {
-    return JSON.stringify(data, null, 2)
-  } catch {
-    return String(data)
-  }
+/** Peel the transport-only `response_format` control off the caller's arguments. */
+function extractResponseFormat(args: unknown): { format?: ResponseFormat; rest: unknown } {
+  if (!isRecord(args) || !(RESPONSE_FORMAT_FIELD in args)) return { rest: args }
+  const { [RESPONSE_FORMAT_FIELD]: raw, ...rest } = args
+  const format = raw === "detailed" ? "detailed" : raw === "concise" ? "concise" : undefined
+  return { ...(format ? { format } : {}), rest }
 }

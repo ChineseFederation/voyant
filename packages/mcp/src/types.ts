@@ -36,6 +36,12 @@ export interface McpApiRoutesOptions {
   reporter?: Reporter
   /** Logical app name stamped on emitted telemetry events. Defaults to `"voyant"`. */
   appName?: string
+  /**
+   * Serialized byte ceiling for a single tool response (voyant#3928). A
+   * list-shaped result over this budget is row-truncated with guidance;
+   * defaults to `DEFAULT_RESPONSE_BUDGET_BYTES` (~24 KB).
+   */
+  responseBudgetBytes?: number
 }
 
 export interface GraphMcpApiRoutesOptions {
@@ -51,6 +57,8 @@ export interface GraphMcpApiRoutesOptions {
   reporter?: Reporter
   /** Logical app name stamped on emitted telemetry events. Defaults to `"voyant"`. */
   appName?: string
+  /** Serialized byte ceiling for a single tool response (voyant#3928). */
+  responseBudgetBytes?: number
 }
 
 export type GraphMcpRuntime = VoyantGraphRuntime
