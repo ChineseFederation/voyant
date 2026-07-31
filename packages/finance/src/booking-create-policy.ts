@@ -53,6 +53,45 @@ export const FINANCE_BOOKING_CREATE_HANDLER_POLICY = {
 } as const satisfies HandlerActionPolicyExpectation
 
 /**
+ * `book_product` (voyant#3933) is the intent-level front door to the same
+ * durable booking create. It is a second staff action over the same command,
+ * with its own capability identity and audit trail, so the low-level
+ * `create_booking` admission can never be confused for it and vice versa. It
+ * shares `FINANCE_BOOKING_CREATE_POLICY`'s target facts — it creates the same
+ * `booking` target through the same claim durability — and differs only in
+ * identity: unlike `create_booking`, its handler resolves the booking reference
+ * and the idempotency key server-side, so the model never carries either token.
+ */
+export const FINANCE_BOOK_PRODUCT_ACTION =
+  "@voyant-travel/finance#bookings-create-extension.action.book-product"
+export const FINANCE_BOOK_PRODUCT_TOOL =
+  "@voyant-travel/finance#bookings-create-extension.tool.book-product"
+
+export const FINANCE_BOOK_PRODUCT_HANDLER_POLICY = {
+  capabilityId: FINANCE_BOOK_PRODUCT_TOOL,
+  capabilityVersion: "v1",
+  canonicalName: "book_product",
+  actionPolicy: {
+    id: FINANCE_BOOK_PRODUCT_ACTION,
+    capabilityId: FINANCE_BOOK_PRODUCT_ACTION,
+    version: "v1",
+    kind: "execute",
+    targetType: FINANCE_BOOKING_CREATE_POLICY.canonicalTargetType,
+    targetLifecycle: "created",
+    ledger: "required",
+    approval: "never",
+    risk: FINANCE_BOOKING_CREATE_POLICY.evaluatedRisk,
+    reversible: false,
+    allowedActorTypes: ["staff"],
+    createdTarget: {
+      commandTargetType: FINANCE_BOOKING_CREATE_POLICY.commandTargetType,
+      resultReferenceType: FINANCE_BOOKING_CREATE_POLICY.resultReferenceType,
+      durability: "handler-command-claim-v1",
+    },
+  },
+} as const satisfies HandlerActionPolicyExpectation
+
+/**
  * The narrow public invocation contract. A self-service caller supplies only an
  * idempotency key; every other command field is derived server-side from the
  * draft and quote.

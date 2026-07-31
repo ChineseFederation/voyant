@@ -400,14 +400,16 @@ const bookingCreateBaseSchema = z.object({
   availabilityHoldToken: z.string().min(1).optional(),
   /**
    * Immutable booking reference and idempotency anchor for the durable create.
-   * Allocate it with `generate_booking_number` (or `allocateBookingNumber`) and
-   * replay the same value on retries — a fresh reference mints a second booking.
+   * The command requires it, but callers do not mint it: the `create_booking`
+   * tool and the self-service route both allocate it server-side with
+   * `allocateBookingNumber` before composing the command, and replay the same
+   * value on retries — a fresh reference would mint a second booking.
    */
   bookingNumber: z
     .string()
     .min(1)
     .describe(
-      "Booking reference allocated by `generate_booking_number`. Never invent one and never derive it from traveller or client details. Pass the same value again when retrying the same create.",
+      "Immutable booking reference. Allocated server-side; never invented or derived from traveller or client details.",
     ),
   /**
    * Who is billed. At least one of `personId` / `organizationId` is required.
@@ -549,6 +551,15 @@ export const bookingCreateToolSchema = bookingCreateBaseSchema
     priceOverrideReason: true,
   })
   .extend({
+    // The reference is resolved server-side: omit it and the tool allocates one.
+    // A previously allocated reference may be passed back to replay a create.
+    bookingNumber: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        "Booking reference. Omit it — the server allocates one. Pass a previously returned reference only to replay a specific create.",
+      ),
     itemLines: z
       .array(itemLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
       .optional()

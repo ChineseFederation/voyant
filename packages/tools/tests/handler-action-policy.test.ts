@@ -3,11 +3,13 @@ import { z } from "zod"
 
 import {
   admitHandlerActionPolicy,
+  assertAdmittedActionPolicy,
   createToolRegistry,
   defineTool,
   type HandlerActionPolicyExpectation,
   type ToolContext,
   type ToolError,
+  withServerResolvedIdempotencyKey,
 } from "../src/index.js"
 
 const expected = {
@@ -68,6 +70,68 @@ describe("admitHandlerActionPolicy", () => {
       code: "ACTION_POLICY_REQUIRED",
     })
     expect(mutations).toBe(0)
+  })
+})
+
+describe("withServerResolvedIdempotencyKey", () => {
+  it("re-mints an authentic admission carrying the server-resolved key", async () => {
+    let observed: { key?: string; authentic?: boolean } | undefined
+    const registry = createToolRegistry()
+    registry.register(
+      defineTool({
+        capabilityId: expected.capabilityId,
+        capabilityVersion: expected.capabilityVersion,
+        owner: "@voyant-travel/legal",
+        name: expected.canonicalName,
+        description: "Re-mints a server-resolved idempotency key",
+        inputSchema: z.object({}),
+        outputSchema: z.object({ key: z.string(), authentic: z.boolean() }),
+        requiredScopes: [],
+        tier: "write",
+        riskPolicy: {
+          destructive: false,
+          reversible: true,
+          dryRunSupported: false,
+          sideEffects: ["legal-document-write"],
+        },
+        actionPolicyEnforcement: "handler",
+        async handler(_args, ctx) {
+          const admitted = admitHandlerActionPolicy(ctx, expected)
+          const remixed = withServerResolvedIdempotencyKey(admitted, "  server-derived-key  ")
+          // Authentic: passes the exact assertion the command entrypoints run
+          // before minting a claim, and carries the trimmed server key.
+          let authentic = true
+          try {
+            assertAdmittedActionPolicy(remixed, expected)
+          } catch {
+            authentic = false
+          }
+          observed = { key: remixed.invocation.idempotencyKey, authentic }
+          return observed as { key: string; authentic: boolean }
+        },
+      }),
+      { actionPolicy: expected.actionPolicy },
+    )
+
+    await registry.dispatch("legal_issue_document", {}, context())
+    expect(observed).toEqual({ key: "server-derived-key", authentic: true })
+  })
+
+  it("rejects a forged (non-authentic) admission", () => {
+    const forged = {
+      capabilityId: expected.capabilityId,
+      capabilityVersion: expected.capabilityVersion,
+      canonicalName: expected.canonicalName,
+      actionPolicy: {
+        ...expected.actionPolicy,
+        enforcement: "handler",
+        invocation: invocationPolicy,
+      },
+      invocation: { confirmed: true },
+    } as never
+    expect(() => withServerResolvedIdempotencyKey(forged, "k")).toThrowError(
+      expect.objectContaining<Partial<ToolError>>({ code: "ACTION_POLICY_REQUIRED" }),
+    )
   })
 })
 

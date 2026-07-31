@@ -78,6 +78,46 @@ Rules:
   architecture checker rejects `z.custom()` and opaque top-level output schemas in
   canonical Tool runtime modules.
 
+## Intent-level workflow tools
+
+Some jobs an operator does are not one service call — they are a fixed sequence of
+them. When that sequence leaks into a tool **description** as prose the model is
+expected to follow ("find the client with `list_people`, resolve options with
+`list_product_options`, allocate a reference with `generate_booking_number`,
+then create"), that is the signal to build a **workflow tool**: one intent-driven
+call that the platform orchestrates. See voyant#3921 / voyant#3933.
+
+A workflow tool:
+
+- is **one intent-level call** — `book_product`, not
+  find-client → resolve-options → allocate-reference → create;
+- **resolves server-side** every token the caller would otherwise carry across
+  turns. `book_product` allocates the booking reference and derives the
+  action-ledger idempotency key itself, so an identical retry replays the
+  original booking instead of minting a second one. Carrying an opaque token
+  across turns is one of the least reliable things to ask of a model, and the
+  failure mode is a duplicate write;
+- **validates before it writes** — an incomplete request returns actionable
+  issues and creates nothing, exactly as `compose_product` does;
+- **carries its own action policy.** It does not bypass the action-ledger gate:
+  risk, confirmation, ledger binding, and approval are per-action and
+  load-bearing. A workflow tool gets its own capability identity and action id
+  even when it composes the same durable command as a lower-level tool, so the
+  two admissions stay unconfusable.
+
+**Where a workflow tool lives — the ownership rule.** A workflow tool lives in the
+package that owns the **real orchestration service**, which is not always the
+package the job is named after. Booking is the load-bearing example: a booking is
+created by `book_product`, but that tool lives in **`@voyant-travel/finance`**, not
+`@voyant-travel/bookings`. Finance already composes Bookings (the lease-gated
+domain settlement), travel credits, payment schedules, and invoices inside one
+durable command — it is the only package that can orchestrate all of them without
+introducing a workspace dependency cycle — so the booking workflow tool belongs to
+Finance. Do not add a booking tool to `@voyant-travel/bookings`; it would have to
+reach back into Finance to do the real work. When a workflow's home is
+non-obvious, it is because the orchestration service already lives somewhere the
+job's name does not point to — follow the service, not the noun.
+
 ## Domain completeness notes
 
 Inventory owns guarded core authoring and lifecycle Tools (`create_product`,
@@ -109,7 +149,13 @@ later reservation.
 Booking creation is exposed only through Finance's admitted create command. Finance
 owns the public command and its policy admission; Bookings owns the lease-gated domain
 settlement that inserts the canonical row. Capacity holds remain separate pre-booking
-operations and cannot create a booking.
+operations and cannot create a booking. The intent-level entry point is
+`book_product` (a Finance workflow tool, per the ownership rule above): it maps a
+product/client/travelers/rooms request onto that same durable command, resolving the
+booking reference and the idempotency key server-side. `create_booking` remains the
+lower-level tool for a caller that already holds a fully resolved command; it too now
+allocates the reference server-side. The old `generate_booking_number` tool — which
+existed only to make the caller carry a reference across calls — is retired.
 
 Graph actions distinguish existing targets from handler-generated targets explicitly.
 Generic action preflight resolves targets through a deterministic server-owned ladder: a

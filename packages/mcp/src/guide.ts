@@ -252,10 +252,10 @@ function bookingJourneySection(scope: GuideScope): string {
     "min default) and is a live-pricing snapshot, not a commitment.\n" +
     "2. Hold (where supported) — place a time-limited claim on inventory while details " +
     "are gathered. A Hold expires; it is not a Booking.\n" +
-    "3. Commit — creating the Booking is a SEPARATE, admitted operation, not a side " +
-    "effect of quoting or holding. Quote and hold routes never insert a Booking; " +
-    "booking creation is admitted through the Finance/Bookings settlement path with " +
-    "its action-ledger claim and idempotency key.\n\n" +
+    "3. Commit — creating the Booking is a SEPARATE, admitted operation, not a side effect of " +
+    "quoting or holding. The intent-level entry point is `book_product` (product, option, billing " +
+    "party — a `personId` or `organizationId` — travelers, rooms — in one call): it resolves the " +
+    "booking reference and idempotency key server-side (you carry neither), validates before writing, and takes `_voyant.confirmed: true`.\n\n" +
     "Because commit is its own confirmed step, quoting or holding leaves no durable " +
     "reservation. Do not treat a successful quote as a booked seat." +
     (scope.writeEnabled

@@ -31,7 +31,10 @@ interface JsonRpcResponse {
   }
 }
 
-const REQUIRED_TOOLS = ["generate_booking_number", "create_booking"] as const
+// `generate_booking_number` was retired (voyant#3933): `create_booking` now
+// resolves the booking reference server-side, so the dialog needs only the one
+// write capability.
+const REQUIRED_TOOLS = ["create_booking"] as const
 
 export async function getManualBookingToolAvailability(
   options: ManualBookingMcpClientOptions,
@@ -48,16 +51,6 @@ export async function getManualBookingToolAvailability(
   )
   const missingTools = REQUIRED_TOOLS.filter((name) => !names.has(name))
   return { canCreate: missingTools.length === 0, missingTools }
-}
-
-export async function allocateManualBookingNumber(
-  options: ManualBookingMcpClientOptions,
-): Promise<string> {
-  const result = await callTool(options, "generate_booking_number", {})
-  if (typeof result.bookingNumber !== "string" || result.bookingNumber.length === 0) {
-    throw new Error("The booking number Tool returned an invalid reference.")
-  }
-  return result.bookingNumber
 }
 
 export async function createManualBookingThroughTool(

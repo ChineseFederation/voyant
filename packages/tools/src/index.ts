@@ -49,6 +49,7 @@ export {
   assertAdmittedActionPolicy,
   assertAuthenticHandlerActionPolicyContext,
   type HandlerActionPolicyExpectation,
+  withServerResolvedIdempotencyKey,
 } from "./handler-action-policy.js"
 export {
   createToolRegistry,

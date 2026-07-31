@@ -592,12 +592,12 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   runtimePorts: [requirePort(financeSelfServiceBookingSourceRuntimePort, { optional: true })],
   tools: [
     {
-      id: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
-      name: "generate_booking_number",
-      runtime: { entry: "@voyant-travel/finance/tools", export: "generateBookingNumberTool" },
-      requiredScopes: ["bookings:write"],
+      id: "@voyant-travel/finance#bookings-create-extension.tool.book-product",
+      name: "book_product",
+      runtime: { entry: "@voyant-travel/finance/tools", export: "bookProductTool" },
+      requiredScopes: ["bookings:write", "finance:write"],
       context: ["finance"],
-      risk: "low",
+      risk: "high",
     },
     {
       id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
@@ -637,6 +637,40 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
       allowedActorTypes: ["staff"],
       from: {
         tools: ["@voyant-travel/finance#bookings-create-extension.tool.create-booking"],
+      },
+    },
+    {
+      // Intent-level workflow action (voyant#3933). Same durable command and
+      // created target as create-booking; a distinct capability identity so the
+      // two admissions stay unconfusable and the server-resolved reference and
+      // idempotency key belong to this action's audit trail.
+      id: "@voyant-travel/finance#bookings-create-extension.action.book-product",
+      capabilityId: "@voyant-travel/finance#bookings-create-extension.action.book-product",
+      version: "v1",
+      kind: "execute",
+      targetType: "booking",
+      availability: { status: "available" },
+      effectBoundary: "multistage",
+      durability: {
+        strategy: "outbox",
+        testReference: "tests/integration/booking-create.test.ts",
+      },
+      targetLifecycle: "created",
+      createdTarget: {
+        commandTargetType: "finance_booking_create_command",
+        resultReferenceType: "booking",
+        durability: "handler-command-claim-v1",
+      },
+      resource: "bookings",
+      action: "write",
+      requiredScopes: ["bookings:write", "finance:write"],
+      risk: "high",
+      ledger: "required",
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      from: {
+        tools: ["@voyant-travel/finance#bookings-create-extension.tool.book-product"],
       },
     },
     {

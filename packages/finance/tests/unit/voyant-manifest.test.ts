@@ -540,9 +540,9 @@ describe("finance deployment manifest", () => {
         id: "@voyant-travel/finance#bookings-create-extension",
         tools: [
           expect.objectContaining({
-            id: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
-            name: "generate_booking_number",
-            requiredScopes: ["bookings:write"],
+            id: "@voyant-travel/finance#bookings-create-extension.tool.book-product",
+            name: "book_product",
+            requiredScopes: ["bookings:write", "finance:write"],
           }),
           expect.objectContaining({
             id: "@voyant-travel/finance#bookings-create-extension.tool.create-booking",
@@ -569,6 +569,23 @@ describe("finance deployment manifest", () => {
             allowedActorTypes: ["staff"],
             from: {
               tools: ["@voyant-travel/finance#bookings-create-extension.tool.create-booking"],
+            },
+          }),
+          // Intent-level workflow action (voyant#3933): same command and target,
+          // distinct capability identity, server-resolved reference and key.
+          expect.objectContaining({
+            id: "@voyant-travel/finance#bookings-create-extension.action.book-product",
+            availability: { status: "available" },
+            targetLifecycle: "created",
+            createdTarget: {
+              commandTargetType: "finance_booking_create_command",
+              resultReferenceType: "booking",
+              durability: "handler-command-claim-v1",
+            },
+            ledger: "required",
+            allowedActorTypes: ["staff"],
+            from: {
+              tools: ["@voyant-travel/finance#bookings-create-extension.tool.book-product"],
             },
           }),
           // Self-service creation is a separate action over the same command:

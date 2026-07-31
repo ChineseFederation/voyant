@@ -1,27 +1,16 @@
-import {
-  type ActionLedgerRequestContextValues,
-  buildActionLedgerApprovedExecutionFields,
-} from "@voyant-travel/action-ledger"
-import {
-  bookingsService,
-  bookingToolDetailSchema,
-  redactBookingContact,
-  redactTravelerIdentity,
-  shouldRevealBookingPii,
-} from "@voyant-travel/bookings"
-import { isStaffRbacEnforced } from "@voyant-travel/hono"
+import { buildActionLedgerApprovedExecutionFields } from "@voyant-travel/action-ledger"
 import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 
-import { executeFinanceStaffBookingCreateCommand } from "./booking-create-command.js"
-import { allocateBookingNumber } from "./booking-number.js"
 import {
   authorizeFinanceInvoiceIssue,
   FINANCE_INVOICE_ISSUE_ACTION_NAME,
   FINANCE_INVOICE_ISSUE_CAPABILITY,
   FINANCE_INVOICE_ISSUE_TOOL_NAME,
 } from "./invoice-issue-authorization.js"
+import { financeBookingToolServices } from "./mcp-booking-runtime.js"
+import { financeToolActionLedgerContext } from "./mcp-runtime-shared.js"
 import {
   authorizeFinanceRefund,
   FINANCE_REFUND_ACTION_NAME,
@@ -35,6 +24,7 @@ import {
   buildUnsyncedProformaApprovalSnapshot,
   issueInvoiceFromBookingCommand,
 } from "./service-issue.js"
+import { toJsonValue } from "./tool-json.js"
 
 export * from "./tools.js"
 
@@ -52,50 +42,9 @@ export const voyantToolContextContribution = defineToolContextContribution({
           financeService.getFinanceAggregates(db, query),
         voidInvoice: (id: string, input: { reason?: string }) =>
           financeService.voidInvoice(db, id, input),
-        generateBookingNumber: async () => ({
-          bookingNumber: await allocateBookingNumber(db as PostgresJsDatabase),
-        }),
-        createBooking: (
-          input: Parameters<typeof executeFinanceStaffBookingCreateCommand>[0]["commandInput"],
-          admitted: Parameters<typeof executeFinanceStaffBookingCreateCommand>[0]["admitted"],
-        ) =>
-          executeFinanceStaffBookingCreateCommand({
-            db,
-            context: financeToolActionLedgerContext(c),
-            commandInput: input,
-            admitted,
-            runtime: getFinanceRouteRuntime(c),
-          }).then(async (result) => {
-            const booking = await bookingsService.getBookingById(db, result.value.bookingId)
-            if (!booking) {
-              throw new ToolError("The created booking could not be read back.", "NOT_FOUND", {
-                bookingId: result.value.bookingId,
-              })
-            }
-            const [items, travelers] = await Promise.all([
-              bookingsService.listItems(db, booking.id),
-              bookingsService.listTravelers(db, booking.id),
-            ])
-            const reveal = shouldRevealBookingPii({
-              actor: c.var.actor,
-              scopes: c.var.scopes,
-              callerType: c.var.callerType,
-              isInternalRequest: c.var.isInternalRequest,
-              enforceRbac: isStaffRbacEnforced(c.env),
-            })
-            const detail = {
-              ...(reveal ? booking : redactBookingContact(booking)),
-              items,
-              travelers: reveal
-                ? travelers
-                : travelers.map((traveler) => redactTravelerIdentity(traveler)),
-            }
-            return {
-              bookingId: booking.id,
-              replayed: result.replayed,
-              booking: bookingToolDetailSchema.parse(toJsonValue(detail)),
-            }
-          }),
+        // create_booking + book_product (voyant#3933) — both compose the durable
+        // booking-create command; book_product resolves reference and key server-side.
+        ...financeBookingToolServices(db as PostgresJsDatabase, c),
         async issueInvoiceFromBooking(input: {
           command: CreateInvoiceFromBookingInput
           idempotencyKey: string
@@ -353,24 +302,6 @@ async function executeInvoiceIssueTool(input: {
   }
 }
 
-function financeToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues {
-  return {
-    userId: c.get("userId") ?? null,
-    agentId: c.get("agentId") ?? null,
-    workflowPrincipalId: c.get("workflowPrincipalId") ?? null,
-    principalSubtype: c.get("principalSubtype") ?? null,
-    sessionId: c.get("sessionId") ?? null,
-    apiTokenId: c.get("apiTokenId") ?? c.get("apiKeyId") ?? null,
-    callerType: c.get("callerType") ?? null,
-    actor: c.get("actor") ?? null,
-    isInternalRequest: c.get("isInternalRequest") ?? false,
-    organizationId: c.get("organizationId") ?? null,
-    workflowRunId: c.get("workflowRunId") ?? null,
-    workflowStepId: c.get("workflowStepId") ?? null,
-    correlationId: c.req.header("x-correlation-id") ?? c.req.header("x-request-id") ?? null,
-  }
-}
-
 function financeRefundAuthorizationError(
   result: Exclude<
     Awaited<ReturnType<typeof authorizeFinanceRefund>>,
@@ -474,15 +405,4 @@ function financeInvoiceIssueAuthorizationError(
 function toIsoString(value: Date | string | null): string | null {
   if (!value) return null
   return value instanceof Date ? value.toISOString() : value
-}
-
-function toJsonValue(value: unknown): unknown {
-  if (value instanceof Date) return value.toISOString()
-  if (Array.isArray(value)) return value.map(toJsonValue)
-  if (typeof value !== "object" || value === null) return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .map(([key, nested]) => [key, toJsonValue(nested)] as const)
-      .filter(([, nested]) => nested !== undefined),
-  )
 }

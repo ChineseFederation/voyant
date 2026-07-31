@@ -14,14 +14,23 @@ import {
 } from "@voyant-travel/tools"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
-import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "./booking-create-policy.js"
+import {
+  type BookProductOutput,
+  bookProductToolInputSchema,
+  bookProductToolOutputSchema,
+} from "./book-product.js"
+import {
+  FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
+  FINANCE_BOOKING_CREATE_HANDLER_POLICY,
+} from "./booking-create-policy.js"
 import {
   creditNoteSchema,
   invoiceDetailSchema,
   invoiceListItemSchema,
   invoiceSchema,
 } from "./routes-invoice-schemas.js"
-import { type bookingCreateSchema, bookingCreateToolSchema } from "./service-booking-create.js"
+import { bookingCreateToolSchema } from "./service-booking-create.js"
+import { parseJsonResult } from "./tool-json.js"
 import {
   insertCreditNoteSchema,
   invoiceFromBookingSchema,
@@ -61,15 +70,18 @@ export interface FinanceToolServices {
     idempotencyKey: string
     approvalId?: string
   }): Promise<unknown>
-  generateBookingNumber(): Promise<{ bookingNumber: string }>
   createBooking(
-    input: z.infer<typeof bookingCreateSchema>,
+    input: z.infer<typeof createBookingToolInputSchema>["booking"],
     admitted: ReturnType<typeof admitHandlerActionPolicy>,
   ): Promise<{
     bookingId: string
     replayed: boolean
     booking: z.infer<typeof bookingToolDetailSchema>
   }>
+  bookProduct(
+    input: z.infer<typeof bookProductToolInputSchema>,
+    admitted: ReturnType<typeof admitHandlerActionPolicy>,
+  ): Promise<BookProductOutput>
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
@@ -244,7 +256,7 @@ export const createBookingTool = defineTool({
   capabilityVersion: "v1",
   name: "create_booking",
   description:
-    "Durably create one booking from a product or slot. Requires a billing party: set `personId` for a private client (find it with `list_people`), or `organizationId` for a company booking (find it with `list_organizations`) — at least one is mandatory. For a product with rooms or options, first use `list_product_options` and `list_option_units`, then pass explicit `optionId` and `itemLines`: room quantity means number of rooms, while each line's `travelerKeys` assigns travelers to that room type. Exact retries resolve the original immutable booking reference.",
+    "Durably create one booking from an explicit product/slot command. The booking reference is resolved server-side; omit `booking.bookingNumber`. Prefer `book_product` for the ordinary intent — this lower-level tool is for callers that already hold a fully resolved command.",
   inputSchema: createBookingToolInputSchema,
   outputSchema: durableBookingCreateResultSchema,
   requiredScopes: ["bookings:write", "finance:write"],
@@ -270,37 +282,34 @@ export const createBookingTool = defineTool({
   },
 })
 
-const generateBookingNumberArgs = z.object({})
-
-const generateBookingNumberResultSchema = z.object({
-  bookingNumber: z
-    .string()
-    .describe("The allocated booking reference. Pass it to `create_booking` unchanged."),
-})
-
-export const generateBookingNumberTool = defineTool<
-  z.infer<typeof generateBookingNumberArgs>,
-  z.infer<typeof generateBookingNumberResultSchema>,
-  FinanceToolContext
->({
+export const bookProductTool = defineTool({
   owner: "@voyant-travel/finance#bookings-create-extension",
-  capabilityId: "@voyant-travel/finance#bookings-create-extension.tool.generate-booking-number",
+  capabilityId: "@voyant-travel/finance#bookings-create-extension.tool.book-product",
   capabilityVersion: "v1",
-  name: "generate_booking_number",
+  name: "book_product",
   description:
-    "Allocate the booking reference for a new booking. Call this before `create_booking` and pass the result through as `bookingNumber`. Never invent a reference and never build one out of the traveller's or client's details — the reference is shown to travellers and printed on invoices. Re-use the same allocated value when retrying the same create so the retry resolves the original booking instead of making a second one.",
-  inputSchema: generateBookingNumberArgs,
-  outputSchema: generateBookingNumberResultSchema,
-  requiredScopes: ["bookings:write"],
+    "Book a product for a client in one call: product and option, the billing party (a `personId` for a private client or an `organizationId` for a company), travelers, and rooms. The platform resolves the booking reference and the idempotency key server-side, so nothing has to be carried across calls. An incomplete request returns actionable issues and creates nothing.",
+  inputSchema: bookProductToolInputSchema,
+  outputSchema: bookProductToolOutputSchema,
+  requiredScopes: ["bookings:write", "finance:write"],
   audience: { source: "grant", allowed: ["staff"] },
-  tier: "read",
-  riskPolicy: READ_ONLY_RISK,
-  async handler(_args, ctx) {
-    return generateBookingNumberResultSchema.parse(await finance(ctx).generateBookingNumber())
+  tier: "destructive",
+  riskPolicy: {
+    destructive: true,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+    sideEffects: ["data-write", "external-booking", "payment"],
+  },
+  actionPolicyEnforcement: "handler",
+  annotations: { idempotentHint: true },
+  async handler(input, ctx) {
+    const admitted = admitHandlerActionPolicy(ctx, FINANCE_BOOK_PRODUCT_HANDLER_POLICY)
+    return bookProductToolOutputSchema.parse(await finance(ctx).bookProduct(input, admitted))
   },
 })
 
-export const financeBookingsCreateTools = [createBookingTool, generateBookingNumberTool] as const
+export const financeBookingsCreateTools = [createBookingTool, bookProductTool] as const
 
 export const issueInvoiceFromBookingToolInputSchema = z.object({
   command: invoiceFromBookingSchema.describe("The exact invoice or proforma issue command."),
@@ -485,18 +494,3 @@ export const financeTools = [
   previewUnsyncedProformaFromBookingTool,
   issueUnsyncedProformaFromBookingTool,
 ] as const
-
-function parseJsonResult<T extends z.ZodType>(schema: T, value: unknown): z.output<T> {
-  return schema.parse(toJsonValue(value))
-}
-
-function toJsonValue(value: unknown): unknown {
-  if (value instanceof Date) return value.toISOString()
-  if (Array.isArray(value)) return value.map(toJsonValue)
-  if (typeof value !== "object" || value === null) return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .map(([key, nested]) => [key, toJsonValue(nested)] as const)
-      .filter(([, nested]) => nested !== undefined),
-  )
-}

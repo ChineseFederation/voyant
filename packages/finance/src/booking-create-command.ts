@@ -11,6 +11,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
+  FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_POLICY,
   FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY,
@@ -63,6 +64,20 @@ export async function executeFinanceStaffBookingCreateCommand(
   input: FinanceBookingCreateCommandInput,
 ) {
   assertAdmittedActionPolicy(input.admitted, FINANCE_BOOKING_CREATE_HANDLER_POLICY)
+  return executeBookingCreateCommand(input)
+}
+
+/**
+ * Intent-level `book_product` creation (voyant#3933).
+ *
+ * Pins the `book_product` staff policy expectation. It composes the exact same
+ * durable command as `executeFinanceStaffBookingCreateCommand` — only the
+ * admission identity differs — so the two entrypoints stay unconfusable while
+ * the workflow tool resolves the booking reference and idempotency key
+ * server-side before this runs.
+ */
+export async function executeFinanceBookProductCommand(input: FinanceBookingCreateCommandInput) {
+  assertAdmittedActionPolicy(input.admitted, FINANCE_BOOK_PRODUCT_HANDLER_POLICY)
   return executeBookingCreateCommand(input)
 }
 

@@ -4,7 +4,10 @@ import {
   type ToolHandlerActionPolicyContext,
 } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
-import { FINANCE_BOOKING_CREATE_HANDLER_POLICY } from "../src/booking-create-policy.js"
+import {
+  FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
+  FINANCE_BOOKING_CREATE_HANDLER_POLICY,
+} from "../src/booking-create-policy.js"
 import {
   type FinanceToolServices,
   financeBookingsCreateTools,
@@ -364,34 +367,73 @@ describe("finance tools", () => {
     ).toMatchObject({ status: "approval_required", approval: { id: "apr_proforma_1" } })
   })
 
-  it("allocates the booking reference through a Tool instead of leaving it to the caller", async () => {
+  it("books a product through the intent-level workflow Tool, resolving reference and key server-side", async () => {
     const registry = createToolRegistry()
-    const tool = financeBookingsCreateTools.find(
-      (entry) => entry.name === "generate_booking_number",
+    const tool = financeBookingsCreateTools.find((entry) => entry.name === "book_product")
+    const action = (financeBookingsCreateVoyantPlugin.actions ?? []).find(
+      (entry) =>
+        entry.id === "@voyant-travel/finance#bookings-create-extension.action.book-product",
     )
-    if (!tool) throw new Error("generate_booking_number is missing")
+    if (!tool || !action) throw new Error("book_product graph declarations are missing")
     registry.register(tool, {
       capabilityId: tool.capabilityId,
       owner: tool.owner,
       capabilityVersion: tool.capabilityVersion,
       name: tool.name,
       requiredScopes: tool.requiredScopes,
-      deploymentRisk: "low",
+      deploymentRisk: "high",
+      actionPolicy: action,
     })
+    expect(tool.actionPolicyEnforcement).toBe("handler")
 
+    let receivedInput: { productId?: string; personId?: string } | undefined
+    const services = {
+      // The caller never supplies an idempotency key — the handler (in
+      // mcp-runtime) resolves it server-side before the durable command.
+      async bookProduct(input: { productId?: string; personId?: string }) {
+        receivedInput = input
+        return {
+          status: "created" as const,
+          bookingId: "booking_1",
+          bookingNumber: "B-1",
+          replayed: false,
+          booking: bookingDetail(),
+        }
+      },
+    }
     const result = await registry.dispatch(
-      "generate_booking_number",
-      {},
-      ctx({
-        async generateBookingNumber() {
-          return { bookingNumber: "BK-2607-000123" }
+      "book_product",
+      {
+        productId: "product_1",
+        personId: "person_1",
+        billingContact: { firstName: "Ada", lastName: "Lovelace", email: "ada@example.com" },
+        travelers: [
+          { clientTravelerKey: "ada", firstName: "Ada", lastName: "Lovelace", isPrimary: true },
+        ],
+      },
+      ctx(services, {
+        capabilityId: FINANCE_BOOK_PRODUCT_HANDLER_POLICY.capabilityId,
+        capabilityVersion: FINANCE_BOOK_PRODUCT_HANDLER_POLICY.capabilityVersion,
+        canonicalName: "book_product",
+        actionPolicy: {
+          ...FINANCE_BOOK_PRODUCT_HANDLER_POLICY.actionPolicy,
+          enforcement: "handler",
+          invocation: {
+            requiredFields: ["confirmed", "idempotencyKey"],
+            optionalFields: ["reasonCode", "approvalId", "idempotencyFingerprint"],
+          },
         },
+        // No idempotencyKey: book_product resolves it server-side.
+        invocation: { confirmed: true },
       }),
     )
 
-    expect(result).toEqual({ bookingNumber: "BK-2607-000123" })
-    // Read-tier so allocating a reference never needs an approval round-trip.
-    expect(tool.tier).toBe("read")
+    expect(result).toMatchObject({
+      status: "created",
+      bookingId: "booking_1",
+      bookingNumber: "B-1",
+    })
+    expect(receivedInput).toMatchObject({ productId: "product_1", personId: "person_1" })
   })
 
   it("creates a booking through the composing Finance extension Tool", async () => {
@@ -478,20 +520,27 @@ describe("finance tools", () => {
     })
   })
 
-  it("advertises the billing-party requirement in the create_booking contract", () => {
-    // ProTravel hit this in production: Max resolved the client, then called
-    // create_booking without personId and looped on
-    // "Select a billing person or organization". personId and organizationId
-    // are both structurally optional (either satisfies the rule), and the
-    // requirement lived only in a superRefine, which does not serialize into
-    // the JSON Schema a Tool caller reads. The contract has to state it.
+  it("no longer scripts an orchestration sequence in the create_booking description", () => {
+    // voyant#3933: the orchestration prose is deleted. The old description named
+    // three other tools and the order to call them in (find the client with
+    // list_people/list_organizations, resolve options with
+    // list_product_options/list_option_units, allocate with
+    // generate_booking_number). That intent now lives in book_product, which
+    // resolves the reference and idempotency key server-side.
     const tool = financeBookingsCreateTools.find((entry) => entry.name === "create_booking")
-    if (!tool) throw new Error("create_booking is missing")
+    const bookTool = financeBookingsCreateTools.find((entry) => entry.name === "book_product")
+    if (!tool || !bookTool) throw new Error("booking-create tools are missing")
 
-    expect(tool.description).toMatch(/personId/)
-    expect(tool.description).toMatch(/organizationId/)
-    expect(tool.description).toMatch(/list_option_units/)
-    expect(tool.description).toMatch(/room quantity means number of rooms/i)
+    expect(tool.description).not.toMatch(/find it with/i)
+    expect(tool.description).not.toMatch(/first use/i)
+    expect(tool.description).not.toMatch(/generate_booking_number/)
+    expect(tool.description).not.toMatch(/list_people/)
+    expect(tool.description).not.toMatch(/list_product_options/)
+
+    // The intent create_booking used to script is expressed by book_product.
+    expect(bookTool.description).toMatch(/personId/)
+    expect(bookTool.description).toMatch(/organizationId/)
+    expect(bookTool.description).toMatch(/idempotency key server-side/i)
 
     // Assert on the same carrier `bookingNumber` already relies on to reach a
     // caller, so this pins the description actually shipping, not a doc comment.

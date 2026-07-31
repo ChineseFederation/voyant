@@ -71,13 +71,13 @@ import {
   usePricingPreview,
 } from "../index.js"
 import {
-  allocateManualBookingNumber,
   createManualBookingThroughTool,
   getManualBookingToolAvailability,
 } from "../manual-booking-mcp-client.js"
 import { useVoyantBookingsContext } from "../provider.js"
 import {
   findAlreadyPaidInstallmentMissingPaymentDate,
+  generateBookingNumber,
   hasAnyPaidPayment,
   inferTravelerPricingCategoryId,
   isBookingInventoryUnit,
@@ -148,7 +148,12 @@ export interface ManualBookingCreateFormProps {
 
 export interface ManualBookingAttempt {
   fingerprint: string
-  bookingNumber: string | null
+  /**
+   * Cosmetic reference for the default shared-room group label only. The durable
+   * booking reference is resolved server-side by `create_booking` (voyant#3933),
+   * so this is never sent as the booking number.
+   */
+  labelReference: string | null
   idempotencyKey: string
 }
 
@@ -1432,7 +1437,7 @@ export function ManualBookingCreateForm({
       redistributed.travelers,
       travelerPricingCategories,
     )
-    const bookingNumber = attemptRef.current?.bookingNumber ?? null
+    const labelReference = attemptRef.current?.labelReference ?? null
     const selectedSharedRoomUnitId = getSelectedSharedRoomUnitId(rooms.quantities)
     const groupMembership: BookingCreateGroupMembershipInput | undefined = sharedRoom.enabled
       ? sharedRoom.mode === "create"
@@ -1442,7 +1447,7 @@ export function ManualBookingCreateForm({
             label:
               sharedRoom.groupLabel?.trim() ||
               `${messages.bookingCreateDialog.labels.sharedRoomGeneratedLabelPrefix} - ${
-                bookingNumber ?? "pending"
+                labelReference ?? "pending"
               }`,
             optionUnitId: selectedSharedRoomUnitId,
             makeBookingPrimary: true,
@@ -1500,7 +1505,9 @@ export function ManualBookingCreateForm({
     if (!attemptRef.current || attemptRef.current.fingerprint !== fingerprint) {
       attemptRef.current = {
         fingerprint,
-        bookingNumber: null,
+        // Cosmetic reference for the default shared-room group label; the durable
+        // booking reference is allocated server-side by `create_booking`.
+        labelReference: generateBookingNumber(),
         idempotencyKey: createIdempotencyKey(),
       }
     }
@@ -1508,19 +1515,18 @@ export function ManualBookingCreateForm({
     setSubmitting(true)
     try {
       const attempt = attemptRef.current
-      if (!attempt.bookingNumber) {
-        attempt.bookingNumber = await allocateManualBookingNumber(client)
-      }
       if (groupMembership?.action === "create") {
         booking.groupMembership = {
           ...groupMembership,
           label:
             sharedRoom.groupLabel?.trim() ||
-            `${messages.bookingCreateDialog.labels.sharedRoomGeneratedLabelPrefix} - ${attempt.bookingNumber}`,
+            `${messages.bookingCreateDialog.labels.sharedRoomGeneratedLabelPrefix} - ${attempt.labelReference}`,
         }
       }
+      // The reference is resolved server-side; the stable idempotencyKey makes a
+      // retry replay the original booking instead of creating a second one.
       const result = await createManualBookingThroughTool(client, {
-        booking: { ...booking, bookingNumber: attempt.bookingNumber },
+        booking,
         idempotencyKey: attempt.idempotencyKey,
       })
       await queryClient.invalidateQueries({ queryKey: availabilityQueryKeys.slots() })

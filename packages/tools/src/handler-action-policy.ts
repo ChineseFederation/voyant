@@ -133,6 +133,40 @@ export function assertAuthenticHandlerActionPolicyContext(
 }
 
 /**
+ * Re-mint an already-authentic handler admission with a server-resolved
+ * idempotency key.
+ *
+ * Intent-level workflow tools (voyant#3933) resolve the action-ledger
+ * idempotency key server-side rather than making the caller carry an opaque
+ * token across turns — the failure mode that motivated retiring
+ * `generate_booking_number`. Because `executeAdmittedCreatedTargetCommand`
+ * treats `admitted.invocation.idempotencyKey` as authoritative, the workflow
+ * handler needs to seat its server-derived key there without weakening the
+ * gate. This is the sanctioned way to do it: the input admission must already
+ * be authentic, and only the idempotency key is changed — actor, action policy,
+ * capability identity and transport are carried through untouched. It is the
+ * created-target analogue of the server-owned `requestId` a generic
+ * server-owned-target action already uses.
+ */
+export function withServerResolvedIdempotencyKey(
+  admitted: ToolHandlerActionPolicyContext,
+  idempotencyKey: string,
+): ToolHandlerActionPolicyContext {
+  assertAuthenticHandlerActionPolicyContext(admitted)
+  const key = idempotencyKey.trim()
+  if (!key) {
+    throw new ToolError(
+      "A server-resolved idempotency key must be a non-empty string.",
+      "INVALID_INPUT",
+    )
+  }
+  return mintHandlerActionPolicyContext(
+    { ...admitted, invocation: { ...admitted.invocation, idempotencyKey: key } },
+    admitted.transport,
+  )
+}
+
+/**
  * Package-private runtime primitive used only by the Tool registry.
  *
  * This module is not a package export; consumers can assert admissions but
