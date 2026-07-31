@@ -159,7 +159,9 @@ const BASE_PROVIDERS = {
   search: "none",
   email: "none",
   sms: "none",
-  adminAuth: "voyant-cloud",
+  // better-auth is self-contained. voyant-cloud admin auth requires an injected
+  // integration, which is orthogonal to what most of these tests exercise.
+  adminAuth: "better-auth",
   customerAuth: "disabled",
   realtime: "none",
   scheduledJobs: "none",
@@ -619,6 +621,26 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
       deployment: { mode: "managed-cloud" },
       env: { REDIS_NAMESPACE: "region-eu-1" },
     })
+  })
+
+  it("requires an injected auth integration when adminAuth binds voyant-cloud", async () => {
+    // Gated on the binding rather than the deployment mode: the voyant-cloud
+    // provider is externally supplied, so the integration must be injected
+    // wherever it is bound. better-auth is self-contained and needs nothing.
+    const providers = {
+      ...BASE_PROVIDERS,
+      adminAuth: "voyant-cloud",
+    } satisfies VoyantDeploymentProviders
+
+    await expect(
+      loadVoyantNodeRuntime({
+        graphRuntime: emptyGraphRuntime(providers),
+        jobs: [],
+        deployment: { mode: "self-hosted", providers },
+        deploymentRequirements: { resources: [] },
+        env: { ORIGIN_TRUST_SECRET: "secret" },
+      }),
+    ).rejects.toThrow(/voyant-cloud admin-auth provider requires an injected auth integration/)
   })
 
   it("allows self-hosted Redis providers to use plaintext TCP without a namespace", async () => {

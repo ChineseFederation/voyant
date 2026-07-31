@@ -335,6 +335,7 @@ export async function loadVoyantNodeRuntime(
   )
   assertVoyantNodeRuntimeSupport({
     mode: options.deployment.mode,
+    providers: options.deployment.providers,
     providerPlan,
     requirements,
     env,
@@ -688,39 +689,67 @@ function isPostgresConnectionUrl(value: string): boolean {
   }
 }
 
+/**
+ * Whether any binding in this plan resolves to Redis.
+ *
+ * Deliberately NOT "the cache/sharedState/rateLimit group" — those roles are
+ * bound independently. Managed binds `cache: redis`, `rateLimit: redis` and
+ * `sharedState: postgres`, so a group-wide test over-applies, and a test keyed
+ * on `sharedState` alone would never fire there. Legacy stored snapshots also
+ * carry `sharedState: redis` from an old backfill, so that role is the least
+ * reliable signal of the three.
+ */
+function bindsRedis(plan: VoyantNodeProviderPlan): boolean {
+  return plan.cache === "redis" || plan.sharedState === "redis" || plan.rateLimit === "redis"
+}
+
 function assertVoyantNodeRuntimeSupport(options: {
   mode: VoyantDeploymentMode
+  providers: Readonly<Record<string, string>>
   providerPlan: VoyantNodeProviderPlan
   requirements: VoyantGraphDeploymentRequirements
   env: VoyantNodeRuntimeEnv
   hasAuthIntegration: boolean
 }) {
   const issues = nodeRuntimeEnvIssues(options.requirements, options.env)
-  if (options.mode === "managed-cloud" && !options.hasAuthIntegration) {
-    issues.push("managed-cloud applications require an injected auth integration")
+
+  // Gated on the binding that implies it, not on the deployment mode: the
+  // voyant-cloud admin-auth provider is externally supplied, so the integration
+  // has to be injected. `better-auth` is self-contained and needs nothing.
+  if (options.providers.adminAuth === "voyant-cloud" && !options.hasAuthIntegration) {
+    issues.push("the voyant-cloud admin-auth provider requires an injected auth integration")
   }
-  if (
-    options.mode === "managed-cloud" &&
-    (options.providerPlan.cache === "redis" ||
-      options.providerPlan.sharedState === "redis" ||
-      options.providerPlan.rateLimit === "redis") &&
-    !options.env.REDIS_NAMESPACE?.trim()
-  ) {
-    issues.push(
-      "managed-cloud Redis cache, shared-state, and rate-limit providers require REDIS_NAMESPACE",
-    )
+
+  // Both Redis rules stay gated on the deployment context, and that is correct
+  // rather than provisional. They encode "this Redis instance is shared between
+  // tenants and reachable over an untrusted network" — which no provider value
+  // carries. `cache: "redis"` is equally true of a managed Upstash instance and
+  // of a self-hoster's Redis on a private network, and the two have opposite
+  // requirements. `allows self-hosted Redis providers to use plaintext TCP
+  // without a namespace` in node-runtime.test.ts is the specification for that.
+  //
+  // REDIS_NAMESPACE additionally cannot be declared unconditionally: the
+  // platform injects it only for images advertising `regionalRedisNamespaceV1`,
+  // an explicit allowlist rather than a version range, so a blanket requirement
+  // would hard-fail boot on managed images outside it (platform#1622).
+  //
+  // What IS wrong here is the name of the axis. This is not managed-versus-
+  // self-hosted; it is shared-untrusted infrastructure versus dedicated. A
+  // self-hoster on shared infrastructure would want both of these rules, which
+  // the current name makes unthinkable. See voyant#3976 item 1.
+  if (options.mode === "managed-cloud" && bindsRedis(options.providerPlan)) {
+    if (!options.env.REDIS_NAMESPACE?.trim()) {
+      issues.push(
+        "managed-cloud Redis cache, shared-state, and rate-limit providers require REDIS_NAMESPACE",
+      )
+    }
+    if (!isSecureRedisUrl(options.env.REDIS_URL)) {
+      issues.push(
+        "managed-cloud Redis providers require rediss:// for Redis TCP or an HTTPS Redis REST URL with a token",
+      )
+    }
   }
-  if (
-    options.mode === "managed-cloud" &&
-    (options.providerPlan.cache === "redis" ||
-      options.providerPlan.sharedState === "redis" ||
-      options.providerPlan.rateLimit === "redis") &&
-    !isManagedRedisUrl(options.env.REDIS_URL)
-  ) {
-    issues.push(
-      "managed-cloud Redis providers require rediss:// for Redis TCP or an HTTPS Redis REST URL with a token",
-    )
-  }
+
   if (issues.length > 0) {
     throw new Error(`Voyant Node runtime is not ready to start:\n${formatIssues(issues)}`)
   }
@@ -798,7 +827,7 @@ function isRedisUrl(value: unknown): value is string {
   }
 }
 
-function isManagedRedisUrl(value: unknown): value is string {
+function isSecureRedisUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false
   try {
     const protocol = redisUrlProtocol(value)
