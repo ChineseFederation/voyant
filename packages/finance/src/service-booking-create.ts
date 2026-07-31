@@ -2248,9 +2248,15 @@ export async function createBookingMutation(
     lease: CreatedTargetMutationLease
     userId?: string
     runtime?: FinanceServiceRuntime
+    /**
+     * The action the caller is executing under. Forwarded to the lease check so
+     * a second legitimate entrypoint (`book_product`) is not rejected against
+     * the first one's identity — see voyant#3992.
+     */
+    actionName?: string
   },
 ): Promise<BookingCreateOutcome> {
-  const { commandIdempotencyKey, lease, runtime, userId } = options
+  const { actionName, commandIdempotencyKey, lease, runtime, userId } = options
   // Parse through the schema so defaults (makeBookingPrimary, role,
   // participantType, etc.) are applied even when callers bypass validation —
   // unit tests and hand-written integrations commonly do.
@@ -2350,6 +2356,7 @@ export async function createBookingMutation(
         {
           availabilityHoldToken: input.availabilityHoldToken,
           monthlyBookingLimit: runtime?.monthlyBookingLimit,
+          ...(actionName ? { actionName } : {}),
         },
       )
       if (!booking) {

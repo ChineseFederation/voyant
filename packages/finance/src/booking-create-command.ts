@@ -11,6 +11,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import {
+  FINANCE_BOOK_PRODUCT_ACTION,
   FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_POLICY,
@@ -78,7 +79,9 @@ export async function executeFinanceStaffBookingCreateCommand(
  */
 export async function executeFinanceBookProductCommand(input: FinanceBookingCreateCommandInput) {
   assertAdmittedActionPolicy(input.admitted, FINANCE_BOOK_PRODUCT_HANDLER_POLICY)
-  return executeBookingCreateCommand(input)
+  // book_product mints its lease under its OWN action identity; the domain must
+  // check against that, not against create_booking's (voyant#3992).
+  return executeBookingCreateCommand(input, undefined, undefined, FINANCE_BOOK_PRODUCT_ACTION)
 }
 
 /**
@@ -104,6 +107,7 @@ async function executeBookingCreateCommand(
   input: FinanceBookingCreateCommandInput,
   fallbackPrincipalId?: string,
   consumeSources?: (tx: PostgresJsDatabase, bookingId: string) => Promise<void>,
+  actionName?: string,
 ) {
   return executeAdmittedCreatedTargetCommand(
     {
@@ -122,6 +126,7 @@ async function executeBookingCreateCommand(
         const transaction = tx as PostgresJsDatabase
         const outcome = await createBookingMutation(transaction, input.commandInput, {
           commandIdempotencyKey: input.admitted.invocation.idempotencyKey!,
+          ...(actionName ? { actionName } : {}),
           lease,
           runtime: input.runtime,
           userId: input.context.userId ?? undefined,

@@ -5726,11 +5726,29 @@ export async function settleBookingCreateDomain(
   commandIdempotencyKey: string,
   data: ConvertProductInput,
   userId?: string,
-  options: { availabilityHoldToken?: string; monthlyBookingLimit?: number | null } = {},
+  options: {
+    availabilityHoldToken?: string
+    monthlyBookingLimit?: number | null
+    /**
+     * The action identity the caller is executing under, which must match the
+     * one the ledger minted the lease with.
+     *
+     * Supplied by the caller rather than hardcoded here because `bookings`
+     * cannot import Finance's action constants — Finance depends on Bookings,
+     * not the reverse. A literal pinned to one entrypoint silently rejected the
+     * second: `book_product` (voyant#3933) minted its lease under
+     * `action.book-product` and failed closed on every call (voyant#3992).
+     * Defaults to the original create action so existing callers are unchanged.
+     */
+    actionName?: string
+    actionVersion?: string
+  } = {},
 ) {
   consumeCreatedTargetMutationLease(lease, tx, {
-    actionName: "@voyant-travel/finance#bookings-create-extension.action.create-booking",
-    actionVersion: "v1",
+    actionName:
+      options.actionName ??
+      "@voyant-travel/finance#bookings-create-extension.action.create-booking",
+    actionVersion: options.actionVersion ?? "v1",
     commandTarget: {
       type: "finance_booking_create_command",
       id: commandIdempotencyKey,
