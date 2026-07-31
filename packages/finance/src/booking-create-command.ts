@@ -15,6 +15,7 @@ import {
   FINANCE_BOOK_PRODUCT_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_HANDLER_POLICY,
   FINANCE_BOOKING_CREATE_POLICY,
+  FINANCE_BOOKING_CREATE_SELF_SERVICE_ACTION,
   FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY,
 } from "./booking-create-policy.js"
 import type { FinanceServiceRuntime } from "./service.js"
@@ -95,7 +96,18 @@ export async function executeFinanceSelfServiceBookingCreateCommand(
   input: FinanceSelfServiceBookingCreateCommandInput,
 ) {
   assertAdmittedActionPolicy(input.admitted, FINANCE_BOOKING_CREATE_SELF_SERVICE_HANDLER_POLICY)
-  return executeBookingCreateCommand(input, input.fallbackPrincipalId, input.consumeSources)
+  // The ledger mints the lease under the action it admitted, which for this
+  // entrypoint is the self-service action -- so settlement has to expect that
+  // one. Leaving it to the default named the staff action and failed every
+  // guest booking closed with `invalid_mutation_lease`, after the shopper had
+  // verified a contact, chosen a room and been quoted. Same defect voyant#3992
+  // fixed for `book_product`; this entrypoint was missed.
+  return executeBookingCreateCommand(
+    input,
+    input.fallbackPrincipalId,
+    input.consumeSources,
+    FINANCE_BOOKING_CREATE_SELF_SERVICE_ACTION,
+  )
 }
 
 /**
