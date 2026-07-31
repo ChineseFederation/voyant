@@ -1,5 +1,69 @@
 # @voyant-travel/mcp
 
+## 0.14.0
+
+### Minor Changes
+
+- d91da47: Collapse the read tool surface into per-domain query tools (layered read
+  projection, voyant#3932).
+
+  **Breaking change.** The ~133 flat read tools (`get_*`, `list_*`, `search_*`)
+  are removed as individually discoverable or callable MCP tools. Each domain's
+  reads are now reached through one `<domain>_query` tool whose input is a
+  discriminated union on `resource` — `inventory_query({ resource: "products",
+… })`, `bookings_query({ resource: "booking", bookingId })`. The projection is
+  pure transport-layer: no domain `tools.ts` changed, grouping is derived from the
+  `owner` each `ToolManifestEntry` already carries.
+
+  Scope filtering prunes resources WITHIN a group, so an unauthorized read is
+  neither a discoverable resource nor a callable one — its query tool simply omits
+  it, and a group with no authorized read never appears. Writes are NOT collapsed:
+  their per-action risk, confirmation, ledger and approval policy stay one Tool
+  each. `GET /v1/admin/mcp/manifest` stays fine-grained — it is the capability
+  index, not the agent surface.
+
+  Migration: replace a flat read call `list_products({ status })` with
+  `inventory_query({ resource: "products", status })`; discover the query tool for
+  a record with `search_tools` (search the record noun, e.g. `products`,
+  `bookings`) and read its discriminated-union schema with `describe_tool`.
+
+  This measurably lowers agent discovery cost on the real composed graph: the
+  six-journey real-surface discovery eval drops from ~48,553 to ~36,974 tokens,
+  and the aggregate describe schema of the read surface falls from ~433,234 to
+  ~115,559 bytes.
+
+- 53d0cc5: Rate-limit the MCP JSON-RPC endpoint (`/v1/admin/mcp`) per caller. Every request
+  is sorted into a `read` bucket (discovery and read-only `tools/call`) or a
+  tighter `write` bucket (`tools/call` on a non-`read` tier, a `destructive` risk
+  policy, or an action-ledgered capability), keyed independently so a read burst
+  never starves writes. Classification reads only existing manifest metadata
+  (`tier` / `riskPolicy` / `actionPolicy`).
+
+  Limits, the window, the per-caller key derivation, and the backing store are
+  deployment-configurable via the new `rateLimit` option on `createMcpApiRoutes`
+  and `createGraphMcpApiRoutes` (pass `false` to disable); they default to safe
+  values (120 reads and 20 writes per key per minute). Exposes
+  `createMcpRateLimiter`, `isRestrictedTool`, `DEFAULT_MCP_RATE_LIMIT`, and the
+  `McpRateLimitOptions` / `McpRateLimitBucket` types. This wires the previously
+  unused `hono-rate-limiter` dependency.
+
+### Patch Changes
+
+- 18a2e0a: Upgrade `@modelcontextprotocol/sdk` to `^1.30.0` (from `^1.29.0`) and add a
+  protocol-version negotiation test.
+
+  1.30.0 is the latest published SDK; it negotiates protocol `2025-11-25` over our
+  stateless transport. It shipped one day before the 2026-07-28 spec revision, so
+  none of that revision's features (cacheable list results, MRTR
+  `input_required`, the tasks extension, `Mcp-Method`/`Mcp-Name` header routing)
+  are implemented yet. `tests/protocol-version.test.ts` pins the negotiated
+  version so a future SDK bump that advances it is visible rather than silent, and
+  `docs/architecture/mcp-2026-07-28-spec-adoption.md` tracks the features to adopt
+  as the SDK ships them — including the constraint that Sampling, Roots, and
+  Logging are now deprecated and must not be built on.
+
+  No behaviour change.
+
 ## 0.13.0
 
 ### Minor Changes
