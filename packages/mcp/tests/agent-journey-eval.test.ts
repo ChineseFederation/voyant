@@ -1,0 +1,445 @@
+/**
+ * Agent journey eval — scored scenarios over a seeded MCP deployment (voyant#3936).
+ *
+ * This is the executable half of the eval loop the #3921 plan calls for. The
+ * ratchets in `starters/operator/tests/selected-graph-mcp-tool-surface.test.ts`
+ * measure how BIG the surface is; this measures whether an agent can DO a job
+ * against it — completion, call count, token cost, and error codes per journey.
+ *
+ * The deployment is seeded in-process: a registry of read tools carrying the
+ * REAL tool names the surface actually serves (`list_products`, `get_product`,
+ * `get_product_content`, `list_bookings` — each verified against its owning
+ * package's `defineTool` in packages/inventory and packages/bookings) backed by
+ * a small in-memory fixture. Real names, deterministic backend: the scenarios
+ * exercise the meta-tool / guide indirection exactly as a live agent would,
+ * without a database or a model API key. Discovery of those same names on the
+ * REAL selected graph is grounded separately in the operator starter test.
+ *
+ * The scores are recorded below as named baseline constants with docblocks that
+ * say what they mean and when to move them — the ratchet precedent — and the run
+ * prints a legible per-scenario report so a regression is visible in CI output,
+ * not just a boolean. The token estimate is response-bytes ÷ 4 (see the harness
+ * docblock); it is a floor and a relative signal, not an exact token bill.
+ */
+import {
+  createToolRegistry,
+  defineTool,
+  READ_ONLY_RISK,
+  type ToolContext,
+  ToolError,
+} from "@voyant-travel/tools"
+import { Hono } from "hono"
+import { beforeAll, describe, expect, it } from "vitest"
+import { z } from "zod"
+
+import { createMcpApiRoutes } from "../src/index.js"
+import {
+  formatJourneyReport,
+  honoTransport,
+  type JourneyScenario,
+  type JourneyScore,
+  type JourneyStepResult,
+  runJourney,
+} from "./support/journey-harness.js"
+
+// --- Seeded fixture: a tiny catalog and booking set the read tools serve. ------
+
+const SEED_PRODUCTS = [
+  {
+    id: "prod_seed_1",
+    slug: "kyoto-cherry-blossom",
+    name: "Kyoto Cherry Blossom Tour",
+    status: "active",
+    bookingMode: "date",
+  },
+  {
+    id: "prod_seed_2",
+    slug: "andes-high-trek",
+    name: "Andes High Trek",
+    status: "active",
+    bookingMode: "itinerary",
+  },
+  {
+    id: "prod_seed_3",
+    slug: "nile-luxury-cruise",
+    name: "Nile Luxury Cruise",
+    status: "draft",
+    bookingMode: "date_time",
+  },
+] as const
+
+const SEED_CONTENT: Record<string, { id: string; name: string; itinerary: string[] }> = {
+  prod_seed_1: {
+    id: "prod_seed_1",
+    name: "Kyoto Cherry Blossom Tour",
+    itinerary: ["Arrive Kyoto", "Philosopher's Path", "Arashiyama bamboo grove"],
+  },
+}
+
+const SEED_BOOKINGS = [
+  { id: "bk_1", status: "confirmed", productId: "prod_seed_1" },
+  { id: "bk_2", status: "held", productId: "prod_seed_2" },
+  { id: "bk_3", status: "confirmed", productId: "prod_seed_1" },
+] as const
+
+const productSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  status: z.string(),
+  bookingMode: z.string(),
+})
+
+const OWNER = "@voyant-travel/inventory"
+const BOOKINGS_OWNER = "@voyant-travel/bookings"
+
+// Read tools mirror the real surface's names, scopes, and read-only risk. The
+// handlers read the seeded fixture instead of a provider so the journey is
+// deterministic and needs no database.
+const listProductsTool = defineTool({
+  capabilityId: `${OWNER}#tool.list-products`,
+  owner: OWNER,
+  capabilityVersion: "v1",
+  name: "list_products",
+  description:
+    "List products with optional filters (status) and pagination. Returns " +
+    "{ data, total, limit, offset }. Read-only.",
+  inputSchema: z.object({
+    status: z.string().optional(),
+    limit: z.number().int().min(1).max(100).optional(),
+    offset: z.number().int().min(0).optional(),
+  }),
+  outputSchema: z.object({
+    data: z.array(productSchema),
+    total: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+  }),
+  requiredScopes: ["products:read"],
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  annotations: { idempotentHint: true },
+  async handler({ status, limit = 25, offset = 0 }) {
+    const filtered = SEED_PRODUCTS.filter((p) => (status ? p.status === status : true))
+    return {
+      data: filtered.slice(offset, offset + limit).map((p) => ({ ...p })),
+      total: filtered.length,
+      limit,
+      offset,
+    }
+  },
+})
+
+const getProductTool = defineTool({
+  capabilityId: `${OWNER}#tool.get-product`,
+  owner: OWNER,
+  capabilityVersion: "v1",
+  name: "get_product",
+  description: "Read a single product by id or by its catalog slug. Returns null when not found.",
+  inputSchema: z.object({ id: z.string().min(1).optional(), slug: z.string().min(1).optional() }),
+  outputSchema: z.object({ product: productSchema.nullable() }),
+  requiredScopes: ["products:read"],
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  async handler({ id, slug }) {
+    if (!id && !slug) throw new ToolError("Provide either id or slug.", "INVALID_INPUT")
+    const product = SEED_PRODUCTS.find((p) => (id ? p.id === id : p.slug === slug)) ?? null
+    return { product: product ? { ...product } : null }
+  },
+})
+
+const getProductContentTool = defineTool({
+  capabilityId: `${OWNER}#content-extension.tool.get-product-content`,
+  owner: OWNER,
+  capabilityVersion: "v1",
+  name: "get_product_content",
+  description: "Resolve composed product content (options, itinerary, media, policies). Read-only.",
+  inputSchema: z.object({ id: z.string().min(1) }),
+  outputSchema: z
+    .object({ id: z.string(), name: z.string(), itinerary: z.array(z.string()) })
+    .nullable(),
+  requiredScopes: ["products:read"],
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  async handler({ id }) {
+    return SEED_CONTENT[id] ?? null
+  },
+})
+
+const listBookingsTool = defineTool({
+  capabilityId: `${BOOKINGS_OWNER}#tool.list-bookings`,
+  owner: BOOKINGS_OWNER,
+  capabilityVersion: "v1",
+  name: "list_bookings",
+  description: "List bookings with an optional status filter. Returns { data, total }. Read-only.",
+  inputSchema: z.object({ status: z.string().optional() }),
+  outputSchema: z.object({
+    data: z.array(z.object({ id: z.string(), status: z.string(), productId: z.string() })),
+    total: z.number(),
+  }),
+  requiredScopes: ["bookings:read"],
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  annotations: { idempotentHint: true },
+  async handler({ status }) {
+    const filtered = SEED_BOOKINGS.filter((b) => (status ? b.status === status : true))
+    return { data: filtered.map((b) => ({ ...b })), total: filtered.length }
+  },
+})
+
+const accessCatalog = {
+  resources: [
+    {
+      id: "products",
+      unitId: OWNER,
+      resource: "products",
+      label: "Products",
+      description: "Catalog products",
+      wildcard: "allow" as const,
+      actions: [{ action: "read", label: "Read", description: "Read products" }],
+    },
+    {
+      id: "bookings",
+      unitId: BOOKINGS_OWNER,
+      resource: "bookings",
+      label: "Bookings",
+      description: "Bookings",
+      wildcard: "allow" as const,
+      actions: [{ action: "read", label: "Read", description: "Read bookings" }],
+    },
+  ],
+  presets: [],
+}
+
+function buildContext(): ToolContext {
+  return {
+    db: {},
+    actor: "staff",
+    audience: "staff",
+    tenantId: "t1",
+    resolverScope: { locale: "en-GB", audience: "staff", market: "default", actor: "staff" },
+  }
+}
+
+/** Mount the seeded MCP surface behind a read-scoped staff key. */
+function seededMcpApp(): Hono {
+  const registry = createToolRegistry()
+  registry.register(listProductsTool)
+  registry.register(getProductTool)
+  registry.register(getProductContentTool)
+  registry.register(listBookingsTool)
+  const mcp = createMcpApiRoutes({ accessCatalog, registry, buildContext })
+  const outer = new Hono()
+  outer.use("*", async (c, next) => {
+    c.set("scopes", ["products:read", "bookings:read"])
+    await next()
+  })
+  outer.route("/", mcp)
+  return outer
+}
+
+// --- Structured-content readers the scripted drivers chain through. ------------
+
+interface ProductRow {
+  id: string
+  slug: string
+  name: string
+  status: string
+}
+
+function productList(step: JourneyStepResult | undefined): ProductRow[] {
+  const data = (step?.structured as { data?: ProductRow[] } | undefined)?.data
+  return Array.isArray(data) ? data : []
+}
+
+function bookingList(step: JourneyStepResult | undefined): Array<{ id: string; status: string }> {
+  const data = (step?.structured as { data?: Array<{ id: string; status: string }> } | undefined)
+    ?.data
+  return Array.isArray(data) ? data : []
+}
+
+function describedName(step: JourneyStepResult | undefined): string | undefined {
+  return (step?.structured as { name?: string } | undefined)?.name
+}
+
+function searchHit(step: JourneyStepResult | undefined, name: string): boolean {
+  const tools = (step?.structured as { tools?: Array<{ name: string }> } | undefined)?.tools
+  return Array.isArray(tools) && tools.some((t) => t.name === name)
+}
+
+// --- The fixed scenario set. ---------------------------------------------------
+
+const SCENARIOS: JourneyScenario[] = [
+  {
+    // discover → describe → read: the canonical progressive-disclosure path.
+    id: "discover-then-read-products",
+    title: "search_tools → describe_tool → list_products",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "search_tools", args: { query: "product" } }
+      if (prior.length === 1) return { tool: "describe_tool", args: { name: "list_products" } }
+      if (prior.length === 2) return { tool: "list_products", args: {} }
+      return null
+    },
+    completed: (prior) =>
+      searchHit(prior[0], "list_products") &&
+      describedName(prior[1]) === "list_products" &&
+      productList(prior[2]).length > 0,
+  },
+  {
+    // Find a product, then read its composed content by the id just discovered.
+    id: "find-product-read-content",
+    title: "search_tools → list_products → get_product_content(id)",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "search_tools", args: { query: "product content" } }
+      if (prior.length === 1) return { tool: "list_products", args: { status: "active" } }
+      if (prior.length === 2) {
+        const id = productList(prior[1])[0]?.id
+        return id ? { tool: "get_product_content", args: { id } } : null
+      }
+      return null
+    },
+    completed(prior) {
+      const id = productList(prior[1])[0]?.id
+      // A nullable output schema is envelope-wrapped under `result` by the MCP
+      // output contract, so the content id lands at structured.result.id.
+      const wrapped = prior[2]?.structured as { result?: { id?: string } } | undefined
+      return Boolean(id && !prior[2]?.isError && wrapped?.result?.id === id)
+    },
+  },
+  {
+    // List bookings with a filter, dispatched through the call_tool meta-tool.
+    id: "list-bookings-with-filter",
+    title: "search_tools → describe_tool → call_tool(list_bookings, confirmed)",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "search_tools", args: { query: "booking" } }
+      if (prior.length === 1) return { tool: "describe_tool", args: { name: "list_bookings" } }
+      if (prior.length === 2)
+        return { tool: "list_bookings", args: { status: "confirmed" }, via: "meta" }
+      return null
+    },
+    completed(prior) {
+      const rows = bookingList(prior[2])
+      return rows.length > 0 && rows.every((b) => b.status === "confirmed")
+    },
+  },
+  {
+    // Guide-first: read the discovery guide, then discover and read a product.
+    id: "guide-then-act",
+    title: "voyant_guide(discovery) → search_tools → get_product(id)",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "voyant_guide", args: { topic: "discovery" } }
+      if (prior.length === 1) return { tool: "search_tools", args: { query: "product" } }
+      if (prior.length === 2) return { tool: "get_product", args: { id: "prod_seed_1" } }
+      return null
+    },
+    completed(prior) {
+      const guided = (prior[0]?.text ?? "").length > 0 && !prior[0]?.isError
+      const product = (prior[2]?.structured as { product?: unknown } | undefined)?.product
+      return guided && searchHit(prior[1], "get_product") && product != null
+    },
+  },
+  {
+    // An agent that fumbles input (no id/slug), reads the actionable error, and
+    // recovers. Exercises the error-code breakdown while still completing.
+    id: "recover-from-bad-input",
+    title: "get_product() [INVALID_INPUT] → list_products → get_product(id)",
+    drive(prior) {
+      if (prior.length === 0) return { tool: "get_product", args: {} }
+      if (prior.length === 1) return { tool: "list_products", args: {} }
+      if (prior.length === 2) {
+        const id = productList(prior[1])[0]?.id
+        return id ? { tool: "get_product", args: { id } } : null
+      }
+      return null
+    },
+    completed(prior) {
+      const recovered = (prior[2]?.structured as { product?: unknown } | undefined)?.product
+      return prior[0]?.code === "INVALID_INPUT" && recovered != null
+    },
+  },
+]
+
+/**
+ * Recorded baselines — the point of the harness (voyant#3936 acceptance). Each
+ * scenario's transcript is fully scripted, so `calls` is EXACT and asserted as
+ * an equality: a change here means the number of round-trips a journey takes
+ * changed, which is exactly the regression worth reviewing.
+ *
+ * `maxTokens` is a NON-BLOCKING ceiling with headroom, not an equality: response
+ * sizes drift with tool-description and guide wording, and the brief wants a
+ * slowdown to be *legible*, not a merge blocker, until the numbers are trusted.
+ * The ceiling is ~1.5× the measured estimate so routine wording edits pass while
+ * a gross regression (a tool's schema ballooning, an unbounded list) trips it.
+ * When you intentionally change the surface, re-run, read the printed report,
+ * and move the measured baseline in the comment plus the ceiling if needed.
+ *
+ * Measured estimates at authoring (response bytes ÷ 4). The describe_tool step
+ * dominates the discovery journeys — it pays a tool's full input schema once,
+ * which is exactly the per-tool cost the aggregate ratchet in the operator
+ * starter bounds. The guide journey pays the `voyant_guide` prose instead.
+ *   discover-then-read-products   calls=3  ~tokens≈1789
+ *   find-product-read-content     calls=3  ~tokens≈425
+ *   list-bookings-with-filter     calls=3  ~tokens≈1092
+ *   guide-then-act                calls=3  ~tokens≈872
+ *   recover-from-bad-input        calls=3  ~tokens≈422
+ */
+const BASELINES: Record<string, { calls: number; maxTokens: number }> = {
+  "discover-then-read-products": { calls: 3, maxTokens: 2_700 },
+  "find-product-read-content": { calls: 3, maxTokens: 650 },
+  "list-bookings-with-filter": { calls: 3, maxTokens: 1_650 },
+  "guide-then-act": { calls: 3, maxTokens: 1_300 },
+  "recover-from-bad-input": { calls: 3, maxTokens: 650 },
+}
+
+describe("agent journey eval harness", () => {
+  let scores: JourneyScore[] = []
+
+  beforeAll(async () => {
+    const transport = honoTransport(seededMcpApp())
+    scores = []
+    for (const scenario of SCENARIOS) scores.push(await runJourney(transport, scenario))
+    // Non-blocking report written straight to stdout so the numbers are legible
+    // in CI on every run — vitest suppresses console.* on a passing file, which
+    // would hide a token/call drift that stayed under the ceiling (voyant#3936).
+    process.stdout.write(`\n${formatJourneyReport(scores)}\n\n`)
+  })
+
+  it("reaches the terminal state of every journey", () => {
+    const incomplete = scores.filter((s) => !s.completed).map((s) => s.id)
+    expect(incomplete, `incomplete journeys: ${incomplete.join(", ") || "none"}`).toEqual([])
+  })
+
+  it("takes exactly the recorded number of tool calls per journey", () => {
+    for (const score of scores) {
+      const baseline = BASELINES[score.id]
+      expect(baseline, `no baseline recorded for ${score.id}`).toBeDefined()
+      expect(score.calls, `${score.id} call count changed`).toBe(baseline?.calls)
+    }
+  })
+
+  it("stays under the non-blocking token ceiling per journey", () => {
+    for (const score of scores) {
+      const ceiling = BASELINES[score.id]?.maxTokens ?? Number.POSITIVE_INFINITY
+      expect(
+        score.tokenEstimate,
+        `${score.id} token estimate ${score.tokenEstimate} exceeded ceiling ${ceiling} — ` +
+          "read the printed report; raise the baseline only with a recorded reason.",
+      ).toBeLessThanOrEqual(ceiling)
+    }
+  })
+
+  it("records tool errors broken down by ToolError code", () => {
+    const byId = new Map(scores.map((s) => [s.id, s]))
+    // The happy-path journeys hit no errors...
+    for (const id of [
+      "discover-then-read-products",
+      "find-product-read-content",
+      "list-bookings-with-filter",
+      "guide-then-act",
+    ]) {
+      expect(byId.get(id)?.errorsByCode, `${id} unexpectedly errored`).toEqual({})
+    }
+    // ...and the recovery journey records exactly one INVALID_INPUT and no more.
+    expect(byId.get("recover-from-bad-input")?.errorsByCode).toEqual({ INVALID_INPUT: 1 })
+  })
+})
