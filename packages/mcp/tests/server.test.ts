@@ -172,6 +172,30 @@ const echoTool = defineTool({
   },
 })
 
+/**
+ * A SECOND read in the same domain as {@link echoTool} but behind a different
+ * scope, so `test_query` has two resources. Without it every query group in this
+ * suite is degenerate (one resource), and "an unauthorized resource is pruned
+ * from a group that still exists" cannot be observed at all.
+ */
+const listEchoesTool = defineTool({
+  capabilityId: "@voyant-travel/test#tool.list-echoes",
+  owner: "@voyant-travel/test",
+  capabilityVersion: "v1",
+  name: "list_echoes",
+  description: "List prior echoes.",
+  inputSchema: z.object({ limit: z.number().int().optional() }),
+  outputSchema: z.object({ data: z.array(z.string()), total: z.number() }),
+  requiredScopes: ["products:read"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "read",
+  riskPolicy: READ_ONLY_RISK,
+  annotations: { idempotentHint: true },
+  async handler() {
+    return { data: ["echo: a"], total: 1 }
+  },
+})
+
 const updateRecordTool = defineTool({
   name: "update_record",
   description: "Update a record through a composed input contract.",
@@ -196,6 +220,9 @@ const updateRecordTool = defineTool({
 })
 
 const getSensitiveRecordTool = defineTool({
+  capabilityId: "@voyant-travel/test#tool.get-sensitive-record",
+  owner: "@voyant-travel/test",
+  capabilityVersion: "v1",
   name: "get_sensitive_record",
   description: "Read a sensitive record.",
   inputSchema: z.object({ id: z.string().min(1) }),
@@ -437,6 +464,7 @@ function conditionalFrameworkRuntime(options: { providerSelected?: boolean } = {
 function appWithScopes(scopes: string[], audience: ToolContext["audience"] = "staff"): Hono {
   const registry = createToolRegistry()
   registry.register(echoTool)
+  registry.register(listEchoesTool)
   registry.register(updateRecordTool)
   registry.register(getSensitiveRecordTool)
   const mcp = createMcpApiRoutes({
@@ -1172,24 +1200,81 @@ describe("createMcpApiRoutes", () => {
     expect(missing.result).toMatchObject({ structuredContent: { result: null } })
   })
 
+  it("prunes an unauthorized resource from a query group that still exists", async () => {
+    // The other pruning tests cover the DEGENERATE case: a group whose only read
+    // is unauthorized disappears entirely. That does not demonstrate the property
+    // the projection actually claims — that a group survives with a SUBSET of its
+    // resources when the caller holds some of their scopes but not others.
+    //
+    // `test_query` groups `list_echoes` (products:read) and `get_sensitive_record`
+    // (secrets:read), so holding one scope must expose one resource and hide the
+    // other — in discovery AND at dispatch.
+    const partial = appWithScopes(["products:read"])
+
+    expect(await searchToolNames(partial, { query: "echoes" })).toContain("test_query")
+
+    const described = (await describeTool(partial, "test_query")).structuredContent as {
+      _meta?: { "voyant.travel/tool"?: { resources?: Array<{ resource: string }> } }
+    }
+    const exposed = (described._meta?.["voyant.travel/tool"]?.resources ?? []).map(
+      ({ resource }) => resource,
+    )
+    expect(exposed).toContain("echoes")
+    expect(exposed).not.toContain("sensitive_record")
+
+    // Discovery pruning is not enough on its own — an unauthorized resource must
+    // also be uncallable, or the group becomes a scope-bypass.
+    const denied = await readRpc(
+      await partial.request(
+        "/",
+        rpc("tools/call", {
+          name: "test_query",
+          arguments: { resource: "sensitive_record" },
+        }),
+      ),
+    )
+    expect(JSON.stringify(denied.result)).not.toContain("classified")
+
+    // With both grants, both resources are present.
+    const full = appWithScopes(["products:read", "secrets:read"])
+    const bothDescribed = (await describeTool(full, "test_query")).structuredContent as {
+      _meta?: { "voyant.travel/tool"?: { resources?: Array<{ resource: string }> } }
+    }
+    const bothExposed = (bothDescribed._meta?.["voyant.travel/tool"]?.resources ?? []).map(
+      ({ resource }) => resource,
+    )
+    expect(bothExposed).toContain("echoes")
+    expect(bothExposed).toContain("sensitive_record")
+  })
+
   it("discovers and invokes a sensitive Tool only with its explicit grant", async () => {
-    // Without the sensitive grant the tool is neither discoverable nor describable.
+    // The sensitive read is projected into its domain's `test_query` tool
+    // (voyant#3932). Without the sensitive grant the read is not an authorized
+    // resource, so its group carries no read at all and never surfaces — the flat
+    // read name is also gone outright.
     const withoutGrant = appWithScopes(["catalog:read"])
+    expect(await searchToolNames(withoutGrant)).not.toContain("test_query")
     expect(await searchToolNames(withoutGrant)).not.toContain("get_sensitive_record")
     expect(await describeIsUnavailable(withoutGrant, "get_sensitive_record")).toBe(true)
+    expect(await describeIsUnavailable(withoutGrant, "test_query")).toBe(true)
 
     const app = appWithScopes(["secrets:read"])
-    expect(await searchToolNames(app, { query: "sensitive" })).toContain("get_sensitive_record")
-    expect((await describeTool(app, "get_sensitive_record")).structuredContent).toMatchObject({
-      _meta: { "voyant.travel/tool": { tier: "sensitive" } },
-    })
+    // The group is discoverable by the sensitive resource's keyword...
+    expect(await searchToolNames(app, { query: "sensitive" })).toContain("test_query")
+    // ...and the flat read name is not resurrected anywhere.
+    expect(await searchToolNames(app, { query: "sensitive" })).not.toContain("get_sensitive_record")
+    const descriptor = (await describeTool(app, "test_query")).structuredContent as
+      | { _meta?: { "voyant.travel/tool"?: { resources?: Array<{ resource: string }> } } }
+      | undefined
+    const resources = descriptor?._meta?.["voyant.travel/tool"]?.resources ?? []
+    expect(resources.map((entry) => entry.resource)).toContain("sensitive_record")
 
     const called = await readRpc(
       await app.request(
         "/",
         rpc("tools/call", {
-          name: "get_sensitive_record",
-          arguments: { id: "secret_1" },
+          name: "test_query",
+          arguments: { resource: "sensitive_record", id: "secret_1" },
         }),
       ),
     )
@@ -1309,13 +1394,14 @@ describe("createMcpApiRoutes", () => {
       return outer
     }
 
+    // The read is projected into `legal_query`; the caller selects the resource.
     const allowed = app(["legal:read", "bookings-pii:read"])
     const called = await readRpc(
       await allowed.request(
         "/",
         rpc("tools/call", {
-          name: "get_booking_contract_review",
-          arguments: { contractId: "contract_1" },
+          name: "legal_query",
+          arguments: { resource: "booking_contract_review", contractId: "contract_1" },
         }),
       ),
     )
@@ -1323,19 +1409,23 @@ describe("createMcpApiRoutes", () => {
       structuredContent: { scopes: ["legal:read", "bookings-pii:read"] },
     })
 
+    // A grant missing one required scope leaves the read out of its group, so the
+    // group carries no authorized read and the query tool never appears — and the
+    // removed flat read name is uncallable either way.
     const denied = app(["legal:read"])
     const listed = await readRpc(await denied.request("/", rpc("tools/list", {})))
-    expect(
+    const listedNames =
       (listed.result as { tools?: Array<{ name: string }> } | undefined)?.tools?.map(
         ({ name }) => name,
-      ) ?? [],
-    ).not.toContain("get_booking_contract_review")
+      ) ?? []
+    expect(listedNames).not.toContain("legal_query")
+    expect(listedNames).not.toContain("get_booking_contract_review")
     const deniedCall = await readRpc(
       await denied.request(
         "/",
         rpc("tools/call", {
-          name: "get_booking_contract_review",
-          arguments: { contractId: "contract_1" },
+          name: "legal_query",
+          arguments: { resource: "booking_contract_review", contractId: "contract_1" },
         }),
       ),
     )

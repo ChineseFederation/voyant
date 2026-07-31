@@ -30,9 +30,18 @@ import { isAuthorized } from "./authorization.js"
 import { dispatchToResult } from "./dispatch.js"
 import { isRecord } from "./guards.js"
 import type { McpCaller, McpCallOutcome, McpObserver } from "./observability.js"
+import {
+  advertiseQueryTool,
+  dispatchQueryTool,
+  queryToolDescription,
+  type ReadProjection,
+  toolDomain,
+} from "./read-projection.js"
 import { toMcpMeta } from "./register.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
+
+export { toolDomain } from "./read-projection.js"
 
 /** The eager tier-0 meta-tool names, reserved so a domain tool can never shadow one. */
 export const SEARCH_TOOLS_NAME = "search_tools"
@@ -100,14 +109,6 @@ export function selectEagerToolNames(
   return eager
 }
 
-/** The domain slug a tool belongs to, derived from its owning package. */
-export function toolDomain(entry: ToolManifestEntry): string {
-  const owner = entry.owner ?? ""
-  const withoutScope = owner.replace(/^@[^/]+\//, "")
-  const base = withoutScope.split("#")[0] ?? withoutScope
-  return base.length > 0 ? base : withoutScope
-}
-
 /**
  * The descriptor a caller would have seen in `tools/list` for one tool: name,
  * description, the projected input schema, the output contract, annotations, and
@@ -147,6 +148,8 @@ export interface RegisterMetaToolsInput {
   server: McpServer
   registry: ToolRegistry
   surface: AuthorizedSurface
+  /** The read projection: per-domain query tools that stand in for the flat reads. */
+  projection: ReadProjection
   ctx: ToolContext
   requireActionPolicy: boolean
   observer: McpObserver
@@ -163,14 +166,16 @@ export function registerMetaTools(input: RegisterMetaToolsInput): void {
   registerCallTool(input)
 }
 
-function registerSearchTools({ server, surface }: RegisterMetaToolsInput): void {
+function registerSearchTools({ server, surface, projection }: RegisterMetaToolsInput): void {
   server.registerTool(
     SEARCH_TOOLS_NAME,
     {
       description:
-        "Find domain tools by keyword and/or domain. Returns names and one-line " +
-        "descriptions only — call describe_tool for a tool's full input schema, then " +
-        "call_tool (or the flat tool name) to run it.",
+        "Find tools by keyword and/or domain. Reads are grouped into one " +
+        "`<domain>_query` tool per product area — search for the record you want " +
+        "(e.g. `products`, `bookings`) to find its query tool. Returns names and " +
+        "one-line descriptions only — call describe_tool for a tool's full input " +
+        "schema, then call_tool (or the flat tool name) to run it.",
       inputSchema: z.object({
         query: z.string().trim().optional(),
         domain: z.string().trim().optional(),
@@ -178,12 +183,57 @@ function registerSearchTools({ server, surface }: RegisterMetaToolsInput): void 
       }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    (args) => searchTools(surface, args),
+    (args) => searchTools(surface, projection, args),
   )
+}
+
+interface SearchCandidate {
+  name: string
+  description: string
+  domain: string
+  tier: string
+  /** Extra identity terms (a query tool's resource names) that rank like the name. */
+  keywords?: readonly string[]
+}
+
+/**
+ * The discoverable surface: the per-domain query tools plus every non-read tool.
+ * The flat reads are folded into their query tool, so they never appear here.
+ */
+function discoverableCandidates(
+  surface: AuthorizedSurface,
+  projection: ReadProjection,
+): SearchCandidate[] {
+  const candidates: SearchCandidate[] = []
+  for (const queryTool of projection.queryTools.values()) {
+    candidates.push({
+      name: queryTool.name,
+      description: queryToolDescription(queryTool),
+      domain: queryTool.domain,
+      tier: "read",
+      // A query tool is named `<domain>_query`, so a search for the record noun
+      // (`products`, `booking`) would only hit its description and rank below the
+      // write tools that carry the noun in their name. Rank it by its resources so
+      // the noun surfaces the read entry point, not a wall of writes.
+      keywords: queryTool.resources.map((member) => member.resource),
+    })
+  }
+  for (const [name, { entry, aliasFor }] of surface) {
+    if (aliasFor) continue
+    if (projection.hiddenReadNames.has(name)) continue
+    candidates.push({
+      name,
+      description: entry.description,
+      domain: toolDomain(entry),
+      tier: entry.tier,
+    })
+  }
+  return candidates
 }
 
 function searchTools(
   surface: AuthorizedSurface,
+  projection: ReadProjection,
   args: { query?: string; domain?: string; limit?: number },
 ): CallToolResult {
   const query = args.query?.toLowerCase().trim() ?? ""
@@ -191,27 +241,12 @@ function searchTools(
   const domain = args.domain?.toLowerCase().trim()
   const limit = Math.min(args.limit ?? DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT)
 
-  const matches: Array<{
-    name: string
-    description: string
-    domain: string
-    tier: string
-    score: number
-  }> = []
-  // Iterate canonical entries only; aliases are folded into their canonical name.
-  for (const [name, { entry, aliasFor }] of surface) {
-    if (aliasFor) continue
-    const toolDomainSlug = toolDomain(entry)
-    if (domain && toolDomainSlug.toLowerCase() !== domain) continue
-    const haystack = `${name} ${entry.description} ${toolDomainSlug}`.toLowerCase()
+  const matches: Array<SearchCandidate & { score: number }> = []
+  for (const candidate of discoverableCandidates(surface, projection)) {
+    if (domain && candidate.domain.toLowerCase() !== domain) continue
+    const haystack = `${candidate.name} ${candidate.description} ${candidate.domain}`.toLowerCase()
     if (terms.length > 0 && !terms.every((term) => haystack.includes(term))) continue
-    matches.push({
-      name,
-      description: entry.description,
-      domain: toolDomainSlug,
-      tier: entry.tier,
-      score: scoreMatch(name, terms),
-    })
+    matches.push({ ...candidate, score: scoreCandidate(candidate, terms) })
   }
 
   matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
@@ -237,27 +272,72 @@ function scoreMatch(name: string, terms: readonly string[]): number {
   return 1
 }
 
-function registerDescribeTool({ server, registry, surface }: RegisterMetaToolsInput): void {
+/**
+ * Score a candidate by the best of its name and its identity keywords (a query
+ * tool's resource names), so a search for a record noun ranks the query tool as
+ * highly as a write tool that carries the noun in its own name.
+ */
+function scoreCandidate(candidate: SearchCandidate, terms: readonly string[]): number {
+  let best = scoreMatch(candidate.name, terms)
+  for (const keyword of candidate.keywords ?? []) {
+    best = Math.max(best, scoreMatch(keyword, terms))
+    if (best === 3) break
+  }
+  return best
+}
+
+function registerDescribeTool({
+  server,
+  registry,
+  surface,
+  projection,
+}: RegisterMetaToolsInput): void {
   server.registerTool(
     DESCRIBE_TOOL_NAME,
     {
       description:
         "Return the full input schema, output contract, and metadata for one tool " +
-        "by name. Use the names returned by search_tools.",
+        "by name. Use the names returned by search_tools. For a `<domain>_query` tool " +
+        "the input schema is a discriminated union on `resource`.",
       inputSchema: z.object({ name: z.string().trim().min(1) }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
-    (args) => describeTool(registry, surface, args.name),
+    (args) => describeTool(registry, surface, projection, args.name),
   )
 }
 
 function describeTool(
   registry: ToolRegistry,
   surface: AuthorizedSurface,
+  projection: ReadProjection,
   name: string,
 ): CallToolResult {
+  const queryTool = projection.queryToolFor(name)
+  if (queryTool) {
+    try {
+      const descriptor = advertiseQueryTool(registry, queryTool)
+      // A query tool's descriptor is the union of every resource's schema — the
+      // largest describe payload on the surface. Carry it once, in
+      // `structuredContent`, and keep the human-readable `content` channel a short
+      // pointer rather than a second pretty-printed copy (voyant#3932); the doubled
+      // copy was the single biggest line in the discovery bill.
+      const resources = queryTool.resources.map((member) => member.resource).join(", ")
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${queryTool.name}: set "resource" to one of ${resources}. Full schema in structuredContent.`,
+          },
+        ],
+        structuredContent: descriptor,
+      }
+    } catch (err) {
+      return errorResult(err)
+    }
+  }
   const binding = surface.get(name)
-  if (!binding) return unknownToolResult(name)
+  // A flat read name is folded into its query tool and no longer describable.
+  if (!binding || projection.hiddenReadNames.has(name)) return unknownToolResult(name)
   try {
     const descriptor = advertiseTool(registry, binding.entry, name, binding.aliasFor)
     return {
@@ -270,14 +350,16 @@ function describeTool(
 }
 
 function registerCallTool(input: RegisterMetaToolsInput): void {
-  const { server, registry, surface, ctx, requireActionPolicy, observer, caller, now } = input
+  const { server, registry, surface, projection, ctx, requireActionPolicy, observer, caller, now } =
+    input
   const budgetBytes = input.budgetBytes ?? DEFAULT_RESPONSE_BUDGET_BYTES
   server.registerTool(
     CALL_TOOL_NAME,
     {
       description:
         "Dispatch a tool discovered through search_tools / describe_tool. Pass the " +
-        "tool name and its arguments object; the result is the underlying tool's result.",
+        "tool name and its arguments object; the result is the underlying tool's " +
+        "result. For a `<domain>_query` tool, include `resource` in the arguments.",
       inputSchema: z.object({
         name: z.string().trim().min(1),
         arguments: z.record(z.string(), z.unknown()).optional(),
@@ -285,8 +367,34 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
       annotations: { openWorldHint: true },
     },
     async (args) => {
+      // A query tool routes through the projection to the underlying read.
+      const queryTool = projection.queryToolFor(args.name)
+      if (queryTool) {
+        const startedAt = now()
+        const { result, member } = await dispatchQueryTool({
+          registry,
+          queryTool,
+          args: args.arguments ?? {},
+          ctx,
+          requireActionPolicy,
+          budgetBytes,
+        })
+        if (member) {
+          const { outcome, code } = classifyDispatchResult(result)
+          observer.toolCall({
+            tool: member.entry.name,
+            outcome,
+            durationMs: now() - startedAt,
+            write: false,
+            ...(code ? { code } : {}),
+            caller,
+          })
+        }
+        return result
+      }
       const binding = surface.get(args.name)
-      if (!binding) return unknownToolResult(args.name)
+      // A flat read name is folded into its query tool and no longer callable.
+      if (!binding || projection.hiddenReadNames.has(args.name)) return unknownToolResult(args.name)
       const def = registry.get(binding.entry.name)
       if (!def) return unknownToolResult(args.name)
       const output = toMcpOutputContract(def.outputSchema)

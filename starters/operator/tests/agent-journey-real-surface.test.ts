@@ -123,13 +123,19 @@ interface DiscoveryJourney {
   tool: string
 }
 
+// After the layered read projection (voyant#3932) the flat `get_*`/`list_*` reads
+// are collapsed into one `<domain>_query` tool per product area, so a discovery
+// journey now finds and describes the query tool for the record it wants. The
+// same six product areas are covered; several journeys resolve to the SAME query
+// tool (products/product/product-content all live in `inventory_query`), which is
+// exactly the clustering that cuts the discovery bill.
 const JOURNEYS: DiscoveryJourney[] = [
-  { id: "discover-list-products", query: "products", tool: "list_products" },
-  { id: "discover-get-product", query: "product", tool: "get_product" },
-  { id: "discover-product-content", query: "product content", tool: "get_product_content" },
-  { id: "discover-list-bookings", query: "bookings", tool: "list_bookings" },
-  { id: "discover-get-booking", query: "booking", tool: "get_booking" },
-  { id: "discover-list-departures", query: "departures", tool: "list_departures" },
+  { id: "discover-products", query: "products", tool: "inventory_query" },
+  { id: "discover-product", query: "product", tool: "inventory_query" },
+  { id: "discover-product-content", query: "product content", tool: "inventory_query" },
+  { id: "discover-bookings", query: "bookings", tool: "bookings_query" },
+  { id: "discover-booking", query: "booking", tool: "bookings_query" },
+  { id: "discover-departures", query: "departures", tool: "operations_query" },
 ]
 
 interface DiscoveryScore {
@@ -181,17 +187,33 @@ function formatReport(scores: readonly DiscoveryScore[]): string {
 
 /**
  * Non-blocking ceiling for the whole discovery set's token estimate, with
- * headroom. It is dominated by the `describe_tool` schemas — the exact per-tool
- * cost the aggregate ratchet in `selected-graph-mcp-tool-surface.test.ts` bounds
- * and that the read projection (voyant#3932) is meant to cut. Lower it when W8
- * lands; raise it only with a recorded reason after reading the printed report.
+ * headroom. It is dominated by the `describe_tool` schemas an agent pulls to form
+ * a call. Lower it when the surface shrinks; raise it only with a recorded reason
+ * after reading the printed report.
  *
- * Measured at authoring: ~48,600 tokens across the six discovery journeys —
- * dominated by the real per-tool input schemas (get_booking alone is ~12,700).
- * That is a genuinely large discovery bill and precisely the signal this harness
- * exists to surface: the read projection (W8) should move it down, not up.
+ * History: at W8's authoring this stood at 62,000 with a measured ~48,553 tokens,
+ * when each journey discovered and described one FLAT read (`get_booking` alone
+ * was ~12,700, dominated by its full Booking output schema).
+ *
+ * The layered read projection (voyant#3932) then collapsed the ~133 reads into
+ * ~24 `<domain>_query` tools: a journey now describes the query tool for the
+ * record it wants, which advertises the union of its resources' compact INPUT
+ * schemas and a permissive output note instead of one read's heavy output. That
+ * cut the same six journeys to **~36,974 tokens** (a ~24% reduction), so the
+ * ceiling drops to 45,000 — headroom over the measurement for search-wording
+ * drift (a broad `search_tools` over the many booking WRITE tools is the largest
+ * remaining line), while still tripping if a describe payload balloons again.
  */
-const DISCOVERY_TOKEN_CEILING = 62_000
+const DISCOVERY_TOKEN_CEILING = 45_000
+
+/**
+ * This hook composes the whole selected graph and runs every journey, which
+ * exceeds vitest's 10s default hook timeout when the operator suite runs its
+ * files in parallel — it passes in isolation and fails in a full run, the worst
+ * kind of flake. The config raises `testTimeout` but not `hookTimeout`, so set it
+ * explicitly here rather than relying on scheduling luck.
+ */
+const HOOK_TIMEOUT_MS = 60_000
 
 describe("agent journey eval — real selected-graph surface", () => {
   let scores: DiscoveryScore[] = []
@@ -201,7 +223,7 @@ describe("agent journey eval — real selected-graph surface", () => {
     scores = []
     for (const journey of JOURNEYS) scores.push(await runDiscovery(app, journey))
     process.stdout.write(`\n${formatReport(scores)}\n\n`)
-  })
+  }, HOOK_TIMEOUT_MS)
 
   it("discovers and describes every real tool the seeded journeys drive", () => {
     // This is the anti-fabrication guard: each name must resolve on the REAL

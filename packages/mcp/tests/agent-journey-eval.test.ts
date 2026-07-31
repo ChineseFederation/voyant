@@ -7,13 +7,15 @@
  * against it — completion, call count, token cost, and error codes per journey.
  *
  * The deployment is seeded in-process: a registry of read tools carrying the
- * REAL tool names the surface actually serves (`list_products`, `get_product`,
+ * REAL underlying names the surface serves (`list_products`, `get_product`,
  * `get_product_content`, `list_bookings` — each verified against its owning
  * package's `defineTool` in packages/inventory and packages/bookings) backed by
- * a small in-memory fixture. Real names, deterministic backend: the scenarios
- * exercise the meta-tool / guide indirection exactly as a live agent would,
- * without a database or a model API key. Discovery of those same names on the
- * REAL selected graph is grounded separately in the operator starter test.
+ * a small in-memory fixture. Those reads are reached through the collapsed
+ * `inventory_query` / `bookings_query` tools the transport projects (voyant#3932),
+ * so the scenarios exercise the meta-tool / guide indirection and the read
+ * projection exactly as a live agent would, without a database or a model API
+ * key. Discovery of those same query tools on the REAL selected graph is grounded
+ * separately in the operator starter test.
  *
  * The scores are recorded below as named baseline constants with docblocks that
  * say what they mean and when to move them — the ratchet precedent — and the run
@@ -271,30 +273,32 @@ function searchHit(step: JourneyStepResult | undefined, name: string): boolean {
 
 const SCENARIOS: JourneyScenario[] = [
   {
-    // discover → describe → read: the canonical progressive-disclosure path.
+    // discover → describe → read: the canonical progressive-disclosure path, now
+    // over the collapsed `inventory_query` read tool (voyant#3932).
     id: "discover-then-read-products",
-    title: "search_tools → describe_tool → list_products",
+    title: "search_tools → describe_tool → inventory_query(resource: products)",
     drive(prior) {
       if (prior.length === 0) return { tool: "search_tools", args: { query: "product" } }
-      if (prior.length === 1) return { tool: "describe_tool", args: { name: "list_products" } }
-      if (prior.length === 2) return { tool: "list_products", args: {} }
+      if (prior.length === 1) return { tool: "describe_tool", args: { name: "inventory_query" } }
+      if (prior.length === 2) return { tool: "inventory_query", args: { resource: "products" } }
       return null
     },
     completed: (prior) =>
-      searchHit(prior[0], "list_products") &&
-      describedName(prior[1]) === "list_products" &&
+      searchHit(prior[0], "inventory_query") &&
+      describedName(prior[1]) === "inventory_query" &&
       productList(prior[2]).length > 0,
   },
   {
     // Find a product, then read its composed content by the id just discovered.
     id: "find-product-read-content",
-    title: "search_tools → list_products → get_product_content(id)",
+    title: "search_tools → inventory_query(products) → inventory_query(product_content)",
     drive(prior) {
       if (prior.length === 0) return { tool: "search_tools", args: { query: "product content" } }
-      if (prior.length === 1) return { tool: "list_products", args: { status: "active" } }
+      if (prior.length === 1)
+        return { tool: "inventory_query", args: { resource: "products", status: "active" } }
       if (prior.length === 2) {
         const id = productList(prior[1])[0]?.id
-        return id ? { tool: "get_product_content", args: { id } } : null
+        return id ? { tool: "inventory_query", args: { resource: "product_content", id } } : null
       }
       return null
     },
@@ -309,12 +313,16 @@ const SCENARIOS: JourneyScenario[] = [
   {
     // List bookings with a filter, dispatched through the call_tool meta-tool.
     id: "list-bookings-with-filter",
-    title: "search_tools → describe_tool → call_tool(list_bookings, confirmed)",
+    title: "search_tools → describe_tool → call_tool(bookings_query, confirmed)",
     drive(prior) {
       if (prior.length === 0) return { tool: "search_tools", args: { query: "booking" } }
-      if (prior.length === 1) return { tool: "describe_tool", args: { name: "list_bookings" } }
+      if (prior.length === 1) return { tool: "describe_tool", args: { name: "bookings_query" } }
       if (prior.length === 2)
-        return { tool: "list_bookings", args: { status: "confirmed" }, via: "meta" }
+        return {
+          tool: "bookings_query",
+          args: { resource: "bookings", status: "confirmed" },
+          via: "meta",
+        }
       return null
     },
     completed(prior) {
@@ -325,30 +333,32 @@ const SCENARIOS: JourneyScenario[] = [
   {
     // Guide-first: read the discovery guide, then discover and read a product.
     id: "guide-then-act",
-    title: "voyant_guide(discovery) → search_tools → get_product(id)",
+    title: "voyant_guide(discovery) → search_tools → inventory_query(product)",
     drive(prior) {
       if (prior.length === 0) return { tool: "voyant_guide", args: { topic: "discovery" } }
       if (prior.length === 1) return { tool: "search_tools", args: { query: "product" } }
-      if (prior.length === 2) return { tool: "get_product", args: { id: "prod_seed_1" } }
+      if (prior.length === 2)
+        return { tool: "inventory_query", args: { resource: "product", id: "prod_seed_1" } }
       return null
     },
     completed(prior) {
       const guided = (prior[0]?.text ?? "").length > 0 && !prior[0]?.isError
       const product = (prior[2]?.structured as { product?: unknown } | undefined)?.product
-      return guided && searchHit(prior[1], "get_product") && product != null
+      return guided && searchHit(prior[1], "inventory_query") && product != null
     },
   },
   {
     // An agent that fumbles input (no id/slug), reads the actionable error, and
     // recovers. Exercises the error-code breakdown while still completing.
     id: "recover-from-bad-input",
-    title: "get_product() [INVALID_INPUT] → list_products → get_product(id)",
+    title:
+      "inventory_query(product) [INVALID_INPUT] → inventory_query(products) → inventory_query(product)",
     drive(prior) {
-      if (prior.length === 0) return { tool: "get_product", args: {} }
-      if (prior.length === 1) return { tool: "list_products", args: {} }
+      if (prior.length === 0) return { tool: "inventory_query", args: { resource: "product" } }
+      if (prior.length === 1) return { tool: "inventory_query", args: { resource: "products" } }
       if (prior.length === 2) {
         const id = productList(prior[1])[0]?.id
-        return id ? { tool: "get_product", args: { id } } : null
+        return id ? { tool: "inventory_query", args: { resource: "product", id } } : null
       }
       return null
     },

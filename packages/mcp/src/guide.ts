@@ -53,22 +53,21 @@ export function buildServerInstructions(scope: GuideScope): string {
     ? "This key can read catalog and booking data and invoke state-changing Tools (subject to per-Tool scopes and the confirmation protocol below)."
     : "This key is READ-ONLY: it can list and read, but the create/update/publish/book Tools below are not reachable with it. Ignore write instructions."
   return [
-    "This MCP server is the admin surface of a Voyant deployment — an online travel",
-    "agency, tour-operator, and destination-management platform. Through it you can",
-    "discover and operate the operator's catalog (Products, Options, and dated",
-    "departures/Slots), the sales pipeline (Quotes and Quote Versions), Bookings and",
-    "their Travelers, and downstream Invoices and Payments.",
+    "This MCP server is the admin surface of a Voyant deployment — an online travel agency, tour-operator, and destination-management platform. Through it you can discover and operate the operator's catalog (Products, Options, and dated departures/Slots), the sales pipeline (Quotes and Quote Versions), Bookings and their Travelers, and downstream Invoices and Payments.",
     "",
     access,
     "",
     "HOW TO DISCOVER CAPABILITIES",
-    "Every capability is one MCP Tool. Enumerate them with `tools/list`, or fetch the",
-    "authorization-filtered contract from `GET /v1/admin/mcp/manifest`. Tool names use",
-    "the domain vocabulary: verbs `get`/`list`/`search`/`create`/`update` over nouns",
-    "like `product`, `option_unit`, `departure`, `quote`, `quote_version`, `booking`,",
-    "`invoice`. So to read products, scan for `get_product`/`list_products`; for dated",
-    "departures, `list_departures`. Travelers are reached through their booking record,",
-    "not a standalone traveler CRUD tool.",
+    "The surface is discovered on demand: `search_tools` finds a tool by keyword,",
+    "`describe_tool` returns its full input schema, and `GET /v1/admin/mcp/manifest` is",
+    "the authorization-filtered capability index; the eager `tools/list` carries only",
+    "these meta-tools and the guide. READS are grouped by product area into one",
+    "`<domain>_query` tool (a discriminated union on `resource`): read products with",
+    '`inventory_query` (`resource: "products"`/`"product"`), dated departures with',
+    '`operations_query` (`resource: "departures"`) — search the record noun (`products`,',
+    "`bookings`, `departures`) to find its query tool. Travelers are read through their",
+    "booking record, not a standalone tool. WRITES stay one Tool each (verb-first, e.g.",
+    "`create_booking`, `publish_product`) so their per-action policy stays explicit.",
     "",
     "START WITH THE GUIDE TOOLS",
     `Call \`voyant_guide\` (topics: ${GUIDE_TOPICS.join(", ")}) for the booking`,
@@ -201,29 +200,30 @@ function overviewSection(scope: GuideScope): string {
 function discoverySection(): string {
   return (
     "# Discovering capabilities\n\n" +
-    "Every capability is exactly one MCP Tool; there is no hidden RPC. To find one:\n\n" +
-    "1. Enumerate the served Tools with `tools/list`, or fetch the " +
-    "authorization-filtered contract from `GET /v1/admin/mcp/manifest`. The manifest " +
-    "carries each Tool's `requiredScopes` and risk, so you can see what a key can do " +
+    "The surface is discovered on demand. `tools/list` carries only the meta-tools " +
+    "(`search_tools`, `describe_tool`, `call_tool`) and this guide; every domain " +
+    "capability is found through them or the `GET /v1/admin/mcp/manifest` capability " +
+    "index. To find one:\n\n" +
+    "1. `search_tools { query }` returns matching tool names and one-line descriptions; " +
+    "`describe_tool { name }` returns a tool's full input schema. The manifest carries " +
+    "each capability's `requiredScopes` and risk, so you can see what a key can do " +
     "before calling.\n" +
-    "2. Tool names are `verb_noun` in domain vocabulary. Verbs: `get`, `list`, " +
-    "`search`, `create`, `update`, and lifecycle verbs like `publish`/`archive`. " +
-    "Nouns are the domain terms — `product`, `option`, `option_unit`, `departure`, " +
-    "`quote`, `quote_version`, `booking`, `invoice`. The domain term Slot (a concrete " +
-    "dated inventory unit) surfaces in the tool surface as `departure`.\n\n" +
-    "Example lookups, using our vocabulary:\n" +
-    "- Read the catalog → `list_products`, `get_product`.\n" +
-    "- Find dated departures for a Product → `list_departures`, `get_departure`.\n" +
-    "- Work a sales pursuit → `get_quote`, and the Quote Version Tools.\n" +
-    "- Inspect a commitment → `get_booking` (its Travelers and Items are part of the " +
-    "booking record, not separate traveler read Tools).\n\n" +
-    "Only Tools your key is authorized for are listed or callable; a call to a Tool " +
-    "outside your scopes fails as if it did not exist. Each Tool validates its own " +
-    "input and returns typed pure data, so read its `inputSchema` before calling.\n\n" +
-    "(Forward note: a `search_tools` discovery entry point is planned so this surface " +
-    "can shrink to a few meta-Tools — voyant#3927. Until it ships on this deployment, " +
-    "`tools/list` and the manifest are the discovery entry points, and this guide " +
-    "will not name a Tool that is not actually served.)"
+    "2. READS are collapsed by product area into one `<domain>_query` tool whose input " +
+    "is a discriminated union on `resource`. Set `resource` to the record you want and " +
+    "pass that resource's own arguments. Resources use the domain nouns — `product`, " +
+    "`option_unit`, `departure`, `quote`, `quote_version`, `booking`, `invoice` (the " +
+    "domain term Slot surfaces as the `departures` resource).\n" +
+    "3. WRITES stay one Tool each, named `verb_noun` (`create`/`update`/`publish` …), " +
+    "so their action policy stays explicit.\n\n" +
+    'Example lookups: catalog → `inventory_query` (`resource: "products"`/`"product"`); ' +
+    'dated departures → `operations_query` (`resource: "departures"`); sales pursuit → ' +
+    "`quotes_query` (`quote`/`quote_version`); a commitment → `bookings_query` " +
+    '(`resource: "booking"` — its Travelers and Items are part of the booking record, ' +
+    "not separate traveler reads).\n\n" +
+    "Only tools your key is authorized for are discoverable or callable; an " +
+    "unauthorized resource is pruned from its query tool and a call to it fails as if " +
+    "it did not exist. Each read validates its own input and returns typed pure data, " +
+    "so read the query tool's `inputSchema` before calling."
   )
 }
 

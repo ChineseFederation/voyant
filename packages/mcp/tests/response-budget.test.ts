@@ -87,6 +87,9 @@ const bookingRowSchema = z.looseObject({
 })
 
 const listThingsTool = defineTool({
+  capabilityId: "@voyant-travel/catalog#tool.list-things",
+  owner: "@voyant-travel/catalog",
+  capabilityVersion: "v1",
   name: "list_things",
   description: "List booking-shaped things with filters and pagination. Read-only.",
   inputSchema: paginationSchema.extend({
@@ -138,7 +141,6 @@ function mountListThings(responseBudgetBytes?: number): Hono {
     accessCatalog,
     registry,
     buildContext,
-    eagerToolNames: ["list_things"],
     ...(responseBudgetBytes !== undefined ? { responseBudgetBytes } : {}),
   })
   const outer = new Hono()
@@ -157,9 +159,14 @@ interface CallToolResult {
   _meta?: Record<string, unknown>
 }
 
+// The `list_things` read is reached through the collapsed `catalog_query` tool
+// (voyant#3932): dispatch names the query tool and selects the `things` resource.
 async function callListThings(app: Hono, args: Record<string, unknown>): Promise<CallToolResult> {
   const res = await readRpc(
-    await app.request("/", rpc("tools/call", { name: "list_things", arguments: args })),
+    await app.request(
+      "/",
+      rpc("tools/call", { name: "catalog_query", arguments: { resource: "things", ...args } }),
+    ),
   )
   return (res.result ?? {}) as CallToolResult
 }
@@ -261,10 +268,12 @@ describe("shapeResponse", () => {
 describe("list tool over the transport", () => {
   it("advertises response_format on the list tool's input schema", async () => {
     const app = mountListThings()
+    // The list read is projected into `catalog_query`; its discriminated-union
+    // input carries the same list-shaped `response_format` control per resource.
     const res = await readRpc(
       await app.request(
         "/",
-        rpc("tools/call", { name: "describe_tool", arguments: { name: "list_things" } }),
+        rpc("tools/call", { name: "describe_tool", arguments: { name: "catalog_query" } }),
       ),
     )
     const descriptor = (res.result as { structuredContent?: { inputSchema?: unknown } })

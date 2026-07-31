@@ -55,6 +55,7 @@ import {
   type McpObserver,
 } from "./observability.js"
 import { createMcpRateLimiter } from "./rate-limit.js"
+import { buildReadProjection, type ReadProjection, registerQueryTool } from "./read-projection.js"
 import { registerMcpTool } from "./register.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES } from "./response-budget.js"
 import type { GraphMcpApiRoutesOptions, McpApiRoutesOptions, McpServerInfo } from "./types.js"
@@ -168,6 +169,13 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     // not just the register loop, is the security property of the server.
     const surface = collectAuthorizedTools(registry, permissions, accessCatalog, ctx.audience)
 
+    // Layered read projection (voyant#3932): the flat `get_*`/`list_*`/`search_*`
+    // reads are folded into one `<domain>_query` tool per product area. Discovery
+    // and dispatch consult this projection so the reads are neither individually
+    // discoverable nor callable by their flat names, while scope filtering still
+    // prunes an unauthorized read out of its group.
+    const projection = buildReadProjection(surface)
+
     // The guide layer's `instructions` are scope-aware — a read-only key is told
     // the write journeys are unreachable rather than shown workflows it cannot
     // perform — so whether any write Tool is reachable must be known before the
@@ -191,6 +199,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
       server,
       registry,
       surface,
+      projection,
       ctx,
       requireActionPolicy,
       observer,
@@ -203,24 +212,31 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     // authorized tool must still dispatch — the operator's manual-booking client
     // calls `create_booking` by name. Register just that tool for this request, so
     // the SDK validates and dispatches it exactly as before. Because `surface`
-    // gates it, an unauthorized name is never registered and stays uncallable.
+    // gates it, an unauthorized name is never registered and stays uncallable. A
+    // `<domain>_query` tool is synthetic (not in the registry), so it registers
+    // through its own projection-backed handler; a folded flat read name is never
+    // registered and stays uncallable.
     const requestBody = asRecord(await c.req.json().catch(() => undefined))
     const requestedName = requestedToolName(requestBody)
     if (
       requestedName &&
       !eagerNames.has(requestedName) &&
-      !META_TOOL_NAMES.includes(requestedName) &&
-      surface.has(requestedName)
+      !META_TOOL_NAMES.includes(requestedName)
     ) {
-      registerSurfaceTool(
-        server,
-        registry,
-        surface,
-        requestedName,
-        ctx,
-        requireActionPolicy,
-        budgetBytes,
-      )
+      const queryTool = projection.queryToolFor(requestedName)
+      if (queryTool) {
+        registerQueryTool(server, registry, queryTool, ctx, requireActionPolicy, budgetBytes)
+      } else if (surface.has(requestedName) && !projection.hiddenReadNames.has(requestedName)) {
+        registerSurfaceTool(
+          server,
+          registry,
+          surface,
+          requestedName,
+          ctx,
+          requireActionPolicy,
+          budgetBytes,
+        )
+      }
     }
 
     const transport = new StreamableHTTPTransport({
@@ -230,7 +246,16 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     await server.connect(transport)
     const startedAt = Date.now()
     const response = (await transport.handleRequest(c)) ?? c.body(null, 204)
-    await instrumentRpc(c, response, Date.now() - startedAt, surface, guideToolNames, ctx, observer)
+    await instrumentRpc(
+      c,
+      response,
+      Date.now() - startedAt,
+      surface,
+      projection,
+      guideToolNames,
+      ctx,
+      observer,
+    )
     return response
   })
 
@@ -298,6 +323,7 @@ async function instrumentRpc(
   response: Response,
   durationMs: number,
   surface: AuthorizedSurface,
+  projection: ReadProjection,
   guideToolNames: ReadonlySet<string>,
   ctx: ToolContext,
   observer: McpObserver,
@@ -329,8 +355,16 @@ async function instrumentRpc(
     // registry, so they carry no manifest entry — mark them known reads instead of
     // misclassifying a legitimate guide call as an unknown-tool miss, which is one
     // of the highest-signal events we record.
-    const entry = surface.get(name)?.entry
-    const known = entry !== undefined || META_TOOL_NAMES.includes(name) || guideToolNames.has(name)
+    // A `<domain>_query` tool is a known read that carries no manifest entry; a
+    // folded flat read name is not a known invocation any longer.
+    const queryTool = projection.queryToolFor(name)
+    const entry =
+      queryTool || projection.hiddenReadNames.has(name) ? undefined : surface.get(name)?.entry
+    const known =
+      entry !== undefined ||
+      queryTool !== undefined ||
+      META_TOOL_NAMES.includes(name) ||
+      guideToolNames.has(name)
     const { outcome, code } = classifyToolCallResult(payload, known)
     observer.toolCall({
       tool: name,

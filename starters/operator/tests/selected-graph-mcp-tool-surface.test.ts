@@ -23,7 +23,6 @@
 import { composeVoyantGraphRuntime } from "@voyant-travel/framework"
 import { Hono } from "hono"
 import { describe, expect, it } from "vitest"
-import { z } from "zod"
 
 import { accessCatalog } from "../.voyant/access/selected-access-catalog.generated"
 import {
@@ -48,17 +47,40 @@ import {
 const PAYLOAD_CEILING_BYTES = 3_800
 
 /**
- * Ceiling for the AGGREGATE size of every selected tool's advertised schema.
+ * Ceiling for the AGGREGATE describe schema of the collapsed READ surface — the
+ * exact surface the layered read projection (voyant#3932) reshapes.
  *
- * Measured at 260,968 bytes across 264 tools (name + description + input schema;
- * the `_meta` envelope the transport also emits pushes the real figure higher).
- * Progressive disclosure
- * keeps this out of `tools/list`, so it is no longer a per-connection cost — but
- * `describe_tool` pays it one tool at a time and a broad `search_tools` pays a
- * slice of it, and nothing else bounds it now that the tail is invisible.
- * Lower it as the read projection (voyant#3932) collapses the CRUD surface.
+ * Before W8 this bounded every selected tool's input schema in aggregate
+ * (~260,968 bytes across 264 tools). The reads that dominated that "CRUD tail"
+ * are now collapsed into one `<domain>_query` tool per product area, so the thing
+ * worth bounding is what an agent pays to `describe_tool` those query tools — the
+ * union of each domain's read INPUT schemas plus a permissive output note, rather
+ * than 133 separate reads each advertising its full (often heavy) output schema.
+ *
+ * Measured across the 24 query tools (name + description + input + output schema
+ * from the served `describe_tool` descriptor): **115,559 bytes**, down from
+ * **433,234 bytes** for the same 133 reads described individually pre-projection
+ * — a ~73% cut, because collapsing drops the per-read output schemas that were
+ * the bulk of a read's describe cost. The ceiling drops to 130,000 with headroom
+ * for read-schema edits, tripping if a query tool's union balloons again.
+ *
+ * Writes are deliberately NOT collapsed (voyant#3921) and stay individually
+ * described; their per-tool describe cost is bounded by the response budget at
+ * call time and the eager `tools/list` ratchet above catches a regression to
+ * eager loading.
  */
-const AGGREGATE_CEILING_BYTES = 275_000
+/**
+ * Ceiling for the aggregate schema of EVERY selected tool, reads and writes.
+ *
+ * Measured at 260,968 bytes across 264 tools before voyant#3932. The read
+ * collapse does not shrink this materially — the underlying read Tools still
+ * exist in the registry and remain individually dispatchable — so it stays near
+ * its pre-collapse value. Its job is to stop WRITE schemas growing unseen, since
+ * they appear in neither the served tools/list nor the query-tool bound.
+ */
+const ALL_TOOLS_AGGREGATE_CEILING_BYTES = 275_000
+
+const AGGREGATE_CEILING_BYTES = 130_000
 
 /** Rough proxy for tokens. JSON schema tokenizes denser than prose, so this is a floor. */
 const BYTES_PER_TOKEN = 4
@@ -181,46 +203,57 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(unnamed).toEqual([])
   })
 
-  it("still bounds the AGGREGATE schema size of the long tail", async () => {
+  it("bounds the AGGREGATE describe schema of the collapsed read surface", async () => {
     // Progressive disclosure made the long tail invisible to `tools/list`, which
-    // is the point — but it also means unbounded per-tool schema growth would
-    // show up nowhere. `describe_tool` still pays that cost one tool at a time,
-    // and `search_tools` pays it in aggregate whenever a query matches broadly.
-    //
-    // So keep the pre-#3927 aggregate bound as a SECOND, independent guard. The
-    // served-payload ratchet above catches "we went back to eager loading"; this
-    // one catches "the tail quietly bloated while nobody could see it".
-    const runtime = createGeneratedGraphRuntime()
-    let totalBytes = 0
-    let toolCount = 0
-    const heaviest: Array<{ name: string; bytes: number }> = []
+    // is the point — but unbounded per-tool schema growth would then show up
+    // nowhere. The layered read projection (voyant#3932) collapses the reads into
+    // `<domain>_query` tools, so the thing worth bounding is the describe cost of
+    // that query surface: `describe_tool` pays one query tool's whole union at a
+    // time, and a broad `search_tools` surfaces several. This is the read half of
+    // the old aggregate bound, re-pointed at what the projection actually serves.
+    const { app } = await mountSelectedGraphMcp()
 
+    // Enumerate the query tools the projection produces: one `<domain>_query` per
+    // domain that owns a `get_*`/`list_*`/`search_*` read, derived exactly as the
+    // transport derives it (owner package → domain slug).
+    const runtime = createGeneratedGraphRuntime()
+    const queryToolNames = new Set<string>()
     for (const tool of runtime.tools) {
-      const definition = await tool.load<{
-        name: string
-        description: string
-        inputSchema: { _zod?: unknown }
-      }>()
-      let inputSchema: unknown
-      try {
-        inputSchema = z.toJSONSchema(definition.inputSchema as never, {
-          io: "input",
-          unrepresentable: "any",
-        })
-      } catch {
-        inputSchema = { type: "object", additionalProperties: true }
-      }
+      const definition = await tool.load<{ name: string }>()
+      const name = tool.name ?? definition.name
+      if (!/^(?:get|list|search)_/.test(name)) continue
+      const owner = String((tool as { unitId?: string }).unitId ?? "")
+      const domain = owner.replace(/^@[^/]+\//, "").split("#")[0] ?? owner
+      if (domain.length > 0) queryToolNames.add(`${domain}_query`)
+    }
+
+    let totalBytes = 0
+    const heaviest: Array<{ name: string; bytes: number }> = []
+    for (const name of queryToolNames) {
+      const described = await readRpc(
+        await app.request(
+          "/",
+          rpc("tools/call", { name: "describe_tool", arguments: { name } }),
+          TEST_ENV,
+          TEST_CTX,
+        ),
+      )
+      const descriptor = (described.result as { structuredContent?: Record<string, unknown> })
+        ?.structuredContent
+      expect(descriptor, `query tool ${name} was not describable`).toBeDefined()
+      // Measure the advertised schema (name + description + input + output), the
+      // same fields the pre-projection aggregate summed per read.
       const bytes = Buffer.byteLength(
         JSON.stringify({
-          name: tool.name ?? definition.name,
-          description: definition.description,
-          inputSchema,
+          name: descriptor?.name,
+          description: descriptor?.description,
+          inputSchema: descriptor?.inputSchema,
+          outputSchema: descriptor?.outputSchema,
         }),
         "utf8",
       )
       totalBytes += bytes
-      toolCount += 1
-      heaviest.push({ name: tool.name ?? definition.name, bytes })
+      heaviest.push({ name, bytes })
     }
 
     const top = heaviest
@@ -232,15 +265,76 @@ describe("selected-graph MCP tool surface cost", () => {
     expect(
       totalBytes,
       [
-        `Aggregate tool schema size: ${totalBytes.toLocaleString()} bytes across ${toolCount} tools`,
-        `  ~${Math.round(totalBytes / BYTES_PER_TOKEN).toLocaleString()} tokens if ever served together`,
+        `Aggregate query-tool describe schema: ${totalBytes.toLocaleString()} bytes across ${queryToolNames.size} query tools`,
+        `  ~${Math.round(totalBytes / BYTES_PER_TOKEN).toLocaleString()} tokens if every read surface were described together`,
         "  heaviest:",
         top,
         "",
-        "  This is NOT the per-connection cost — progressive disclosure keeps the",
-        "  tail out of tools/list. It bounds what describe_tool and a broad",
-        "  search_tools can pull in, and stops the tail bloating unseen.",
+        "  Reads collapse into <domain>_query tools (voyant#3932); this bounds what",
+        "  describe_tool pulls for the read surface. Writes are not collapsed and",
+        "  are described individually. Raising the ceiling needs a recorded reason.",
       ].join("\n"),
     ).toBeLessThanOrEqual(AGGREGATE_CEILING_BYTES)
+  })
+
+  it("still bounds EVERY selected tool's schema, writes included", async () => {
+    // The query-tool bound above covers the collapsed READ surface only. Writes
+    // are deliberately not collapsed (voyant#3921: per-action risk, confirmation,
+    // ledger and approval metadata are load-bearing and must not be flattened),
+    // and progressive disclosure keeps them out of the served `tools/list`.
+    //
+    // So without this, write schemas would be bounded NOWHERE — invisible to the
+    // served ratchet and excluded from the read ratchet. `describe_tool` and
+    // `call_tool` still pay their cost. This is the guard that was in place before
+    // voyant#3932 narrowed the aggregate metric; it is kept as an independent
+    // third bound rather than folded into either of the others.
+    const runtime = createGeneratedGraphRuntime()
+    let totalBytes = 0
+    let toolCount = 0
+    const heaviest: Array<{ name: string; bytes: number }> = []
+
+    for (const tool of runtime.tools) {
+      const definition = await tool.load<{
+        name: string
+        description: string
+        inputSchema: unknown
+      }>()
+      let inputSchema: unknown
+      try {
+        inputSchema = z.toJSONSchema(definition.inputSchema as never, {
+          io: "input",
+          unrepresentable: "any",
+        })
+      } catch {
+        inputSchema = { type: "object", additionalProperties: true }
+      }
+      const name = tool.name ?? definition.name
+      const bytes = Buffer.byteLength(
+        JSON.stringify({ name, description: definition.description, inputSchema }),
+        "utf8",
+      )
+      totalBytes += bytes
+      toolCount += 1
+      heaviest.push({ name, bytes })
+    }
+
+    const top = heaviest
+      .sort((a, b) => b.bytes - a.bytes)
+      .slice(0, 5)
+      .map(({ name, bytes }) => `    ${String(bytes).padStart(7)}  ${name}`)
+      .join("\n")
+
+    expect(
+      totalBytes,
+      [
+        `Aggregate schema across ALL selected tools: ${totalBytes.toLocaleString()} bytes across ${toolCount} tools`,
+        "  heaviest:",
+        top,
+        "",
+        "  Not a per-connection cost — it bounds the whole selected surface so write",
+        "  schemas cannot bloat unseen now that they appear in neither the served",
+        "  tools/list nor the read-projection bound.",
+      ].join("\n"),
+    ).toBeLessThanOrEqual(ALL_TOOLS_AGGREGATE_CEILING_BYTES)
   })
 })
