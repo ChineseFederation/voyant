@@ -1,5 +1,14 @@
 # @voyant-travel/auth-react
 
+## 0.149.0
+
+### Patch Changes
+
+- Updated dependencies [0c30250]
+- Updated dependencies [5fa76aa]
+  - @voyant-travel/auth@0.149.0
+  - @voyant-travel/admin@0.133.0
+
 ## 0.148.0
 
 ### Patch Changes

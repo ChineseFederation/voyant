@@ -1,5 +1,65 @@
 # @voyant-travel/bookings-react
 
+## 0.225.0
+
+### Minor Changes
+
+- 4fe6f79: Add `book_product`, an intent-level booking workflow tool, and retire
+  `generate_booking_number` (voyant#3933).
+
+  `book_product` books a product for a client in a single call — product and
+  option, the billing party (`personId` or `organizationId`), travelers, and
+  rooms. It replaces the multi-call sequence the old `create_booking` description
+  scripted in prose (find the client with `list_people`/`list_organizations`,
+  resolve options with `list_product_options`/`list_option_units`, allocate a
+  reference with `generate_booking_number`, then create). The platform now
+  orchestrates all of it: the booking reference **and** the action-ledger
+  idempotency key are resolved server-side, so the model never carries a token
+  across turns — the failure mode that produced duplicate bookings. Like
+  `compose_product`, an incomplete request returns actionable issues and writes
+  nothing. It carries its own action policy and does not bypass the action-ledger
+  gate.
+
+  **Breaking change.** `generate_booking_number` is removed — no alias, no
+  deprecation window (the product is in beta). `book_product` subsumes it, and
+  `create_booking` now allocates the reference server-side too, so
+  `booking.bookingNumber` is optional and callers no longer pre-allocate. The
+  orchestration prose is deleted from `create_booking`'s description.
+
+  First-party migration in the same change: `@voyant-travel/bookings-react`'s
+  manual-booking MCP client and dialog no longer call `generate_booking_number`
+  (`REQUIRED_TOOLS` is now `["create_booking"]`); they submit `create_booking`
+  without a client-invented reference and keep the stable client idempotency key
+  that makes a retry replay the original booking.
+
+  `@voyant-travel/tools` gains `withServerResolvedIdempotencyKey`, the sanctioned
+  way for a handler-owned workflow tool to seat a server-derived idempotency key
+  on an already-authentic admission — the created-target analogue of the
+  server-owned `requestId` a generic server-owned-target action already uses.
+
+### Patch Changes
+
+- Updated dependencies [4fe6f79]
+- Updated dependencies [276d44d]
+- Updated dependencies [0c30250]
+- Updated dependencies [5fa76aa]
+  - @voyant-travel/finance@0.225.0
+  - @voyant-travel/admin@0.133.0
+  - @voyant-travel/accommodations@0.185.0
+  - @voyant-travel/catalog@0.223.0
+  - @voyant-travel/cruises@0.224.0
+  - @voyant-travel/finance-react@0.225.0
+  - @voyant-travel/inventory-react@0.107.0
+  - @voyant-travel/distribution-react@0.215.0
+  - @voyant-travel/identity-react@0.225.0
+  - @voyant-travel/legal-react@0.225.0
+  - @voyant-travel/operations-react@0.106.0
+  - @voyant-travel/bookings@0.225.0
+  - @voyant-travel/storefront-react@0.227.0
+  - @voyant-travel/catalog-react@0.223.0
+  - @voyant-travel/commerce-react@0.107.0
+  - @voyant-travel/relationships-react@0.225.0
+
 ## 0.224.0
 
 ### Patch Changes

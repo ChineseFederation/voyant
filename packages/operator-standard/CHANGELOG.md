@@ -1,5 +1,106 @@
 # @voyant-travel/operator-standard
 
+## 0.18.0
+
+### Minor Changes
+
+- 0c30250: Make `createStandardOperatorRouteFiles` a pure function of resolved
+  deployment-graph data (voyant#3976 item 10.1).
+
+  The standard operator route generator previously hardcoded the presentation
+  IDs and route tables for auth, storefront, finance, quotes, and MCP consent, so
+  a package could not get admin routes emitted without editing
+  `@voyant-travel/operator-standard`. Each presentation now declares its own
+  route contribution on its `presentations` graph entry via `contribution` and
+  `routes`, and the generator emits from those declarations.
+
+  `VoyantGraphPresentationDeclaration` gains optional `contribution` and `routes`
+  fields (`VoyantGraphPresentationRouteDeclaration`), validated in the deployment
+  graph: when `routes` is non-empty, `contribution` must be a non-empty string,
+  each `route` must start with `/`, and each `member` must be a non-empty string.
+  The product BOM now carries the full presentation declarations rather than just
+  their IDs. This is a behaviour-preserving refactor — the emitted route-file set
+  is byte-identical to before.
+
+### Patch Changes
+
+- Updated dependencies [4fe6f79]
+- Updated dependencies [276d44d]
+- Updated dependencies [0c30250]
+- Updated dependencies [5fa76aa]
+  - @voyant-travel/finance@0.225.0
+  - @voyant-travel/bookings-react@0.225.0
+  - @voyant-travel/tools@0.10.0
+  - @voyant-travel/mcp@0.15.0
+  - @voyant-travel/core@0.137.0
+  - @voyant-travel/auth@0.149.0
+  - @voyant-travel/storefront@0.227.0
+  - @voyant-travel/quotes@0.136.0
+  - @voyant-travel/admin@0.133.0
+  - @voyant-travel/apps@0.13.0
+  - @voyant-travel/accommodations@0.185.0
+  - @voyant-travel/catalog@0.223.0
+  - @voyant-travel/commerce@0.45.5
+  - @voyant-travel/cruises@0.224.0
+  - @voyant-travel/distribution@0.215.0
+  - @voyant-travel/finance-react@0.225.0
+  - @voyant-travel/flights@0.225.0
+  - @voyant-travel/flights-react@0.225.0
+  - @voyant-travel/inventory@0.25.2
+  - @voyant-travel/inventory-react@0.107.0
+  - @voyant-travel/legal@0.225.0
+  - @voyant-travel/notifications@0.144.0
+  - @voyant-travel/operator-settings@0.16.11
+  - @voyant-travel/operator-settings-react@0.81.0
+  - @voyant-travel/trips@0.218.0
+  - @voyant-travel/trips-react@0.218.0
+  - @voyant-travel/action-ledger-react@0.114.0
+  - @voyant-travel/distribution-react@0.215.0
+  - @voyant-travel/identity-react@0.225.0
+  - @voyant-travel/legal-react@0.225.0
+  - @voyant-travel/operations-react@0.106.0
+  - @voyant-travel/action-ledger@0.115.9
+  - @voyant-travel/bookings@0.225.0
+  - @voyant-travel/charters@0.223.0
+  - @voyant-travel/identity@0.225.0
+  - @voyant-travel/mice@0.81.0
+  - @voyant-travel/navigation-preferences@0.23.0
+  - @voyant-travel/operations@0.11.9
+  - @voyant-travel/relationships@0.132.22
+  - @voyant-travel/setup@0.7.6
+  - @voyant-travel/availability@0.2.29
+  - @voyant-travel/catalog-authoring@0.107.35
+  - @voyant-travel/custom-fields@0.2.22
+  - @voyant-travel/db@0.119.1
+  - @voyant-travel/event-catalog@0.2.22
+  - @voyant-travel/event-catalog-react@0.23.0
+  - @voyant-travel/media@0.6.5
+  - @voyant-travel/payments@0.8.1
+  - @voyant-travel/public-document-delivery@0.4.19
+  - @voyant-travel/realtime@0.7.6
+  - @voyant-travel/reporting@0.3.13
+  - @voyant-travel/reporting-contracts@0.3.7
+  - @voyant-travel/storage@0.115.1
+  - @voyant-travel/webhook-delivery@0.5.10
+  - @voyant-travel/auth-react@0.149.0
+  - @voyant-travel/storefront-react@0.227.0
+  - @voyant-travel/quotes-react@0.223.0
+  - @voyant-travel/admin-app@0.118.0
+  - @voyant-travel/admin-host@0.76.0
+  - @voyant-travel/apps-react@0.9.0
+  - @voyant-travel/catalog-react@0.223.0
+  - @voyant-travel/commerce-react@0.107.0
+  - @voyant-travel/custom-fields-react@0.9.0
+  - @voyant-travel/media-react@0.9.0
+  - @voyant-travel/mice-react@0.93.0
+  - @voyant-travel/navigation-preferences-react@0.23.0
+  - @voyant-travel/notifications-react@0.144.0
+  - @voyant-travel/relationships-react@0.225.0
+  - @voyant-travel/reporting-react@0.9.0
+  - @voyant-travel/setup-react@0.15.0
+  - @voyant-travel/cruises-react@0.224.0
+  - @voyant-travel/admin-react@0.133.0
+
 ## 0.17.6
 
 ### Patch Changes

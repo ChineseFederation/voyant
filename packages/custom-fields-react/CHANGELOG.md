@@ -1,5 +1,13 @@
 # @voyant-travel/custom-fields-react
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies [5fa76aa]
+  - @voyant-travel/admin@0.133.0
+  - @voyant-travel/custom-fields@0.2.22
+
 ## 0.8.0
 
 ### Patch Changes

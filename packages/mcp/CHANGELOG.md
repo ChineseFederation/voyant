@@ -1,5 +1,52 @@
 # @voyant-travel/mcp
 
+## 0.15.0
+
+### Minor Changes
+
+- 276d44d: Three fixes found by driving the MCP surface as a real client rather than a
+  scripted one.
+
+  `ToolDefinition` gains `resolvesIdempotencyKeyServerSide`. A handler-enforced
+  ledgered `execute` previously advertised `idempotencyKey` as caller-required
+  unconditionally, so `book_product` — whose purpose is that no token crosses
+  calls — told agents to supply the very thing it resolves for them.
+
+  A `<domain>_query` result now applies the concise projection to
+  `structuredContent`, not only the text block. Query tools advertise a permissive
+  output schema, so trimming cannot fail validation; a client reading structured
+  content previously saw none of the concise saving. Measured 52% smaller.
+
+  Server instructions distinguish a key that authorizes nothing from a read-only
+  one, instead of claiming reads work when every query returns empty.
+
+- 0c30250: Make `createStandardOperatorRouteFiles` a pure function of resolved
+  deployment-graph data (voyant#3976 item 10.1).
+
+  The standard operator route generator previously hardcoded the presentation
+  IDs and route tables for auth, storefront, finance, quotes, and MCP consent, so
+  a package could not get admin routes emitted without editing
+  `@voyant-travel/operator-standard`. Each presentation now declares its own
+  route contribution on its `presentations` graph entry via `contribution` and
+  `routes`, and the generator emits from those declarations.
+
+  `VoyantGraphPresentationDeclaration` gains optional `contribution` and `routes`
+  fields (`VoyantGraphPresentationRouteDeclaration`), validated in the deployment
+  graph: when `routes` is non-empty, `contribution` must be a non-empty string,
+  each `route` must start with `/`, and each `member` must be a non-empty string.
+  The product BOM now carries the full presentation declarations rather than just
+  their IDs. This is a behaviour-preserving refactor — the emitted route-file set
+  is byte-identical to before.
+
+### Patch Changes
+
+- Updated dependencies [4fe6f79]
+- Updated dependencies [276d44d]
+- Updated dependencies [0c30250]
+  - @voyant-travel/tools@0.10.0
+  - @voyant-travel/core@0.137.0
+  - @voyant-travel/hono@0.138.1
+
 ## 0.14.0
 
 ### Minor Changes

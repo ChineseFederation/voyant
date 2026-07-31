@@ -1,5 +1,38 @@
 # @voyant-travel/apps
 
+## 0.13.0
+
+### Minor Changes
+
+- 5fa76aa: Publish the admin UI extension slot vocabulary from the contract package.
+
+  `ADMIN_UI_EXTENSION_SLOTS` and `AdminUiExtensionSlot` now live in
+  `@voyant-travel/admin-extension-sdk`, which is the dependency-free package an
+  extension author already installs. `@voyant-travel/admin` and
+  `@voyant-travel/apps` derive from it instead of restating it.
+
+  The list was previously maintained twice — once in
+  `packages/admin/src/ui-extensions/registry.ts` for the shell that renders the
+  slots, and once in `packages/apps/src/contracts.ts` as the enum the manifest
+  schema validates against. They agreed only by discipline, and a slot added to
+  one would have been rejected by the schema or left unrendered by the shell.
+
+  `@voyant-travel/admin` keeps exporting `ADMIN_UI_EXTENSION_SLOTS`,
+  `AdminUiExtensionSlot`, and `isAdminUiExtensionSlot`, and `@voyant-travel/apps`
+  keeps exporting `APP_ADMIN_EXTENSION_SLOTS`, so no consumer import changes.
+
+### Patch Changes
+
+- Updated dependencies [0c30250]
+- Updated dependencies [5fa76aa]
+  - @voyant-travel/core@0.137.0
+  - @voyant-travel/admin-extension-sdk@0.3.0
+  - @voyant-travel/admin@0.133.0
+  - @voyant-travel/custom-fields@0.2.22
+  - @voyant-travel/db@0.119.1
+  - @voyant-travel/hono@0.138.1
+  - @voyant-travel/webhook-delivery@0.5.10
+
 ## 0.12.17
 
 ### Patch Changes
