@@ -1,7 +1,8 @@
 # ADR-0016: Modules are components of one deployable; enforce the boundary that already exists
 
 - **Status:** Proposed (2026-07-30). Substantially revised after adversarial review — see
-  [Corrections](#corrections-from-review).
+  [Corrections](#corrections-from-review). **Amended 2026-07-31** after the deploy-and-use
+  product pivot invalidated part of Decision 3 — see [Amendment](#amendment-the-deploy-and-use-pivot).
 - **Relates to:** [#3898](https://github.com/voyant-travel/voyant/issues/3898),
   [#3902](https://github.com/voyant-travel/voyant/issues/3902),
   [ADR-0002](./0002-contract-packages.md) (contract packages — upheld),
@@ -109,6 +110,11 @@ The layer map of decision 1 additionally yields the ADR-0002 arrow as a static r
 A **new** `packages/*` entry requires a **named consumer outside the operator graph** — a
 plugin, connector, adapter, edge worker, admin extension, or sibling repo — stated in the PR
 description.
+
+> **Amended.** This test is weaker than it reads. *Outside the operator graph* and *outside the
+> company* are different things, and every consumer it was written to protect turns out to be
+> first-party. See [Amendment](#amendment-the-deploy-and-use-pivot) — the rule as stated defends
+> the package count rather than questioning it.
 
 Existing packages are grandfathered by **source-free managed delivery**
 (`packaged-admin-rfc.md`: *"there is no source-installed layer anymore"*;
@@ -234,6 +240,67 @@ it.
 > was **wrong** and is withdrawn. `VOYANT_GRAPH_PACKAGE_SOURCE_UNADMITTED`
 > (`deployment-graph.ts:4474`), `VOYANT_GRAPH_RUNTIME_PACKAGE_UNADMITTED`, and
 > `VOYANT_GRAPH_MANIFEST_OWNERSHIP_MISMATCH` are all prohibition-polarity.
+
+## Amendment: the deploy-and-use pivot
+
+*Added 2026-07-31. Recorded here because this ADR is otherwise cited in good faith to defend a
+package count the product no longer needs.*
+
+### The product changed
+
+Voyant began as something you **build with**. That proved needlessly complicated, and the product
+pivoted to something you **deploy and use** — a cohesive system customised through custom fields,
+apps, extensions, and the API/webhook surface, not by compiling against framework packages.
+Platform and self-hosters are intended to run the **same image**, differing only by configuration.
+
+### What that invalidates
+
+This ADR justifies the package split on three clauses, of which the first is now wrong:
+
+**Clause 1 — a third-party consumer.** The evidence cited was `plugin-netopia`, `connect-sdk`,
+`hisky-connector`, `algolia-adapter`, and `plugin-smartbill`. **Every one is first-party**
+(`voyant-travel/*`). The measurement was right; the framing was not — first-party repositories
+were counted as external consumers, so "the plugin and connector boundary is load-bearing" is a
+statement about our own build coordination, not about a public surface.
+
+**There is exactly one genuine third-party consumer:** `pxmstudio/voyant-smartbill-app`, an
+agency-built app. Its declared dependencies and its imports are exactly
+`@voyant-travel/admin-extension-sdk`, `@voyant-travel/apps`, and `@voyant-travel/ui` — three
+packages, none of them a framework or domain package.
+
+That is stronger evidence than the absence of consumers would have been. The only external party
+building on Voyant already restricts itself to the extension surface, unprompted.
+
+**Clause 3 — source-free managed delivery.** Still true, and now carrying nearly the whole
+justification: roughly 84 of 110 packages exist because the managed runtime installs them
+individually. That is a platform pipeline decision, not an architectural property. If managed
+delivery ever consumed a composed image instead, those packages lose their stated reason to exist.
+
+### What survives unchanged
+
+**The monolith conclusion, reinforced.** One resident Node application, modules as components, no
+subsetting. The pivot does not change the runtime shape — it removes the last justification for
+*distributing* that runtime as 107 separate packages.
+
+Decisions 1, 2, 4, 5, 6 and 7 are unaffected, as are all six checkers built from them. The
+boundary rules describe how the code fits together, which is orthogonal to how it is shipped.
+
+### The revised package-ness test
+
+Package-ness should be judged against the **public** surface, which under the pivot is:
+
+| Audience | Surface |
+|---|---|
+| Platform and self-hosters | the image, config-driven |
+| First-party adapters and connectors | build coordination — private registry, monorepo, or git deps |
+| Third-party app and extension developers | `admin-extension-sdk`, `apps`, `ui` |
+| Third-party Connect connector developers | a contract surface, shape still to be determined |
+
+Plausibly **under ten packages published publicly**, against 107 today.
+
+Superseding work is tracked in [#3976](https://github.com/voyant-travel/voyant/issues/3976). Until
+that lands, Decision 3 stands as written for practical purposes — but it should not be quoted as
+evidence that the package split is justified by third-party demand, because it is not.
 
 ## Consequences
 
