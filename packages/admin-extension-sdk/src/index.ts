@@ -62,6 +62,7 @@ export {
   uiExtensionMessageTypes,
 } from "./protocol.js"
 export type {
+  AdminUiExtensionSlot,
   UiExtensionContext,
   UiExtensionDescriptor,
   UiExtensionEntity,
@@ -71,4 +72,5 @@ export type {
   UiExtensionToastIntent,
   UiExtensionViewer,
 } from "./types.js"
+export { ADMIN_UI_EXTENSION_SLOTS } from "./types.js"
 export { ADMIN_UI_EXTENSION_API_VERSION } from "./version.js"

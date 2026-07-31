@@ -1,6 +1,7 @@
+import { ADMIN_UI_EXTENSION_SLOTS } from "@voyant-travel/admin-extension-sdk/types"
 import { describe, expect, it } from "vitest"
 import { compileAppManifest } from "./compiler.js"
-import { appManifestSchema } from "./contracts.js"
+import { APP_ADMIN_EXTENSION_SLOTS, appManifestSchema } from "./contracts.js"
 import { validManifest } from "./test-fixtures.js"
 
 describe("app manifest compiler", () => {
@@ -69,6 +70,26 @@ describe("app manifest compiler", () => {
       )
       expect(result.error.issues.map((issue) => issue.message).join("\n")).toContain("forbidden")
     }
+  })
+
+  it("accepts every slot the shell contract publishes", () => {
+    // The manifest schema and the admin shell used to keep separate hand-written
+    // copies of this list. They agreed only by discipline, and a slot added to
+    // one would have been rejected or unrendered by the other. Both now derive
+    // from the contract package; this fails if either restates it.
+    for (const slot of ADMIN_UI_EXTENSION_SLOTS) {
+      expect(() =>
+        compileAppManifest({
+          ...validManifest,
+          admin: {
+            ...validManifest.admin,
+            slotExtensions: [{ ...validManifest.admin.slotExtensions[0], slots: [slot] }],
+          },
+        }),
+      ).not.toThrow()
+    }
+
+    expect(APP_ADMIN_EXTENSION_SLOTS).toBe(ADMIN_UI_EXTENSION_SLOTS)
   })
 
   it("validates slot ids and external webhook event versions", () => {

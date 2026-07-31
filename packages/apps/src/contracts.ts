@@ -1,18 +1,16 @@
+import { ADMIN_UI_EXTENSION_SLOTS } from "@voyant-travel/admin-extension-sdk/types"
 import { customFieldDefinitionInputSchema } from "@voyant-travel/custom-fields/contracts"
 import { assertOutboundWebhookEndpointUrl } from "@voyant-travel/webhook-delivery"
 import { z } from "zod"
 
 export const APP_MANIFEST_SCHEMA_VERSION = "voyant.app-manifest.v1" as const
-export const APP_ADMIN_EXTENSION_SLOTS = [
-  "dashboard.header",
-  "dashboard.after-kpis",
-  "dashboard.footer",
-  "booking.details.header",
-  "booking.details.after-summary",
-  "invoice.details.header",
-  "invoice.details.after-summary",
-  "workspace.header.actions",
-] as const
+
+/**
+ * What a published manifest may target, taken from the contract package rather
+ * than restated here. A manifest that validates must be renderable by the
+ * shell, so the schema and the host have to read one list.
+ */
+export const APP_ADMIN_EXTENSION_SLOTS = ADMIN_UI_EXTENSION_SLOTS
 
 const disallowedManifestKeys = {
   schemas: "Database schemas are deployment-package authority and cannot appear in app manifests.",

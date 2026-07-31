@@ -55,6 +55,34 @@ export interface UiExtensionContext {
 }
 
 /**
+ * The slots an admin UI extension may target.
+ *
+ * This is the canonical list. It lives here, in the dependency-free contract
+ * package an extension author already installs, because it is part of the
+ * public extension surface rather than an internal detail of the shell: the
+ * host renders these, the manifest schema validates against them, and an
+ * author needs to know them to target one.
+ *
+ * `@voyant-travel/admin` and `@voyant-travel/apps` both derive from this
+ * rather than restating it. Adding a slot is a contract change — it widens
+ * what a published manifest may declare, so it belongs to this package's
+ * version.
+ */
+export const ADMIN_UI_EXTENSION_SLOTS = [
+  "dashboard.header",
+  "dashboard.after-kpis",
+  "dashboard.footer",
+  "booking.details.header",
+  "booking.details.after-summary",
+  "invoice.details.header",
+  "invoice.details.after-summary",
+  "workspace.header.actions",
+] as const
+
+/** A slot id from the public UI-extension registry. */
+export type AdminUiExtensionSlot = (typeof ADMIN_UI_EXTENSION_SLOTS)[number]
+
+/**
  * A manifest resolved into the shape the host consumes. The cloud platform
  * resolves and validates extension manifests into this; the framework host
  * never parses raw manifests.
