@@ -47,7 +47,7 @@ export function registerMcpTool(
   )
 }
 
-function toMcpMeta(entry: ToolManifestEntry, aliasFor?: string): Record<string, unknown> {
+export function toMcpMeta(entry: ToolManifestEntry, aliasFor?: string): Record<string, unknown> {
   return {
     "voyant.travel/tool": {
       contractVersion: TOOL_CONTRACT_VERSION,

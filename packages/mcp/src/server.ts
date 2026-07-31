@@ -22,13 +22,13 @@ import { StreamableHTTPTransport } from "@hono/mcp"
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { assertVoyantGraphMcpRuntime } from "@voyant-travel/framework/runtime-attestation"
+import type { Reporter } from "@voyant-travel/hono/observability"
 import {
   createToolRegistry,
   TOOL_CONTEXT_CONTRIBUTION_EXPORT,
   TOOL_CONTRACT_VERSION,
   type ToolContext,
   type ToolContextContribution,
-  type ToolManifestEntry,
   type ToolRegistry,
 } from "@voyant-travel/tools"
 import type { Context } from "hono"
@@ -39,6 +39,13 @@ import {
   buildContributedContext,
   indexActionsByTool,
 } from "./graph-composition.js"
+import {
+  type AuthorizedSurface,
+  collectAuthorizedTools,
+  META_TOOL_NAMES,
+  registerMetaTools,
+  selectEagerToolNames,
+} from "./meta-tools.js"
 import {
   callerFromContext,
   classifyToolCallResult,
@@ -102,12 +109,27 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   const serverInfo = options.serverInfo ?? DEFAULT_SERVER_INFO
   const app = new OpenAPIHono()
 
-  const observerFor = (ctx: ToolContext): McpObserver =>
-    createMcpObserver({
-      ...(options.reporter ? { reporter: options.reporter } : {}),
-      ...(options.appName ? { appName: options.appName } : {}),
+  /**
+   * Resolve the telemetry sink, preferring an explicitly configured reporter and
+   * otherwise falling back to the one `createVoyantApp` puts on the request
+   * context.
+   *
+   * The fallback is what makes this instrumentation actually emit. Nothing
+   * threads a reporter into `createMcpVoyantRuntime` — the transport is composed
+   * generically from the selected graph — so without reading the context the
+   * observer defaults to a no-op and the whole surface ships dark.
+   */
+  const observerFor = (c: Context, ctx: ToolContext): McpObserver => {
+    const contextReporter = (c.var as { reporter?: Reporter }).reporter
+    const contextAppName = (c.var as { appName?: string }).appName
+    const reporter = options.reporter ?? contextReporter
+    const appName = options.appName ?? contextAppName
+    return createMcpObserver({
+      ...(reporter ? { reporter } : {}),
+      ...(appName ? { appName } : {}),
       ...(ctx.waitUntil ? { waitUntil: ctx.waitUntil } : {}),
     })
+  }
 
   app.openapi(getManifestRoute, async (c) => {
     const permissions = callerPermissions(c)
@@ -115,7 +137,7 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     const tools = registry
       .list()
       .filter((tool) => isAuthorized(tool, permissions, accessCatalog, ctx.audience))
-    observerFor(ctx).toolsList({
+    observerFor(c, ctx).toolsList({
       payloadBytes: jsonByteLength(tools),
       toolCount: tools.length,
       caller: callerFromContext(ctx),
@@ -126,41 +148,47 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
   app.openapi(callMcpRoute, async (c) => {
     const permissions = callerPermissions(c)
     const ctx = await buildAuthenticatedContext(c, buildContext)
-    const observer = observerFor(ctx)
+    const observer = observerFor(c, ctx)
     const server = new McpServer(serverInfo)
+    const requireActionPolicy = options.requireActionPolicies ?? false
 
-    // The invocation names the caller could actually reach, so an unknown-tool
-    // event is a name that was never registered *or* was filtered by scope —
-    // both of which reveal what the model expected but could not call.
-    const authorizedTools = new Map<string, ToolManifestEntry>()
-    for (const entry of registry.list()) {
-      if (!isAuthorized(entry, permissions, accessCatalog, ctx.audience)) continue
-      const def = registry.get(entry.name)
-      if (!def) continue
-      authorizedTools.set(entry.name, entry)
-      registerMcpTool(
-        server,
-        registry,
-        entry,
-        def,
-        entry.name,
-        ctx,
-        undefined,
-        options.requireActionPolicies,
-      )
-      for (const alias of entry.aliases) {
-        authorizedTools.set(alias, entry)
-        registerMcpTool(
-          server,
-          registry,
-          entry,
-          def,
-          alias,
-          ctx,
-          entry.name,
-          options.requireActionPolicies,
-        )
-      }
+    // The caller's full authorized surface (canonical + alias names). Progressive
+    // disclosure means only tier 0 is *registered* — but search / describe / call
+    // and flat-name dispatch all consult this same map, so an unauthorized tool is
+    // neither discoverable nor callable. Pruning at the index and dispatch layers,
+    // not just the register loop, is the security property of the server.
+    const surface = collectAuthorizedTools(registry, permissions, accessCatalog, ctx.audience)
+
+    // Register only the tier-0 domain tools eagerly; the long tail stays lazy.
+    const eagerNames = selectEagerToolNames(surface, options.eagerToolNames)
+    for (const name of eagerNames)
+      registerSurfaceTool(server, registry, surface, name, ctx, requireActionPolicy)
+
+    registerMetaTools({
+      server,
+      registry,
+      surface,
+      ctx,
+      requireActionPolicy,
+      observer,
+      caller: callerFromContext(ctx),
+      now: () => Date.now(),
+    })
+
+    // Backwards compatibility: a flat-name `tools/call` for a lazy (non-eager)
+    // authorized tool must still dispatch — the operator's manual-booking client
+    // calls `create_booking` by name. Register just that tool for this request, so
+    // the SDK validates and dispatches it exactly as before. Because `surface`
+    // gates it, an unauthorized name is never registered and stays uncallable.
+    const requestBody = asRecord(await c.req.json().catch(() => undefined))
+    const requestedName = requestedToolName(requestBody)
+    if (
+      requestedName &&
+      !eagerNames.has(requestedName) &&
+      !META_TOOL_NAMES.includes(requestedName) &&
+      surface.has(requestedName)
+    ) {
+      registerSurfaceTool(server, registry, surface, requestedName, ctx, requireActionPolicy)
     }
 
     const transport = new StreamableHTTPTransport({
@@ -170,11 +198,59 @@ export function createMcpApiRoutes(options: McpApiRoutesOptions): OpenAPIHono {
     await server.connect(transport)
     const startedAt = Date.now()
     const response = (await transport.handleRequest(c)) ?? c.body(null, 204)
-    await instrumentRpc(c, response, Date.now() - startedAt, authorizedTools, ctx, observer)
+    await instrumentRpc(c, response, Date.now() - startedAt, surface, ctx, observer)
     return response
   })
 
   return app
+}
+
+/** Register one invocation name from the authorized surface onto the per-request server. */
+function registerSurfaceTool(
+  server: McpServer,
+  registry: ToolRegistry,
+  surface: AuthorizedSurface,
+  invocationName: string,
+  ctx: ToolContext,
+  requireActionPolicy: boolean,
+): void {
+  const binding = surface.get(invocationName)
+  if (!binding) return
+  const def = registry.get(binding.entry.name)
+  if (!def) return
+  registerMcpTool(
+    server,
+    registry,
+    binding.entry,
+    def,
+    invocationName,
+    ctx,
+    binding.aliasFor,
+    requireActionPolicy,
+  )
+  // A canonical eager tool also advertises its deprecated aliases, matching the
+  // pre-disclosure behavior for the tools that remain resident.
+  if (!binding.aliasFor) {
+    for (const alias of binding.entry.aliases) {
+      registerMcpTool(
+        server,
+        registry,
+        binding.entry,
+        def,
+        alias,
+        ctx,
+        binding.entry.name,
+        requireActionPolicy,
+      )
+    }
+  }
+}
+
+/** The `params.name` of a `tools/call` request, or undefined for any other method. */
+function requestedToolName(request: Record<string, unknown> | undefined): string | undefined {
+  if (request?.method !== "tools/call") return undefined
+  const name = asRecord(request.params)?.name
+  return typeof name === "string" ? name : undefined
 }
 
 /**
@@ -186,7 +262,7 @@ async function instrumentRpc(
   c: Context,
   response: Response,
   durationMs: number,
-  authorizedTools: Map<string, ToolManifestEntry>,
+  surface: AuthorizedSurface,
   ctx: ToolContext,
   observer: McpObserver,
 ): Promise<void> {
@@ -209,8 +285,12 @@ async function instrumentRpc(
     }
     const name = asRecord(request?.params)?.name
     if (typeof name !== "string") return
-    const entry = authorizedTools.get(name)
-    const { outcome, code } = classifyToolCallResult(payload, entry !== undefined)
+    // A meta-tool call (`search_tools` / `describe_tool` / `call_tool`) is a
+    // known invocation with no write; a domain name resolves through `surface`.
+    // `call_tool` additionally emits an event for the tool it dispatches.
+    const entry = surface.get(name)?.entry
+    const known = entry !== undefined || META_TOOL_NAMES.includes(name)
+    const { outcome, code } = classifyToolCallResult(payload, known)
     observer.toolCall({
       tool: name,
       outcome,

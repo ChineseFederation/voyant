@@ -45,6 +45,19 @@ async function readRpc(res: Response): Promise<Record<string, unknown>> {
   return JSON.parse(text)
 }
 
+/**
+ * With progressive disclosure (voyant#3927) a domain tool's projected schema is
+ * fetched through `describe_tool` rather than eagerly listed. This returns the
+ * same descriptor `tools/list` used to advertise.
+ */
+async function describeTool(app: Hono, name: string): Promise<Record<string, unknown> | undefined> {
+  const res = await readRpc(
+    await app.request("/", rpc("tools/call", { name: "describe_tool", arguments: { name } })),
+  )
+  return (res.result as { structuredContent?: Record<string, unknown> } | undefined)
+    ?.structuredContent
+}
+
 const scheduleOfferTool = defineTool({
   name: "schedule_offer",
   description: "Schedule an offer with Date-bearing validity bounds.",
@@ -141,18 +154,12 @@ describe("MCP Date input discovery", () => {
   it("lists and calls Tools whose input schemas include coerced Date fields", async () => {
     const app = mcpAppFor(scheduleOfferTool)
 
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    expect(listed.error).toBeUndefined()
-    const tool = (
-      listed.result as {
-        tools?: Array<{
+    const tool = (await describeTool(app, "schedule_offer")) as
+      | {
           name: string
-          inputSchema?: {
-            properties?: Record<string, { type?: string; format?: string }>
-          }
-        }>
-      }
-    ).tools?.find(({ name }) => name === "schedule_offer")
+          inputSchema?: { properties?: Record<string, { type?: string; format?: string }> }
+        }
+      | undefined
 
     expect(tool).toBeDefined()
     const validFrom = tool?.inputSchema?.properties?.validFrom
@@ -184,15 +191,8 @@ describe("MCP Date input discovery", () => {
   it("revives ISO datetime strings for plain z.date() Tool inputs before registry validation", async () => {
     const app = mcpAppFor(scheduleStrictDateTool)
 
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    expect(listed.error).toBeUndefined()
-    expect(
-      (
-        listed.result as {
-          tools?: Array<{ name: string }>
-        }
-      ).tools?.some(({ name }) => name === "schedule_strict_date"),
-    ).toBe(true)
+    const described = await describeTool(app, "schedule_strict_date")
+    expect(described).toMatchObject({ name: "schedule_strict_date" })
 
     const called = await readRpc(
       await app.request(

@@ -25,6 +25,13 @@ export interface McpApiRoutesOptions {
   serverInfo?: McpServerInfo
   /** Graph-composed hosts fail closed when a selected Tool has no selected action policy. */
   requireActionPolicies?: boolean
+  /**
+   * Canonical names of domain tools to register eagerly in tier 0 alongside the
+   * meta-tools (voyant#3927). Defaults to none: the domain surface is discovered
+   * on demand through `search_tools` / `describe_tool` / `call_tool` until the
+   * guide / workflow / domain-query tiers land and opt specific tools in.
+   */
+  eagerToolNames?: readonly string[]
   /** Observability sink for MCP transport telemetry (RFC #1553). Defaults to no-op. */
   reporter?: Reporter
   /** Logical app name stamped on emitted telemetry events. Defaults to `"voyant"`. */

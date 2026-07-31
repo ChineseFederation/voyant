@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: mcp; end-to-end transport coverage (#3927).
 import { readFile } from "node:fs/promises"
 import type { VoyantGraphActionDeclaration } from "@voyant-travel/core/project"
 import {
@@ -107,6 +108,49 @@ async function readRpc(res: Response): Promise<Record<string, unknown>> {
     return JSON.parse(line?.slice("data:".length).trim() ?? "{}")
   }
   return JSON.parse(text)
+}
+
+/**
+ * Progressive disclosure (voyant#3927): `tools/list` now carries only the tier-0
+ * meta-tools. A domain tool's full descriptor is fetched through `describe_tool`
+ * — the same descriptor it used to be advertised with — and it is discovered
+ * through `search_tools`. These helpers exercise both indirection paths.
+ */
+async function listedNames(app: Hono): Promise<string[]> {
+  const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
+  const tools = (listed.result as { tools?: Array<{ name: string }> } | undefined)?.tools ?? []
+  return tools.map(({ name }) => name)
+}
+
+async function describeTool(
+  app: Hono,
+  name: string,
+): Promise<{ result?: Record<string, unknown>; structuredContent?: Record<string, unknown> }> {
+  const res = await readRpc(
+    await app.request("/", rpc("tools/call", { name: "describe_tool", arguments: { name } })),
+  )
+  const result = res.result as { structuredContent?: Record<string, unknown> } | undefined
+  return { result, structuredContent: result?.structuredContent }
+}
+
+async function searchToolNames(
+  app: Hono,
+  args: { query?: string; domain?: string } = {},
+): Promise<string[]> {
+  const res = await readRpc(
+    await app.request("/", rpc("tools/call", { name: "search_tools", arguments: args })),
+  )
+  const structured = (res.result as { structuredContent?: { tools?: Array<{ name: string }> } })
+    ?.structuredContent
+  return (structured?.tools ?? []).map(({ name }) => name)
+}
+
+/** True when `describe_tool` reports the tool as unavailable (unknown OR unauthorized). */
+async function describeIsUnavailable(app: Hono, name: string): Promise<boolean> {
+  const res = await readRpc(
+    await app.request("/", rpc("tools/call", { name: "describe_tool", arguments: { name } })),
+  )
+  return (res.result as { isError?: boolean } | undefined)?.isError === true
 }
 
 const echoTool = defineTool({
@@ -490,26 +534,17 @@ describe("createMcpApiRoutes", () => {
       .sort((left, right) => left.join(":").localeCompare(right.join(":")))
   }
 
-  it("lists and calls a tool when the caller holds its required scopes", async () => {
+  it("advertises only tier-0 meta-tools and describes an authorized tool on demand", async () => {
     const app = appWithScopes(["catalog:read"])
 
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    const tools =
-      (
-        listed.result as
-          | {
-              tools?: Array<{
-                name: string
-                outputSchema?: Record<string, unknown>
-                annotations?: Record<string, unknown>
-                _meta?: Record<string, unknown>
-              }>
-            }
-          | undefined
-      )?.tools ?? []
-    expect(tools.map((t) => t.name)).toContain("echo")
-    expect(tools.map((t) => t.name)).toContain("echo_text")
-    expect(tools.find((t) => t.name === "echo")).toMatchObject({
+    // tools/list is now just the tier-0 meta-tools — the ~8x win of #3927.
+    expect((await listedNames(app)).sort()).toEqual(["call_tool", "describe_tool", "search_tools"])
+
+    // The lazy tool is discoverable through search_tools and its full descriptor
+    // — output schema, annotations, discovery metadata — comes from describe_tool.
+    expect(await searchToolNames(app, { query: "echo" })).toContain("echo")
+    expect((await describeTool(app, "echo")).structuredContent).toMatchObject({
+      name: "echo",
       outputSchema: {
         type: "object",
         properties: { text: { type: "string" } },
@@ -533,7 +568,8 @@ describe("createMcpApiRoutes", () => {
         },
       },
     })
-    expect(tools.find((t) => t.name === "echo_text")).toMatchObject({
+    expect((await describeTool(app, "echo_text")).structuredContent).toMatchObject({
+      name: "echo_text",
       _meta: { "voyant.travel/tool": { aliasFor: "echo" } },
     })
 
@@ -858,10 +894,8 @@ describe("createMcpApiRoutes", () => {
     })
     outer.route("/", graphApp)
 
-    const listed = await readRpc(await outer.request("/", rpc("tools/list", {})))
-    const listedTool = (
-      listed.result as {
-        tools: Array<{
+    const listedTool = (await describeTool(outer, "create_notification")).structuredContent as
+      | {
           name: string
           inputSchema: {
             properties?: {
@@ -869,9 +903,8 @@ describe("createMcpApiRoutes", () => {
             }
           }
           _meta: Record<string, unknown>
-        }>
-      }
-    ).tools.find(({ name }) => name === "create_notification")
+        }
+      | undefined
     const invocationSchema = listedTool?.inputSchema.properties?._voyant
     expect(invocationSchema?.properties).toHaveProperty("reasonCode")
     expect(invocationSchema?.properties).not.toHaveProperty("confirmed")
@@ -1002,7 +1035,13 @@ describe("createMcpApiRoutes", () => {
     })
     outer.route("/", routes)
 
-    const response = await outer.request("/", rpc("tools/list", {}))
+    // The reserved-field conflict is raised when the tool's schema is projected.
+    // A flat-name tools/call registers the lazy tool on demand, which projects it
+    // and surfaces the same rejection as eager registration used to.
+    const response = await outer.request(
+      "/",
+      rpc("tools/call", { name: "conflicting_control", arguments: {} }),
+    )
 
     expect(response.status).toBe(500)
     expect(caught?.message).toMatch(/input conflicts with reserved action metadata field "_voyant"/)
@@ -1080,17 +1119,14 @@ describe("createMcpApiRoutes", () => {
 
   it("preserves composed object inputs and applies the same nullable output envelope to schema and data", async () => {
     const app = appWithScopes(["records:write"])
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    const tool = (
-      listed.result as {
-        tools?: Array<{
+    const tool = (await describeTool(app, "update_record")).structuredContent as
+      | {
           name: string
           inputSchema?: Record<string, unknown>
           outputSchema?: Record<string, unknown>
           _meta?: Record<string, unknown>
-        }>
-      }
-    ).tools?.find(({ name }) => name === "update_record")
+        }
+      | undefined
 
     expect(tool?._meta).toMatchObject({ "voyant.travel/tool": { tier: "write" } })
     const serializedInput = JSON.stringify(tool?.inputSchema)
@@ -1129,22 +1165,14 @@ describe("createMcpApiRoutes", () => {
   })
 
   it("discovers and invokes a sensitive Tool only with its explicit grant", async () => {
-    const denied = await readRpc(
-      await appWithScopes(["catalog:read"]).request("/", rpc("tools/list", {})),
-    )
-    expect(
-      (denied.result as { tools?: Array<{ name: string }> } | undefined)?.tools?.map(
-        ({ name }) => name,
-      ),
-    ).not.toContain("get_sensitive_record")
+    // Without the sensitive grant the tool is neither discoverable nor describable.
+    const withoutGrant = appWithScopes(["catalog:read"])
+    expect(await searchToolNames(withoutGrant)).not.toContain("get_sensitive_record")
+    expect(await describeIsUnavailable(withoutGrant, "get_sensitive_record")).toBe(true)
 
     const app = appWithScopes(["secrets:read"])
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    expect(
-      (listed.result as { tools?: Array<{ name: string }> }).tools?.find(
-        ({ name }) => name === "get_sensitive_record",
-      ),
-    ).toMatchObject({
+    expect(await searchToolNames(app, { query: "sensitive" })).toContain("get_sensitive_record")
+    expect((await describeTool(app, "get_sensitive_record")).structuredContent).toMatchObject({
       _meta: { "voyant.travel/tool": { tier: "sensitive" } },
     })
 
@@ -1173,12 +1201,9 @@ describe("createMcpApiRoutes", () => {
     })
     app.route("/", routes)
 
-    const listed = await readRpc(await app.request("/", rpc("tools/list", {})))
-    expect(
-      (listed.result as { tools?: Array<{ name: string }> } | undefined)?.tools?.map(
-        ({ name }) => name,
-      ),
-    ).toContain("echo")
+    // tools/list is the tier-0 meta-tools; the domain tool is found via search.
+    expect((await listedNames(app)).sort()).toEqual(["call_tool", "describe_tool", "search_tools"])
+    expect(await searchToolNames(app)).toContain("echo")
 
     const called = await readRpc(
       await app.request("/", rpc("tools/call", { name: "echo", arguments: { text: "graph" } })),
@@ -1415,16 +1440,13 @@ describe("createMcpApiRoutes", () => {
     })
     outer.route("/", mcp)
 
-    const listed = await readRpc(await outer.request("/", rpc("tools/list", {})))
-    const listedTool = (
-      listed.result as {
-        tools: Array<{
+    const listedTool = (await describeTool(outer, "guarded_send")).structuredContent as
+      | {
           name: string
           inputSchema: Record<string, unknown>
           _meta: Record<string, unknown>
-        }>
-      }
-    ).tools.find(({ name }) => name === "guarded_send")
+        }
+      | undefined
     expect(listedTool).toMatchObject({
       inputSchema: { properties: { _voyant: { type: "object" } } },
       _meta: {
@@ -1726,5 +1748,110 @@ describe("createMcpApiRoutes", () => {
     expect((called.result as { isError?: boolean }).isError).toBe(true)
     expect(JSON.stringify(called)).toContain("ACTION_POLICY_REQUIRED")
     expect(dispatched).toBe(false)
+  })
+})
+
+/**
+ * Progressive disclosure moves the domain surface behind meta-tools (voyant#3927).
+ * The security property that used to hold because unauthorized tools were never
+ * registered must now hold at the indirection layer: an unauthorized tool must be
+ * neither discoverable (search_tools / describe_tool) NOR callable (call_tool or a
+ * flat-name tools/call). These tests pin that down.
+ */
+describe("progressive disclosure authorization", () => {
+  it("keeps an unauthorized tool out of search_tools and describe_tool", async () => {
+    // catalog:read authorizes `echo` only; update_record + get_sensitive_record are not.
+    const app = appWithScopes(["catalog:read"])
+
+    const found = await searchToolNames(app)
+    expect(found).toContain("echo")
+    expect(found).not.toContain("update_record")
+    expect(found).not.toContain("get_sensitive_record")
+
+    // A domain filter cannot surface a tool the caller is not authorized for.
+    expect(await searchToolNames(app, { domain: "test" })).not.toContain("update_record")
+
+    expect(await describeIsUnavailable(app, "update_record")).toBe(true)
+    expect(await describeIsUnavailable(app, "get_sensitive_record")).toBe(true)
+    // Authorized tools are describable.
+    expect((await describeTool(app, "echo")).structuredContent).toMatchObject({ name: "echo" })
+  })
+
+  it("refuses call_tool for an unauthorized tool and never dispatches it", async () => {
+    const app = appWithScopes(["catalog:read"])
+
+    const called = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "call_tool",
+          arguments: { name: "update_record", arguments: { id: "r1", name: "Mallory" } },
+        }),
+      ),
+    )
+    const result = called.result as { isError?: boolean; structuredContent?: unknown }
+    expect(result.isError).toBe(true)
+    // The write never ran: no update_record payload came back.
+    expect(result.structuredContent).toBeUndefined()
+    expect(JSON.stringify(called)).toContain("NOT_FOUND")
+    expect(JSON.stringify(called)).not.toContain("Mallory")
+  })
+
+  it("dispatches an authorized tool through call_tool", async () => {
+    const app = appWithScopes(["catalog:read"])
+
+    const called = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "call_tool",
+          arguments: { name: "echo", arguments: { text: "via meta" } },
+        }),
+      ),
+    )
+    expect((called.result as { structuredContent?: { text?: string } }).structuredContent).toEqual({
+      text: "echo: via meta",
+    })
+  })
+
+  it("dispatches an authorized lazy write through call_tool and its flat name", async () => {
+    const app = appWithScopes(["records:write"])
+
+    const viaMeta = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "call_tool",
+          arguments: { name: "update_record", arguments: { id: "r1", name: "Updated" } },
+        }),
+      ),
+    )
+    expect((viaMeta.result as { structuredContent?: unknown }).structuredContent).toMatchObject({
+      result: { id: "r1", name: "Updated" },
+    })
+
+    // The flat name still works unchanged — this is the manual-booking client path.
+    const viaFlat = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", { name: "update_record", arguments: { id: "r2", name: "Flat" } }),
+      ),
+    )
+    expect((viaFlat.result as { structuredContent?: unknown }).structuredContent).toMatchObject({
+      result: { id: "r2", name: "Flat" },
+    })
+  })
+
+  it("refuses a flat-name tools/call for an unauthorized tool", async () => {
+    const app = appWithScopes(["catalog:read"])
+    const called = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", { name: "update_record", arguments: { id: "r1", name: "Mallory" } }),
+      ),
+    )
+    // Unauthorized name is never registered → the SDK cannot dispatch it.
+    expect(called.error ?? (called.result as { isError?: boolean })?.isError).toBeTruthy()
+    expect(JSON.stringify(called)).not.toContain('"id":"r1","name":"Mallory"')
   })
 })
