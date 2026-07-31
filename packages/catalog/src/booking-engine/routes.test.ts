@@ -458,4 +458,32 @@ describe("createCatalogBookingRoutes", () => {
       "hold_1",
     )
   })
+
+  /**
+   * `hold_expires_at` is the only evidence of a hold that anything downstream
+   * reads. The public self-service create refuses a draft without it
+   * (`hold_required`) for precisely the verticals that implement holds, so
+   * placing a hold without stamping it took the inventory and then guaranteed
+   * the booking would be refused — unsatisfiable through the public API.
+   */
+  it("stamps the hold expiry on the draft it was placed for", async () => {
+    const expiresAt = new Date("2026-05-05T10:30:00.000Z")
+    const handler: OwnedBookingHandler = {
+      entityModule: "products",
+      computeQuote: async () => ({ available: true }),
+      placeHold: async () => ({ holdToken: "hold_1", expiresAt }),
+      releaseHold: async () => undefined,
+    }
+    const { app, ownedHandlers } = createTestApp()
+    ownedHandlers.register(handler)
+
+    const response = await app.request("/v1/public/catalog/holds/place", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ entityModule: "products", entityId: "prod_1", draftId: "draft_1" }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(updateBookingDraft).toHaveBeenCalledWith(db, "draft_1", { holdExpiresAt: expiresAt })
+  })
 })

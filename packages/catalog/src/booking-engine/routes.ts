@@ -697,6 +697,16 @@ async function handleHoldPlace(
         parameters: body.parameters,
       },
     )
+    // Record the hold on the draft that now carries it.
+    //
+    // `hold_expires_at` is the only evidence a hold exists that anything
+    // downstream reads: the public self-service create refuses a draft without
+    // it (`hold_required`) for exactly the verticals that implement holds, and
+    // the reaper releases by it. Placing the hold without stamping left that
+    // column permanently null for every public caller, so the create could
+    // never be satisfied — the hold was taken, inventory was decremented, and
+    // the booking was refused anyway.
+    await updateBookingDraft(db, body.draftId, { holdExpiresAt: result.expiresAt })
     return c.json({ holdToken: result.holdToken, expiresAt: result.expiresAt.toISOString() })
   } catch (err) {
     return bookingEngineErrorResponse(c, err)
