@@ -33,6 +33,50 @@ and promote repeated review feedback into scripts or docs.
 Update the relevant doc when changing an architectural rule. Add or update a
 checker when a rule is mechanical enough to enforce.
 
+- Module boundaries and what the package split is for:
+  `docs/adr/0016-modules-as-components-of-one-deployable.md`
+
+## Architecture Checkers
+
+`verify:architecture` runs a chain of checks. Four are declarative and take new
+rules as data rather than code:
+
+| Check | Enforces | Where rules live |
+|---|---|---|
+| `verify:boundary` | browser packages must not reach Drizzle or Hono through value imports | `.dependency-cruiser.cjs` |
+| `verify:graph-conformance` | what a package contributes to the resolved graph | `scripts/checks/graph/graph-conformance.json` |
+| `verify:symbol-policy` | where a symbol may and may not appear | `scripts/checks/symbols/symbol-policy.json` |
+| `verify:retired-surfaces` | deleted paths stay deleted | `scripts/checks/regression/retired-paths.json` |
+
+Two run as ratchets, holding a line rather than demanding it be clean today:
+`verify:table-privacy` (cross-module table reach-ins) and
+`verify:package-descriptions`. **Their baselines may only shrink.** Regenerate
+one only when tightening it; never to make a failure go away.
+
+### Converting an authority script you are already editing
+
+The per-module `scripts/check-*authority*.mjs` scripts assert architecture by
+matching **substrings of source text** — `manifest.includes("requirePort(x)")`.
+That breaks on reformatting and passes when a module is subtly wrong, which is
+why a feature change sometimes has to edit a checker to proceed.
+
+**If one of them fights you, convert those assertions instead of patching the
+substring.** You already have the context loaded; converting cold costs far more.
+
+- a fact about the graph — ports, capabilities, `requiresSchemas`, the runtime
+  contributor export — becomes an entry in `graph-conformance.json`
+- a rule about where a symbol may appear becomes an entry in `symbol-policy.json`
+- an assertion that a deleted file stays deleted becomes a path in
+  `retired-paths.json`
+
+Some assertions are none of these — they pin a call shape or a signature inside a
+factory. Leave those alone rather than forcing a fit, and say so in the PR.
+
+There is deliberately **no campaign** to convert the rest. The corpus shrinks as
+a side effect of normal work, which is cheaper than a sweep and puts each
+conversion in the hands of someone who knows what the module does. See
+[#3898](https://github.com/voyant-travel/voyant/issues/3898).
+
 ## Local Verification Lanes
 
 Use the smallest lane that matches the risk of the change:
