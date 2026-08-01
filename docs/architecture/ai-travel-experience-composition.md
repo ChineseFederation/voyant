@@ -438,8 +438,11 @@ The composer sits before and around that ladder:
 - Accepting a Proposal Version starts the Booking Session / reserve workflow;
   it does not mean every live or manual component is supplier-confirmed.
 - The reserve workflow prices the exact Booking Session revision into a Quote
-  and creates optional Holds where supported. Commit creates the Booking.
-- Checkout turns the held/reserved commitment into collection.
+  and creates optional Holds where supported. Commit creates the Booking only at
+  the selected policy commitment point from
+  [ADR-0019](../adr/0019-booking-v1-commitment-point-policies.md).
+- Checkout may establish a required payment guarantee, but Finance state does
+  not become Booking status.
 
 Transactions Offer remains only as a legacy transactions-package primitive for
 pre-v1 compatibility flows. It is not the bespoke travel proposal artifact for
@@ -688,9 +691,10 @@ High-level reserve flow:
    vertical/source adapter, or flight repricing.
 5. Check availability for every selected item.
 6. Apply policy gates: budget, terms, expiry, PII, unsupported items.
-7. Place holds/bookings in dependency order.
+7. Place Holds and Supplier Operations in dependency order.
 8. On partial failure, release successful holds and return alternatives.
-9. Create or update Booking Session / Booking / Order structures.
+9. Create or update Booking Session structures and Commit only when the selected
+   commitment policy authorizes Booking creation.
 10. Capture catalog snapshots for committed items.
 11. Return checkout-ready target and hold expiry summary.
 

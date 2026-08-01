@@ -410,6 +410,9 @@
       "@voyant-travel/catalog-contracts/booking-engine/draft-shape": [
         "../catalog-contracts/dist/booking-engine/draft-shape.d.ts"
       ],
+      "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance": [
+        "../catalog-contracts/dist/booking-engine/lifecycle-conformance.d.ts"
+      ],
       "@voyant-travel/catalog-contracts/booking-engine/promotions-contract": [
         "../catalog-contracts/dist/booking-engine/promotions-contract.d.ts"
       ],

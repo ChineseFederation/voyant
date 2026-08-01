@@ -1,11 +1,20 @@
 # Catalog Booking Engine
 
-Status: draft / proposal — sits on top of the Phase 1 foundation
+Status: draft / proposal - sits on top of the Phase 1 foundation. Commitment
+points are governed by
+[ADR-0019](../adr/0019-booking-v1-commitment-point-policies.md).
 Audience: anyone designing or implementing the cross-vertical booking lifecycle for the catalog plane.
 
 This document describes the **booking engine** that runs on top of the Phase 1 catalog foundation defined in [`catalog-architecture.md`](./catalog-architecture.md). The booking engine is the "live" layer that turns a row in the indexer (or in an adapter's upstream system) into a confirmed reservation with a frozen snapshot, mirroring the pattern already established for the flights vertical in [`catalog-flights-architecture.md`](./catalog-flights-architecture.md).
 
-The booking engine is **vertical-agnostic**. The same `quoteEntity` / `bookEntity` / `cancelEntity` lifecycle works for products, extras, cruises, charters, and accommodations, dispatching to the right adapter based on the catalog row's provenance. Owned inventory (`source.kind: "owned"`) flows through each module's own service layer; sourced inventory (`source.kind: "voyant-connect"`, `"direct:*"`, `"bedbank:*"`, `"gds:*"`, `"demo"`) flows through a registered `SourceAdapter` instance.
+The booking engine is **vertical-agnostic**. The same Quote / Hold / Commit /
+Cancel lifecycle works for products, extras, cruises, charters, and
+accommodations, dispatching to the right adapter based on the catalog row's
+provenance. Owned inventory (`source.kind: "owned"`) flows through each module's
+own service layer; sourced inventory (`source.kind: "voyant-connect"`,
+`"direct:*"`, `"bedbank:*"`, `"gds:*"`, `"demo"`) flows through a registered
+`SourceAdapter` instance. Legacy `bookEntity` surfaces map to Commit semantics:
+they must not create a Booking before ADR-0019 authorizes the commitment point.
 
 ## 1. Phase relationship
 
@@ -59,7 +68,7 @@ Sourced rows: dispatch by `source.kind` to the registered adapter and call `live
 
 Quotes are short-lived (default TTL: 10 minutes) and persisted in `catalog_quotes` so the booking engine can validate the same quote at book time and reject expired quotes.
 
-### 3.2. `bookEntity`
+### 3.2. Commit (`bookEntity` compatibility surface)
 
 ```ts
 bookEntity(ctx, {
@@ -77,11 +86,28 @@ bookEntity(ctx, {
 }
 ```
 
-Owned rows: re-validate the quote (or fetch fresh pricing), call into the vertical's existing booking-creation path (`packages/bookings` services), and capture the snapshot via `captureSnapshot`. `orderRef` equals `bookingId`; status is `confirmed`.
+Owned rows: re-validate the exact Booking Session revision, validate the
+immutable Quote bound to that revision, validate a live Hold when required,
+establish any required payment guarantee, call into the vertical's existing
+booking-creation path (`packages/bookings` services), convert the Hold to an
+Allocation, consume the Session and Quote, and capture the snapshot via
+`captureSnapshot` in one transaction. `orderRef` equals `bookingId`; status is
+`confirmed`.
 
-Sourced rows: validate the quote, call `adapter.reserve({ entity_module, entity_id, parameters, party, payment_intent })`, capture `captureSnapshot` with `frozenPayload = { resolvedView, upstreamPayload, pricing }` and `sourceRef = result.upstream_ref`. `orderRef` equals the adapter's upstream ref; status mirrors `result.status`.
+Sourced rows: validate the Quote, persist the Commit/Supplier Operation intent
+before dispatch, then call
+`adapter.reserve({ entity_module, entity_id, parameters, party, payment_intent })`.
+Default supplier-first policy creates no Booking while the supplier operation is
+pending or in doubt. Once the supplier is secured, capture `captureSnapshot` with
+`frozenPayload = { resolvedView, upstreamPayload, pricing }` and
+`sourceRef = result.upstream_ref`, then create the Booking with the upstream ref
+as provenance. An explicit operator-backed policy may create the Booking earlier
+only when the operator deliberately assumes fulfillment risk.
 
-Both branches end with the same `booking_catalog_snapshot` row format, the same webhook (`catalog.booking.committed`), and the same audit shape. The caller doesn't have to know which branch ran.
+Both branches use the same typed outcome vocabulary from
+`@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance`. The
+caller does not infer commitment from draft Booking statuses, payment state, or
+supplier status strings.
 
 ### 3.3. `cancelEntity`
 
@@ -225,7 +251,9 @@ Selected connector packages provide booking-engine adapters through the graph. I
 1. **Owned-arm packaging.** Should the engine expose a built-in "owned adapter" for each vertical, or should it dispatch directly to the vertical's service layer when `source.kind === "owned"`? Lean toward direct dispatch for now (avoids a layer of indirection); revisit if templates start needing to swap out the owned path.
 2. **Quote persistence vs. signed tokens.** Persisting quotes in `catalog_quotes` is simple but adds a write per quote; signed JWT-style quote tokens skip the write but complicate cross-pod expiration. Lean toward persisted quotes for MVP — write volume is low (one per book attempt, not one per page view) and the audit trail is useful.
 3. **Multi-line bookings.** A package booking with a flight + hotel + extras hits multiple verticals (some sourced, some owned). The engine's `bookEntity` is single-entity; the multi-line orchestrator (analogous to flights' multi-passenger order) is deferred until the tracer is end-to-end on a single line.
-4. **Idempotency keys.** `bookEntity` should accept an idempotency key so a retry doesn't double-book. Standard pattern; not in the MVP cut but flagged as the next ergonomic addition.
+4. **Idempotency keys.** Commit accepts an idempotency key. A replay returns the
+   original typed result and must not create a second Booking, Allocation, or
+   Supplier Operation.
 
 ## 9. Tracer rollout
 
@@ -245,6 +273,10 @@ Once that tracer is clickable end-to-end (an operator can open the Catalog page,
 - **Sourced inventory** — a catalog row with any non-`owned` `source.kind`. The engine dispatches the lifecycle to the registered `SourceAdapter` for that kind.
 - **Demo adapter** — `@voyant-travel/catalog-demo-adapter`, the reference `SourceAdapter` implementation. Backs its data in its own Postgres tables. Operator starter registers it for the demo flow.
 - **`SourceAdapterRegistry`** — process-local map keyed by `source.kind` that the engine consults to find the right adapter for a given row.
+- **Commit** — the policy-governed operation that may create a Booking. Owned
+  inventory defaults to atomic Hold-to-Allocation conversion. Sourced inventory
+  defaults to supplier-first and creates no Booking until supplier security,
+  unless an explicit operator-backed policy accepts fulfillment risk.
 - **`NO_ADAPTER_REGISTERED`** — stable error code returned when the engine encounters a `source.kind` with no registered adapter. Analogous to `CAPABILITY_NOT_SUPPORTED`.
 
 ## 11. Related documents

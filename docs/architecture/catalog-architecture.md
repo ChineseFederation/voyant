@@ -64,11 +64,14 @@ upstream of commitment:
   optional Hold → Commit → Booking → Fulfillment**. A pricing Quote is an
   immutable, expiring price and terms answer for an exact Booking Session
   revision. A Hold, where supported, is a temporary inventory claim. Commit
-  creates the durable Booking.
+  creates the durable Booking only at the policy-defined commitment point from
+  [ADR-0019](../adr/0019-booking-v1-commitment-point-policies.md).
 - Bespoke staff sales use **Proposal → accepted Proposal Version → Booking
   Session → Pricing Quote + optional Hold → Commit → Booking / Component
   Booking → Fulfillment**. A Proposal Version freezes the
-  bespoke Trip Envelope revision; it is distinct from a pricing Quote.
+  bespoke Trip Envelope revision and records customer intent; it is distinct
+  from a pricing Quote and still requires fresh Quote and availability before
+  Commit.
 
 The layers connect at two clean points:
 
@@ -1237,8 +1240,8 @@ Flight adoption carries its own open questions in
 - **Pricing Quote** — an immutable, expiring, server-produced price and terms
   result for an exact Booking Session revision or equivalent provider pricing
   request, created through `/v1/{admin,public}/catalog/quote`. It may be followed
-  by an optional Hold and then Commit/Booking. It is distinct from a bespoke
-  Proposal Version.
+  by an optional Hold and then Commit/Booking under ADR-0019. It is distinct
+  from a bespoke Proposal Version.
 - **Vertical module** — a package modeling one kind of sellable inventory. Existing verticals: `products` (tours / experiences / standalone excursions), `cruises`, `accommodations` (hotels / stays for resale), `charters` (yachts), `extras` (booking add-ons).
 - **Catalog plane** — the cross-vertical projection / overlay / snapshot / indexer surface defined by `packages/catalog`.
 - **Provenance** — the `(source_kind, source_ref, source_connection_id, source_freshness)` tuple carried by every CatalogEntry.

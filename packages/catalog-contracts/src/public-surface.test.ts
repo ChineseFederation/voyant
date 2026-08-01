@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest"
-
+import { runBookingLifecycleConformanceV1 as runBookingLifecycleConformanceFromContractsV1 } from "./booking-engine/contracts.js"
+import { runBookingLifecycleConformanceV1 as runBookingLifecycleConformanceFromSubpathV1 } from "./booking-engine/lifecycle-conformance.js"
 import {
+  assertBookingLifecycleConformanceV1,
   assertIndexerAdapterConformance,
+  bookingLifecycleConformanceScenariosV1,
   type IndexerAdapter,
   type IndexerProvider,
   pickBestCachedLocale,
+  runBookingLifecycleConformanceV1,
   type SourceAdapter,
   sourceAdapterSchema,
 } from "./index.js"
@@ -53,5 +57,15 @@ describe("@voyant-travel/catalog-contracts public surface", () => {
 
     expect(typeof provider.create).toBe("function")
     expect(typeof assertIndexerAdapterConformance).toBe("function")
+  })
+
+  it("exports the Booking Platform lifecycle conformance kit", () => {
+    expect(typeof assertBookingLifecycleConformanceV1).toBe("function")
+    expect(typeof runBookingLifecycleConformanceV1).toBe("function")
+    expect(typeof runBookingLifecycleConformanceFromContractsV1).toBe("function")
+    expect(typeof runBookingLifecycleConformanceFromSubpathV1).toBe("function")
+    expect(bookingLifecycleConformanceScenariosV1.map((scenario) => scenario.id)).toContain(
+      "owned-atomic-commit",
+    )
   })
 })

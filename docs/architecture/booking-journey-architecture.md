@@ -3,6 +3,12 @@
 Status: implemented foundation / execution reference
 Audience: anyone designing or implementing the booking flow that commits an inquiry into a booked reservation.
 
+Commitment points for Booking Platform v1 are governed by
+[ADR-0019](../adr/0019-booking-v1-commitment-point-policies.md). Older
+`bookEntity` wording in this document means the policy-governed Commit
+operation, not permission to create a Booking during pre-commitment Session
+work.
+
 This document specifies a single multi-step booking journey that works for
 **every Catalog Item shape Voyant supports** (single-day excursions, multi-day
 tours with accommodation, transfers, accommodation-only stays) and **every
@@ -36,7 +42,11 @@ Five load-bearing rules, in order of importance:
 
 ## 0.5. Single-line journey vs. composed itinerary
 
-This doc specifies the **single-line booking journey** — the wizard a user sees when they're committing to one bookable thing (one tour, one cabin sailing, one stay, one transfer, one flight). The user picks dates, fills in passengers, picks Extras, pays. One quote, one hold, one commit.
+This doc specifies the **single-line booking journey** - the wizard a user sees
+when they're committing to one bookable thing (one tour, one cabin sailing, one
+stay, one transfer, one flight). The user picks dates, fills in passengers,
+picks Extras, establishes any required guarantee, and commits. One Quote, one
+Hold where supported, one Commit.
 
 That covers the high-volume case: a customer browsing a tour catalog and clicking Book. It does NOT cover the case where a customer assembles a custom multi-line itinerary on the fly:
 
@@ -70,7 +80,7 @@ Extras inside the group-departure booking journey.
 | `BookingDraftShape` (per-line descriptor) | journey | yes — composer fetches one per Trip Component |
 | `BookingDraft` (per-line draft state) | journey | yes — composer can hold N of these through component refs |
 | `quoteEntity` / `bookEntity` engine endpoints | catalog booking-engine | yes — composer calls per line |
-| `booking_drafts` row + hold | journey (§5.7) | yes — one per `DraftItem` |
+| `booking_drafts` row + hold | journey (§5.7) | yes - one per `DraftItem` |
 | Wizard shell `<BookingJourney />` | journey | **no** — composer renders its own multi-line UI |
 | Per-step section components (Travelers, Payment, etc.) | `bookings-ui` | **partially** — composer reuses Billing + Payment for the consolidated view, may also reuse Travelers if travelers are shared across lines |
 | `bookingsCreate` atomic transaction | bookings | **mostly no** — composer needs cross-line atomicity that's bigger than one booking-create transaction; the saga model from `@voyant-travel/core/workflows` is the right primitive |
@@ -96,8 +106,8 @@ Before specifying anything new, this doc commits to reusing the following primit
 | Payment-collection UI (saved cards, new card, processor flow) | Finance React checkout UI's `PaymentStep` — `packages/finance-react/src/checkout-components/payment-step.tsx` | **Compose.** The journey's "Payment" step picks **intent + schedule** (hold vs card vs ticket-on-credit; deposit vs full vs split) — that's a journey concern. Actual provider mechanics (Netopia tokenization, Stripe Elements, etc.) hand off to Finance React checkout UI after authorized booking settlement. The journey shell does not introduce a new payment-provider seam. |
 | Quantity-tier pricing (more units → cheaper per-unit) | `option_unit_tiers` — `packages/commerce/src/pricing/schema-option-rules.ts` | **Reuse.** Quantity tiers are an orthogonal axis to per-occupancy tiers; the engine consults both when pricing an option. |
 | Snapshot graph | `booking_catalog_snapshot` + `captureSnapshot` / `captureSnapshotGraph` — `packages/catalog/src/services/snapshot-service.ts` | **Reuse.** Snapshot capture cannot create a booking row. |
-| Atomic booking creation | admitted Finance command + lease-gated Bookings settlement | **Single authority.** Vertical handlers quote and hold only; they do not expose a second commit bridge. |
-| Public booking sessions (existing model) | `booking_session_states` keyed by an existing `booking_id` — `packages/bookings/src/schema-operations.ts`. Public routes read/update/reprice/confirm/expire that existing session. | **Sibling, not replacement.** Session initialization does not create a booking. The journey's `booking_drafts` (§5.7) is pre-booking state that may *never* be consumed (abandonment is the common case). |
+| Atomic booking creation | admitted Finance command + lease-gated Bookings settlement | **Single authority.** Vertical handlers quote and hold only; they do not expose a second commit bridge. ADR-0019 requires owned Commit to validate exact Session revision, Quote, live Hold, and payment guarantee before creating Booking and Allocation in one transaction. |
+| Public booking sessions (existing model) | `booking_session_states` keyed by an existing `booking_id` - `packages/bookings/src/schema-operations.ts`. Public routes read/update/reprice/confirm/expire that existing session. | **Legacy sibling, not v1 replacement.** V1 Booking Session initialization does not create a booking. The journey's `booking_drafts` (§5.7) is pre-booking state that may *never* be consumed (abandonment is the common case). |
 
 The rule of thumb: if a reasonable read of "I need X" finds an existing primitive in the table above, the new code uses it. Adding a parallel primitive needs a one-paragraph justification in this doc.
 

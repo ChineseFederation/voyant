@@ -128,12 +128,14 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Legacy Offer**        | The transactions-package priced proposal primitive for pre-v1 offer-to-order flows; not the bespoke travel sales artifact staff agents call a Proposal. | *proposal, package offer, Offer as new public API* |
 | **Legacy Order**        | The transactions-package commitment primitive retained only for migration/compatibility. Do not introduce it in new first-party v1 Interfaces. | *purchase order, generic order* |
 | **Provider Order Ref**  | An upstream source/provider identifier for a committed component when the external system uses order language. | *first-party Order* |
-| **Booking**             | The durable first-party commitment and customer-safe operational record: Travelers, booking items, Allocations, Fulfillments, redemptions, origin/provenance, and state. | *reservation, booking-record, Order* |
+| **Booking**             | The durable first-party commercial commitment and customer-safe operational record, created only at the policy-defined Commit point: Travelers, booking items, Allocations, Fulfillments, redemptions, origin/provenance, and state. Distinct from customer intent, payment state, supplier confirmation, and fulfillment. | *reservation, booking-record, Order* |
 | **Booking Origin**      | Bookings-owned provenance describing how a Booking was created: Proposal Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id. | *booking_transaction_details, order link* |
 | **Booking Item**        | A line item on a Booking (unit, service, extra, fee, tax, discount, accommodation, transport). | *line, row, order item*  |
 | **Allocation**          | A capacity hold against a Slot, Pickup, or Resource — `held` → `confirmed` → `fulfilled`.        | *reservation-line, hold-record* |
 | **Legacy Order Term**   | A pre-v1 transactions term attached to a Legacy Order. New v1 terms belong to Legal policy/contract targets and Finance collection targets. | *clause, Order Term as new public API* |
 | **Hold**                | A temporary, time-limited claim on inventory before Booking confirmation; expires.               | *option, soft-hold*      |
+| **Commit**              | The Booking Platform operation that may create a Booking. Owned inventory Commit validates exact Booking Session revision, Quote, live Hold, and required payment guarantee, then creates Booking, converts Hold to Allocation, and consumes Session/Quote in one transaction. Sourced inventory defaults to supplier-first and creates no Booking until supplier security unless an explicit operator-backed policy accepts fulfillment risk. | *checkout submit, book, confirm when ambiguous* |
+| **Supplier Operation**  | A persisted sourced-inventory Commit intent and upstream dispatch record. It tracks supplier pending, secured, failed, or in-doubt outcomes separately from Booking status. | *draft booking, supplier booking status as booking status* |
 
 ## Fulfillment & operations
 
@@ -164,7 +166,7 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Promotion Code**    | A customer-entered Commerce code that activates a Promotion and changes price; it never carries a balance. | *voucher, travel credit* |
 | **Supplier Payment**  | A recorded outbound transfer to a Supplier.                                                      | *payout, AP*                  |
 | **Payment Schedule**  | An installment plan attached to a Booking (deposit, installment, balance, hold) with due dates.  | *plan, instalments*           |
-| **Guarantee**         | A security hold (deposit, pre-auth, card-on-file, agency letter, or Service Voucher) ensuring eventual payment. | *deposit (overloaded)* |
+| **Guarantee**         | A security hold (deposit, pre-auth, card-on-file, agency letter, or Service Voucher) ensuring eventual payment. When required by commercial policy, it is a Commit precondition; pay-later is allowed only when policy explicitly authorizes it. | *deposit (overloaded)* |
 | **Payment Session**   | An active payment attempt against a target (Booking, Invoice, Schedule line, Guarantee, Program, or explicit legacy/provider reference). | *checkout, intent*            |
 | **Collection Plan**   | A preview of what will be collected from the customer and when.                                  | *quote-of-collections (technical alias only)* |
 
@@ -237,6 +239,7 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 | **Void**       | Financially reverse a document — distinct from Cancel.                                           | Invoice, Payment                         |
 | **Close**      | End a Proposal with an outcome (won/lost/archived).                                                 | Proposal                                    |
 | **Convert**    | Promote one entity to the next on the commitment ladder.                                         | Proposal Version -> reserve workflow, Product/Catalog Item -> Booking, legacy Offer -> legacy Order |
+| **Commit**     | Execute the policy-defined Booking Platform commitment point.                                    | Booking Session -> Booking, Hold -> Allocation |
 | **Reconcile**  | Compare expected vs. actual and emit Issues.                                                     | Channel Settlement                       |
 | **Settle**     | Post the financial outcome of Reconciliation.                                                    | Channel Settlement                       |
 | **Override**   | Manually set a Booking's status, bypassing the transition graph. Admin-only; always audit-logged with a required reason. | Booking |
@@ -246,11 +249,13 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 - A **Person** may belong to zero or more **Organizations**; both can appear on Proposals, Programs, and Bookings.
 - A **Proposal** belongs to one Person and/or Organization, moves through a Pipeline, and produces zero or more **Proposal Versions**.
 - A **Proposal Version** freezes a Trip Envelope snapshot; editing a sent Version creates another Version.
-- Accepting a **Proposal Version** marks that Version accepted, closes the Proposal won, and seeds the reserve workflow; it does not mean every live or manual component is supplier-confirmed.
+- Accepting a **Proposal Version** marks that Version accepted, closes the Proposal won, and seeds a Booking Session / reserve workflow; it does not create a Booking and does not mean every live or manual component is supplier-confirmed.
 - A pricing **Quote** belongs to the Booking Platform pricing flow; it may precede an optional Hold and Commit/Booking, but it is not a Proposal Version and does not own sales-pipeline state.
 - A transactions **Legacy Offer** may still convert to a **Legacy Order** only in migration/compatibility flows; it is not the bespoke travel sales artifact called Proposal.
 - A **Booking Origin** records whether a Booking came from an accepted Proposal Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id.
 - A **Booking** is the first-party durable commitment record; do not require a generic first-party Order to create one.
+- A **Booking** is distinct from Finance collection state and Supplier Operation state; required guarantees and supplier security may be Commit preconditions or follow-up actions, but they do not become Booking status.
+- Owned-inventory **Commit** creates Booking and converts Hold to Allocation atomically. Sourced-inventory **Commit** defaults to supplier-first: persist Supplier Operation intent before dispatch and create no Booking until supplier security, unless an explicit operator-backed policy accepts fulfillment risk.
 - A **Booking** holds **Allocations** against **Slots** (or Pickups, or Resources); each Allocation belongs to exactly one Booking Item.
 - Accommodation may be sold as **Sourced Inventory** or as a component of a **Product**, and may reference a **Place** for where the stay happens, but hotel/property operations are not a first-party implementation scenario.
 - A **Booking Item** produces zero or more **Fulfillments**; each Fulfillment is delivered over exactly one channel.
