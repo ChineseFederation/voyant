@@ -13,10 +13,14 @@ import {
   updateBookingEngineTravelers,
 } from "./booking-engine.js"
 import {
+  abandonBookingSessionV1,
+  adoptBookingSessionV1,
   commitBookingSessionV1,
   createBookingSessionV1,
   holdBookingSessionV1,
   quoteBookingSessionV1,
+  renewBookingSessionV1,
+  resumeBookingSessionV1,
   runOwnedProductBookingTracerV1,
   updateBookingSessionV1,
 } from "./booking-session-v1.js"
@@ -220,8 +224,25 @@ export function createVoyantStorefrontClient(options: VoyantStorefrontClientOpti
     bookingSessionsV1: {
       create: (
         input: Parameters<typeof createBookingSessionV1>[1],
-        requestOptions?: Parameters<typeof createBookingSessionV1>[2],
+        requestOptions: Parameters<typeof createBookingSessionV1>[2],
       ) => createBookingSessionV1(client, input, requestOptions),
+      resume: (sessionId: string, requestOptions: Parameters<typeof resumeBookingSessionV1>[2]) =>
+        resumeBookingSessionV1(client, sessionId, requestOptions),
+      adopt: (
+        sessionId: string,
+        input: Parameters<typeof adoptBookingSessionV1>[2],
+        requestOptions: Parameters<typeof adoptBookingSessionV1>[3],
+      ) => adoptBookingSessionV1(client, sessionId, input, requestOptions),
+      renew: (
+        sessionId: string,
+        input: Parameters<typeof renewBookingSessionV1>[2],
+        requestOptions: Parameters<typeof renewBookingSessionV1>[3],
+      ) => renewBookingSessionV1(client, sessionId, input, requestOptions),
+      abandon: (
+        sessionId: string,
+        input: Parameters<typeof abandonBookingSessionV1>[2],
+        requestOptions: Parameters<typeof abandonBookingSessionV1>[3],
+      ) => abandonBookingSessionV1(client, sessionId, input, requestOptions),
       update: (
         sessionId: string,
         input: Parameters<typeof updateBookingSessionV1>[2],

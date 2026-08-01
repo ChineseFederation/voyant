@@ -543,6 +543,9 @@ export function createCatalogBookingEngineApiModule(
 ): ApiModule {
   return {
     module: { name: "catalog-booking" },
+    publicPath: "catalog",
+    anonymous: ["/booking-sessions"],
+    optionalCustomerAuth: ["/booking-sessions"],
     lazyRoutes: {
       paths: catalogBookingRoutePaths,
       load: async () => {

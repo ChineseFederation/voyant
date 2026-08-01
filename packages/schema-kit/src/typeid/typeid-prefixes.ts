@@ -400,6 +400,7 @@ export const PREFIXES = {
   booking_session_holds: "bshd",
   booking_session_commits: "bscm",
   booking_session_operations: "bsop",
+  booking_session_audit_events: "bsae",
 
   // --- TRAVEL COMPOSER ---
   trip_envelopes: "trip",

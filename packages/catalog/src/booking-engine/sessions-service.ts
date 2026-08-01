@@ -1,15 +1,20 @@
 import type {
   AbandonBookingSessionV1,
+  AdoptBookingSessionV1,
   BookingHoldRecordV1,
   BookingQuoteRecordV1,
   BookingSessionActorKindV1,
+  BookingSessionCapabilityActionV1,
   BookingSessionOutcomeV1,
   BookingSessionRecordV1,
+  BookingSessionStateV1,
   BookingSessionTargetV1,
+  BookingSessionViewV1,
   CommitBookingSessionV1,
   CreateBookingSessionV1,
   PlaceBookingHoldV1,
   QuoteBookingSessionV1,
+  RenewBookingSessionV1,
   UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { newId } from "@voyant-travel/db/lib/typeid"
@@ -18,22 +23,36 @@ import type { BookingLifecycleCommitOutcomeV1, PricingBreakdownV1 } from "./cont
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_QUOTE_TTL_MS = 10 * 60 * 1000
 const DEFAULT_HOLD_TTL_MS = 15 * 60 * 1000
+const DEFAULT_MAX_RENEWAL_EXTENSION_MS = 24 * 60 * 60 * 1000
+const DEFAULT_MAX_SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
+const DEFAULT_ANONYMOUS_CAPABILITY_SCOPES: BookingSessionCapabilityActionV1[] = [
+  "read",
+  "update",
+  "quote",
+  "hold",
+  "commit",
+  "abandon",
+  "adopt",
+  "renew",
+]
 
 export interface BookingSessionInternalRecord {
   id: string
   createIdempotencyKey: string
   createRequestFingerprint: string
   capabilityHash?: string
+  capabilityScopes: BookingSessionCapabilityActionV1[]
   target: BookingSessionTargetV1
   actorKind: BookingSessionActorKindV1
   ownerPrincipalId?: string
   ownerOrganizationId?: string
-  state: "active" | "consumed" | "expired" | "abandoned"
+  state: BookingSessionStateV1
   revision: number
   statePayload: Record<string, unknown>
   expiresAt: Date
   createdAt: Date
   updatedAt: Date
+  purgedAt?: Date
 }
 
 export interface BookingQuoteInternalRecord {
@@ -72,10 +91,32 @@ export interface BookingCommitInternalRecord {
 export interface BookingSessionOperationRecord {
   id: string
   sessionId: string
-  operation: "update" | "quote" | "hold" | "abandon"
+  operation: "update" | "quote" | "hold" | "abandon" | "adopt" | "renew"
   idempotencyKey: string
   requestFingerprint: string
   outcome?: BookingSessionOutcomeV1
+  createdAt: Date
+}
+
+export interface BookingSessionAuditRecord {
+  id: string
+  sessionId: string
+  action:
+    | "read"
+    | "update"
+    | "quote"
+    | "hold"
+    | "commit"
+    | "adopt"
+    | "renew"
+    | "abandon"
+    | "expire"
+    | "purge"
+  actorKind: BookingSessionActorKindV1 | "system"
+  principalId?: string
+  organizationId?: string
+  authorityReason?: string
+  metadata: Record<string, unknown>
   createdAt: Date
 }
 
@@ -91,6 +132,13 @@ export interface BookingSessionRepository {
     idempotencyKey: string,
   ): Promise<BookingSessionInternalRecord | null>
   saveSession(record: BookingSessionInternalRecord): Promise<void>
+  appendAudit(record: BookingSessionAuditRecord): Promise<void>
+  listExpiryCandidates(input: { at: Date; limit: number }): Promise<BookingSessionInternalRecord[]>
+  listPurgeCandidates(input: {
+    before: Date
+    limit: number
+  }): Promise<BookingSessionInternalRecord[]>
+  purgeSessionArtifacts(sessionId: string): Promise<void>
   listActiveQuotes(sessionId: string): Promise<BookingQuoteInternalRecord[]>
   getQuote(quoteId: string): Promise<BookingQuoteInternalRecord | null>
   saveQuote(record: BookingQuoteInternalRecord): Promise<void>
@@ -173,6 +221,7 @@ export interface BookingSessionAccessContext {
   organizationId?: string
   capability?: string
   sessionTtlMs?: number
+  staffAuthority?: { admitted: true; reason: string }
 }
 
 export interface BookingSessionModulePorts {
@@ -214,7 +263,8 @@ export interface BookingSessionModuleOptions {
   sessionTtlMs?: number
   quoteTtlMs?: number
   holdTtlMs?: number
-  issueCapability?: () => string
+  maxRenewalExtensionMs?: number
+  maxSessionLifetimeMs?: number
 }
 
 export class InvalidBookingSessionSelectionError extends Error {
@@ -235,6 +285,20 @@ export class BookingSessionCommitRejectedError extends Error {
 export interface BookingSessionModule {
   createSession(
     input: CreateBookingSessionV1,
+    access: BookingSessionAccessContext,
+  ): Promise<BookingSessionOutcomeV1>
+  resumeSession(
+    sessionId: string,
+    access: BookingSessionAccessContext,
+  ): Promise<BookingSessionOutcomeV1>
+  adoptSession(
+    sessionId: string,
+    input: AdoptBookingSessionV1,
+    access: BookingSessionAccessContext,
+  ): Promise<BookingSessionOutcomeV1>
+  renewSession(
+    sessionId: string,
+    input: RenewBookingSessionV1,
     access: BookingSessionAccessContext,
   ): Promise<BookingSessionOutcomeV1>
   updateSession(
@@ -262,6 +326,14 @@ export interface BookingSessionModule {
     input: CommitBookingSessionV1,
     access: BookingSessionAccessContext,
   ): Promise<BookingSessionOutcomeV1>
+  expireDueSessions(
+    input: { limit: number },
+    access: BookingSessionAccessContext,
+  ): Promise<{ expired: number }>
+  purgeTerminalSessions(
+    input: { before: Date; limit: number },
+    access: BookingSessionAccessContext,
+  ): Promise<{ purged: number }>
 }
 
 export function createBookingSessionModule(
@@ -271,26 +343,26 @@ export function createBookingSessionModule(
   const sessionTtlMs = options.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS
   const quoteTtlMs = options.quoteTtlMs ?? DEFAULT_QUOTE_TTL_MS
   const holdTtlMs = options.holdTtlMs ?? DEFAULT_HOLD_TTL_MS
-  const issueCapability =
-    options.issueCapability ??
-    (() => {
-      const bytes = new Uint8Array(32)
-      crypto.getRandomValues(bytes)
-      return `bcap_${base64Url(bytes)}`
-    })
+  const maxRenewalExtensionMs = options.maxRenewalExtensionMs ?? DEFAULT_MAX_RENEWAL_EXTENSION_MS
+  const maxSessionLifetimeMs = options.maxSessionLifetimeMs ?? DEFAULT_MAX_SESSION_LIFETIME_MS
   const { repository } = options.ports
 
   const loadSession = (sessionId: string) => repository.getSession(sessionId)
 
   function rejectRevision(
     expectedRevision: number,
-    actualRevision: number,
+    session: BookingSessionInternalRecord,
   ): BookingSessionOutcomeV1 | null {
-    return expectedRevision === actualRevision
+    return expectedRevision === session.revision
       ? null
       : {
           kind: "rejected",
-          error: { kind: "revision_conflict", expectedRevision, actualRevision },
+          error: {
+            kind: "revision_conflict",
+            expectedRevision,
+            actualRevision: session.revision,
+            actualState: session.state,
+          },
         }
   }
 
@@ -300,20 +372,26 @@ export function createBookingSessionModule(
       if (access.actorKind !== "anonymous" && !access.principalId?.trim()) {
         return { kind: "rejected", error: { kind: "not_authorized" } }
       }
-      const capability =
-        access.actorKind === "anonymous"
-          ? access.capability?.trim() || issueCapability()
-          : undefined
+      if (access.actorKind === "staff" && !access.staffAuthority?.admitted) {
+        return { kind: "rejected", error: { kind: "not_authorized" } }
+      }
+      const capability = access.actorKind === "anonymous" ? access.capability?.trim() : undefined
+      if (access.actorKind === "anonymous" && !isValidCapabilityShape(capability)) {
+        return { kind: "rejected", error: { kind: "capability_required" } }
+      }
+      const capabilityScopes =
+        access.actorKind === "anonymous" ? normalizeCapabilityScopes(input.capabilityScopes) : []
       const capabilityHash = capability ? await hashCapability(capability) : undefined
-      const createIdempotencyKey = scopedCreateIdempotencyKey(
+      const createIdempotencyKey = await scopedCreateIdempotencyKey(
         input.idempotencyKey,
         access,
         capabilityHash,
       )
-      const createRequestFingerprint = stableFingerprint({
+      const createRequestFingerprint = await stableFingerprint({
         actorKind: access.actorKind,
         principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
         organizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
+        capabilityScopes,
         target: input.target,
         selection: input.selection ?? {},
       })
@@ -342,6 +420,7 @@ export function createBookingSessionModule(
         createIdempotencyKey,
         createRequestFingerprint,
         capabilityHash,
+        capabilityScopes,
         target: input.target,
         actorKind: access.actorKind,
         ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
@@ -360,26 +439,143 @@ export function createBookingSessionModule(
         }
         return { kind: "session_created", session: serializeSession(created) }
       }
-      return {
-        kind: "session_created",
-        session: serializeSession(session),
-        ...(capability
-          ? {
-              capability: {
-                token: capability,
-                transport: "header" as const,
-                headerName: "Voyant-Booking-Session-Capability" as const,
-              },
-            }
-          : {}),
-      }
+      return { kind: "session_created", session: serializeSession(session) }
+    },
+
+    async resumeSession(sessionId, access) {
+      return repository.withSessionTransaction(sessionId, async (tx) => {
+        const session = await loadSession(sessionId)
+        if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
+        const authorized = await authorizeSessionAccess(session, access, "read")
+        if (authorized) return authorized
+        const at = now()
+        if (session.state === "active" && session.expiresAt <= at) {
+          await expireSession(repository, options.ports, session, access, at, tx)
+        }
+        await appendSessionAudit(repository, session, "read", access, at, {
+          redaction: access.actorKind === "staff" ? "selection_omitted" : "none",
+        })
+        return {
+          kind: "session_resumed",
+          session: serializeSessionView(session, access),
+        }
+      })
+    },
+
+    async adoptSession(sessionId, input, access) {
+      return repository.withSessionTransaction(sessionId, async (tx) => {
+        const session = await loadSession(sessionId)
+        if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
+        if (access.actorKind !== "customer" || !access.principalId?.trim()) {
+          return { kind: "rejected", error: { kind: "not_authorized" } }
+        }
+        if (session.actorKind !== "anonymous") {
+          if (!isOwnedBy(session, access)) {
+            return { kind: "rejected", error: { kind: "not_authorized" } }
+          }
+          const claim = await claimOperation(repository, sessionId, "adopt", input, now())
+          if (claim.status === "replay") return claim.outcome
+          if (claim.status === "conflict") return idempotencyConflict()
+          return completeAndReturn(repository, claim.id, {
+            kind: "rejected",
+            error: { kind: "not_authorized" },
+          })
+        }
+        const capabilityRejected = await authorizeAnonymousCapability(session, access, "adopt")
+        if (capabilityRejected) return capabilityRejected
+        const at = now()
+        if (session.expiresAt <= at || session.state !== "active") {
+          if (session.state === "active") {
+            await expireSession(repository, options.ports, session, access, at, tx)
+          }
+          return { kind: "rejected", error: { kind: "session_expired" } }
+        }
+        const claim = await claimOperation(repository, sessionId, "adopt", input, at)
+        if (claim.status === "replay") return claim.outcome
+        if (claim.status === "conflict") return idempotencyConflict()
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
+        if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
+
+        session.actorKind = "customer"
+        session.ownerPrincipalId = access.principalId.trim()
+        session.ownerOrganizationId = access.organizationId?.trim() || undefined
+        session.capabilityHash = undefined
+        session.capabilityScopes = []
+        session.revision += 1
+        session.updatedAt = at
+        await repository.saveSession(session)
+        await appendSessionAudit(repository, session, "adopt", access, at)
+        const outcome: BookingSessionOutcomeV1 = {
+          kind: "session_adopted",
+          session: serializeSessionView(session, access),
+        }
+        await repository.completeOperation({ id: claim.id, outcome })
+        return outcome
+      })
+    },
+
+    async renewSession(sessionId, input, access) {
+      return repository.withSessionTransaction(sessionId, async (tx) => {
+        const session = await loadSession(sessionId)
+        if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
+        const authorized = await authorizeSessionAccess(session, access, "renew")
+        if (authorized) return authorized
+        const at = now()
+        if (session.state !== "active" || session.expiresAt <= at) {
+          if (session.state === "active") {
+            await expireSession(repository, options.ports, session, access, at, tx)
+          }
+          return {
+            kind: "rejected",
+            error: { kind: "renewal_not_allowed", reason: "session_not_active" },
+          }
+        }
+        const claim = await claimOperation(repository, sessionId, "renew", input, at)
+        if (claim.status === "replay") return claim.outcome
+        if (claim.status === "conflict") return idempotencyConflict()
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
+        if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
+        const extensionMs = input.extendBySeconds * 1000
+        if (extensionMs > maxRenewalExtensionMs) {
+          return completeAndReturn(repository, claim.id, {
+            kind: "rejected",
+            error: { kind: "renewal_not_allowed", reason: "extension_too_large" },
+          })
+        }
+        const renewedExpiry = new Date(session.expiresAt.getTime() + extensionMs)
+        if (renewedExpiry.getTime() > session.createdAt.getTime() + maxSessionLifetimeMs) {
+          return completeAndReturn(repository, claim.id, {
+            kind: "rejected",
+            error: { kind: "renewal_not_allowed", reason: "absolute_lifetime_exceeded" },
+          })
+        }
+
+        await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+        for (const quote of await repository.listActiveQuotes(session.id)) {
+          quote.state = "superseded"
+          await repository.saveQuote(quote)
+        }
+        session.expiresAt = renewedExpiry
+        session.revision += 1
+        session.updatedAt = at
+        await repository.saveSession(session)
+        await appendSessionAudit(repository, session, "renew", access, at, {
+          extendBySeconds: input.extendBySeconds,
+        })
+        const outcome: BookingSessionOutcomeV1 = {
+          kind: "session_renewed",
+          session: serializeSession(session),
+        }
+        await repository.completeOperation({ id: claim.id, outcome })
+        return outcome
+      })
     },
 
     async updateSession(sessionId, input, access) {
       return repository.withSessionTransaction(sessionId, async (tx) => {
         const session = await loadSession(sessionId)
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
-        const authorized = await authorizeSessionAccess(session, access)
+        const authorized = await authorizeSessionAccess(session, access, "update")
         if (authorized) return authorized
         const at = now()
         if (session.state === "active" && session.expiresAt <= at) {
@@ -393,7 +589,7 @@ export function createBookingSessionModule(
         const claim = await claimOperation(repository, sessionId, "update", input, now())
         if (claim.status === "replay") return claim.outcome
         if (claim.status === "conflict") return idempotencyConflict()
-        const revisionRejected = rejectRevision(input.expectedRevision, session.revision)
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         let statePayload: Record<string, unknown>
@@ -418,6 +614,7 @@ export function createBookingSessionModule(
           await repository.saveQuote(quote)
         }
         await repository.saveSession(session)
+        await appendSessionAudit(repository, session, "update", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_updated",
           session: serializeSession(session),
@@ -431,7 +628,7 @@ export function createBookingSessionModule(
       return repository.withSessionTransaction(sessionId, async (tx) => {
         const session = await loadSession(sessionId)
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
-        const authorized = await authorizeSessionAccess(session, access)
+        const authorized = await authorizeSessionAccess(session, access, "quote")
         if (authorized) return authorized
         const at = now()
         if (session.state === "active" && session.expiresAt <= at) {
@@ -445,7 +642,7 @@ export function createBookingSessionModule(
         const claim = await claimOperation(repository, sessionId, "quote", input, now())
         if (claim.status === "replay") return claim.outcome
         if (claim.status === "conflict") return idempotencyConflict()
-        const revisionRejected = rejectRevision(input.expectedRevision, session.revision)
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
@@ -465,11 +662,14 @@ export function createBookingSessionModule(
           sessionRevision: session.revision,
           state: "active",
           pricing,
-          priceFingerprint: stableFingerprint(pricing),
+          priceFingerprint: await stableFingerprint(pricing),
           quotedAt: at,
           expiresAt: new Date(at.getTime() + quoteTtlMs),
         }
         await repository.saveQuote(quote)
+        await appendSessionAudit(repository, session, "quote", access, at, {
+          quoteId: quote.id,
+        })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "quote_created",
           session: serializeSession(session),
@@ -484,7 +684,7 @@ export function createBookingSessionModule(
       return repository.withSessionTransaction(sessionId, async (tx) => {
         const session = await loadSession(sessionId)
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
-        const authorized = await authorizeSessionAccess(session, access)
+        const authorized = await authorizeSessionAccess(session, access, "hold")
         if (authorized) return authorized
         const at = now()
         if (session.state === "active" && session.expiresAt <= at) {
@@ -498,7 +698,7 @@ export function createBookingSessionModule(
         const claim = await claimOperation(repository, sessionId, "hold", input, now())
         if (claim.status === "replay") return claim.outcome
         if (claim.status === "conflict") return idempotencyConflict()
-        const revisionRejected = rejectRevision(input.expectedRevision, session.revision)
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         const quote = await loadUsableQuote(repository, input.quoteId, session, at)
@@ -564,6 +764,10 @@ export function createBookingSessionModule(
           })
         }
         await repository.saveHold(hold)
+        await appendSessionAudit(repository, session, "hold", access, at, {
+          holdId: hold.id,
+          quoteId: quote.id,
+        })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "hold_created",
           session: serializeSession(session),
@@ -578,7 +782,7 @@ export function createBookingSessionModule(
       return repository.withSessionTransaction(sessionId, async (tx) => {
         const session = await loadSession(sessionId)
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
-        const authorized = await authorizeSessionAccess(session, access)
+        const authorized = await authorizeSessionAccess(session, access, "abandon")
         if (authorized) return authorized
         const at = now()
         if (session.state === "active" && session.expiresAt <= at) {
@@ -592,10 +796,11 @@ export function createBookingSessionModule(
         const claim = await claimOperation(repository, sessionId, "abandon", input, now())
         if (claim.status === "replay") return claim.outcome
         if (claim.status === "conflict") return idempotencyConflict()
-        const revisionRejected = rejectRevision(input.expectedRevision, session.revision)
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return completeAndReturn(repository, claim.id, revisionRejected)
 
         session.state = "abandoned"
+        session.revision += 1
         session.updatedAt = at
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
         for (const quote of await repository.listActiveQuotes(session.id)) {
@@ -603,6 +808,7 @@ export function createBookingSessionModule(
           await repository.saveQuote(quote)
         }
         await repository.saveSession(session)
+        await appendSessionAudit(repository, session, "abandon", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_abandoned",
           session: serializeSession(session),
@@ -615,12 +821,12 @@ export function createBookingSessionModule(
     async commitSession(sessionId, input, access) {
       const initialSession = await loadSession(sessionId)
       if (!initialSession) return { kind: "rejected", error: { kind: "session_expired" } }
-      const authorized = await authorizeSessionAccess(initialSession, access)
+      const authorized = await authorizeSessionAccess(initialSession, access, "commit")
       if (authorized) return authorized
 
       const priorCommit = await repository.getCommitByIdempotency(sessionId, input.idempotencyKey)
       if (priorCommit) {
-        const requestFingerprint = commitRequestFingerprint(input)
+        const requestFingerprint = await commitRequestFingerprint(input)
         if (priorCommit.requestFingerprint !== requestFingerprint) return idempotencyConflict()
         return replayCommit(priorCommit)
       }
@@ -633,7 +839,7 @@ export function createBookingSessionModule(
             outcome: { kind: "rejected", error: { kind: "session_expired" } } as const,
           }
         }
-        const lockedAuthorization = await authorizeSessionAccess(session, access)
+        const lockedAuthorization = await authorizeSessionAccess(session, access, "commit")
         if (lockedAuthorization) {
           return { status: "outcome" as const, outcome: lockedAuthorization }
         }
@@ -656,7 +862,7 @@ export function createBookingSessionModule(
                 : ({ kind: "rejected", error: { kind: "session_expired" } } as const),
           }
         }
-        const revisionRejected = rejectRevision(input.expectedRevision, session.revision)
+        const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return { status: "outcome" as const, outcome: revisionRejected }
 
         const quote = await loadUsableQuote(repository, input.quoteId, session, at)
@@ -725,7 +931,7 @@ export function createBookingSessionModule(
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return { status: "outcome" as const, outcome: quoteUnavailable(freshQuote) }
         }
-        if (stableFingerprint(freshQuote.pricing) !== quote.priceFingerprint) {
+        if ((await stableFingerprint(freshQuote.pricing)) !== quote.priceFingerprint) {
           quote.state = "superseded"
           await repository.saveQuote(quote)
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
@@ -747,7 +953,7 @@ export function createBookingSessionModule(
 
       const { session, quote, hold, at } = preflight
 
-      const requestFingerprint = commitRequestFingerprint(input)
+      const requestFingerprint = await commitRequestFingerprint(input)
       let committed: { bookingId: string; allocationIds: string[] }
       try {
         committed = await options.ports.commitOwnedBooking({
@@ -827,7 +1033,8 @@ export function createBookingSessionModule(
               })
               if (
                 currentQuoteResult.status === "unavailable" ||
-                stableFingerprint(currentQuoteResult.pricing) !== currentQuote.priceFingerprint
+                (await stableFingerprint(currentQuoteResult.pricing)) !==
+                  currentQuote.priceFingerprint
               ) {
                 currentQuote.state = "superseded"
                 await repository.saveQuote(currentQuote)
@@ -846,6 +1053,11 @@ export function createBookingSessionModule(
                 outcome,
                 bookingId,
                 now: currentAt,
+              })
+              await appendSessionAudit(repository, currentSession, "commit", access, currentAt, {
+                bookingId,
+                quoteId: currentQuote.id,
+                holdId: currentHold.id,
               })
             })
           },
@@ -866,6 +1078,18 @@ export function createBookingSessionModule(
           error instanceof Error &&
           error.message === "owned inventory hold is not live at commit"
         ) {
+          const currentSession = await repository.getSession(session.id)
+          if (currentSession?.state === "consumed") {
+            const replay = await replayConcurrentCommit(repository, sessionId, input)
+            if (replay) return replay
+            return {
+              kind: "rejected",
+              error: {
+                kind: "commit_already_consumed",
+                nextAction: "return_idempotent_result",
+              },
+            }
+          }
           const outcome: FailedCommitOutcome = {
             kind: "hold_failure",
             nextAction: "request_new_hold",
@@ -932,6 +1156,70 @@ export function createBookingSessionModule(
         convertedHoldId: hold.id,
       }
       return { kind: "commit_result", outcome }
+    },
+
+    async expireDueSessions(input, access) {
+      if (access.actorKind !== "staff" || !access.staffAuthority?.admitted) {
+        throw new Error("booking_session_expiry_sweep_not_authorized")
+      }
+      const at = now()
+      const candidates = await repository.listExpiryCandidates({
+        at,
+        limit: Math.max(1, Math.min(input.limit, 500)),
+      })
+      let expired = 0
+      for (const candidate of candidates) {
+        await repository.withSessionTransaction(candidate.id, async (tx) => {
+          const session = await repository.getSession(candidate.id)
+          if (session?.state !== "active" || session.expiresAt > at) return
+          await expireSession(repository, options.ports, session, access, at, tx)
+          expired += 1
+        })
+      }
+      return { expired }
+    },
+
+    async purgeTerminalSessions(input, access) {
+      if (access.actorKind !== "staff" || !access.staffAuthority?.admitted) {
+        throw new Error("booking_session_purge_not_authorized")
+      }
+      const candidates = await repository.listPurgeCandidates({
+        before: input.before,
+        limit: Math.max(1, Math.min(input.limit, 500)),
+      })
+      let purged = 0
+      for (const candidate of candidates) {
+        await repository.withSessionTransaction(candidate.id, async () => {
+          const session = await repository.getSession(candidate.id)
+          if (
+            !session ||
+            session.state === "active" ||
+            session.purgedAt ||
+            session.updatedAt > input.before
+          ) {
+            return
+          }
+          const at = now()
+          const tombstoneFingerprint = await stableFingerprint({
+            purgedSessionId: session.id,
+          })
+          session.createIdempotencyKey = tombstoneFingerprint
+          session.createRequestFingerprint = tombstoneFingerprint
+          session.statePayload = {}
+          session.capabilityHash = undefined
+          session.capabilityScopes = []
+          session.ownerPrincipalId = undefined
+          session.ownerOrganizationId = undefined
+          session.purgedAt = at
+          session.revision += 1
+          session.updatedAt = at
+          await repository.saveSession(session)
+          await repository.purgeSessionArtifacts(session.id)
+          await appendSessionAudit(repository, session, "purge", access, at)
+          purged += 1
+        })
+      }
+      return { purged }
     },
   }
 }
@@ -1017,8 +1305,10 @@ async function expireSession(
     await repository.saveQuote(quote)
   }
   session.state = "expired"
+  session.revision += 1
   session.updatedAt = now
   await repository.saveSession(session)
+  await appendSessionAudit(repository, session, "expire", access, now)
 }
 
 async function persistCommitFailureState(
@@ -1076,7 +1366,7 @@ async function claimOperation(
     sessionId,
     operation,
     idempotencyKey: idempotencyKeyFromInput(input),
-    requestFingerprint: stableFingerprint(input),
+    requestFingerprint: await stableFingerprint(input),
     now,
   })
 }
@@ -1087,7 +1377,7 @@ function idempotencyKeyFromInput(input: unknown): string {
   return typeof value === "string" ? value : ""
 }
 
-function commitRequestFingerprint(input: CommitBookingSessionV1): string {
+async function commitRequestFingerprint(input: CommitBookingSessionV1): Promise<string> {
   return stableFingerprint({
     expectedRevision: input.expectedRevision,
     quoteId: input.quoteId,
@@ -1118,7 +1408,7 @@ async function replayConcurrentCommit(
 ): Promise<BookingSessionOutcomeV1 | null> {
   const commit = await repository.getCommitByIdempotency(sessionId, input.idempotencyKey)
   if (!commit) return null
-  return commit.requestFingerprint === commitRequestFingerprint(input)
+  return commit.requestFingerprint === (await commitRequestFingerprint(input))
     ? replayCommit(commit)
     : idempotencyConflict()
 }
@@ -1191,7 +1481,7 @@ function capacityKeyForTarget(target: BookingSessionTargetV1): string {
   if (target.kind === "product" && target.productId) return `product:${target.productId}`
   if (target.kind === "catalog_item" && target.catalogItemId)
     return `catalog_item:${target.catalogItemId}`
-  return stableFingerprint(target)
+  throw new Error("Booking Session target does not identify capacity")
 }
 
 function serializeSession(session: BookingSessionInternalRecord): BookingSessionRecordV1 {
@@ -1205,6 +1495,17 @@ function serializeSession(session: BookingSessionInternalRecord): BookingSession
     createdAt: session.createdAt.toISOString(),
     updatedAt: session.updatedAt.toISOString(),
   }
+}
+
+function serializeSessionView(
+  session: BookingSessionInternalRecord,
+  access: BookingSessionAccessContext,
+): BookingSessionViewV1 {
+  const record = serializeSession(session)
+  if (access.actorKind === "staff") {
+    return { ...record, redaction: "selection_omitted" }
+  }
+  return { ...record, selection: structuredClone(session.statePayload), redaction: "none" }
 }
 
 function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1 {
@@ -1236,44 +1537,94 @@ async function hasSessionCapability(
   session: BookingSessionInternalRecord,
   capability: string | undefined,
 ): Promise<boolean> {
-  if (!session.capabilityHash || !capability) return false
+  if (!session.capabilityHash || !isValidCapabilityShape(capability)) return false
   return constantTimeEqual(session.capabilityHash, await hashCapability(capability))
+}
+
+async function authorizeAnonymousCapability(
+  session: BookingSessionInternalRecord,
+  access: BookingSessionAccessContext,
+  action: BookingSessionCapabilityActionV1,
+): Promise<BookingSessionOutcomeV1 | null> {
+  if (!(await hasSessionCapability(session, access.capability))) {
+    return { kind: "rejected", error: { kind: "capability_required" } }
+  }
+  return session.capabilityScopes.includes(action)
+    ? null
+    : { kind: "rejected", error: { kind: "capability_scope_required", action } }
 }
 
 async function authorizeSessionAccess(
   session: BookingSessionInternalRecord,
   access: BookingSessionAccessContext,
+  action: BookingSessionCapabilityActionV1,
 ): Promise<BookingSessionOutcomeV1 | null> {
-  if (session.actorKind === "anonymous") {
-    return (await hasSessionCapability(session, access.capability))
+  if (access.actorKind === "staff") {
+    return access.principalId && access.staffAuthority?.admitted
       ? null
-      : { kind: "rejected", error: { kind: "capability_required" } }
+      : { kind: "rejected", error: { kind: "not_authorized" } }
   }
-  if (access.actorKind !== session.actorKind) {
-    return { kind: "rejected", error: { kind: "not_authorized" } }
+  if (session.actorKind === "anonymous") {
+    return authorizeAnonymousCapability(session, access, action)
   }
-  if (!session.ownerPrincipalId || !access.principalId) {
-    return { kind: "rejected", error: { kind: "not_authorized" } }
-  }
-  if (session.ownerPrincipalId !== access.principalId) {
-    return { kind: "rejected", error: { kind: "not_authorized" } }
-  }
-  if (session.ownerOrganizationId && session.ownerOrganizationId !== access.organizationId) {
+  if (!isOwnedBy(session, access)) {
     return { kind: "rejected", error: { kind: "not_authorized" } }
   }
   return null
 }
 
-async function hashCapability(capability: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(capability))
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+function isOwnedBy(
+  session: BookingSessionInternalRecord,
+  access: BookingSessionAccessContext,
+): boolean {
+  return Boolean(
+    access.actorKind === session.actorKind &&
+      session.ownerPrincipalId &&
+      access.principalId === session.ownerPrincipalId &&
+      (!session.ownerOrganizationId || session.ownerOrganizationId === access.organizationId),
+  )
 }
 
-function scopedCreateIdempotencyKey(
+function normalizeCapabilityScopes(
+  scopes: BookingSessionCapabilityActionV1[] | undefined,
+): BookingSessionCapabilityActionV1[] {
+  return [...new Set(scopes ?? DEFAULT_ANONYMOUS_CAPABILITY_SCOPES)].sort()
+}
+
+function isValidCapabilityShape(capability: string | undefined): capability is string {
+  return Boolean(capability && /^bcap_[A-Za-z0-9_-]{43,}$/.test(capability))
+}
+
+async function appendSessionAudit(
+  repository: BookingSessionRepository,
+  session: BookingSessionInternalRecord,
+  action: BookingSessionAuditRecord["action"],
+  access: BookingSessionAccessContext,
+  at: Date,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  await repository.appendAudit({
+    id: newId("booking_session_audit_events"),
+    sessionId: session.id,
+    action,
+    actorKind: access.actorKind,
+    principalId: access.principalId,
+    organizationId: access.organizationId,
+    authorityReason: access.staffAuthority?.reason,
+    metadata,
+    createdAt: at,
+  })
+}
+
+async function hashCapability(capability: string): Promise<string> {
+  return sha256Hex(capability)
+}
+
+async function scopedCreateIdempotencyKey(
   idempotencyKey: string,
   access: BookingSessionAccessContext,
   capabilityHash: string | undefined,
-): string {
+): Promise<string> {
   return stableFingerprint({
     key: idempotencyKey,
     actorKind: access.actorKind,
@@ -1283,15 +1634,13 @@ function scopedCreateIdempotencyKey(
   })
 }
 
-function base64Url(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "")
+async function stableFingerprint(value: unknown): Promise<string> {
+  return sha256Hex(JSON.stringify(sortForStableJson(value)))
 }
 
-function stableFingerprint(value: unknown): string {
-  return JSON.stringify(sortForStableJson(value))
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
 
 function constantTimeEqual(a: string, b: string): boolean {

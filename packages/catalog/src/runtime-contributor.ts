@@ -8,8 +8,12 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "@voyant-travel/catalog/api-runtime-ports"
-import { createSelfServiceBookingSourceProvider } from "@voyant-travel/catalog/booking-engine"
+import {
+  createProductionBookingSessionModule,
+  createSelfServiceBookingSourceProvider,
+} from "@voyant-travel/catalog/booking-engine"
 import type { CatalogBookingRouteModuleOptions } from "@voyant-travel/catalog/booking-engine/operator-routes"
+import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
 import {
   type CatalogIndexer,
   catalogIndexerProviderPort,
@@ -35,6 +39,12 @@ import {
 } from "@voyant-travel/finance/runtime-port"
 import { financeSelfServiceBookingSourceRuntimePort } from "@voyant-travel/finance/self-service-booking-source"
 import { sql } from "drizzle-orm"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { DEFAULT_BOOKING_SESSION_TERMINAL_RETENTION_MS } from "./booking-session-maintenance-job.js"
+import {
+  type CatalogBookingSessionMaintenanceJobRuntime,
+  catalogBookingSessionMaintenanceJobRuntimePort,
+} from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogDraftReaperJobRuntimePort } from "./draft-reaper-job-runtime-port.js"
 import {
   type CatalogReindexCheckpoint,
@@ -205,6 +215,25 @@ export function createCatalogRuntimePortContribution(
         return person?.id ?? null
       },
     }),
+    [catalogBookingSessionMaintenanceJobRuntimePort.id]: {
+      async resolveModule() {
+        const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
+        const runtime = await contribution
+        const services = await runtime.services
+        return createProductionBookingSessionModule({
+          db,
+          repository: createDrizzleBookingSessionRepository(db),
+          resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
+        })
+      },
+      resolveRetentionMs: () => resolveBookingSessionRetentionMs(host.primitives.env(undefined)),
+      reportFailure(error, details) {
+        console.error("[catalog-booking-session-maintenance] operation failed", {
+          error,
+          ...details,
+        })
+      },
+    } satisfies CatalogBookingSessionMaintenanceJobRuntime,
     [catalogDraftReaperJobRuntimePort.id]: {
       async withDb<T>(operation: (db: AnyDrizzleDb) => Promise<T>) {
         return operation(host.primitives.database.resolve(undefined))
@@ -399,6 +428,18 @@ function firstRow(result: unknown): Record<string, unknown> | undefined {
     ? result
     : ((result as { rows?: Record<string, unknown>[] })?.rows ?? [])
   return rows[0] as Record<string, unknown> | undefined
+}
+
+function resolveBookingSessionRetentionMs(env: Readonly<Record<string, unknown>>): number {
+  const configuredDays = env.BOOKING_SESSION_TERMINAL_RETENTION_DAYS
+  if (configuredDays === undefined || configuredDays === "") {
+    return DEFAULT_BOOKING_SESSION_TERMINAL_RETENTION_MS
+  }
+  const days = Number(configuredDays)
+  if (!Number.isFinite(days) || days < 0) {
+    throw new Error("BOOKING_SESSION_TERMINAL_RETENTION_DAYS must be a non-negative number.")
+  }
+  return days * 24 * 60 * 60 * 1000
 }
 
 function integerValue(value: unknown): number {

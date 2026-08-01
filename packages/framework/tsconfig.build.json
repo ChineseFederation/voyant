@@ -476,6 +476,9 @@
       "@voyant-travel/catalog/booking-engine/sessions-schema": [
         "../catalog/dist/booking-engine/sessions-schema.d.ts"
       ],
+      "@voyant-travel/catalog/booking-session-maintenance-job": [
+        "../catalog/dist/booking-session-maintenance-job.d.ts"
+      ],
       "@voyant-travel/catalog/booking-snapshot-subscriber": [
         "../catalog/dist/booking-snapshot-subscriber-runtime.d.ts"
       ],

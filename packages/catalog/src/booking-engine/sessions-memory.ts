@@ -4,6 +4,7 @@ import type {
   BookingCommitInternalRecord,
   BookingHoldInternalRecord,
   BookingQuoteInternalRecord,
+  BookingSessionAuditRecord,
   BookingSessionInternalRecord,
   BookingSessionModulePorts,
   BookingSessionOperationRecord,
@@ -17,6 +18,7 @@ export interface InMemoryBookingSessionRepository extends BookingSessionReposito
   holds: Map<string, BookingHoldInternalRecord>
   commits: Map<string, BookingCommitInternalRecord>
   operations: Map<string, BookingSessionOperationRecord>
+  auditEvents: Map<string, BookingSessionAuditRecord>
 }
 
 export function createInMemoryBookingSessionRepository(): InMemoryBookingSessionRepository {
@@ -27,6 +29,7 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
     holds: new Map(),
     commits: new Map(),
     operations: new Map(),
+    auditEvents: new Map(),
 
     async createSession(record) {
       const existing = [...repository.sessions.values()].find(
@@ -48,6 +51,31 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
     },
     async saveSession(record) {
       repository.sessions.set(record.id, cloneSession(record))
+    },
+    async appendAudit(record) {
+      repository.auditEvents.set(record.id, cloneAudit(record))
+    },
+    async listExpiryCandidates(input) {
+      return [...repository.sessions.values()]
+        .filter((session) => session.state === "active" && session.expiresAt <= input.at)
+        .sort((left, right) => left.expiresAt.getTime() - right.expiresAt.getTime())
+        .slice(0, input.limit)
+        .map(cloneSession)
+    },
+    async listPurgeCandidates(input) {
+      return [...repository.sessions.values()]
+        .filter(
+          (session) =>
+            session.state !== "active" && !session.purgedAt && session.updatedAt <= input.before,
+        )
+        .sort((left, right) => left.updatedAt.getTime() - right.updatedAt.getTime())
+        .slice(0, input.limit)
+        .map(cloneSession)
+    },
+    async purgeSessionArtifacts(sessionId) {
+      for (const [id, operation] of repository.operations) {
+        if (operation.sessionId === sessionId) repository.operations.delete(id)
+      }
     },
     async listActiveQuotes(sessionId) {
       return [...repository.quotes.values()]
@@ -127,6 +155,7 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
       repository.sessions.set(input.sessionId, {
         ...cloneSession(session),
         state: "consumed",
+        revision: session.revision + 1,
         updatedAt: new Date(input.now),
       })
       repository.quotes.set(input.quoteId, { ...cloneQuote(quote), state: "consumed" })
@@ -160,6 +189,7 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
         holds: cloneMap(repository.holds, cloneHold),
         commits: cloneMap(repository.commits, cloneCommit),
         operations: cloneMap(repository.operations, cloneOperation),
+        auditEvents: cloneMap(repository.auditEvents, cloneAudit),
       }
       try {
         return await operation(undefined)
@@ -169,6 +199,7 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
         repository.holds = snapshot.holds
         repository.commits = snapshot.commits
         repository.operations = snapshot.operations
+        repository.auditEvents = snapshot.auditEvents
         throw error
       } finally {
         release()
@@ -244,10 +275,20 @@ function cloneSession(record: BookingSessionInternalRecord): BookingSessionInter
   return {
     ...record,
     target: { ...record.target },
+    capabilityScopes: [...record.capabilityScopes],
     statePayload: { ...record.statePayload },
     expiresAt: new Date(record.expiresAt),
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
+    purgedAt: record.purgedAt ? new Date(record.purgedAt) : undefined,
+  }
+}
+
+function cloneAudit(record: BookingSessionAuditRecord): BookingSessionAuditRecord {
+  return {
+    ...record,
+    metadata: structuredClone(record.metadata),
+    createdAt: new Date(record.createdAt),
   }
 }
 

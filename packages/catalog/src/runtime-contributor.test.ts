@@ -16,6 +16,7 @@ import type { IndexerAdapter } from "@voyant-travel/catalog-contracts/indexer/co
 import { financeOperatorSettingsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { describe, expect, it, vi } from "vitest"
 
+import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { createCatalogRuntimePortContribution } from "./runtime-contributor.js"
 
 type SelfServiceDeps = {
@@ -42,6 +43,27 @@ vi.mock("@voyant-travel/catalog/booking-engine", async (importOriginal) => {
 })
 
 describe("createCatalogRuntimePortContribution", () => {
+  it("does not read retention environment while contributing runtime ports", async () => {
+    const contribution = createCatalogRuntimePortContribution({
+      primitives: { database: { resolve: () => ({}) } } as never,
+      hasRuntimePort: () => false,
+      getRuntimePort: vi.fn(() => ({})) as never,
+    })
+
+    expect(
+      (
+        contribution[catalogBookingSessionMaintenanceJobRuntimePort.id] as {
+          resolveRetentionMs?: unknown
+        }
+      ).resolveRetentionMs,
+    ).toBeTypeOf("function")
+    await Promise.allSettled(
+      Object.values(contribution).filter(
+        (value): value is Promise<unknown> => value instanceof Promise,
+      ),
+    )
+  })
+
   it.each([
     undefined,
     null,

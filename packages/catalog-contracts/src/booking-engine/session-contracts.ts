@@ -23,6 +23,18 @@ export type BookingSessionTargetV1 = z.infer<typeof bookingSessionTargetV1>
 export const bookingSessionStateV1 = z.enum(["active", "consumed", "expired", "abandoned"])
 export type BookingSessionStateV1 = z.infer<typeof bookingSessionStateV1>
 
+export const bookingSessionCapabilityActionV1 = z.enum([
+  "read",
+  "update",
+  "quote",
+  "hold",
+  "commit",
+  "abandon",
+  "adopt",
+  "renew",
+])
+export type BookingSessionCapabilityActionV1 = z.infer<typeof bookingSessionCapabilityActionV1>
+
 export const bookingSessionRecordV1 = z.object({
   id: z.string().min(1),
   target: bookingSessionTargetV1,
@@ -35,17 +47,17 @@ export const bookingSessionRecordV1 = z.object({
 })
 export type BookingSessionRecordV1 = z.infer<typeof bookingSessionRecordV1>
 
-export const bookingSessionCreationSecretV1 = z.object({
-  token: z.string().min(16),
-  transport: z.enum(["header", "cookie"]),
-  headerName: z.literal("Voyant-Booking-Session-Capability"),
+export const bookingSessionViewV1 = bookingSessionRecordV1.extend({
+  selection: z.record(z.string(), z.unknown()).optional(),
+  redaction: z.enum(["none", "selection_omitted"]),
 })
-export type BookingSessionCreationSecretV1 = z.infer<typeof bookingSessionCreationSecretV1>
+export type BookingSessionViewV1 = z.infer<typeof bookingSessionViewV1>
 
 export const createBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
   target: bookingSessionTargetV1,
   selection: z.record(z.string(), z.unknown()).optional(),
+  capabilityScopes: z.array(bookingSessionCapabilityActionV1).min(1).optional(),
 })
 export type CreateBookingSessionV1 = z.input<typeof createBookingSessionV1>
 
@@ -120,15 +132,33 @@ export const abandonBookingSessionV1 = z.object({
 })
 export type AbandonBookingSessionV1 = z.input<typeof abandonBookingSessionV1>
 
+export const adoptBookingSessionV1 = z.object({
+  idempotencyKey: z.string().min(8).max(128),
+  expectedRevision: z.number().int().positive(),
+})
+export type AdoptBookingSessionV1 = z.input<typeof adoptBookingSessionV1>
+
+export const renewBookingSessionV1 = z.object({
+  idempotencyKey: z.string().min(8).max(128),
+  expectedRevision: z.number().int().positive(),
+  extendBySeconds: z.number().int().positive(),
+})
+export type RenewBookingSessionV1 = z.input<typeof renewBookingSessionV1>
+
 export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("revision_conflict"),
     expectedRevision: z.number().int().positive(),
     actualRevision: z.number().int().positive(),
+    actualState: bookingSessionStateV1,
   }),
   z.object({ kind: z.literal("session_expired") }),
   z.object({ kind: z.literal("session_consumed") }),
   z.object({ kind: z.literal("capability_required") }),
+  z.object({
+    kind: z.literal("capability_scope_required"),
+    action: bookingSessionCapabilityActionV1,
+  }),
   z.object({ kind: z.literal("not_authorized") }),
   z.object({ kind: z.literal("idempotency_conflict") }),
   z.object({
@@ -155,6 +185,10 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
     kind: z.literal("invalid_selection"),
     reason: z.enum(["unsupported_target", "forbidden_field"]),
     path: z.string().min(1).optional(),
+  }),
+  z.object({
+    kind: z.literal("renewal_not_allowed"),
+    reason: z.enum(["session_not_active", "extension_too_large", "absolute_lifetime_exceeded"]),
   }),
   z.object({
     kind: z.literal("quote_required"),
@@ -185,9 +219,11 @@ export const bookingSessionOutcomeV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("session_created"),
     session: bookingSessionRecordV1,
-    capability: bookingSessionCreationSecretV1.optional(),
   }),
   z.object({ kind: z.literal("session_updated"), session: bookingSessionRecordV1 }),
+  z.object({ kind: z.literal("session_resumed"), session: bookingSessionViewV1 }),
+  z.object({ kind: z.literal("session_adopted"), session: bookingSessionViewV1 }),
+  z.object({ kind: z.literal("session_renewed"), session: bookingSessionRecordV1 }),
   z.object({ kind: z.literal("session_abandoned"), session: bookingSessionRecordV1 }),
   z.object({
     kind: z.literal("quote_created"),

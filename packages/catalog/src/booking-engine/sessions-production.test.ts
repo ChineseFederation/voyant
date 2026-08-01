@@ -9,6 +9,7 @@ import {
 } from "./sessions-production.js"
 
 const PRODUCT_TARGET = { kind: "product", productId: "prod_selection" } as const
+const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
 
 function createProductionHarness(handler: OwnedBookingHandler) {
   const repository = createInMemoryBookingSessionRepository()
@@ -34,10 +35,10 @@ async function createAnonymousSession(
       target: PRODUCT_TARGET,
       selection,
     },
-    { actorKind: "anonymous" },
+    { actorKind: "anonymous", capability: TEST_CAPABILITY },
   )
   if (created.kind !== "session_created") throw new Error("session not created")
-  const access = { actorKind: "anonymous" as const, capability: created.capability?.token }
+  const access = { actorKind: "anonymous" as const, capability: TEST_CAPABILITY }
   return { created, access }
 }
 

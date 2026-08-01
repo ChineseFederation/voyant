@@ -59,6 +59,7 @@
     "./booking-engine/operator-routes": "./src/booking-engine/operator-routes.ts",
     "./runtime-port": "./src/content-runtime-port.ts",
     "./draft-reaper-job": "./src/draft-reaper-job.ts",
+    "./booking-session-maintenance-job": "./src/booking-session-maintenance-job.ts",
     "./reindex-job": "./src/reindex-job.ts",
     "./sources-sync-job": "./src/sources-sync-job.ts",
     "./graph-runtime": "./src/graph-runtime.ts",
@@ -387,6 +388,11 @@
         "types": "./dist/draft-reaper-job.d.ts",
         "import": "./dist/draft-reaper-job.js",
         "default": "./dist/draft-reaper-job.js"
+      },
+      "./booking-session-maintenance-job": {
+        "types": "./dist/booking-session-maintenance-job.d.ts",
+        "import": "./dist/booking-session-maintenance-job.js",
+        "default": "./dist/booking-session-maintenance-job.js"
       },
       "./reindex-job": {
         "types": "./dist/reindex-job.d.ts",

@@ -16,6 +16,7 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "./api-runtime-ports.js"
+import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
 import { catalogDraftReaperJobRuntimePort } from "./draft-reaper-job-runtime-port.js"
@@ -88,6 +89,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogContentRuntimePort),
       providePort(catalogProjectionRuntimePort),
       providePort(catalogBookingSnapshotRuntimePort),
+      providePort(catalogBookingSessionMaintenanceJobRuntimePort),
       providePort(catalogRuntimeServicesPort),
       providePort(catalogDraftReaperJobRuntimePort),
       providePort(catalogReindexJobRuntimePort),
@@ -99,6 +101,7 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogSearchRuntimePort),
     requirePort(catalogProjectionRuntimePort),
     requirePort(catalogBookingSnapshotRuntimePort),
+    requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
     requirePort(catalogDraftReaperJobRuntimePort),
     requirePort(catalogReindexJobRuntimePort),
     requirePort(catalogSourcesSyncJobRuntimePort),
@@ -139,6 +142,11 @@ export const catalogVoyantModule = defineModule({
     },
   ],
   config: [
+    {
+      id: "@voyant-travel/catalog#config.booking-session-terminal-retention-days",
+      key: "BOOKING_SESSION_TERMINAL_RETENTION_DAYS",
+      required: false,
+    },
     {
       id: "@voyant-travel/catalog#config.typesense-host",
       key: "TYPESENSE_HOST",
@@ -256,6 +264,22 @@ export const catalogVoyantModule = defineModule({
   ],
   jobs: [
     {
+      id: "catalog.maintain-booking-sessions",
+      schedule: { cron: "10 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "*/15 * * * *", overlap: "skip" },
+          economical: { cron: "10 */6 * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "10 */6 * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/catalog/booking-session-maintenance-job",
+        export: "runCatalogBookingSessionMaintenanceJob",
+      },
+    },
+    {
       id: "catalog.reindex-products",
       wakeup: true,
       runtime: {
@@ -321,6 +345,24 @@ export const catalogVoyantModule = defineModule({
             action: "quote",
             label: "Quote catalog entries",
             description: "Resolve and persist short-lived live catalog quotes.",
+            sensitive: true,
+          },
+          {
+            action: "booking-session-read",
+            label: "Read Booking Sessions",
+            description: "Inspect redacted Booking Session state with durable audit.",
+            sensitive: true,
+          },
+          {
+            action: "booking-session-write",
+            label: "Manage Booking Sessions",
+            description: "Perform admitted staff Booking Session lifecycle operations.",
+            sensitive: true,
+          },
+          {
+            action: "booking-session-retention",
+            label: "Retain Booking Sessions",
+            description: "Run expiry and PII-retention maintenance for Booking Sessions.",
             sensitive: true,
           },
         ],

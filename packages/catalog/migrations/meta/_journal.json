@@ -43,6 +43,13 @@
       "when": 1785596400000,
       "tag": "20260801150000_booking_sessions_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785607200000,
+      "tag": "20260801180000_booking_session_lifecycle_v1",
+      "breakpoints": true
     }
   ]
 }

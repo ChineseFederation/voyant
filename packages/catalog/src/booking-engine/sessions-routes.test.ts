@@ -8,6 +8,9 @@ import {
 import { createBookingSessionRoutes } from "./sessions-routes.js"
 import { createBookingSessionModule } from "./sessions-service.js"
 
+const PUBLIC_CAPABILITY = `bcap_${"a".repeat(43)}`
+const WRONG_CAPABILITY = `bcap_${"b".repeat(43)}`
+
 function createApp() {
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
@@ -43,13 +46,38 @@ function createApp() {
     createBookingSessionRoutes({
       actorKind: "staff",
       resolveModule: () => module,
-      resolveAccess: () => ({ actorKind: "staff", principalId: "staff_1" }),
+      resolveAccess: () => ({
+        actorKind: "staff",
+        principalId: "staff_1",
+        staffAuthority: { admitted: true, reason: "booking_support_case" },
+      }),
     }),
   )
   return { app, inventory }
 }
 
 describe("Booking Session v1 routes", () => {
+  it("mounts retention maintenance only on the admitted staff surface", async () => {
+    const { app } = createApp()
+    const request = {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ limit: 10 }),
+    }
+    const publicResponse = await app.request(
+      "/v1/public/catalog/booking-sessions/maintenance/expire",
+      request,
+    )
+    const adminResponse = await app.request(
+      "/v1/admin/catalog/booking-sessions/maintenance/expire",
+      request,
+    )
+
+    expect(publicResponse.status).toBe(404)
+    expect(adminResponse.status).toBe(200)
+    await expect(adminResponse.json()).resolves.toEqual({ expired: 0 })
+  })
+
   it("adapts public anonymous and admin staff transports to the same module outcomes", async () => {
     const { app } = createApp()
     const publicBody = JSON.stringify({
@@ -64,7 +92,7 @@ describe("Booking Session v1 routes", () => {
 
     const publicResponse = await app.request("/v1/public/catalog/booking-sessions", {
       method: "POST",
-      headers,
+      headers: { ...headers, "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY },
       body: publicBody,
     })
     const adminResponse = await app.request("/v1/admin/catalog/booking-sessions", {
@@ -78,7 +106,6 @@ describe("Booking Session v1 routes", () => {
     await expect(publicResponse.json()).resolves.toMatchObject({
       kind: "session_created",
       session: { actorKind: "anonymous", revision: 1, target: { productId: "prod_owned_1" } },
-      capability: { headerName: "Voyant-Booking-Session-Capability" },
     })
     await expect(adminResponse.json()).resolves.toMatchObject({
       kind: "session_created",
@@ -91,7 +118,7 @@ describe("Booking Session v1 routes", () => {
     const headers = { "content-type": "application/json" }
     const publicCreated = await app.request("/v1/public/catalog/booking-sessions", {
       method: "POST",
-      headers,
+      headers: { ...headers, "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY },
       body: JSON.stringify({
         idempotencyKey: "route_public_create",
         target: { kind: "product", productId: "prod_owned_1" },
@@ -99,7 +126,6 @@ describe("Booking Session v1 routes", () => {
     })
     const publicSession = (await publicCreated.json()) as {
       session: { id: string; revision: number }
-      capability: { token: string }
     }
 
     const missingCapability = await app.request(
@@ -124,7 +150,7 @@ describe("Booking Session v1 routes", () => {
         method: "POST",
         headers: {
           ...headers,
-          "Voyant-Booking-Session-Capability": "wrong_capability_token",
+          "Voyant-Booking-Session-Capability": WRONG_CAPABILITY,
         },
         body: JSON.stringify({
           expectedRevision: publicSession.session.revision,
@@ -143,7 +169,7 @@ describe("Booking Session v1 routes", () => {
         method: "POST",
         headers: {
           ...headers,
-          "Voyant-Booking-Session-Capability": publicSession.capability.token,
+          "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
         },
         body: JSON.stringify({
           expectedRevision: publicSession.session.revision,
@@ -162,7 +188,7 @@ describe("Booking Session v1 routes", () => {
         method: "POST",
         headers: {
           ...headers,
-          "Voyant-Booking-Session-Capability": publicSession.capability.token,
+          "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
         },
         body: JSON.stringify({
           expectedRevision: publicSession.session.revision,
@@ -182,7 +208,7 @@ describe("Booking Session v1 routes", () => {
         method: "POST",
         headers: {
           ...headers,
-          "Voyant-Booking-Session-Capability": publicSession.capability.token,
+          "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
         },
         body: JSON.stringify({
           expectedRevision: publicSession.session.revision,
@@ -276,7 +302,7 @@ describe("Booking Session v1 routes", () => {
         method: "POST",
         headers: {
           ...headers,
-          "Voyant-Booking-Session-Capability": publicSession.capability.token,
+          "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
         },
         body: JSON.stringify({
           expectedRevision: staffOnlySession.session.revision,

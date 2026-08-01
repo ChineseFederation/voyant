@@ -10,6 +10,7 @@ import {
 } from "../../src/booking-engine/bookings-ref.js"
 import { createDrizzleBookingSessionRepository } from "../../src/booking-engine/sessions-drizzle.js"
 import {
+  bookingSessionAuditEventsTable,
   bookingSessionCommitsTable,
   bookingSessionHoldsTable,
   bookingSessionOperationsTable,
@@ -183,6 +184,61 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
     ])
     await expect(db.select().from(bookingSessionHoldsTable)).resolves.toEqual([
       expect.objectContaining({ id: prepared.hold.id, state: "active" }),
+    ])
+  })
+
+  it("serializes customer adoption, revokes the capability, and persists read audit", async () => {
+    const repository = createDrizzleBookingSessionRepository(db)
+    const module = createModule(repository, async () => {
+      throw new Error("Commit is not used by this test")
+    })
+    const created = await module.createSession(
+      {
+        idempotencyKey: "postgres_adoption_create",
+        target: { kind: "product", productId: "prod_pg_session" },
+        selection: { travelers: [{ firstName: "Ada" }] },
+      },
+      ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("Session was not created")
+
+    const [first, second] = await Promise.all([
+      module.adoptSession(
+        created.session.id,
+        { expectedRevision: 1, idempotencyKey: "postgres_adopt_one" },
+        { actorKind: "customer", principalId: "customer_pg_1", capability: ACCESS.capability },
+      ),
+      module.adoptSession(
+        created.session.id,
+        { expectedRevision: 1, idempotencyKey: "postgres_adopt_two" },
+        { actorKind: "customer", principalId: "customer_pg_2", capability: ACCESS.capability },
+      ),
+    ])
+    expect([first.kind, second.kind].sort()).toEqual(["rejected", "session_adopted"])
+    const winningPrincipal = first.kind === "session_adopted" ? "customer_pg_1" : "customer_pg_2"
+
+    await expect(db.select().from(bookingSessionsTable)).resolves.toEqual([
+      expect.objectContaining({
+        actorKind: "customer",
+        ownerPrincipalId: winningPrincipal,
+        capabilityHash: null,
+        capabilityScopes: [],
+        revision: 2,
+      }),
+    ])
+    await expect(module.resumeSession(created.session.id, ACCESS)).resolves.toMatchObject({
+      kind: "rejected",
+      error: { kind: "not_authorized" },
+    })
+    await expect(
+      module.resumeSession(created.session.id, {
+        actorKind: "customer",
+        principalId: winningPrincipal,
+      }),
+    ).resolves.toMatchObject({ kind: "session_resumed", session: { redaction: "none" } })
+    await expect(db.select().from(bookingSessionAuditEventsTable)).resolves.toEqual([
+      expect.objectContaining({ action: "adopt", principalId: winningPrincipal }),
+      expect.objectContaining({ action: "read", principalId: winningPrincipal }),
     ])
   })
 })

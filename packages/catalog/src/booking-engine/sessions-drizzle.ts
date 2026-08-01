@@ -1,10 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import { newId } from "@voyant-travel/db/lib/typeid"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { PricingBreakdownV1 } from "./contracts.js"
 import {
+  bookingSessionAuditEventsTable,
   bookingSessionCommitsTable,
   bookingSessionHoldsTable,
   bookingSessionOperationsTable,
@@ -37,10 +38,11 @@ export function createDrizzleBookingSessionRepository(
           id: record.id,
           createIdempotencyKey: record.createIdempotencyKey,
           createRequestFingerprint: record.createRequestFingerprint,
-          capabilityHash: record.capabilityHash,
+          capabilityHash: record.capabilityHash ?? null,
+          capabilityScopes: record.capabilityScopes,
           actorKind: record.actorKind,
-          ownerPrincipalId: record.ownerPrincipalId,
-          ownerOrganizationId: record.ownerOrganizationId,
+          ownerPrincipalId: record.ownerPrincipalId ?? null,
+          ownerOrganizationId: record.ownerOrganizationId ?? null,
           targetKind: record.target.kind,
           productId: record.target.productId,
           catalogItemId: record.target.catalogItemId,
@@ -81,10 +83,13 @@ export function createDrizzleBookingSessionRepository(
       await resolveDb()
         .update(bookingSessionsTable)
         .set({
-          capabilityHash: record.capabilityHash,
+          createIdempotencyKey: record.createIdempotencyKey,
+          createRequestFingerprint: record.createRequestFingerprint,
+          capabilityHash: record.capabilityHash ?? null,
+          capabilityScopes: record.capabilityScopes,
           actorKind: record.actorKind,
-          ownerPrincipalId: record.ownerPrincipalId,
-          ownerOrganizationId: record.ownerOrganizationId,
+          ownerPrincipalId: record.ownerPrincipalId ?? null,
+          ownerOrganizationId: record.ownerOrganizationId ?? null,
           targetKind: record.target.kind,
           productId: record.target.productId,
           catalogItemId: record.target.catalogItemId,
@@ -94,9 +99,55 @@ export function createDrizzleBookingSessionRepository(
           expiresAt: record.expiresAt,
           consumedAt: record.state === "consumed" ? record.updatedAt : null,
           abandonedAt: record.state === "abandoned" ? record.updatedAt : null,
+          purgedAt: record.purgedAt ?? null,
           updatedAt: record.updatedAt,
         })
         .where(eq(bookingSessionsTable.id, record.id))
+    },
+    async appendAudit(record) {
+      await resolveDb().insert(bookingSessionAuditEventsTable).values({
+        id: record.id,
+        sessionId: record.sessionId,
+        action: record.action,
+        actorKind: record.actorKind,
+        principalId: record.principalId,
+        organizationId: record.organizationId,
+        authorityReason: record.authorityReason,
+        metadata: record.metadata,
+        createdAt: record.createdAt,
+      })
+    },
+    async listExpiryCandidates(input) {
+      const rows = await resolveDb()
+        .select()
+        .from(bookingSessionsTable)
+        .where(
+          and(
+            eq(bookingSessionsTable.state, "active"),
+            lte(bookingSessionsTable.expiresAt, input.at),
+          ),
+        )
+        .limit(input.limit)
+      return rows.map(mapSession)
+    },
+    async listPurgeCandidates(input) {
+      const rows = await resolveDb()
+        .select()
+        .from(bookingSessionsTable)
+        .where(
+          and(
+            inArray(bookingSessionsTable.state, ["consumed", "expired", "abandoned"]),
+            isNull(bookingSessionsTable.purgedAt),
+            lte(bookingSessionsTable.updatedAt, input.before),
+          ),
+        )
+        .limit(input.limit)
+      return rows.map(mapSession)
+    },
+    async purgeSessionArtifacts(sessionId) {
+      await resolveDb()
+        .delete(bookingSessionOperationsTable)
+        .where(eq(bookingSessionOperationsTable.sessionId, sessionId))
     },
     async listActiveQuotes(sessionId) {
       const rows = await resolveDb()
@@ -259,7 +310,12 @@ export function createDrizzleBookingSessionRepository(
       const at = input.now
       const [session] = await resolveDb()
         .update(bookingSessionsTable)
-        .set({ state: "consumed", consumedAt: at, updatedAt: at })
+        .set({
+          state: "consumed",
+          revision: sql`${bookingSessionsTable.revision} + 1`,
+          consumedAt: at,
+          updatedAt: at,
+        })
         .where(
           and(
             eq(bookingSessionsTable.id, input.sessionId),
@@ -329,6 +385,7 @@ function mapSession(row: SelectBookingSession): BookingSessionInternalRecord {
     createIdempotencyKey: row.createIdempotencyKey,
     createRequestFingerprint: row.createRequestFingerprint,
     capabilityHash: row.capabilityHash ?? undefined,
+    capabilityScopes: row.capabilityScopes,
     target:
       row.targetKind === "catalog_item"
         ? { kind: "catalog_item", catalogItemId: row.catalogItemId ?? "" }
@@ -342,6 +399,7 @@ function mapSession(row: SelectBookingSession): BookingSessionInternalRecord {
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    purgedAt: row.purgedAt ?? undefined,
   }
 }
 

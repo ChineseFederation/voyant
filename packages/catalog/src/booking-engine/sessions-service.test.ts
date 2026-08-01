@@ -21,11 +21,18 @@ const BASE_PRICING = {
   total: 10000,
 }
 
-const ANONYMOUS_ACCESS = { actorKind: "anonymous" as const }
+const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
+const ANONYMOUS_ACCESS = { actorKind: "anonymous" as const, capability: TEST_CAPABILITY }
 let createCounter = 0
 
 function createHarness(
-  ttl: { sessionTtlMs?: number; quoteTtlMs?: number; holdTtlMs?: number } = {},
+  ttl: {
+    sessionTtlMs?: number
+    quoteTtlMs?: number
+    holdTtlMs?: number
+    maxRenewalExtensionMs?: number
+    maxSessionLifetimeMs?: number
+  } = {},
 ) {
   let currentNow = new Date("2026-08-01T12:00:00.000Z")
   let price = BASE_PRICING
@@ -37,6 +44,10 @@ function createHarness(
     ...(ttl.sessionTtlMs == null ? {} : { sessionTtlMs: ttl.sessionTtlMs }),
     quoteTtlMs: ttl.quoteTtlMs ?? 5 * 60_000,
     holdTtlMs: ttl.holdTtlMs ?? 60_000,
+    ...(ttl.maxRenewalExtensionMs == null
+      ? {}
+      : { maxRenewalExtensionMs: ttl.maxRenewalExtensionMs }),
+    ...(ttl.maxSessionLifetimeMs == null ? {} : { maxSessionLifetimeMs: ttl.maxSessionLifetimeMs }),
     ports: {
       repository,
       normalizeSelection: async ({ selection }) => selection,
@@ -74,7 +85,7 @@ async function createQuoteAndHold(harness = createHarness()) {
       expectedRevision: created.session.revision,
       idempotencyKey: "quote_key",
     },
-    { ...ANONYMOUS_ACCESS, capability: created.capability?.token },
+    ANONYMOUS_ACCESS,
   )
   if (quoted.kind !== "quote_created") throw new Error("quote not created")
   const held = await harness.module.placeHold(
@@ -84,20 +95,20 @@ async function createQuoteAndHold(harness = createHarness()) {
       quoteId: quoted.quote.id,
       idempotencyKey: "hold_key",
     },
-    { ...ANONYMOUS_ACCESS, capability: created.capability?.token },
+    ANONYMOUS_ACCESS,
   )
   if (held.kind !== "hold_created") throw new Error("hold not created")
   return {
     harness,
     session: created.session,
-    capability: created.capability?.token,
+    capability: TEST_CAPABILITY,
     quote: quoted.quote,
     hold: held.hold,
   }
 }
 
 describe("Booking Session v1 owned tracer", () => {
-  it("requires the returned anonymous Session capability before mutation", async () => {
+  it("requires the caller-held anonymous Session capability before mutation", async () => {
     const harness = createHarness()
     const created = await harness.module.createSession(
       {
@@ -114,7 +125,7 @@ describe("Booking Session v1 owned tracer", () => {
         expectedRevision: created.session.revision,
         idempotencyKey: "quote_without_capability",
       },
-      ANONYMOUS_ACCESS,
+      { actorKind: "anonymous" },
     )
 
     expect(rejected).toMatchObject({
@@ -131,7 +142,7 @@ describe("Booking Session v1 owned tracer", () => {
       target: { kind: "product" as const, productId: "prod_owned_1" },
       selection: { departureSlotId: "slot_one" },
     }
-    const createAccess = { ...ANONYMOUS_ACCESS, capability: "bcap_client_create_recovery" }
+    const createAccess = { ...ANONYMOUS_ACCESS, capability: `bcap_${"b".repeat(43)}` }
 
     const first = await harness.module.createSession(input, createAccess)
     const replay = await harness.module.createSession(input, createAccess)
@@ -291,6 +302,31 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.inventory.hasActiveHold(hold.id)).toBe(false)
   })
 
+  it("sweeps idle expired Sessions and releases live Holds under admitted authority", async () => {
+    const harness = createHarness({
+      sessionTtlMs: 30_000,
+      quoteTtlMs: 10 * 60_000,
+      holdTtlMs: 10 * 60_000,
+    })
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    harness.advance(31_000)
+
+    await expect(
+      harness.module.expireDueSessions(
+        { limit: 10 },
+        {
+          actorKind: "staff",
+          principalId: "staff_1",
+          staffAuthority: { admitted: true, reason: "scheduled_retention" },
+        },
+      ),
+    ).resolves.toEqual({ expired: 1 })
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("expired")
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("expired")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+    expect(harness.inventory.hasActiveHold(hold.id)).toBe(false)
+  })
+
   it("replays a stable idempotency key without creating another Booking", async () => {
     const { harness, session, capability, quote, hold } = await createQuoteAndHold()
     const input = {
@@ -434,7 +470,7 @@ describe("Booking Session v1 owned tracer", () => {
         expectedRevision: created.session.revision,
         idempotencyKey: "quote_b",
       },
-      { ...ANONYMOUS_ACCESS, capability: created.capability?.token },
+      ANONYMOUS_ACCESS,
     )
     if (quoted.kind !== "quote_created") throw new Error("quote not created")
 
@@ -445,7 +481,7 @@ describe("Booking Session v1 owned tracer", () => {
         quoteId: quoted.quote.id,
         idempotencyKey: "hold_b",
       },
-      { ...ANONYMOUS_ACCESS, capability: created.capability?.token },
+      ANONYMOUS_ACCESS,
     )
 
     expect(a.hold.state).toBe("active")
@@ -477,12 +513,12 @@ describe("Booking Session v1 owned tracer", () => {
     const firstQuote = await harness.module.quoteSession(
       first.session.id,
       { expectedRevision: first.session.revision, idempotencyKey: "last_seat_quote_a" },
-      { ...ANONYMOUS_ACCESS, capability: first.capability?.token },
+      ANONYMOUS_ACCESS,
     )
     const secondQuote = await harness.module.quoteSession(
       second.session.id,
       { expectedRevision: second.session.revision, idempotencyKey: "last_seat_quote_b" },
-      { ...ANONYMOUS_ACCESS, capability: second.capability?.token },
+      ANONYMOUS_ACCESS,
     )
     if (firstQuote.kind !== "quote_created" || secondQuote.kind !== "quote_created") {
       throw new Error("quotes not created")
@@ -496,7 +532,7 @@ describe("Booking Session v1 owned tracer", () => {
           quoteId: firstQuote.quote.id,
           idempotencyKey: "last_seat_hold_a",
         },
-        { ...ANONYMOUS_ACCESS, capability: first.capability?.token },
+        ANONYMOUS_ACCESS,
       ),
       harness.module.placeHold(
         second.session.id,
@@ -505,7 +541,7 @@ describe("Booking Session v1 owned tracer", () => {
           quoteId: secondQuote.quote.id,
           idempotencyKey: "last_seat_hold_b",
         },
-        { ...ANONYMOUS_ACCESS, capability: second.capability?.token },
+        ANONYMOUS_ACCESS,
       ),
     ])
 
@@ -618,6 +654,278 @@ describe("Booking Session v1 owned tracer", () => {
         [scenario],
       ),
     ).resolves.toEqual([{ scenarioId: "owned-atomic-commit", passed: true }])
+  })
+
+  it("enforces explicit capability action scopes", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("scoped_capability"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        capabilityScopes: ["read"],
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, ANONYMOUS_ACCESS),
+    ).resolves.toMatchObject({ kind: "session_resumed", session: { redaction: "none" } })
+    await expect(
+      harness.module.updateSession(
+        created.session.id,
+        {
+          expectedRevision: created.session.revision,
+          idempotencyKey: "scope_update_denied",
+          selection: { configure: { pax: { adult: 2 } } },
+        },
+        ANONYMOUS_ACCESS,
+      ),
+    ).resolves.toMatchObject({
+      kind: "rejected",
+      error: { kind: "capability_scope_required", action: "update" },
+    })
+  })
+
+  it("admits staff independently of anonymous capability and redacts the audited read", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("staff_anonymous_read"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        selection: { travelers: [{ firstName: "Ada" }] },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        actorKind: "staff",
+        principalId: "staff_1",
+      }),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+
+    const admitted = await harness.module.resumeSession(created.session.id, {
+      actorKind: "staff",
+      principalId: "staff_1",
+      staffAuthority: { admitted: true, reason: "support_case_123" },
+    })
+    expect(admitted).toMatchObject({
+      kind: "session_resumed",
+      session: { redaction: "selection_omitted" },
+    })
+    if (admitted.kind !== "session_resumed") throw new Error("session not resumed")
+    expect(admitted.session).not.toHaveProperty("selection")
+    expect([...harness.repository.auditEvents.values()]).toContainEqual(
+      expect.objectContaining({
+        action: "read",
+        actorKind: "staff",
+        principalId: "staff_1",
+        authorityReason: "support_case_123",
+        metadata: { redaction: "selection_omitted" },
+      }),
+    )
+  })
+
+  it("adopts once under a customer race and revokes anonymous access", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("adoption_race"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        selection: { travelers: [{ firstName: "Ada" }] },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    const [first, second] = await Promise.all([
+      harness.module.adoptSession(
+        created.session.id,
+        { expectedRevision: 1, idempotencyKey: "adopt_customer_one" },
+        { actorKind: "customer", principalId: "customer_1", capability: TEST_CAPABILITY },
+      ),
+      harness.module.adoptSession(
+        created.session.id,
+        { expectedRevision: 1, idempotencyKey: "adopt_customer_two" },
+        { actorKind: "customer", principalId: "customer_2", capability: TEST_CAPABILITY },
+      ),
+    ])
+
+    expect([first.kind, second.kind].sort()).toEqual(["rejected", "session_adopted"])
+    const winningPrincipal = first.kind === "session_adopted" ? "customer_1" : "customer_2"
+    expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
+      actorKind: "customer",
+      ownerPrincipalId: winningPrincipal,
+      capabilityHash: undefined,
+      capabilityScopes: [],
+      revision: 2,
+    })
+    await expect(
+      harness.module.resumeSession(created.session.id, ANONYMOUS_ACCESS),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        actorKind: "customer",
+        principalId: winningPrincipal,
+      }),
+    ).resolves.toMatchObject({
+      kind: "session_resumed",
+      session: { redaction: "none", selection: { travelers: [{ firstName: "Ada" }] } },
+    })
+    expect(
+      [...harness.repository.auditEvents.values()].filter((event) => event.action === "adopt"),
+    ).toHaveLength(1)
+  })
+
+  it("renews within policy while explicitly invalidating Quote and Hold authority", async () => {
+    const harness = createHarness({
+      maxRenewalExtensionMs: 60_000,
+      maxSessionLifetimeMs: 120_000,
+      sessionTtlMs: 60_000,
+    })
+    const { session, capability, quote, hold } = await createQuoteAndHold(harness)
+
+    const renewed = await harness.module.renewSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "renew_once", extendBySeconds: 30 },
+      { ...ANONYMOUS_ACCESS, capability },
+    )
+    expect(renewed).toMatchObject({ kind: "session_renewed", session: { revision: 2 } })
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("superseded")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+    expect(harness.inventory.hasActiveHold(hold.id)).toBe(false)
+
+    await expect(
+      harness.module.renewSession(
+        session.id,
+        { expectedRevision: 2, idempotencyKey: "renew_too_far", extendBySeconds: 61 },
+        { ...ANONYMOUS_ACCESS, capability },
+      ),
+    ).resolves.toMatchObject({
+      kind: "rejected",
+      error: { kind: "renewal_not_allowed", reason: "extension_too_large" },
+    })
+  })
+
+  it("expires synchronously and purges PII while retaining minimal audit", async () => {
+    const harness = createHarness({ sessionTtlMs: 1_000 })
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("expire_and_purge"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        selection: { travelers: [{ firstName: "Ada", email: "ada@example.test" }] },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const createdRecord = harness.repository.sessions.get(created.session.id)
+    expect(createdRecord?.createIdempotencyKey).toMatch(/^[a-f0-9]{64}$/)
+    expect(createdRecord?.createRequestFingerprint).toMatch(/^[a-f0-9]{64}$/)
+
+    const customerAccess = {
+      actorKind: "customer" as const,
+      principalId: "customer_purge_1",
+      capability: TEST_CAPABILITY,
+    }
+    await expect(
+      harness.module.adoptSession(
+        created.session.id,
+        {
+          idempotencyKey: "adopt_pii_before_purge",
+          expectedRevision: 1,
+        },
+        customerAccess,
+      ),
+    ).resolves.toMatchObject({ kind: "session_adopted" })
+    expect(JSON.stringify([...harness.repository.operations.values()])).toContain(
+      "ada@example.test",
+    )
+    harness.advance(1_001)
+
+    await expect(
+      harness.module.resumeSession(created.session.id, customerAccess),
+    ).resolves.toMatchObject({
+      kind: "session_resumed",
+      session: { state: "expired", revision: 3 },
+    })
+    await expect(
+      harness.module.purgeTerminalSessions(
+        { before: new Date("2026-08-01T13:00:00.000Z"), limit: 10 },
+        {
+          actorKind: "staff",
+          principalId: "staff_1",
+          staffAuthority: { admitted: true, reason: "retention_policy" },
+        },
+      ),
+    ).resolves.toEqual({ purged: 1 })
+
+    expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
+      capabilityHash: undefined,
+      capabilityScopes: [],
+      ownerPrincipalId: undefined,
+      ownerOrganizationId: undefined,
+      revision: 4,
+      purgedAt: expect.any(Date),
+    })
+    const purgedRecord = harness.repository.sessions.get(created.session.id)
+    expect(purgedRecord?.statePayload).toEqual({})
+    expect(purgedRecord?.createIdempotencyKey).toMatch(/^[a-f0-9]{64}$/)
+    expect(purgedRecord?.createIdempotencyKey).not.toBe(createdRecord?.createIdempotencyKey)
+    expect(purgedRecord?.createRequestFingerprint).toBe(purgedRecord?.createIdempotencyKey)
+    expect(
+      [...harness.repository.operations.values()].filter(
+        (operation) => operation.sessionId === created.session.id,
+      ),
+    ).toEqual([])
+    expect([...harness.repository.auditEvents.values()].map((event) => event.action)).toEqual([
+      "adopt",
+      "expire",
+      "read",
+      "purge",
+    ])
+  })
+
+  it("purges customer ownership links from the terminal aggregate", async () => {
+    const harness = createHarness()
+    const customerAccess = {
+      actorKind: "customer" as const,
+      principalId: "customer_1",
+      organizationId: "org_1",
+    }
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("purge_customer_owner"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        selection: { travelers: [{ firstName: "Ada" }] },
+      },
+      customerAccess,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    await harness.module.abandonSession(
+      created.session.id,
+      { idempotencyKey: "abandon_customer_for_purge", expectedRevision: 1 },
+      customerAccess,
+    )
+
+    await expect(
+      harness.module.purgeTerminalSessions(
+        { before: new Date("2026-08-01T13:00:00.000Z"), limit: 10 },
+        {
+          actorKind: "staff",
+          principalId: "staff_1",
+          staffAuthority: { admitted: true, reason: "retention_policy" },
+        },
+      ),
+    ).resolves.toEqual({ purged: 1 })
+
+    expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
+      statePayload: {},
+      ownerPrincipalId: undefined,
+      ownerOrganizationId: undefined,
+      purgedAt: expect.any(Date),
+    })
   })
 })
 

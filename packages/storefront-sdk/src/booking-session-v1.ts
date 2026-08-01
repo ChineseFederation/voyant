@@ -1,4 +1,6 @@
 import {
+  type AbandonBookingSessionV1,
+  type AdoptBookingSessionV1,
   type BookingSessionOutcomeV1,
   type BookingSessionRecordV1,
   type BookingSessionTargetV1,
@@ -7,7 +9,17 @@ import {
   type CreateBookingSessionV1,
   type PlaceBookingHoldV1,
   type QuoteBookingSessionV1,
+  type RenewBookingSessionV1,
   type UpdateBookingSessionV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+
+export type {
+  AbandonBookingSessionV1,
+  AdoptBookingSessionV1,
+  BookingSessionViewV1,
+  CreateBookingSessionV1,
+  RenewBookingSessionV1,
+  UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 
 import {
@@ -28,6 +40,10 @@ export interface BookingSessionRequestOptions extends StorefrontRequestOptions {
    * create retries and every later Session mutation.
    */
   capability?: string
+}
+
+export interface CreateBookingSessionRequestOptions extends BookingSessionRequestOptions {
+  capability: string
 }
 
 export interface OwnedProductBookingTracerInput {
@@ -58,16 +74,82 @@ export type OwnedProductBookingTracerResult =
 export function createBookingSessionV1(
   client: ResolvedClientOptions,
   input: CreateBookingSessionV1,
-  options?: BookingSessionRequestOptions,
+  options: CreateBookingSessionRequestOptions,
 ) {
-  const capability = options?.capability ?? createBookingSessionCapabilityV1()
   return storefrontFetchWithValidation(
     "/v1/public/catalog/booking-sessions",
     bookingSessionOutcomeV1,
     client,
     {
       method: "POST",
-      headers: bookingSessionRequestHeaders({ ...options, capability }),
+      headers: bookingSessionRequestHeaders(options),
+      body: JSON.stringify(input),
+    },
+  )
+}
+
+export function resumeBookingSessionV1(
+  client: ResolvedClientOptions,
+  sessionId: string,
+  options: BookingSessionRequestOptions,
+) {
+  return storefrontFetchWithValidation(
+    `/v1/public/catalog/booking-sessions/${encodeURIComponent(sessionId)}`,
+    bookingSessionOutcomeV1,
+    client,
+    { method: "GET", headers: bookingSessionRequestHeaders(options) },
+  )
+}
+
+export function adoptBookingSessionV1(
+  client: ResolvedClientOptions,
+  sessionId: string,
+  input: AdoptBookingSessionV1,
+  options: BookingSessionRequestOptions,
+) {
+  return storefrontFetchWithValidation(
+    `/v1/public/catalog/booking-sessions/${encodeURIComponent(sessionId)}/adopt`,
+    bookingSessionOutcomeV1,
+    client,
+    {
+      method: "POST",
+      headers: bookingSessionRequestHeaders(options),
+      body: JSON.stringify(input),
+    },
+  )
+}
+
+export function renewBookingSessionV1(
+  client: ResolvedClientOptions,
+  sessionId: string,
+  input: RenewBookingSessionV1,
+  options: BookingSessionRequestOptions,
+) {
+  return storefrontFetchWithValidation(
+    `/v1/public/catalog/booking-sessions/${encodeURIComponent(sessionId)}/renew`,
+    bookingSessionOutcomeV1,
+    client,
+    {
+      method: "POST",
+      headers: bookingSessionRequestHeaders(options),
+      body: JSON.stringify(input),
+    },
+  )
+}
+
+export function abandonBookingSessionV1(
+  client: ResolvedClientOptions,
+  sessionId: string,
+  input: AbandonBookingSessionV1,
+  options: BookingSessionRequestOptions,
+) {
+  return storefrontFetchWithValidation(
+    `/v1/public/catalog/booking-sessions/${encodeURIComponent(sessionId)}/abandon`,
+    bookingSessionOutcomeV1,
+    client,
+    {
+      method: "POST",
+      headers: bookingSessionRequestHeaders(options),
       body: JSON.stringify(input),
     },
   )

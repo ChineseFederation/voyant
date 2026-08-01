@@ -1,12 +1,14 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import {
   abandonBookingSessionV1,
+  adoptBookingSessionV1,
   type BookingSessionActorKindV1,
   bookingSessionOutcomeV1,
   commitBookingSessionV1,
   createBookingSessionV1,
   placeBookingHoldV1,
   quoteBookingSessionV1,
+  renewBookingSessionV1,
   updateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { openApiValidationHook } from "@voyant-travel/hono"
@@ -60,6 +62,48 @@ const updateSessionRoute = createRoute({
     400: {
       description: "Invalid request",
       content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
+const resumeSessionRoute = createRoute({
+  method: "get",
+  path: "/booking-sessions/{sessionId}",
+  request: { params: sessionParamSchema },
+  responses: {
+    200: {
+      description: "Authorized, redacted Booking Session view",
+      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+    },
+  },
+})
+
+const adoptSessionRoute = createRoute({
+  method: "post",
+  path: "/booking-sessions/{sessionId}/adopt",
+  request: {
+    params: sessionParamSchema,
+    body: { required: true, content: { "application/json": { schema: adoptBookingSessionV1 } } },
+  },
+  responses: {
+    200: {
+      description: "Anonymous Booking Session atomically adopted by the authenticated customer",
+      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+    },
+  },
+})
+
+const renewSessionRoute = createRoute({
+  method: "post",
+  path: "/booking-sessions/{sessionId}/renew",
+  request: {
+    params: sessionParamSchema,
+    body: { required: true, content: { "application/json": { schema: renewBookingSessionV1 } } },
+  },
+  responses: {
+    200: {
+      description: "Policy-limited Booking Session renewal",
+      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
     },
   },
 })
@@ -140,8 +184,46 @@ const abandonSessionRoute = createRoute({
   },
 })
 
+const expireDueSessionsRoute = createRoute({
+  method: "post",
+  path: "/booking-sessions/maintenance/expire",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: z.object({ limit: z.number().int().positive() }) } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Expired Booking Sessions fenced and Holds released",
+      content: { "application/json": { schema: z.object({ expired: z.number().int().min(0) }) } },
+    },
+  },
+})
+
+const purgeSessionsRoute = createRoute({
+  method: "post",
+  path: "/booking-sessions/maintenance/purge",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z.object({ before: z.string().datetime(), limit: z.number().int().positive() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Terminal Booking Session PII purged under retention policy",
+      content: { "application/json": { schema: z.object({ purged: z.number().int().min(0) }) } },
+    },
+  },
+})
+
 export function createBookingSessionRoutes(options: BookingSessionRoutesOptions): OpenAPIHono<Env> {
-  return new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+  const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     .openapi(createSessionRoute, async (c) =>
       asRouteResponse(
         c.json(
@@ -151,6 +233,41 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
             },
             resolveAccess(options, c),
           ),
+        ),
+      ),
+    )
+    .openapi(resumeSessionRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .resumeSession(c.req.valid("param").sessionId, resolveAccess(options, c)),
+        ),
+      ),
+    )
+    .openapi(adoptSessionRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .adoptSession(
+              c.req.valid("param").sessionId,
+              c.req.valid("json"),
+              resolveAccess(options, c),
+            ),
+        ),
+      ),
+    )
+    .openapi(renewSessionRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .renewSession(
+              c.req.valid("param").sessionId,
+              c.req.valid("json"),
+              resolveAccess(options, c),
+            ),
         ),
       ),
     )
@@ -219,6 +336,32 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
         ),
       ),
     )
+
+  if (options.actorKind !== "staff") return routes
+
+  return routes
+    .openapi(expireDueSessionsRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .expireDueSessions(c.req.valid("json"), resolveAccess(options, c)),
+        ),
+      ),
+    )
+    .openapi(purgeSessionsRoute, async (c) => {
+      const input = c.req.valid("json")
+      return asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .purgeTerminalSessions(
+              { before: new Date(input.before), limit: input.limit },
+              resolveAccess(options, c),
+            ),
+        ),
+      )
+    })
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: bridges plain Hono responses to zod-openapi's inferred route union.
@@ -239,11 +382,7 @@ function resolveAccess(
 }
 
 function readAnonymousCapability(c: Context): string | undefined {
-  const header = c.req.header("Voyant-Booking-Session-Capability")?.trim()
-  if (header) return header
-  const cookie = c.req.header("Cookie")
-  const match = cookie?.match(/(?:^|;\s*)voyant_booking_session=([^;]+)/)
-  return match ? decodeURIComponent(match[1] ?? "") : undefined
+  return c.req.header("Voyant-Booking-Session-Capability")?.trim() || undefined
 }
 
 export function createBookingSessionApiModule(options: {
@@ -255,17 +394,55 @@ export function createBookingSessionApiModule(options: {
       ...options,
       actorKind: "staff",
       resolveAccess: (c) => {
-        const vars = c.var as { userId?: unknown; organizationId?: unknown }
+        const vars = c.var as {
+          userId?: unknown
+          organizationId?: unknown
+          bookingSessionAuthority?: unknown
+        }
         const principalId = typeof vars.userId === "string" ? vars.userId.trim() : ""
         const organizationId =
           typeof vars.organizationId === "string" ? vars.organizationId.trim() : ""
+        const authority = vars.bookingSessionAuthority
+        const authorityReason =
+          authority && typeof authority === "object" && "reason" in authority
+            ? String(Reflect.get(authority, "reason")).trim()
+            : ""
         return {
           actorKind: "staff",
           ...(principalId ? { principalId } : {}),
           ...(organizationId ? { organizationId } : {}),
+          ...(authorityReason
+            ? { staffAuthority: { admitted: true as const, reason: authorityReason } }
+            : {}),
         }
       },
     }),
-    publicRoutes: createBookingSessionRoutes({ ...options, actorKind: "anonymous" }),
+    publicRoutes: createBookingSessionRoutes({
+      ...options,
+      actorKind: "anonymous",
+      resolveAccess: (c) => {
+        const vars = c.var as {
+          actor?: unknown
+          realm?: unknown
+          userId?: unknown
+          organizationId?: unknown
+        }
+        const capability = readAnonymousCapability(c)
+        if (vars.actor === "customer" && vars.realm === "customer") {
+          const principalId = typeof vars.userId === "string" ? vars.userId.trim() : ""
+          const organizationId =
+            typeof vars.organizationId === "string" ? vars.organizationId.trim() : ""
+          return {
+            actorKind: "customer",
+            ...(principalId ? { principalId } : {}),
+            ...(organizationId ? { organizationId } : {}),
+            ...(capability ? { capability } : {}),
+          }
+        }
+        return { actorKind: "anonymous", ...(capability ? { capability } : {}) }
+      },
+    }),
+    anonymous: true,
+    optionalCustomerAuth: true,
   }
 }

@@ -111,6 +111,41 @@ Before specifying anything new, this doc commits to reusing the following primit
 
 The rule of thumb: if a reasonable read of "I need X" finds an existing primitive in the table above, the new code uses it. Adding a parallel primitive needs a one-paragraph justification in this doc.
 
+### 0.8. Canonical Booking Session access and retention
+
+The v1 `booking_sessions` aggregate is the authoritative pre-Booking journey
+record. Its identifier is only a locator and never an access credential.
+
+- An anonymous caller creates and resumes a Session with a client-generated,
+  256-bit capability sent in the
+  `Voyant-Booking-Session-Capability` header. The database stores only its hash
+  and an explicit action-scope list. Cookies and URL parameters are not accepted
+  capability transports.
+- Customer authentication and Session capability proof are independent. An
+  authenticated customer adopts an anonymous Session in place: one locked
+  transaction changes ownership, revokes capability access, increments the
+  revision, and writes the audit event. It never copies the journey into a
+  second aggregate.
+- Staff access is not implied by a staff actor alone. Reads and overrides require
+  explicit admitted authority with an audit reason; staff reads omit the
+  selection payload by default.
+- Update, adopt, renew, and abandon require the exact current revision. Renewal
+  is bounded by extension and absolute-lifetime policies and explicitly
+  supersedes Quotes and releases Holds; it never extends their authority.
+- Expiry and abandonment synchronously fence Commit and release live Holds in
+  the same PostgreSQL transaction. Purge later removes the selection payload and
+  anonymous capability material while retaining non-sensitive lifecycle audit
+  metadata. A required, non-overlapping Node job expires due Sessions and purges
+  terminal payloads in bounded batches after a 30-day default retention window;
+  deployments may shorten or lengthen that policy explicitly with
+  `BOOKING_SESSION_TERMINAL_RETENTION_DAYS`. Passport-class data remains outside
+  the Session payload and enters
+  the established encrypted post-Commit travel-details path.
+
+These invariants run on the transaction-capable Node/PostgreSQL authority
+described in `deployment-targets.md`. Only contracts, SDK helpers, and React
+hooks are browser/edge-portable.
+
 ## 1. What's already in place
 
 A short inventory so we don't reinvent (full survey lives in the agent reports cited in the PR description):

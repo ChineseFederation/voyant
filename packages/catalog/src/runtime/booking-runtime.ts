@@ -114,14 +114,37 @@ export function createOperatorCatalogBookingRouteModuleOptions(
           userId?: string
           organizationId?: string
           actor?: string
+          realm?: string
+          scopes?: string[]
         }
-        const capability =
-          actorKind === "anonymous"
-            ? (c.req.header("Voyant-Booking-Session-Capability")?.trim() ??
-              readCookie(c.req.header("Cookie"), "voyant_booking_session"))
-            : undefined
+        const capability = c.req.header("Voyant-Booking-Session-Capability")?.trim()
+        if (actorKind === "anonymous" && vars.actor === "customer" && vars.realm === "customer") {
+          return {
+            actorKind: "customer" as const,
+            ...(vars.userId ? { principalId: vars.userId } : {}),
+            ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
+            ...(capability ? { capability } : {}),
+          }
+        }
+        if (actorKind === "staff") {
+          const requiredScope = bookingSessionStaffScope(c)
+          const scopes = vars.scopes ?? c.get("scopes") ?? []
+          return {
+            actorKind: "staff" as const,
+            ...(vars.userId ? { principalId: vars.userId } : {}),
+            ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
+            ...(scopes.includes(requiredScope)
+              ? {
+                  staffAuthority: {
+                    admitted: true as const,
+                    reason: `scope:${requiredScope}`,
+                  },
+                }
+              : {}),
+          }
+        }
         return {
-          actorKind,
+          actorKind: "anonymous" as const,
           ...(vars.userId ? { principalId: vars.userId } : {}),
           ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
           ...(capability ? { capability } : {}),
@@ -135,6 +158,13 @@ export function createOperatorCatalogBookingRouteModuleOptions(
   }
 }
 
+function bookingSessionStaffScope(c: Context): string {
+  if (c.req.path.includes("/booking-sessions/maintenance/")) {
+    return "catalog:booking-session-retention"
+  }
+  return c.req.method === "GET" ? "catalog:booking-session-read" : "catalog:booking-session-write"
+}
+
 async function requireRelationshipsRuntime(options: {
   resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
 }): Promise<BookingsRelationshipsRuntime> {
@@ -143,15 +173,6 @@ async function requireRelationshipsRuntime(options: {
     throw new Error("booking_session_relationships_runtime_required")
   }
   return runtime
-}
-
-function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
-  if (!cookieHeader) return undefined
-  for (const part of cookieHeader.split(";")) {
-    const [rawKey, ...rawValue] = part.trim().split("=")
-    if (rawKey === name) return decodeURIComponent(rawValue.join("="))
-  }
-  return undefined
 }
 
 async function resolveHoldTtlMs(

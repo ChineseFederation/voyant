@@ -1,3 +1,4 @@
+import type { BookingSessionCapabilityActionV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { sql } from "drizzle-orm"
 import {
@@ -10,7 +11,6 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core"
-
 import type { BookingSessionTargetV1 } from "./contracts.js"
 
 export const bookingSessionsTable = pgTable(
@@ -20,6 +20,10 @@ export const bookingSessionsTable = pgTable(
     createIdempotencyKey: text("create_idempotency_key").notNull(),
     createRequestFingerprint: text("create_request_fingerprint").notNull(),
     capabilityHash: text("capability_hash"),
+    capabilityScopes: jsonb("capability_scopes")
+      .$type<BookingSessionCapabilityActionV1[]>()
+      .notNull()
+      .default([]),
     actorKind: text("actor_kind").notNull(),
     ownerPrincipalId: text("owner_principal_id"),
     ownerOrganizationId: text("owner_organization_id"),
@@ -32,6 +36,7 @@ export const bookingSessionsTable = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     abandonedAt: timestamp("abandoned_at", { withTimezone: true }),
+    purgedAt: timestamp("purged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -52,8 +57,15 @@ export const bookingSessionsTable = pgTable(
     ),
     check(
       "booking_sessions_anonymous_capability",
-      sql`(${table.actorKind} = 'anonymous' AND ${table.capabilityHash} IS NOT NULL AND ${table.ownerPrincipalId} IS NULL)
-        OR (${table.actorKind} <> 'anonymous' AND ${table.capabilityHash} IS NULL AND ${table.ownerPrincipalId} IS NOT NULL)`,
+      sql`(${table.purgedAt} IS NOT NULL
+          AND ${table.ownerPrincipalId} IS NULL
+          AND ${table.ownerOrganizationId} IS NULL
+          AND ${table.capabilityHash} IS NULL
+          AND jsonb_array_length(${table.capabilityScopes}) = 0)
+        OR (${table.purgedAt} IS NULL AND (
+          (${table.actorKind} = 'anonymous' AND ${table.ownerPrincipalId} IS NULL AND ${table.capabilityHash} IS NOT NULL AND jsonb_array_length(${table.capabilityScopes}) > 0)
+          OR (${table.actorKind} <> 'anonymous' AND ${table.capabilityHash} IS NULL AND ${table.ownerPrincipalId} IS NOT NULL AND jsonb_array_length(${table.capabilityScopes}) = 0)
+        ))`,
     ),
     index("idx_booking_sessions_state_expires").on(table.state, table.expiresAt),
     index("idx_booking_sessions_product").on(table.productId),
@@ -160,13 +172,38 @@ export const bookingSessionOperationsTable = pgTable(
     check("booking_session_operations_id_typeid", sql`${table.id} LIKE 'bsop_%'`),
     check(
       "booking_session_operations_operation",
-      sql`${table.operation} IN ('update', 'quote', 'hold', 'abandon')`,
+      sql`${table.operation} IN ('update', 'quote', 'hold', 'abandon', 'adopt', 'renew')`,
     ),
     uniqueIndex("uidx_booking_session_operations_idem").on(
       table.sessionId,
       table.operation,
       table.idempotencyKey,
     ),
+  ],
+)
+
+export const bookingSessionAuditEventsTable = pgTable(
+  "booking_session_audit_events",
+  {
+    id: typeId("booking_session_audit_events"),
+    sessionId: typeIdRef("session_id")
+      .notNull()
+      .references(() => bookingSessionsTable.id, { onDelete: "restrict" }),
+    action: text("action").notNull(),
+    actorKind: text("actor_kind").notNull(),
+    principalId: text("principal_id"),
+    organizationId: text("organization_id"),
+    authorityReason: text("authority_reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("booking_session_audit_events_id_typeid", sql`${table.id} LIKE 'bsae_%'`),
+    check(
+      "booking_session_audit_events_action",
+      sql`${table.action} IN ('read', 'update', 'quote', 'hold', 'commit', 'adopt', 'renew', 'abandon', 'expire', 'purge')`,
+    ),
+    index("idx_booking_session_audit_events_session").on(table.sessionId, table.createdAt),
   ],
 )
 
@@ -180,3 +217,5 @@ export type SelectBookingSessionCommit = typeof bookingSessionCommitsTable.$infe
 export type InsertBookingSessionCommit = typeof bookingSessionCommitsTable.$inferInsert
 export type SelectBookingSessionOperation = typeof bookingSessionOperationsTable.$inferSelect
 export type InsertBookingSessionOperation = typeof bookingSessionOperationsTable.$inferInsert
+export type SelectBookingSessionAuditEvent = typeof bookingSessionAuditEventsTable.$inferSelect
+export type InsertBookingSessionAuditEvent = typeof bookingSessionAuditEventsTable.$inferInsert

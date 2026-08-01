@@ -217,6 +217,9 @@ describe("mountCatalogBookingRoutes", () => {
     const descriptor = createCatalogBookingEngineApiModule(makeOptions())
 
     expect(descriptor.module).toEqual({ name: "catalog-booking" })
+    expect(descriptor.publicPath).toBe("catalog")
+    expect(descriptor.anonymous).toEqual(["/booking-sessions"])
+    expect(descriptor.optionalCustomerAuth).toEqual(["/booking-sessions"])
     expect(descriptor.lazyRoutes?.paths).toBe(catalogBookingRoutePaths)
     expect(descriptor.transactionalPaths).toBe(catalogBookingTransactionalPaths)
 
