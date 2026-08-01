@@ -1,8 +1,8 @@
 "use client"
 
-import { currencies } from "@voyant-travel/utils/currencies"
 import * as React from "react"
 
+import { currencies } from "../data/geography.generated.js"
 import {
   Combobox,
   ComboboxCollection,
@@ -54,9 +54,9 @@ function resolveTypedCurrencyCode(text: string): CurrencyCode | null {
 }
 
 /**
- * Currency picker backed by the canonical `currencies` list from
- * `@voyant-travel/utils`. Trigger displays `CODE (symbol)`; items display
- * `CODE — Name (symbol)`. Searchable across code, name, and symbol.
+ * Currency picker backed by the generated UI projection of the canonical
+ * currency list. Trigger displays `CODE (symbol)`; items display `CODE — Name
+ * (symbol)`. Searchable across code, name, and symbol.
  *
  * Typing a full ISO code (e.g. `EUR`, case-insensitive) commits it even if the
  * user never picks the matching row from the list, so a typed value is never

@@ -1,5 +1,5 @@
-import { countries } from "@voyant-travel/utils/countries"
 import * as React from "react"
+import { countries } from "../data/geography.generated.js"
 import {
   Combobox,
   ComboboxCollection,
@@ -10,9 +10,9 @@ import {
   ComboboxList,
 } from "./combobox.js"
 
-type Country = { name: string; code: string }
+type Country = (typeof countries)[number]
 
-const COUNTRY_LIST: readonly Country[] = (countries.flat() as Country[])
+const COUNTRY_LIST: readonly Country[] = countries
   .slice()
   .sort((a, b) => a.name.localeCompare(b.name))
 

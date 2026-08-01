@@ -120,6 +120,12 @@ barrel, add a dedicated subpath export for that primitive and move browser code
 to the subpath. Add or update a checker when the rule is mechanical; the current
 client-boundary check is `pnpm verify:client-package-boundaries`.
 
+Small static datasets used by the public base UI package may instead be
+committed as UI-private generated projections of a canonical internal source.
+The projection must preserve the component-visible records and ordering and
+must have a drift check in `verify:architecture`; it is not a second authored
+authority or a reason to publish the source package.
+
 ## Module UI Migration
 
 The old combined customer-and-sales surface is split before v1:
