@@ -1,5 +1,13 @@
 # @voyant-travel/proposals
 
+## 0.137.1
+
+### Patch Changes
+
+- @voyant-travel/trips@0.221.0
+- @voyant-travel/relationships@0.133.1
+- @voyant-travel/operator-settings@0.17.2
+
 ## 0.137.0
 
 ### Minor Changes

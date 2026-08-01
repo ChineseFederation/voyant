@@ -1,5 +1,16 @@
 # @voyant-travel/apps
 
+## 0.14.0
+
+### Minor Changes
+
+- bf71bca: Allow installed app pages to declare deterministic navigation order, structural groups, and host-item anchors, and resolve those contributions through the admin shell without changing existing flat appended pages.
+
+### Patch Changes
+
+- Updated dependencies [bf71bca]
+  - @voyant-travel/admin@0.134.0
+
 ## 0.13.0
 
 ### Minor Changes

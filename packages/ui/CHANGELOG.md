@@ -1,5 +1,11 @@
 # @voyant-travel/ui
 
+## 0.110.2
+
+### Patch Changes
+
+- b67c317: Remove the UI package's runtime dependency on `@voyant-travel/utils` by consuming a checked-in, mechanically generated projection of the canonical country and currency data.
+
 ## 0.110.1
 
 ### Patch Changes

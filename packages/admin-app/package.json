@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/admin-app",
-  "version": "0.120.0",
+  "version": "0.121.0",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

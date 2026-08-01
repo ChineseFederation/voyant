@@ -1,5 +1,7 @@
 # @voyant-travel/admin-react
 
+## 0.134.0
+
 ## 0.133.0
 
 ## 0.132.0

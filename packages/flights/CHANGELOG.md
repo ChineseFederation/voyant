@@ -1,5 +1,12 @@
 # @voyant-travel/flights
 
+## 0.228.0
+
+### Patch Changes
+
+- @voyant-travel/catalog@0.226.0
+- @voyant-travel/finance@0.228.0
+
 ## 0.227.0
 
 ### Patch Changes
