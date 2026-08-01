@@ -167,6 +167,66 @@
                         "website": {
                           "type": ["string", "null"]
                         },
+                        "logoLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "brandColor": {
+                          "type": "string"
+                        },
+                        "cornerRadius": {
+                          "type": "string"
+                        },
+                        "headingFont": {
+                          "type": "string"
+                        },
+                        "bodyFont": {
+                          "type": "string"
+                        },
+                        "faviconAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "faviconMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "supportEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "termsUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "privacyUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "supportedLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "defaultLocale": {
+                          "type": "string"
+                        },
                         "license": {
                           "type": ["string", "null"]
                         },
@@ -196,6 +256,25 @@
                         "phone",
                         "email",
                         "website",
+                        "logoLightAssetKey",
+                        "logoLightMimeType",
+                        "logoDarkAssetKey",
+                        "logoDarkMimeType",
+                        "iconLightAssetKey",
+                        "iconLightMimeType",
+                        "iconDarkAssetKey",
+                        "iconDarkMimeType",
+                        "brandColor",
+                        "cornerRadius",
+                        "headingFont",
+                        "bodyFont",
+                        "faviconAssetKey",
+                        "faviconMimeType",
+                        "supportEmail",
+                        "termsUrl",
+                        "privacyUrl",
+                        "supportedLocales",
+                        "defaultLocale",
                         "license",
                         "licenseAuthority",
                         "signatoryName",
@@ -274,6 +353,147 @@
                       }
                     ]
                   },
+                  "logoLightAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "logoLightMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "logoDarkAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "logoDarkMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "iconLightAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "iconLightMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "iconDarkAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "iconDarkMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "brandColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "cornerRadius": {
+                    "type": "string",
+                    "enum": ["0rem", "0.25rem", "0.625rem", "1rem"]
+                  },
+                  "headingFont": {
+                    "type": "string",
+                    "enum": [
+                      "inter-tight",
+                      "inter",
+                      "geist",
+                      "figtree",
+                      "manrope",
+                      "outfit",
+                      "plus-jakarta-sans",
+                      "source-sans-3",
+                      "source-serif-4",
+                      "lora",
+                      "playfair-display",
+                      "jetbrains-mono"
+                    ]
+                  },
+                  "bodyFont": {
+                    "type": "string",
+                    "enum": [
+                      "inter-tight",
+                      "inter",
+                      "geist",
+                      "figtree",
+                      "manrope",
+                      "outfit",
+                      "plus-jakarta-sans",
+                      "source-sans-3",
+                      "source-serif-4",
+                      "lora",
+                      "playfair-display",
+                      "jetbrains-mono"
+                    ]
+                  },
+                  "faviconAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "faviconMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "supportEmail": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "email"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "termsUrl": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "privacyUrl": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "supportedLocales": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["en", "ro"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "description": "Unique locales supported by the operator"
+                  },
+                  "defaultLocale": {
+                    "type": "string",
+                    "enum": ["en", "ro"]
+                  },
                   "license": {
                     "type": ["string", "null"]
                   },
@@ -329,6 +549,66 @@
                         "website": {
                           "type": ["string", "null"]
                         },
+                        "logoLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "brandColor": {
+                          "type": "string"
+                        },
+                        "cornerRadius": {
+                          "type": "string"
+                        },
+                        "headingFont": {
+                          "type": "string"
+                        },
+                        "bodyFont": {
+                          "type": "string"
+                        },
+                        "faviconAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "faviconMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "supportEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "termsUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "privacyUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "supportedLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "defaultLocale": {
+                          "type": "string"
+                        },
                         "license": {
                           "type": ["string", "null"]
                         },
@@ -358,6 +638,25 @@
                         "phone",
                         "email",
                         "website",
+                        "logoLightAssetKey",
+                        "logoLightMimeType",
+                        "logoDarkAssetKey",
+                        "logoDarkMimeType",
+                        "iconLightAssetKey",
+                        "iconLightMimeType",
+                        "iconDarkAssetKey",
+                        "iconDarkMimeType",
+                        "brandColor",
+                        "cornerRadius",
+                        "headingFont",
+                        "bodyFont",
+                        "faviconAssetKey",
+                        "faviconMimeType",
+                        "supportEmail",
+                        "termsUrl",
+                        "privacyUrl",
+                        "supportedLocales",
+                        "defaultLocale",
                         "license",
                         "licenseAuthority",
                         "signatoryName",
@@ -727,6 +1026,66 @@
                         "website": {
                           "type": ["string", "null"]
                         },
+                        "logoLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "brandColor": {
+                          "type": "string"
+                        },
+                        "cornerRadius": {
+                          "type": "string"
+                        },
+                        "headingFont": {
+                          "type": "string"
+                        },
+                        "bodyFont": {
+                          "type": "string"
+                        },
+                        "faviconAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "faviconMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "supportEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "termsUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "privacyUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "supportedLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "defaultLocale": {
+                          "type": "string"
+                        },
                         "license": {
                           "type": ["string", "null"]
                         },
@@ -844,6 +1203,147 @@
                       }
                     ]
                   },
+                  "logoLightAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "logoLightMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "logoDarkAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "logoDarkMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "iconLightAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "iconLightMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "iconDarkAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "iconDarkMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "brandColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                  },
+                  "cornerRadius": {
+                    "type": "string",
+                    "enum": ["0rem", "0.25rem", "0.625rem", "1rem"]
+                  },
+                  "headingFont": {
+                    "type": "string",
+                    "enum": [
+                      "inter-tight",
+                      "inter",
+                      "geist",
+                      "figtree",
+                      "manrope",
+                      "outfit",
+                      "plus-jakarta-sans",
+                      "source-sans-3",
+                      "source-serif-4",
+                      "lora",
+                      "playfair-display",
+                      "jetbrains-mono"
+                    ]
+                  },
+                  "bodyFont": {
+                    "type": "string",
+                    "enum": [
+                      "inter-tight",
+                      "inter",
+                      "geist",
+                      "figtree",
+                      "manrope",
+                      "outfit",
+                      "plus-jakarta-sans",
+                      "source-sans-3",
+                      "source-serif-4",
+                      "lora",
+                      "playfair-display",
+                      "jetbrains-mono"
+                    ]
+                  },
+                  "faviconAssetKey": {
+                    "type": ["string", "null"],
+                    "maxLength": 1024
+                  },
+                  "faviconMimeType": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
+                  },
+                  "supportEmail": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "email"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "termsUrl": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "privacyUrl": {
+                    "anyOf": [
+                      {
+                        "type": ["string", "null"],
+                        "format": "uri"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [""]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "supportedLocales": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["en", "ro"]
+                    },
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "description": "Unique locales supported by the operator"
+                  },
+                  "defaultLocale": {
+                    "type": "string",
+                    "enum": ["en", "ro"]
+                  },
                   "license": {
                     "type": ["string", "null"]
                   },
@@ -958,6 +1458,66 @@
                         },
                         "website": {
                           "type": ["string", "null"]
+                        },
+                        "logoLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "logoDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconLightMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "iconDarkMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "brandColor": {
+                          "type": "string"
+                        },
+                        "cornerRadius": {
+                          "type": "string"
+                        },
+                        "headingFont": {
+                          "type": "string"
+                        },
+                        "bodyFont": {
+                          "type": "string"
+                        },
+                        "faviconAssetKey": {
+                          "type": ["string", "null"]
+                        },
+                        "faviconMimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "supportEmail": {
+                          "type": ["string", "null"]
+                        },
+                        "termsUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "privacyUrl": {
+                          "type": ["string", "null"]
+                        },
+                        "supportedLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "defaultLocale": {
+                          "type": "string"
                         },
                         "license": {
                           "type": ["string", "null"]

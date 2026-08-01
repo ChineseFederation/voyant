@@ -23,6 +23,7 @@
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import { openApiValidationHook } from "@voyant-travel/hono"
+import type { StorageProvider } from "@voyant-travel/storage"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context, Hono } from "hono"
 
@@ -33,6 +34,7 @@ import {
   getOperatorPaymentInstructions,
   getOperatorProfile,
   getOperatorSettings,
+  type PublicOperatorBrandingUrls,
   toPublicOperatorProfile,
   toPublicOperatorSettings,
   updateOperatorPaymentDefaultsSchema,
@@ -55,6 +57,10 @@ type Env = { Variables: { db: PostgresJsDatabase } }
 export interface OpenApiMountTarget {
   // biome-ignore lint/suspicious/noExplicitAny: intentional — accept any Env-typed sub-app; the mount only composes routes (voyant#2114)
   route(path: string, app: Hono<any, any, any>): unknown
+}
+
+export interface OperatorSettingsRoutesOptions {
+  resolveBrandingStorage?(): StorageProvider | null
 }
 
 const PUBLIC_OPERATOR_SETTINGS_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600"
@@ -90,6 +96,17 @@ const operatorProfileRowSchema = z.object({
   iconLightMimeType: z.string().nullable(),
   iconDarkAssetKey: z.string().nullable(),
   iconDarkMimeType: z.string().nullable(),
+  brandColor: z.string(),
+  cornerRadius: z.string(),
+  headingFont: z.string(),
+  bodyFont: z.string(),
+  faviconAssetKey: z.string().nullable(),
+  faviconMimeType: z.string().nullable(),
+  supportEmail: z.string().nullable(),
+  termsUrl: z.string().nullable(),
+  privacyUrl: z.string().nullable(),
+  supportedLocales: z.array(z.string()),
+  defaultLocale: z.string(),
   license: z.string().nullable(),
   licenseAuthority: z.string().nullable(),
   signatoryName: z.string().nullable(),
@@ -143,6 +160,30 @@ const publicOperatorProfileSchema = z.object({
   phone: z.string(),
   email: z.string(),
   website: z.string(),
+  logoLightAssetKey: z.string().nullable(),
+  logoLightUrl: z.string().nullable(),
+  logoLightMimeType: z.string().nullable(),
+  logoDarkAssetKey: z.string().nullable(),
+  logoDarkUrl: z.string().nullable(),
+  logoDarkMimeType: z.string().nullable(),
+  iconLightAssetKey: z.string().nullable(),
+  iconLightUrl: z.string().nullable(),
+  iconLightMimeType: z.string().nullable(),
+  iconDarkAssetKey: z.string().nullable(),
+  iconDarkUrl: z.string().nullable(),
+  iconDarkMimeType: z.string().nullable(),
+  brandColor: z.string(),
+  cornerRadius: z.string(),
+  headingFont: z.string(),
+  bodyFont: z.string(),
+  faviconAssetKey: z.string().nullable(),
+  faviconUrl: z.string().nullable(),
+  faviconMimeType: z.string().nullable(),
+  supportEmail: z.string().nullable(),
+  termsUrl: z.string().nullable(),
+  privacyUrl: z.string().nullable(),
+  supportedLocales: z.array(z.string()),
+  defaultLocale: z.string(),
   license: z.string(),
   licenseAuthority: z.string(),
   customerPaymentPolicy: opaqueJson,
@@ -292,7 +333,96 @@ const getPublicOperatorSettingsRoute = createRoute({
   },
 })
 
-export function mountOperatorSettingsRoutes(hono: OpenApiMountTarget): void {
+const brandingAssetSlotSchema = z.enum([
+  "logo-light",
+  "logo-dark",
+  "icon-light",
+  "icon-dark",
+  "favicon",
+])
+
+type BrandingAssetSlot = z.infer<typeof brandingAssetSlotSchema>
+type OperatorBrandingProfile = {
+  logoLightAssetKey?: string | null
+  logoDarkAssetKey?: string | null
+  iconLightAssetKey?: string | null
+  iconDarkAssetKey?: string | null
+  faviconAssetKey?: string | null
+}
+
+const BRANDING_ASSET_FIELDS = {
+  "logo-light": { key: "logoLightAssetKey", mimeType: "logoLightMimeType" },
+  "logo-dark": { key: "logoDarkAssetKey", mimeType: "logoDarkMimeType" },
+  "icon-light": { key: "iconLightAssetKey", mimeType: "iconLightMimeType" },
+  "icon-dark": { key: "iconDarkAssetKey", mimeType: "iconDarkMimeType" },
+  favicon: { key: "faviconAssetKey", mimeType: "faviconMimeType" },
+} as const
+
+const getPublicOperatorBrandingAssetRoute = createRoute({
+  "x-voyant-api-id": "@voyant-travel/operator-settings#api.public.branding-assets",
+  method: "get",
+  path: "/v1/public/operator-branding/{slot}",
+  request: { params: z.object({ slot: brandingAssetSlotSchema }) },
+  responses: {
+    200: { description: "The configured public operator branding asset" },
+    404: { description: "The branding slot or stored object does not exist" },
+    503: { description: "Media storage is not configured" },
+  },
+})
+
+function isPublicMediaUrl(value: string | null | undefined): value is string {
+  if (!value) return false
+  try {
+    const url = new URL(value, "https://voyant.invalid")
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false
+    return !url.pathname.includes("/v1/admin/media/")
+  } catch {
+    return false
+  }
+}
+
+export function resolvePublicBrandingUrl(
+  storage: StorageProvider | null,
+  key: string | null,
+  slot: BrandingAssetSlot,
+): string | null {
+  if (!key || !storage) return null
+  const providerUrl = storage.publicUrl?.(key)
+  return isPublicMediaUrl(providerUrl) ? providerUrl : `/v1/public/operator-branding/${slot}`
+}
+
+function publicBrandingUrls(
+  profile: OperatorBrandingProfile,
+  storage: StorageProvider | null,
+): PublicOperatorBrandingUrls {
+  return {
+    logoLightUrl: resolvePublicBrandingUrl(
+      storage,
+      profile.logoLightAssetKey ?? null,
+      "logo-light",
+    ),
+    logoDarkUrl: resolvePublicBrandingUrl(storage, profile.logoDarkAssetKey ?? null, "logo-dark"),
+    iconLightUrl: resolvePublicBrandingUrl(
+      storage,
+      profile.iconLightAssetKey ?? null,
+      "icon-light",
+    ),
+    iconDarkUrl: resolvePublicBrandingUrl(storage, profile.iconDarkAssetKey ?? null, "icon-dark"),
+    faviconUrl: resolvePublicBrandingUrl(storage, profile.faviconAssetKey ?? null, "favicon"),
+  }
+}
+
+function safeBrandingContentType(value: string | null): string {
+  return value?.startsWith("image/") && value !== "image/svg+xml"
+    ? value
+    : "application/octet-stream"
+}
+
+export function mountOperatorSettingsRoutes(
+  hono: OpenApiMountTarget,
+  options: OperatorSettingsRoutesOptions = {},
+): void {
+  const resolveBrandingStorage = () => options.resolveBrandingStorage?.() ?? null
   const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     .openapi(getOperatorProfileRoute, (c) =>
       asRouteResponse((async () => c.json({ data: await getOperatorProfile(c.get("db")) }, 200))()),
@@ -341,7 +471,16 @@ export function mountOperatorSettingsRoutes(hono: OpenApiMountTarget): void {
           ])
           cachePublicOperatorSettings(c)
           if (!profile) return c.json({ data: null }, 200)
-          return c.json({ data: toPublicOperatorProfile(profile, defaults) }, 200)
+          return c.json(
+            {
+              data: toPublicOperatorProfile(
+                profile,
+                defaults,
+                publicBrandingUrls(profile, resolveBrandingStorage()),
+              ),
+            },
+            200,
+          )
         })(),
       ),
     )
@@ -362,7 +501,39 @@ export function mountOperatorSettingsRoutes(hono: OpenApiMountTarget): void {
           const row = await getOperatorSettings(c.get("db"))
           cachePublicOperatorSettings(c)
           if (!row) return c.json({ data: null }, 200)
-          return c.json({ data: toPublicOperatorSettings(row) }, 200)
+          return c.json(
+            {
+              data: toPublicOperatorSettings(
+                row,
+                publicBrandingUrls(row, resolveBrandingStorage()),
+              ),
+            },
+            200,
+          )
+        })(),
+      ),
+    )
+    .openapi(getPublicOperatorBrandingAssetRoute, (c) =>
+      asRouteResponse(
+        (async () => {
+          const fields = BRANDING_ASSET_FIELDS[c.req.valid("param").slot]
+          const profile = await getOperatorProfile(c.get("db"))
+          const key = profile?.[fields.key]
+          if (!profile || !key) return c.json({ error: "Not found" }, 404)
+
+          const storage = resolveBrandingStorage()
+          if (!storage) return c.json({ error: "Storage not configured" }, 503)
+          const bytes = await storage.get(key)
+          if (!bytes) return c.json({ error: "Not found" }, 404)
+
+          return new Response(bytes, {
+            headers: {
+              "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
+              "Content-Length": String(bytes.byteLength),
+              "Content-Type": safeBrandingContentType(profile[fields.mimeType]),
+              "X-Content-Type-Options": "nosniff",
+            },
+          })
         })(),
       ),
     )

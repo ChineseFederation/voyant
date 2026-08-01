@@ -82,7 +82,7 @@ export const updateOperatorSettingsTool = defineTool<
 >({
   name: "update_operator_settings",
   description:
-    "Update operator identity/contact details, bank-transfer instructions, or payment defaults. Requires confirmation because payment defaults affect future bookings and invoices.",
+    "Update operator identity/contact details, branding/locales, bank-transfer instructions, or payment defaults. supportedLocales and defaultLocale must be updated together, and defaultLocale must be included in supportedLocales. Requires confirmation because payment defaults affect future bookings and invoices.",
   inputSchema: updateOperatorSettingsSchema,
   outputSchema: operatorSettingsResultSchema,
   requiredScopes: ["settings:write"],

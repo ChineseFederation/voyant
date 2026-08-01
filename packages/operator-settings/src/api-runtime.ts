@@ -25,12 +25,15 @@ import {
   type PaymentProviderRegistryResolver,
   paymentProviderRegistryRuntimePort,
 } from "@voyant-travel/payments/runtime-port"
+import type { StorageProviderResolver } from "@voyant-travel/storage"
+import { storageObjectRuntimePort } from "@voyant-travel/storage/runtime-port"
 
 /** Stable absolute matchers for the operator-settings admin + public routes. */
 export const OPERATOR_SETTINGS_ROUTE_PATHS = [
   "/v1/admin/settings/*",
   "/v1/public/operator-profile",
   "/v1/public/settings/operator",
+  "/v1/public/operator-branding/*",
 ] as const
 
 export interface OperatorSettingsApiModuleOptions {
@@ -40,6 +43,8 @@ export interface OperatorSettingsApiModuleOptions {
    * the payment routes use the default self-host registry.
    */
   paymentProviderRegistryResolver?: PaymentProviderRegistryResolver
+  /** Selected object-storage resolver used to derive and serve public branding assets. */
+  storage?: StorageProviderResolver
 }
 
 export function createOperatorSettingsApiModule(
@@ -60,7 +65,9 @@ export function createOperatorSettingsApiModule(
       load: () =>
         import("./routes.js").then((m) => {
           const app = new OpenAPIHono({ defaultHook: openApiValidationHook })
-          m.mountOperatorSettingsRoutes(app)
+          m.mountOperatorSettingsRoutes(app, {
+            resolveBrandingStorage: () => options.storage?.resolve("media") ?? null,
+          })
           return app
         }),
     },
@@ -77,6 +84,9 @@ export const createOperatorSettingsVoyantRuntime = defineGraphRuntimeFactory(
     createOperatorSettingsApiModule({
       paymentProviderRegistryResolver: hasPort(paymentProviderRegistryRuntimePort)
         ? await getPort(paymentProviderRegistryRuntimePort)
+        : undefined,
+      storage: hasPort(storageObjectRuntimePort)
+        ? await getPort(storageObjectRuntimePort)
         : undefined,
     }),
 )

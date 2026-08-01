@@ -26,6 +26,18 @@ import {
   type PaymentPolicy,
 } from "@voyant-travel/finance/payment-policy"
 import { PaymentPolicyForm, PaymentPolicyPreview } from "@voyant-travel/finance-react/ui"
+import {
+  DEFAULT_OPERATOR_BRAND_COLOR,
+  DEFAULT_OPERATOR_CORNER_RADIUS,
+  DEFAULT_OPERATOR_FONT,
+  DEFAULT_OPERATOR_LOCALE,
+  OPERATOR_CORNER_RADII,
+  OPERATOR_FONTS,
+  OPERATOR_LOCALES,
+  type OperatorCornerRadius,
+  type OperatorFontId,
+  type OperatorLocaleId,
+} from "@voyant-travel/operator-settings/branding"
 import { useVoyantReactContext } from "@voyant-travel/react"
 import {
   Button,
@@ -38,8 +50,16 @@ import {
   Label,
   Textarea,
 } from "@voyant-travel/ui/components"
+import { Checkbox } from "@voyant-travel/ui/components/checkbox"
 import { CurrencyCombobox } from "@voyant-travel/ui/components/currency-combobox"
 import { PhoneInput } from "@voyant-travel/ui/components/phone-input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@voyant-travel/ui/components/select"
 import { ImageIcon, Loader2, UploadCloud } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -66,6 +86,17 @@ interface OperatorProfileForm {
   iconLightMimeType?: string | null
   iconDarkAssetKey?: string | null
   iconDarkMimeType?: string | null
+  brandColor?: string
+  cornerRadius?: OperatorCornerRadius
+  headingFont?: OperatorFontId
+  bodyFont?: OperatorFontId
+  faviconAssetKey?: string | null
+  faviconMimeType?: string | null
+  supportEmail?: string | null
+  termsUrl?: string | null
+  privacyUrl?: string | null
+  supportedLocales?: OperatorLocaleId[]
+  defaultLocale?: OperatorLocaleId
   bankTransferBeneficiary?: string | null
   iban?: string | null
   bank?: string | null
@@ -112,6 +143,17 @@ const EMPTY_FORM: OperatorProfileForm = {
   iconLightMimeType: null,
   iconDarkAssetKey: null,
   iconDarkMimeType: null,
+  brandColor: DEFAULT_OPERATOR_BRAND_COLOR,
+  cornerRadius: DEFAULT_OPERATOR_CORNER_RADIUS,
+  headingFont: DEFAULT_OPERATOR_FONT,
+  bodyFont: DEFAULT_OPERATOR_FONT,
+  faviconAssetKey: null,
+  faviconMimeType: null,
+  supportEmail: "",
+  termsUrl: "",
+  privacyUrl: "",
+  supportedLocales: [DEFAULT_OPERATOR_LOCALE],
+  defaultLocale: DEFAULT_OPERATOR_LOCALE,
   bankTransferBeneficiary: "",
   iban: "",
   bank: "",
@@ -434,6 +476,17 @@ export function OperatorProfileSettingsPage() {
             iconLightMimeType: next.iconLightMimeType ?? null,
             iconDarkAssetKey: next.iconDarkAssetKey ?? null,
             iconDarkMimeType: next.iconDarkMimeType ?? null,
+            brandColor: next.brandColor ?? DEFAULT_OPERATOR_BRAND_COLOR,
+            cornerRadius: next.cornerRadius ?? DEFAULT_OPERATOR_CORNER_RADIUS,
+            headingFont: next.headingFont ?? DEFAULT_OPERATOR_FONT,
+            bodyFont: next.bodyFont ?? DEFAULT_OPERATOR_FONT,
+            faviconAssetKey: next.faviconAssetKey ?? null,
+            faviconMimeType: next.faviconMimeType ?? null,
+            supportEmail: next.supportEmail || null,
+            termsUrl: next.termsUrl || null,
+            privacyUrl: next.privacyUrl || null,
+            supportedLocales: next.supportedLocales ?? [DEFAULT_OPERATOR_LOCALE],
+            defaultLocale: next.defaultLocale ?? DEFAULT_OPERATOR_LOCALE,
             license: next.license ?? null,
             licenseAuthority: next.licenseAuthority ?? null,
             signatoryName: next.signatoryName ?? null,
@@ -528,6 +581,79 @@ export function OperatorProfileSettingsPage() {
           <CardDescription>{t.branding.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <section className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="op-brandColor">{t.branding.brandColorLabel}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="op-brandColor"
+                  type="color"
+                  className="w-14 shrink-0 p-1"
+                  value={form.brandColor ?? DEFAULT_OPERATOR_BRAND_COLOR}
+                  onChange={(e) => setField("brandColor", e.target.value)}
+                />
+                <Input
+                  aria-label={t.branding.brandColorHexLabel}
+                  value={form.brandColor ?? DEFAULT_OPERATOR_BRAND_COLOR}
+                  onChange={(e) => setField("brandColor", e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-cornerRadius">{t.branding.cornerRadiusLabel}</Label>
+              <Select
+                value={form.cornerRadius ?? DEFAULT_OPERATOR_CORNER_RADIUS}
+                onValueChange={(value) => setField("cornerRadius", value as OperatorCornerRadius)}
+              >
+                <SelectTrigger id="op-cornerRadius" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPERATOR_CORNER_RADII.map((radius) => (
+                    <SelectItem key={radius} value={radius}>
+                      {radius}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-headingFont">{t.branding.headingFontLabel}</Label>
+              <Select
+                value={form.headingFont ?? DEFAULT_OPERATOR_FONT}
+                onValueChange={(value) => setField("headingFont", value as OperatorFontId)}
+              >
+                <SelectTrigger id="op-headingFont" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPERATOR_FONTS.map((font) => (
+                    <SelectItem key={font.id} value={font.id}>
+                      {font.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-bodyFont">{t.branding.bodyFontLabel}</Label>
+              <Select
+                value={form.bodyFont ?? DEFAULT_OPERATOR_FONT}
+                onValueChange={(value) => setField("bodyFont", value as OperatorFontId)}
+              >
+                <SelectTrigger id="op-bodyFont" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPERATOR_FONTS.map((font) => (
+                    <SelectItem key={font.id} value={font.id}>
+                      {font.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </section>
           <section className="space-y-3">
             <div>
               <h3 className="text-sm font-semibold">{t.branding.horizontalLogoTitle}</h3>
@@ -618,7 +744,123 @@ export function OperatorProfileSettingsPage() {
               />
             </div>
           </section>
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">{t.branding.faviconTitle}</h3>
+              <p className="text-sm text-muted-foreground">{t.branding.faviconDescription}</p>
+            </div>
+            <BrandAssetDropzone
+              id="op-favicon"
+              label={t.branding.faviconTitle}
+              description={t.branding.faviconHelp}
+              assetKey={form.faviconAssetKey}
+              baseUrl={baseUrl}
+              mode="light"
+              shape="icon"
+              messages={t.branding}
+              onUpload={uploadBrandAsset}
+              onChange={(asset) =>
+                setForm((current) => ({
+                  ...current,
+                  faviconAssetKey: asset?.key ?? null,
+                  faviconMimeType: asset?.mimeType ?? null,
+                }))
+              }
+            />
+          </section>
           <p className="text-xs text-muted-foreground">{t.branding.assetHelp}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.customerExperience.title}</CardTitle>
+          <CardDescription>{t.customerExperience.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="op-supportEmail">{t.customerExperience.supportEmailLabel}</Label>
+              <Input
+                id="op-supportEmail"
+                type="email"
+                value={form.supportEmail ?? ""}
+                onChange={(e) => setField("supportEmail", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-termsUrl">{t.customerExperience.termsUrlLabel}</Label>
+              <Input
+                id="op-termsUrl"
+                type="url"
+                value={form.termsUrl ?? ""}
+                onChange={(e) => setField("termsUrl", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-privacyUrl">{t.customerExperience.privacyUrlLabel}</Label>
+              <Input
+                id="op-privacyUrl"
+                type="url"
+                value={form.privacyUrl ?? ""}
+                onChange={(e) => setField("privacyUrl", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t.customerExperience.supportedLocalesLabel}</Label>
+              {OPERATOR_LOCALES.map((locale) => {
+                const supported = form.supportedLocales ?? [DEFAULT_OPERATOR_LOCALE]
+                return (
+                  <div key={locale.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`op-locale-${locale.id}`}
+                      checked={supported.includes(locale.id)}
+                      disabled={supported.length === 1 && supported[0] === locale.id}
+                      onCheckedChange={(checked) => {
+                        const next = checked
+                          ? [...new Set([...supported, locale.id])]
+                          : supported.filter((value) => value !== locale.id)
+                        setForm((current) => ({
+                          ...current,
+                          supportedLocales: next,
+                          defaultLocale: next.includes(
+                            current.defaultLocale ?? DEFAULT_OPERATOR_LOCALE,
+                          )
+                            ? current.defaultLocale
+                            : next[0],
+                        }))
+                      }}
+                    />
+                    <Label htmlFor={`op-locale-${locale.id}`} className="font-normal">
+                      {locale.label}
+                    </Label>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="op-defaultLocale">{t.customerExperience.defaultLocaleLabel}</Label>
+              <Select
+                value={form.defaultLocale ?? DEFAULT_OPERATOR_LOCALE}
+                onValueChange={(value) => setField("defaultLocale", value as OperatorLocaleId)}
+              >
+                <SelectTrigger id="op-defaultLocale" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPERATOR_LOCALES.filter((locale) =>
+                    (form.supportedLocales ?? [DEFAULT_OPERATOR_LOCALE]).includes(locale.id),
+                  ).map((locale) => (
+                    <SelectItem key={locale.id} value={locale.id}>
+                      {locale.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./branding": "./src/branding.ts",
     "./schema": "./src/schema.ts",
     "./service": "./src/service.ts",
     "./tools": "./src/mcp-runtime.ts",
@@ -22,6 +23,7 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
+    "openapi:generate": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/operator-settings.json openapi/storefront/operator-settings.json",
     "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=operator_settings_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
   },
   "dependencies": {
@@ -32,6 +34,7 @@
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/payments": "workspace:^",
+    "@voyant-travel/storage": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
@@ -56,6 +59,11 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./branding": {
+        "types": "./dist/branding.d.ts",
+        "import": "./dist/branding.js",
+        "default": "./dist/branding.js"
       },
       "./schema": {
         "types": "./dist/schema.d.ts",

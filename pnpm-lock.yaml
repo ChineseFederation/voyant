@@ -3744,6 +3744,9 @@ importers:
       '@voyant-travel/payments':
         specifier: workspace:^
         version: link:../payments
+      '@voyant-travel/storage':
+        specifier: workspace:^
+        version: link:../storage
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools
@@ -3803,6 +3806,9 @@ importers:
       '@voyant-travel/finance-react':
         specifier: workspace:^
         version: link:../finance-react
+      '@voyant-travel/operator-settings':
+        specifier: workspace:^
+        version: link:../operator-settings
       '@voyant-travel/ui':
         specifier: workspace:^
         version: link:../ui

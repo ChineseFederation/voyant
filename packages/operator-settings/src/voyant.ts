@@ -2,6 +2,7 @@ import { commerceOperatorSettingsRuntimePort } from "@voyant-travel/commerce/run
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 import { financeOperatorSettingsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { paymentProviderRegistryRuntimePort } from "@voyant-travel/payments/runtime-port"
+import { storageObjectRuntimePort } from "@voyant-travel/storage/runtime-port"
 
 /** Per-api runtime — the plain module, read by the build-time OpenAPI replay. */
 const runtime = {
@@ -29,7 +30,10 @@ export const operatorSettingsVoyantModule = defineModule({
   packageName: "@voyant-travel/operator-settings",
   localId: "operator-settings",
   runtime: runtimeFactory,
-  runtimePorts: [requirePort(paymentProviderRegistryRuntimePort, { optional: true })],
+  runtimePorts: [
+    requirePort(paymentProviderRegistryRuntimePort, { optional: true }),
+    requirePort(storageObjectRuntimePort, { optional: true }),
+  ],
   provides: {
     ports: [
       providePort(commerceOperatorSettingsRuntimePort),
@@ -48,6 +52,14 @@ export const operatorSettingsVoyantModule = defineModule({
       id: "@voyant-travel/operator-settings#api.public.operator-profile",
       surface: "public",
       mount: "operator-profile",
+      anonymous: true,
+      openapi: { document: "operator-settings" },
+      runtime,
+    },
+    {
+      id: "@voyant-travel/operator-settings#api.public.branding-assets",
+      surface: "public",
+      mount: "operator-branding",
       anonymous: true,
       openapi: { document: "operator-settings" },
       runtime,

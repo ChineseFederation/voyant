@@ -14,6 +14,15 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 
 import {
+  DEFAULT_OPERATOR_BRAND_COLOR,
+  DEFAULT_OPERATOR_CORNER_RADIUS,
+  DEFAULT_OPERATOR_FONT,
+  DEFAULT_OPERATOR_LOCALE,
+  OPERATOR_CORNER_RADII,
+  OPERATOR_FONT_IDS,
+  OPERATOR_LOCALE_IDS,
+} from "./branding.js"
+import {
   bookingTaxSettings,
   operatorPaymentDefaults,
   operatorPaymentInstructions,
@@ -38,7 +47,7 @@ function parseStoredPaymentPolicy(value: unknown): PaymentPolicy | null {
   return paymentPolicySchema.parse(value)
 }
 
-export const updateOperatorProfileSchema = z.object({
+const updateOperatorProfileObjectSchema = z.object({
   name: z.string().nullable().optional(),
   legalName: z.string().nullable().optional(),
   vatId: z.string().nullable().optional(),
@@ -55,11 +64,63 @@ export const updateOperatorProfileSchema = z.object({
   iconLightMimeType: z.string().max(255).nullable().optional(),
   iconDarkAssetKey: z.string().max(1_024).nullable().optional(),
   iconDarkMimeType: z.string().max(255).nullable().optional(),
+  brandColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Brand color must be a #rrggbb hex value")
+    .optional(),
+  cornerRadius: z.enum(OPERATOR_CORNER_RADII).optional(),
+  headingFont: z.enum(OPERATOR_FONT_IDS).optional(),
+  bodyFont: z.enum(OPERATOR_FONT_IDS).optional(),
+  faviconAssetKey: z.string().max(1_024).nullable().optional(),
+  faviconMimeType: z.string().max(255).nullable().optional(),
+  supportEmail: z.string().email().nullable().optional().or(z.literal("")),
+  termsUrl: z.string().url().nullable().optional().or(z.literal("")),
+  privacyUrl: z.string().url().nullable().optional().or(z.literal("")),
+  supportedLocales: z
+    .array(z.enum(OPERATOR_LOCALE_IDS))
+    .min(1)
+    .max(OPERATOR_LOCALE_IDS.length)
+    .refine((locales) => new Set(locales).size === locales.length, "Locales must be unique")
+    .describe("Unique locales supported by the operator")
+    .optional(),
+  defaultLocale: z.enum(OPERATOR_LOCALE_IDS).optional(),
   license: z.string().nullable().optional(),
   licenseAuthority: z.string().nullable().optional(),
   signatoryName: z.string().nullable().optional(),
   signatoryRole: z.string().nullable().optional(),
 })
+
+function requireSupportedDefaultLocale(
+  value: { supportedLocales?: string[]; defaultLocale?: string },
+  context: z.RefinementCtx,
+) {
+  const updatesSupported = value.supportedLocales !== undefined
+  const updatesDefault = value.defaultLocale !== undefined
+  if (updatesSupported !== updatesDefault) {
+    context.addIssue({
+      code: "custom",
+      path: [updatesSupported ? "defaultLocale" : "supportedLocales"],
+      message: "Supported locales and default locale must be updated together",
+    })
+    return
+  }
+  if (
+    value.supportedLocales &&
+    value.defaultLocale &&
+    !value.supportedLocales.includes(value.defaultLocale)
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["defaultLocale"],
+      message: "Default locale must be included in supported locales",
+    })
+  }
+}
+
+export const updateOperatorProfileSchema = updateOperatorProfileObjectSchema.superRefine(
+  requireSupportedDefaultLocale,
+)
 
 export const updateOperatorPaymentInstructionsSchema = z.object({
   bankTransferBeneficiary: z.string().nullable().optional(),
@@ -74,9 +135,10 @@ export const updateOperatorPaymentDefaultsSchema = z.object({
   invoicePayUrlTemplate: z.string().trim().nullable().optional(),
 })
 
-export const updateOperatorSettingsSchema = updateOperatorProfileSchema
+export const updateOperatorSettingsSchema = updateOperatorProfileObjectSchema
   .merge(updateOperatorPaymentInstructionsSchema)
   .merge(updateOperatorPaymentDefaultsSchema)
+  .superRefine(requireSupportedDefaultLocale)
 
 export type UpdateOperatorProfileInput = z.infer<typeof updateOperatorProfileSchema>
 export type UpdateOperatorPaymentInstructionsInput = z.infer<
@@ -325,9 +387,18 @@ export async function updateInvoiceFxSettings(
   }
 }
 
+export interface PublicOperatorBrandingUrls {
+  logoLightUrl?: string | null
+  logoDarkUrl?: string | null
+  iconLightUrl?: string | null
+  iconDarkUrl?: string | null
+  faviconUrl?: string | null
+}
+
 export function toPublicOperatorProfile(
   row: OperatorProfileRow,
   defaults?: OperatorPaymentDefaultsRow | null,
+  brandingUrls: PublicOperatorBrandingUrls = {},
 ): PublicOperatorProfile {
   return {
     name: row.name ?? "",
@@ -336,6 +407,30 @@ export function toPublicOperatorProfile(
     phone: row.phone ?? "",
     email: row.email ?? "",
     website: row.website ?? "",
+    logoLightAssetKey: row.logoLightAssetKey ?? null,
+    logoLightUrl: brandingUrls.logoLightUrl ?? null,
+    logoLightMimeType: row.logoLightMimeType ?? null,
+    logoDarkAssetKey: row.logoDarkAssetKey ?? null,
+    logoDarkUrl: brandingUrls.logoDarkUrl ?? null,
+    logoDarkMimeType: row.logoDarkMimeType ?? null,
+    iconLightAssetKey: row.iconLightAssetKey ?? null,
+    iconLightUrl: brandingUrls.iconLightUrl ?? null,
+    iconLightMimeType: row.iconLightMimeType ?? null,
+    iconDarkAssetKey: row.iconDarkAssetKey ?? null,
+    iconDarkUrl: brandingUrls.iconDarkUrl ?? null,
+    iconDarkMimeType: row.iconDarkMimeType ?? null,
+    brandColor: row.brandColor ?? DEFAULT_OPERATOR_BRAND_COLOR,
+    cornerRadius: row.cornerRadius ?? DEFAULT_OPERATOR_CORNER_RADIUS,
+    headingFont: row.headingFont ?? DEFAULT_OPERATOR_FONT,
+    bodyFont: row.bodyFont ?? DEFAULT_OPERATOR_FONT,
+    faviconAssetKey: row.faviconAssetKey ?? null,
+    faviconUrl: brandingUrls.faviconUrl ?? null,
+    faviconMimeType: row.faviconMimeType ?? null,
+    supportEmail: row.supportEmail ?? null,
+    termsUrl: row.termsUrl ?? null,
+    privacyUrl: row.privacyUrl ?? null,
+    supportedLocales: row.supportedLocales ?? [DEFAULT_OPERATOR_LOCALE],
+    defaultLocale: row.defaultLocale ?? DEFAULT_OPERATOR_LOCALE,
     license: row.license ?? "",
     licenseAuthority: row.licenseAuthority ?? "",
     customerPaymentPolicy: parseStoredPaymentPolicy(defaults?.customerPaymentPolicy),
@@ -351,6 +446,30 @@ export interface PublicOperatorProfile {
   phone: string
   email: string
   website: string
+  logoLightAssetKey: string | null
+  logoLightUrl: string | null
+  logoLightMimeType: string | null
+  logoDarkAssetKey: string | null
+  logoDarkUrl: string | null
+  logoDarkMimeType: string | null
+  iconLightAssetKey: string | null
+  iconLightUrl: string | null
+  iconLightMimeType: string | null
+  iconDarkAssetKey: string | null
+  iconDarkUrl: string | null
+  iconDarkMimeType: string | null
+  brandColor: string
+  cornerRadius: string
+  headingFont: string
+  bodyFont: string
+  faviconAssetKey: string | null
+  faviconUrl: string | null
+  faviconMimeType: string | null
+  supportEmail: string | null
+  termsUrl: string | null
+  privacyUrl: string | null
+  supportedLocales: string[]
+  defaultLocale: string
   license: string
   licenseAuthority: string
   customerPaymentPolicy: PaymentPolicy | null
@@ -419,6 +538,7 @@ export async function upsertOperatorSettings(
 
 export function toPublicOperatorSettings(
   row: Awaited<ReturnType<typeof getOperatorSettings>>,
+  brandingUrls: PublicOperatorBrandingUrls = {},
 ): PublicOperatorProfile {
   return {
     name: row?.name ?? "",
@@ -427,6 +547,30 @@ export function toPublicOperatorSettings(
     phone: row?.phone ?? "",
     email: row?.email ?? "",
     website: row?.website ?? "",
+    logoLightAssetKey: row?.logoLightAssetKey ?? null,
+    logoLightUrl: brandingUrls.logoLightUrl ?? null,
+    logoLightMimeType: row?.logoLightMimeType ?? null,
+    logoDarkAssetKey: row?.logoDarkAssetKey ?? null,
+    logoDarkUrl: brandingUrls.logoDarkUrl ?? null,
+    logoDarkMimeType: row?.logoDarkMimeType ?? null,
+    iconLightAssetKey: row?.iconLightAssetKey ?? null,
+    iconLightUrl: brandingUrls.iconLightUrl ?? null,
+    iconLightMimeType: row?.iconLightMimeType ?? null,
+    iconDarkAssetKey: row?.iconDarkAssetKey ?? null,
+    iconDarkUrl: brandingUrls.iconDarkUrl ?? null,
+    iconDarkMimeType: row?.iconDarkMimeType ?? null,
+    brandColor: row?.brandColor ?? DEFAULT_OPERATOR_BRAND_COLOR,
+    cornerRadius: row?.cornerRadius ?? DEFAULT_OPERATOR_CORNER_RADIUS,
+    headingFont: row?.headingFont ?? DEFAULT_OPERATOR_FONT,
+    bodyFont: row?.bodyFont ?? DEFAULT_OPERATOR_FONT,
+    faviconAssetKey: row?.faviconAssetKey ?? null,
+    faviconUrl: brandingUrls.faviconUrl ?? null,
+    faviconMimeType: row?.faviconMimeType ?? null,
+    supportEmail: row?.supportEmail ?? null,
+    termsUrl: row?.termsUrl ?? null,
+    privacyUrl: row?.privacyUrl ?? null,
+    supportedLocales: row?.supportedLocales ?? [DEFAULT_OPERATOR_LOCALE],
+    defaultLocale: row?.defaultLocale ?? DEFAULT_OPERATOR_LOCALE,
     license: row?.license ?? "",
     licenseAuthority: row?.licenseAuthority ?? "",
     customerPaymentPolicy: row?.customerPaymentPolicy ?? null,

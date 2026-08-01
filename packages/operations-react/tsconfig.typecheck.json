@@ -1501,6 +1501,7 @@
       "@voyant-travel/operator-settings/api-runtime": [
         "../operator-settings/dist/api-runtime.d.ts"
       ],
+      "@voyant-travel/operator-settings/branding": ["../operator-settings/dist/branding.d.ts"],
       "@voyant-travel/operator-settings/routes": ["../operator-settings/dist/routes.d.ts"],
       "@voyant-travel/operator-settings/runtime-contributor": [
         "../operator-settings/dist/runtime-contributor.d.ts"

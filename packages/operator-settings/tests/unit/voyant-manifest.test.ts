@@ -30,6 +30,13 @@ describe("operator-settings deployment manifest", () => {
           openapi: { document: "operator-settings" },
         },
         {
+          id: "@voyant-travel/operator-settings#api.public.branding-assets",
+          surface: "public",
+          mount: "operator-branding",
+          anonymous: true,
+          openapi: { document: "operator-settings" },
+        },
+        {
           id: "@voyant-travel/operator-settings#api.public.settings",
           surface: "public",
           mount: "settings/operator",
@@ -99,6 +106,9 @@ describe("operator-settings deployment manifest", () => {
     )
     expect(paths?.["/v1/public/settings/operator"]?.get?.["x-voyant-api-id"]).toBe(
       "@voyant-travel/operator-settings#api.public.settings",
+    )
+    expect(paths?.["/v1/public/operator-branding/{slot}"]?.get?.["x-voyant-api-id"]).toBe(
+      "@voyant-travel/operator-settings#api.public.branding-assets",
     )
   })
 })

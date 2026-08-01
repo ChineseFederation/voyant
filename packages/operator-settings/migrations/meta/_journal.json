@@ -57,6 +57,13 @@
       "when": 1784484820895,
       "tag": "0007_invoice_fx_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785570400796,
+      "tag": "20260801074640_operator_profile_branding_locales",
+      "breakpoints": true
     }
   ]
 }

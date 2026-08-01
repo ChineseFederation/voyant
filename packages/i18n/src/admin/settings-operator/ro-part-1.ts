@@ -232,14 +232,23 @@ export const operatorAdminSettingsMessagesRoPart1 = {
     saveFailed: "Salvarea a esuat",
     saveChanges: "Salveaza modificarile",
     branding: {
-      title: "Elemente de brand",
+      title: "Aspectul brandului",
       description:
-        "Identitatea vizuala reutilizabila a operatorului pentru documente, storefront si administrare.",
+        "Identitatea vizuala reutilizabila a operatorului pentru documente si toate suprafetele pentru clienti.",
+      brandColorLabel: "Culoarea brandului",
+      brandColorHexLabel: "Valoarea hex a culorii brandului",
+      cornerRadiusLabel: "Raza colturilor",
+      headingFontLabel: "Font pentru titluri",
+      bodyFontLabel: "Font pentru text",
       horizontalLogoTitle: "Logo orizontal",
       horizontalLogoDescription:
         "Logo-ul orizontal complet, inclusiv denumirea grafica atunci cand este cazul.",
       iconTitle: "Pictograma",
       iconDescription: "Simbolul compact al brandului pentru spatii patrate sau restranse.",
+      faviconTitle: "Favicon",
+      faviconDescription:
+        "Pictograma din fila browserului pentru suprafetele destinate clientilor.",
+      faviconHelp: "Incarca o imagine patrata pentru cel mai clar rezultat.",
       lightModeLabel: "Mod luminos",
       lightModeHelp: "Afisat pe fundaluri deschise.",
       darkModeLabel: "Mod intunecat",
@@ -271,6 +280,16 @@ export const operatorAdminSettingsMessagesRoPart1 = {
       phoneLabel: "Telefon",
       emailLabel: "Email",
       websiteLabel: "Website",
+    },
+    customerExperience: {
+      title: "Experienta clientilor",
+      description:
+        "Suportul, linkurile legale si limbile comune portalului, motorului de rezervari si site-urilor.",
+      supportEmailLabel: "Email pentru suport",
+      termsUrlLabel: "URL termeni si conditii",
+      privacyUrlLabel: "URL politica de confidentialitate",
+      supportedLocalesLabel: "Limbi disponibile pentru clienti",
+      defaultLocaleLabel: "Limba implicita pentru clienti",
     },
     paymentCollection: {
       title: "Colectarea platilor",
