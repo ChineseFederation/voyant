@@ -1,5 +1,11 @@
 # @voyant-travel/operator-settings
 
+## 0.17.0
+
+### Minor Changes
+
+- 5694a2b: Make the operator profile the source of truth for shared brand appearance, legal links, support contact, and customer-facing locales, including resolvable public branding URLs, safe slot-scoped asset delivery, and settings UI.
+
 ## 0.16.12
 
 ### Patch Changes

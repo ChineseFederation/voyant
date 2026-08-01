@@ -1,5 +1,11 @@
 # @voyant-travel/i18n
 
+## 0.119.1
+
+### Patch Changes
+
+- 5694a2b: Make the operator profile the source of truth for shared brand appearance, legal links, support contact, and customer-facing locales, including resolvable public branding URLs, safe slot-scoped asset delivery, and settings UI.
+
 ## 0.119.0
 
 ### Minor Changes
