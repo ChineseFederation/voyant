@@ -100,6 +100,7 @@ describe("createUiExtensionsAdminExtension", () => {
     expect(extension.routes).toHaveLength(1)
     expect(extension.routes?.[0]?.path).toBe("apps/$installationId/$pageKey")
     expect(extension.routes?.[0]?.page).toBeTypeOf("function")
+    expect(extension.useRuntimeNavigation).toBeTypeOf("function")
     expect(extension.useRuntimeNavItems).toBeTypeOf("function")
   })
 

@@ -14,6 +14,7 @@ import { createContext, useContext } from "react"
 
 import {
   type AdminExtension,
+  type AdminNavigationContribution,
   type AdminRoutePageProps,
   defineAdminExtension,
 } from "../extensions.js"
@@ -21,7 +22,7 @@ import { createRemoteNavIcon } from "../navigation/remote-nav-icon.js"
 import { useLocale } from "../providers/locale.js"
 import { useOperatorAdminMessages } from "../providers/operator-admin-messages.js"
 import { useTheme } from "../providers/theme.js"
-import type { NavItem } from "../types.js"
+import type { NavItem, NavSubItem } from "../types.js"
 import { AppExtensionPage, useAppPageNavEntries, useInstalledAppPages } from "./app-pages.js"
 import { ADMIN_UI_EXTENSION_SLOTS } from "./registry.js"
 import { UiExtensionHost, type UiExtensionSessionTokenGrant } from "./ui-extension-host.js"
@@ -62,6 +63,14 @@ export interface AppPageDescriptor {
   navLabel: string
   /** App-declared nav icon URL (HTTPS). Absent → host renders a generic icon. */
   icon?: string
+  /** Deterministic navigation order; lower values appear first. */
+  order?: number
+  /** Installation-local structural navigation group key. */
+  group?: string
+  /** Locale-resolved label for {@link group}. */
+  groupLabel?: string
+  /** Existing host navigation item id after which this page or group is inserted. */
+  insertAfter?: string
   appLocale?: string
   direction?: UiExtensionTextDirection
 }
@@ -231,8 +240,8 @@ export interface CreateUiExtensionsAdminExtensionOptions {
  * Route id + path pattern for the single param route that renders ANY installed
  * app page. Installations can repeat a manifest page key, so the route is keyed
  * on both `installationId` and `pageKey`; the component resolves the matching
- * descriptor at render time. Nav urls built by {@link useAppPageRuntimeNavItems}
- * match this pattern.
+ * descriptor at render time. Nav urls built by
+ * {@link createAppPageNavigationContributions} match this pattern.
  */
 export const APP_PAGE_ROUTE_ID = "voyant-ui-extensions:app-page"
 export const APP_PAGE_ROUTE_PATH = "apps/$installationId/$pageKey"
@@ -269,18 +278,87 @@ function createAppPageRouteComponent(client: UiExtensionsClient) {
 }
 
 /**
- * Runtime nav items for installed app pages: one entry per active page, titled
- * with the resolved nav label, routed to {@link APP_PAGE_ROUTE_PATH}, and iconed
- * from the app-declared remote URL (generic fallback when absent/invalid). List
- * failures resolve to `[]` (fail-soft) through {@link useInstalledAppPages}.
+ * Runtime navigation contributions for installed app pages. Ungrouped pages
+ * become top-level entries; pages sharing an installation-local `group` become
+ * children of one structural entry. Contributions retain manifest `order` and
+ * `insertAfter` metadata for the shell's standard navigation resolver.
  */
-function useAppPageRuntimeNavItems(client: UiExtensionsClient): NavItem[] {
-  return useAppPageNavEntries(client).map((entry) => ({
+export function createAppPageNavigationContributions(
+  entries: ReadonlyArray<ReturnType<typeof useAppPageNavEntries>[number]>,
+): AdminNavigationContribution[] {
+  const ordered = entries
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (left, right) =>
+        (left.entry.order ?? 0) - (right.entry.order ?? 0) || left.index - right.index,
+    )
+    .map(({ entry }) => entry)
+  const contributions: AdminNavigationContribution[] = []
+  const groups = new Map<string, typeof ordered>()
+
+  for (const entry of ordered) {
+    if (!entry.group) continue
+    const bucketKey = `${entry.installationId}\u0000${entry.group}\u0000${entry.insertAfter ?? ""}`
+    const bucket = groups.get(bucketKey) ?? []
+    bucket.push(entry)
+    groups.set(bucketKey, bucket)
+  }
+
+  const emittedGroups = new Set<string>()
+  for (const entry of ordered) {
+    if (!entry.group) {
+      contributions.push({
+        order: entry.order ?? 0,
+        ...(entry.insertAfter ? { insertAfter: entry.insertAfter } : {}),
+        items: [toAppPageNavItem(entry)],
+      })
+      continue
+    }
+    const bucketKey = `${entry.installationId}\u0000${entry.group}\u0000${entry.insertAfter ?? ""}`
+    if (emittedGroups.has(bucketKey)) continue
+    emittedGroups.add(bucketKey)
+    const pages = groups.get(bucketKey) ?? []
+    const items: NavSubItem[] = pages.map((entry) => ({
+      id: `${APP_PAGE_ROUTE_ID}:${entry.key}`,
+      title: entry.label,
+      url: appPageNavUrl(entry.installationId, entry.pageKey),
+      icon: createRemoteNavIcon(entry.icon),
+    }))
+    contributions.push({
+      order: entry.order ?? 0,
+      ...(entry.insertAfter ? { insertAfter: entry.insertAfter } : {}),
+      items: [
+        {
+          id: `${APP_PAGE_ROUTE_ID}:group:${entry.installationId}:${entry.group}`,
+          title: entry.groupLabel ?? entry.group,
+          url: items[0]?.url ?? "/apps",
+          icon: createRemoteNavIcon(entry.icon),
+          items,
+          structural: true,
+        },
+      ],
+    })
+  }
+
+  return contributions
+}
+
+function toAppPageNavItem(entry: ReturnType<typeof useAppPageNavEntries>[number]): NavItem {
+  return {
     id: `${APP_PAGE_ROUTE_ID}:${entry.key}`,
     title: entry.label,
     url: appPageNavUrl(entry.installationId, entry.pageKey),
     icon: createRemoteNavIcon(entry.icon),
-  }))
+  }
+}
+
+function useAppPageRuntimeNavigation(client: UiExtensionsClient): AdminNavigationContribution[] {
+  return createAppPageNavigationContributions(useAppPageNavEntries(client))
+}
+
+/** Legacy flat projection retained for hosts that predate runtime contributions. */
+function useAppPageRuntimeNavItems(client: UiExtensionsClient): NavItem[] {
+  return useAppPageNavEntries(client).map(toAppPageNavItem)
 }
 
 /**
@@ -290,8 +368,8 @@ function useAppPageRuntimeNavItems(client: UiExtensionsClient): NavItem[] {
  * descriptor that targets the slot. List failures render nothing (fail-soft).
  *
  * It also surfaces installed full-page app extensions as first-class navigation:
- * {@link AdminExtension.useRuntimeNavItems} contributes one sidebar entry per
- * active page (icon + label), and a single param route renders the page through
+ * {@link AdminExtension.useRuntimeNavigation} contributes sidebar entries for
+ * active pages (icon + label), and a single param route renders the page through
  * {@link AppExtensionPage}. Pausing/uninstalling an app drops the page from the
  * resolver, so both the nav entry and the route target vanish on the next query.
  */
@@ -318,6 +396,9 @@ export function createUiExtensionsAdminExtension({
         page: async () => ({ default: AppPageRoute }),
       },
     ],
+    useRuntimeNavigation: function useRuntimeNavigation() {
+      return useAppPageRuntimeNavigation(client)
+    },
     useRuntimeNavItems: function useRuntimeNavItems() {
       return useAppPageRuntimeNavItems(client)
     },

@@ -17,7 +17,11 @@ import {
 import { Settings as DefaultSettingsIcon } from "lucide-react"
 import type * as React from "react"
 
-import type { AdminExtension } from "../extensions.js"
+import {
+  type AdminExtension,
+  type AdminNavigationContribution,
+  resolveAdminNavigation,
+} from "../extensions.js"
 import {
   createOperatorAdminNavigation,
   type OperatorAdminNavigationIcons,
@@ -40,24 +44,40 @@ import { VoyantWordmark } from "./brand/voyant-wordmark.js"
 import { OperatorAdminUserMenu } from "./operator-admin-user-menu.js"
 
 /**
- * Merge each extension's OPTIONAL runtime navigation hook into a flat list, in
- * stable extension order. Runtime nav (e.g. installed apps' admin pages fetched
- * at render time) is appended after static navigation as its own sections.
+ * Collect each extension's optional runtime navigation hooks in stable extension
+ * order. Declarative contributions retain standard order/anchor behavior; the
+ * legacy flat hook remains the fallback for extensions without the richer hook.
  *
  * Rules-of-hooks: the extension registry is a stable, append-only list, so
- * calling each extension's `useRuntimeNavItems` once per render in a fixed order
- * keeps hook call order stable across renders.
+ * calling each runtime hook once per render in a fixed order keeps hook call
+ * order stable across renders.
  */
-function useRuntimeExtensionNavItems(
+function useRuntimeExtensionNavigation(
   extensions: ReadonlyArray<AdminExtension> | undefined,
-): NavItem[] {
-  const runtimeItems: NavItem[] = []
+): AdminNavigationContribution[] {
+  const contributions: AdminNavigationContribution[] = []
   for (const extension of extensions ?? []) {
-    // biome-ignore lint/correctness/useHookAtTopLevel: owner: admin; intentional -- the extension registry is a stable, append-only list, so calling each extension's runtime nav hook once per render in a fixed order keeps hook call order stable across renders.
-    const items = extension.useRuntimeNavItems?.() ?? []
-    runtimeItems.push(...items)
+    if (extension.useRuntimeNavigation) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: owner: admin; intentional -- the extension registry and hook shape are stable, so calling each extension's preferred runtime nav hook once per render keeps hook order stable.
+      contributions.push(...extension.useRuntimeNavigation())
+      continue
+    }
+    // biome-ignore lint/correctness/useHookAtTopLevel: owner: admin; same stable extension-registry contract as above; this is the backwards-compatible fallback.
+    const legacyItems = extension.useRuntimeNavItems?.() ?? []
+    if (legacyItems.length) contributions.push({ items: legacyItems })
   }
-  return runtimeItems
+  return contributions
+}
+
+function mergeRuntimeExtensionNavigation(
+  staticItems: ReadonlyArray<NavItem>,
+  contributions: ReadonlyArray<AdminNavigationContribution>,
+): NavItem[] {
+  if (!contributions.length) return [...staticItems]
+  return resolveAdminNavigation({
+    baseItems: staticItems,
+    extensions: [{ id: "voyant-runtime-navigation", navigation: contributions }],
+  })
 }
 
 export interface OperatorAdminSidebarProps
@@ -128,8 +148,8 @@ export function OperatorAdminSidebar({
     extensions,
     preferences: navigationPreferences,
   })
-  const runtimeItems = useRuntimeExtensionNavItems(extensions)
-  const resolvedItems = runtimeItems.length ? [...staticItems, ...runtimeItems] : staticItems
+  const runtimeNavigation = useRuntimeExtensionNavigation(extensions)
+  const resolvedItems = mergeRuntimeExtensionNavigation(staticItems, runtimeNavigation)
   const resolvedBrand = brand ?? <DefaultOperatorAdminBrand linkComponent={linkComponent} />
   const LinkComponent = linkComponent ?? DefaultAdminNavLink
   const SettingsIcon = icons?.settings ?? DefaultSettingsIcon
@@ -293,8 +313,8 @@ export function OperatorAdminWorkspaceLayout({
   // Merge runtime nav here (not just in the sidebar) so app-page entries are
   // resolved for both the sidebar tree and the page-title/breadcrumb lookup;
   // the nested sidebar is handed the merged list with `extensions={undefined}`.
-  const runtimeItems = useRuntimeExtensionNavItems(activeExtensions)
-  const resolvedItems = runtimeItems.length ? [...staticItems, ...runtimeItems] : staticItems
+  const runtimeNavigation = useRuntimeExtensionNavigation(activeExtensions)
+  const resolvedItems = mergeRuntimeExtensionNavigation(staticItems, runtimeNavigation)
   const resolvedSide = sidebarSide ?? side
   let pageTitle: string | null = null
   if (pageHead !== false) {

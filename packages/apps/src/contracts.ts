@@ -104,6 +104,16 @@ const adminPageSchema = z
      * fallback when a page omits its own. Absent/invalid → generic app icon.
      */
     icon: httpsUrlSchema.optional(),
+    /** Lower values appear first. Omitted pages use the deterministic default `0`. */
+    order: z.number().int().min(-10_000).max(10_000).optional(),
+    /**
+     * Installation-local navigation group key. Pages with the same key render
+     * beneath one structural nav item; its label is resolved from the
+     * manifest's localized `navigation` messages using this key.
+     */
+    group: z.string().trim().min(1).max(80).optional(),
+    /** Existing host navigation item id after which this page or group is inserted. */
+    insertAfter: z.string().trim().min(1).max(120).optional(),
   })
   .strict()
 
@@ -204,6 +214,21 @@ export const appManifestSchema = manifestDisallowedKeySchema.pipe(
           path: ["locales", "host", manifest.locales.default],
           message: "Host-rendered metadata is required for the default locale.",
         })
+      }
+      const groupAnchors = new Map<string, string | undefined>()
+      for (const [index, page] of manifest.admin.pages.entries()) {
+        if (!page.group) continue
+        if (!groupAnchors.has(page.group)) {
+          groupAnchors.set(page.group, page.insertAfter)
+          continue
+        }
+        if (groupAnchors.get(page.group) !== page.insertAfter) {
+          context.addIssue({
+            code: "custom",
+            path: ["admin", "pages", index, "insertAfter"],
+            message: `All pages in navigation group '${page.group}' must use the same insertAfter value.`,
+          })
+        }
       }
     }),
 )

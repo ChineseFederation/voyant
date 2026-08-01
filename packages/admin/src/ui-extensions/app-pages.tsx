@@ -64,6 +64,14 @@ export interface AppPageNavEntry {
   label: string
   /** App-declared nav icon URL (HTTPS). Absent → host renders a generic icon. */
   icon?: string
+  /** Lower values appear first; omitted values resolve as `0`. */
+  order?: number
+  /** Installation-local structural navigation group key. */
+  group?: string
+  /** Host-localized label for {@link group}. */
+  groupLabel?: string
+  /** Existing host navigation item id after which this page/group is inserted. */
+  insertAfter?: string
 }
 
 /**
@@ -96,6 +104,10 @@ export function useAppPageNavEntries(client: UiExtensionsClient): AppPageNavEntr
       path: page.path,
       label: page.navLabel,
       ...(page.icon ? { icon: page.icon } : {}),
+      ...(page.order !== undefined ? { order: page.order } : {}),
+      ...(page.group ? { group: page.group } : {}),
+      ...(page.groupLabel ? { groupLabel: page.groupLabel } : {}),
+      ...(page.insertAfter ? { insertAfter: page.insertAfter } : {}),
     }
   })
 }

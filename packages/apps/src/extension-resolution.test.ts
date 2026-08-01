@@ -93,6 +93,39 @@ describe("assembleInstalledExtensions", () => {
     expect(result.pages[0]?.icon).toBeUndefined()
   })
 
+  it("resolves page ordering, anchoring, and a localized navigation group", () => {
+    const grouped = pageRow({
+      descriptor: {
+        key: "settings",
+        titleKey: "settings.title",
+        path: "/settings",
+        entryUrl: "https://app.example.com/settings",
+        order: -10,
+        group: "app-tools",
+        insertAfter: "bookings",
+      },
+    })
+    const labels = new Map(localizations)
+    labels.set("aprl_1", [
+      ...(labels.get("aprl_1") ?? []),
+      { locale: "en", surface: "navigation", messageKey: "app-tools", text: "App tools" },
+    ])
+    const result = assembleInstalledExtensions([grouped], labels, { activeLocale: "en" })
+    expect(result.pages[0]).toMatchObject({
+      order: -10,
+      group: "app-tools",
+      groupLabel: "App tools",
+      insertAfter: "bookings",
+    })
+  })
+
+  it("uses deterministic page navigation defaults", () => {
+    const result = assembleInstalledExtensions([pageRow()], localizations, { activeLocale: "en" })
+    expect(result.pages[0]?.order).toBe(0)
+    expect(result.pages[0]?.group).toBeUndefined()
+    expect(result.pages[0]?.insertAfter).toBeUndefined()
+  })
+
   it("filters out extensionApi-incompatible slot extensions", () => {
     const incompatible = slotRow({
       descriptor: {

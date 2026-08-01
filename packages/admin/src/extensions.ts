@@ -364,6 +364,13 @@ export interface AdminExtension {
    * on a fetch error return `[]` rather than throwing.
    */
   useRuntimeNavItems?: () => ReadonlyArray<NavItem>
+  /**
+   * Runtime counterpart of {@link navigation}. This preserves declarative
+   * ordering and anchoring for contributions discovered after installation.
+   * It is a React hook and follows the same stability/fail-soft requirements as
+   * {@link useRuntimeNavItems}. The older flat hook remains supported.
+   */
+  useRuntimeNavigation?: () => ReadonlyArray<AdminNavigationContribution>
   /** Final navigation-visibility source, evaluated after selected contributions merge. */
   navigationPreferences?: AdminNavigationPreferencesContribution
   routes?: ReadonlyArray<AdminUiRouteContribution>

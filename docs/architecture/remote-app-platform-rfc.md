@@ -377,6 +377,16 @@ App assets never execute in the admin origin. The host passes only declared,
 validated context. Full entity payloads and installation credentials are not
 sent through iframe initialization messages.
 
+Each `admin.pages[]` declaration may also provide declarative navigation
+placement. `order` is an integer (default `0`; lower values render first),
+`insertAfter` names an existing host navigation item after which the page is
+anchored, and `group` is an installation-local key. Pages with the same `group`
+render beneath one non-navigable structural entry whose label is resolved from
+the app's localized `navigation` messages using the group key. All pages in a
+group must declare the same `insertAfter`; equal-order ties preserve the
+resolved descriptor list order. When these fields are omitted, pages retain the
+original flat, appended navigation behavior and order.
+
 The host issues short-lived, audience-bound session tokens for an extension.
 The host-authenticated viewer scope set is captured inside the signed token at
 issuance. At exchange, an app may only narrow that set; app-supplied scope names

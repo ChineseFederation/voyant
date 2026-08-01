@@ -202,6 +202,47 @@ describe("app manifest compiler", () => {
     expect(normalized.adminPages[0]?.icon).toBeUndefined()
   })
 
+  it("preserves declarative page navigation placement and rejects conflicting group anchors", () => {
+    const normalized = compileAppManifest({
+      ...validManifest,
+      admin: {
+        ...validManifest.admin,
+        pages: [
+          {
+            ...validManifest.admin.pages[0],
+            order: -10,
+            group: "app-tools",
+            insertAfter: "bookings",
+          },
+        ],
+      },
+    }).normalizedRelease
+    expect(normalized.adminPages[0]).toMatchObject({
+      order: -10,
+      group: "app-tools",
+      insertAfter: "bookings",
+    })
+
+    expect(() =>
+      compileAppManifest({
+        ...validManifest,
+        admin: {
+          ...validManifest.admin,
+          pages: [
+            { ...validManifest.admin.pages[0], group: "app-tools", insertAfter: "bookings" },
+            {
+              ...validManifest.admin.pages[0],
+              key: "reports",
+              path: "/reports",
+              group: "app-tools",
+              insertAfter: "finance",
+            },
+          ],
+        },
+      }),
+    ).toThrow(/same insertAfter/)
+  })
+
   it("rejects webhook endpoints that target local infrastructure", () => {
     expect(() =>
       compileAppManifest({

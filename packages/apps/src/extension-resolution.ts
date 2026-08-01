@@ -60,6 +60,14 @@ export interface ResolvedAppPage {
    * nor the app declared one (the host falls back to a generic app icon).
    */
   icon?: string
+  /** Deterministic navigation order; omitted manifest values resolve to `0`. */
+  order: number
+  /** Installation-local structural group key, when the page is grouped. */
+  group?: string
+  /** Locale-resolved label for {@link group}. */
+  groupLabel?: string
+  /** Existing host navigation item id after which this page or group is inserted. */
+  insertAfter?: string
   appLocale: string
   direction: AppTextDirection
 }
@@ -161,6 +169,9 @@ export function assembleInstalledExtensions(
       if (!page) continue
       const title = labels.resolve(page.titleKey, ["extension", "navigation"]) ?? page.key
       const navLabel = labels.resolve(page.titleKey, ["navigation", "extension"]) ?? title
+      const groupLabel = page.group
+        ? (labels.resolve(page.group, ["navigation", "extension"]) ?? page.group)
+        : undefined
       pages.push({
         key: `${row.installationId}:${page.key}`,
         installationId: row.installationId,
@@ -170,6 +181,9 @@ export function assembleInstalledExtensions(
         title,
         navLabel,
         ...(page.icon ? { icon: page.icon } : {}),
+        order: page.order ?? 0,
+        ...(page.group ? { group: page.group, groupLabel: groupLabel ?? page.group } : {}),
+        ...(page.insertAfter ? { insertAfter: page.insertAfter } : {}),
         appLocale: locale.appLocale,
         direction: locale.direction,
       })
@@ -240,6 +254,9 @@ interface ParsedPageDescriptor {
   path: string
   entryUrl: string
   icon?: string
+  order?: number
+  group?: string
+  insertAfter?: string
 }
 
 function parsePageDescriptor(value: Record<string, unknown>): ParsedPageDescriptor | null {
@@ -249,7 +266,25 @@ function parsePageDescriptor(value: Record<string, unknown>): ParsedPageDescript
   const entryUrl = stringField(value.entryUrl)
   if (!key || !titleKey || !path || !entryUrl) return null
   const icon = stringField(value.icon)
-  return icon ? { key, titleKey, path, entryUrl, icon } : { key, titleKey, path, entryUrl }
+  const order =
+    typeof value.order === "number" &&
+    Number.isInteger(value.order) &&
+    value.order >= -10_000 &&
+    value.order <= 10_000
+      ? value.order
+      : undefined
+  const group = stringField(value.group) ?? undefined
+  const insertAfter = stringField(value.insertAfter) ?? undefined
+  return {
+    key,
+    titleKey,
+    path,
+    entryUrl,
+    ...(icon ? { icon } : {}),
+    ...(order !== undefined ? { order } : {}),
+    ...(group ? { group } : {}),
+    ...(insertAfter ? { insertAfter } : {}),
+  }
 }
 
 interface ParsedSlotDescriptor {
