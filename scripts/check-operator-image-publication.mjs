@@ -37,6 +37,13 @@ if (/^\s*pull_request\s*:/m.test(workflow)) {
 
 requireFragments(WORKFLOW, workflow, [
   ["ghcr.io/voyant-travel/operator", "workflow must publish the canonical GHCR image"],
+  ["paths:", "automatic main publication must be limited to image-impacting changes"],
+  ['"apps/operator/**"', "automatic main publication must include operator changes"],
+  ['"packages/**"', "automatic main publication must include workspace package changes"],
+  [
+    '      - "scripts/smoke-operator-image.sh"',
+    "automatic main publication must verify changes to its smoke harness",
+  ],
   ["platforms: linux/amd64,linux/arm64", "workflow must publish amd64 and arm64"],
   ["provenance: mode=max", "workflow must emit maximum BuildKit provenance"],
   ["sbom: true", "workflow must emit an SBOM"],
@@ -52,6 +59,22 @@ requireFragments(WORKFLOW, workflow, [
 ])
 
 requireFragments(CI_WORKFLOW, ci, [
+  [
+    "operator-image-impact:",
+    "branch CI must cheaply detect whether operator image acceptance is required",
+  ],
+  [
+    "if: needs.operator-image-impact.outputs.required == 'true'",
+    "branch CI must not run operator image acceptance for unrelated changes",
+  ],
+  [
+    "git diff --name-only --no-renames",
+    "branch CI must classify both sides of image-impacting renames and deletions",
+  ],
+  [
+    "generate-operator-application-manifest|generate-operator-application-metadata",
+    "branch CI must accept changes to operator composition generators",
+  ],
   [
     "scripts/smoke-operator-image.sh voyant-operator:ci",
     "branch CI must retain shared migration/boot/API image acceptance",

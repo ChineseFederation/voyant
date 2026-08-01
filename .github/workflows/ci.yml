@@ -376,8 +376,55 @@ jobs:
       - name: Enforce all database lanes
         run: test "${{ needs.db-lanes.result }}" = "success"
 
+  operator-image-impact:
+    name: operator-image-impact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      required: ${{ steps.impact.outputs.required }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Verify operator image publication contract
+        run: node scripts/check-operator-image-publication.mjs
+
+      - name: Determine whether operator image acceptance is required
+        id: impact
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+
+          # workflow_dispatch has no comparison SHA and is explicitly asking for
+          # CI, so retain the complete image acceptance lane for that event.
+          if [[ -z "${BASE_SHA:-}" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "Operator image acceptance required: no comparison SHA is available."
+            exit 0
+          fi
+
+          # Source-only package changes are intentionally handled by the build
+          # graph and packaged operator acceptance. Container-specific inputs,
+          # dependency manifests, migrations, and operator composition changes
+          # retain the full Docker migration/boot/API acceptance below.
+          changed_paths="$(git diff --name-only --no-renames "$BASE_SHA" "$HEAD_SHA")"
+          if grep -Eq '^(\.dockerignore|\.npmrc|\.github/workflows/(ci|operator-image)\.yml|apps/operator/.*|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|patches/.*|packages/.+/package\.json|packages/framework-migrations/.*|packages/.+/migrations/.*|scripts/(apply-publish-config|check-operator-image-publication|generate-operator-application-manifest|generate-operator-application-metadata|run-generated-migrations)\.mjs|scripts/smoke-operator-image\.sh)$' <<< "$changed_paths"; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            echo "Operator image acceptance required by an image-impacting change."
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            echo "Operator image acceptance skipped: packaged acceptance covers these changes."
+          fi
+
   operator-image-smoke:
     name: operator-image-smoke
+    needs: operator-image-impact
+    if: needs.operator-image-impact.outputs.required == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
@@ -399,9 +446,6 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
-
-      - name: Verify operator image publication contract
-        run: node scripts/check-operator-image-publication.mjs
 
       - name: Build production operator image
         run: docker build -f apps/operator/Dockerfile -t voyant-operator:ci .

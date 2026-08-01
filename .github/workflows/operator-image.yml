@@ -4,6 +4,22 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".dockerignore"
+      - ".npmrc"
+      - ".github/workflows/operator-image.yml"
+      - "apps/operator/**"
+      - "package.json"
+      - "packages/**"
+      - "patches/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/apply-publish-config.mjs"
+      - "scripts/generate-operator-application-manifest.mjs"
+      - "scripts/generate-operator-application-metadata.mjs"
+      - "scripts/run-generated-migrations.mjs"
+      - "scripts/smoke-operator-image.sh"
+      - "turbo.json"
   workflow_dispatch:
     inputs:
       operation:
