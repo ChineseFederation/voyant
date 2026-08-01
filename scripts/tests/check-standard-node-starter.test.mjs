@@ -308,6 +308,33 @@ test("rejects undeclared first-party imports in checked-in starter tests", () =>
   )
 })
 
+test("rejects an incomplete checked-in operator production runtime closure", () => {
+  const starter = fixture()
+  const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
+  roots.push(root)
+  writeJson(root, "packages/operator-standard/package.json", {
+    dependencies: { "@voyant-travel/bookings": "workspace:*" },
+  })
+  writeFile(root, "packages/operator-standard/src/index.ts", 'resolve: "@voyant-travel/bookings"\n')
+  writeJson(root, "starters/operator/package.json", {
+    scripts: {
+      dev: "voyant develop",
+      build: "voyant build",
+      start: "voyant start",
+      "db:migrate": "voyant migrate",
+    },
+    dependencies: { "@voyant-travel/operator-standard": "workspace:^" },
+  })
+
+  assert.throws(
+    () => run(starter, root),
+    (error) =>
+      String(error.stderr).includes(
+        "checked-in operator production deploy must declare product runtime package @voyant-travel/bookings",
+      ),
+  )
+})
+
 test("rejects checked-in starter lifecycle scripts that bypass the CLI", () => {
   const starter = fixture()
   const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
@@ -363,6 +390,16 @@ test("accepts CLI-owned lifecycle scripts without a dotenv bootstrap dependency"
   assert.equal(checkedIn.dependencies?.dotenv, undefined)
   assert.doesNotThrow(() => run(starter))
 })
+
+function writeFile(root, relativePath, contents) {
+  const destination = join(root, relativePath)
+  mkdirSync(dirname(destination), { recursive: true })
+  writeFileSync(destination, contents)
+}
+
+function writeJson(root, relativePath, value) {
+  writeFile(root, relativePath, `${JSON.stringify(value, null, 2)}\n`)
+}
 
 function run(starterDir, root = repoRoot) {
   if (root !== repoRoot) {

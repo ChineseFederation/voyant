@@ -10,7 +10,30 @@ import type {
   VoyantGraphProvisionedJob,
 } from "@voyant-travel/framework/deployment-graph"
 import type { VoyantNodeRuntime } from "@voyant-travel/framework/node-runtime"
-import { tsImport } from "tsx/esm/api"
+
+/**
+ * Load `tsx` only when a TypeScript artifact actually has to be transpiled.
+ *
+ * These loaders read `*.generated.ts` straight from `.voyant/`, which is the
+ * right thing for the CLI (`voyant start`, dev, tooling) where the artifacts
+ * are source. A BUILT server never reaches them: `voyant build` emits
+ * `.voyant/app/project-runtime.ts`, which pulls the same artifact through an
+ * eager `import.meta.glob`, and passes the result as
+ * `LoadVoyantProjectOptions.generatedProjectRuntime` — so the functions below
+ * are skipped entirely.
+ *
+ * The import still has to be lazy. The operator's Vite config inlines
+ * `@voyant-travel/*` from source, so a static `import ... from "tsx/esm/api"`
+ * here is linked into `dist/server/server.js` whether or not it is ever
+ * called — and `tsx` is a devDependency, which `pnpm deploy --prod` strips.
+ * That combination is what stopped the production image from booting
+ * (voyant#3994): it died at ESM link time on a module it would never execute.
+ *
+ * Keeping this dynamic states the real contract — transpilation is a
+ * development capability, not something the shipped server is allowed to need.
+ */
+let tsImportLoad: Promise<typeof import("tsx/esm/api")["tsImport"]> | undefined
+const loadTsImport = () => (tsImportLoad ??= import("tsx/esm/api").then((tsx) => tsx.tsImport))
 
 const GENERATED_ARTIFACT_LAYOUTS = [".voyant", "dist/.voyant"] as const
 const PROJECT_RUNTIME_ENTRY = "runtime/project-runtime.generated.ts"
@@ -63,6 +86,7 @@ export async function loadGeneratedProjectRuntime(
   const entry = path.join(artifactRoot, PROJECT_RUNTIME_ENTRY)
   let generated: GeneratedProjectRuntime
   if (await pathExists(entry)) {
+    const tsImport = await loadTsImport()
     const namespace = (await tsImport(pathToFileURL(entry).href, {
       parentURL: import.meta.url,
     })) as { createGeneratedProjectRuntime?: () => GeneratedProjectRuntime }
@@ -84,6 +108,7 @@ export async function loadGeneratedProjectRuntime(
 
 async function loadDeploymentGraphRuntime(artifactRoot: string): Promise<GeneratedProjectRuntime> {
   const entry = path.join(artifactRoot, GRAPH_RUNTIME_ENTRY)
+  const tsImport = await loadTsImport()
   const namespace = (await tsImport(pathToFileURL(entry).href, {
     parentURL: import.meta.url,
   })) as {
@@ -159,6 +184,7 @@ export async function readGeneratedDeploymentGraph(
 export async function loadGeneratedProjectLinks(artifactRoot: string) {
   const entry = path.join(artifactRoot, PROJECT_LINKS_ENTRY)
   try {
+    const tsImport = await loadTsImport()
     const namespace = (await tsImport(pathToFileURL(entry).href, {
       parentURL: import.meta.url,
     })) as GeneratedProjectLinks

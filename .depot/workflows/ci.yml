@@ -116,6 +116,10 @@ jobs:
 
       - name: Packaged starter production and development acceptance
         run: |
+          acceptance_deploy="$(mktemp -d)"
+          pnpm --filter=operator deploy --prod --legacy "$acceptance_deploy"
+          node scripts/apply-publish-config.mjs "$acceptance_deploy"
+          ln -s "$acceptance_deploy/node_modules" starters/operator/dist/node_modules
           node scripts/measure-standard-node-starter.mjs --require-build --check
           node --test scripts/tests/minimal-starter-acceptance.test.mjs
 

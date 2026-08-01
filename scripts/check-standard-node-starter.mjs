@@ -454,20 +454,13 @@ function inspectCheckedInProductDistribution(repoRoot) {
     violations.push("checked-in starter must depend on @voyant-travel/operator-standard")
   }
 
-  const starterRoot = join(repoRoot, "starters/operator")
-  const productionSource = walkFiles(starterRoot)
-    .filter(
-      (sourcePath) =>
-        /\.(?:css|ts|tsx)$/.test(sourcePath) &&
-        !/\.test\.[^.]+$/.test(sourcePath) &&
-        !sourcePath.startsWith(".voyant/"),
-    )
-    .map((sourcePath) => readFileSync(join(starterRoot, sourcePath), "utf8"))
-    .join("\n")
-  for (const packageName of standardOwners) {
-    if (starterPackage.dependencies?.[packageName] && !productionSource.includes(packageName)) {
+  const runtimeClosure = Object.keys(distributionPackage.dependencies ?? {}).filter((packageName) =>
+    packageName.startsWith("@voyant-travel/"),
+  )
+  for (const packageName of runtimeClosure) {
+    if (!starterPackage.dependencies?.[packageName]) {
       violations.push(
-        `checked-in starter must obtain manifest-only standard package ${packageName} from @voyant-travel/operator-standard`,
+        `checked-in operator production deploy must declare product runtime package ${packageName}`,
       )
     }
   }

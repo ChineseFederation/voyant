@@ -255,6 +255,10 @@ describe("Voyant project tooling", () => {
         generatedRouteTree: "/workspace/operator/.voyant/routeTree.gen.ts",
       },
       bootstrap: { serverEntry: "/workspace/operator/src/server.ts" },
+      // A build must not inline workspace source: doing so ships their code
+      // without their dependencies, which the pruned production install then
+      // cannot supply (voyant#3994).
+      bundleWorkspaceSource: false,
     })
     expect(dependencies.buildVite).toHaveBeenCalledWith({
       marker: "voyant-vite-config",
@@ -295,6 +299,14 @@ describe("Voyant project tooling", () => {
     expect(
       vi.mocked(dependencies.createViteConfig).mock.calls[0]?.[0].developmentReadiness?.promise,
     ).toBeInstanceOf(Promise)
+    // The development server DOES inline workspace source — that is what makes
+    // a `packages/*/src` edit part of the module graph rather than a
+    // node_modules symlink, and so hot-reloadable. The build path asserts the
+    // opposite; both directions are pinned because only one of them is visible
+    // in a production failure.
+    expect(vi.mocked(dependencies.createViteConfig).mock.calls[0]?.[0].bundleWorkspaceSource).toBe(
+      true,
+    )
     expect(development.url).toBe("http://localhost:3300/")
     expect(process.env.VOYANT_AUTH_LOG_SECRET_FALLBACKS).toBe("1")
     expect(calls).toContain("vite-listen")
@@ -487,15 +499,21 @@ export function createStandardOperatorRouteFiles(options: { presentations: reado
     expect(serverEntry).toContain(
       'import { createGeneratedProjectRuntime } from "./project-runtime.js"',
     )
+    expect(serverEntry).toContain('import { getGeneratedProjectLinks } from "./project-links.js"')
     expect(serverEntry).toContain("generatedProjectRuntime: createGeneratedProjectRuntime()")
+    expect(serverEntry).toContain("generatedProjectLinks: getGeneratedProjectLinks()")
     expect(serverEntry).toContain(
-      "createVoyantProjectServerEntry(withGeneratedRuntime(projectOptions)).start",
+      "createVoyantProjectServerEntry(withGeneratedArtifacts(projectOptions)).start",
     )
     const projectRuntimeEntry = await readText(
       path.join(projectRoot, ".voyant/app/project-runtime.ts"),
     )
     expect(projectRuntimeEntry).toContain(
       'import.meta.glob<GeneratedProjectRuntimeModule>(\n    "../runtime/project-runtime.generated.ts",\n    { eager: true },',
+    )
+    const projectLinksEntry = await readText(path.join(projectRoot, ".voyant/app/project-links.ts"))
+    expect(projectLinksEntry).toContain(
+      'import.meta.glob<GeneratedProjectLinksModule>(\n    "../runtime/project-links.generated.ts",\n    { eager: true },',
     )
     await expect(readText(bootstrap.routerEntry!)).resolves.toContain(
       'from "@acme/operator/standard-frontend"',

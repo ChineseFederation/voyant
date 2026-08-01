@@ -63,6 +63,13 @@ interface ProjectViteConfigOptions {
   developmentReadiness?: DevelopmentReadiness
   generatedRoutes: GeneratedRoutes
   bootstrap: ProjectBootstrap
+  /**
+   * Inline `@voyant-travel/*` from source. True for the development server,
+   * where it is what makes a package edit hot-reload; false for a build, where
+   * it would ship workspace code without the dependencies that code needs.
+   * See `bundleWorkspaceSource` in `@voyant-travel/vite-config`.
+   */
+  bundleWorkspaceSource?: boolean
 }
 
 interface DevelopmentReadiness {
@@ -248,6 +255,9 @@ async function prepareProjectViteConfig(
     ...(developmentReadiness ? { developmentReadiness } : {}),
     generatedRoutes,
     bootstrap,
+    // `developmentReadiness` is only supplied by the development server, so it
+    // is also the signal for whether workspace source may be inlined.
+    bundleWorkspaceSource: developmentReadiness !== undefined,
   })
 }
 
@@ -255,6 +265,7 @@ export function createProjectViteConfig(options: ProjectViteConfigOptions): Inli
   const config = voyantStartViteConfig({
     appRootUrl: options.appRootUrl,
     nodeSsr: true,
+    bundleWorkspaceSource: options.bundleWorkspaceSource ?? true,
     plugins: [
       createDevelopmentReadinessPlugin(options.developmentReadiness),
       options.generatedRoutes.plugin,
@@ -497,21 +508,45 @@ export const createGeneratedProjectRuntime = () =>
   generatedRuntime.createGeneratedProjectRuntime()
 `,
   )
+  await writeGeneratedFile(
+    path.join(generatedRoot, "project-links.ts"),
+    `import type { LoadVoyantProjectOptions } from "@voyant-travel/runtime"
+
+type GeneratedProjectLinks = NonNullable<LoadVoyantProjectOptions["generatedProjectLinks"]>
+interface GeneratedProjectLinksModule {
+  projectLinks?: GeneratedProjectLinks
+}
+
+const generatedLinks = Object.values(
+  import.meta.glob<GeneratedProjectLinksModule>(
+    "../runtime/project-links.generated.ts",
+    { eager: true },
+  ),
+).at(0)
+if (!generatedLinks) {
+  throw new Error("Generated Voyant project links module is missing.")
+}
+
+export const getGeneratedProjectLinks = () => generatedLinks.projectLinks ?? []
+`,
+  )
   if (!(await pathExists(authoredServerEntry))) {
     await writeGeneratedFile(
       bootstrap.serverEntry,
       `import type { LoadVoyantProjectOptions } from "@voyant-travel/runtime"
 import { createVoyantProjectServerEntry } from "@voyant-travel/runtime"
+import { getGeneratedProjectLinks } from "./project-links.js"
 import { createGeneratedProjectRuntime } from "./project-runtime.js"
 
-const withGeneratedRuntime = (options: LoadVoyantProjectOptions = {}): LoadVoyantProjectOptions => ({
+const withGeneratedArtifacts = (options: LoadVoyantProjectOptions = {}): LoadVoyantProjectOptions => ({
   ...options,
+  generatedProjectLinks: getGeneratedProjectLinks(),
   generatedProjectRuntime: createGeneratedProjectRuntime(),
 })
-const server = createVoyantProjectServerEntry(withGeneratedRuntime())
+const server = createVoyantProjectServerEntry(withGeneratedArtifacts())
 const start = (options: LoadVoyantProjectOptions & { port?: number } = {}) => {
   const { port, ...projectOptions } = options
-  return createVoyantProjectServerEntry(withGeneratedRuntime(projectOptions)).start({ port })
+  return createVoyantProjectServerEntry(withGeneratedArtifacts(projectOptions)).start({ port })
 }
 export default { fetch: server.fetch, start }
 `,

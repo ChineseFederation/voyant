@@ -1,6 +1,6 @@
 // agent-quality: file-size exception -- owner: framework; project resolution, package admission, generated runtime, and migration fixtures share one project harness.
 import { createHash } from "node:crypto"
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -51,15 +51,32 @@ describe("framework project resolver", () => {
         "./runtime": "./runtime.mjs",
         "./runtime-contributor": "./runtime-contributor.mjs",
       },
+      publishConfigExports: {
+        "./runtime": "./dist/runtime.mjs",
+        "./runtime-contributor": "./dist/runtime-contributor.mjs",
+      },
     })
+    mkdirSync(path.join(distributionRoot, "node_modules", "@acme", "loyalty", "dist"))
     writeFileSync(
-      path.join(distributionRoot, "node_modules", "@acme", "loyalty", "runtime.mjs"),
+      path.join(distributionRoot, "node_modules", "@acme", "loyalty", "dist", "runtime.mjs"),
       "export const routes = {}\n",
     )
     writeFileSync(
-      path.join(distributionRoot, "node_modules", "@acme", "loyalty", "runtime-contributor.mjs"),
+      path.join(
+        distributionRoot,
+        "node_modules",
+        "@acme",
+        "loyalty",
+        "dist",
+        "runtime-contributor.mjs",
+      ),
       "export const createLoyaltyRuntimeContribution = () => ({})\n",
     )
+    writePackageAt(path.join(root, "node_modules", "@acme", "loyalty"), {
+      name: "@acme/loyalty",
+      version: "1.2.3",
+      manifest: `export default ${JSON.stringify(moduleManifest("@acme/loyalty"))}\n`,
+    })
 
     const resolution = await resolve(
       root,
@@ -81,12 +98,11 @@ describe("framework project resolver", () => {
       (file) => file.path === resolution.artifacts.runtimeEntry,
     )?.contents
     expect(runtimeSource).toContain(
-      "../../node_modules/@acme/operator-standard/node_modules/@acme/loyalty/runtime.mjs",
+      '"../../node_modules/@acme/operator-standard/node_modules/@acme/loyalty/dist/runtime.mjs": () => import("../../node_modules/@acme/operator-standard/node_modules/@acme/loyalty/dist/runtime.mjs")',
     )
     expect(runtimeSource).toContain(
-      'from "../../node_modules/@acme/operator-standard/node_modules/@acme/loyalty/runtime-contributor.mjs"',
+      'from "../../node_modules/@acme/operator-standard/node_modules/@acme/loyalty/dist/runtime-contributor.mjs"',
     )
-    expect(runtimeSource).not.toContain('from "@acme/loyalty/runtime"')
   })
 
   it("matches the CLI contract with one deterministic target-neutral graph hash", async () => {
@@ -270,7 +286,7 @@ describe("framework project resolver", () => {
       (file) => file.path === resolution.artifacts.migrationRunner,
     )
     expect(runner?.contents).toContain('"@acme/loyalty#setup.z-backfill.v1": async () => {')
-    expect(runner?.contents).toContain('import("../../node_modules/@acme/loyalty/setup.mjs")')
+    expect(runner?.contents).toContain('import("@acme/loyalty/setup")')
   })
 
   it("includes deployment-owned migration folders after package schema migrations", async () => {
@@ -587,7 +603,7 @@ export default ${JSON.stringify(moduleManifest("@acme/cloud-only"))}
       (file) => file.path === resolution.artifacts.runtimeEntry,
     )?.contents
     expect(runtimeSource).toContain(
-      '"../../node_modules/@acme/loyalty-react/admin.mjs": () => import("../../node_modules/@acme/loyalty-react/admin.mjs")',
+      '"@acme/loyalty-react/admin": () => import("@acme/loyalty-react/admin")',
     )
   })
 
@@ -656,9 +672,7 @@ export default ${JSON.stringify(moduleManifest("@acme/cloud-only"))}
     expect(
       resolution.artifacts.files.find((file) => file.path === resolution.artifacts.runtimeEntry)
         ?.contents,
-    ).toContain(
-      '"../../node_modules/@acme/loyalty-runtime/factory.mjs": () => import("../../node_modules/@acme/loyalty-runtime/factory.mjs")',
-    )
+    ).toContain('"@acme/loyalty-runtime/factory": () => import("@acme/loyalty-runtime/factory")')
   })
 
   it("rejects runtime subpaths that are absent from the referenced package exports", async () => {
@@ -890,10 +904,12 @@ async function resolve(root: string, project: unknown) {
 
 interface WritePackageOptions {
   name: string
+  version?: string
   manifest: string
   voyant?: Record<string, unknown> | null
   compatibleWith?: Record<string, unknown>
   extraExports?: Record<string, string>
+  publishConfigExports?: Record<string, string>
 }
 
 function packageMetadata(options: { requiresSchemas?: string[] } = {}): Record<string, unknown> {
@@ -908,6 +924,17 @@ function packageMetadata(options: { requiresSchemas?: string[] } = {}): Record<s
 
 function writePackage(root: string, options: WritePackageOptions): void {
   writePackageAt(path.join(root, "node_modules", ...options.name.split("/")), options)
+  const packageJsonPath = path.join(root, "package.json")
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as Record<string, unknown>
+  const dependencies =
+    typeof packageJson.dependencies === "object" && packageJson.dependencies !== null
+      ? packageJson.dependencies
+      : {}
+  packageJson.dependencies = {
+    ...dependencies,
+    [options.name]: options.version ?? "1.2.3",
+  }
+  writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)
 }
 
 function writePackageAt(directory: string, options: WritePackageOptions): void {
@@ -926,9 +953,12 @@ function writePackageAt(directory: string, options: WritePackageOptions): void {
     `${JSON.stringify(
       {
         name: options.name,
-        version: "1.2.3",
+        version: options.version ?? "1.2.3",
         type: "module",
         exports: { "./voyant": "./voyant.mjs", ...options.extraExports },
+        ...(options.publishConfigExports
+          ? { publishConfig: { exports: options.publishConfigExports } }
+          : {}),
         ...(voyant ? { voyant } : {}),
       },
       null,

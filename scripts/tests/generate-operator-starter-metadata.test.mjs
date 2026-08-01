@@ -60,6 +60,10 @@ test("emits disposable operator config with rebased declaration paths", () => {
       readFileSync(join(root, "starters/operator/.voyant/app/project-runtime.d.ts"), "utf8"),
       /LoadVoyantProjectOptions\["generatedProjectRuntime"\]/,
     )
+    assert.match(
+      readFileSync(join(root, "starters/operator/.voyant/app/project-links.d.ts"), "utf8"),
+      /LoadVoyantProjectOptions\["generatedProjectLinks"\]/,
+    )
     const routeGenerator = readFileSync(
       join(root, "starters/operator/.voyant/generate-routes.mjs"),
       "utf8",

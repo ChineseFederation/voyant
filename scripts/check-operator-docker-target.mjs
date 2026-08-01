@@ -14,6 +14,8 @@ const ROOT = join(__dirname, "..")
 
 const DOCKERFILE = "starters/operator/Dockerfile"
 const OPERATOR_PACKAGE_JSON = "starters/operator/package.json"
+const PRODUCT_PACKAGE_JSON = "packages/operator-standard/package.json"
+const MIGRATION_RUNNER = "scripts/run-generated-migrations.mjs"
 
 const violations = []
 
@@ -40,6 +42,22 @@ if (!existsSync(join(ROOT, OPERATOR_PACKAGE_JSON))) {
       file: OPERATOR_PACKAGE_JSON,
       check: "operator-build-internals-exposed",
       message: "The operator package must not expose graph emission or artifact-copy internals.",
+    })
+  }
+  const productPackageJson = JSON.parse(readFileSync(join(ROOT, PRODUCT_PACKAGE_JSON), "utf8"))
+  const missingRuntimeDependencies = Object.entries(productPackageJson.dependencies ?? {})
+    .filter(
+      ([name, version]) =>
+        name.startsWith("@voyant-travel/") &&
+        typeof version === "string" &&
+        packageJson.dependencies?.[name] === undefined,
+    )
+    .map(([name]) => name)
+  if (missingRuntimeDependencies.length > 0) {
+    violations.push({
+      file: OPERATOR_PACKAGE_JSON,
+      check: "operator-production-runtime-closure-incomplete",
+      message: `The operator production manifest is missing product runtime dependencies: ${missingRuntimeDependencies.join(", ")}.`,
     })
   }
 }
@@ -73,6 +91,30 @@ if (!existsSync(join(ROOT, DOCKERFILE))) {
       message: "The runtime image must copy the built operator dist directory.",
     })
   }
+  for (const [fragment, check, message] of [
+    [
+      "RUN pnpm build",
+      "docker-workspace-build-missing",
+      "The Docker build must compile workspace packages.",
+    ],
+    [
+      "deploy --prod",
+      "docker-production-deploy-missing",
+      "The Docker build must create a production-only deploy tree.",
+    ],
+    [
+      "apply-publish-config.mjs /deploy",
+      "docker-publish-config-missing",
+      "The deployed workspace manifests must resolve built publish targets.",
+    ],
+    [
+      "run-generated-migrations.mjs",
+      "docker-migration-runner-missing",
+      "The runtime image must include the generated-plan migration command.",
+    ],
+  ]) {
+    if (!source.includes(fragment)) violations.push({ file: DOCKERFILE, check, message })
+  }
   if (!source.includes('CMD ["node", "dist/server/server.js"]')) {
     violations.push({
       file: DOCKERFILE,
@@ -80,6 +122,14 @@ if (!existsSync(join(ROOT, DOCKERFILE))) {
       message: "The runtime image must boot the checked Node server entry.",
     })
   }
+}
+
+if (!existsSync(join(ROOT, MIGRATION_RUNNER))) {
+  violations.push({
+    file: MIGRATION_RUNNER,
+    check: "missing-generated-migration-runner",
+    message: "The image migration entry is missing.",
+  })
 }
 
 if (violations.length > 0) {

@@ -116,11 +116,19 @@ root** (it needs the workspace source):
 
 ```bash
 docker build -f starters/operator/Dockerfile -t voyant-operator .
+docker run --rm --network host --env-file starters/operator/.env \
+  voyant-operator node run-generated-migrations.mjs
 docker run --rm -p 8080:8080 --env-file starters/operator/.env voyant-operator
 ```
 
-The `@voyant-travel/*` packages are bundled into the server bundle; the runtime
-image ships the operator's production `node_modules` (via `pnpm deploy --prod`).
+Run the migration command once per rollout before starting new replicas. It
+executes the graph-native migration plan embedded in that exact image and exits
+non-zero if a migration fails; application startup does not run migrations.
+
+The server leaves installed runtime package imports external while bundling its
+application-owned server chunks. The runtime image ships built
+`@voyant-travel/*` packages and the operator's production `node_modules` via
+`pnpm deploy --prod`; no runtime import points back into the monorepo.
 
 ### Cloud Run
 

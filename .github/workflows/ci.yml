@@ -226,6 +226,10 @@ jobs:
 
       - name: Packaged starter production and development acceptance
         run: |
+          acceptance_deploy="$(mktemp -d)"
+          pnpm --filter=operator deploy --prod --legacy "$acceptance_deploy"
+          node scripts/apply-publish-config.mjs "$acceptance_deploy"
+          ln -s "$acceptance_deploy/node_modules" starters/operator/dist/node_modules
           node scripts/measure-standard-node-starter.mjs --require-build --check
           node --test scripts/tests/minimal-starter-acceptance.test.mjs
 
@@ -372,16 +376,10 @@ jobs:
       - name: Enforce all database lanes
         run: test "${{ needs.db-lanes.result }}" = "success"
 
-  node-smoke:
-    name: node-smoke
+  operator-image-smoke:
+    name: operator-image-smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    env:
-      HUSKY: 0
-      NODE_OPTIONS: --conditions=development --max-old-space-size=12288
-      TURBO_API: ${{ vars.TURBO_API }}
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -402,34 +400,35 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-      - uses: ./.github/actions/setup-workspace
+      - name: Build production operator image
+        run: docker build -f starters/operator/Dockerfile -t voyant-operator:ci .
 
-      - name: Build operator (Node target)
-        run: pnpm --filter operator build
-
-      - name: Boot under Node and smoke-test
-        working-directory: starters/operator
-        env:
-          PORT: "8080"
-          DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_starter_acceptance
-          EMAIL_FROM: ci@example.com
-          KMS_PROVIDER: local
-          APP_URL: http://localhost:8080/api
-          API_BASE_URL: http://localhost:8080/api
-          CORS_ALLOWLIST: http://localhost:8080
-          DASH_BASE_URL: http://localhost:8080
+      - name: Migrate, boot, and smoke-test the production image
         run: |
-          export BETTER_AUTH_ADMIN_SECRET="$(openssl rand -hex 24)"
-          export BETTER_AUTH_CUSTOMER_SECRET="$(openssl rand -hex 24)"
-          export SESSION_CLAIMS_ADMIN_SECRET="$(openssl rand -hex 24)"
-          export SESSION_CLAIMS_CUSTOMER_SECRET="$(openssl rand -hex 24)"
-          export VOYANT_CHECKOUT_CAPABILITY_SECRET="$(openssl rand -hex 24)"
-          export INTERNAL_API_KEY="$(openssl rand -hex 16)"
-          export KMS_LOCAL_KEY="$(openssl rand -hex 16)"
-          node dist/server/server.js &
-          SRV=$!
-          trap 'kill $SRV 2>/dev/null || true' EXIT
-          for i in $(seq 1 30); do
+          container="voyant-operator-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          env_args=(
+            --env PORT=8080
+            --env DATABASE_URL=postgresql://voyant:voyant@localhost:5432/voyant_starter_acceptance
+            --env EMAIL_FROM=ci@example.com
+            --env KMS_PROVIDER=local
+            --env APP_URL=http://localhost:8080/api
+            --env API_BASE_URL=http://localhost:8080/api
+            --env CORS_ALLOWLIST=http://localhost:8080
+            --env DASH_BASE_URL=http://localhost:8080
+            --env BETTER_AUTH_ADMIN_SECRET="$(openssl rand -hex 24)"
+            --env BETTER_AUTH_CUSTOMER_SECRET="$(openssl rand -hex 24)"
+            --env SESSION_CLAIMS_ADMIN_SECRET="$(openssl rand -hex 24)"
+            --env SESSION_CLAIMS_CUSTOMER_SECRET="$(openssl rand -hex 24)"
+            --env VOYANT_CHECKOUT_CAPABILITY_SECRET="$(openssl rand -hex 24)"
+            --env INTERNAL_API_KEY="$(openssl rand -hex 16)"
+            --env KMS_LOCAL_KEY="$(openssl rand -base64 32)"
+          )
+          docker run --rm --network host "${env_args[@]}" voyant-operator:ci \
+            node run-generated-migrations.mjs
+          docker run --detach --name "$container" --network host \
+            "${env_args[@]}" voyant-operator:ci
+          for i in $(seq 1 60); do
             if curl -sf -o /dev/null http://localhost:8080/healthz; then break; fi
             sleep 1
           done

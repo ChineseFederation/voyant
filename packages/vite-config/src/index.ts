@@ -82,6 +82,22 @@ const VOYANT_DEDUPE_DEPENDENCIES: readonly string[] = [
   "@tanstack/react-router",
 ]
 
+/**
+ * First-party framework hosts that must remain in the production server graph.
+ * They import TanStack Start's server core, whose `#tanstack-*` entry aliases
+ * only exist while the TanStack Vite plugin is resolving the application.
+ */
+const VOYANT_PRODUCTION_BUNDLED_PACKAGES: readonly string[] = [
+  "@voyant-travel/runtime",
+  "@voyant-travel/admin-host",
+]
+
+const TANSTACK_START_BUNDLED_PACKAGES: readonly string[] = [
+  "@tanstack/react-start",
+  "@tanstack/start-client-core",
+  "@tanstack/start-server-core",
+]
+
 const DEPENDENCY_FIELDS = [
   "dependencies",
   "devDependencies",
@@ -262,6 +278,27 @@ export interface VoyantStartViteConfigOptions {
    * packaging it keeps it a version bump, not a copy (voyant#3044).
    */
   nodeSsr?: boolean
+  /**
+   * Resolve `@voyant-travel/*` from `./src` and bundle them into the server
+   * build. Defaults to `true`, which is what a development server wants: the
+   * packages become real members of the Vite module graph rather than
+   * `node_modules` symlinks, so editing one hot-reloads.
+   *
+   * A production build must pass `false`. Inlining absorbs a workspace
+   * package's CODE but not its DEPENDENCIES, and `pnpm deploy --prod` prunes to
+   * what the application itself declares — so every external dependency reached
+   * only through an inlined package becomes undeclared and unresolvable at
+   * runtime. That is what stopped the operator image from booting
+   * (voyant#3994); 36 such dependencies were undeclared, so it would have
+   * failed progressively, one feature at a time.
+   *
+   * With `false` the server imports `@voyant-travel/*` normally, `pnpm deploy`
+   * installs them as real packages, and their own dependency trees come with
+   * them. This requires the workspace dists to be built first, and requires the
+   * deployed manifests to point at `dist` — see
+   * `scripts/apply-publish-config.mjs`.
+   */
+  bundleWorkspaceSource?: boolean
 }
 
 /**
@@ -270,11 +307,21 @@ export interface VoyantStartViteConfigOptions {
  * `vite.config.ts` shrinks to plugin instantiation + this call.
  */
 export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): UserConfig {
-  const { appRootUrl, plugins, allowedHosts = true, extraManualChunks, nodeSsr } = options
+  const {
+    appRootUrl,
+    plugins,
+    allowedHosts = true,
+    extraManualChunks,
+    nodeSsr,
+    bundleWorkspaceSource = true,
+  } = options
   const resolvableSsrDependencies = resolvableAppRootDependencies(
     appRootUrl,
     VOYANT_SSR_OPTIMIZE_DEPS,
   )
+  const productionRuntimeExternalPlugin = bundleWorkspaceSource
+    ? undefined
+    : createProductionRuntimeExternalPlugin(appRootUrl)
   return {
     server: {
       allowedHosts,
@@ -292,6 +339,11 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
       alias: [{ find: "@", replacement: fileURLToPath(new URL("./src", appRootUrl)) }],
       dedupe: resolvableAppRootDependencies(appRootUrl, VOYANT_DEDUPE_DEPENDENCIES),
       tsconfigPaths: true,
+      ...(!bundleWorkspaceSource && {
+        // Vite's environment API reads noExternal from resolve. Keep this in
+        // addition to ssr.noExternal below for the Vite 6 compatibility range.
+        noExternal: [...VOYANT_PRODUCTION_BUNDLED_PACKAGES, ...TANSTACK_START_BUNDLED_PACKAGES],
+      }),
     },
     optimizeDeps: {
       exclude: [...VOYANT_CLIENT_OPTIMIZE_DEPS_EXCLUDE],
@@ -305,15 +357,62 @@ export function voyantStartViteConfig(options: VoyantStartViteConfigOptions): Us
       ...(nodeSsr
         ? {
             target: "node" as const,
-            external: ["pg"],
-            noExternal: [/^@voyant-travel\//, /^@pxmstudio\//],
-            resolve: {
-              conditions: ["development", "module", "node", "import", "default"],
-            },
+            ...(bundleWorkspaceSource
+              ? {
+                  external: ["pg"],
+                  noExternal: [/^@voyant-travel\//, /^@pxmstudio\//],
+                  resolve: {
+                    conditions: ["development", "module", "node", "import", "default"],
+                  },
+                }
+              : {
+                  // The production externalizer marks only first-party package
+                  // imports external. Keep ordinary dependencies in Vite's
+                  // default SSR pipeline so framework plugins can still bundle
+                  // the framework hosts and packages that contain virtual
+                  // imports.
+                  external: ["pg"],
+                  noExternal: [
+                    ...VOYANT_PRODUCTION_BUNDLED_PACKAGES,
+                    ...TANSTACK_START_BUNDLED_PACKAGES,
+                  ],
+                }),
           }
         : {}),
     },
-    plugins,
+    plugins: [
+      ...(productionRuntimeExternalPlugin ? [productionRuntimeExternalPlugin] : []),
+      ...plugins,
+    ],
+  }
+}
+
+function createProductionRuntimeExternalPlugin(appRootUrl: string): Plugin {
+  const productionDependencies = declaredAppRootDependencies(appRootUrl, [
+    "dependencies",
+    "optionalDependencies",
+  ])
+  return {
+    name: "voyant:externalize-production-runtime",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (this.environment.config.consumer !== "server") return null
+      if (importer && source.startsWith(".")) {
+        const target = resolve(dirname(importer.split("?", 1)[0]!), source)
+        const normalizedTarget = target.replaceAll("\\", "/")
+        if (/\/node_modules\/@(?:voyant-travel|pxmstudio)\/[^/]+(?:\/|$)/.test(normalizedTarget)) {
+          // Keep BOM-anchored package files outside the bundle. Rollup rebases
+          // this absolute external to the output chunk, and Node then resolves
+          // the package's own dependencies from its preserved pnpm location.
+          return { id: target, external: true }
+        }
+      }
+      if (!/^@(?:voyant-travel|pxmstudio)\/[^/]+(?:\/.*)?$/.test(source)) return null
+      const packageName = packageNameForSubpath(source)
+      if (VOYANT_PRODUCTION_BUNDLED_PACKAGES.includes(packageName)) return null
+      if (!productionDependencies.has(packageName)) return null
+      return { id: source, external: true }
+    },
   }
 }
 
@@ -321,23 +420,8 @@ function resolvableAppRootDependencies(
   appRootUrl: string,
   candidates: readonly string[],
 ): string[] {
+  const declaredDependencies = declaredAppRootDependencies(appRootUrl, DEPENDENCY_FIELDS)
   const packageJsonPath = fileURLToPath(new URL("./package.json", appRootUrl))
-  let parsedManifest: unknown
-  try {
-    parsedManifest = JSON.parse(readFileSync(packageJsonPath, "utf8"))
-  } catch {
-    return []
-  }
-  if (typeof parsedManifest !== "object" || parsedManifest === null) return []
-  const manifest = parsedManifest as Record<string, unknown>
-
-  const declaredDependencies = new Set<string>()
-  for (const field of DEPENDENCY_FIELDS) {
-    const dependencies = manifest[field]
-    if (typeof dependencies !== "object" || dependencies === null) continue
-    for (const dependency of Object.keys(dependencies)) declaredDependencies.add(dependency)
-  }
-
   const resolveFromApp = createRequire(packageJsonPath)
   return candidates.filter((dependency) => {
     if (!declaredDependencies.has(packageNameForSubpath(dependency))) return false
@@ -348,6 +432,27 @@ function resolvableAppRootDependencies(
       return false
     }
   })
+}
+
+function declaredAppRootDependencies(appRootUrl: string, fields: readonly string[]): Set<string> {
+  const packageJsonPath = fileURLToPath(new URL("./package.json", appRootUrl))
+  let parsedManifest: unknown
+  try {
+    parsedManifest = JSON.parse(readFileSync(packageJsonPath, "utf8"))
+  } catch {
+    return new Set()
+  }
+  if (typeof parsedManifest !== "object" || parsedManifest === null) return new Set()
+  const manifest = parsedManifest as Record<string, unknown>
+
+  const declaredDependencies = new Set<string>()
+  for (const field of fields) {
+    const dependencies = manifest[field]
+    if (typeof dependencies !== "object" || dependencies === null) continue
+    for (const dependency of Object.keys(dependencies)) declaredDependencies.add(dependency)
+  }
+
+  return declaredDependencies
 }
 
 function packageNameForSubpath(specifier: string): string {

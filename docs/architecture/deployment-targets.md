@@ -69,9 +69,17 @@ workload class well. On Node none of it is necessary.
 - **Docker target:** `starters/operator/Dockerfile` is the reference
   self-hosted Node image. Its build stage must call `pnpm --filter operator
   build`, not raw Vite, so graph freshness and graph artifact copying stay on
-  the same path as local build. The runtime image boots `dist/server/server.js`,
-  which validates the graph artifacts and required graph resource env before
-  serving traffic.
+  the same path as local build. Production SSR builds externalize installed
+  runtime package imports while retaining application-owned server chunks, and
+  the deployed application declares the product BOM's runtime package closure
+  as direct production dependencies. Deployed workspace manifests use their
+  built `publishConfig` targets. Generated imports use relocatable package
+  specifiers for declared production dependencies and project-relative paths
+  for transitive selections anchored through the product BOM, preserving strict
+  pnpm nesting without capturing absolute build-machine paths. The image exposes
+  `node run-generated-migrations.mjs` as an explicit pre-rollout command and
+  boots `dist/server/server.js`, which validates graph artifacts and required
+  graph resource env before serving traffic. Startup does not own migrations.
 - **Graph contract:** `pnpm --filter operator dev`, `pnpm --filter operator
   db:migrate`, and standalone Node boot all load the generated deployment graph
   artifacts and fail before serving traffic or touching the database when
