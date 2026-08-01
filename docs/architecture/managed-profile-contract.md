@@ -11,7 +11,7 @@
 Status: accepted
 
 Voyant Cloud provisions managed operator deployments from a framework-owned
-profile contract. Cloud should not import `starters/operator`, clone a customer
+profile contract. Cloud should not import `apps/operator`, clone a customer
 repository, or rediscover the standard runtime graph.
 
 The public contract lives at `@voyant-travel/framework/profile`.

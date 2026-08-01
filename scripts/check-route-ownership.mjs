@@ -3,14 +3,14 @@
  *
  * Reusable framework route interfaces belong in packages, composed through
  * `ApiModule` / `ApiExtension` registries — not hand-authored under
- * `starters/*​/src/api`. This checker is the guard that stops the second route
+ * `apps/operator/src/api`. This checker is the guard that stops the second route
  * door (direct `/v1/...` handlers and `additionalRoutes` blocks) from growing
  * while extraction proceeds.
  *
- * It does NOT break existing routes on day one. Every route-bearing starter file
+ * It does NOT break existing routes on day one. Every route-bearing application file
  * that exists today is baselined in scripts/route-ownership-baseline.json. The
  * check fails only on NEW drift:
- *   - a new route-bearing starter file with no ownership annotation,
+ *   - a new route-bearing application file with no ownership annotation,
  *   - more `/v1/...` route definitions in a baselined file than its baseline,
  *   - a new `additionalRoutes` block outside the allowed files.
  *
@@ -20,7 +20,7 @@
  *
  * As route families move into packages (RFC Phases 3-4), LOWER the baseline
  * counts in the JSON; the checker warns when a file drops below baseline so the
- * baseline is kept honest. Never raise a count to land new starter routes.
+ * baseline is kept honest. Never raise a count to land new application routes.
  *
  * Usage:
  *   node scripts/check-route-ownership.mjs            # enforce: fail on new drift
@@ -32,7 +32,7 @@ import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
-const STARTERS_DIR = join(ROOT, "starters")
+const APPLICATION_DIR = join(ROOT, "apps", "operator")
 const BASELINE_PATH = join(__dirname, "route-ownership-baseline.json")
 
 const REPORT_ONLY = process.argv.includes("--report")
@@ -76,7 +76,7 @@ const warnings = []
 const annotated = []
 const seenFiles = new Set()
 
-for (const file of walkApiFiles(STARTERS_DIR)) {
+for (const file of walkApiFiles(APPLICATION_DIR)) {
   const rel = toRel(file)
   const source = readFileSync(file, "utf-8")
   const routeCount = (source.match(ROUTE_DEF) ?? []).length
@@ -95,7 +95,7 @@ for (const file of walkApiFiles(STARTERS_DIR)) {
   if (hasAdditionalRoutes && !additionalRoutesAllowed.has(rel)) {
     violations.push({
       rel,
-      message: `new \`additionalRoutes\` block in a starter file. Route families must be composed as a ApiModule/ApiExtension, or annotate the file with \`// voyant-route-owner: <reason>\`.`,
+      message: `new \`additionalRoutes\` block in the application. Route families must be composed as a ApiModule/ApiExtension, or annotate the file with \`// voyant-route-owner: <reason>\`.`,
     })
   }
 
@@ -104,7 +104,7 @@ for (const file of walkApiFiles(STARTERS_DIR)) {
   if (!(rel in baselineFiles)) {
     violations.push({
       rel,
-      message: `new route-bearing starter file (${routeCount} \`/v1/\` route${routeCount === 1 ? "" : "s"}). Move the interface into a package module/extension, or annotate with \`// voyant-route-owner: <reason>\`.`,
+      message: `new route-bearing application file (${routeCount} \`/v1/\` route${routeCount === 1 ? "" : "s"}). Move the interface into a package module/extension, or annotate with \`// voyant-route-owner: <reason>\`.`,
     })
     continue
   }
@@ -113,7 +113,7 @@ for (const file of walkApiFiles(STARTERS_DIR)) {
   if (routeCount > allowed) {
     violations.push({
       rel,
-      message: `${routeCount} \`/v1/\` routes, baseline allows ${allowed}. Do not add new framework routes to the starter — extract into a package, or annotate with \`// voyant-route-owner: <reason>\`.`,
+      message: `${routeCount} \`/v1/\` routes, baseline allows ${allowed}. Do not add new framework routes to the application — extract into a package, or annotate with \`// voyant-route-owner: <reason>\`.`,
     })
   } else if (routeCount < allowed) {
     warnings.push(
@@ -132,7 +132,7 @@ for (const rel of Object.keys(baselineFiles)) {
 }
 
 console.log(
-  `check-route-ownership: scanned ${STARTERS_DIR.replace(`${ROOT}/`, "")} — ${seenFiles.size} route-bearing files (${annotated.length} annotated, ${Object.keys(baselineFiles).length} baselined).`,
+  `check-route-ownership: scanned ${APPLICATION_DIR.replace(`${ROOT}/`, "")} — ${seenFiles.size} route-bearing files (${annotated.length} annotated, ${Object.keys(baselineFiles).length} baselined).`,
 )
 
 if (annotated.length > 0) {
@@ -157,7 +157,7 @@ if (violations.length > 0) {
   }
   if (!REPORT_ONLY) {
     console.error(
-      "\nNew starter routes must carry an ownership decision. Re-run with --report to see findings without failing.",
+      "\nNew application routes must carry an ownership decision. Re-run with --report to see findings without failing.",
     )
     process.exit(1)
   }

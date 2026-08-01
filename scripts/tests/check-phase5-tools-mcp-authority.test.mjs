@@ -44,7 +44,7 @@ describe("Phase 5 tools/MCP authority checker", () => {
 
   it("rejects the Operator-local MCP compatibility module", () => {
     const files = validFixture()
-    files.set("starters/operator/src/modules/mcp/index.ts", "mcpModule")
+    files.set("apps/operator/src/modules/mcp/index.ts", "mcpModule")
     assert.match(inspectPhase5ToolsMcpAuthority(files).join("\n"), /must be removed/)
   })
 

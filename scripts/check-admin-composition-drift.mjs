@@ -6,7 +6,7 @@
  * The silent-failure this prevents (the #1 upgrade risk in the deployment-DX
  * assessment): a graph-selected package exposes a packaged admin but does not
  * declare admin.runtime, so its nav/pages silently vanish or fall back to a
- * starter-owned compatibility catalog.
+ * application-owned compatibility catalog.
  *
  * Rule:
  *   expected = graph-selected module/plugin packages with an admin route
@@ -23,15 +23,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
 const GRAPH = optionPath(
   "--graph",
-  join(ROOT, "starters/operator/.voyant/deployment-graph.generated.json"),
+  join(ROOT, "apps/operator/.voyant/deployment-graph.generated.json"),
 )
 const EXTENSIONS = optionPath(
   "--extensions",
-  join(ROOT, "starters/operator/src/admin.extensions.generated.ts"),
+  join(ROOT, "apps/operator/src/admin.extensions.generated.ts"),
 )
 const BUNDLE = optionPath(
   "--bundle",
-  join(ROOT, "starters/operator/.voyant/admin/selected-graph-admin.generated.js"),
+  join(ROOT, "apps/operator/.voyant/admin/selected-graph-admin.generated.js"),
 )
 const PRESENTATION = optionPath(
   "--presentation",
@@ -39,32 +39,29 @@ const PRESENTATION = optionPath(
 )
 const COMPATIBILITY = optionPath(
   "--compatibility",
-  join(ROOT, "starters/operator/src/lib/admin-extensions.tsx"),
+  join(ROOT, "apps/operator/src/lib/admin-extensions.tsx"),
 )
-const ROUTER = optionPath("--router", join(ROOT, "starters/operator/src/router.tsx"))
+const ROUTER = optionPath("--router", join(ROOT, "apps/operator/src/router.tsx"))
 const WORKSPACE = optionPath(
   "--workspace-source",
   join(ROOT, "packages/admin-host/src/workspace.tsx"),
 )
-const OPERATOR_PACKAGE = optionPath(
-  "--operator-package",
-  join(ROOT, "starters/operator/package.json"),
-)
+const OPERATOR_PACKAGE = optionPath("--operator-package", join(ROOT, "apps/operator/package.json"))
 const ADMIN_HOST_DESTINATIONS = optionPath(
   "--admin-host-destinations",
   join(ROOT, "packages/admin-host/src/admin-destinations.ts"),
 )
 const LEGACY_ROUTES = optionPath(
   "--legacy-routes",
-  join(ROOT, "starters/operator/src/admin.routes.generated.tsx"),
+  join(ROOT, "apps/operator/src/admin.routes.generated.tsx"),
 )
 const LEGACY_DESTINATIONS = optionPath(
   "--legacy-destinations",
-  join(ROOT, "starters/operator/src/admin.destinations.generated.ts"),
+  join(ROOT, "apps/operator/src/admin.destinations.generated.ts"),
 )
 const LEGACY_GENERATOR = optionPath(
   "--legacy-generator",
-  join(ROOT, "starters/operator/scripts/run-admin-generator.ts"),
+  join(ROOT, "apps/operator/scripts/run-admin-generator.ts"),
 )
 
 function optionPath(name, fallback) {
@@ -78,7 +75,7 @@ function optionPath(name, fallback) {
 function readGraphSelectedAdminPackages() {
   if (!existsSync(GRAPH)) {
     throw new Error(
-      "starters/operator/.voyant/deployment-graph.generated.json is missing - run `pnpm --filter operator prepare:verify`",
+      "apps/operator/.voyant/deployment-graph.generated.json is missing - run `pnpm --filter operator prepare:verify`",
     )
   }
 
@@ -229,13 +226,13 @@ const violations = []
 
 if (existsSync(EXTENSIONS)) {
   violations.push(
-    "starters/operator/src/admin.extensions.generated.ts must not exist; all admin factories must be selected-graph owned",
+    "apps/operator/src/admin.extensions.generated.ts must not exist; all admin factories must be selected-graph owned",
   )
 }
 
 if (existsSync(COMPATIBILITY)) {
   violations.push(
-    "starters/operator/src/lib/admin-extensions.tsx must not exist; generic composition belongs to admin-host",
+    "apps/operator/src/lib/admin-extensions.tsx must not exist; generic composition belongs to admin-host",
   )
 }
 

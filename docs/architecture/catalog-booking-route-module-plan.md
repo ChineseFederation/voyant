@@ -17,7 +17,7 @@ layer that those hooks expect before `@voyant-travel/bookings-react/journey` can
 safe installable package swap.
 
 The operator starter currently has a working implementation in
-`starters/operator/src/api/catalog-booking.ts`, but it mixes three concerns:
+`apps/operator/src/api/catalog-booking.ts`, but it mixes three concerns:
 
 - the reusable BookingJourney route contract
 - operator-specific helpers such as slots, order administration, and booking
@@ -168,7 +168,7 @@ already depend on them: `error`, `code`, and optional `context`.
 ## Operator Starter Migration
 
 After the package module exists, update
-`starters/operator/src/api/catalog-booking.ts` to:
+`apps/operator/src/api/catalog-booking.ts` to:
 
 - import the package route factory
 - mount the shared route family for both admin and public catalog surfaces
@@ -231,7 +231,7 @@ Run the smallest checks that cover the blast radius:
 
 - `pnpm --filter @voyant-travel/catalog test`
 - `pnpm --filter @voyant-travel/catalog typecheck`
-- `pnpm -C starters/operator typecheck`
+- `pnpm -C apps/operator typecheck`
 - `pnpm lint:changed`
 - `pnpm verify:package-exports` when adding or changing package exports
 

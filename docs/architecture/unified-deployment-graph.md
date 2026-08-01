@@ -492,7 +492,7 @@ gates are:
 ```sh
 pnpm verify:deployment-graph
 pnpm verify:standard-distribution-authority
-pnpm verify:standard-node-starter
+pnpm verify:operator-application
 pnpm verify:generic-node-bootstrap-authority
 pnpm verify:node-runtime-product-authority
 pnpm verify:operator-openapi-authority

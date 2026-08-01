@@ -12,8 +12,8 @@ import { fileURLToPath } from "node:url"
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
 
-const DOCKERFILE = "starters/operator/Dockerfile"
-const OPERATOR_PACKAGE_JSON = "starters/operator/package.json"
+const DOCKERFILE = "apps/operator/Dockerfile"
+const OPERATOR_PACKAGE_JSON = "apps/operator/package.json"
 const PRODUCT_PACKAGE_JSON = "packages/operator-standard/package.json"
 const MIGRATION_RUNNER = "scripts/run-generated-migrations.mjs"
 
@@ -84,7 +84,7 @@ if (!existsSync(join(ROOT, DOCKERFILE))) {
       message: "The Dockerfile must not bypass the operator build with a raw Vite build.",
     })
   }
-  if (!source.includes("COPY --from=build /repo/starters/operator/dist ./dist")) {
+  if (!source.includes("COPY --from=build /repo/apps/operator/dist ./dist")) {
     violations.push({
       file: DOCKERFILE,
       check: "docker-runtime-dist-copy-missing",

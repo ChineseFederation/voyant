@@ -7,8 +7,8 @@
 #
 # This is a pnpm-monorepo build — run it from the REPO ROOT, pointing at this file:
 #
-#   docker build -f starters/operator/Dockerfile -t voyant-operator .
-#   docker run --rm -p 8080:8080 --env-file starters/operator/.env voyant-operator
+#   docker build -f apps/operator/Dockerfile -t voyant-operator .
+#   docker run --rm -p 8080:8080 --env-file apps/operator/.env voyant-operator
 #
 # The Vite build leaves installed runtime package imports external while still
 # bundling application-owned server chunks, so the runtime image ships built
@@ -50,9 +50,9 @@ RUN node scripts/apply-publish-config.mjs /deploy
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-COPY --from=build /repo/starters/operator/dist ./dist
+COPY --from=build /repo/apps/operator/dist ./dist
 COPY --from=build /deploy/node_modules ./node_modules
-COPY --from=build /repo/starters/operator/package.json ./package.json
+COPY --from=build /repo/apps/operator/package.json ./package.json
 COPY --from=build /repo/scripts/run-generated-migrations.mjs ./run-generated-migrations.mjs
 
 # The platform supplies env (DATABASE_URL / DATABASE_URL_DIRECT, realm auth secrets,

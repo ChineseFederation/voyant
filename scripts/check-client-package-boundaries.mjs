@@ -14,19 +14,19 @@ const browserRoots = [
   "packages/notifications-react/src",
   "packages/operations-react/src",
   "packages/storefront-react/src",
-  "starters/operator/src/components",
-  "starters/operator/src/links",
-  "starters/operator/src/routes",
+  "apps/operator/src/components",
+  "apps/operator/src/links",
+  "apps/operator/src/routes",
 ]
 
 const browserFiles = [
   "packages/admin-host/src/workspace.tsx",
-  "starters/operator/src/entry.ts",
-  "starters/operator/src/lib/admin-presentation.tsx",
-  "starters/operator/src/lib/custom-fields.ts",
-  "starters/operator/src/lib/observability.ts",
-  "starters/operator/src/router.tsx",
-  "starters/operator/src/start.ts",
+  "apps/operator/src/entry.ts",
+  "apps/operator/src/lib/admin-presentation.tsx",
+  "apps/operator/src/lib/custom-fields.ts",
+  "apps/operator/src/lib/observability.ts",
+  "apps/operator/src/router.tsx",
+  "apps/operator/src/start.ts",
 ]
 
 const forbiddenImports = [

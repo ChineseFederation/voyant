@@ -3,17 +3,17 @@
   "entry": [
     // Drizzle CLI loads this config by path when regenerating the framework
     // migration bundle; it is not imported by runtime code.
-    "starters/operator/drizzle.framework-bundle.config.ts",
+    "apps/operator/drizzle.framework-bundle.config.ts",
     // One-time operator upgrade script referenced by the custom-fields
     // retirement migration/docs and run directly with tsx.
-    "starters/operator/scripts/backfill-custom-fields.ts",
+    "apps/operator/scripts/backfill-custom-fields.ts",
     // Link definitions are generator input for `voyant db sync-links
     // --emit-drizzle`; the generated table schema is migrated separately.
-    "starters/operator/src/links/index.ts",
+    "apps/operator/src/links/index.ts",
     // Generated typed-link route scaffolding consumed by the operator router.
     // Individual route constants are intentionally codegen exports so the
     // route maps can reference their `typeof` shapes.
-    "starters/operator/src/admin.routes.generated.tsx",
+    "apps/operator/src/admin.routes.generated.tsx",
     // The federated starter manifest is loaded by CLI/schema tooling, not
     // imported by the runtime app graph.
     "starters/federated-operator/voyant.config.ts",
@@ -30,7 +30,7 @@
   "dynamicallyLoaded": [
     // Deployment-local generated Drizzle schema consumed through config string
     // paths in `voyant.config.ts` and Drizzle migration configs.
-    "starters/operator/drizzle.links.generated.ts"
+    "apps/operator/drizzle.links.generated.ts"
   ],
   "ignorePatterns": [
     "apps/agent-control-plane/**",

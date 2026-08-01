@@ -9,7 +9,7 @@ Branch: `feature/reporting-module`
 
 ## How it was run
 
-The real operator route (`/reporting` inside `starters/operator`) could not be
+The real operator route (`/reporting` inside `apps/operator`) could not be
 driven end-to-end in this environment: the operator boots the full Voyant
 runtime (Postgres, Better Auth admin sign-in, KMS, the `voyant build`
 artifact/route-generation pipeline, and Cloud-owned config). Standing that up
@@ -32,8 +32,8 @@ backend**:
   persisted state — real refresh persistence.
 
 Harness location (untracked, NOT committed):
-`starters/operator/.agent-harness/`. To reproduce:
-`cd starters/operator && node_modules/.bin/vite --config .agent-harness/vite.config.mts`
+`apps/operator/.agent-harness/`. To reproduce:
+`cd apps/operator && node_modules/.bin/vite --config .agent-harness/vite.config.mts`
 
 URL exercised: `http://localhost:41739/#/reporting` (list) and
 `http://localhost:41739/#/reporting/rpt-overview` (detail).

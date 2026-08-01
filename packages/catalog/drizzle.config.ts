@@ -7,7 +7,7 @@ import { defineConfig } from "drizzle-kit"
  *   1. Reference `packages/catalog/src/schema.ts` from their template's
  *      `drizzle.config.ts` schema list. The template's existing migration
  *      pipeline picks up the catalog tables alongside its other modules.
- *      Recommended for net-new deployments (see `starters/operator/drizzle.config.ts`).
+ *      Recommended for net-new deployments (see `apps/operator/drizzle.config.ts`).
  *   2. Generate standalone catalog migrations using this config and apply
  *      them separately. Useful for adding the catalog plane to an existing
  *      deployment whose template already has a long migration history.

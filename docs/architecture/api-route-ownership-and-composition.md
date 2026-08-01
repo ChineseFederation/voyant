@@ -53,7 +53,7 @@ it for most of the surface:
   is clearer without the package name segment.
 - `composeFromManifest(...)` from `@voyant-travel/hono/composition` derives
   runtime modules and extensions from a manifest plus a typed capability
-  container. This is not latent: `starters/operator/src/api/composition.ts`
+  container. This is not latent: `apps/operator/src/api/composition.ts`
   **already** composes ~20 modules and 6 extensions this way, through
   `OPERATOR_RUNTIME_MANIFEST` + `operatorComposition` + `buildOperatorCapabilities()`.
 - the packages behind that manifest already export route-bearing modules — for
@@ -64,7 +64,7 @@ it for most of the surface:
 So the clean composition path is the established, in-production pattern, not
 something this proposal introduces. The gap is narrow and specific: a set of
 route families that bypass the registry and are hand-mounted through
-`additionalRoutes` in `app.ts`. For those families `starters/operator/src/api`
+`additionalRoutes` in `app.ts`. For those families `apps/operator/src/api`
 carries more than deployment wiring — route handlers, route schemas, path lists,
 lazy mounts, payment and checkout route families, flight routes, catalog offer
 routes, media routes, proposal routes, and other HTTP contracts that a second
@@ -79,7 +79,7 @@ scratch — which makes it lower-risk than a greenfield reading suggests.
 The clean target is:
 
 1. Package route interfaces live in packages.
-2. Deployment-specific runtime adapters live in starters/apps.
+2. Deployment-specific runtime adapters live in apps/apps.
 3. Every route-bearing thing enters through one contribution path:
    `ApiModule` or `ApiExtension`, including deployment-local routes.
 4. Runtime composition is manifest-driven, but manifest entries and runtime
@@ -90,7 +90,7 @@ The clean target is:
 6. Lazy loading and route-bundle performance are built into the composition
    layer, not reimplemented by each starter.
 7. A checker prevents new framework route contracts from being added under
-   `starters/*` without an explicit ownership reason.
+   `apps/*` without an explicit ownership reason.
 
 ## Problem
 
@@ -101,7 +101,7 @@ The current repo has two route-authoring patterns:
 - Package-owned routes, such as `@voyant-travel/bookings`,
   `@voyant-travel/finance`, `@voyant-travel/inventory`, and
   `@voyant-travel/storefront`, export route-bearing `ApiModule`s.
-- Operator-owned routes under `starters/operator/src/api` mount either local
+- Operator-owned routes under `apps/operator/src/api` mount either local
   handlers or package route factories through `additionalRoutes`.
 
 The first pattern is reusable. The second pattern works for the operator
@@ -165,7 +165,7 @@ of the flow it runs, not something every deployment should rediscover.
 
 ### Shallow deployment interfaces create drift
 
-The deletion test is the clearest signal: if `starters/operator/src/api` route
+The deletion test is the clearest signal: if `apps/operator/src/api` route
 handlers were deleted, the complexity would not disappear. It would reappear in
 every deployment that wants catalog booking, payment links, flights, proposals,
 media uploads, or catalog offers. That means the starter is not hiding
@@ -675,7 +675,7 @@ Performance guardrails should be part of the implementation:
 
 ### Phase 0: Inventory and freeze new drift
 
-Create a route ownership inventory for `starters/operator/src/api`:
+Create a route ownership inventory for `apps/operator/src/api`:
 
 - package-owned and already reusable.
 - package-owned but still mounted manually.
@@ -685,7 +685,7 @@ Create a route ownership inventory for `starters/operator/src/api`:
 
 Add a checker or lint rule that flags new route-bearing code outside the
 composition path, including direct Hono route definitions under
-`starters/*/src/api`:
+`apps/*/src/api`:
 
 - `hono.get("/v1/...")`
 - `hono.post("/v1/...")`
@@ -920,7 +920,7 @@ This proposal is complete when:
 - Heavy route families can be lazy-loaded through `@voyant-travel/hono` without
   being mounted through starter-local helper code.
 - Route tests live with the package that owns the route interface.
-- A checker prevents new `/v1/*` route handlers under `starters/*` without an
+- A checker prevents new `/v1/*` route handlers under `apps/*` without an
   explicit ownership annotation.
 
 ## Non-Goals
@@ -1025,7 +1025,7 @@ Recommended JSON shape:
 
 ```json
 {
-  "starters/operator/src/api/flights.ts": {
+  "apps/operator/src/api/flights.ts": {
     "owner": "candidate-package",
     "target": "@voyant-travel/flights",
     "notes": "Extract through lazy API route contribution."
@@ -1052,7 +1052,7 @@ portable product meaning, such as local dev toggles or diagnostics.
 
 1. Add the route ownership checker. **(done — this PR)**
    - `scripts/check-route-ownership.mjs`, wired as `pnpm verify:route-ownership`,
-     scans `starters/*​/src/api` for direct `/v1/*` route definitions and new
+     scans `apps/*​/src/api` for direct `/v1/*` route definitions and new
      `additionalRoutes` usage.
    - The current 15 route-bearing files are baselined in
      `scripts/route-ownership-baseline.json` (per-file `/v1/` route counts).

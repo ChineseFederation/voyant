@@ -548,7 +548,7 @@ export type SourceRef = { connectionId?: string; externalId: string; [k: string]
 Two registration points in a template (mirroring cruises):
 
 ```ts
-// starters/operator/src/index.ts (illustrative)
+// apps/operator/src/index.ts (illustrative)
 import { createApp } from "@voyant-travel/hono"
 import { chartersApiModule, registerCharterAdapter } from "@voyant-travel/charters"
 import { createConnectCharterAdapter } from "@voyant-travel/charters-adapter-connect"

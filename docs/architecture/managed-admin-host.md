@@ -64,10 +64,10 @@ selection from bootstrap payloads.
 
 `loadManagedProfileRuntime` (`@voyant-travel/framework/managed-runtime`, #2987)
 gives Cloud a **source-free API** runtime entry: it boots `createVoyantApp` from
-a serialized profile snapshot with no `starters/operator` import. There is no
+a serialized profile snapshot with no `apps/operator` import. There is no
 equivalent for the **admin UI**. To put the admin into
 `voyant-runtime:<framework-version>` (platform#954), Cloud must today
-copy `starters/operator/src/*` (route tree, providers, TanStack Start server
+copy `apps/operator/src/*` (route tree, providers, TanStack Start server
 entry, generated files) and its `vite.config.ts` (chunking + SSR config). That
 copied build config is load-bearing and diverges — the exact
 "copied-build-config-diverges" failure class the Packaged Admin RFC calls out
@@ -76,7 +76,7 @@ copied build config is load-bearing and diverges — the exact
 
 **Goal:** a framework-owned, source-free admin host Cloud can package next to
 the API runtime entry, serving the standard admin (SSR + client assets) from
-published packages + a profile snapshot, with **no** `starters/operator/src/*`
+published packages + a profile snapshot, with **no** `apps/operator/src/*`
 and **no** copied `vite.config.ts`.
 
 ## Naming: profile-agnostic, not "operator"-bound
@@ -285,7 +285,7 @@ Produce the admin client + SSR bundle from packages with no copied build config.
 - **Acceptance:** `createManagedProfileAdmin` end-to-end — a build in a scratch
   dir with only published packages + a snapshot + the thin entry produces
   `dist/client` + `dist/server`, and `node server.js` serves SSR admin + `/api`
-  in one process. No `starters/operator/src/*` in the build graph.
+  in one process. No `apps/operator/src/*` in the build graph.
 - **SSR-manifest acceptance is a test, not a theory.** `withActiveRouteSsrManifest`
   restricts preloads to active routes; the scratch-admin build must **prove**
   chunk/preload selection still maps to the generated route tree. Smoke: build

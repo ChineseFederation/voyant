@@ -9,7 +9,7 @@ describe("operator action ledger schema mounting", () => {
   it("keeps the action ledger schema in the migration schema set", () => {
     const migrationPlan = JSON.parse(
       readFileSync(
-        resolve(repoRoot, "starters/operator/.voyant/migration-plan.generated.json"),
+        resolve(repoRoot, "apps/operator/.voyant/migration-plan.generated.json"),
         "utf8",
       ),
     ) as { migrations: Array<{ packageName?: string; source?: { path?: string } }> }

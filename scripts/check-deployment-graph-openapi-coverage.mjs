@@ -17,7 +17,7 @@ import {
   formatDeploymentGraphOpenApiCoverageFailure,
 } from "./lib/deployment-graph-openapi-coverage-report.mjs"
 
-const DEFAULT_GRAPH = "starters/operator/.voyant/deployment-graph.generated.json"
+const DEFAULT_GRAPH = "apps/operator/.voyant/deployment-graph.generated.json"
 const DEFAULT_OPENAPI_DIR = "packages"
 const CHECKED_SURFACES = new Set(["admin", "storefront"])
 // Ratchet only. The document names and owners remain authoritative in package

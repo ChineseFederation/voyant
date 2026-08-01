@@ -127,7 +127,7 @@ describe("operator composed route mounting (smoke)", () => {
     expect(await status("/v1/admin/definitely-not-mounted/x")).toBe(404)
   })
 
-  it("mounts MICE booking details routes through the live starter front door", async () => {
+  it("mounts MICE booking details routes through the live application front door", async () => {
     const bookingPath = "/v1/admin/bookings/book_123/mice-details"
 
     expect(await liveFrontDoorStatus(bookingPath)).not.toBe(404)
@@ -279,7 +279,7 @@ describe("operator composed route mounting (smoke)", () => {
     expect(redeem.status).not.toBe(404)
   })
 
-  it("lets public operator settings pass the starter public actor gate", async () => {
+  it("lets public operator settings pass the application public actor gate", async () => {
     const settings = await liveFrontDoorStatus("/v1/public/settings/operator")
 
     expect(settings).not.toBe(401)

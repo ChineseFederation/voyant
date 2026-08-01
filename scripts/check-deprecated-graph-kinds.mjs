@@ -3,7 +3,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const workspaceRoots = ["packages", "starters/operator", "apps", "examples"]
+const workspaceRoots = ["packages", "apps", "examples"]
 const targetByPackage = new Map([
   ["@voyant-travel/plugin-payload-cms", "remote app or adapter"],
   ["@voyant-travel/plugin-sanity-cms", "remote app or adapter"],

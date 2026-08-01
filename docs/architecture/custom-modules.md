@@ -324,7 +324,7 @@ resolution as package-owned facets, not separate starter scans.
 
 Widget slots are starter-defined strings (`dashboard.after-kpis`,
 `booking.details.header`, `invoice.details.after-summary`, …). See
-`starters/operator/src/admin/README.md`.
+`apps/operator/src/admin/README.md`.
 
 ## Why it's upgrade-safe
 

@@ -12,7 +12,7 @@ const paths = {
   contributor: "packages/legal/src/runtime-contributor.ts",
   distribution: "packages/operator-standard/src/index.ts",
   composition: "packages/runtime/src/deployment-resources.ts",
-  config: "starters/operator/voyant.config.ts",
+  config: "apps/operator/voyant.config.ts",
 }
 
 const sources = Object.fromEntries(

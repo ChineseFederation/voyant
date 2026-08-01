@@ -10,7 +10,7 @@
  *
  * Layout-agnostic: each generated schema path is mapped back to the owning
  * package by matching either
- *   • a monorepo path `…/packages/<dir>/…`                       (starters/operator), or
+ *   • a monorepo path `…/packages/<dir>/…`                       (apps/operator), or
  *   • an installed path `…/node_modules/@voyant-travel/<name>/…` (npm deployments,
  *     including pnpm's `…/.pnpm/…/node_modules/@voyant-travel/<name>/…`).
  * The package's own folder (its root) is the substring up to that boundary, so

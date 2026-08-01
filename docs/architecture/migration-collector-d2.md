@@ -30,7 +30,7 @@ One drizzle migrations folder per package — generated from that package's own 
 
 ### 2. Discovery resolves the schema **closure**, not the mounted set
 
-A deployment's sources are not just the packages in `voyant.config.ts`. The aggregate schema list already pulls in transitive, non-mounted schema dependencies — e.g. `@voyant-travel/db` appears in `starters/operator/drizzle.schemas.generated.ts` though it is in no `modules`/`extensions`/`additionalSchemas` entry. D.2 **reuses the same closure resolver that emits `drizzle.schemas.generated.ts`** — the one driven by each package's `voyant.requiresSchemas` metadata (`packages/catalog/package.json` declares `requiresSchemas: ["@voyant-travel/db"]`; the closure is already walked in `scripts/check-retail-spine-closure.mjs`). The set of migration sources is exactly the set of packages in that resolved schema closure, plus the deployment-local source.
+A deployment's sources are not just the packages in `voyant.config.ts`. The aggregate schema list already pulls in transitive, non-mounted schema dependencies — e.g. `@voyant-travel/db` appears in `apps/operator/drizzle.schemas.generated.ts` though it is in no `modules`/`extensions`/`additionalSchemas` entry. D.2 **reuses the same closure resolver that emits `drizzle.schemas.generated.ts`** — the one driven by each package's `voyant.requiresSchemas` metadata (`packages/catalog/package.json` declares `requiresSchemas: ["@voyant-travel/db"]`; the closure is already walked in `scripts/check-retail-spine-closure.mjs`). The set of migration sources is exactly the set of packages in that resolved schema closure, plus the deployment-local source.
 
 ### 3. Topological ordering from `voyant.requiresSchemas` (DAG now, not deferred)
 

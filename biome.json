@@ -63,9 +63,9 @@
       "!packages/commerce-react/src/*/styles.css",
       "!packages/distribution-react/src/*/styles.css",
       "!packages/operations-react/src/*/styles.css",
-      "!starters/operator/src/components/ui",
-      "!starters/operator/src/lib/async-utils.ts",
-      "!starters/operator/src/styles.css"
+      "!apps/operator/src/components/ui",
+      "!apps/operator/src/lib/async-utils.ts",
+      "!apps/operator/src/styles.css"
     ]
   }
 }

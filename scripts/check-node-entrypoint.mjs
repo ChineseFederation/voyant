@@ -2,16 +2,16 @@ import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 const root = resolve(import.meta.dirname, "..")
-const serverPath = "starters/operator/src/server.ts"
+const serverPath = "apps/operator/src/server.ts"
 const runtimePath = "packages/runtime/src/index.ts"
 const violations = []
 
 for (const retired of [
-  "starters/operator/src/entry.ts",
-  "starters/operator/src/api-dispatch.ts",
-  "starters/operator/src/scheduled-crons.ts",
-  "starters/operator/src/ssr-handler.ts",
-  "starters/operator/src/workflow-runtime.ts",
+  "apps/operator/src/entry.ts",
+  "apps/operator/src/api-dispatch.ts",
+  "apps/operator/src/scheduled-crons.ts",
+  "apps/operator/src/ssr-handler.ts",
+  "apps/operator/src/workflow-runtime.ts",
 ]) {
   if (existsSync(join(root, retired))) violations.push(`${retired} must stay package-owned`)
 }

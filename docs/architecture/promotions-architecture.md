@@ -430,7 +430,7 @@ Mirrors the destinations / taxonomy / departures / pricing pattern from #493:
 - **`packages/inventory/src/catalog-policy-promotions.ts`** declares the `productPromotionsCatalogPolicy` field policy entries — paths, `localized: false` (offer names are operator-managed in one language for v1; localization tracked as follow-up), `reindex: "facet-affecting"`, `query: "indexed-column"`, `snapshot: "on-quote-and-book"`, audience visibility `["staff", "customer", "partner"]`.
 - **`packages/commerce/src/promotions/service-catalog-plane-promotions.ts`** lives here (not in `products`) because the data lives here, mirroring the `@voyant-travel/operations/service-catalog-plane-departures` precedent. Exports `createProductPromotionsProjectionExtension()`. It receives a slice, looks up applicable offers via the rule evaluator (with `pax: undefined` so the catalog gets the conditional set, no `code` so code-gated offers are excluded), and contributes the projection map. No `executionCtx` concerns — projections run inside `withDbFromEnv`-wrapped subscribers per the lifecycle audit (#510).
 - **Annotation-only contract** (per §3.7). The extension does NOT overwrite `priceFromAmountCents`. It contributes only the `bestOffer*`, `originalPriceFromAmountCents`, `conditionalOffer*` fields. Storefront consumers compute the effective price client-side.
-- **Operator starter wiring**: `starters/operator/src/api/lib/catalog-runtime.ts` composes `productPromotionsCatalogPolicy` into the products registry alongside destinations / taxonomy / departures / pricing, and adds `createProductPromotionsProjectionExtension()` to the extensions list of `createProductsDocumentBuilder`.
+- **Operator starter wiring**: `apps/operator/src/api/lib/catalog-runtime.ts` composes `productPromotionsCatalogPolicy` into the products registry alongside destinations / taxonomy / departures / pricing, and adds `createProductPromotionsProjectionExtension()` to the extensions list of `createProductsDocumentBuilder`.
 - **Reindex triggers** — two kinds:
   - **Mutation-driven**: `PROMOTION_CHANGED_EVENT = "promotion.changed"` emitted by service mutations. See §9.1.
   - **Time-driven (boundary scheduler)**: a cron emits `promotion.changed` events when offers transition active / inactive at `valid_from` / `valid_until` boundaries — without it, the index would silently show expired discounts until another mutation triggered a reindex. See §9.2.
@@ -453,7 +453,7 @@ There are no live consumers of `draft.voucher.code` today — the audit in §1 c
 
 `PricingBasis` has no `totalCents` field — the actual columns are `base_amount`, `taxes`, `fees`, `surcharges`, `currency` (`packages/catalog/src/snapshot/schema.ts:21`). The promotion discount applies to **`base_amount` only** (pre-tax), for two reasons:
 
-1. **Tax recompute compatibility.** The operator starter runs `applyOperatorTaxToQuoteResult` after `quoteEntity` (`starters/operator/src/api/catalog-booking.ts:87`) — it computes taxes against the base. If the discount were applied post-tax, the operator's tax recompute would either undo the discount or double-tax the customer. Discounting the base before tax means the downstream tax step naturally produces a consistent total.
+1. **Tax recompute compatibility.** The operator starter runs `applyOperatorTaxToQuoteResult` after `quoteEntity` (`apps/operator/src/api/catalog-booking.ts:87`) — it computes taxes against the base. If the discount were applied post-tax, the operator's tax recompute would either undo the discount or double-tax the customer. Discounting the base before tax means the downstream tax step naturally produces a consistent total.
 2. **Operator clarity.** "20% off" universally means "20% off the list price", not "20% off the tax-inclusive total". Per-jurisdiction tax then applies to the discounted base.
 
 `fees` and `surcharges` are unaffected by promotions in v1 (they're typically supplier or platform charges that operators don't want to discount). A future config flag could let an operator opt to discount fees too.
@@ -644,7 +644,7 @@ The scheduler is a new operator-template cron that runs every 5 minutes. Each ti
 
 A separate `promotional_offer_scheduler_state` table (single row, `last_tick timestamptz`) stores the watermark. Adding it lives in PR3.
 
-**Operator starter wiring** (`starters/operator/wrangler.jsonc` triggers + `src/api/promotion-scheduled.ts`):
+**Operator starter wiring** (`apps/operator/wrangler.jsonc` triggers + `src/api/promotion-scheduled.ts`):
 
 ```jsonc
 "triggers": {

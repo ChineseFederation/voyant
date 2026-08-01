@@ -207,14 +207,26 @@ async function collectOptInRoots() {
     if ((await exists(sourceRoot)) && (await containsI18nSeam(sourceRoot))) roots.push(sourceRoot)
   }
 
-  const startersDir = path.join(rootDir, "starters")
-  const starterNames = await readdir(startersDir).catch(() => [])
+  const applicationsDir = path.join(rootDir, "apps")
+  const applicationNames = await readdir(applicationsDir).catch(() => [])
 
-  for (const starterName of starterNames) {
-    const adminI18nEntry = path.join(startersDir, starterName, "src", "lib", "admin-i18n.tsx")
+  for (const applicationName of applicationNames) {
+    const adminI18nEntry = path.join(
+      applicationsDir,
+      applicationName,
+      "src",
+      "lib",
+      "admin-i18n.tsx",
+    )
     if (!(await exists(adminI18nEntry))) continue
 
-    const voyantComponents = path.join(startersDir, starterName, "src", "components", "voyant")
+    const voyantComponents = path.join(
+      applicationsDir,
+      applicationName,
+      "src",
+      "components",
+      "voyant",
+    )
     if (await exists(voyantComponents)) roots.push(voyantComponents)
   }
 

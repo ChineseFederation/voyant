@@ -42,7 +42,7 @@ test("accepts package-owned Storage and brochure runtimes", () => {
   assert.match(runChecker(createFixture()), /OK/)
 })
 
-test("rejects a Storage contributor that returns to a starter capability", () => {
+test("rejects a Storage contributor that returns to a application capability", () => {
   const fixtureRoot = createFixture()
   const contributorPath = path.join(fixtureRoot, "packages/storage/src/runtime-contributor.ts")
   writeFileSync(
@@ -55,7 +55,7 @@ test("rejects a Storage contributor that returns to a starter capability", () =>
   assert.throws(() => runChecker(fixtureRoot), /Storage contributor/)
 })
 
-test("rejects an Inventory contributor that returns to a starter capability", () => {
+test("rejects an Inventory contributor that returns to a application capability", () => {
   const fixtureRoot = createFixture()
   const contributorPath = path.join(fixtureRoot, "packages/inventory/src/runtime-contributor.ts")
   writeFileSync(
@@ -80,8 +80,8 @@ test("rejects an Inventory brochure runtime coupled to the legacy cloud browser 
 
 test("rejects restored Operator storage compatibility facades", () => {
   for (const facade of [
-    "starters/operator/src/api/runtime/media-runtime.ts",
-    "starters/operator/src/api/lib/storage.ts",
+    "apps/operator/src/api/runtime/media-runtime.ts",
+    "apps/operator/src/api/lib/storage.ts",
   ]) {
     const fixtureRoot = createFixture()
     const facadePath = path.join(fixtureRoot, facade)

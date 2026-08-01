@@ -8,7 +8,7 @@ import {
 } from "./lib/first-party-manifest-convergence.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const graphPath = path.join(root, "starters/operator/.voyant/deployment-graph.generated.json")
+const graphPath = path.join(root, "apps/operator/.voyant/deployment-graph.generated.json")
 if (!existsSync(graphPath)) {
   throw new Error(
     "generated Operator graph is missing; run `pnpm --filter operator prepare:verify`",

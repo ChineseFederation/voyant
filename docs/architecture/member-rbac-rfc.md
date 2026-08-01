@@ -11,7 +11,7 @@ This RFC specifies role-based access control for **people** (staff members) insi
 A Voyant admin deployment today has **no in-app RBAC for human sessions**. Every authenticated session is granted full access:
 
 ```ts
-// starters/operator/src/api/auth/handler.ts — resolveAuthRequest()
+// apps/operator/src/api/auth/handler.ts — resolveAuthRequest()
 return {
   userId: session.user.id,
   // ...
@@ -138,7 +138,7 @@ The `TeamSettingsPage` (packages/admin) — already cloud-aware on `feat/deploym
 **Deployment (`voyant` repo):**
 - `packages/db` — `user_profiles.permissions jsonb<string[]>` (local mode); `cloud_auth_user_links.scopes jsonb<string[]>` (cloud cache). Migration + drizzle config.
 - New shared module (e.g. `@voyant-travel/types/permissions` or `packages/auth`) — role→bundle definitions + `resolveScopesForRole`, reusing `API_KEY_PERMISSION_GROUPS`.
-- `starters/operator/src/api/auth/handler.ts` — `resolveAuthRequest` reads the member scope set (both modes).
+- `apps/operator/src/api/auth/handler.ts` — `resolveAuthRequest` reads the member scope set (both modes).
 - `requirePermission` wired across `/v1/admin/*` module routes (phased).
 - `TeamSettingsPage` permission editor; `/v1/admin/team/*` routes accept/return a member permission set (cloud → platform; local → user_profiles).
 

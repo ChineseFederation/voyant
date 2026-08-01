@@ -21,7 +21,7 @@ compatibility flag — the request-id correlation context uses
 { "compatibility_flags": ["nodejs_compat"] }
 ```
 
-Voyant starters/templates already set this. **Node** deployments need nothing.
+Voyant apps/templates already set this. **Node** deployments need nothing.
 
 ## Usage
 

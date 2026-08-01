@@ -6,9 +6,9 @@ import "./check-node-host-dispatch-authority.mjs"
 const root = resolve(import.meta.dirname, "..")
 const violations = []
 const retiredAdapters = [
-  "starters/operator/src/api/app.ts",
-  "starters/operator/src/api/auth/handler.ts",
-  "starters/operator/src/api/runtime/runtime-adapter.ts",
+  "apps/operator/src/api/app.ts",
+  "apps/operator/src/api/auth/handler.ts",
+  "apps/operator/src/api/runtime/runtime-adapter.ts",
 ]
 const frameworkFiles = [
   "packages/framework/src/node-deployment-artifacts.ts",
@@ -16,7 +16,7 @@ const frameworkFiles = [
   "packages/framework/src/node-provider-plan.ts",
 ]
 
-for (const retiredPath of ["starters/operator/src/operator-node-provider-plan.ts"]) {
+for (const retiredPath of ["apps/operator/src/operator-node-provider-plan.ts"]) {
   if (existsSync(resolve(root, retiredPath))) {
     violations.push(`${retiredPath}: generic Node provider planning must stay framework-owned`)
   }
@@ -40,7 +40,7 @@ const frameworkPackage = read("packages/framework/package.json")
 requireText(frameworkPackage, '"./node-host": "./src/node-host.ts"', "framework package exports")
 requireText(frameworkPackage, '"./node-host"', "framework publish exports")
 
-const server = read("starters/operator/src/server.ts")
+const server = read("apps/operator/src/server.ts")
 requireText(server, 'from "@voyant-travel/runtime"', "Operator Node server")
 requireText(server, "createVoyantProjectServerEntry", "Operator Node server")
 if (server.split("\n").length > 16)

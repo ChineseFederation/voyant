@@ -97,7 +97,7 @@ Six extensions, two lists, zero enforcement that they stay in sync.
 Each template maintains its own divergent `schema: [...]` array:
 
 - `templates/dmc/drizzle.config.ts` — 24 package entries
-- `starters/operator/drizzle.config.ts` — 31 package entries + 1 starter-local
+- `apps/operator/drizzle.config.ts` — 31 package entries + 1 starter-local
   (`./src/db/schema.ts`)
 - `apps/dev/drizzle.config.ts` — 21 package entries (and **no `voyant.config.ts`
   at all** — see §3.1)
@@ -164,7 +164,7 @@ runs and what migrates.** Concretely:
 
 | Capability | Status | Where |
 |---|---|---|
-| Manifest of composed modules | ✅ exists | `starters/*/voyant.config.ts` (`modules: [...]`) |
+| Manifest of composed modules | ✅ exists | `apps/*/voyant.config.ts` (`modules: [...]`) |
 | Manifest of composed **extensions** | ❌ missing | extensions are runtime-only in `app.ts` |
 | Per-package schema declaration | ⚠️ partial | `package.json#voyant.schema` / `requiresSchemas` (used by CLI only) |
 | Transitive schema resolution | ✅ exists | `cli/.../lib/resolve-schemas.ts` → `resolveSchemas()` |
@@ -301,7 +301,7 @@ detection.
 Instead, **generate real Drizzle table definitions from the link definitions** and
 feed those into the schema manifest, so **Drizzle owns the diff and the snapshot**:
 
-- A small generator turns each `LinkDefinition` (`starters/*/src/links/index.ts`)
+- A small generator turns each `LinkDefinition` (`apps/*/src/links/index.ts`)
   into a Drizzle `pgTable` (id, `<left>_id`, `<right>_id`, timestamps, the
   cardinality-derived indexes) — the same shape `generateLinkTableSql` produces,
   but as a Drizzle schema object rather than a SQL string.

@@ -26,7 +26,7 @@ const namespaceOwnershipMigration = read(
 const relationshipsPackage = read("packages/relationships/package.json")
 const coreCustomFields = read("packages/core/src/custom-fields.ts")
 const coreIndex = read("packages/core/src/index.ts")
-const operatorMetadata = read("scripts/generate-operator-starter-metadata.mjs")
+const operatorMetadata = read("scripts/generate-operator-application-metadata.mjs")
 const relationshipsRouteIndex = read("packages/relationships/src/routes/index.ts")
 const relationshipsServiceIndex = read("packages/relationships/src/service/index.ts")
 const relationshipsValidation = read("packages/relationships/src/validation.ts")
@@ -194,12 +194,12 @@ for (const token of ["defineCustomField", "customFieldsFromGlob", "mergeCustomFi
 }
 if (operatorMetadata.includes("src/custom-fields"))
   failures.push("operator metadata must not discover project-local custom-field files")
-for (const starter of readdirSync(resolve(root, "starters"), { withFileTypes: true })) {
+for (const application of readdirSync(resolve(root, "apps"), { withFileTypes: true })) {
   if (
-    starter.isDirectory() &&
-    existsSync(join(root, "starters", starter.name, "src", "custom-fields"))
+    application.isDirectory() &&
+    existsSync(join(root, "apps", application.name, "src", "custom-fields"))
   ) {
-    failures.push(`starters/${starter.name}/src/custom-fields must stay absent`)
+    failures.push(`apps/${application.name}/src/custom-fields must stay absent`)
   }
 }
 const forbiddenHostTokens = [
@@ -209,7 +209,6 @@ const forbiddenHostTokens = [
   "operatorCustomFields",
 ]
 for (const sourceRoot of [
-  "starters",
   "apps",
   "packages/framework",
   "packages/runtime",

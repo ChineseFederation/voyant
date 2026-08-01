@@ -757,7 +757,7 @@ export default ${JSON.stringify(moduleManifest("@acme/cloud-only"))}
       '"../../src/modules/loyalty/tools.mjs": () => import("../../src/modules/loyalty/tools.mjs")',
     )
     expect(runtimeSource).not.toContain(root)
-    expect(runtimeSource).not.toContain("starters/")
+    expect(runtimeSource).not.toContain("apps/")
   })
 
   it("lowers index-only project modules with deterministic ids, ownership, and imports", async () => {

@@ -28,7 +28,7 @@ graph inputs, project extension folders, and generic router/Start/style
 entrypoints. Package manifests select presentation factories, and generated
 artifacts connect those factories to the product shell. Standard providers,
 auth and i18n adapters, public/storefront routes, API documentation, and product
-presentation must not be copied into `starters/operator/src`.
+presentation must not be copied into `apps/operator/src`.
 
 ## Why This Split Exists
 

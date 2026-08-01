@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import getReleasePlan from "@changesets/get-release-plan"
-
+import operatorProject from "../apps/operator/voyant.config.ts"
 import {
   buildDeploymentArtifactManifest,
   buildDeploymentGraphJson,
@@ -20,7 +20,6 @@ import {
   VOYANT_GRAPH_DIAGNOSTIC_CODE_REGISTRY,
 } from "../packages/framework/src/deployment-graph.ts"
 import { runtimeReferencePackageNames } from "../packages/framework/src/project-resolver.ts"
-import operatorProject from "../starters/operator/voyant.config.ts"
 import {
   type OperatorAuthoredProject,
   resolveOperatorDeploymentGraph,
@@ -29,7 +28,7 @@ import {
 const failures: string[] = []
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(scriptDirectory, "..")
-const operatorRoot = join(repoRoot, "starters", "operator")
+const operatorRoot = join(repoRoot, "apps", "operator")
 
 const OPERATOR_SCHEMA_ONLY_MODULE_SPECIFIERS = [
   "@voyant-travel/db",
@@ -382,7 +381,7 @@ async function main(): Promise<void> {
   }
   const operatorGitignore = await readFile(join(operatorRoot, ".gitignore"), "utf8")
   if (!operatorGitignore.split(/\r?\n/).some((line) => line === ".voyant" || line === ".voyant/")) {
-    failures.push("expected starters/operator/.gitignore to ignore .voyant/")
+    failures.push("expected apps/operator/.gitignore to ignore .voyant/")
   }
   const channelPushUnit = operatorGraph.extensions.find(
     (unit) => unit.id === "@voyant-travel/distribution#channel-push-extension",
@@ -497,7 +496,7 @@ async function main(): Promise<void> {
   }
 
   const operatorPackage = JSON.parse(
-    await readFile(new URL("../starters/operator/package.json", import.meta.url), "utf8"),
+    await readFile(new URL("../apps/operator/package.json", import.meta.url), "utf8"),
   ) as { scripts?: Record<string, string> }
   if (!operatorPackage.scripts?.["db:migrate"]?.includes("voyant migrate")) {
     failures.push("expected operator db:migrate to delegate to the graph-native external CLI")

@@ -11,7 +11,7 @@
 >
 > All of §5.1–5.8 below are DONE; they are kept as the record of how it was done.
 > The injection seam is: `ProductDetailHostProvider` (host.tsx) ← operator route
-> (`starters/operator/src/routes/_workspace/products/$id.tsx`) supplies messages
+> (`apps/operator/src/routes/_workspace/products/$id.tsx`) supplies messages
 > (`useAdminMessages()`), `api`, `locale`, `navigate` callbacks, `uploadMedia` (storage
 > step only — the page creates the record via `api`), `setBreadcrumbs`, and
 > `renderOptionExtras` (the availability panel).
@@ -83,11 +83,11 @@ rewritten already (see §4). Plus new files:
 - `MIGRATION.md` — this file.
 
 The operator originals live in:
-`starters/operator/src/components/voyant/products/` (36 files; `products-list-skeleton.tsx`
+`apps/operator/src/components/voyant/products/` (36 files; `products-list-skeleton.tsx`
 is the only file there that is NOT part of the detail page and was NOT copied).
 
 The **only external consumer** of the page is the route:
-`starters/operator/src/routes/_workspace/products/$id.tsx`
+`apps/operator/src/routes/_workspace/products/$id.tsx`
 (imports `ProductDetailPage` + a couple things from `product-detail-shared`).
 
 ---
@@ -163,7 +163,7 @@ passes the availability panel. `PricingPanel` (`product-options-pricing.tsx`) is
   once nothing imports its named exports (`ProductOverviewCard`, etc.). Grep first.
 
 ### 5.7 Operator rewire (the cutover)
-- Rewrite `starters/operator/src/routes/_workspace/products/$id.tsx` to render the inventory-react page
+- Rewrite `apps/operator/src/routes/_workspace/products/$id.tsx` to render the inventory-react page
   inside `ProductDetailHostProvider`, supplying:
   - `messages: useAdminMessages().products`
   - `api: <operator api client>`

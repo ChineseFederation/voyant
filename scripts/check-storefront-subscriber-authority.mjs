@@ -29,8 +29,8 @@ const sources = Object.fromEntries(
 const failures = []
 for (const retiredPath of [
   "packages/storefront/src/booking-bootstrap-subscriber-runtime.ts",
-  "starters/operator/src/api/app.ts",
-  "starters/operator/src/api/runtime/runtime-adapter.ts",
+  "apps/operator/src/api/app.ts",
+  "apps/operator/src/api/runtime/runtime-adapter.ts",
 ]) {
   if (existsSync(path.join(repoRoot, retiredPath)))
     failures.push(`${retiredPath} must stay deleted`)

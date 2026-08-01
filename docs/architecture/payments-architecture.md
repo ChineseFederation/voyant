@@ -255,7 +255,7 @@ three:
 2. **Demo adapters / plugins** — full adapter implementations whose data
    happens to be synthesized, but go through the same contract + code
    paths as a production adapter. The demo flight adapter
-   (`starters/operator/src/api/lib/flights-runtime.ts`) is the canonical
+   (`apps/operator/src/api/lib/flights-runtime.ts`) is the canonical
    example: the "demo" is in the data, not in the code path.
 3. **Sandbox modes of real integrations** — Netopia sandbox, Stripe test
    keys, Mollie test mode. Real plugin, fake account.
@@ -352,7 +352,7 @@ Finance React hooks for the data — never on individual processor plugins.
 Plugin selection happens at template-config time:
 
 ```ts
-// starters/operator/voyant.config.ts
+// apps/operator/voyant.config.ts
 import { defineConfig } from "@voyant-travel/framework"
 
 export default defineConfig({
@@ -501,7 +501,7 @@ Scope:
 ### Phase B — Wire `@voyant-travel/finance/checkout` into the flight booking flow
 
 Currently flights have their own in-memory order store
-(`starters/operator/src/api/lib/flights-runtime.ts`). To use the real
+(`apps/operator/src/api/lib/flights-runtime.ts`). To use the real
 payments stack, the flight order needs a corresponding `payment_session`
 in `@voyant-travel/finance` so `<PaymentStep>` and `<PaymentLinkLandingPage>`
 can read its state.

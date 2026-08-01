@@ -6,8 +6,8 @@ const root = path.resolve(rootIndex >= 0 ? process.argv[rootIndex + 1] : ".")
 const read = (relativePath) => readFileSync(path.join(root, relativePath), "utf8")
 const failures = []
 
-const starterRuntimePath = "starters/operator/src/lib/realtime.ts"
-const starterTestPath = "starters/operator/src/lib/realtime.test.ts"
+const applicationRuntimePath = "apps/operator/src/lib/realtime.ts"
+const applicationTestPath = "apps/operator/src/lib/realtime.test.ts"
 const deploymentResources = read("packages/runtime/src/deployment-resources.ts")
 const contributor = read("packages/realtime/src/runtime-contributor.ts")
 const runtime = read("packages/realtime/src/runtime.ts")
@@ -15,15 +15,15 @@ const manifest = read("packages/realtime/src/voyant.ts")
 const localProvider = read("packages/realtime/src/providers/local.ts")
 const cloudProvider = read("packages/realtime/src/providers/voyant-cloud.ts")
 const packageJson = JSON.parse(read("packages/realtime/package.json"))
-const retiredAdapterPath = "starters/operator/src/api/runtime/runtime-adapter.ts"
+const retiredAdapterPath = "apps/operator/src/api/runtime/runtime-adapter.ts"
 if (existsSync(path.join(root, retiredAdapterPath))) {
   failures.push(`${retiredAdapterPath} must stay deleted`)
 }
 const expectedRoutePolicy = JSON.parse(read("scripts/fixtures/realtime-route-policy.json"))
 
 if (
-  existsSync(path.join(root, starterRuntimePath)) ||
-  existsSync(path.join(root, starterTestPath))
+  existsSync(path.join(root, applicationRuntimePath)) ||
+  existsSync(path.join(root, applicationTestPath))
 ) {
   failures.push("Operator must not retain Realtime provider or route authority")
 }

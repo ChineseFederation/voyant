@@ -7,7 +7,7 @@ import { afterEach, test } from "node:test"
 import { fileURLToPath } from "node:url"
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
-const checker = join(repoRoot, "scripts/check-standard-node-starter.mjs")
+const checker = join(repoRoot, "scripts/check-operator-application.mjs")
 const standardNodeStarter = JSON.parse(
   readFileSync(join(repoRoot, "packages/framework/src/standard-node-starter.json"), "utf8"),
 )
@@ -140,34 +140,34 @@ test("rejects a missing optional project convention directory", () => {
   )
 })
 
-test("rejects database authority in the checked-in starter", () => {
+test("rejects database authority in the operator application", () => {
   const starter = fixture()
   const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
   roots.push(root)
-  const artifact = join(root, "starters/operator/drizzle.schemas.generated.ts")
+  const artifact = join(root, "apps/operator/drizzle.schemas.generated.ts")
   mkdirSync(dirname(artifact), { recursive: true })
   writeFileSync(artifact, "export const schema = []\n")
   assert.throws(
     () => run(starter, root),
     (error) =>
       String(error.stderr).includes(
-        "checked-in starter must not own database artifact starters/operator/drizzle.schemas.generated.ts",
+        "operator application must not own database artifact apps/operator/drizzle.schemas.generated.ts",
       ),
   )
 })
 
-test("rejects restored checked-in starter compatibility authority", () => {
+test("rejects restored operator application compatibility authority", () => {
   for (const relativePath of [
-    "starters/operator/scripts/backfill-custom-fields.ts",
-    "starters/operator/src/api/lib/catalog-context.ts",
-    "starters/operator/src/api/lib/storage.ts",
-    "starters/operator/src/api/runtime/payment-config.ts",
-    "starters/operator/src/api/runtime/booking-payment-policy-runtime.ts",
-    "starters/operator/src/api/runtime/media-runtime.ts",
-    "starters/operator/src/api/lib/db.ts",
-    "starters/operator/src/api/lib/db.test.ts",
-    "starters/operator/src/api/auth/cookie-domain.ts",
-    "starters/operator/src/api/auth/cookie-domain.test.ts",
+    "apps/operator/scripts/backfill-custom-fields.ts",
+    "apps/operator/src/api/lib/catalog-context.ts",
+    "apps/operator/src/api/lib/storage.ts",
+    "apps/operator/src/api/runtime/payment-config.ts",
+    "apps/operator/src/api/runtime/booking-payment-policy-runtime.ts",
+    "apps/operator/src/api/runtime/media-runtime.ts",
+    "apps/operator/src/api/lib/db.ts",
+    "apps/operator/src/api/lib/db.test.ts",
+    "apps/operator/src/api/auth/cookie-domain.ts",
+    "apps/operator/src/api/auth/cookie-domain.test.ts",
   ]) {
     const starter = fixture()
     const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
@@ -179,19 +179,17 @@ test("rejects restored checked-in starter compatibility authority", () => {
       () => run(starter, root),
       (error) =>
         String(error.stderr).includes(
-          relativePath === "starters/operator/scripts/backfill-custom-fields.ts"
-            ? `checked-in starter authority must stay deleted: ${relativePath}`
-            : `checked-in starter authority must stay deleted: ${relativePath}`,
+          `operator application authority must stay deleted: ${relativePath}`,
         ),
     )
   }
 })
 
-test("rejects restored starter-owned Flights reference fixtures", () => {
+test("rejects restored application-owned Flights reference fixtures", () => {
   const starter = fixture()
   const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
   roots.push(root)
-  const fixturePath = join(root, "starters/operator/scripts/seed-flights-reference-airlines.ts")
+  const fixturePath = join(root, "apps/operator/scripts/seed-flights-reference-airlines.ts")
   mkdirSync(dirname(fixturePath), { recursive: true })
   writeFileSync(fixturePath, "export const airlines = []\n")
 
@@ -199,18 +197,18 @@ test("rejects restored starter-owned Flights reference fixtures", () => {
     () => run(starter, root),
     (error) =>
       String(error.stderr).includes(
-        "Flights reference fixture must remain package-owned: starters/operator/scripts/seed-flights-reference-airlines.ts",
+        "Flights reference fixture must remain package-owned: apps/operator/scripts/seed-flights-reference-airlines.ts",
       ),
   )
 })
 
-test("rejects restored Catalog operational authority in the checked-in starter", () => {
+test("rejects restored Catalog operational authority in the operator application", () => {
   for (const relativePath of [
-    "starters/operator/scripts/reindex.ts",
-    "starters/operator/scripts/sync-sources.ts",
-    "starters/operator/scripts/lib/reindex-stale-documents.ts",
-    "starters/operator/scripts/lib/typesense-sdk-client.ts",
-    "starters/operator/scripts/lib/build-sync-source-registry.ts",
+    "apps/operator/scripts/reindex.ts",
+    "apps/operator/scripts/sync-sources.ts",
+    "apps/operator/scripts/lib/reindex-stale-documents.ts",
+    "apps/operator/scripts/lib/typesense-sdk-client.ts",
+    "apps/operator/scripts/lib/build-sync-source-registry.ts",
   ]) {
     const starter = fixture()
     const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
@@ -228,15 +226,15 @@ test("rejects restored Catalog operational authority in the checked-in starter",
   }
 })
 
-test("rejects copied checked-in starter metadata", () => {
+test("rejects copied operator application metadata", () => {
   for (const relativePath of [
-    "starters/operator/env.d.ts",
-    "starters/operator/tsconfig.json",
-    "starters/operator/tsconfig.client.json",
-    "starters/operator/tsconfig.server.json",
-    "starters/operator/turbo.json",
-    "starters/operator/vite.config.ts",
-    "starters/operator/vitest.config.ts",
+    "apps/operator/env.d.ts",
+    "apps/operator/tsconfig.json",
+    "apps/operator/tsconfig.client.json",
+    "apps/operator/tsconfig.server.json",
+    "apps/operator/turbo.json",
+    "apps/operator/vite.config.ts",
+    "apps/operator/vitest.config.ts",
   ]) {
     const starter = fixture()
     const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
@@ -248,23 +246,23 @@ test("rejects copied checked-in starter metadata", () => {
       () => run(starter, root),
       (error) =>
         String(error.stderr).includes(
-          `checked-in starter metadata must stay generated under .voyant: ${relativePath}`,
+          `operator application metadata must stay generated under .voyant: ${relativePath}`,
         ),
     )
   }
 })
 
-test("rejects restored generic or demo operational scripts in the checked-in starter", () => {
+test("rejects restored generic or demo operational scripts in the operator application", () => {
   for (const relativePath of [
     "apps/scripts/package.json",
-    "starters/operator/scripts/seed.ts",
-    "starters/operator/scripts/seed-catalog-verticals.ts",
-    "starters/operator/scripts/seed-catalog-verticals.test.ts",
-    "starters/operator/scripts/migrate.ts",
-    "starters/operator/scripts/migrate.test.ts",
-    "starters/operator/scripts/check-deployment-graph-env.ts",
-    "starters/operator/scripts/emit-cloud-scheduler.ts",
-    "starters/operator/scripts/env-preload.cjs",
+    "apps/operator/scripts/seed.ts",
+    "apps/operator/scripts/seed-catalog-verticals.ts",
+    "apps/operator/scripts/seed-catalog-verticals.test.ts",
+    "apps/operator/scripts/migrate.ts",
+    "apps/operator/scripts/migrate.test.ts",
+    "apps/operator/scripts/check-deployment-graph-env.ts",
+    "apps/operator/scripts/emit-cloud-scheduler.ts",
+    "apps/operator/scripts/env-preload.cjs",
   ]) {
     const starter = fixture()
     const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
@@ -282,17 +280,17 @@ test("rejects restored generic or demo operational scripts in the checked-in sta
   }
 })
 
-test("rejects undeclared first-party imports in checked-in starter tests", () => {
+test("rejects undeclared first-party imports in operator application tests", () => {
   const starter = fixture()
   const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
   roots.push(root)
-  const packageJsonPath = join(root, "starters/operator/package.json")
+  const packageJsonPath = join(root, "apps/operator/package.json")
   mkdirSync(dirname(packageJsonPath), { recursive: true })
   writeFileSync(
     packageJsonPath,
     `${JSON.stringify({ devDependencies: { "@voyant-travel/framework": "workspace:^" } })}\n`,
   )
-  const testPath = join(root, "starters/operator/tests/runtime.test.ts")
+  const testPath = join(root, "apps/operator/tests/runtime.test.ts")
   mkdirSync(dirname(testPath), { recursive: true })
   writeFileSync(
     testPath,
@@ -303,43 +301,16 @@ test("rejects undeclared first-party imports in checked-in starter tests", () =>
     () => run(starter, root),
     (error) =>
       String(error.stderr).includes(
-        "checked-in starter imports undeclared direct dependency @voyant-travel/notifications: tests/runtime.test.ts",
+        "operator application imports undeclared direct dependency @voyant-travel/notifications: tests/runtime.test.ts",
       ),
   )
 })
 
-test("rejects an incomplete checked-in operator production runtime closure", () => {
+test("rejects operator application lifecycle scripts that bypass the CLI", () => {
   const starter = fixture()
   const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
   roots.push(root)
-  writeJson(root, "packages/operator-standard/package.json", {
-    dependencies: { "@voyant-travel/bookings": "workspace:*" },
-  })
-  writeFile(root, "packages/operator-standard/src/index.ts", 'resolve: "@voyant-travel/bookings"\n')
-  writeJson(root, "starters/operator/package.json", {
-    scripts: {
-      dev: "voyant develop",
-      build: "voyant build",
-      start: "voyant start",
-      "db:migrate": "voyant migrate",
-    },
-    dependencies: { "@voyant-travel/operator-standard": "workspace:^" },
-  })
-
-  assert.throws(
-    () => run(starter, root),
-    (error) =>
-      String(error.stderr).includes(
-        "checked-in operator production deploy must declare product runtime package @voyant-travel/bookings",
-      ),
-  )
-})
-
-test("rejects checked-in starter lifecycle scripts that bypass the CLI", () => {
-  const starter = fixture()
-  const root = mkdtempSync(join(tmpdir(), "voyant-standard-node-repository-"))
-  roots.push(root)
-  const packageJsonPath = join(root, "starters/operator/package.json")
+  const packageJsonPath = join(root, "apps/operator/package.json")
   mkdirSync(dirname(packageJsonPath), { recursive: true })
   writeFileSync(
     packageJsonPath,
@@ -384,26 +355,14 @@ test("rejects generated starter graph lifecycle aliases", () => {
 
 test("accepts CLI-owned lifecycle scripts without a dotenv bootstrap dependency", () => {
   const starter = fixture()
-  const checkedIn = JSON.parse(
-    readFileSync(join(repoRoot, "starters/operator/package.json"), "utf8"),
-  )
+  const checkedIn = JSON.parse(readFileSync(join(repoRoot, "apps/operator/package.json"), "utf8"))
   assert.equal(checkedIn.dependencies?.dotenv, undefined)
   assert.doesNotThrow(() => run(starter))
 })
 
-function writeFile(root, relativePath, contents) {
-  const destination = join(root, relativePath)
-  mkdirSync(dirname(destination), { recursive: true })
-  writeFileSync(destination, contents)
-}
-
-function writeJson(root, relativePath, value) {
-  writeFile(root, relativePath, `${JSON.stringify(value, null, 2)}\n`)
-}
-
 function run(starterDir, root = repoRoot) {
   if (root !== repoRoot) {
-    const gitignore = join(root, "starters/operator/.gitignore")
+    const gitignore = join(root, "apps/operator/.gitignore")
     mkdirSync(dirname(gitignore), { recursive: true })
     writeFileSync(gitignore, ".voyant/\n")
   }

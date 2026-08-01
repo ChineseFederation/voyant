@@ -20,6 +20,8 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { writeOperatorApplicationManifest } from "./generate-operator-application-manifest.mjs"
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
 const DISTRIBUTION_PKG = join(ROOT, "packages/operator-standard/package.json")
@@ -130,8 +132,9 @@ const violations = []
 if (EMIT) {
   writeFileSync(DISTRIBUTION_PKG, nextDistributionPkg)
   writeFileSync(FRAMEWORK_PKG, nextFrameworkPkg)
+  writeOperatorApplicationManifest(ROOT)
   console.log(
-    `generate-standard-product-distribution: emitted ${bomPackages.length} standard product deps`,
+    `generate-standard-product-distribution: emitted ${bomPackages.length} standard product deps and the operator application manifest`,
   )
 } else {
   if (readFileSync(DISTRIBUTION_PKG, "utf-8") !== nextDistributionPkg) {
@@ -139,6 +142,9 @@ if (EMIT) {
   }
   if (readFileSync(FRAMEWORK_PKG, "utf-8") !== nextFrameworkPkg) {
     violations.push("packages/framework/package.json implementation dependencies are stale")
+  }
+  if (writeOperatorApplicationManifest(ROOT, { check: true })) {
+    violations.push("apps/operator/package.json is stale")
   }
   if (violations.length) {
     console.error(

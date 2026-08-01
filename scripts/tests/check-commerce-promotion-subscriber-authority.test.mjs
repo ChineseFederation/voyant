@@ -35,7 +35,7 @@ register: async (context) => {
   await descriptor.register(context)
 }
 `,
-    "starters/operator/src/api/subscribers/catalog-bridge.ts":
+    "apps/operator/src/api/subscribers/catalog-bridge.ts":
       'eventBus.subscribe<BookingConfirmedEventPayload>("booking.confirmed", captureSnapshot)\n',
     "packages/commerce/src/runtime-contributor.ts": `
 [promotionRedemptionDatabaseRuntimePort.id]: {
@@ -83,19 +83,16 @@ describe("Commerce promotion subscriber authority checker", () => {
     await assert.rejects(runChecker(root), /manifest must own the promotion-redemption subscriber/)
   })
 
-  it("rejects a restored starter app", async () => {
+  it("rejects a restored application app", async () => {
     const root = await createFixture({
-      "starters/operator/src/api/app.ts": 'plugins: [{ name: "operator-promotions-runtime" }]\n',
+      "apps/operator/src/api/app.ts": 'plugins: [{ name: "operator-promotions-runtime" }]\n',
     })
-    await assert.rejects(
-      runChecker(root),
-      /starters\/operator\/src\/api\/app\.ts must stay deleted/,
-    )
+    await assert.rejects(runChecker(root), /apps\/operator\/src\/api\/app\.ts must stay deleted/)
   })
 
   it("rejects catalog-bridge redemption authority", async () => {
     const root = await createFixture({
-      "starters/operator/src/api/subscribers/catalog-bridge.ts":
+      "apps/operator/src/api/subscribers/catalog-bridge.ts":
         "await recordPromotionRedemptionsForBooking(db, bookingId)\n",
     })
     await assert.rejects(runChecker(root), /must not retain promotion-redemption subscriber/)

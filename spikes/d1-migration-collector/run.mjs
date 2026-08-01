@@ -10,7 +10,7 @@
  * This is a throwaway harness. It models two migration SOURCES — `framework`
  * (what `@voyant-travel/framework` would ship) and `deployment` (the host's
  * `src/migrations`) — and a collector that today lives split between
- * `starters/operator/scripts/migrate.ts` (single-folder journal) and the
+ * `apps/operator/scripts/migrate.ts` (single-folder journal) and the
  * CLI's `voyant db migrate`. It runs against a throwaway schema in the docker
  * test DB and prints PASS/FAIL per scenario.
  *
@@ -22,7 +22,7 @@ import { createRequire } from "node:module"
 
 // `pg` resolves from the operator starter's node_modules (it's the migrate
 // runner's dep); the spike lives at repo root.
-const require = createRequire(new URL("../../starters/operator/package.json", import.meta.url))
+const require = createRequire(new URL("../../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
 const DATABASE_URL = process.env.DATABASE_URL ?? process.env.TEST_DATABASE_URL

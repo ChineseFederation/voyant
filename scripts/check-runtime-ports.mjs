@@ -7,7 +7,7 @@ function argument(name, fallback) {
   return index >= 0 ? process.argv[index + 1] : fallback
 }
 
-const operatorRoot = argument("--operator-root", "starters/operator")
+const operatorRoot = argument("--operator-root", "apps/operator")
 const frameworkRoot = argument("--framework-root", "packages/framework")
 const runtimeRoot = argument("--runtime-root", "packages/runtime")
 const compositionPath = path.join(operatorRoot, "src/api/composition.ts")
@@ -49,10 +49,10 @@ const migratedPorts = [
 
 const violations = []
 if (existsSync(compositionPath)) {
-  violations.push("starters/operator/src/api/composition.ts must stay deleted")
+  violations.push("apps/operator/src/api/composition.ts must stay deleted")
 }
 if (existsSync(retiredResourcesPath)) {
-  violations.push("starters/operator/src/api/runtime/deployment-resources.ts must stay deleted")
+  violations.push("apps/operator/src/api/runtime/deployment-resources.ts must stay deleted")
 }
 if (!resources.includes("export function createVoyantDeploymentResources")) {
   violations.push("runtime must expose one graph deployment resource factory")

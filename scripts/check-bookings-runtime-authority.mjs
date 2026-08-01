@@ -39,7 +39,7 @@ console.log(
 
 function readWorkspaceManifests(workspaceRoot) {
   const manifests = []
-  for (const directory of ["packages", "starters", "apps", "examples"]) {
+  for (const directory of ["packages", "apps", "examples"]) {
     const absolute = path.join(workspaceRoot, directory)
     if (!existsSync(absolute)) continue
     for (const entry of readdirSync(absolute, { withFileTypes: true })) {

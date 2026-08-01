@@ -10,7 +10,7 @@
  * cookie jar. `better-auth/crypto` (already a transitive dep of the operator)
  * is used only to (re)set the admin password when a login attempt fails.
  *
- * Usage (from starters/operator):
+ * Usage (from apps/operator):
  *   node scripts/seed-demo.mjs
  *
  * Environment:

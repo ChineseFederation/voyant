@@ -46,7 +46,7 @@ const fixturePaths = [
   "packages/bookings/src/runtime-contributor.ts",
   "packages/proposals/src/voyant.ts",
   "packages/proposals/src/runtime-contributor.ts",
-  "scripts/generate-operator-starter-metadata.mjs",
+  "scripts/generate-operator-application-metadata.mjs",
   ".github/workflows/ci.yml",
 ]
 
@@ -58,7 +58,7 @@ function createFixture(t) {
     mkdirSync(dirname(target), { recursive: true })
     copyFileSync(join(repositoryRoot, path), target)
   }
-  mkdirSync(join(root, "starters"), { recursive: true })
+  mkdirSync(join(root, "apps"), { recursive: true })
   return root
 }
 
@@ -95,9 +95,9 @@ test("rejects restored local TypeScript authoring exports", (t) => {
   assert.match(fixtureFailure(root), /defineCustomField/)
 })
 
-test("rejects restored starter custom-field source directories", (t) => {
+test("rejects restored application custom-field source directories", (t) => {
   const root = createFixture(t)
-  const path = join(root, "starters/operator/src/custom-fields/index.ts")
+  const path = join(root, "apps/operator/src/custom-fields/index.ts")
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, "export const field = {}\n")
   assert.match(fixtureFailure(root), /src\/custom-fields must stay absent/)
@@ -106,7 +106,7 @@ test("rejects restored starter custom-field source directories", (t) => {
 test("rejects restored metadata globs and host injection", (t) => {
   const root = createFixture(t)
   appendFileSync(
-    join(root, "scripts/generate-operator-starter-metadata.mjs"),
+    join(root, "scripts/generate-operator-application-metadata.mjs"),
     '\nconst restoredGlob = "src/custom-fields/**/*.ts"\n',
   )
   const hostPath = join(root, "apps/operator/src/config.ts")

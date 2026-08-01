@@ -89,8 +89,8 @@ if (!tripsContributor.includes("[commerceCardPaymentRuntimePort.id]")) {
   violations.push("selected payment package must provide Commerce's card-payment runtime port")
 }
 for (const removedPath of [
-  "starters/operator/src/api/runtime/catalog-checkout-options.ts",
-  "starters/operator/src/api/lib/bulk-reindex-service.ts",
+  "apps/operator/src/api/runtime/catalog-checkout-options.ts",
+  "apps/operator/src/api/lib/bulk-reindex-service.ts",
 ]) {
   try {
     await access(path.join(root, removedPath))

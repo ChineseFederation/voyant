@@ -56,8 +56,8 @@ const manifests = readWorkspaceManifests()
 const byName = new Map(manifests.map((manifest) => [manifest.name, manifest]))
 const standardDistribution = read("packages/operator-standard/src/index.ts")
 const productDistribution = byName.get("@voyant-travel/operator-standard")
-const starterAuthority = [
-  read("starters/operator/voyant.config.ts"),
+const applicationAuthority = [
+  read("apps/operator/voyant.config.ts"),
   read("packages/runtime/src/index.ts"),
   read("packages/runtime/src/deployment-resources.ts"),
   read("packages/framework/src/node-runtime.ts"),
@@ -65,8 +65,8 @@ const starterAuthority = [
 const graphGenerator = read("packages/framework/src/deployment-artifacts.ts")
 const graphResolver = read("scripts/lib/operator-deployment-graph-package-records.ts")
 const violations = adapterBoundaryViolations(manifests, adapters)
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
+if (existsSync(path.join(root, "apps/operator/src/api/runtime/runtime-adapter.ts"))) {
+  violations.push("apps/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 violations.push(...findDomainRuntimeNamingViolations(root))
 
@@ -94,8 +94,10 @@ for (const adapter of adapters) {
   if (!productDistribution?.dependencies?.[adapter.packageName]) {
     violations.push(`${adapter.packageName} must be supplied by the product distribution`)
   }
-  if (starterAuthority.includes(adapter.packageName)) {
-    violations.push(`starter/framework resident composition must not name ${adapter.packageName}`)
+  if (applicationAuthority.includes(adapter.packageName)) {
+    violations.push(
+      `application/framework resident composition must not name ${adapter.packageName}`,
+    )
   }
 }
 for (const consolidated of consolidatedPackages) {
@@ -172,7 +174,7 @@ console.log(
 
 function readWorkspaceManifests() {
   const manifests = []
-  for (const workspaceRoot of ["packages", "starters", "apps", "examples"]) {
+  for (const workspaceRoot of ["packages", "apps", "examples"]) {
     const absoluteRoot = path.join(root, workspaceRoot)
     if (!existsSync(absoluteRoot)) continue
     for (const entry of readdirSync(absoluteRoot, { withFileTypes: true })) {

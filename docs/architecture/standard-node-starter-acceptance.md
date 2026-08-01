@@ -4,7 +4,7 @@ The standard Node starter is a generated consumer project, not a copy of the
 checked-in Operator integration application. The `STANDARD_NODE_STARTER` export
 and its `standard-node-starter.json` source are the canonical shape.
 `scripts/package-starters.mjs` generates that shape, and
-`scripts/check-standard-node-starter.mjs` packages and inspects the actual
+`scripts/check-operator-application.mjs` packages and inspects the actual
 output so generator changes cannot bypass the acceptance gate.
 
 A fresh starter has exactly five authored files:
@@ -54,17 +54,23 @@ The gate requires:
   artifact paths cannot diverge.
 
 The product BOM still expands into an explicit `.voyant/` graph during build.
-The checked-in `starters/operator` tree is a monorepo integration application,
+The checked-in `apps/operator` tree is a monorepo integration application,
 not a second starter authority. It follows the same ownership rule for build
 metadata: the repository verification lane deterministically writes its ambient
 bindings, bounded client/server TypeScript programs, and Vite/Vitest entries
 beneath `.voyant/`.
+Its production manifest is also deterministic: authored lifecycle commands,
+third-party dependencies, and application-host dependencies live in
+`package.intent.json`; `generate-operator-application-manifest.mjs` adds the
+first-party closure selected by `@voyant-travel/operator-standard` and emits
+`package.json`. Both standalone verification and the standard-product generator
+check the same generator output, so no second hand-maintained closure exists.
 The declaration path maps are rebased from the shared TypeScript config and are
 not consumer-authored files. A starter-local `turbo.json` is unnecessary because
 the workspace root already owns task orchestration.
 
-`check-standard-node-starter.mjs` rejects restored root copies of those files
-and requires `.voyant/` to remain ignored. `measure-standard-node-starter.mjs`
+`check-operator-application.mjs` rejects restored root copies of those files
+and requires `.voyant/` to remain ignored. `measure-operator-application.mjs`
 reports checked-in metadata count and bytes and verifies the generated product
 BOM, resolved graph, deployment artifacts, and migration plan alongside bundle
 and boot measurements. After a production build, it reads the durable metadata

@@ -4,7 +4,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const operatorRoot = path.join(repoRoot, "starters", "operator")
+const operatorRoot = path.join(repoRoot, "apps", "operator")
 const apiKeysSource = await readFile(path.join(repoRoot, "packages/types/src/api-keys.ts"), "utf8")
 const artifactSource = await readFile(
   path.join(repoRoot, "packages/framework/src/deployment-artifacts.ts"),

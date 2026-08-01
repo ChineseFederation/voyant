@@ -57,7 +57,7 @@ function walkPackageJsonFiles(dir) {
 }
 
 function readWorkspacePackages() {
-  const roots = ["packages", "apps", "starters", "examples"]
+  const roots = ["packages", "apps", "examples"]
     .map((dir) => path.join(repoRoot, dir))
     .filter((dir) => fs.existsSync(dir))
 

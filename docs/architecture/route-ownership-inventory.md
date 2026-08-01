@@ -1,4 +1,4 @@
-# Route Ownership Inventory — `starters/operator/src/api`
+# Route Ownership Inventory — `apps/operator/src/api`
 
 Status: migration record (completed 2026-07-13)
 
@@ -12,7 +12,7 @@ and remain until that direct app adopts generated graph composition.
 
 This is the Phase 0 inventory called for by
 [API Route Ownership And Runtime Composition](./api-route-ownership-and-composition.md).
-It classifies every route-bearing file under `starters/operator/src/api` so each
+It classifies every route-bearing file under `apps/operator/src/api` so each
 carries an ownership decision, and it is the human-readable companion to the
 machine baseline in `scripts/route-ownership-baseline.json` enforced by
 `pnpm verify:route-ownership` (`scripts/check-route-ownership.mjs`).

@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import ts from "typescript"
 
-const WORKSPACE_PARENTS = ["packages", "packages/plugins", "starters", "apps", "examples"]
+const WORKSPACE_PARENTS = ["packages", "packages/plugins", "apps", "examples"]
 const EMIT_ONLY_COMPILER_OPTIONS = new Set([
   "composite",
   "configFilePath",

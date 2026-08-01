@@ -30,7 +30,7 @@ Links keep the wiring explicit at the template (deployment) layer:
 - The source package exports a `LinkableDefinition` (e.g.
   `personLinkable`, `productLinkable`).
 - The starter declares `defineLink(personLinkable, productLinkable)` in
-  `starters/<name>/src/links/`.
+  `apps/<name>/src/links/`.
 - `voyant db sync-links` materialises a pivot table whose lifecycle is
   owned by the starter, not either feature module.
 

@@ -31,7 +31,7 @@ pnpm --dir apps/flights-demo-api db:migrate
 pnpm --dir apps/flights-demo-api dev
 ```
 
-Then in your starter (e.g. `starters/operator/.env` in the repository, or
+Then in your starter (e.g. `apps/operator/.env` in the repository, or
 `.env` in a packaged starter):
 
 ```

@@ -235,8 +235,8 @@ generation and application.
 That means:
 
 - packages export schema
-- starters/apps own `drizzle.config.ts`
-- starters/apps own the actual migration directories and generated SQL
+- apps/apps own `drizzle.config.ts`
+- apps/apps own the actual migration directories and generated SQL
 
 This keeps final app composition in one place and avoids package-level migration
  collisions when multiple modules are assembled together.

@@ -136,7 +136,7 @@ Manual operator refresh paths:
   adapters to refresh sourced entries and search slices. That command belongs to
   the external CLI, not the standard project starter.
 
-Scheduled refresh in `starters/operator` runs daily at `30 3 * * *` via
+Scheduled refresh in `apps/operator` runs daily at `30 3 * * *` via
 the `external-cruise-catalog-refresh` package workflow schedule. Deployments can
 add adapter-specific webhook/event handlers that call the same
 `refreshExternalCruiseCatalog(...)` service for targeted near-real-time

@@ -10,7 +10,7 @@ const root =
   rootFlagIndex >= 0 && process.argv[rootFlagIndex + 1]
     ? resolve(process.argv[rootFlagIndex + 1])
     : scriptRoot
-const operatorRoot = join(root, "starters/operator")
+const operatorRoot = join(root, "apps/operator")
 const requireBuild = process.argv.includes("--require-build") || process.argv.includes("--check")
 const check = process.argv.includes("--check")
 const serverEntry = join(operatorRoot, "dist/server/server.js")
@@ -18,7 +18,7 @@ const clientRoot = join(operatorRoot, "dist/client")
 
 if (requireBuild && (!existsSync(serverEntry) || !existsSync(clientRoot))) {
   console.error(
-    "measure-standard-node-starter: build output is missing; run the Operator build first",
+    "measure-operator-application: build output is missing; run the Operator build first",
   )
   process.exit(1)
 }
@@ -57,7 +57,7 @@ const generatedMetadata = generatedArtifactNames
   .filter(existsSync)
 
 const report = {
-  schemaVersion: "voyant.starter-performance.v3",
+  schemaVersion: "voyant.operator-application-performance.v1",
   authoredConfig: {
     lines: configSource.trim().split(/\r?\n/).length,
     repeatsStandardModules: /\bmodules\s*:/.test(configSource),
@@ -81,7 +81,7 @@ if (check) {
   if (report.authoredConfig.repeatsStandardModules) failures.push("config repeats standard modules")
   if (report.authoredConfig.repeatsStandardExtensions)
     failures.push("config repeats standard extensions")
-  if (report.metadata.checkedIn.files > 0) failures.push("starter copies checked-in metadata")
+  if (report.metadata.checkedIn.files > 0) failures.push("application copies checked-in metadata")
   if (report.metadata.generated.files !== generatedArtifactNames.length) {
     failures.push("generated .voyant metadata is incomplete")
   }

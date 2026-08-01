@@ -1,7 +1,7 @@
 # Security & Enterprise-Readiness Assessment
 
 **Date:** 2026-06-12
-**Scope:** Full Voyant monorepo at `main` (`884a34a52`) — `packages/*`, `apps/*`, `starters/operator`, plus dependency/supply-chain posture.
+**Scope:** Full Voyant monorepo at `main` (`884a34a52`) — `packages/*`, `apps/*`, `apps/operator`, plus dependency/supply-chain posture.
 **Method:** Eight parallel deep-dive audits (authentication, authorization/tenancy, public attack surface & rate limiting, injection & input validation, secrets/config/headers/logging, internal service-to-service auth, plugins/webhooks/SSRF, uploads/storage/supply-chain) plus a `pnpm audit`. The headline payment-forgery finding was independently re-verified against source.
 **Status:** Findings only — **no remediation has been started.**
 
@@ -43,13 +43,13 @@ So SCIM/SAML/OIDC are **out of scope as framework deliverables**. Where we can m
 ## CRITICAL
 
 ### C1 — Forged payment callback confirms bookings without payment
-**`voyant-travel/plugin-netopia/src/service-callback.ts:43-130`, `voyant-travel/plugin-netopia/src/plugin.ts:209`, `starters/operator/src/api/app.ts:175-181`**
+**`voyant-travel/plugin-netopia/src/service-callback.ts:43-130`, `voyant-travel/plugin-netopia/src/plugin.ts:209`, `apps/operator/src/api/app.ts:175-181`**
 
 The Netopia payment callback is mounted as a fully unauthenticated public route (it is listed in the operator's `publicPaths`) and performs **no signature / HMAC / source verification**. The handler's own comment states the design assumption:
 
 > *"we intentionally don't validate `payment.amount` / `payment.currency` against the session… The trustworthy field is `payment.status` — the orderID is the unguessable secret that ties the callback to the session, and Netopia is the only party that knows it."*
 
-That assumption is false. `deriveNetopiaOrderId` (`service-shared.ts:77-79`) returns `session.externalReference ?? session.clientReference ?? session.id` — the payment-session TypeID. That id is **the customer's own payment-link bearer**: the public storefront journey creates the session and redirects the customer to `/pay/$sessionId` (`starters/operator/src/routes/pay_.$sessionId.tsx:14-16` — "the session id is the bearer"), and `GET /v1/public/finance/payment-sessions/:sessionId` serves it. The attacker therefore already holds the orderID for their own booking.
+That assumption is false. `deriveNetopiaOrderId` (`service-shared.ts:77-79`) returns `session.externalReference ?? session.clientReference ?? session.id` — the payment-session TypeID. That id is **the customer's own payment-link bearer**: the public storefront journey creates the session and redirects the customer to `/pay/$sessionId` (`apps/operator/src/routes/pay_.$sessionId.tsx:14-16` — "the session id is the bearer"), and `GET /v1/public/finance/payment-sessions/:sessionId` serves it. The attacker therefore already holds the orderID for their own booking.
 
 **Exploit (fully self-service, no staff involvement):**
 1. Start a real checkout via the public journey → obtain `sessionId` from the `/pay/<sessionId>` URL.
@@ -75,7 +75,7 @@ Three compounding facts:
 **Fix:** A distributed limiter (Cloudflare Rate Limiting binding or Durable-Object counter) keyed by `cf-connecting-ip` + route, mounted by default in `createApp` and applied to `/auth/*` and all anonymous write endpoints; configure Better Auth `rateLimit` against KV/DO secondary storage; layer Cloudflare WAF/Rate-Limiting rules at the edge.
 
 ### C3 — SMS toll fraud / email bombing via anonymous verification start
-**`packages/storefront/src/verification/routes-public.ts`, `starters/operator/src/api/composition.ts`, `packages/storefront/src/verification/service.ts`**
+**`packages/storefront/src/verification/routes-public.ts`, `apps/operator/src/api/composition.ts`, `packages/storefront/src/verification/service.ts`**
 
 `POST /v1/public/storefront-verification/sms/start` and `/email/start` are in `publicPaths` and, in the operator, wired to **live Voyant Cloud SMS + email providers**. The destination is attacker-supplied; there is **no rate limit, no captcha, and no resend throttle**. `startChallenge` re-sends on every call to a pending challenge — it records `lastSentAt` but never uses it to gate resends.
 
@@ -105,7 +105,7 @@ The legacy surface is mounted with no equivalent (`if (mod.routes) app.route(\`/
 **Fix:** Mount an actor + scope guard on `/v1/*`, or drop the legacy mount.
 
 ### H2 — Stored XSS via uploads, reachable by any authenticated principal
-**`starters/operator/src/api/media-upload-routes.ts:69-133`, `packages/hono/src/app.ts:397-399`, `lib/storage.ts:7-33`**
+**`apps/operator/src/api/media-upload-routes.ts:69-133`, `packages/hono/src/app.ts:397-399`, `lib/storage.ts:7-33`**
 
 **Status update:** media upload and serve routes now mount only on the staff
 surface (`/v1/admin/uploads`, `/v1/admin/uploads/video`, and
@@ -166,7 +166,7 @@ arbitrary addresses.
 dedup independent of client-supplied ids.
 
 ### H7 — Session tokens and OTPs leak into logs
-**`packages/hono/src/middleware/error-boundary.ts:21,41-57`, `packages/finance/src/routes-public.ts:238-340`, `starters/operator/src/api/auth/handler.ts:234,247`**
+**`packages/hono/src/middleware/error-boundary.ts:21,41-57`, `packages/finance/src/routes-public.ts:238-340`, `apps/operator/src/api/auth/handler.ts:234,247`**
 
 `handleApiError` (wired as `app.onError`, runs on every thrown error including routine 401/403/422) logs all request headers with a denylist of only `authorization` and `x-api-key`. It therefore logs **`cookie` (the Better Auth session token) and `x-voyant-checkout-capability` in plaintext**, landing in Workers Logs where anyone with dashboard access can replay sessions. Additionally: accountant share routes use the bearer token as a URL path segment (`/accountant/:token/...`), which the default logger emits on every request; and OTPs and password-reset URLs are `console.info`'d whenever `VOYANT_API_KEY` is absent — a dev fallback selected purely by a missing env var, so a misconfigured prod deploy fails open into logs.
 
@@ -198,7 +198,7 @@ Every allowed origin is reflected with `Access-Control-Allow-Credentials: true`.
 No HSTS, `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, CSP, or `Referrer-Policy` are set by any middleware, and there is no `_headers` file. The SSR admin dashboard is therefore **frameable by any site (clickjacking)**, has no CSP to constrain any admin-side XSS, and serves API JSON without `nosniff`. **Fix:** add a security-headers middleware to `createApp` defaults (nosniff + Referrer-Policy on API; XFO/frame-ancestors + CSP + HSTS on the SSR path).
 
 ### M4 — MCP mutating tools callable by any actor
-**`starters/operator/src/api/mcp.ts:31-64`**
+**`apps/operator/src/api/mcp.ts:31-64`**
 Historical note: the v1 package-structure branch retires the public catalog MCP
 surface and keeps only app-local admin trips tools. Catalog-capable
 agents should call catalog HTTP APIs directly. If any runtime reintroduces
@@ -210,7 +210,7 @@ rate-limit, audit, and tenant controls.
 Records are keyed by `(scope, key)` where `scope` defaults to `${method} ${pathname}` with **no actor/session/IP component** and the key is client-chosen. On the anonymous bootstrap route, two callers using the same key with a colliding body hash cause the second to receive the first's stored JSON verbatim — which includes `data.session.checkoutCapability.token`. **Impact (UNVERIFIED exploitability — requires same key + identical body):** session/capability takeover for popular departures with default pax. **Fix:** namespace the idempotency scope with actor/session/IP on unauthenticated surfaces; never replay responses carrying session-bound secrets.
 
 ### M6 — No request body / upload size limits
-**`packages/hono/src/validation.ts:75-89`, `starters/operator/src/api/media-upload-routes.ts:84`**
+**`packages/hono/src/validation.ts:75-89`, `apps/operator/src/api/media-upload-routes.ts:84`**
 
 **Status update:** the app now has a global body limit and the media upload route
 has explicit content-length/file-size limits. The remaining risk in this finding
@@ -222,7 +222,7 @@ still create CPU pressure during Zod validation. **Fix:** keep Hono `bodyLimit`
 mounted globally and add depth/complexity protection for JSON parsing.
 
 ### M7 — One secret reused across three crypto contexts + arbitrary-user token minting
-**`starters/operator/src/api/auth/handler.ts:148,219,227`, `packages/hono/src/middleware/auth.ts:258-269`, `packages/auth/src/backend.ts:26-28`**
+**`apps/operator/src/api/auth/handler.ts:148,219,227`, `packages/hono/src/middleware/auth.ts:258-269`, `packages/auth/src/backend.ts:26-28`**
 **Mitigated:** admin and customer session claims now require independent realm-specific roots, and `requireAuth` selects exactly one key from the normalized route surface. Cloud-admin state cookies derive an additional HKDF context key internally, while checkout and guest capabilities use their own explicit capability secrets. Tokens from one realm or capability cannot be replayed into another.
 
 ### M8 — Build-phase placeholder secret can become a live signing key
@@ -234,7 +234,7 @@ mounted globally and add depth/complexity protection for JSON parsing.
 The `release` job runs build + export/tarball verification then `pnpm release`, but **never runs tests/lint/typecheck** (CI runs in parallel and does not gate publishing). All third-party actions float on major tags in a job holding `id-token: write` + `contents: write`. No Renovate/Dependabot. `pnpm audit`: 4 critical / 21 high / 37 moderate / 5 low (mostly dev-only, but see M11). **Fix:** make publish `needs:` the CI/test job; pin actions to commit SHAs; add Renovate + a `pnpm audit` triage gate; enable `npm publish --provenance`.
 
 ### M10 — Vulnerable runtime dependencies (liquidjs RCE, axios HIGHs)
-**`packages/notifications/package.json`, `starters/operator` → typesense → axios**
+**`packages/notifications/package.json`, `apps/operator` → typesense → axios**
 `liquidjs@10.25.5` (runtime, used for email templates) carries a CRITICAL "Remote Code Execution" advisory (fixed ≥10.26.0) plus ReDoS advisories — reachable if any user/partner-influenced data is rendered (see H3). `typesense@^3.0.6` pulls `axios@1.15.2` with HIGH advisories (proxy-auth credential leak, prototype-pollution MitM, ReDoS); the root override `axios: ">=1.15.0"` is too loose and resolved the vulnerable version. **Fix:** bump liquidjs to ≥10.26.0; tighten the axios override to `">=1.16.0"`.
 
 ---
@@ -259,14 +259,14 @@ Delimiter/CRLF quoting is correct, but values beginning with `= + - @ \t \r` are
 
 ### L5 — `<500` thrown errors reflect raw messages/details to clients
 **`packages/hono/src/middleware/error-boundary.ts:29-38`**
-Anything thrown with a numeric `status < 500` (including third-party errors carrying one) has its `.message`/`.details` reflected verbatim; `starters/operator/src/api/app.ts:241-243` returns raw `err.message` in a 500 for `rebuild-tax-lines` (staff-only). ≥500 is correctly generic. **Fix:** only surface messages from the framework's own `ApiError` types.
+Anything thrown with a numeric `status < 500` (including third-party errors carrying one) has its `.message`/`.details` reflected verbatim; `apps/operator/src/api/app.ts:241-243` returns raw `err.message` in a 500 for `rebuild-tax-lines` (staff-only). ≥500 is correctly generic. **Fix:** only surface messages from the framework's own `ApiError` types.
 
 ### L6 — `generateLinkTableSql` builds DDL via unescaped identifier interpolation
 **`packages/core/src/links.ts:196`, `packages/db/src/links.ts:323`**
 DDL identifiers (`tableName`/`leftColumn`/`rightColumn`) are string-interpolated without escaping. Risk is low — values come from developer-authored `defineLink()` specs at build time, never from HTTP input, and the runtime read/write path correctly uses `sql.identifier(...)` + bound params. **Fix (defense-in-depth):** route DDL identifiers through a `"${x.replaceAll('"','""')}"` helper.
 
 ### L7 — Storage/serve hardening gaps
-**`packages/storage/src/providers/r2.ts:92-98`, `starters/operator/src/api/contract-document-routes.ts:64-87`, `media-upload-routes.ts:97,111`**
+**`packages/storage/src/providers/r2.ts:92-98`, `apps/operator/src/api/contract-document-routes.ts:64-87`, `media-upload-routes.ts:97,111`**
 R2 `signedUrl` returns a permanent unsigned URL when only `publicBaseUrl` is set (`expiresIn` ignored). The staff document serve route renders inline without `nosniff`. The video-upload route parses the body via a TypeScript cast with no Zod validation. The media serve route reads an unconstrained object key from the URL (not a traversal vuln given flat key namespaces, but it serves any bucket key with no prefix allowlist). **Fix:** document the signedUrl contract or refuse to "sign" without a signer; `nosniff` + `attachment` on document serve; add Zod to the video route; validate the media key prefix.
 
 ---

@@ -14,7 +14,7 @@ Grounding that recommendation against the code: the extraction is **sound and lo
 ## Current surface (grounded)
 
 ### Schema — 5 tables, starter-local today
-`starters/operator/src/db/schema.ts`:
+`apps/operator/src/db/schema.ts`:
 
 | Table | TypeID | Notes |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Grounding that recommendation against the code: the extraction is **sound and lo
 
 Wired via `voyant.config.ts` **`schemas: ["./src/db/schema.ts", …]`** (template-local), **not** `modules` or `additionalSchemas`. Migrations live in the combined starter folder (`0019_booking_tax_settings`, `0020_operator_settings_split`, `0034_operator_checkout_url_templates`).
 
-### Readers/writers — `starters/operator/src/api/routes/settings.ts`
+### Readers/writers — `apps/operator/src/api/routes/settings.ts`
 `get/upsertOperatorProfile`, `get/upsertOperatorPaymentInstructions`, `get/upsertOperatorPaymentDefaults`, `resolveOperatorDefaultPaymentPolicy`, `resolveBookingTaxSettings`, `updateBookingTaxSettings`, `toPublicOperatorProfile/Settings`, `mountOperatorSettingsRoutes` (admin `/v1/admin/settings/*` + public `/v1/public/operator-profile`, `/v1/public/settings/operator`).
 
 ### Who consumes the readers (the injection this would collapse)

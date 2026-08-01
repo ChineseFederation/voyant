@@ -16,7 +16,7 @@ const compositionPath = pathOption(
 )
 const retiredAdapterPath = pathOption(
   "--retired-adapter",
-  join(ROOT, "starters/operator/src/api/runtime/runtime-adapter.ts"),
+  join(ROOT, "apps/operator/src/api/runtime/runtime-adapter.ts"),
 )
 const tripsRoot = pathOption("--trips-root", join(ROOT, "packages/trips"))
 const violations = []
@@ -38,7 +38,7 @@ const runtime = readRequired(join(tripsRoot, "src/runtime.ts"))
 const composition = readRequired(compositionPath)
 
 if (existsSync(retiredAdapterPath)) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
+  violations.push("apps/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 
 // Ports and the runtime-dependency references are asserted against the resolved

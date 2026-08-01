@@ -9,8 +9,7 @@ and promote repeated review feedback into scripts or docs.
 - `packages/*` contain reusable schemas, services, routes, contracts, UI
   registries, React hooks, adapters, and runtime libraries.
 - `packages/plugins/*` contain first-party integration bundles.
-- `starters/*` and `apps/*` own runtime wiring, auth, deployment shape, and
-  application UI.
+- `apps/*` own runtime wiring, auth, deployment shape, and application UI.
 - `examples/*` are consumer-facing reference apps.
 - `docs/adr/` contains decisions. `docs/architecture/` contains active design
   rules. `UBIQUITOUS_LANGUAGE.md` contains canonical domain terms.

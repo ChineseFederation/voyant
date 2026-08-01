@@ -101,7 +101,7 @@ function checkKvCacheBindings() {
     "standard Node product cache backend",
   )
   requireNotContains(
-    "starters/operator/voyant.config.ts",
+    "apps/operator/voyant.config.ts",
     "cache:",
     "the standard cache backend must not be repeated in authored project config",
   )

@@ -28,7 +28,7 @@ const ports = {
 `,
     "packages/operator-standard/src/index.ts": "const extensions = []\n",
     "packages/runtime/src/deployment-resources.ts": "const ports = {}\n",
-    "starters/operator/voyant.config.ts": "export default defineConfig({})\n",
+    "apps/operator/voyant.config.ts": "export default defineConfig({})\n",
     ...overrides,
   }
   for (const [relativePath, source] of Object.entries(files)) {
@@ -59,7 +59,7 @@ describe("Legal subscriber authority checker", () => {
 
   it("rejects redundant Legal selection in authored Operator config", async () => {
     const root = await createFixture({
-      "starters/operator/voyant.config.ts": `
+      "apps/operator/voyant.config.ts": `
 export default defineConfig({
   extensions: [{ resolve: "@voyant-travel/legal/booking-contract-extension" }],
 })

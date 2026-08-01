@@ -30,7 +30,7 @@ import { createRequire } from "node:module"
 
 // `pg` resolves from the operator starter's node_modules (the migrate runner's
 // dep); the spike lives at repo root.
-const require = createRequire(new URL("../../starters/operator/package.json", import.meta.url))
+const require = createRequire(new URL("../../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
 const DATABASE_URL = process.env.DATABASE_URL ?? process.env.TEST_DATABASE_URL

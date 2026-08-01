@@ -5,7 +5,7 @@ import { Generator, getConfig } from "@tanstack/router-generator"
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(scriptDir, "..")
-const dirs = ["starters/operator"]
+const dirs = ["apps/operator"]
 
 async function run() {
   for (const dir of dirs) {

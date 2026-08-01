@@ -3,11 +3,11 @@ import { resolve } from "node:path"
 
 const root = resolve(import.meta.dirname, "..")
 for (const relativePath of [
-  "starters/operator/src/api/lib/catalog-runtime.ts",
-  "starters/operator/src/api/runtime/catalog-booking-runtime.ts",
-  "starters/operator/src/api/runtime/catalog-booking-shape-enricher.ts",
-  "starters/operator/src/api/runtime/catalog-offers-runtime.ts",
-  "starters/operator/src/api/runtime/catalog-subscriber-runtime.ts",
+  "apps/operator/src/api/lib/catalog-runtime.ts",
+  "apps/operator/src/api/runtime/catalog-booking-runtime.ts",
+  "apps/operator/src/api/runtime/catalog-booking-shape-enricher.ts",
+  "apps/operator/src/api/runtime/catalog-offers-runtime.ts",
+  "apps/operator/src/api/runtime/catalog-subscriber-runtime.ts",
 ]) {
   if (existsSync(resolve(root, relativePath))) {
     throw new Error(`Operator must not retain Catalog backend adapter: ${relativePath}`)
@@ -55,7 +55,7 @@ if (commerceRuntime.includes("buildTypesenseIndexer")) {
 
 for (const forbidden of [
   "createCatalogOffersTypesenseResolvers",
-  "starters/operator",
+  "apps/operator",
   "@voyant-travel/inventory",
   "@voyant-travel/commerce",
 ]) {
@@ -64,4 +64,4 @@ for (const forbidden of [
   }
 }
 
-console.log("Operator Catalog backend authority: 0 starter adapter lines")
+console.log("Operator Catalog backend authority: 0 application adapter lines")

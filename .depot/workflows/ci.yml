@@ -119,8 +119,8 @@ jobs:
           acceptance_deploy="$(mktemp -d)"
           pnpm --filter=operator deploy --prod --legacy "$acceptance_deploy"
           node scripts/apply-publish-config.mjs "$acceptance_deploy"
-          ln -s "$acceptance_deploy/node_modules" starters/operator/dist/node_modules
-          node scripts/measure-standard-node-starter.mjs --require-build --check
+          ln -s "$acceptance_deploy/node_modules" apps/operator/dist/node_modules
+          node scripts/measure-operator-application.mjs --require-build --check
           node --test scripts/tests/minimal-starter-acceptance.test.mjs
 
   package-artifacts:
@@ -268,7 +268,7 @@ jobs:
         run: pnpm --filter operator build
 
       - name: Boot under Node and smoke-test
-        working-directory: starters/operator
+        working-directory: apps/operator
         env:
           PORT: "8080"
           DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_starter_acceptance

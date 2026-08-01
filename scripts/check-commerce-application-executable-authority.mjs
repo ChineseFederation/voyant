@@ -6,21 +6,21 @@ const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const rootArg = process.argv.indexOf("--root")
 const root = rootArg >= 0 ? path.resolve(process.argv[rootArg + 1]) : defaultRoot
 
-const deletedStarterFiles = [
-  "starters/operator/src/api/routes/booking-schedule.ts",
-  "starters/operator/src/api/routes/catalog-checkout.ts",
-  "starters/operator/src/api/routes/catalog-content.ts",
-  "starters/operator/src/api/subscribers/booking-cancellation-settlement.ts",
-  "starters/operator/src/api/subscribers/booking-payment-cleanup.ts",
-  "starters/operator/src/api/jobs/draft-reaper-scheduled.ts",
-  "starters/operator/src/api/jobs/promotion-scheduled.ts",
-  "starters/operator/src/api/runtime/runtime-adapter.ts",
+const deletedApplicationFiles = [
+  "apps/operator/src/api/routes/booking-schedule.ts",
+  "apps/operator/src/api/routes/catalog-checkout.ts",
+  "apps/operator/src/api/routes/catalog-content.ts",
+  "apps/operator/src/api/subscribers/booking-cancellation-settlement.ts",
+  "apps/operator/src/api/subscribers/booking-payment-cleanup.ts",
+  "apps/operator/src/api/jobs/draft-reaper-scheduled.ts",
+  "apps/operator/src/api/jobs/promotion-scheduled.ts",
+  "apps/operator/src/api/runtime/runtime-adapter.ts",
 ]
 
 const failures = []
-for (const relativePath of deletedStarterFiles) {
+for (const relativePath of deletedApplicationFiles) {
   await access(path.join(root, relativePath)).then(
-    () => failures.push(`obsolete starter implementation must stay deleted: ${relativePath}`),
+    () => failures.push(`obsolete application implementation must stay deleted: ${relativePath}`),
     () => undefined,
   )
 }
@@ -88,12 +88,12 @@ rejectMatch(
 rejectMatch(
   composition,
   /routes\/(?:booking-schedule|catalog-checkout|catalog-content)|subscribers\/(?:booking-cancellation-settlement|booking-payment-cleanup)/,
-  "Operator composition must not reference migrated starter implementations",
+  "Operator composition must not reference migrated application implementations",
 )
 
 if (failures.length > 0) {
-  console.error("Commerce starter executable authority check failed:\n")
+  console.error("Commerce application executable authority check failed:\n")
   for (const failure of failures) console.error(`- ${failure}`)
   process.exit(1)
 }
-console.log("Commerce starter executable authority: OK")
+console.log("Commerce application executable authority: OK")

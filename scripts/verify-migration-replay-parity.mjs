@@ -9,7 +9,7 @@
  *
  * The D.2 cutline and framework bundle remain frozen transition fixtures. The
  * retired deployment history is retained only under scripts/fixtures so this
- * check can prove upgrades without keeping database authority in the starter.
+ * check can prove upgrades without keeping database authority in the application.
  *
  * Run: TEST_DATABASE_URL=<postgres url, user with CREATEDB> node scripts/verify-migration-replay-parity.mjs
  *   (skips cleanly when no DB is configured).
@@ -20,7 +20,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
 
-const require = createRequire(new URL("../starters/operator/package.json", import.meta.url))
+const require = createRequire(new URL("../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
 const ROOT = new URL("..", import.meta.url).pathname
@@ -37,7 +37,7 @@ const LEGACY_DEPLOYMENT_MIGRATIONS = join(
   ROOT,
   "scripts/fixtures/legacy-operator-deployment-migrations",
 )
-const OPERATOR_DIR = join(ROOT, "starters/operator")
+const OPERATOR_DIR = join(ROOT, "apps/operator")
 const OPERATOR_ARTIFACTS = join(OPERATOR_DIR, ".voyant")
 
 execFileSync("pnpm", ["exec", "voyant", "build", "--json"], {

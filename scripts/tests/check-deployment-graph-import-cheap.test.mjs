@@ -121,7 +121,7 @@ export const manifest = { id: "bookings", bookingsApiModule }
     const root = await createFixture({
       "packages/framework/src/deployment-graph.ts": "export {}\n",
       "packages/framework/src/deployment-artifacts.ts": "export {}\n",
-      "starters/operator/voyant.config.ts": "export default {}\n",
+      "apps/operator/voyant.config.ts": "export default {}\n",
       "packages/example/package.json": JSON.stringify({
         name: "@acme/example",
         voyant: { manifest: "./voyant" },

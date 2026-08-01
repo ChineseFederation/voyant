@@ -20,7 +20,7 @@ That fixes the physics:
 | **No cross-request I/O reuse** in Workers | A WebSocket/TCP connection opened in request A cannot be used by request B ("Cannot perform I/O on behalf of a different request"). Module-scope Pool caching is not an option — only Durable Objects can hold connections across events. |
 | **~128 MB / isolate** | The module-graph baseline plus per-request payload allocation is the budget. #1686 demonstrated isolates collapsing under uncached catalog reads. |
 | **CPU-time + startup-CPU + ~1000 subrequest budgets** | Every neon-http query is one subrequest. N+1 patterns burn both latency *and* the subrequest budget. The startup-CPU ceiling already forced lazy-loading the API graph (#1636). |
-| **Single-region Neon database** (region chosen per deployment; e.g. the operator starter assumes one EU DB — `starters/operator/src/api/lib/db.ts:37-41`) | Workers run in the colo nearest the *visitor*; the DB lives in one region. A visitor far from the tenant's DB region pays that RTT *per query* — 8 sequential queries × ~100ms = ~800ms floor before any compute. The penalty is per-tenant geometry, but the mitigation (edge read models, placement near DB) is the same for all. |
+| **Single-region Neon database** (region chosen per deployment; e.g. the operator starter assumes one EU DB — `apps/operator/src/api/lib/db.ts:37-41`) | Workers run in the colo nearest the *visitor*; the DB lives in one region. A visitor far from the tenant's DB region pays that RTT *per query* — 8 sequential queries × ~100ms = ~800ms floor before any compute. The penalty is per-tenant geometry, but the mitigation (edge read models, placement near DB) is the same for all. |
 | **`caches.default` is disabled for namespaced scripts** ([WfP limits](https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/reference/limits/)) | Tenant workers cannot edge-cache their own HTTP responses via the Cache API. HTTP response caching belongs at the **dynamic dispatch worker**, which Cloudflare explicitly positions as the middleware layer (auth, transforms, caching, per-tenant limits). Tenant workers emit `Cache-Control`; the platform honors it. In-worker fallback: KV-backed response cache. Self-hosted (non-namespaced) workers keep full Cache API. |
 | Available primitives | KV (eventually consistent, ~60s propagation, 1 write/s/key), R2, Durable Objects (+ SQLite, unlimited namespaces on WfP), D1 (incl. read replication via Sessions API), **Analytics Engine (explicitly supported on user workers)**, Queues (not listed among WfP user-worker bindings — producers to be confirmed; **consumers cannot attach to namespaced scripts** — consume at platform level and dispatch in), Cron (not documented for namespaced scripts — Voyant Cloud schedules at platform level today). |
 | **Dispatcher = per-tenant control point** | The dispatch worker can enforce **custom CPU-time and subrequest limits per dispatch** (e.g. per plan tier) and run caching/auth/transform middleware. Logpush/tail-worker observability configured once on the dispatcher covers every user worker in the namespace. These are the platform-native primitives for bulkheads, rate limits, and fleet observability. |
@@ -61,7 +61,7 @@ Still unverified: whether **Smart Placement** can be set on dispatch-namespace u
 Every request constructs a fresh `new Pool(...)` (TCP + TLS + WebSocket upgrade + Postgres
 auth — several RTTs before the first query) and disposes it after the response:
 
-- `starters/operator/src/api/lib/db.ts:34` → `createServerlessDbClient` → `packages/db/src/index.ts:140` (`new Pool(...)`)
+- `apps/operator/src/api/lib/db.ts:34` → `createServerlessDbClient` → `packages/db/src/index.ts:140` (`new Pool(...)`)
 - Disposed via `executionCtx.waitUntil` in `packages/hono/src/middleware/db.ts:101`
 
 Worse, **authenticated requests open two pools**: the auth middleware constructs its own client
@@ -125,7 +125,7 @@ recomputed per request, against the 128 MB ceiling. **This is also the path that
 ### T5 — HIGH: one worker, whole module graph = memory baseline, cold start, single failure domain
 
 - The operator API app composes **27 modules + 7 extensions + 7 plugin bundles**
-  (`starters/operator/src/api/composition.ts:132-170`); first `/api/*` call per isolate paid
+  (`apps/operator/src/api/composition.ts:132-170`); first `/api/*` call per isolate paid
   ~2.4s instantiating it (#1636). The lean-auth split + background warm-up
   (`packages/runtime-core/src/api-dispatch.ts:86-99`) mitigates but does not change the model:
   storefront reads, checkout writes, admin, SSR, and workflows still share one isolate's memory

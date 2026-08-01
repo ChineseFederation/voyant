@@ -8,7 +8,7 @@ const operatorResourcesPath = "packages/runtime/src/deployment-resources.ts"
 const operatorResources = await read(operatorResourcesPath)
 const operatorRuntimePath = "packages/runtime/src/index.ts"
 const operatorRuntime = await read(operatorRuntimePath)
-const retiredOperatorAdapterPath = "starters/operator/src/api/runtime/runtime-adapter.ts"
+const retiredOperatorAdapterPath = "apps/operator/src/api/runtime/runtime-adapter.ts"
 const violations = []
 
 if (existsSync(path.join(root, retiredOperatorAdapterPath))) {
@@ -169,24 +169,24 @@ for (const forbidden of [
   }
 }
 for (const removedPath of [
-  "starters/operator/src/api/runtime/catalog-booking-runtime.ts",
-  "starters/operator/src/api/runtime/catalog-booking-shape-enricher.ts",
-  "starters/operator/src/api/runtime/catalog-offers-runtime.ts",
-  "starters/operator/src/api/runtime/catalog-subscriber-runtime.ts",
-  "starters/operator/src/api/lib/booking-engine-runtime.ts",
-  "starters/operator/src/api/lib/catalog-runtime.ts",
-  "starters/operator/src/api/lib/catalog-listability.ts",
-  "starters/operator/src/api/lib/cruise-adapters-runtime.ts",
-  "starters/operator/src/api/lib/owned-booking-handlers.ts",
-  "starters/operator/src/api/lib/booking-engine-db.ts",
-  "starters/operator/src/api/lib/booking-requirements-product-snapshot.ts",
+  "apps/operator/src/api/runtime/catalog-booking-runtime.ts",
+  "apps/operator/src/api/runtime/catalog-booking-shape-enricher.ts",
+  "apps/operator/src/api/runtime/catalog-offers-runtime.ts",
+  "apps/operator/src/api/runtime/catalog-subscriber-runtime.ts",
+  "apps/operator/src/api/lib/booking-engine-runtime.ts",
+  "apps/operator/src/api/lib/catalog-runtime.ts",
+  "apps/operator/src/api/lib/catalog-listability.ts",
+  "apps/operator/src/api/lib/cruise-adapters-runtime.ts",
+  "apps/operator/src/api/lib/owned-booking-handlers.ts",
+  "apps/operator/src/api/lib/booking-engine-db.ts",
+  "apps/operator/src/api/lib/booking-requirements-product-snapshot.ts",
   "packages/bookings-node/package.json",
   "packages/finance/src/standard-node-runtime.ts",
   "packages/catalog-node",
 ]) {
   if (existsSync(path.join(root, removedPath))) {
     violations.push(
-      `package-owned Catalog implementation must not retain starter shim ${removedPath}`,
+      `package-owned Catalog implementation must not retain application shim ${removedPath}`,
     )
   }
 }
@@ -194,7 +194,7 @@ const operatorLineDelta = lineCount(operatorResources) - 686
 const operatorImportDelta = importCount(operatorResources) - 25
 if (operatorLineDelta > 0 || operatorImportDelta > 0) {
   violations.push(
-    `operator starter authority must not grow; found ${signed(operatorLineDelta)} lines and ${signed(operatorImportDelta)} imports from 4c94a014b0`,
+    `operator application authority must not grow; found ${signed(operatorLineDelta)} lines and ${signed(operatorImportDelta)} imports from 4c94a014b0`,
   )
 }
 

@@ -43,14 +43,11 @@ describe("Trips subscriber authority checker", () => {
     assert.match(result.stdout, /Trips subscriber authority: OK/)
   })
 
-  it("rejects a restored starter app", async () => {
+  it("rejects a restored application app", async () => {
     const root = await createFixture({
-      "starters/operator/src/api/app.ts": "plugins: [tripsPaymentBundle]\n",
+      "apps/operator/src/api/app.ts": "plugins: [tripsPaymentBundle]\n",
     })
-    await assert.rejects(
-      runChecker(root),
-      /starters\/operator\/src\/api\/app\.ts must stay deleted/,
-    )
+    await assert.rejects(runChecker(root), /apps\/operator\/src\/api\/app\.ts must stay deleted/)
   })
 
   // The "restored Operator Trips runtime" case moved: that path is declared in

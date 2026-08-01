@@ -15,8 +15,8 @@
  * is the capability index, not the agent surface — and a separate assertion pins
  * that every tool there is still named and reachable.
  *
- * It lives in the operator starter rather than `packages/mcp` because the selected
- * graph is a build artifact — `starters/operator/.voyant/` is gitignored and only
+ * It lives in the operator application rather than `packages/mcp` because the selected
+ * graph is a build artifact — `apps/operator/.voyant/` is gitignored and only
  * exists after `prepare:verify`, which this package's `test` script runs first.
  */
 

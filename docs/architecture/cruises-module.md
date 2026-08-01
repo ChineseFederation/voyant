@@ -740,7 +740,7 @@ The framework never imports the concrete adapter package; the deployment wiring
 does.
 
 **Reference wiring:** the operator starter implements this in one place —
-`starters/operator/src/api/lib/cruise-adapters-runtime.ts`. Its
+`apps/operator/src/api/lib/cruise-adapters-runtime.ts`. Its
 `registerCruiseAdapters` seam registers each configured `CruiseAdapter` into both
 the vertical registry (above) and the catalog `SourceAdapterRegistry` (via
 `cruiseAdapterToSourceAdapter`), and back-fills the vertical registry from any

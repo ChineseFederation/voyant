@@ -22,7 +22,7 @@ const DEFAULT_ENTRY_SURFACES = [
   },
   {
     id: "operator-project",
-    file: "starters/operator/voyant.config.ts",
+    file: "apps/operator/voyant.config.ts",
   },
   ...discoverPackageManifestEntries(repoRoot),
 ]

@@ -66,9 +66,9 @@ requireMatch(
 )
 
 for (const legacyPath of [
-  "starters/operator/src/api/subscribers/catalog-bridge.ts",
-  "starters/operator/src/api/subscribers/catalog-bridge-bundle.ts",
-  "starters/operator/src/api/subscribers/catalog-bridge.publication.test.ts",
+  "apps/operator/src/api/subscribers/catalog-bridge.ts",
+  "apps/operator/src/api/subscribers/catalog-bridge-bundle.ts",
+  "apps/operator/src/api/subscribers/catalog-bridge.publication.test.ts",
 ]) {
   try {
     await access(path.join(repoRoot, legacyPath))

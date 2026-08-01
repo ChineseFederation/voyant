@@ -43,25 +43,25 @@ describe("operator domain runtime authority", () => {
     assert.match(result.stdout, /authority: OK/)
   })
 
-  it("rejects a restored starter Trips implementation", async () => {
+  it("rejects a restored application Trips implementation", async () => {
     const root = await fixture({
-      "starters/operator/src/api/runtime/trips-runtime.ts": "implementation",
+      "apps/operator/src/api/runtime/trips-runtime.ts": "implementation",
     })
     await assert.rejects(execFileAsync(process.execPath, [checker, "--root", root]), (error) =>
       error.stderr.includes("Trips deployment adapter must stay deleted"),
     )
   })
 
-  it("rejects a restored starter payment-policy facade", async () => {
-    const facade = "starters/operator/src/api/runtime/booking-payment-policy-runtime.ts"
+  it("rejects a restored application payment-policy facade", async () => {
+    const facade = "apps/operator/src/api/runtime/booking-payment-policy-runtime.ts"
     const root = await fixture({ [facade]: "package composition" })
     await assert.rejects(execFileAsync(process.execPath, [checker, "--root", root]), (error) =>
       error.stderr.includes(`${facade} must stay deleted`),
     )
   })
 
-  it("rejects a restored starter workflow-service catalog", async () => {
-    const facade = "starters/operator/src/api/runtime/operator-workflow-services.ts"
+  it("rejects a restored application workflow-service catalog", async () => {
+    const facade = "apps/operator/src/api/runtime/operator-workflow-services.ts"
     const root = await fixture({ [facade]: "package workflow services" })
     await assert.rejects(execFileAsync(process.execPath, [checker, "--root", root]), (error) =>
       error.stderr.includes(`${facade} must stay deleted`),

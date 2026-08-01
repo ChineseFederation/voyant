@@ -27,7 +27,7 @@ workload class well. On Node none of it is necessary.
 
 ### How the operator runs on Node
 
-- **Entry:** `starters/operator/src/server.ts` is a generic bootstrap for
+- **Entry:** `apps/operator/src/server.ts` is a generic bootstrap for
   `@voyant-travel/runtime`. The package loads the admitted generated
   graph, links, access catalog, jobs, schedules, and provider plan;
   owns API/auth dispatch, admin SSR/static hosting, `waitUntil`, scheduled
@@ -66,13 +66,16 @@ workload class well. On Node none of it is necessary.
 - **Build:** `pnpm --filter operator build` (Vite, no `@cloudflare/vite-plugin`)
   emits `dist/client` + `dist/server/server.js`. **Run:** `pnpm --filter operator
   start` (`node dist/server/server.js`).
-- **Docker target:** `starters/operator/Dockerfile` is the reference
+- **Docker target:** `apps/operator/Dockerfile` is the reference
   self-hosted Node image. Its build stage must call `pnpm --filter operator
   build`, not raw Vite, so graph freshness and graph artifact copying stay on
   the same path as local build. Production SSR builds externalize installed
-  runtime package imports while retaining application-owned server chunks, and
-  the deployed application declares the product BOM's runtime package closure
-  as direct production dependencies. Deployed workspace manifests use their
+  runtime package imports while retaining application-owned server chunks.
+  `apps/operator/package.json` is generated from `package.intent.json`: authored
+  host and third-party dependencies are merged with the complete first-party
+  runtime closure declared by `@voyant-travel/operator-standard`. The generator
+  is the sole dependency-closure authority and its `--check` mode requires no
+  install. Deployed workspace manifests use their
   built `publishConfig` targets. Generated imports use relocatable package
   specifiers for declared production dependencies and project-relative paths
   for transitive selections anchored through the product BOM, preserving strict

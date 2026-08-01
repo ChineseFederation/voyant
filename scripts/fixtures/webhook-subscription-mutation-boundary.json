@@ -21,7 +21,7 @@
       "operation": "update"
     },
     {
-      "path": "starters/operator/src/api/webhook-subscriptions.ts",
+      "path": "apps/operator/src/api/webhook-subscriptions.ts",
       "source": "await db.delete(infraSchema.infraWebhookSubscriptionsTable).where(eq(infraSchema.infraWebhookSubscriptionsTable.id, id))",
       "operation": "delete"
     }

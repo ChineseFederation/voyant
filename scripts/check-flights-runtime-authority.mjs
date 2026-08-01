@@ -21,7 +21,7 @@ const compositionPath = pathOption(
 )
 const retiredAdapterPath = pathOption(
   "--retired-adapter",
-  join(ROOT, "starters/operator/src/api/runtime/runtime-adapter.ts"),
+  join(ROOT, "apps/operator/src/api/runtime/runtime-adapter.ts"),
 )
 const violations = []
 
@@ -69,7 +69,7 @@ if (existsSync(retiredFlightsNodeRoot)) {
   violations.push("the retired Flights Node suffix package must stay deleted")
 }
 if (existsSync(retiredAdapterPath)) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
+  violations.push("apps/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 // operatorGraphRuntimeBindings, loadFlightAdminRoutes and loadFlightsRuntime are
 // asserted absent from the composition by verify:symbol-policy, which matches

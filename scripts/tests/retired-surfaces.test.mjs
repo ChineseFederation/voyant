@@ -52,7 +52,7 @@ test("the declared list still covers what the authority scripts pin", () => {
   const declared = new Set(
     JSON.parse(readFileSync(DATA, "utf8")).retiredPaths.map((entry) => entry.path),
   )
-  const roots = /^(packages|starters|apps|scripts|docs|examples|\.github|\.changeset)\//
+  const roots = /^(packages|apps|scripts|docs|examples|\.github|\.changeset)\//
   const scriptsDir = path.join(repoRoot, "scripts")
 
   const missing = []

@@ -25,8 +25,8 @@ const graphNativeFiles = [
   "packages/framework-migrations/src/index.ts",
   "packages/framework-migrations/src/module-source.ts",
   "packages/operator-standard/src/standard-frontend.tsx",
-  "starters/operator/src/server.ts",
-  "starters/operator/src/ssr-handler.ts",
+  "apps/operator/src/server.ts",
+  "apps/operator/src/ssr-handler.ts",
 ]
 
 const retiredTokens = [
@@ -118,7 +118,7 @@ requireAbsent(
 
 const standardFrontend = read("packages/operator-standard/src/standard-frontend.tsx")
 requireText(standardFrontend, "adminFetcher", "generic admin fetcher")
-requireAbsent(standardFrontend, "operatorFetcher", "Operator starter fetcher alias")
+requireAbsent(standardFrontend, "operatorFetcher", "Operator application fetcher alias")
 
 const nodeRuntime = read("packages/framework/src/node-runtime.ts")
 for (const token of [

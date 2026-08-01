@@ -14,9 +14,9 @@ const read = (relativePath) => {
 }
 
 for (const retiredPath of [
-  "starters/operator/src/api/runtime/contract-document-runtime.ts",
-  "starters/operator/src/api/runtime/contract-document-variables.ts",
-  "starters/operator/src/api/runtime/runtime-adapter.ts",
+  "apps/operator/src/api/runtime/contract-document-runtime.ts",
+  "apps/operator/src/api/runtime/contract-document-variables.ts",
+  "apps/operator/src/api/runtime/runtime-adapter.ts",
   "packages/legal-node",
 ]) {
   if (existsSync(path.join(root, retiredPath))) violations.push(`${retiredPath} must stay deleted`)

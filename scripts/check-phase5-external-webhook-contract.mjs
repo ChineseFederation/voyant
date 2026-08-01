@@ -112,7 +112,7 @@ const IGNORED_SOURCE_DIRECTORIES = new Set([
   "test",
   "tests",
 ])
-const productionRoots = ["apps", "dev", "examples", "packages", "starters", "templates"]
+const productionRoots = ["apps", "dev", "examples", "packages", "templates"]
 const productionFiles = (
   await Promise.all(
     productionRoots.map((root) => productionTypeScriptFiles(path.join(repoRoot, root))),

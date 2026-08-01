@@ -35,7 +35,7 @@ SQL runner — no ORM magic required. The mechanism is sound.
    spike hand-writes the SQL; production generates it from the aggregate schema
    (`drizzle.schemas.generated.ts`) exactly as the fork does today — only the *owner* changes.
 2. **Journal-format migration.** The spike uses its own `_voyant_migrations` ledger. The real
-   runner (`starters/operator/scripts/migrate.ts`) reads drizzle's `migrations/meta/_journal.json`.
+   runner (`apps/operator/scripts/migrate.ts`) reads drizzle's `migrations/meta/_journal.json`.
    D.1 extends that single-folder journal to a multi-source ledger; this spike shows the target
    shape, not the migration from the current one.
 3. **Aggregate replay oracle.** Production should keep `drizzle.schemas.generated.ts` and assert

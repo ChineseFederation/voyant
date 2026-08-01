@@ -5,51 +5,54 @@ import { fileURLToPath } from "node:url"
 const defaultRoot = join(dirname(fileURLToPath(import.meta.url)), "..")
 const rootArg = process.argv.indexOf("--root")
 const root = rootArg >= 0 ? resolve(process.argv[rootArg + 1]) : defaultRoot
-const starterSource = join(root, "starters/operator/src")
+const applicationSource = join(root, "apps/operator/src")
 const failures = []
-const starterFileRatchet = 16
+const applicationFileRatchet = 16
 
-const starterFiles = readdirSync(starterSource, { recursive: true, withFileTypes: true }).filter(
-  (entry) => entry.isFile(),
-)
-if (starterFiles.length > starterFileRatchet) {
+const applicationFiles = readdirSync(applicationSource, {
+  recursive: true,
+  withFileTypes: true,
+}).filter((entry) => entry.isFile())
+if (applicationFiles.length > applicationFileRatchet) {
   failures.push(
-    `operator starter source grew to ${starterFiles.length} files; ratchet is ${starterFileRatchet}`,
+    `operator application source grew to ${applicationFiles.length} files; ratchet is ${applicationFileRatchet}`,
   )
 }
 
 for (const relativePath of [
-  "starters/operator/src/components/voyant/booking-journey/resolve-contract-variables.test.ts",
-  "starters/operator/src/components/voyant/booking-journey/resolve-contract-variables.ts",
-  "starters/operator/src/components/voyant/booking-journey/storefront-booking-errors.ts",
-  "starters/operator/src/components/voyant/booking-journey/storefront-booking-journey.test.ts",
-  "starters/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations-ui.test.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations.test.ts",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-accommodations.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-content.test.ts",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-content.ts",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-cruises.test.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-cruises.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-products.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-shared.tsx",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-slots.test.ts",
-  "starters/operator/src/routes/(storefront)/shop-product-detail-slots.ts",
-  "starters/operator/src/routes/(storefront)/shop.test.ts",
-  "starters/operator/src/components/voyant/checkout/payment-link-booking-summary.tsx",
-  "starters/operator/src/components/voyant/checkout/payment-link-trip-summary.tsx",
-  "starters/operator/src/components/voyant/trips/storefront-composer-block.tsx",
-  "starters/operator/src/lib/customer-account.test.ts",
-  "starters/operator/src/lib/customer-account.tsx",
-  "starters/operator/src/lib/storefront-i18n.tsx",
-  "starters/operator/src/lib/storefront-scope.tsx",
-  "starters/operator/src/routes/(storefront)/storefront-market-selector.tsx",
-  "starters/operator/src/routeTree.gen.ts",
-  "starters/operator/src/routes/__root.tsx",
-  "starters/operator/src/routes/_workspace/route.tsx",
+  "apps/operator/src/components/voyant/booking-journey/resolve-contract-variables.test.ts",
+  "apps/operator/src/components/voyant/booking-journey/resolve-contract-variables.ts",
+  "apps/operator/src/components/voyant/booking-journey/storefront-booking-errors.ts",
+  "apps/operator/src/components/voyant/booking-journey/storefront-booking-journey.test.ts",
+  "apps/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations-ui.test.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations.test.ts",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-accommodations.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-content.test.ts",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-content.ts",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-cruises.test.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-cruises.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-products.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-shared.tsx",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-slots.test.ts",
+  "apps/operator/src/routes/(storefront)/shop-product-detail-slots.ts",
+  "apps/operator/src/routes/(storefront)/shop.test.ts",
+  "apps/operator/src/components/voyant/checkout/payment-link-booking-summary.tsx",
+  "apps/operator/src/components/voyant/checkout/payment-link-trip-summary.tsx",
+  "apps/operator/src/components/voyant/trips/storefront-composer-block.tsx",
+  "apps/operator/src/lib/customer-account.test.ts",
+  "apps/operator/src/lib/customer-account.tsx",
+  "apps/operator/src/lib/storefront-i18n.tsx",
+  "apps/operator/src/lib/storefront-scope.tsx",
+  "apps/operator/src/routes/(storefront)/storefront-market-selector.tsx",
+  "apps/operator/src/routeTree.gen.ts",
+  "apps/operator/src/routes/__root.tsx",
+  "apps/operator/src/routes/_workspace/route.tsx",
 ]) {
   if (existsSync(join(root, relativePath))) {
-    failures.push(`package-owned product UI must stay deleted from the starter: ${relativePath}`)
+    failures.push(
+      `package-owned product UI must stay deleted from the application: ${relativePath}`,
+    )
   }
 }
 
@@ -76,7 +79,7 @@ for (const relativePath of [
   }
   const source = readFileSync(path, "utf8")
   if (source.includes('from "@/')) {
-    failures.push(`${relativePath} must not import Operator starter aliases`)
+    failures.push(`${relativePath} must not import Operator application aliases`)
   }
   if (source.includes("@tanstack/react-router")) {
     failures.push(`${relativePath} must remain router-independent`)
@@ -84,18 +87,18 @@ for (const relativePath of [
 }
 
 for (const relativePath of [
-  "starters/operator/src/admin/README.md",
-  "starters/operator/src/extensions/README.md",
-  "starters/operator/src/modules/README.md",
+  "apps/operator/src/admin/README.md",
+  "apps/operator/src/extensions/README.md",
+  "apps/operator/src/modules/README.md",
 ]) {
   if (!existsSync(join(root, relativePath))) {
     failures.push(`project override folder authority requires ${relativePath}`)
   }
 }
 
-if (existsSync(join(root, "starters/operator/src/custom-fields"))) {
+if (existsSync(join(root, "apps/operator/src/custom-fields"))) {
   failures.push(
-    "project override folder authority must stay deleted: starters/operator/src/custom-fields",
+    "project override folder authority must stay deleted: apps/operator/src/custom-fields",
   )
 }
 
@@ -273,5 +276,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `Operator product UI authority: OK (${starterFiles.length}/${starterFileRatchet} starter source files)`,
+  `Operator product UI authority: OK (${applicationFiles.length}/${applicationFileRatchet} application source files)`,
 )

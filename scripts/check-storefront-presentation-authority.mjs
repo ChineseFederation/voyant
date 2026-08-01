@@ -27,8 +27,8 @@ const result = checkStorefrontPresentationAuthority({
   graphDeclaration: read("packages/storefront/src/voyant.ts"),
 })
 
-if (existsSync(join(root, "starters/operator/src/api/runtime/storefront-intake-runtime.ts"))) {
-  result.failures.push("starter Storefront intake compatibility facade must stay deleted")
+if (existsSync(join(root, "apps/operator/src/api/runtime/storefront-intake-runtime.ts"))) {
+  result.failures.push("application Storefront intake compatibility facade must stay deleted")
 }
 
 if (result.failures.length > 0) {

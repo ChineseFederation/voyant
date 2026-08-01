@@ -21,7 +21,7 @@ importers:
       '@voyant-travel/cloud-sdk':
         specifier: ^0.11.0
         version: 0.11.0(typesense@3.0.6)
-  starters/operator:
+  apps/operator:
     dependencies:
       '@voyant-travel/plugin-netopia':
         specifier: ^0.105.18
@@ -229,7 +229,7 @@ describe("deployment graph package provenance", () => {
 
   it("reads manifest metadata from an installed registry package", () => {
     const repoRoot = mkdtempSync(path.join(tmpdir(), "voyant-provenance-"))
-    const projectRoot = path.join(repoRoot, "starters", "operator")
+    const projectRoot = path.join(repoRoot, "apps", "operator")
     const packageRoot = path.join(projectRoot, "node_modules", "@acme", "registry-module")
     mkdirSync(packageRoot, { recursive: true })
     writeFileSync(
@@ -289,7 +289,7 @@ describe("deployment graph package provenance", () => {
 lockfileVersion: '9.0'
 
 importers:
-  starters/operator:
+  apps/operator:
     dependencies:
       '@acme/voyant-loyalty':
         specifier: workspace:*
@@ -376,7 +376,7 @@ importers:
 lockfileVersion: '9.0'
 
 importers:
-  starters/operator:
+  apps/operator:
     dependencies:
       '@voyant-travel/framework':
         specifier: workspace:*

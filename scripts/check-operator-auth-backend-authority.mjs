@@ -3,17 +3,17 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
-const starterPath = "starters/operator/src/api/auth/handler.ts"
-const retiredCookiePolicyPath = "starters/operator/src/api/auth/cookie-domain.ts"
+const applicationPath = "apps/operator/src/api/auth/handler.ts"
+const retiredCookiePolicyPath = "apps/operator/src/api/auth/cookie-domain.ts"
 const runtimePath = "packages/auth/src/node-runtime.ts"
-const starter = existsSync(join(root, starterPath))
-  ? readFileSync(join(root, starterPath), "utf8")
+const application = existsSync(join(root, applicationPath))
+  ? readFileSync(join(root, applicationPath), "utf8")
   : ""
 const failures = []
-const starterLines = starter.split("\n").length
+const applicationLines = application.split("\n").length
 
-if (starter && starterLines > 65) {
-  failures.push(`${starterPath} grew to ${starterLines} lines; ratchet is 65`)
+if (application && applicationLines > 65) {
+  failures.push(`${applicationPath} grew to ${applicationLines} lines; ratchet is 65`)
 }
 
 if (existsSync(join(root, retiredCookiePolicyPath))) {
@@ -29,8 +29,8 @@ for (const token of [
   'auth.get("/auth/',
   "CLOUD_BETTER_AUTH_ALLOWLIST",
 ]) {
-  if (starter.includes(token)) {
-    failures.push(`${starterPath} must not own package auth runtime token ${token}`)
+  if (application.includes(token)) {
+    failures.push(`${applicationPath} must not own package auth runtime token ${token}`)
   }
 }
 
@@ -49,7 +49,7 @@ if (!existsSync(join(root, runtimePath))) {
   ]) {
     if (!runtime.includes(token)) failures.push(`${runtimePath} must contain ${token}`)
   }
-  for (const forbidden of ["starters/operator", 'from "@/']) {
+  for (const forbidden of ["apps/operator", 'from "@/']) {
     if (runtime.includes(forbidden)) {
       failures.push(`${runtimePath} must not depend on ${forbidden}`)
     }
@@ -64,4 +64,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Operator auth backend authority: OK (${starterLines}/65 starter lines)`)
+console.log(`Operator auth backend authority: OK (${applicationLines}/65 application lines)`)

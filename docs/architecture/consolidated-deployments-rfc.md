@@ -12,7 +12,7 @@
 
 ## Summary
 
-Today every client project is a **fork** of `starters/operator`. The fork carries hand-wired framework glue (the composition registry, the admin nav/icon/destination maps, deployment-generated migrations), so upgrading Voyant means a manual merge of that glue per client — and it silently drifts.
+Today every client project is a **fork** of `apps/operator`. The fork carries hand-wired framework glue (the composition registry, the admin nav/icon/destination maps, deployment-generated migrations), so upgrading Voyant means a manual merge of that glue per client — and it silently drifts.
 
 This RFC proposes inverting the relationship: the **framework becomes a versioned application** that a deployment consumes through three stable contracts — **config, injected providers, and extensions** — and the deployment owns no framework glue. The result:
 
@@ -39,14 +39,14 @@ This RFC supersedes part of the "no central assembly package" decision: that dec
 
 | Concern | Current state | File |
 | --- | --- | --- |
-| Config manifest | Already config-shaped: `deployment`, `projectConfig`, `admin`, `modules`, `plugins`, `additionalSchemas`, `featureFlags` | `starters/operator/voyant.config.ts` |
-| Composition | Hand-written manifest + registry + `buildOperatorCapabilities()` in the deployment | `starters/operator/src/api/composition.ts` |
+| Config manifest | Already config-shaped: `deployment`, `projectConfig`, `admin`, `modules`, `plugins`, `additionalSchemas`, `featureFlags` | `apps/operator/voyant.config.ts` |
+| Composition | Hand-written manifest + registry + `buildOperatorCapabilities()` in the deployment | `apps/operator/src/api/composition.ts` |
 | Providers | **Injected** via clean seams (card-payment `CardPaymentStarter`, flight connector) | `runtime/card-payment.ts`, `packages/finance/src/card-payment.ts` |
 | Admin routes | **Generated** from the manifest by `voyant admin generate --routes` | `src/admin.routes.generated.tsx` |
 | Admin destinations | **Generated** by `voyant admin generate --destinations` | `src/admin.destinations.generated.ts` |
 | Admin extension factories | **Generated** | `src/admin.extensions.generated.ts` |
 | Admin chrome (remaining) | **Hand-wired**: nav icon map + label keys (`route.tsx`) + route message providers (`admin-extensions.tsx:190`) | `src/routes/_workspace/route.tsx`, `src/lib/admin-extensions.tsx` |
-| Schemas | **Derived** from `voyant.config` → `drizzle.schemas.generated.ts` (drift-checked) | `starters/operator/drizzle.config.ts` |
+| Schemas | **Derived** from `voyant.config` → `drizzle.schemas.generated.ts` (drift-checked) | `apps/operator/drizzle.config.ts` |
 | Migrations | **Package-owned** and selected by the admitted graph; the external CLI executes the generated migration plan | package manifests, `.voyant/migration-plan.generated.json`, `voyant migrate` |
 | Versioning | changesets with **per-domain `fixed` groups** (`[module, module-react]`); domains version independently | `.changeset/config.json` |
 | Drift guard | `voyant db doctor --fail-on-drift` gates CI (manifest resolvability, schema parity, generated-manifest freshness, duplicate prefixes, link-table snapshot) | CLI, `schema-discipline.md` |

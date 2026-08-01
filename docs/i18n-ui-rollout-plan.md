@@ -473,8 +473,8 @@ Make the operator and DMC apps import only the locales they support.
 
 - `packages/i18n/src/admin/app-operator.ts`
 - `packages/i18n/src/admin/app-dmc.ts`
-- `starters/operator/src/lib/admin-i18n.ts`
-- `starters/operator/src/lib/admin-i18n.tsx`
+- `apps/operator/src/lib/admin-i18n.ts`
+- `apps/operator/src/lib/admin-i18n.tsx`
 - `templates/dmc/src/lib/admin-i18n.ts`
 - `templates/dmc/src/lib/admin-i18n.tsx`
 - any app-side locale bootstrap modules

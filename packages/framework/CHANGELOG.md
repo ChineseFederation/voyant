@@ -2382,7 +2382,7 @@ value: "gateway" }`, and the Node runtime provider plan accepts `storage:
   Managed-profile deployments run a fixed `voyant-runtime:<framework-version>`
   image with no build step, so Cloud needs both the Cloud Scheduler job set and the
   workflow release manifest derivable purely from a profile snapshot. Both were
-  reachable only from `starters/operator` (the cron list) or a build artifact (the
+  reachable only from `apps/operator` (the cron list) or a build artifact (the
   workflow manifest).
 
   New subpath `@voyant-travel/framework/managed-jobs`:

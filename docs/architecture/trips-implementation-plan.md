@@ -266,7 +266,7 @@ Branch: `tc/07-checkout-start-extraction`
 Scope:
 
 - Extract reusable logic from
-  `starters/operator/src/api/catalog-checkout.ts` into framework-owned
+  `apps/operator/src/api/catalog-checkout.ts` into framework-owned
   services.
 - Preserve template ownership of:
   - payment provider config
@@ -589,7 +589,7 @@ before requiring `verify:full`.
 
 ### Production-hardening follow-ups
 
-- Move generic checkout-start behavior out of `starters/operator` into
+- Move generic checkout-start behavior out of `apps/operator` into
   framework-owned catalog/checkout services before non-operator starters rely
   on the composer package.
 - Replace hospitality/cruise placeholder or stamping holds with real supplier,

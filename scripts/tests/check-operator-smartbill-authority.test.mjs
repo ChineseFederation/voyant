@@ -14,8 +14,8 @@ const checkerPath = path.join(repoRoot, "scripts/check-operator-smartbill-author
 async function createFixture(overrides = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "voyant-smartbill-authority-"))
   const files = {
-    "starters/operator/package.json": JSON.stringify({ dependencies: {} }),
-    "starters/operator/voyant.config.ts":
+    "apps/operator/package.json": JSON.stringify({ dependencies: {} }),
+    "apps/operator/voyant.config.ts":
       'export default { plugins: [{ resolve: "@voyant-travel/plugin-netopia" }] }\n',
     "packages/runtime/src/deployment-resources.ts":
       "return options.createRuntimePorts({ primitives })\n",
@@ -42,13 +42,13 @@ async function createFixture(overrides = {}) {
 async function runChecker(root) {
   return execFileAsync(
     process.execPath,
-    [checkerPath, "--root", root, "--operator-root", path.join(root, "starters/operator")],
+    [checkerPath, "--root", root, "--operator-root", path.join(root, "apps/operator")],
     { cwd: root },
   )
 }
 
 describe("check-operator-smartbill-authority", () => {
-  it("accepts a static optional many-valued Finance provider without a starter bridge", async () => {
+  it("accepts a static optional many-valued Finance provider without a application bridge", async () => {
     const result = await runChecker(await createFixture())
     assert.match(result.stdout, /check-operator-smartbill-authority: OK/)
   })
@@ -69,7 +69,7 @@ describe("check-operator-smartbill-authority", () => {
 
   it("rejects selecting SmartBill in the default project", async () => {
     const root = await createFixture({
-      "starters/operator/voyant.config.ts":
+      "apps/operator/voyant.config.ts":
         'export default { plugins: [{ resolve: "@voyant-travel/plugin-smartbill" }] }\n',
     })
     await assert.rejects(runChecker(root), (error) => {
@@ -78,7 +78,7 @@ describe("check-operator-smartbill-authority", () => {
     })
   })
 
-  it("rejects starter-owned SmartBill bridges and config injection", async () => {
+  it("rejects application-owned SmartBill bridges and config injection", async () => {
     const root = await createFixture({
       "packages/runtime/src/deployment-resources.ts":
         'createGeneratedGraphRuntimePorts({ capabilities, primitives, host: operatorSmartbillRuntimeHost })\ninvoiceSettlementPollers\nimport "@voyant-travel/plugin-smartbill"\nresolveOperatorSmartbillConfig\n',

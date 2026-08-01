@@ -37,8 +37,8 @@ const explicitBindings = [
   "realtime",
 ]
 const violations = []
-if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
+if (existsSync(path.join(root, "apps/operator/src/api/runtime/runtime-adapter.ts"))) {
+  violations.push("apps/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 
 for (const binding of explicitBindings) {

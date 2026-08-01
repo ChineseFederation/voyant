@@ -4,11 +4,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import path from "node:path"
 
 const root = process.cwd()
-const forbiddenStarterFiles = [
-  "starters/operator/src/api/openapi.ts",
-  "starters/operator/src/api/openapi.test.ts",
+const forbiddenApplicationFiles = [
+  "apps/operator/src/api/openapi.ts",
+  "apps/operator/src/api/openapi.test.ts",
 ]
-for (const file of forbiddenStarterFiles) {
+for (const file of forbiddenApplicationFiles) {
   assert(!existsSync(path.join(root, file)), `${file} must remain package-owned`)
 }
 
@@ -41,10 +41,10 @@ assert(
   `${runtimeFile} must merge selected graph documents`,
 )
 
-const starterOpenApi = path.join(root, "starters/operator/openapi")
-if (existsSync(starterOpenApi)) {
+const applicationOpenApi = path.join(root, "apps/operator/openapi")
+if (existsSync(applicationOpenApi)) {
   assert.equal(
-    findJsonFiles(starterOpenApi).length,
+    findJsonFiles(applicationOpenApi).length,
     0,
     "Operator must not own committed OpenAPI JSON",
   )

@@ -68,13 +68,13 @@ describe("Catalog subscriber authority checker", () => {
     assert.match(result.stdout, /Catalog subscriber authority: OK/)
   })
 
-  // The "restored starter app" case moved: that path is declared in
+  // The "restored application app" case moved: that path is declared in
   // scripts/checks/regression/retired-paths.json and asserted by
   // verify:retired-surfaces, which covers every retired path in one place.
 
   it("rejects a retained legacy bridge file", async () => {
     const root = await createFixture({
-      "starters/operator/src/api/subscribers/catalog-bridge.ts": "eventBus.subscribe()\n",
+      "apps/operator/src/api/subscribers/catalog-bridge.ts": "eventBus.subscribe()\n",
     })
     await assert.rejects(runChecker(root), /Obsolete Operator Catalog bridge file remains/)
   })

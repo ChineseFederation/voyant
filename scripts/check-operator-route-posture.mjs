@@ -4,14 +4,14 @@ import { fileURLToPath } from "node:url"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const HOST = optionPath("--host", join(ROOT, "packages/framework/src/node-runtime.ts"))
-const RETIRED_APP = optionPath("--retired-app", join(ROOT, "starters/operator/src/api/app.ts"))
+const RETIRED_APP = optionPath("--retired-app", join(ROOT, "apps/operator/src/api/app.ts"))
 const RETIRED_ADAPTER = optionPath(
   "--retired-adapter",
-  join(ROOT, "starters/operator/src/api/runtime/runtime-adapter.ts"),
+  join(ROOT, "apps/operator/src/api/runtime/runtime-adapter.ts"),
 )
 const LEGACY_PUBLIC_PATHS = optionPath(
   "--legacy-public-paths",
-  join(ROOT, "starters/operator/src/api/public-paths.ts"),
+  join(ROOT, "apps/operator/src/api/public-paths.ts"),
 )
 
 function optionPath(name, fallback) {
@@ -31,13 +31,13 @@ const host = readRequired(HOST)
 const violations = []
 
 if (existsSync(RETIRED_APP)) {
-  violations.push("starters/operator/src/api/app.ts must stay deleted")
+  violations.push("apps/operator/src/api/app.ts must stay deleted")
 }
 if (existsSync(RETIRED_ADAPTER)) {
-  violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
+  violations.push("apps/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
 if (existsSync(LEGACY_PUBLIC_PATHS)) {
-  violations.push("starters/operator/src/api/public-paths.ts must stay deleted")
+  violations.push("apps/operator/src/api/public-paths.ts must stay deleted")
 }
 
 if (host.includes("OPERATOR_PUBLIC_PATHS") || host.includes('from "./public-paths"')) {
@@ -58,7 +58,7 @@ const publicPathLiterals = [...host.matchAll(/["'](\/v1\/public\/[^"']+)["']/g)]
   .sort()
 if (publicPathLiterals.length > 0) {
   violations.push(
-    `Operator must not contain starter public-path adapters; found ${publicPathLiterals.join(", ")}`,
+    `Operator must not contain application public-path adapters; found ${publicPathLiterals.join(", ")}`,
   )
 }
 
@@ -82,5 +82,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  "check-operator-route-posture: OK (graph posture mounted; no starter posture hand-lists)",
+  "check-operator-route-posture: OK (graph posture mounted; no application posture hand-lists)",
 )

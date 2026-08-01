@@ -778,7 +778,7 @@ that component's supplier lifecycle.
 ### Slice 1: extract checkout-start behavior
 
 - Extract reusable checkout-start orchestration from
-  `starters/operator/src/api/catalog-checkout.ts` into a callable service.
+  `apps/operator/src/api/catalog-checkout.ts` into a callable service.
   The integration branch may keep the callable service in the operator starter
   while the adapter wiring is proven; the hardening slice should move the
   generic parts into framework-owned catalog/checkout services.

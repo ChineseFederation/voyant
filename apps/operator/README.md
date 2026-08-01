@@ -11,6 +11,13 @@ authored shape is `STANDARD_NODE_STARTER`, documented in
 Keep integration-only source, tests, and workspace dependencies here rather
 than adding them to the generated starter.
 
+`package.intent.json` is the authored dependency and lifecycle input.
+`scripts/generate-operator-application-manifest.mjs` merges it with the
+first-party production closure selected by `@voyant-travel/operator-standard`
+to generate `package.json`. Edit the intent, then run the generator with
+`--emit`; CI runs `--check` and rejects drift. Third-party dependencies and the
+application's five first-party host dependencies remain explicit in the intent.
+
 ## Stack
 
 - **Runtime**: Node (resident process — e.g. Cloud Run), booted by the
@@ -96,7 +103,7 @@ Project-local modules keep schema and migrations together under
 `src/modules/<name>/`; generate those migrations with the module's ORM tooling
 and admit that module-scoped folder through `voyant.config.ts`. Reusable plugins
 ship their own migration history. `voyant migrate` applies the resolved plan but
-never generates SQL. The starter does not maintain an aggregate Drizzle schema
+never generates SQL. The application does not maintain an aggregate Drizzle schema
 or copy framework migrations.
 
 ## Deploy
@@ -115,10 +122,10 @@ PORT=8080 pnpm -F operator start  # node dist/server/server.js
 root** (it needs the workspace source):
 
 ```bash
-docker build -f starters/operator/Dockerfile -t voyant-operator .
-docker run --rm --network host --env-file starters/operator/.env \
+docker build -f apps/operator/Dockerfile -t voyant-operator .
+docker run --rm --network host --env-file apps/operator/.env \
   voyant-operator node run-generated-migrations.mjs
-docker run --rm -p 8080:8080 --env-file starters/operator/.env voyant-operator
+docker run --rm -p 8080:8080 --env-file apps/operator/.env voyant-operator
 ```
 
 Run the migration command once per rollout before starting new replicas. It
@@ -140,7 +147,7 @@ so the composed graph stays resident. Env/secrets come from the platform (no
 # Build + push, from the repo root (custom Dockerfile path, so build locally and
 # push — or run the same `docker build` inside a Cloud Build `--config` step):
 IMAGE=REGION-docker.pkg.dev/PROJECT/voyant/operator
-docker build -f starters/operator/Dockerfile -t "$IMAGE" .
+docker build -f apps/operator/Dockerfile -t "$IMAGE" .
 docker push "$IMAGE"
 
 # Deploy (secrets via Secret Manager; DATABASE_URL_DIRECT = the pooled Node lane):

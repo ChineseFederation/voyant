@@ -44,7 +44,7 @@ the router.
 ## Consumers
 
 Consumed by Node deployments, including the standard project in
-`starters/operator`.
+`apps/operator`.
 
 ## License
 

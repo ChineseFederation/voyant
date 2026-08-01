@@ -1,7 +1,7 @@
 {
-  "forbiddenStarterPaths": [
-    "starters/operator/src/api/runtime/media-runtime.ts",
-    "starters/operator/src/api/lib/storage.ts"
+  "forbiddenApplicationPaths": [
+    "apps/operator/src/api/runtime/media-runtime.ts",
+    "apps/operator/src/api/lib/storage.ts"
   ],
   "storageRuntimeTokens": [
     "primitives.storage.resolve",

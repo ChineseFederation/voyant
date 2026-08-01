@@ -11,7 +11,7 @@ const pathOption = (name, fallback) => {
   return value
 }
 const root = pathOption("--root", ROOT)
-const operatorRoot = pathOption("--operator-root", join(root, "starters/operator"))
+const operatorRoot = pathOption("--operator-root", join(root, "apps/operator"))
 const operatorRuntimePath = pathOption(
   "--runtime",
   join(root, "packages/runtime/src/deployment-resources.ts"),
@@ -34,13 +34,13 @@ const coreProject = readRequired(join(root, "packages/core/src/project.ts"))
 const graphGenerator = readRequired(join(root, "packages/framework/src/deployment-artifacts.ts"))
 
 if (operatorPackage.dependencies?.["@voyant-travel/plugin-smartbill"]) {
-  violations.push("operator starter must not directly depend on the optional SmartBill plugin")
+  violations.push("operator application must not directly depend on the optional SmartBill plugin")
 }
 if (/resolve:\s*["']@voyant-travel\/plugin-smartbill["']/.test(config)) {
   violations.push("the default voyant.config.ts must not select @voyant-travel/plugin-smartbill")
 }
 
-const starterAuthority = operatorRuntime
+const applicationAuthority = operatorRuntime
 for (const forbidden of [
   "operatorSmartbillRuntimeHost",
   "resolveOperatorSmartbillConfig",
@@ -48,7 +48,7 @@ for (const forbidden of [
   "invoiceSettlementPollers",
   "@voyant-travel/plugin-smartbill",
 ]) {
-  if (starterAuthority.includes(forbidden)) {
+  if (applicationAuthority.includes(forbidden)) {
     violations.push(`operator runtime must not retain SmartBill bridge token ${forbidden}`)
   }
 }
@@ -59,7 +59,7 @@ const genericContributorInputs =
 if (!genericContributorInputs) {
   violations.push("generated runtime contributors must receive only generic primitives and ports")
 }
-if (/eventBus\.subscribe|descriptor\.register/.test(starterAuthority)) {
+if (/eventBus\.subscribe|descriptor\.register/.test(applicationAuthority)) {
   violations.push("Operator code must not own or register SmartBill subscriber descriptors")
 }
 for (const relativePath of [
@@ -111,5 +111,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  "check-operator-smartbill-authority: OK (starter bridge removed; optional many-valued Finance provider port is authoritative)",
+  "check-operator-smartbill-authority: OK (application bridge removed; optional many-valued Finance provider port is authoritative)",
 )

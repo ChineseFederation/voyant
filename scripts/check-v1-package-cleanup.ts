@@ -165,7 +165,7 @@ function packageImportPatterns(packageName: string) {
 
 function findSourceImporters(packageName: string, ownPackageJsonPath: string | undefined) {
   const ownPackageDir = ownPackageJsonPath ? path.dirname(ownPackageJsonPath) : undefined
-  const searchRoots = ["packages", "starters", "apps", "scripts"]
+  const searchRoots = ["packages", "apps", "scripts"]
     .map((entry) => path.join(repoRoot, entry))
     .filter((entry) => fs.existsSync(entry))
   const patterns = packageImportPatterns(packageName)

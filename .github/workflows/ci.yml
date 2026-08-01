@@ -229,8 +229,8 @@ jobs:
           acceptance_deploy="$(mktemp -d)"
           pnpm --filter=operator deploy --prod --legacy "$acceptance_deploy"
           node scripts/apply-publish-config.mjs "$acceptance_deploy"
-          ln -s "$acceptance_deploy/node_modules" starters/operator/dist/node_modules
-          node scripts/measure-standard-node-starter.mjs --require-build --check
+          ln -s "$acceptance_deploy/node_modules" apps/operator/dist/node_modules
+          node scripts/measure-operator-application.mjs --require-build --check
           node --test scripts/tests/minimal-starter-acceptance.test.mjs
 
   package-artifacts:
@@ -401,7 +401,7 @@ jobs:
           filter: blob:none
 
       - name: Build production operator image
-        run: docker build -f starters/operator/Dockerfile -t voyant-operator:ci .
+        run: docker build -f apps/operator/Dockerfile -t voyant-operator:ci .
 
       - name: Migrate, boot, and smoke-test the production image
         run: |

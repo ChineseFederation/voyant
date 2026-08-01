@@ -18,7 +18,7 @@ const storagePackage = JSON.parse(read("packages/storage/package.json"))
 const inventoryPackage = JSON.parse(read("packages/inventory/package.json"))
 const policy = JSON.parse(read("scripts/fixtures/storage-media-runtime-policy.json"))
 
-for (const relativePath of policy.forbiddenStarterPaths) {
+for (const relativePath of policy.forbiddenApplicationPaths) {
   if (existsSync(path.join(root, relativePath))) {
     failures.push(`${relativePath} must stay deleted`)
   }

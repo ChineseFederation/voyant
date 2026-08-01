@@ -110,7 +110,7 @@ describe("voyantGeneratedRoutes", () => {
 
 describe("voyantStartViteConfig", () => {
   const base = {
-    appRootUrl: "file:///repo/starters/operator/vite.config.ts",
+    appRootUrl: "file:///repo/apps/operator/vite.config.ts",
     plugins: [],
   }
 
@@ -118,7 +118,7 @@ describe("voyantStartViteConfig", () => {
     const config = voyantStartViteConfig(base)
     const aliases = config.resolve?.alias
 
-    expect(aliases).toEqual([{ find: "@", replacement: "/repo/starters/operator/src" }])
+    expect(aliases).toEqual([{ find: "@", replacement: "/repo/apps/operator/src" }])
   })
 
   it("deduplicates framework dependencies declared and resolvable from a fresh app root", () => {

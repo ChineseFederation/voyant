@@ -2,7 +2,7 @@
  * Agent journey eval — scored scenarios over a seeded MCP deployment (voyant#3936).
  *
  * This is the executable half of the eval loop the #3921 plan calls for. The
- * ratchets in `starters/operator/tests/selected-graph-mcp-tool-surface.test.ts`
+ * ratchets in `apps/operator/tests/selected-graph-mcp-tool-surface.test.ts`
  * measure how BIG the surface is; this measures whether an agent can DO a job
  * against it — completion, call count, token cost, and error codes per journey.
  *

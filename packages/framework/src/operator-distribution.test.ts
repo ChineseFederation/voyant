@@ -136,7 +136,7 @@ describe("standard Operator distribution", () => {
   it("has no runtime imports or starter coupling", () => {
     const source = readFileSync(new URL("operator-distribution.ts", import.meta.url), "utf8")
     expect(source).not.toMatch(/^import (?!type\b)/m)
-    expect(source).not.toContain("starters/")
+    expect(source).not.toContain("apps/")
     expect(source).not.toContain("managed-operator")
   })
 })

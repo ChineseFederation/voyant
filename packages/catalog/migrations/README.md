@@ -12,7 +12,7 @@ There are two ways to apply catalog plane DDL to a deployment:
 Add `packages/catalog/src/schema.ts` to your template's `drizzle.config.ts`
 schema list. Your template's existing `db:generate` / `db:migrate` flow will
 include the catalog tables alongside its other modules. See
-[`starters/operator/drizzle.config.ts`](../../../starters/operator/drizzle.config.ts)
+[`apps/operator/drizzle.config.ts`](../../../apps/operator/drizzle.config.ts)
 for the reference setup.
 
 **Option 2 — apply these standalone migrations.**

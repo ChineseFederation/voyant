@@ -57,7 +57,7 @@ const OPERATOR_GRAPH_COMPATIBILITY = {
 } as const
 
 const OPERATOR_PACKAGE_RECORD_IMPORTERS = [
-  "starters/operator",
+  "apps/operator",
   "packages/operator-standard",
   "packages/framework",
 ] as const

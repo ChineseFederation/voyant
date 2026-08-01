@@ -2,7 +2,7 @@
  * Enforces issue #977's accommodation resale boundary.
  *
  * Accommodation remains valid catalog/resale inventory. This check blocks the
- * first-party hotel-operations surfaces from returning in starters and
+ * first-party hotel-operations surfaces from returning in applications and
  * packaged UI.
  */
 import { existsSync, readFileSync } from "node:fs"
@@ -20,23 +20,23 @@ const FORBIDDEN_PATHS = [
 
 const FILE_CHECKS = [
   {
-    file: "starters/operator/package.json",
+    file: "apps/operator/package.json",
     patterns: [/"@voyant-travel\/hospitality"/],
   },
   {
-    file: "starters/operator/src/api/catalog-content.ts",
+    file: "apps/operator/src/api/catalog-content.ts",
     patterns: [/@voyant-travel\/hospitality/, /\/v1\/(?:admin|public)\/hospitality/],
   },
   {
-    file: "starters/operator/src/api/lib/booking-engine-runtime.ts",
+    file: "apps/operator/src/api/lib/booking-engine-runtime.ts",
     patterns: [/@voyant-travel\/hospitality/, /\bhospitalityBookingsService\b/],
   },
   {
-    file: "starters/operator/src/api/lib/catalog-runtime.ts",
+    file: "apps/operator/src/api/lib/catalog-runtime.ts",
     patterns: [/@voyant-travel\/hospitality/, /\bhospitalityCatalogPolicy\b/, /"hospitality"/],
   },
   {
-    file: "starters/operator/src/api/booking-schedule.ts",
+    file: "apps/operator/src/api/booking-schedule.ts",
     patterns: [
       /@voyant-travel\/hospitality/,
       /\bresolveHospitalityListingPolicy\b/,
@@ -44,19 +44,19 @@ const FILE_CHECKS = [
     ],
   },
   {
-    file: "starters/operator/src/api/app.ts",
+    file: "apps/operator/src/api/app.ts",
     patterns: [/\/v1\/public\/hospitality/],
   },
   {
-    file: "starters/operator/src/routes/(storefront)/shop.tsx",
+    file: "apps/operator/src/routes/(storefront)/shop.tsx",
     patterns: [/"hospitality"/],
   },
   {
-    file: "starters/operator/src/routes/(storefront)/shop_.products.$entityModule.$entityId.tsx",
+    file: "apps/operator/src/routes/(storefront)/shop_.products.$entityModule.$entityId.tsx",
     patterns: [/@voyant-travel\/hospitality/, /"hospitality"/, /\bHospitalityContent\b/],
   },
   {
-    file: "starters/operator/drizzle.config.ts",
+    file: "apps/operator/drizzle.config.ts",
     patterns: [/packages\/hospitality/],
   },
   {
@@ -156,7 +156,7 @@ const FILE_CHECKS = [
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "starters/operator/src/components/voyant/trips/trip-list-filters.tsx",
+    file: "apps/operator/src/components/voyant/trips/trip-list-filters.tsx",
     patterns: [/\bhospitality\b/i],
   },
   {
@@ -168,15 +168,15 @@ const FILE_CHECKS = [
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "starters/operator/src/components/voyant/trips/storefront-composer-block.tsx",
+    file: "apps/operator/src/components/voyant/trips/storefront-composer-block.tsx",
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "starters/operator/src/routes/_workspace/trips/index.tsx",
+    file: "apps/operator/src/routes/_workspace/trips/index.tsx",
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "starters/operator/src/routes/_workspace/trips/$id.tsx",
+    file: "apps/operator/src/routes/_workspace/trips/$id.tsx",
     patterns: [/\bhospitality\b/i],
   },
   {

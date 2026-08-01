@@ -415,7 +415,7 @@ provider-neutral pricing/hold operation. Booking creation is not part of this
 route family. A caller may stamp `consumed_booking_id` only after the admitted
 Finance command returns the canonical booking reference.
 
-Drafts older than `expires_at` are reaped by the operator starter's hourly scheduled job (`starters/operator/src/api/draft-reaper-scheduled.ts`); their owned holds are released first. Orphaned drafts (where the hold expired but the draft didn't) remain a recovery-surface gap rather than a shipped operator view.
+Drafts older than `expires_at` are reaped by the operator starter's hourly scheduled job (`apps/operator/src/api/draft-reaper-scheduled.ts`); their owned holds are released first. Orphaned drafts (where the hold expired but the draft didn't) remain a recovery-surface gap rather than a shipped operator view.
 
 This split — **`catalog_quotes` for the live-pricing snapshot, `booking_drafts` for the session-bound hold** — is implemented. Quotes are short-lived and engine-internal; drafts are user-facing and resumable.
 
@@ -484,7 +484,7 @@ This inverts the dependency direction: instead of `@voyant-travel/catalog` impor
 
 This is now the live dispatch shape. The operator starter registers products,
 accommodations, and cruises handlers in
-`starters/operator/src/api/lib/booking-engine-runtime.ts`. Products has the
+`apps/operator/src/api/lib/booking-engine-runtime.ts`. Products has the
 most complete owned path and can bridge to `bookingsCreate` plus real
 availability holds. Accommodations and cruises expose the same handler interface
 with vertical commit bridges, descriptor builders, and quote/pricing logic;
@@ -597,8 +597,8 @@ Starters wire the shell, the auth posture, the route tree, the API base URL, and
 
 ```
 operator (admin):
-  starters/operator/src/routes/_workspace/catalog_.book.$entityModule.$entityId.tsx
-  starters/operator/src/components/voyant/catalog/operator-booking-journey.tsx
+  apps/operator/src/routes/_workspace/catalog_.book.$entityModule.$entityId.tsx
+  apps/operator/src/components/voyant/catalog/operator-booking-journey.tsx
     → wraps <BookingJourney /> with operator slots:
       - apiBase: getApiUrl()  → /v1/admin/...
       - renderLeadContactPicker: CRM-backed PersonPicker
@@ -608,8 +608,8 @@ operator (admin):
         with operator capabilities + Netopia (when configured)
 
 storefront (customer):
-  starters/storefront/src/routes/book/$entityModule/$entityId.tsx
-  starters/storefront/src/components/voyant/catalog/storefront-booking-journey.tsx
+  apps/storefront/src/routes/book/$entityModule/$entityId.tsx
+  apps/storefront/src/components/voyant/catalog/storefront-booking-journey.tsx
     → wraps <BookingJourney /> with storefront slots:
       - apiBase: storefront's public-base URL → /v1/public/...
       - renderLeadContactPicker: omitted (default = inline contact form)
@@ -749,8 +749,8 @@ section as the current execution map.
   builders. Products has real `availability_holds`; accommodations and cruises
   need deeper inventory-lock integration.
 - The operator starter wires admin and storefront journey wrappers:
-  `starters/operator/src/components/voyant/booking-journey/operator-booking-journey.tsx`
-  and `starters/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx`.
+  `apps/operator/src/components/voyant/booking-journey/operator-booking-journey.tsx`
+  and `apps/operator/src/components/voyant/booking-journey/storefront-booking-journey.tsx`.
 - Storefront checkout handoff exists at
   `POST /v1/public/catalog/finance/checkout/start`, but it is still starter-owned.
 

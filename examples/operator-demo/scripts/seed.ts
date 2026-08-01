@@ -9,7 +9,7 @@
  * matching finance docs, a cancellation policy, and a customer contract.
  *
  * Run:   pnpm seed -- --confirm
- * Target: the DATABASE_URL in starters/operator/.env
+ * Target: the DATABASE_URL in apps/operator/.env
  */
 
 import { readFileSync } from "node:fs"

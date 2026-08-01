@@ -25,10 +25,10 @@ const expected = {
   ],
 }
 
-const starterLinks = path.join(root, "starters/operator/src/links")
-if (existsSync(starterLinks)) {
-  const copied = readdirSync(starterLinks).filter((file) => file.endsWith(".ts"))
-  if (copied.length > 0) violations.push(`starter still owns links: ${copied.join(", ")}`)
+const applicationLinks = path.join(root, "apps/operator/src/links")
+if (existsSync(applicationLinks)) {
+  const copied = readdirSync(applicationLinks).filter((file) => file.endsWith(".ts"))
+  if (copied.length > 0) violations.push(`application still owns links: ${copied.join(", ")}`)
 }
 
 for (const [owner, links] of Object.entries(expected)) {

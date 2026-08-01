@@ -1,4 +1,4 @@
-# Build-context ignore for `starters/operator/Dockerfile` (BuildKit uses the
+# Build-context ignore for `apps/operator/Dockerfile` (BuildKit uses the
 # `<dockerfile>.dockerignore` next to the Dockerfile in preference to the root
 # `.dockerignore`). The context is the REPO ROOT — keep the whole workspace
 # source (the operator bundles the `@voyant-travel/*` packages), but drop

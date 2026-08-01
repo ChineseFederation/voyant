@@ -526,7 +526,7 @@ describe("deployment graph artifacts", () => {
     )
     expect(source).toContain("GENERATED_PRODUCT_JOBS")
     expect(source).toContain("jobs: GENERATED_PRODUCT_JOBS")
-    expect(source).not.toContain("starters/")
+    expect(source).not.toContain("apps/")
   })
 
   it("lowers selected graph runtime references into deterministic lazy source", async () => {
@@ -778,7 +778,7 @@ describe("deployment graph artifacts", () => {
     expect(source).toContain(`GENERATED_GRAPH_RUNTIME_HASH = "${graph.contentHash}"`)
     expect(source).toContain("GENERATED_PROJECT_PRODUCT_JOBS")
     expect(source).toContain("productJobs: GENERATED_PROJECT_PRODUCT_JOBS")
-    expect(source).not.toContain("starters/")
+    expect(source).not.toContain("apps/")
     expect(() => buildProjectRuntimeModule({ graph })).toThrow(/must be target-neutral/)
   })
 

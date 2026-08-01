@@ -36,7 +36,7 @@ function argValue(flag) {
 
 const graphPath = path.resolve(
   argValue("--graph") ??
-    path.join(repoRoot, "starters/operator/.voyant/deployment-graph.generated.json"),
+    path.join(repoRoot, "apps/operator/.voyant/deployment-graph.generated.json"),
 )
 const allowlistPath = path.resolve(
   argValue("--allowlist") ??

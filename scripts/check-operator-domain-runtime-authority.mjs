@@ -17,14 +17,14 @@ const read = (path) => {
   return readFileSync(absolute, "utf8")
 }
 for (const path of [
-  "starters/operator/src/api/runtime/trips-catalog-runtime.ts",
-  "starters/operator/src/api/runtime/trips-checkout-runtime.ts",
-  "starters/operator/src/api/runtime/trips-flight-runtime.ts",
+  "apps/operator/src/api/runtime/trips-catalog-runtime.ts",
+  "apps/operator/src/api/runtime/trips-checkout-runtime.ts",
+  "apps/operator/src/api/runtime/trips-flight-runtime.ts",
 ]) {
   if (existsSync(join(root, path))) violations.push(`${path} must stay deleted`)
 }
 
-const tripsAdapterPath = "starters/operator/src/api/runtime/trips-runtime.ts"
+const tripsAdapterPath = "apps/operator/src/api/runtime/trips-runtime.ts"
 const tripsAdapter = existsSync(join(root, tripsAdapterPath)) ? read(tripsAdapterPath) : ""
 if (tripsAdapter) violations.push("Trips deployment adapter must stay deleted")
 const tripsRuntime = read("packages/trips/src/runtime.ts")
@@ -36,13 +36,12 @@ for (const token of [
   if (!tripsRuntime.includes(token)) violations.push(`Trips package runtime must own ${token}`)
 }
 
-const paymentPolicyFacadePath =
-  "starters/operator/src/api/runtime/booking-payment-policy-runtime.ts"
+const paymentPolicyFacadePath = "apps/operator/src/api/runtime/booking-payment-policy-runtime.ts"
 if (existsSync(join(root, paymentPolicyFacadePath))) {
   violations.push(`${paymentPolicyFacadePath} must stay deleted`)
 }
 
-const workflowAdapterPath = "starters/operator/src/api/runtime/operator-workflow-services.ts"
+const workflowAdapterPath = "apps/operator/src/api/runtime/operator-workflow-services.ts"
 if (existsSync(join(root, workflowAdapterPath))) {
   violations.push(`${workflowAdapterPath} must stay deleted`)
 }

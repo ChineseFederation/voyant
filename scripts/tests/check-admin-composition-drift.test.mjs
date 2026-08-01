@@ -229,13 +229,13 @@ function runChecker({
   bundle,
   presentation,
   compatibility,
-  router = join(ROOT, "starters/operator/src/router.tsx"),
+  router = join(ROOT, "apps/operator/src/router.tsx"),
   workspace = join(ROOT, "packages/admin-host/src/workspace.tsx"),
-  operatorPackage = join(ROOT, "starters/operator/package.json"),
+  operatorPackage = join(ROOT, "apps/operator/package.json"),
   adminHostDestinations = join(ROOT, "packages/admin-host/src/admin-destinations.ts"),
-  legacyRoutes = join(ROOT, "starters/operator/src/admin.routes.generated.tsx"),
-  legacyDestinations = join(ROOT, "starters/operator/src/admin.destinations.generated.ts"),
-  legacyGenerator = join(ROOT, "starters/operator/scripts/run-admin-generator.ts"),
+  legacyRoutes = join(ROOT, "apps/operator/src/admin.routes.generated.tsx"),
+  legacyDestinations = join(ROOT, "apps/operator/src/admin.destinations.generated.ts"),
+  legacyGenerator = join(ROOT, "apps/operator/scripts/run-admin-generator.ts"),
 }) {
   return execFileSync(
     process.execPath,

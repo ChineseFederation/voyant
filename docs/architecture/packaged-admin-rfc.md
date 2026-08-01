@@ -2,7 +2,7 @@
 
 Status: RFC / proposal — tracked in voyant#1643; motivated by voyant#1641
 (incident & delivery-model analysis)
-Audience: anyone who has shipped a fix to `starters/operator` and realized
+Audience: anyone who has shipped a fix to `apps/operator` and realized
 existing deployments will never receive it; anyone scaffolding a new client
 project and wondering which of the ~40k copied lines they actually own.
 
@@ -22,7 +22,7 @@ Voyant has **two delivery models** for the same product:
   plus the `voyant.config.ts` manifest. A fix in `@voyant-travel/hono` or any module
   reaches every deployment as a version bump.
 - **Admin frontend + worker infrastructure:** fork-and-own. Every project
-  starts as a copy of `starters/operator` and immediately diverges. A fix in
+  starts as a copy of `apps/operator` and immediately diverges. A fix in
   the template reaches **zero** existing deployments.
 
 voyant#1641 documents what that costs: the #1636 outage ("admin never loads")
@@ -32,7 +32,7 @@ diverged project. Same fix, two delivery models, and the load-bearing half was
 the manual one. The same pattern recurs with every starter-level improvement
 (#1631/#1637 cold-start chunking, #1642 SSR preloads).
 
-The fork surface today, measured on `starters/operator`:
+The fork surface today, measured on `apps/operator`:
 
 | Surface | Size | Delivery today |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ The fork surface today, measured on `starters/operator`:
 **Proposal: invert ownership of the admin.** The admin becomes a versioned
 application delivered by `@voyant-travel/admin` (`createAdminApp(...)`). Domain
 packages contribute their pages, navigation, and widgets through the
-`AdminExtension` seam that already exists and that `starters/operator`
+`AdminExtension` seam that already exists and that `apps/operator`
 already uses for promotions, trips, and the action ledger. The worker dispatch
 and build preset become packages. A project shrinks to:
 
@@ -63,7 +63,7 @@ and upgrading the admin is a dependency bump. The invariant we are adopting:
 Consequences we are accepting up front:
 
 - `templates/dmc` and `apps/dev` are **deleted**. They are stale forks of the
-  same surface (we only use `starters/operator`), and they are the first
+  same surface (we only use `apps/operator`), and they are the first
   victims of the model this RFC removes.
 - **Fork-and-own is retired entirely — including the source-installed
   (registry) UI strategy.** There are exactly two ways to consume Voyant:
@@ -143,13 +143,13 @@ demonstrates the failure mode before any client does.
 
 ## 3. Current state: most of the machinery already exists
 
-What we have (and is already exercised in `starters/operator`):
+What we have (and is already exercised in `apps/operator`):
 
 - **`@voyant-travel/admin`** — shell primitives, providers (query/theme/locale/i18n),
   navigation resolution, dashboard page, and the extension system:
   `AdminExtension`, `defineAdminExtension()`, `createAdminExtensionRegistry()`,
   `resolveAdminNavigation()`, `resolveAdminWidgets()`, `AdminWidgetSlot`.
-- **Live extension usage** — `starters/operator/src/lib/admin-extensions.tsx`
+- **Live extension usage** — `apps/operator/src/lib/admin-extensions.tsx`
   registers three extensions (promotions, trips, action-ledger).
   Today they contribute **navigation only** (the route components behind
   those nav entries are still starter-local route files), and 7 widget
@@ -547,10 +547,10 @@ journey redirect formerly embedded in the bookings detail route file).
 
 ## 5. What we delete
 
-- **`templates/dmc`** — superseded fork; we only use `starters/operator`.
+- **`templates/dmc`** — superseded fork; we only use `apps/operator`.
 - **`apps/dev`** — near-duplicate of dmc with extra diverged routes. Its role
   (UI playground against a real DB) is taken over by the thinned
-  `starters/operator`, which becomes both the reference host and the proving
+  `apps/operator`, which becomes both the reference host and the proving
   ground: if the operator's local pages can't be expressed through the
   extension surface, neither can a client's.
 - **The shadcn-style registry** — `apps/registry` (the registry host worker),
@@ -559,7 +559,7 @@ journey redirect formerly embedded in the bookings detail route file).
   versioned dependencies with a public component/export surface. Projects
   that want source-level ownership fork the repository.
 
-`starters/operator` survives as the reference host and the `voyant new`
+`apps/operator` survives as the reference host and the `voyant new`
 scaffold source — but its `src/` shrinks from ~40k LOC toward the §4.6 shape.
 
 ---
@@ -594,7 +594,7 @@ navigation, i18n bundle merging.
 
 ### Phase 3 — migrate all domains; delete the forks
 
-Move the remaining domain pages from `starters/operator/src/components/voyant`
+Move the remaining domain pages from `apps/operator/src/components/voyant`
 + `src/routes` into their `*-ui` packages' admin extensions, one domain per
 PR. The parity check flips from report-only to a CI gate once the majority
 of domains are migrated. When the operator's local routes are only genuinely
@@ -660,7 +660,7 @@ Open:
 3. **Auth route ownership:** the auth flows are framework-owned in §4.1 —
    confirm `@voyant-travel/auth-react/ui` covers all current operator auth routes
    (incl. accept-invite/onboarding) or extend it first.
-4. **Storefront routes:** `starters/operator` also hosts `(storefront)/*`
+4. **Storefront routes:** `apps/operator` also hosts `(storefront)/*`
    pages. Same model eventually (a `createStorefrontApp`), but explicitly out
    of scope for this RFC.
 5. **i18n:** merge strategy for extension-contributed admin locale bundles
@@ -686,7 +686,7 @@ Open:
    fixes land in the `*-ui` package and reach hosts as a version bump.
 2. A new project scaffold contains no framework infrastructure: manifest,
    thin entries, empty `src/admin/extensions/`.
-3. `starters/operator/src/routes` + `src/components` shrink from ~41k LOC to
+3. `apps/operator/src/routes` + `src/components` shrink from ~41k LOC to
    only genuinely custom pages (target: under ~3k LOC). **Met** — the domain
    migrations removed ~18k LOC of operator-local UI across the 10 domains;
    what remains is host wiring and genuinely custom pages.

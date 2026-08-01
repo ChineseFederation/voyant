@@ -258,7 +258,7 @@ Goal:
 - `packages/ui`
 - `apps/registry`
 - `apps/dev`
-- `starters/operator`
+- `apps/operator`
 - `templates/dmc`
 
 ### High-signal file groups

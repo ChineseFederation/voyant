@@ -379,12 +379,12 @@ function useInstalledToolingArtifacts(app, publishedPackages) {
   }
   for (const dependency of ["pg"]) {
     packageJson.dependencies[dependency] = `link:${realpathSync(
-      join(repoRoot, "starters/operator/node_modules", dependency),
+      join(repoRoot, "apps/operator/node_modules", dependency),
     )}`
   }
   for (const dependency of ["@voyant-travel/cli", "tsx", "typescript"]) {
     packageJson.devDependencies[dependency] = `link:${realpathSync(
-      join(repoRoot, "starters/operator/node_modules", dependency),
+      join(repoRoot, "apps/operator/node_modules", dependency),
     )}`
   }
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`)

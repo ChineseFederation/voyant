@@ -114,7 +114,7 @@ The implementation order is:
    accept-to-reserve wiring.
 
 Migrations remain starter-owned. The package schema changes are exported by
-the package; `starters/operator` (and, before its deletion, `templates/dmc`) owns migration generation
+the package; `apps/operator` (and, before its deletion, `templates/dmc`) owns migration generation
 and application.
 
 ## Alternatives considered

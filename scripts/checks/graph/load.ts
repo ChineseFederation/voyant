@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url"
 
 import getReleasePlan from "@changesets/get-release-plan"
 
-import operatorProject from "../../../starters/operator/voyant.config.ts"
+import operatorProject from "../../../apps/operator/voyant.config.ts"
 import {
   type OperatorAuthoredProject,
   resolveOperatorDeploymentGraph,
@@ -33,7 +33,7 @@ const cachePath = join(repoRoot, "node_modules", ".cache", "voyant-resolved-grap
  */
 function cacheKey(): string {
   const inputs = [
-    join(repoRoot, "starters", "operator", "voyant.config.ts"),
+    join(repoRoot, "apps", "operator", "voyant.config.ts"),
     join(repoRoot, "pnpm-lock.yaml"),
   ]
   return inputs
@@ -75,7 +75,7 @@ export async function loadResolvedGraph(): Promise<ResolvedGraph> {
 
   const { graph } = await resolveOperatorDeploymentGraph({
     project: operatorProject as OperatorAuthoredProject,
-    projectRoot: join(repoRoot, "starters", "operator"),
+    projectRoot: join(repoRoot, "apps", "operator"),
     repoRoot,
     frameworkVersion,
   })

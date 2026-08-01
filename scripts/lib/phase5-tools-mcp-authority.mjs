@@ -48,7 +48,7 @@ const REQUIRED_TOKENS = new Map([
 
 export function inspectPhase5ToolsMcpAuthority(files) {
   const failures = []
-  const compatibilityModule = "starters/operator/src/modules/mcp/index.ts"
+  const compatibilityModule = "apps/operator/src/modules/mcp/index.ts"
   if (files.has(compatibilityModule)) {
     failures.push(`${compatibilityModule}: Operator-local MCP compatibility module must be removed`)
   }

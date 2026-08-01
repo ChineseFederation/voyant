@@ -31,7 +31,7 @@ describe("framework project import boundary", () => {
   it("does not couple the public project boundary to a starter", () => {
     for (const file of ["project.ts", "project-resolver.ts", "deployment-artifacts.ts"]) {
       const source = readFileSync(new URL(file, import.meta.url), "utf8")
-      expect(source).not.toContain("starters/")
+      expect(source).not.toContain("apps/")
       expect(source).not.toContain("starters\\")
     }
   })

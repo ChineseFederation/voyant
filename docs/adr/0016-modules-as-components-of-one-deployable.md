@@ -18,7 +18,7 @@
 The package-per-module layout was adopted on the premise that **deployments would select
 modules**. That premise no longer holds:
 
-- One starter remains; `starters/federated-operator` is absent from `pnpm-workspace.yaml` and
+- One starter remains; `apps/federated-operator` is absent from `pnpm-workspace.yaml` and
   contains only `dist/` and `node_modules/`.
 - `exclude` is not a member of `CreateVoyantAppConfig` at all
   (`packages/framework/src/create-app.ts:19-27`) — the option was deleted, not merely unused.

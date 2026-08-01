@@ -11,7 +11,7 @@ default set, with deployment specifics injected as `providers`) vs **deployment-
 how operator-specific choices get baked into the framework package — the failure mode
 this whole effort exists to avoid.
 
-Source: `starters/operator/src/api/composition.ts` `OPERATOR_RUNTIME_MANIFEST`.
+Source: `apps/operator/src/api/composition.ts` `OPERATOR_RUNTIME_MANIFEST`.
 
 ## `@voyant-travel/*` entries
 

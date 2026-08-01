@@ -7,7 +7,7 @@
 ## Context
 
 A standard deployment's API wiring lives in two files —
-`starters/operator/src/api/app.ts` (~208 lines) and `.../composition.ts`
+`apps/operator/src/api/app.ts` (~208 lines) and `.../composition.ts`
 (~294 lines). It is centralized and heavily justified (≈40% of `app.ts` is
 comment), which is good. But the *shape* of what an operator author hand-maintains
 is the problem, not the volume. Three things drive the "messy" feel, and two of

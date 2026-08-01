@@ -4,21 +4,21 @@ import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const violations = []
-const obsoleteStarterFiles = [
-  "starters/operator/src/api/routes/charters.ts",
-  "starters/operator/src/api/routes/cruises.ts",
-  "starters/operator/src/api/jobs/channel-push-scheduled.ts",
-  "starters/operator/src/api/jobs/external-cruise-refresh-scheduled.ts",
-  "starters/operator/src/api/jobs/workflow-scheduled.ts",
-  "starters/operator/src/api/jobs/outbox-drain-scheduled.ts",
-  "starters/operator/src/local-scheduled-jobs.ts",
-  "starters/operator/src/api/routes/invitations.ts",
-  "starters/operator/src/api/routes/team.ts",
-  "starters/operator/src/modules/invitations/index.ts",
-  "starters/operator/src/modules/team/index.ts",
+const obsoleteApplicationFiles = [
+  "apps/operator/src/api/routes/charters.ts",
+  "apps/operator/src/api/routes/cruises.ts",
+  "apps/operator/src/api/jobs/channel-push-scheduled.ts",
+  "apps/operator/src/api/jobs/external-cruise-refresh-scheduled.ts",
+  "apps/operator/src/api/jobs/workflow-scheduled.ts",
+  "apps/operator/src/api/jobs/outbox-drain-scheduled.ts",
+  "apps/operator/src/local-scheduled-jobs.ts",
+  "apps/operator/src/api/routes/invitations.ts",
+  "apps/operator/src/api/routes/team.ts",
+  "apps/operator/src/modules/invitations/index.ts",
+  "apps/operator/src/modules/team/index.ts",
 ]
 
-for (const relativePath of obsoleteStarterFiles) {
+for (const relativePath of obsoleteApplicationFiles) {
   if (existsSync(join(root, relativePath))) violations.push(`${relativePath} must stay deleted`)
 }
 
@@ -56,9 +56,9 @@ for (const [relativePath, tokens] of requiredSourceTokens) {
 }
 
 if (violations.length > 0) {
-  console.error("Starter executable-surface authority check failed.\n")
+  console.error("Operator application executable-surface authority check failed.\n")
   for (const violation of violations) console.error(`  - ${violation}`)
   process.exit(1)
 }
 
-console.log("check-starter-executable-surface-authority: OK")
+console.log("check-operator-application-executable-surface-authority: OK")

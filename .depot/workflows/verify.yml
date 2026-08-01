@@ -13,8 +13,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: NODE_OPTIONS=--max-old-space-size=12288 pnpm turbo run typecheck --continue --concurrency=1 --filter=!./starters/operator --filter=!@voyant-travel/framework --ui=stream --log-order=stream
-      - run: pnpm turbo run typecheck --concurrency=1 --filter=@voyant-travel/framework --filter=./starters/operator --ui=stream --log-order=stream
+      - run: NODE_OPTIONS=--max-old-space-size=12288 pnpm turbo run typecheck --continue --concurrency=1 --filter=!./apps/operator --filter=!@voyant-travel/framework --ui=stream --log-order=stream
+      - run: pnpm turbo run typecheck --concurrency=1 --filter=@voyant-travel/framework --filter=./apps/operator --ui=stream --log-order=stream
       - run: pnpm turbo run test --continue --ui=stream --log-order=stream
       - run: pnpm verify:architecture
       - run: pnpm verify:package-exports

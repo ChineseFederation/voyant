@@ -10,7 +10,7 @@
 
 ## Context
 
-Workstreams A–C + the operator-settings extraction made the *code* upgrade seamless: a standard deployment bumps `@voyant-travel/framework`, runs `voyant doctor`, and merges no framework-owned files. But the **database** still has an upgrade tax: today the **deployment owns and regenerates** the combined migration folder (`starters/operator/migrations/` + its `meta/_journal.json`) from the aggregate schema (`drizzle.schemas.generated.ts`). When a bumped module changes its schema, the fork must **regenerate migrations** — that regeneration *is* the merge-shaped upgrade tax this whole effort exists to remove.
+Workstreams A–C + the operator-settings extraction made the *code* upgrade seamless: a standard deployment bumps `@voyant-travel/framework`, runs `voyant doctor`, and merges no framework-owned files. But the **database** still has an upgrade tax: today the **deployment owns and regenerates** the combined migration folder (`apps/operator/migrations/` + its `meta/_journal.json`) from the aggregate schema (`drizzle.schemas.generated.ts`). When a bumped module changes its schema, the fork must **regenerate migrations** — that regeneration *is* the merge-shaped upgrade tax this whole effort exists to remove.
 
 Drizzle gives no cross-package migration discovery, so this is Voyant-specific work the reference framework gets free from its ORM.
 
@@ -83,6 +83,6 @@ deployment links (priority 1)]`, ledger `drizzle._voyant_migrations`:
 - **BASELINE** (legacy `drizzle.__drizzle_migrations` present, no collector ledger) → `importBaseline()` records the bundle + links in the ledger **without re-executing** — because the schema is already materialised. **Gated by a schema-parity check**: every table the bundle/links expect must already exist; otherwise the runner *refuses* (a stuck-at-60 DB reports the missing tables and aborts rather than recording a false baseline).
 - **INCREMENTAL** (collector ledger present) → apply only new migrations.
 
-The legacy `starters/operator/migrations/` folder is **retired** as a runtime source (kept only as history); it is neither applied nor used as an oracle target. An existing *current* deployment baselines cleanly; a *stuck* deployment must converge its schema (via `db push` for the never-migrated drift tables) before it can baseline — the guard enforces this.
+The legacy `apps/operator/migrations/` folder is **retired** as a runtime source (kept only as history); it is neither applied nor used as an oracle target. An existing *current* deployment baselines cleanly; a *stuck* deployment must converge its schema (via `db push` for the never-migrated drift tables) before it can baseline — the guard enforces this.
 
 All validated against the operator docker Postgres: FRESH (executes → 339 tables, 2 ledger rows), INCREMENTAL (no-op), BASELINE success (imports without re-creating), BASELINE guard (refuses a 60-migration DB, lists missing tables, leaves no ledger).

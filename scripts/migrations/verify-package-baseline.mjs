@@ -20,7 +20,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
 
-const require = createRequire(new URL("../../starters/operator/package.json", import.meta.url))
+const require = createRequire(new URL("../../apps/operator/package.json", import.meta.url))
 const { Client } = require("pg")
 
 const ROOT = new URL("../..", import.meta.url).pathname

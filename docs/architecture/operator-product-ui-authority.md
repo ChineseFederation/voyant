@@ -35,7 +35,7 @@ adapter over the package-owned `AccountantPortal` finance UI.
 
 `node scripts/check-operator-product-ui-authority.mjs` enforces:
 
-- at most 16 files under `starters/operator/src`;
+- at most 16 files under `apps/operator/src`;
 - deleted booking-journey, storefront browse/detail, and payment-summary copies
   cannot return;
 - package storefront subpaths and thin route adapters remain connected;

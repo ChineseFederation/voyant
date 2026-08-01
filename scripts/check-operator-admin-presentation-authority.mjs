@@ -4,12 +4,12 @@ import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const failures = []
-const starterFiles = []
-const starterRoot = join(root, "starters/operator")
+const applicationFiles = []
+const applicationRoot = join(root, "apps/operator")
 const lineRatchet = 100
 
-const lines = starterFiles.reduce((total, relativePath) => {
-  const path = join(starterRoot, relativePath)
+const lines = applicationFiles.reduce((total, relativePath) => {
+  const path = join(applicationRoot, relativePath)
   if (!existsSync(path)) return total
   return total + readFileSync(path, "utf8").split("\n").length
 }, 0)
@@ -20,10 +20,10 @@ if (lines > lineRatchet) {
 }
 
 const forbidden = [
-  "starters/operator/src/lib/dashboard-ssr-query-options.ts",
-  "starters/operator/src/components/realtime-live.tsx",
-  "starters/operator/src/components/providers/user-provider.tsx",
-  "starters/operator/src/lib/admin-destinations.ts",
+  "apps/operator/src/lib/dashboard-ssr-query-options.ts",
+  "apps/operator/src/components/realtime-live.tsx",
+  "apps/operator/src/components/providers/user-provider.tsx",
+  "apps/operator/src/lib/admin-destinations.ts",
 ]
 for (const relativePath of forbidden) {
   if (existsSync(join(root, relativePath))) {
@@ -108,4 +108,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`Operator admin presentation authority: OK (${lines}/${lineRatchet} starter lines)`)
+console.log(`Operator admin presentation authority: OK (${lines}/${lineRatchet} application lines)`)
