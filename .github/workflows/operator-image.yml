@@ -1,0 +1,244 @@
+name: Operator image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: "Publish an immutable release image or explicitly promote a release to latest"
+        required: true
+        type: choice
+        options:
+          - publish-release
+          - promote-latest
+      release_version:
+        description: "Semver release tag, for example 0.225.0"
+        required: true
+        type: string
+
+concurrency:
+  group: operator-image-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.release_version }}
+  cancel-in-progress: false
+
+# Keep the workflow default read-only. Registry and attestation privileges are
+# granted only to the two jobs that can be reached by main pushes or an explicit
+# workflow dispatch; pull requests never invoke this workflow.
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/voyant-travel/operator
+
+jobs:
+  publish:
+    name: publish-and-verify
+    if: github.event_name == 'push' || inputs.operation == 'publish-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voyant
+          POSTGRES_PASSWORD: voyant
+          POSTGRES_DB: voyant_starter_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate publication and preserve immutable tags
+        id: publication
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Release images must be dispatched from main."
+              exit 1
+            fi
+            if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] || (( ${#RELEASE_VERSION} > 120 )); then
+              echo "release_version must be semver without a leading v or build metadata."
+              exit 1
+            fi
+            version="$RELEASE_VERSION"
+          else
+            version="sha-$GITHUB_SHA"
+          fi
+
+          tag="$IMAGE_NAME:$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if existing=$(docker buildx imagetools inspect "$tag" 2>/dev/null); then
+            digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$existing")
+            if [[ -z "$digest" ]]; then
+              echo "Could not resolve the existing digest for $tag."
+              exit 1
+            fi
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "Immutable release tag $tag already exists at $digest."
+              exit 1
+            fi
+            echo "Automatic SHA publication is already present at $digest; verifying it again."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push multi-platform image
+        id: build
+        if: steps.publication.outputs.exists != 'true'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: apps/operator/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.publication.outputs.tag }}
+          build-args: |
+            IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
+            IMAGE_REVISION=${{ github.sha }}
+            IMAGE_VERSION=${{ steps.publication.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.publication.outputs.version }}
+          cache-from: type=gha,scope=operator-image
+          cache-to: type=gha,mode=max,scope=operator-image
+          provenance: mode=max
+          sbom: true
+
+      - name: Resolve the exact published digest
+        id: image
+        shell: bash
+        env:
+          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
+          EXISTING_DIGEST: ${{ steps.publication.outputs.digest }}
+        run: |
+          set -euo pipefail
+          digest="${BUILT_DIGEST:-$EXISTING_DIGEST}"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Publication did not produce a valid OCI digest: $digest"
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=$IMAGE_NAME@$digest" >> "$GITHUB_OUTPUT"
+          echo "Published ${{ steps.publication.outputs.tag }} as $IMAGE_NAME@$digest"
+
+      - name: Attest the pushed image
+        if: steps.publication.outputs.exists != 'true'
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Migrate, boot, and API-smoke the pushed digest
+        run: scripts/smoke-operator-image.sh "${{ steps.image.outputs.ref }}"
+
+  promote-latest:
+    name: promote-latest-and-verify
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'promote-latest'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voyant
+          POSTGRES_PASSWORD: voyant
+          POSTGRES_DB: voyant_starter_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          filter: blob:none
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve and validate the immutable release
+        id: release
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "latest must be promoted from main."
+            exit 1
+          fi
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] || (( ${#RELEASE_VERSION} > 120 )); then
+            echo "release_version must be semver without a leading v or build metadata."
+            exit 1
+          fi
+          release_ref="$IMAGE_NAME:$RELEASE_VERSION"
+          manifest=$(docker buildx imagetools inspect "$release_ref")
+          digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$manifest")
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve $release_ref to an OCI digest."
+            exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=$IMAGE_NAME@$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Migrate, boot, and API-smoke the release digest
+        run: scripts/smoke-operator-image.sh "${{ steps.release.outputs.ref }}"
+
+      - name: Explicitly promote the verified release to latest
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "$IMAGE_NAME:latest" \
+            "${{ steps.release.outputs.ref }}"
+          manifest=$(docker buildx imagetools inspect "$IMAGE_NAME:latest")
+          latest_digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$manifest")
+          test "$latest_digest" = "${{ steps.release.outputs.digest }}"
+          echo "$IMAGE_NAME:latest -> $latest_digest"

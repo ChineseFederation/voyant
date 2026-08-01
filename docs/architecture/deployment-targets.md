@@ -87,6 +87,11 @@ workload class well. On Node none of it is necessary.
   `node run-generated-migrations.mjs` as an explicit pre-rollout command and
   boots `dist/server/server.js`, which validates graph artifacts and required
   graph resource env before serving traffic. Startup does not own migrations.
+  The production artifact is published as `ghcr.io/voyant-travel/operator`;
+  production control planes pin its immutable digest. See
+  [Operator Image Distribution Contract](./operator-image-distribution.md) for
+  tag promotion, OCI identity, provenance, digest acceptance, and provider
+  binding compatibility rules.
 - **Graph contract:** `pnpm --filter operator dev`, `pnpm --filter operator
   db:migrate`, and standalone Node boot all load the generated deployment graph
   artifacts and fail before serving traffic or touching the database when

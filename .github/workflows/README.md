@@ -43,6 +43,21 @@ Handles package releases:
 - npm Trusted Publishing via GitHub Actions OIDC
 - versioned starter tarballs attached to each GitHub Release for CLI scaffolding
 
+### `operator-image.yml`
+
+Publishes `ghcr.io/voyant-travel/operator` independently from npm packages:
+
+- pushes to `main` publish immutable `sha-<git-sha>` multi-architecture images
+- manual `publish-release` dispatches from `main` publish immutable semver tags
+- manual `promote-latest` dispatches move `latest` only after digest-level
+  migration, boot, and API acceptance
+- BuildKit SBOM/provenance and a GitHub registry attestation accompany new
+  artifacts
+
+Pull requests do not trigger this workflow. Platform deployments consume a
+digest, never `latest`; see
+`docs/architecture/operator-image-distribution.md` for the complete contract.
+
 Notes:
 
 - the push flow creates or updates the Changesets release PR whenever releasable changesets exist

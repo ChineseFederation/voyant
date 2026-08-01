@@ -48,6 +48,14 @@ RUN node scripts/apply-publish-config.mjs /deploy
 
 # ── runtime: minimal image — the built app + its production node_modules. ─────
 FROM node:22-slim AS runtime
+ARG IMAGE_SOURCE="https://github.com/voyant-travel/voyant"
+ARG IMAGE_REVISION="unknown"
+ARG IMAGE_VERSION="development"
+LABEL org.opencontainers.image.title="Voyant Operator" \
+      org.opencontainers.image.description="Voyant's graph-composed Node operator application" \
+      org.opencontainers.image.source="$IMAGE_SOURCE" \
+      org.opencontainers.image.revision="$IMAGE_REVISION" \
+      org.opencontainers.image.version="$IMAGE_VERSION"
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/apps/operator/dist ./dist

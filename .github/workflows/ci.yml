@@ -400,41 +400,11 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
+      - name: Verify operator image publication contract
+        run: node scripts/check-operator-image-publication.mjs
+
       - name: Build production operator image
         run: docker build -f apps/operator/Dockerfile -t voyant-operator:ci .
 
       - name: Migrate, boot, and smoke-test the production image
-        run: |
-          container="voyant-operator-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
-          env_args=(
-            --env PORT=8080
-            --env DATABASE_URL=postgresql://voyant:voyant@localhost:5432/voyant_starter_acceptance
-            --env EMAIL_FROM=ci@example.com
-            --env KMS_PROVIDER=local
-            --env APP_URL=http://localhost:8080/api
-            --env API_BASE_URL=http://localhost:8080/api
-            --env CORS_ALLOWLIST=http://localhost:8080
-            --env DASH_BASE_URL=http://localhost:8080
-            --env BETTER_AUTH_ADMIN_SECRET="$(openssl rand -hex 24)"
-            --env BETTER_AUTH_CUSTOMER_SECRET="$(openssl rand -hex 24)"
-            --env SESSION_CLAIMS_ADMIN_SECRET="$(openssl rand -hex 24)"
-            --env SESSION_CLAIMS_CUSTOMER_SECRET="$(openssl rand -hex 24)"
-            --env VOYANT_CHECKOUT_CAPABILITY_SECRET="$(openssl rand -hex 24)"
-            --env INTERNAL_API_KEY="$(openssl rand -hex 16)"
-            --env KMS_LOCAL_KEY="$(openssl rand -base64 32)"
-          )
-          docker run --rm --network host "${env_args[@]}" voyant-operator:ci \
-            node run-generated-migrations.mjs
-          docker run --detach --name "$container" --network host \
-            "${env_args[@]}" voyant-operator:ci
-          for i in $(seq 1 60); do
-            if curl -sf -o /dev/null http://localhost:8080/healthz; then break; fi
-            sleep 1
-          done
-          health=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/healthz)
-          echo "healthz -> $health"
-          test "$health" = "200"
-          api=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 http://localhost:8080/api/openapi.json)
-          echo "api dispatch -> $api"
-          test "$api" -lt 500
+        run: scripts/smoke-operator-image.sh voyant-operator:ci
