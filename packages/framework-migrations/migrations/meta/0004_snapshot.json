@@ -665,6 +665,210 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.proposal_delivery_requests": {
+      "name": "proposal_delivery_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "command_scope": {
+          "name": "command_scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_idempotency_key": {
+          "name": "command_idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_fingerprint": {
+          "name": "request_fingerprint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "claim_action_id": {
+          "name": "claim_action_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposal_id": {
+          "name": "proposal_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposal_version_id": {
+          "name": "proposal_version_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proposal_url": {
+          "name": "proposal_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "result_snapshot": {
+          "name": "result_snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_proposal_delivery_requests_proposal": {
+          "name": "idx_proposal_delivery_requests_proposal",
+          "columns": [
+            {
+              "expression": "proposal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uidx_proposal_delivery_requests_version": {
+          "name": "uidx_proposal_delivery_requests_version",
+          "columns": [
+            {
+              "expression": "proposal_version_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uidx_proposal_delivery_requests_command": {
+          "name": "uidx_proposal_delivery_requests_command",
+          "columns": [
+            {
+              "expression": "command_scope",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "command_idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uidx_proposal_delivery_requests_claim": {
+          "name": "uidx_proposal_delivery_requests_claim",
+          "columns": [
+            {
+              "expression": "claim_action_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "proposal_delivery_requests_proposal_id_proposals_id_fk": {
+          "name": "proposal_delivery_requests_proposal_id_proposals_id_fk",
+          "tableFrom": "proposal_delivery_requests",
+          "tableTo": "proposals",
+          "columnsFrom": [
+            "proposal_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "proposal_delivery_requests_proposal_version_id_proposal_versions_id_fk": {
+          "name": "proposal_delivery_requests_proposal_version_id_proposal_versions_id_fk",
+          "tableFrom": "proposal_delivery_requests",
+          "tableTo": "proposal_versions",
+          "columnsFrom": [
+            "proposal_version_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.session": {
       "name": "session",
       "schema": "",
@@ -6531,8 +6735,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.booking_crm_details": {
-      "name": "booking_crm_details",
+    "public.booking_proposal_details": {
+      "name": "booking_proposal_details",
       "schema": "",
       "columns": {
         "booking_id": {
@@ -6541,14 +6745,14 @@
           "primaryKey": true,
           "notNull": true
         },
-        "quote_id": {
-          "name": "quote_id",
+        "proposal_id": {
+          "name": "proposal_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "quote_version_id": {
-          "name": "quote_version_id",
+        "proposal_version_id": {
+          "name": "proposal_version_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -6569,11 +6773,11 @@
         }
       },
       "indexes": {
-        "idx_bcd_quote": {
-          "name": "idx_bcd_quote",
+        "idx_booking_proposal_details_proposal": {
+          "name": "idx_booking_proposal_details_proposal",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6584,11 +6788,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_bcd_quote_version": {
-          "name": "idx_bcd_quote_version",
+        "idx_booking_proposal_details_proposal_version": {
+          "name": "idx_booking_proposal_details_proposal_version",
           "columns": [
             {
-              "expression": "quote_version_id",
+              "expression": "proposal_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6623,7 +6827,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'quote'"
+          "default": "'proposal'"
         },
         "name": {
           "name": "name",
@@ -6753,8 +6957,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.quote_participants": {
-      "name": "quote_participants",
+    "public.proposal_participants": {
+      "name": "proposal_participants",
       "schema": "",
       "columns": {
         "id": {
@@ -6763,8 +6967,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "quote_id": {
-          "name": "quote_id",
+        "proposal_id": {
+          "name": "proposal_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -6799,11 +7003,11 @@
         }
       },
       "indexes": {
-        "idx_quote_participants_quote": {
-          "name": "idx_quote_participants_quote",
+        "idx_proposal_participants_proposal": {
+          "name": "idx_proposal_participants_proposal",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6814,11 +7018,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_participants_quote_primary": {
-          "name": "idx_quote_participants_quote_primary",
+        "idx_proposal_participants_proposal_primary": {
+          "name": "idx_proposal_participants_proposal_primary",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6841,8 +7045,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_participants_person": {
-          "name": "idx_quote_participants_person",
+        "idx_proposal_participants_person": {
+          "name": "idx_proposal_participants_person",
           "columns": [
             {
               "expression": "person_id",
@@ -6856,11 +7060,11 @@
           "method": "btree",
           "with": {}
         },
-        "uidx_quote_participants_unique": {
-          "name": "uidx_quote_participants_unique",
+        "uidx_proposal_participants_unique": {
+          "name": "uidx_proposal_participants_unique",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6879,12 +7083,12 @@
         }
       },
       "foreignKeys": {
-        "quote_participants_quote_id_quotes_id_fk": {
-          "name": "quote_participants_quote_id_quotes_id_fk",
-          "tableFrom": "quote_participants",
-          "tableTo": "quotes",
+        "proposal_participants_proposal_id_proposals_id_fk": {
+          "name": "proposal_participants_proposal_id_proposals_id_fk",
+          "tableFrom": "proposal_participants",
+          "tableTo": "proposals",
           "columnsFrom": [
-            "quote_id"
+            "proposal_id"
           ],
           "columnsTo": [
             "id"
@@ -6899,8 +7103,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.quote_products": {
-      "name": "quote_products",
+    "public.proposal_products": {
+      "name": "proposal_products",
       "schema": "",
       "columns": {
         "id": {
@@ -6909,8 +7113,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "quote_id": {
-          "name": "quote_id",
+        "proposal_id": {
+          "name": "proposal_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -6986,11 +7190,11 @@
         }
       },
       "indexes": {
-        "idx_quote_products_quote": {
-          "name": "idx_quote_products_quote",
+        "idx_proposal_products_proposal": {
+          "name": "idx_proposal_products_proposal",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7001,11 +7205,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_products_quote_created": {
-          "name": "idx_quote_products_quote_created",
+        "idx_proposal_products_proposal_created": {
+          "name": "idx_proposal_products_proposal_created",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7022,8 +7226,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_products_product": {
-          "name": "idx_quote_products_product",
+        "idx_proposal_products_product": {
+          "name": "idx_proposal_products_product",
           "columns": [
             {
               "expression": "product_id",
@@ -7037,8 +7241,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_products_supplier_service": {
-          "name": "idx_quote_products_supplier_service",
+        "idx_proposal_products_supplier_service": {
+          "name": "idx_proposal_products_supplier_service",
           "columns": [
             {
               "expression": "supplier_service_id",
@@ -7054,12 +7258,12 @@
         }
       },
       "foreignKeys": {
-        "quote_products_quote_id_quotes_id_fk": {
-          "name": "quote_products_quote_id_quotes_id_fk",
-          "tableFrom": "quote_products",
-          "tableTo": "quotes",
+        "proposal_products_proposal_id_proposals_id_fk": {
+          "name": "proposal_products_proposal_id_proposals_id_fk",
+          "tableFrom": "proposal_products",
+          "tableTo": "proposals",
           "columnsFrom": [
-            "quote_id"
+            "proposal_id"
           ],
           "columnsTo": [
             "id"
@@ -7074,8 +7278,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.quote_version_lines": {
-      "name": "quote_version_lines",
+    "public.proposal_version_lines": {
+      "name": "proposal_version_lines",
       "schema": "",
       "columns": {
         "id": {
@@ -7084,8 +7288,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "quote_version_id": {
-          "name": "quote_version_id",
+        "proposal_version_id": {
+          "name": "proposal_version_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -7151,11 +7355,11 @@
         }
       },
       "indexes": {
-        "idx_quote_version_lines_version": {
-          "name": "idx_quote_version_lines_version",
+        "idx_proposal_version_lines_version": {
+          "name": "idx_proposal_version_lines_version",
           "columns": [
             {
-              "expression": "quote_version_id",
+              "expression": "proposal_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7166,11 +7370,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_version_lines_version_created": {
-          "name": "idx_quote_version_lines_version_created",
+        "idx_proposal_version_lines_version_created": {
+          "name": "idx_proposal_version_lines_version_created",
           "columns": [
             {
-              "expression": "quote_version_id",
+              "expression": "proposal_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7187,8 +7391,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_version_lines_product": {
-          "name": "idx_quote_version_lines_product",
+        "idx_proposal_version_lines_product": {
+          "name": "idx_proposal_version_lines_product",
           "columns": [
             {
               "expression": "product_id",
@@ -7202,8 +7406,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_version_lines_supplier_service": {
-          "name": "idx_quote_version_lines_supplier_service",
+        "idx_proposal_version_lines_supplier_service": {
+          "name": "idx_proposal_version_lines_supplier_service",
           "columns": [
             {
               "expression": "supplier_service_id",
@@ -7219,12 +7423,12 @@
         }
       },
       "foreignKeys": {
-        "quote_version_lines_quote_version_id_quote_versions_id_fk": {
-          "name": "quote_version_lines_quote_version_id_quote_versions_id_fk",
-          "tableFrom": "quote_version_lines",
-          "tableTo": "quote_versions",
+        "proposal_version_lines_proposal_version_id_proposal_versions_id_fk": {
+          "name": "proposal_version_lines_proposal_version_id_proposal_versions_id_fk",
+          "tableFrom": "proposal_version_lines",
+          "tableTo": "proposal_versions",
           "columnsFrom": [
-            "quote_version_id"
+            "proposal_version_id"
           ],
           "columnsTo": [
             "id"
@@ -7239,8 +7443,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.quote_versions": {
-      "name": "quote_versions",
+    "public.proposal_versions": {
+      "name": "proposal_versions",
       "schema": "",
       "columns": {
         "id": {
@@ -7249,8 +7453,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "quote_id": {
-          "name": "quote_id",
+        "proposal_id": {
+          "name": "proposal_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -7263,7 +7467,7 @@
         },
         "status": {
           "name": "status",
-          "type": "quote_version_status",
+          "type": "proposal_version_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -7360,11 +7564,11 @@
         }
       },
       "indexes": {
-        "idx_quote_versions_quote": {
-          "name": "idx_quote_versions_quote",
+        "idx_proposal_versions_proposal": {
+          "name": "idx_proposal_versions_proposal",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7375,8 +7579,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_versions_status": {
-          "name": "idx_quote_versions_status",
+        "idx_proposal_versions_status": {
+          "name": "idx_proposal_versions_status",
           "columns": [
             {
               "expression": "status",
@@ -7390,8 +7594,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_versions_supersedes": {
-          "name": "idx_quote_versions_supersedes",
+        "idx_proposal_versions_supersedes": {
+          "name": "idx_proposal_versions_supersedes",
           "columns": [
             {
               "expression": "supersedes_id",
@@ -7405,8 +7609,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_versions_trip_snapshot": {
-          "name": "idx_quote_versions_trip_snapshot",
+        "idx_proposal_versions_trip_snapshot": {
+          "name": "idx_proposal_versions_trip_snapshot",
           "columns": [
             {
               "expression": "trip_snapshot_id",
@@ -7420,11 +7624,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_versions_quote_updated": {
-          "name": "idx_quote_versions_quote_updated",
+        "idx_proposal_versions_proposal_updated": {
+          "name": "idx_proposal_versions_proposal_updated",
           "columns": [
             {
-              "expression": "quote_id",
+              "expression": "proposal_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7441,8 +7645,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quote_versions_status_updated": {
-          "name": "idx_quote_versions_status_updated",
+        "idx_proposal_versions_status_updated": {
+          "name": "idx_proposal_versions_status_updated",
           "columns": [
             {
               "expression": "status",
@@ -7464,12 +7668,12 @@
         }
       },
       "foreignKeys": {
-        "quote_versions_quote_id_quotes_id_fk": {
-          "name": "quote_versions_quote_id_quotes_id_fk",
-          "tableFrom": "quote_versions",
-          "tableTo": "quotes",
+        "proposal_versions_proposal_id_proposals_id_fk": {
+          "name": "proposal_versions_proposal_id_proposals_id_fk",
+          "tableFrom": "proposal_versions",
+          "tableTo": "proposals",
           "columnsFrom": [
-            "quote_id"
+            "proposal_id"
           ],
           "columnsTo": [
             "id"
@@ -7477,10 +7681,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "quote_versions_supersedes_id_quote_versions_id_fk": {
-          "name": "quote_versions_supersedes_id_quote_versions_id_fk",
-          "tableFrom": "quote_versions",
-          "tableTo": "quote_versions",
+        "proposal_versions_supersedes_id_proposal_versions_id_fk": {
+          "name": "proposal_versions_supersedes_id_proposal_versions_id_fk",
+          "tableFrom": "proposal_versions",
+          "tableTo": "proposal_versions",
           "columnsFrom": [
             "supersedes_id"
           ],
@@ -7497,8 +7701,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.quotes": {
-      "name": "quotes",
+    "public.proposals": {
+      "name": "proposals",
       "schema": "",
       "columns": {
         "id": {
@@ -7545,7 +7749,7 @@
         },
         "status": {
           "name": "status",
-          "type": "quote_status",
+          "type": "proposal_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
@@ -7636,8 +7840,8 @@
         }
       },
       "indexes": {
-        "idx_quotes_person": {
-          "name": "idx_quotes_person",
+        "idx_proposals_person": {
+          "name": "idx_proposals_person",
           "columns": [
             {
               "expression": "person_id",
@@ -7651,8 +7855,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_org": {
-          "name": "idx_quotes_org",
+        "idx_proposals_org": {
+          "name": "idx_proposals_org",
           "columns": [
             {
               "expression": "organization_id",
@@ -7666,8 +7870,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_pipeline": {
-          "name": "idx_quotes_pipeline",
+        "idx_proposals_pipeline": {
+          "name": "idx_proposals_pipeline",
           "columns": [
             {
               "expression": "pipeline_id",
@@ -7681,8 +7885,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_stage": {
-          "name": "idx_quotes_stage",
+        "idx_proposals_stage": {
+          "name": "idx_proposals_stage",
           "columns": [
             {
               "expression": "stage_id",
@@ -7696,8 +7900,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_owner": {
-          "name": "idx_quotes_owner",
+        "idx_proposals_owner": {
+          "name": "idx_proposals_owner",
           "columns": [
             {
               "expression": "owner_id",
@@ -7711,8 +7915,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_status": {
-          "name": "idx_quotes_status",
+        "idx_proposals_status": {
+          "name": "idx_proposals_status",
           "columns": [
             {
               "expression": "status",
@@ -7726,8 +7930,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_accepted_version": {
-          "name": "idx_quotes_accepted_version",
+        "idx_proposals_accepted_version": {
+          "name": "idx_proposals_accepted_version",
           "columns": [
             {
               "expression": "accepted_version_id",
@@ -7741,8 +7945,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_person_updated": {
-          "name": "idx_quotes_person_updated",
+        "idx_proposals_person_updated": {
+          "name": "idx_proposals_person_updated",
           "columns": [
             {
               "expression": "person_id",
@@ -7762,8 +7966,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_org_updated": {
-          "name": "idx_quotes_org_updated",
+        "idx_proposals_org_updated": {
+          "name": "idx_proposals_org_updated",
           "columns": [
             {
               "expression": "organization_id",
@@ -7783,8 +7987,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_pipeline_updated": {
-          "name": "idx_quotes_pipeline_updated",
+        "idx_proposals_pipeline_updated": {
+          "name": "idx_proposals_pipeline_updated",
           "columns": [
             {
               "expression": "pipeline_id",
@@ -7804,8 +8008,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_stage_updated": {
-          "name": "idx_quotes_stage_updated",
+        "idx_proposals_stage_updated": {
+          "name": "idx_proposals_stage_updated",
           "columns": [
             {
               "expression": "stage_id",
@@ -7825,8 +8029,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_owner_updated": {
-          "name": "idx_quotes_owner_updated",
+        "idx_proposals_owner_updated": {
+          "name": "idx_proposals_owner_updated",
           "columns": [
             {
               "expression": "owner_id",
@@ -7846,8 +8050,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_quotes_status_updated": {
-          "name": "idx_quotes_status_updated",
+        "idx_proposals_status_updated": {
+          "name": "idx_proposals_status_updated",
           "columns": [
             {
               "expression": "status",
@@ -7869,9 +8073,9 @@
         }
       },
       "foreignKeys": {
-        "quotes_pipeline_id_pipelines_id_fk": {
-          "name": "quotes_pipeline_id_pipelines_id_fk",
-          "tableFrom": "quotes",
+        "proposals_pipeline_id_pipelines_id_fk": {
+          "name": "proposals_pipeline_id_pipelines_id_fk",
+          "tableFrom": "proposals",
           "tableTo": "pipelines",
           "columnsFrom": [
             "pipeline_id"
@@ -7882,9 +8086,9 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "quotes_stage_id_stages_id_fk": {
-          "name": "quotes_stage_id_stages_id_fk",
-          "tableFrom": "quotes",
+        "proposals_stage_id_stages_id_fk": {
+          "name": "proposals_stage_id_stages_id_fk",
+          "tableFrom": "proposals",
           "tableTo": "stages",
           "columnsFrom": [
             "stage_id"
@@ -34116,8 +34320,8 @@
           "notNull": true,
           "default": "'manual'"
         },
-        "quote_version_id": {
-          "name": "quote_version_id",
+        "proposal_version_id": {
+          "name": "proposal_version_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -34216,11 +34420,11 @@
         }
       },
       "indexes": {
-        "idx_booking_origins_quote_version": {
-          "name": "idx_booking_origins_quote_version",
+        "idx_booking_origins_proposal_version": {
+          "name": "idx_booking_origins_proposal_version",
           "columns": [
             {
-              "expression": "quote_version_id",
+              "expression": "proposal_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -34358,7 +34562,7 @@
       "checkConstraints": {
         "ck_booking_origins_source": {
           "name": "ck_booking_origins_source",
-          "value": "\"booking_origins\".\"origin_source\" IN ('manual', 'direct_b2c', 'accepted_quote_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')"
+          "value": "\"booking_origins\".\"origin_source\" IN ('manual', 'direct_b2c', 'accepted_proposal_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')"
         }
       },
       "isRLSEnabled": false
@@ -65303,7 +65507,7 @@
       "values": [
         "organization",
         "person",
-        "quote",
+        "proposal",
         "activity"
       ]
     },
@@ -65372,8 +65576,8 @@
         "other"
       ]
     },
-    "public.quote_status": {
-      "name": "quote_status",
+    "public.proposal_status": {
+      "name": "proposal_status",
       "schema": "public",
       "values": [
         "open",
@@ -65382,8 +65586,8 @@
         "archived"
       ]
     },
-    "public.quote_version_status": {
-      "name": "quote_version_status",
+    "public.proposal_version_status": {
+      "name": "proposal_version_status",
       "schema": "public",
       "values": [
         "draft",
@@ -67441,7 +67645,7 @@
       "schema": "public",
       "values": [
         "booking",
-        "quote_version",
+        "proposal_version",
         "program",
         "product",
         "inventory_item",

@@ -3,7 +3,7 @@ import { bookingLinkable } from "@voyant-travel/bookings/linkables"
 import { defineLink } from "@voyant-travel/core"
 import { supplierLinkable } from "@voyant-travel/distribution/linkables"
 import { functionSpaceLinkable, spaceBlockLinkable } from "@voyant-travel/operations/linkables"
-import { quoteLinkable } from "@voyant-travel/quotes/linkables"
+import { proposalLinkable } from "@voyant-travel/proposals/linkables"
 import { organizationLinkable, personLinkable } from "@voyant-travel/relationships/linkables"
 
 import {
@@ -38,7 +38,7 @@ export const programSpaceBlockLink = defineLink(programLinkable, {
   isList: true,
 })
 
-export const quoteProgramLink = defineLink(quoteLinkable, {
+export const proposalProgramLink = defineLink(proposalLinkable, {
   linkable: programLinkable,
 })
 

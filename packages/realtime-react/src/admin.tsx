@@ -19,7 +19,7 @@ const ADMIN_INVALIDATIONS: Readonly<Record<string, ReadonlyArray<QueryKey>>> = {
   organization: [["voyant", "relationships", "organizations"]],
   signal: [["voyant", "relationships", "customer-signals"]],
   supplier: [["voyant", "suppliers"]],
-  quote: [["voyant", "quotes"]],
+  proposal: [["voyant", "proposals"]],
   invoice: [["voyant", "finance"], DASH_FINANCE],
   contract: [["legal", "contracts"]],
   cruise: [["voyant", "cruises"]],

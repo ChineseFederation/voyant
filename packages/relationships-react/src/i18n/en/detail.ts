@@ -41,7 +41,7 @@ export const crmUiEnDetailMessages = {
     },
     metrics: {
       people: "People",
-      openQuotes: "Open quotes",
+      openProposals: "Open proposals",
       pipelineValue: "Pipeline value",
       won: "Won",
     },
@@ -51,7 +51,7 @@ export const crmUiEnDetailMessages = {
       contactMethods: "Contact methods",
       addresses: "Addresses",
       namedContacts: "Contacts",
-      quotes: "Quotes",
+      proposals: "Proposals",
       activities: "Activities",
       bookings: "Bookings",
       invoices: "Invoices",
@@ -66,7 +66,7 @@ export const crmUiEnDetailMessages = {
     empty: {
       noPeople: "No people linked to this organization.",
       unnamed: "Unnamed",
-      noQuotes: "No quotes.",
+      noProposals: "No proposals.",
       noActivities: "No activities yet.",
     },
     actions: {
@@ -119,14 +119,14 @@ export const crmUiEnDetailMessages = {
       },
     },
     metrics: {
-      openQuotes: "Open quotes",
+      openProposals: "Open proposals",
       pipelineValue: "Pipeline value",
       documents: "Documents",
       activities: "Activities",
     },
     tabs: {
       overview: "Overview",
-      quotes: "Quotes",
+      proposals: "Proposals",
       activities: "Activities",
       relationships: "Relationships",
       documents: "Documents",
@@ -222,7 +222,7 @@ export const crmUiEnDetailMessages = {
       other: "Other",
     },
     empty: {
-      noQuotes: "No quotes.",
+      noProposals: "No proposals.",
       noActivities: "No activities yet.",
       noRelationships: "No relationships linked to this person.",
       noDocuments: "No documents.",

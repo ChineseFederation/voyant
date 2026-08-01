@@ -68,8 +68,8 @@ export const STANDARD_OPERATOR_ACCESS: VoyantGraphProjectAccessDeclaration = {
         "finance:read",
         "operations:read",
         "products:read",
-        "quotes:read",
-        "quotes:write",
+        "proposals:read",
+        "proposals:write",
         "reports:export",
         "reports:read",
         "reports:write",
@@ -175,7 +175,7 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     { resolve: "@voyant-travel/relationships", required: true },
     { resolve: "@voyant-travel/custom-fields", required: true },
     { resolve: "@voyant-travel/apps", required: true },
-    { resolve: "@voyant-travel/quotes" },
+    { resolve: "@voyant-travel/proposals" },
     { resolve: "@voyant-travel/operations" },
     { resolve: "@voyant-travel/operations/dashboard" },
     { resolve: "@voyant-travel/identity", required: true },
@@ -235,8 +235,8 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
       owners: ["@voyant-travel/inventory"],
     },
     {
-      resolve: "@voyant-travel/quotes/booking-extension",
-      owners: ["@voyant-travel/quotes", "@voyant-travel/bookings"],
+      resolve: "@voyant-travel/proposals/booking-extension",
+      owners: ["@voyant-travel/proposals", "@voyant-travel/bookings"],
     },
     {
       resolve: "@voyant-travel/distribution/extension",
@@ -279,8 +279,8 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
       ],
     },
     {
-      resolve: "@voyant-travel/quotes/quote-version-snapshot-extension",
-      owners: ["@voyant-travel/quotes", "@voyant-travel/trips"],
+      resolve: "@voyant-travel/proposals/proposal-version-snapshot-extension",
+      owners: ["@voyant-travel/proposals", "@voyant-travel/trips"],
     },
     {
       resolve: "@voyant-travel/commerce/booking-maintenance-extension",
@@ -295,12 +295,12 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
       owners: ["@voyant-travel/action-ledger"],
     },
     {
-      resolve: "@voyant-travel/quotes/proposal-extension",
-      owners: ["@voyant-travel/quotes", "@voyant-travel/notifications"],
+      resolve: "@voyant-travel/proposals/presentation-extension",
+      owners: ["@voyant-travel/proposals", "@voyant-travel/notifications"],
     },
     {
-      resolve: "@voyant-travel/realtime/quotes-invalidation-extension",
-      owners: ["@voyant-travel/realtime", "@voyant-travel/quotes"],
+      resolve: "@voyant-travel/realtime/proposals-invalidation-extension",
+      owners: ["@voyant-travel/realtime", "@voyant-travel/proposals"],
     },
     {
       resolve: "@voyant-travel/catalog/offers-extension",
@@ -324,7 +324,7 @@ export const STANDARD_OPERATOR_DISTRIBUTION_POLICY: {
     },
     {
       resolve: "@voyant-travel/mice/standard-product-links",
-      owners: ["@voyant-travel/mice", "@voyant-travel/quotes"],
+      owners: ["@voyant-travel/mice", "@voyant-travel/proposals"],
     },
   ],
 }

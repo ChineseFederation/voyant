@@ -95,7 +95,7 @@ export interface ResolveOperatorAdminNavigationOptions {
 /**
  * Resolve package-owned navigation before anchored add-ons. Standard package
  * items are no longer host base items, so this first pass lets contributions
- * such as Trips, Quotes, and MICE keep anchoring themselves after Bookings.
+ * such as Trips, Proposals, and MICE keep anchoring themselves after Bookings.
  */
 export function resolveOperatorAdminNavigation({
   baseItems,

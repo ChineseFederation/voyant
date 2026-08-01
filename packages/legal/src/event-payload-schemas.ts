@@ -16,7 +16,7 @@ const contractScopeValues = ["customer", "supplier", "partner", "channel", "othe
 
 const legalTargetKindValues = [
   "booking",
-  "quote_version",
+  "proposal_version",
   "program",
   "product",
   "inventory_item",

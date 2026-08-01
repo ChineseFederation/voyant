@@ -54,7 +54,7 @@ for (const relativePath of [
 }
 
 for (const relativePath of [
-  "packages/quotes-react/src/storefront/public-proposal-page.tsx",
+  "packages/proposals-react/src/storefront/public-proposal-page.tsx",
   "packages/finance-react/src/storefront/payment-link-resolver-page.tsx",
   "packages/finance-react/src/storefront/public-payment-link-page.tsx",
   "packages/finance-react/src/storefront/payment-link-booking-summary.tsx",
@@ -102,9 +102,9 @@ if (existsSync(join(root, "starters/operator/src/custom-fields"))) {
 const requiredTokens = new Map([
   ["packages/bookings-react/src/storefront/index.ts", ["resolveContractVariables"]],
   ["packages/bookings-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/quotes-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
+  ["packages/proposals-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
   ["packages/finance-react/package.json", ['"./storefront": "./src/storefront/index.ts"']],
-  ["packages/quotes-react/src/storefront/index.ts", ["PublicProposalPage"]],
+  ["packages/proposals-react/src/storefront/index.ts", ["PublicProposalPage"]],
   [
     "packages/finance-react/src/storefront/index.ts",
     ["PaymentLinkResolverPage", "PublicPaymentLinkPage"],
@@ -165,7 +165,7 @@ const requiredTokens = new Map([
       "presentationFactories",
       '"@voyant-travel/storefront#presentation.customer"',
       "createFinancePublicRouteContribution",
-      "createQuotesPublicRouteContribution",
+      "createProposalsPublicRouteContribution",
       "createAdminHostPresentation",
       "buildAdminExtensionRoutes",
     ],
@@ -180,8 +180,8 @@ const requiredTokens = new Map([
     ],
   ],
   [
-    "packages/quotes-react/src/public-routes.tsx",
-    ["createQuotesPublicRouteContribution", "PublicProposalPage"],
+    "packages/proposals-react/src/public-routes.tsx",
+    ["createProposalsPublicRouteContribution", "PublicProposalPage"],
   ],
   [
     "packages/operator-standard/src/standard-route-files.ts",
@@ -230,7 +230,7 @@ const productReactPackages = [
   "@voyant-travel/legal-react",
   "@voyant-travel/mice-react",
   "@voyant-travel/operations-react",
-  "@voyant-travel/quotes-react",
+  "@voyant-travel/proposals-react",
   "@voyant-travel/realtime-react",
   "@voyant-travel/relationships-react",
   "@voyant-travel/storefront-react",

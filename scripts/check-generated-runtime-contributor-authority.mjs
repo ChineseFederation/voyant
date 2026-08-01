@@ -26,7 +26,7 @@ const packageFactories = {
   notifications: "createNotificationsRuntimePortContribution",
   "operator-settings": "createOperatorSettingsRuntimePortContribution",
   operations: "createOperationsRuntimePortContribution",
-  quotes: "createQuotesRuntimePortContribution",
+  proposals: "createProposalsRuntimePortContribution",
   realtime: "createRealtimeRuntimePortContribution",
   relationships: "createRelationshipsRuntimePortContribution",
   storage: "createStorageRuntimePortContribution",

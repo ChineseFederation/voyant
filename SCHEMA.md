@@ -1,6 +1,6 @@
 # Voyant Database Schema Reference
 
-> Auto-generated from Drizzle table definitions via `pnpm generate:schema-docs` on 2026-07-14.
+> Auto-generated from Drizzle table definitions via `pnpm generate:schema-docs` on 2026-08-01.
 > SQL column names are shown first; TypeScript property names are included when they differ.
 > Constraint markers are derived from the schema source, not from a live database introspection run.
 
@@ -250,20 +250,6 @@ Constraints:
 | `sent_at` (`sentAt`) | timestamp with time zone • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 
-### `custom_field_definitions`
-| Column | Type |
-|--------|------|
-| `id` | text • PK • not null • default |
-| `entity_type` (`entityType`) | entity_type • not null |
-| `key` | text • not null |
-| `label` | text • not null |
-| `field_type` (`fieldType`) | custom_field_type • not null |
-| `is_required` (`isRequired`) | boolean • not null • default false |
-| `is_searchable` (`isSearchable`) | boolean • not null • default false |
-| `options` | jsonb • nullable |
-| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
-| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
-
 ### `customer_signals`
 | Column | Type |
 |--------|------|
@@ -422,14 +408,14 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
-## Quotes
+## Proposals
 
-### `booking_crm_details`
+### `booking_proposal_details`
 | Column | Type |
 |--------|------|
 | `booking_id` (`bookingId`) | text • PK • not null |
-| `quote_id` (`quoteId`) | text • nullable |
-| `quote_version_id` (`quoteVersionId`) | text • nullable |
+| `proposal_id` (`proposalId`) | text • nullable |
+| `proposal_version_id` (`proposalVersionId`) | text • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
@@ -437,18 +423,37 @@ Constraints:
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `entity_type` (`entityType`) | entity_type • not null • default "quote" |
+| `entity_type` (`entityType`) | entity_type • not null • default "proposal" |
 | `name` | text • not null |
 | `is_default` (`isDefault`) | boolean • not null • default false |
 | `sort_order` (`sortOrder`) | integer • not null • default 0 |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
-### `quote_media`
+### `proposal_delivery_requests`
+| Column | Type |
+|--------|------|
+| `id` | text • PK • not null |
+| `command_scope` (`commandScope`) | text • not null |
+| `command_idempotency_key` (`commandIdempotencyKey`) | text • not null |
+| `request_fingerprint` (`requestFingerprint`) | text • not null |
+| `claim_action_id` (`claimActionId`) | text • not null |
+| `organization_id` (`organizationId`) | text • nullable |
+| `target_type` (`targetType`) | text • not null |
+| `target_id` (`targetId`) | text • not null |
+| `proposal_id` (`proposalId`) | text • FK -> proposals.id • not null |
+| `proposal_version_id` (`proposalVersionId`) | text • FK -> proposal_versions.id • not null |
+| `proposal_url` (`proposalUrl`) | text • not null |
+| `provider` | text • not null |
+| `result_snapshot` (`resultSnapshot`) | jsonb • not null |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+| `completed_at` (`completedAt`) | timestamp with time zone • nullable |
+
+### `proposal_media`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `quote_id` (`quoteId`) | text • FK -> quotes.id • not null |
+| `proposal_id` (`proposalId`) | text • FK -> proposals.id • not null |
 | `media_type` (`mediaType`) | text • not null |
 | `name` | text • not null |
 | `url` | text • not null |
@@ -460,21 +465,21 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
-### `quote_participants`
+### `proposal_participants`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `quote_id` (`quoteId`) | text • FK -> quotes.id • not null |
+| `proposal_id` (`proposalId`) | text • FK -> proposals.id • not null |
 | `person_id` (`personId`) | text • not null |
 | `role` | participant_role • not null • default "other" |
 | `is_primary` (`isPrimary`) | boolean • not null • default false |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 
-### `quote_products`
+### `proposal_products`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `quote_id` (`quoteId`) | text • FK -> quotes.id • not null |
+| `proposal_id` (`proposalId`) | text • FK -> proposals.id • not null |
 | `product_id` (`productId`) | text • nullable |
 | `supplier_service_id` (`supplierServiceId`) | text • nullable |
 | `name_snapshot` (`nameSnapshot`) | text • not null |
@@ -487,11 +492,11 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
-### `quote_version_lines`
+### `proposal_version_lines`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `quote_version_id` (`quoteVersionId`) | text • FK -> quote_versions.id • not null |
+| `proposal_version_id` (`proposalVersionId`) | text • FK -> proposal_versions.id • not null |
 | `product_id` (`productId`) | text • nullable |
 | `supplier_service_id` (`supplierServiceId`) | text • nullable |
 | `description` | text • not null |
@@ -502,14 +507,14 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
-### `quote_versions`
+### `proposal_versions`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
-| `quote_id` (`quoteId`) | text • FK -> quotes.id • not null |
+| `proposal_id` (`proposalId`) | text • FK -> proposals.id • not null |
 | `label` | text • nullable |
-| `status` | quote_version_status • not null • default "draft" |
-| `supersedes_id` (`supersedesId`) | text • FK -> quote_versions.id • nullable |
+| `status` | proposal_version_status • not null • default "draft" |
+| `supersedes_id` (`supersedesId`) | text • FK -> proposal_versions.id • nullable |
 | `trip_snapshot_id` (`tripSnapshotId`) | text • nullable |
 | `valid_until` (`validUntil`) | date • nullable |
 | `currency` | text • not null |
@@ -524,7 +529,7 @@ Constraints:
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 | `archived_at` (`archivedAt`) | timestamp with time zone • nullable |
 
-### `quotes`
+### `proposals`
 | Column | Type |
 |--------|------|
 | `id` | text • PK • not null • default |
@@ -534,7 +539,7 @@ Constraints:
 | `pipeline_id` (`pipelineId`) | text • FK -> pipelines.id • not null |
 | `stage_id` (`stageId`) | text • FK -> stages.id • not null |
 | `owner_id` (`ownerId`) | text • nullable |
-| `status` | quote_status • not null • default "open" |
+| `status` | proposal_status • not null • default "open" |
 | `accepted_version_id` (`acceptedVersionId`) | text • nullable |
 | `value_amount_cents` (`valueAmountCents`) | integer • nullable |
 | `value_currency` (`valueCurrency`) | text • nullable |
@@ -995,9 +1000,13 @@ Constraints:
 | `storage_key` (`storageKey`) | text • nullable |
 | `mime_type` (`mimeType`) | text • nullable |
 | `file_size` (`fileSize`) | integer • nullable |
+| `width` | integer • nullable |
+| `height` | integer • nullable |
 | `alt_text` (`altText`) | text • nullable |
+| `asset_id` (`assetId`) | text • nullable |
 | `sort_order` (`sortOrder`) | integer • not null • default 0 |
 | `is_cover` (`isCover`) | boolean • not null • default false |
+| `is_open_graph` (`isOpenGraph`) | boolean • not null • default false |
 | `is_brochure` (`isBrochure`) | boolean • not null • default false |
 | `is_brochure_current` (`isBrochureCurrent`) | boolean • not null • default false |
 | `brochure_version` (`brochureVersion`) | integer • nullable |
@@ -1595,6 +1604,19 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
+### `promotion_reindex_state`
+| Column | Type |
+|--------|------|
+| `id` | text • PK • not null • default "all-products" |
+| `requested_generation` (`requestedGeneration`) | integer • not null • default 0 |
+| `completed_generation` (`completedGeneration`) | integer • not null • default 0 |
+| `claimed_generation` (`claimedGeneration`) | integer • nullable |
+| `lease_owner` (`leaseOwner`) | text • nullable |
+| `lease_until` (`leaseUntil`) | timestamp with time zone • nullable |
+| `requested_at` (`requestedAt`) | timestamp with time zone • not null • default |
+| `completed_at` (`completedAt`) | timestamp with time zone • nullable |
+| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
+
 ### `promotional_offer_products`
 | Column | Type |
 |--------|------|
@@ -2078,10 +2100,12 @@ Constraints:
 | `end_date` (`endDate`) | date • nullable |
 | `pax` | integer • nullable |
 | `internal_notes` (`internalNotes`) | text • nullable |
+| `notifications_suppressed` (`notificationsSuppressed`) | boolean • not null • default false |
 | `customer_payment_policy` (`customerPaymentPolicy`) | jsonb • nullable |
 | `price_override` (`priceOverride`) | jsonb • nullable |
 | `custom_fields` (`customFields`) | jsonb • not null • default |
 | `hold_expires_at` (`holdExpiresAt`) | timestamp with time zone • nullable |
+| `accepted_at` (`acceptedAt`) | timestamp with time zone • nullable |
 | `confirmed_at` (`confirmedAt`) | timestamp with time zone • nullable |
 | `expired_at` (`expiredAt`) | timestamp with time zone • nullable |
 | `cancelled_at` (`cancelledAt`) | timestamp with time zone • nullable |
@@ -2214,6 +2238,9 @@ Constraints:
 | `pax_count` (`paxCount`) | integer • not null |
 | `expires_at` (`expiresAt`) | timestamp with time zone • not null |
 | `released_at` (`releasedAt`) | timestamp with time zone • nullable |
+| `converted_at` (`convertedAt`) | timestamp with time zone • nullable |
+| `converted_booking_id` (`convertedBookingId`) | text • nullable |
+| `converted_allocation_id` (`convertedAllocationId`) | text • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
@@ -3067,6 +3094,14 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
+### `channel_push_job_leases`
+| Column | Type |
+|--------|------|
+| `job_id` (`jobId`) | text • PK • not null |
+| `owner` | text • not null |
+| `lease_until` (`leaseUntil`) | timestamp with time zone • not null |
+| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
+
 ### `channel_reconciliation_items`
 | Column | Type |
 |--------|------|
@@ -3499,6 +3534,32 @@ Constraints:
 | `metadata` | jsonb • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 
+### `invoice_external_lifecycle_operations`
+| Column | Type |
+|--------|------|
+| `invoice_id` (`invoiceId`) | text • PK • FK -> invoices.id • not null |
+| `provider` | text • PK • not null |
+| `operation_id` (`operationId`) | text • PK • not null |
+| `state` | text • not null |
+| `occurred_at` (`occurredAt`) | timestamp with time zone • not null |
+| `successor_invoice_id` (`successorInvoiceId`) | text • FK -> invoices.id • nullable |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+
+Constraints:
+- Primary key: `invoice_id`, `provider`, `operation_id`
+
+### `invoice_external_payment_identifiers`
+| Column | Type |
+|--------|------|
+| `provider` | text • PK • not null |
+| `payment_identifier` (`paymentIdentifier`) | text • PK • not null |
+| `invoice_id` (`invoiceId`) | text • FK -> invoices.id • not null |
+| `first_operation_id` (`firstOperationId`) | text • not null |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+
+Constraints:
+- Primary key: `provider`, `payment_identifier`
+
 ### `invoice_external_refs`
 | Column | Type |
 |--------|------|
@@ -3512,8 +3573,48 @@ Constraints:
 | `metadata` | jsonb • nullable |
 | `synced_at` (`syncedAt`) | timestamp with time zone • nullable |
 | `sync_error` (`syncError`) | text • nullable |
+| `sync_state` (`syncState`) | text • nullable |
+| `sync_operation_id` (`syncOperationId`) | text • nullable |
+| `sync_occurred_at` (`syncOccurredAt`) | timestamp with time zone • nullable |
+| `sync_error_code` (`syncErrorCode`) | text • nullable |
+| `sync_error_message` (`syncErrorMessage`) | text • nullable |
+| `sync_metadata` (`syncMetadata`) | jsonb • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
+
+### `invoice_external_settlement_observations`
+| Column | Type |
+|--------|------|
+| `invoice_id` (`invoiceId`) | text • PK • FK -> invoices.id • not null |
+| `provider` | text • PK • not null |
+| `operation_id` (`operationId`) | text • PK • not null |
+| `occurred_at` (`occurredAt`) | timestamp with time zone • not null |
+| `status` | text • not null |
+| `currency` | text • not null |
+| `total_cents` (`totalCents`) | integer • not null |
+| `paid_cents` (`paidCents`) | integer • not null |
+| `balance_due_cents` (`balanceDueCents`) | integer • not null |
+| `payment_identifiers` (`paymentIdentifiers`) | jsonb • not null |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+
+Constraints:
+- Primary key: `invoice_id`, `provider`, `operation_id`
+
+### `invoice_external_sync_observations`
+| Column | Type |
+|--------|------|
+| `invoice_id` (`invoiceId`) | text • PK • FK -> invoices.id • not null |
+| `provider` | text • PK • not null |
+| `operation_id` (`operationId`) | text • PK • not null |
+| `status` | text • not null |
+| `occurred_at` (`occurredAt`) | timestamp with time zone • not null |
+| `error_code` (`errorCode`) | text • nullable |
+| `error_message` (`errorMessage`) | text • nullable |
+| `metadata` | jsonb • nullable |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+
+Constraints:
+- Primary key: `invoice_id`, `provider`, `operation_id`
 
 ### `invoice_line_items`
 | Column | Type |
@@ -3564,6 +3665,9 @@ Constraints:
 | `language` | text • nullable |
 | `error_message` (`errorMessage`) | text • nullable |
 | `generated_at` (`generatedAt`) | timestamp with time zone • nullable |
+| `app_provider` (`appProvider`) | text • nullable |
+| `app_idempotency_digest` (`appIdempotencyDigest`) | text • nullable |
+| `app_file_name` (`appFileName`) | text • nullable |
 | `metadata` | jsonb • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
@@ -3709,6 +3813,7 @@ Constraints:
 | `payment_id` (`paymentId`) | text • FK -> payments.id • nullable |
 | `status` | payment_session_status • not null • default "pending" |
 | `provider` | text • nullable |
+| `provider_connection_id` (`providerConnectionId`) | text • nullable |
 | `provider_session_id` (`providerSessionId`) | text • nullable |
 | `provider_payment_id` (`providerPaymentId`) | text • nullable |
 | `external_reference` (`externalReference`) | text • nullable |
@@ -3974,6 +4079,83 @@ Constraints:
 | `legacy_transaction_offer_id` (`legacyTransactionOfferId`) | text • nullable |
 | `legacy_transaction_order_id` (`legacyTransactionOrderId`) | text • nullable |
 | `metadata` | jsonb • nullable |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+
+### `contract_document_operations`
+| Column | Type |
+|--------|------|
+| `id` | text • PK • not null • default |
+| `booking_id` (`bookingId`) | text • not null |
+| `contract_id` (`contractId`) | text • FK -> contracts.id • nullable |
+| `organization_id` (`organizationId`) | text • nullable |
+| `principal_type` (`principalType`) | text • not null |
+| `principal_id` (`principalId`) | text • not null |
+| `tenant_scope` (`tenantScope`) | text • not null |
+| `claim_action_id` (`claimActionId`) | text • not null |
+| `claim_action_name` (`claimActionName`) | text • not null |
+| `claim_action_version` (`claimActionVersion`) | text • not null |
+| `claim_target_type` (`claimTargetType`) | text • not null |
+| `claim_target_id` (`claimTargetId`) | text • not null |
+| `claim_idempotency_scope` (`claimIdempotencyScope`) | text • not null |
+| `claim_idempotency_fingerprint` (`claimIdempotencyFingerprint`) | text • not null |
+| `claim_command_payload` (`claimCommandPayload`) | jsonb • not null |
+| `idempotency_key` (`idempotencyKey`) | text • not null |
+| `mode` | text • not null |
+| `request_fingerprint` (`requestFingerprint`) | text • not null |
+| `target_fingerprint` (`targetFingerprint`) | text • not null |
+| `provider_id` (`providerId`) | text • not null |
+| `provider_version` (`providerVersion`) | text • not null |
+| `provider_protocol` (`providerProtocol`) | text • not null |
+| `status` | text • not null • default "prepared" |
+| `checkpoint` | text • not null • default "prepared" |
+| `attempt_count` (`attemptCount`) | integer • not null • default 0 |
+| `max_attempts` (`maxAttempts`) | integer • not null • default 8 |
+| `fencing_token` (`fencingToken`) | integer • not null • default 0 |
+| `lease_owner` (`leaseOwner`) | text • nullable |
+| `lease_expires_at` (`leaseExpiresAt`) | timestamp with time zone • nullable |
+| `next_attempt_at` (`nextAttemptAt`) | timestamp with time zone • not null • default |
+| `operation_key` (`operationKey`) | text • not null |
+| `render_descriptor` (`renderDescriptor`) | jsonb • not null |
+| `rendered_payload` (`renderedPayload`) | text • nullable |
+| `artifact_metadata` (`artifactMetadata`) | jsonb • nullable |
+| `artifact_name` (`artifactName`) | text • nullable |
+| `artifact_content_type` (`artifactContentType`) | text • nullable |
+| `artifact_checksum` (`artifactChecksum`) | text • nullable |
+| `artifact_byte_length` (`artifactByteLength`) | integer • nullable |
+| `previous_attachment_id` (`previousAttachmentId`) | text • nullable |
+| `previous_storage_key` (`previousStorageKey`) | text • nullable |
+| `previous_provider_id` (`previousProviderId`) | text • nullable |
+| `previous_provider_version` (`previousProviderVersion`) | text • nullable |
+| `previous_provider_protocol` (`previousProviderProtocol`) | text • nullable |
+| `previous_canonical_fingerprint` (`previousCanonicalFingerprint`) | jsonb • nullable |
+| `canonical_attachment_id` (`canonicalAttachmentId`) | text • nullable |
+| `result` | jsonb • nullable |
+| `event_id` (`eventId`) | text • not null |
+| `last_error` (`lastError`) | text • nullable |
+| `completed_at` (`completedAt`) | timestamp with time zone • nullable |
+| `dead_lettered_at` (`deadLetteredAt`) | timestamp with time zone • nullable |
+| `cleanup_completed_at` (`cleanupCompletedAt`) | timestamp with time zone • nullable |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
+
+### `contract_lifecycle_command_results`
+| Column | Type |
+|--------|------|
+| `claim_action_id` (`claimActionId`) | text • PK • not null |
+| `action_name` (`actionName`) | text • not null |
+| `action_version` (`actionVersion`) | text • not null |
+| `target_type` (`targetType`) | text • not null |
+| `contract_id` (`contractId`) | text • not null |
+| `transition` | text • not null |
+| `idempotency_scope` (`idempotencyScope`) | text • not null |
+| `idempotency_key` (`idempotencyKey`) | text • not null |
+| `idempotency_fingerprint` (`idempotencyFingerprint`) | text • not null |
+| `principal_type` (`principalType`) | text • not null |
+| `principal_id` (`principalId`) | text • not null |
+| `organization_id` (`organizationId`) | text • nullable |
+| `command_payload` (`commandPayload`) | jsonb • not null |
+| `result` | jsonb • not null |
+| `event_id` (`eventId`) | text • unique • not null |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 
 ### `contract_number_series`
@@ -4290,6 +4472,33 @@ Constraints:
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
 
+### `notification_send_operations`
+| Column | Type |
+|--------|------|
+| `id` | text • PK • not null • default |
+| `command_scope` (`commandScope`) | text • not null |
+| `idempotency_key` (`idempotencyKey`) | text • not null |
+| `request_fingerprint` (`requestFingerprint`) | text • not null |
+| `claim_action_id` (`claimActionId`) | text • unique • not null |
+| `organization_id` (`organizationId`) | text • nullable |
+| `target_type` (`targetType`) | text • not null |
+| `target_id` (`targetId`) | text • not null |
+| `delivery_id` (`deliveryId`) | text • FK -> notification_deliveries.id • not null |
+| `provider` | text • not null |
+| `provider_idempotency_key` (`providerIdempotencyKey`) | text • not null |
+| `request_payload` (`requestPayload`) | jsonb • not null |
+| `result_snapshot` (`resultSnapshot`) | jsonb • not null |
+| `terminal_event` (`terminalEvent`) | jsonb • nullable |
+| `status` | notification_send_operation_status • not null • default "pending" |
+| `attempts` | integer • not null • default 0 |
+| `max_attempts` (`maxAttempts`) | integer • not null • default 8 |
+| `next_attempt_at` (`nextAttemptAt`) | timestamp with time zone • not null • default |
+| `lease_expires_at` (`leaseExpiresAt`) | timestamp with time zone • nullable |
+| `last_error` (`lastError`) | text • nullable |
+| `completed_at` (`completedAt`) | timestamp with time zone • nullable |
+| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
+| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
+
 ### `notification_settings`
 | Column | Type |
 |--------|------|
@@ -4337,6 +4546,9 @@ Constraints:
 | `last_sent_at` (`lastSentAt`) | timestamp with time zone • not null • default |
 | `verified_at` (`verifiedAt`) | timestamp with time zone • nullable |
 | `failed_at` (`failedAt`) | timestamp with time zone • nullable |
+| `subject_ref` (`subjectRef`) | text • nullable |
+| `consumed_at` (`consumedAt`) | timestamp with time zone • nullable |
+| `consumed_ref` (`consumedRef`) | text • nullable |
 | `metadata` | jsonb • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 | `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |

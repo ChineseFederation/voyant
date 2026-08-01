@@ -47,7 +47,7 @@
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/products-contracts": "workspace:^",
-    "@voyant-travel/quotes-contracts": "workspace:^",
+    "@voyant-travel/proposals-contracts": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "rrule": "^2.8.1",

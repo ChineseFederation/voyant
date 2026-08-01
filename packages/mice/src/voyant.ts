@@ -328,10 +328,10 @@ export const miceStandardProductLinksVoyantExtension = defineExtension({
   localId: "mice.standard-product-links",
   links: [
     {
-      id: "@voyant-travel/mice#link.quote-program",
+      id: "@voyant-travel/mice#link.proposal-program",
       kind: "definition",
       source: "@voyant-travel/mice/standard-links",
-      export: "quoteProgramLink",
+      export: "proposalProgramLink",
     },
   ],
   meta: { ownership: "standard-product" },

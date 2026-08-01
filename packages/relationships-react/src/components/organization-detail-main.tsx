@@ -63,7 +63,8 @@ export function OrganizationMain({
 }: OrganizationMainProps) {
   const i18n = useCrmUiI18nOrDefault()
   const messages = useCrmUiMessagesOrDefault()
-  const hasQuotesSlot = slots?.quotesContent !== undefined || slots?.quotesEnd !== undefined
+  const hasProposalsSlot =
+    slots?.proposalsContent !== undefined || slots?.proposalsEnd !== undefined
 
   return (
     <main className="col-span-12 flex flex-col gap-4 lg:col-span-9">
@@ -108,8 +109,10 @@ export function OrganizationMain({
               <TabsTrigger value="namedContacts">
                 {messages.organizationDetail.tabs.namedContacts}
               </TabsTrigger>
-              {hasQuotesSlot ? (
-                <TabsTrigger value="quotes">{messages.organizationDetail.tabs.quotes}</TabsTrigger>
+              {hasProposalsSlot ? (
+                <TabsTrigger value="proposals">
+                  {messages.organizationDetail.tabs.proposals}
+                </TabsTrigger>
               ) : null}
               <TabsTrigger value="activities">
                 {messages.organizationDetail.tabs.activities} ({activities.length})
@@ -222,10 +225,10 @@ export function OrganizationMain({
               {slots?.namedContactsEnd}
             </TabsContent>
 
-            {hasQuotesSlot ? (
-              <TabsContent value="quotes" className="m-0">
-                {slots?.quotesContent}
-                {slots?.quotesEnd}
+            {hasProposalsSlot ? (
+              <TabsContent value="proposals" className="m-0">
+                {slots?.proposalsContent}
+                {slots?.proposalsEnd}
               </TabsContent>
             ) : null}
 

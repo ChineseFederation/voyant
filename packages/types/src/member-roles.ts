@@ -44,7 +44,7 @@ export type MemberRole = (typeof MEMBER_ROLES)[number]
 const EDITOR_READ_WRITE_RESOURCES = [
   "catalog",
   "products",
-  "quotes",
+  "proposals",
   "trips",
   "crm",
   "availability",

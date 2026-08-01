@@ -37,8 +37,8 @@ const mcpConsent = presentation("@voyant-travel/mcp#presentation.consent", "mcpC
   { route: "/(mcp)/mcp-consent", member: "consent" },
 ])
 
-const quotesPublic = presentation("@voyant-travel/quotes#presentation.public", "quotes", [
-  { route: "/proposal/$quoteVersionId", member: "proposal" },
+const proposalsPublic = presentation("@voyant-travel/proposals#presentation.public", "proposals", [
+  { route: "/proposal/$proposalVersionId", member: "proposal" },
 ])
 
 const storefrontCustomer = presentation(
@@ -57,7 +57,7 @@ const storefrontCustomer = presentation(
   ],
 )
 
-const allPresentations = [localAuth, financePublic, mcpConsent, quotesPublic, storefrontCustomer]
+const allPresentations = [localAuth, financePublic, mcpConsent, proposalsPublic, storefrontCustomer]
 
 describe("createStandardOperatorRouteFiles", () => {
   it("routes every standard frontend surface through the package runtime", () => {
@@ -87,7 +87,7 @@ describe("createStandardOperatorRouteFiles", () => {
       [localAuth, "(auth)/"],
       [financePublic, "pay.tsx"],
       [mcpConsent, "(mcp)/"],
-      [quotesPublic, "proposal.$quoteVersionId.tsx"],
+      [proposalsPublic, "proposal.$proposalVersionId.tsx"],
     ] as const
 
     for (const [declaration, expectedPath] of cases) {
@@ -148,7 +148,7 @@ describe("createStandardOperatorRouteFiles", () => {
   it("orders presentation families by presentation id", () => {
     const files = createStandardOperatorRouteFiles({
       // Deliberately shuffled to prove the generator sorts by presentation id.
-      presentations: [storefrontCustomer, localAuth, quotesPublic, financePublic, mcpConsent],
+      presentations: [storefrontCustomer, localAuth, proposalsPublic, financePublic, mcpConsent],
     })
     const familyPaths = files
       .map(({ path }) => path)
@@ -175,7 +175,7 @@ describe("createStandardOperatorRouteFiles", () => {
       "pay_.$sessionId.tsx",
       "(mcp)/route.tsx",
       "(mcp)/mcp-consent.tsx",
-      "proposal.$quoteVersionId.tsx",
+      "proposal.$proposalVersionId.tsx",
       "(storefront)/route.tsx",
       "(storefront)/shop.tsx",
       "(storefront)/shop_.account.tsx",

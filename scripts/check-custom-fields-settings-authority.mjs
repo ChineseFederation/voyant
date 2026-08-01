@@ -39,7 +39,7 @@ const genericRoutes = read("packages/custom-fields/src/routes.ts")
 const genericOpenApi = read("packages/custom-fields/openapi/admin/custom-fields.json")
 const relationshipsOpenApi = read("packages/relationships/openapi/admin/relationships.json")
 const bookingsRuntimeContributor = read("packages/bookings/src/runtime-contributor.ts")
-const quotesRuntimeContributor = read("packages/quotes/src/runtime-contributor.ts")
+const proposalsRuntimeContributor = read("packages/proposals/src/runtime-contributor.ts")
 const relationshipsRuntimeContributor = read("packages/relationships/src/runtime-contributor.ts")
 const genericValueIntegration = read(
   "packages/relationships/tests/integration/generic-custom-field-values.test.ts",
@@ -95,7 +95,7 @@ if (
   failures.push("core must define the generic custom-field value operations port")
 for (const [owner, contents] of [
   ["Bookings", bookingsRuntimeContributor],
-  ["Quotes", quotesRuntimeContributor],
+  ["Proposals", proposalsRuntimeContributor],
   ["Relationships", relationshipsRuntimeContributor],
 ]) {
   if (!contents.includes("[customFieldValueOperationsRuntimePort.id]"))
@@ -229,14 +229,14 @@ if (!read("packages/bookings/src/voyant.ts").includes('namespace: "bookings"'))
   failures.push("Bookings must declare a stable custom-field namespace")
 if (!read("packages/relationships/src/voyant.ts").includes('namespace: "relationships"'))
   failures.push("Relationships must declare a stable custom-field namespace")
-if (!read("packages/quotes/src/voyant.ts").includes('namespace: "quotes"'))
-  failures.push("Quotes must declare a stable custom-field namespace")
+if (!read("packages/proposals/src/voyant.ts").includes('namespace: "proposals"'))
+  failures.push("Proposals must declare a stable custom-field namespace")
 if (!read("packages/bookings/src/voyant.ts").includes("customFieldTargets"))
   failures.push("Bookings must declare its custom-field target")
 if (!read("packages/relationships/src/voyant.ts").includes("customFieldTargets"))
   failures.push("Relationships must declare its custom-field targets")
-if (!read("packages/quotes/src/voyant.ts").includes("customFieldTargets"))
-  failures.push("Quotes must declare its custom-field target")
+if (!read("packages/proposals/src/voyant.ts").includes("customFieldTargets"))
+  failures.push("Proposals must declare its custom-field target")
 
 if (failures.length)
   throw new Error(`check-custom-fields-settings-authority:\n- ${failures.join("\n- ")}`)

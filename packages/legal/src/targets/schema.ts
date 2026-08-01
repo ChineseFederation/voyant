@@ -2,7 +2,7 @@ import { pgEnum } from "drizzle-orm/pg-core"
 
 export const legalTargetKindValues = [
   "booking",
-  "quote_version",
+  "proposal_version",
   "program",
   "product",
   "inventory_item",

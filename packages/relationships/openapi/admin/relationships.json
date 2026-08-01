@@ -9472,7 +9472,7 @@
           {
             "schema": {
               "type": "string",
-              "enum": ["organization", "person", "quote", "activity"]
+              "enum": ["organization", "person", "proposal", "activity"]
             },
             "required": false,
             "name": "entityType",
@@ -10098,7 +10098,7 @@
                           },
                           "entityType": {
                             "type": "string",
-                            "enum": ["organization", "person", "quote", "activity"]
+                            "enum": ["organization", "person", "proposal", "activity"]
                           },
                           "entityId": {
                             "type": "string"
@@ -10157,7 +10157,7 @@
                 "properties": {
                   "entityType": {
                     "type": "string",
-                    "enum": ["organization", "person", "quote", "activity"]
+                    "enum": ["organization", "person", "proposal", "activity"]
                   },
                   "entityId": {
                     "type": "string"
@@ -10192,7 +10192,7 @@
                         },
                         "entityType": {
                           "type": "string",
-                          "enum": ["organization", "person", "quote", "activity"]
+                          "enum": ["organization", "person", "proposal", "activity"]
                         },
                         "entityId": {
                           "type": "string"

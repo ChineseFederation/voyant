@@ -23,7 +23,7 @@ storefront and federated surfaces keep their existing target-specific hosts.
 ## Product Authority
 
 Accommodations, Bookings, Catalog, Commerce, Finance, Flights, Inventory,
-Legal, Notifications, Quotes, Relationships, Storage, Storefront, and Trips are
+Legal, Notifications, Proposals, Relationships, Storage, Storefront, and Trips are
 composed from package-owned graph factories. Their deployment behavior enters
 through typed ports declared by those packages. The Node host exposes only a
 generic resource record for deployment-local factories and a generic runtime

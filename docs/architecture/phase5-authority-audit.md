@@ -75,7 +75,7 @@ Status at `4c94a014b0`, updated by the graph-wide first-party event contract cut
   package-owned subscriber descriptor; the graph-wide report identifies it as the one unowned
   runtime subscription type.
 - Expand package-owned tools beyond the currently declared Catalog, Bookings, Finance,
-  Inventory, Notifications, Quotes, Relationships, and Trips sets; ratchet context and
+  Inventory, Notifications, Proposals, Relationships, and Trips sets; ratchet context and
   runtime export parity mechanically.
 - Remove remaining Operator MCP product-context compatibility assembly after selected
   packages contribute their contexts directly.

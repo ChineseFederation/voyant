@@ -14,7 +14,7 @@ import { programs } from "./schema.js"
 
 /**
  * Sourcing funnel — RFP → invitations → bids → evaluation → award. CRM
- * opportunity/quote model single-deal closure, not multi-supplier bid
+ * opportunity/proposal model single-deal closure, not multi-supplier bid
  * solicitation/comparison/scoring; this is the gap. See RFC voyant#1489 §3/§5
  * (Phase 4). Award atomically accepts the winning bid, rejects the rest, and
  * moves the RFP to `awarded`; the service emits `mice.rfp.awarded` so

@@ -49,10 +49,10 @@ import {
   notificationsRuntimePort,
 } from "@voyant-travel/notifications"
 import {
-  quotesProposalRuntimePort,
-  quotesRuntimePort,
-  quotesSnapshotRuntimePort,
-} from "@voyant-travel/quotes"
+  proposalsPresentationRuntimePort,
+  proposalsRuntimePort,
+  proposalsSnapshotRuntimePort,
+} from "@voyant-travel/proposals"
 import { realtimeRuntimePort } from "@voyant-travel/realtime"
 import { relationshipsRouteRuntimePort } from "@voyant-travel/relationships/voyant"
 import { storageMediaRuntimePort } from "@voyant-travel/storage/routes"
@@ -482,9 +482,9 @@ describe("selected Operator graph runtime composition", () => {
         legalRuntimePort.id,
         miceRuntimePort.id,
         notificationsRuntimePort.id,
-        quotesProposalRuntimePort.id,
-        quotesRuntimePort.id,
-        quotesSnapshotRuntimePort.id,
+        proposalsPresentationRuntimePort.id,
+        proposalsRuntimePort.id,
+        proposalsSnapshotRuntimePort.id,
         realtimeRuntimePort.id,
         storageMediaRuntimePort.id,
         storefrontCustomerPortalRuntimePort.id,

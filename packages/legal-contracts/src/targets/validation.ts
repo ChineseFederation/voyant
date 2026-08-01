@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const legalTargetKindSchema = z.enum([
   "booking",
-  "quote_version",
+  "proposal_version",
   "program",
   "product",
   "inventory_item",

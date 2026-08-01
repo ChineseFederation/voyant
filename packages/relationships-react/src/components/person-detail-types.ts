@@ -12,7 +12,7 @@ import type {
 
 export type PersonDetailTab =
   | "overview"
-  | "quotes"
+  | "proposals"
   | "activities"
   | "relationships"
   | "documents"
@@ -112,8 +112,8 @@ export interface PersonDetailPageSlots {
   sidebarEnd?: ReactNode
   overviewContent?: ReactNode
   overviewEnd?: ReactNode
-  quotesContent?: ReactNode
-  quotesEnd?: ReactNode
+  proposalsContent?: ReactNode
+  proposalsEnd?: ReactNode
   activitiesContent?: ReactNode
   activitiesEnd?: ReactNode
   relationshipsContent?: ReactNode

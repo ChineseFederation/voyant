@@ -15,7 +15,7 @@ import {
   financeDistributionPaymentPolicyRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
-import { checkoutInquiryRuntimePort } from "@voyant-travel/quotes-contracts/runtime-port"
+import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/runtime-port"
 import {
   bookingMaintenanceRuntimePort,
   catalogCheckoutApiRuntimePort,

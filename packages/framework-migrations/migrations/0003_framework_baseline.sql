@@ -1,2 +1,2 @@
 ALTER TABLE "activities" ADD COLUMN "custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL;--> statement-breakpoint
-ALTER TABLE "quotes" ADD COLUMN "custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL;
+ALTER TABLE "proposals" ADD COLUMN "custom_fields" jsonb DEFAULT '{}'::jsonb NOT NULL;

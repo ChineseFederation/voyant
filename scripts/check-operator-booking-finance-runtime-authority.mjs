@@ -8,23 +8,27 @@ function argument(name, fallback) {
 
 const root = argument("--root", ".")
 const read = (relativePath) => readFile(path.join(root, relativePath), "utf8")
-const [deploymentResources, bookingsContributor, financeContributor, quotesContributor] =
+const [deploymentResources, bookingsContributor, financeContributor, proposalsContributor] =
   await Promise.all([
     read("packages/runtime/src/deployment-resources.ts"),
     read("packages/bookings/src/runtime-contributor.ts"),
     read("packages/finance/src/runtime-contributor.ts"),
-    read("packages/quotes/src/runtime-contributor.ts"),
+    read("packages/proposals/src/runtime-contributor.ts"),
   ])
 
 const packagePorts = {
   bookings: ["actionLedgerBookingDriftRuntimePort"],
   finance: ["financeHostRuntimePort", "bookingsFinanceRuntimePort"],
-  quotes: ["quotesRuntimePort", "quotesProposalRuntimePort", "quotesSnapshotRuntimePort"],
+  proposals: [
+    "proposalsRuntimePort",
+    "proposalsPresentationRuntimePort",
+    "proposalsSnapshotRuntimePort",
+  ],
 }
 const contributors = {
   bookings: bookingsContributor,
   finance: financeContributor,
-  quotes: quotesContributor,
+  proposals: proposalsContributor,
 }
 
 const violations = []
@@ -42,7 +46,7 @@ for (const [packageName, ports] of Object.entries(packagePorts)) {
 for (const factory of [
   "createBookingsRuntimePortContribution",
   "createFinanceRuntimePortContribution",
-  "createQuotesRuntimePortContribution",
+  "createProposalsRuntimePortContribution",
 ]) {
   if (deploymentResources.includes(factory)) {
     violations.push(`deployment-resources.ts must not enumerate ${factory}`)

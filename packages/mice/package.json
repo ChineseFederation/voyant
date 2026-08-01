@@ -43,7 +43,7 @@
   "peerDependencies": {
     "@voyant-travel/bookings": "workspace:^",
     "@voyant-travel/distribution": "workspace:^",
-    "@voyant-travel/quotes": "workspace:^",
+    "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/relationships": "workspace:^"
   },
   "devDependencies": {

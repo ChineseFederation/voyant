@@ -8,47 +8,53 @@ import {
   resourceKey,
 } from "../lib/agent-write-coverage.mjs"
 
-const writeTool = (name, scope = "quotes:write") => ({
+const writeTool = (name, scope = "proposals:write") => ({
   id: name,
   name,
   requiredScopes: [scope],
 })
-const readTool = (name, scope = "quotes:read") => ({ id: name, name, requiredScopes: [scope] })
+const readTool = (name, scope = "proposals:read") => ({ id: name, name, requiredScopes: [scope] })
 
 describe("admin resource keys", () => {
   it("strips surface prefixes, path params and the module's own repeated segment", () => {
-    assert.equal(resourceKey("/v1/admin/quotes/quotes"), "quote")
-    assert.equal(resourceKey("/v1/admin/quotes/quotes/{id}/products"), "quote/product")
+    assert.equal(resourceKey("/v1/admin/proposals/proposals"), "proposal")
+    assert.equal(resourceKey("/v1/admin/proposals/proposals/{id}/products"), "proposal/product")
   })
 
   it("collapses trailing action verbs onto the resource they act on", () => {
-    // `send` is a thing you do to a quote version, not a resource of its own,
-    // so it collapses onto the module-scoped quote-version resource.
-    assert.equal(resourceKey("/v1/admin/quotes/quote-versions/{id}/send"), "quote/quote-version")
-    assert.equal(resourceKey("/v1/admin/quotes/quote-versions/{id}/accept"), "quote/quote-version")
+    // `send` is a thing you do to a proposal version, not a resource of its own,
+    // so it collapses onto the module-scoped proposal-version resource.
+    assert.equal(
+      resourceKey("/v1/admin/proposals/proposal-versions/{id}/send"),
+      "proposal/proposal-version",
+    )
+    assert.equal(
+      resourceKey("/v1/admin/proposals/proposal-versions/{id}/accept"),
+      "proposal/proposal-version",
+    )
   })
 })
 
 describe("agent write coverage", () => {
   const operations = [
-    { method: "post", path: "/v1/admin/quotes/quotes" },
-    { method: "post", path: "/v1/admin/quotes/quotes/{id}/products" },
+    { method: "post", path: "/v1/admin/proposals/proposals" },
+    { method: "post", path: "/v1/admin/proposals/proposals/{id}/products" },
   ]
 
   it("counts a write Tool naming the resource noun as covering it", () => {
     const { rows } = inspectAgentWriteCoverage([
       {
-        packageName: "@voyant-travel/quotes",
-        unitId: "@voyant-travel/quotes",
-        tools: [writeTool("create_quote"), writeTool("add_quote_product")],
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [writeTool("create_proposal"), writeTool("add_proposal_product")],
         adminWriteOperations: operations,
       },
     ])
     assert.deepEqual(
       rows.map(({ resource, posture }) => [resource, posture]),
       [
-        ["quote", "covered"],
-        ["quote/product", "covered"],
+        ["proposal", "covered"],
+        ["proposal/product", "covered"],
       ],
     )
   })
@@ -86,21 +92,21 @@ describe("agent write coverage", () => {
   })
 
   it("requires a Tool for the resource's own noun, not just its parent", () => {
-    // create_quote must not make `quote/product` look covered, or the missing
-    // line-item Tool hides behind the quote Tool.
+    // create_proposal must not make `proposal/product` look covered, or the missing
+    // line-item Tool hides behind the proposal Tool.
     const { rows } = inspectAgentWriteCoverage([
       {
-        packageName: "@voyant-travel/quotes",
-        unitId: "@voyant-travel/quotes",
-        tools: [writeTool("create_quote")],
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [writeTool("create_proposal")],
         adminWriteOperations: operations,
       },
     ])
     assert.deepEqual(
       rows.map(({ resource, posture }) => [resource, posture]),
       [
-        ["quote", "covered"],
-        ["quote/product", "uncovered"],
+        ["proposal", "covered"],
+        ["proposal/product", "uncovered"],
       ],
     )
   })
@@ -108,19 +114,19 @@ describe("agent write coverage", () => {
   it("rejects an allowlist entry that is stale or unexplained", () => {
     const modules = [
       {
-        packageName: "@voyant-travel/quotes",
-        unitId: "@voyant-travel/quotes",
-        tools: [writeTool("create_quote")],
-        adminWriteOperations: [{ method: "post", path: "/v1/admin/quotes/quotes" }],
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [writeTool("create_proposal")],
+        adminWriteOperations: [{ method: "post", path: "/v1/admin/proposals/proposals" }],
       },
     ]
     const covered = inspectAgentWriteCoverage(modules, {
-      allowlist: new Map([["@voyant-travel/quotes:quote", { rationale: "n/a" }]]),
+      allowlist: new Map([["@voyant-travel/proposals:proposal", { rationale: "n/a" }]]),
     })
     assert.match(covered.diagnostics[0], /drop the allowlist entry/)
 
     const unmatched = inspectAgentWriteCoverage(modules, {
-      allowlist: new Map([["@voyant-travel/quotes:nope", { rationale: "n/a" }]]),
+      allowlist: new Map([["@voyant-travel/proposals:nope", { rationale: "n/a" }]]),
     })
     assert.match(unmatched.diagnostics[0], /matches no admin write resource/)
   })
@@ -128,24 +134,24 @@ describe("agent write coverage", () => {
 
 describe("uncovered ratchet", () => {
   const rows = [
-    { unitId: "@voyant-travel/quotes", resource: "quote/media", posture: "uncovered" },
-    { unitId: "@voyant-travel/quotes", resource: "quote/participant", posture: "uncovered" },
-    { unitId: "@voyant-travel/quotes", resource: "quote", posture: "covered" },
+    { unitId: "@voyant-travel/proposals", resource: "proposal/media", posture: "uncovered" },
+    { unitId: "@voyant-travel/proposals", resource: "proposal/participant", posture: "uncovered" },
+    { unitId: "@voyant-travel/proposals", resource: "proposal", posture: "covered" },
   ]
 
   it("passes at the baseline", () => {
-    assert.deepEqual(checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/quotes": 2 }), [])
+    assert.deepEqual(checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/proposals": 2 }), [])
   })
 
   it("fails when a new admin write resource has no Tool", () => {
-    const diagnostics = checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/quotes": 1 })
+    const diagnostics = checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/proposals": 1 })
     assert.equal(diagnostics.length, 1)
     assert.match(diagnostics[0], /above the baseline of 1/)
-    assert.match(diagnostics[0], /quote\/media, quote\/participant/)
+    assert.match(diagnostics[0], /proposal\/media, proposal\/participant/)
   })
 
   it("fails when a gap was closed without lowering the baseline", () => {
-    const diagnostics = checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/quotes": 5 })
+    const diagnostics = checkAgentWriteCoverageRatchet(rows, { "@voyant-travel/proposals": 5 })
     assert.equal(diagnostics.length, 1)
     assert.match(diagnostics[0], /lower the baseline to 2/)
   })
@@ -161,8 +167,8 @@ describe("openapi extraction", () => {
     const operations = adminWriteOperationsFromDocuments([
       {
         paths: {
-          "/v1/admin/quotes/quotes": { get: {}, post: {}, patch: {} },
-          "/v1/admin/quotes/quotes/{id}": { delete: {} },
+          "/v1/admin/proposals/proposals": { get: {}, post: {}, patch: {} },
+          "/v1/admin/proposals/proposals/{id}": { delete: {} },
         },
       },
     ])

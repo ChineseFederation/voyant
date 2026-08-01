@@ -27,15 +27,15 @@ CREATE TYPE "public"."activity_type" AS ENUM('call', 'email', 'meeting', 'task',
 CREATE TYPE "public"."communication_channel" AS ENUM('email', 'phone', 'whatsapp', 'sms', 'meeting', 'other');--> statement-breakpoint
 CREATE TYPE "public"."communication_direction" AS ENUM('inbound', 'outbound');--> statement-breakpoint
 CREATE TYPE "public"."custom_field_type" AS ENUM('varchar', 'text', 'double', 'monetary', 'date', 'boolean', 'enum', 'set', 'json', 'address', 'phone');--> statement-breakpoint
-CREATE TYPE "public"."entity_type" AS ENUM('organization', 'person', 'quote', 'activity');--> statement-breakpoint
+CREATE TYPE "public"."entity_type" AS ENUM('organization', 'person', 'proposal', 'activity');--> statement-breakpoint
 CREATE TYPE "public"."record_status" AS ENUM('active', 'inactive', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."relation_type" AS ENUM('client', 'partner', 'supplier', 'other');--> statement-breakpoint
 CREATE TYPE "public"."customer_signal_kind" AS ENUM('wishlist', 'notify', 'inquiry', 'request_offer', 'referral');--> statement-breakpoint
 CREATE TYPE "public"."customer_signal_source" AS ENUM('form', 'phone', 'admin', 'abandoned_cart', 'website', 'booking');--> statement-breakpoint
 CREATE TYPE "public"."customer_signal_status" AS ENUM('new', 'contacted', 'qualified', 'converted', 'lost', 'expired');--> statement-breakpoint
 CREATE TYPE "public"."participant_role" AS ENUM('traveler', 'booker', 'decision_maker', 'finance', 'other');--> statement-breakpoint
-CREATE TYPE "public"."quote_status" AS ENUM('open', 'won', 'lost', 'archived');--> statement-breakpoint
-CREATE TYPE "public"."quote_version_status" AS ENUM('draft', 'sent', 'accepted', 'declined', 'superseded', 'expired');--> statement-breakpoint
+CREATE TYPE "public"."proposal_status" AS ENUM('open', 'won', 'lost', 'archived');--> statement-breakpoint
+CREATE TYPE "public"."proposal_version_status" AS ENUM('draft', 'sent', 'accepted', 'declined', 'superseded', 'expired');--> statement-breakpoint
 CREATE TYPE "public"."address_label" AS ENUM('primary', 'billing', 'shipping', 'mailing', 'meeting', 'service', 'legal', 'other');--> statement-breakpoint
 CREATE TYPE "public"."contact_point_kind" AS ENUM('email', 'phone', 'mobile', 'whatsapp', 'website', 'sms', 'fax', 'social', 'other');--> statement-breakpoint
 CREATE TYPE "public"."named_contact_role" AS ENUM('general', 'primary', 'reservations', 'operations', 'front_desk', 'sales', 'emergency', 'accounting', 'legal', 'other');--> statement-breakpoint
@@ -222,7 +222,7 @@ CREATE TYPE "public"."policy_kind" AS ENUM('cancellation', 'payment', 'terms_and
 CREATE TYPE "public"."policy_refund_type" AS ENUM('cash', 'credit', 'cash_or_credit', 'none');--> statement-breakpoint
 CREATE TYPE "public"."policy_rule_type" AS ENUM('window', 'percentage', 'flat_amount', 'date_range', 'custom');--> statement-breakpoint
 CREATE TYPE "public"."policy_version_status" AS ENUM('draft', 'published', 'retired');--> statement-breakpoint
-CREATE TYPE "public"."legal_target_kind" AS ENUM('booking', 'quote_version', 'program', 'product', 'inventory_item', 'supplier_channel_relationship', 'provider_source_ref');--> statement-breakpoint
+CREATE TYPE "public"."legal_target_kind" AS ENUM('booking', 'proposal_version', 'program', 'product', 'inventory_item', 'supplier_channel_relationship', 'provider_source_ref');--> statement-breakpoint
 CREATE TYPE "public"."legal_term_acceptance_status" AS ENUM('not_required', 'pending', 'accepted', 'declined');--> statement-breakpoint
 CREATE TYPE "public"."legal_term_type" AS ENUM('terms_and_conditions', 'cancellation', 'guarantee', 'payment', 'pricing', 'commission', 'other');--> statement-breakpoint
 CREATE TYPE "public"."storefront_verification_channel" AS ENUM('email', 'sms');--> statement-breakpoint
@@ -932,17 +932,17 @@ CREATE TABLE "customer_signals" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "booking_crm_details" (
+CREATE TABLE "booking_proposal_details" (
 	"booking_id" text PRIMARY KEY NOT NULL,
-	"quote_id" text,
-	"quote_version_id" text,
+	"proposal_id" text,
+	"proposal_version_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "pipelines" (
 	"id" text PRIMARY KEY NOT NULL,
-	"entity_type" "entity_type" DEFAULT 'quote' NOT NULL,
+	"entity_type" "entity_type" DEFAULT 'proposal' NOT NULL,
 	"name" text NOT NULL,
 	"is_default" boolean DEFAULT false NOT NULL,
 	"sort_order" integer DEFAULT 0 NOT NULL,
@@ -950,18 +950,36 @@ CREATE TABLE "pipelines" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "quote_participants" (
+CREATE TABLE "proposal_delivery_requests" (
 	"id" text PRIMARY KEY NOT NULL,
-	"quote_id" text NOT NULL,
+	"command_scope" text NOT NULL,
+	"command_idempotency_key" text NOT NULL,
+	"request_fingerprint" text NOT NULL,
+	"claim_action_id" text NOT NULL,
+	"organization_id" text,
+	"target_type" text NOT NULL,
+	"target_id" text NOT NULL,
+	"proposal_id" text NOT NULL,
+	"proposal_version_id" text NOT NULL,
+	"proposal_url" text NOT NULL,
+	"provider" text NOT NULL,
+	"result_snapshot" jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"completed_at" timestamp with time zone
+);
+--> statement-breakpoint
+CREATE TABLE "proposal_participants" (
+	"id" text PRIMARY KEY NOT NULL,
+	"proposal_id" text NOT NULL,
 	"person_id" text NOT NULL,
 	"role" "participant_role" DEFAULT 'other' NOT NULL,
 	"is_primary" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "quote_products" (
+CREATE TABLE "proposal_products" (
 	"id" text PRIMARY KEY NOT NULL,
-	"quote_id" text NOT NULL,
+	"proposal_id" text NOT NULL,
 	"product_id" text,
 	"supplier_service_id" text,
 	"name_snapshot" text NOT NULL,
@@ -975,9 +993,9 @@ CREATE TABLE "quote_products" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "quote_version_lines" (
+CREATE TABLE "proposal_version_lines" (
 	"id" text PRIMARY KEY NOT NULL,
-	"quote_version_id" text NOT NULL,
+	"proposal_version_id" text NOT NULL,
 	"product_id" text,
 	"supplier_service_id" text,
 	"description" text NOT NULL,
@@ -989,11 +1007,11 @@ CREATE TABLE "quote_version_lines" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "quote_versions" (
+CREATE TABLE "proposal_versions" (
 	"id" text PRIMARY KEY NOT NULL,
-	"quote_id" text NOT NULL,
+	"proposal_id" text NOT NULL,
 	"label" text,
-	"status" "quote_version_status" DEFAULT 'draft' NOT NULL,
+	"status" "proposal_version_status" DEFAULT 'draft' NOT NULL,
 	"supersedes_id" text,
 	"trip_snapshot_id" text,
 	"valid_until" date,
@@ -1010,7 +1028,7 @@ CREATE TABLE "quote_versions" (
 	"archived_at" timestamp with time zone
 );
 --> statement-breakpoint
-CREATE TABLE "quotes" (
+CREATE TABLE "proposals" (
 	"id" text PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
 	"person_id" text,
@@ -1018,7 +1036,7 @@ CREATE TABLE "quotes" (
 	"pipeline_id" text NOT NULL,
 	"stage_id" text NOT NULL,
 	"owner_id" text,
-	"status" "quote_status" DEFAULT 'open' NOT NULL,
+	"status" "proposal_status" DEFAULT 'open' NOT NULL,
 	"accepted_version_id" text,
 	"value_amount_cents" integer,
 	"value_currency" text,
@@ -3082,7 +3100,7 @@ CREATE TABLE "booking_supplier_statuses" (
 CREATE TABLE "booking_origins" (
 	"booking_id" text PRIMARY KEY NOT NULL,
 	"origin_source" text DEFAULT 'manual' NOT NULL,
-	"quote_version_id" text,
+	"proposal_version_id" text,
 	"trip_snapshot_id" text,
 	"reservation_plan_id" text,
 	"catalog_price_response_id" text,
@@ -3098,7 +3116,7 @@ CREATE TABLE "booking_origins" (
 	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "ck_booking_origins_source" CHECK ("booking_origins"."origin_source" IN ('manual', 'direct_b2c', 'accepted_quote_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction'))
+	CONSTRAINT "ck_booking_origins_source" CHECK ("booking_origins"."origin_source" IN ('manual', 'direct_b2c', 'accepted_proposal_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction'))
 );
 --> statement-breakpoint
 CREATE TABLE "booking_staff_assignments" (
@@ -5689,13 +5707,15 @@ ALTER TABLE "activity_participants" ADD CONSTRAINT "activity_participants_activi
 ALTER TABLE "activity_participants" ADD CONSTRAINT "activity_participants_person_id_people_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."people"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "custom_field_values" ADD CONSTRAINT "custom_field_values_definition_id_custom_field_definitions_id_fk" FOREIGN KEY ("definition_id") REFERENCES "public"."custom_field_definitions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "customer_signals" ADD CONSTRAINT "customer_signals_person_id_people_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."people"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quote_participants" ADD CONSTRAINT "quote_participants_quote_id_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quote_products" ADD CONSTRAINT "quote_products_quote_id_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quote_version_lines" ADD CONSTRAINT "quote_version_lines_quote_version_id_quote_versions_id_fk" FOREIGN KEY ("quote_version_id") REFERENCES "public"."quote_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quote_versions" ADD CONSTRAINT "quote_versions_quote_id_quotes_id_fk" FOREIGN KEY ("quote_id") REFERENCES "public"."quotes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quote_versions" ADD CONSTRAINT "quote_versions_supersedes_id_quote_versions_id_fk" FOREIGN KEY ("supersedes_id") REFERENCES "public"."quote_versions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quotes" ADD CONSTRAINT "quotes_pipeline_id_pipelines_id_fk" FOREIGN KEY ("pipeline_id") REFERENCES "public"."pipelines"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "quotes" ADD CONSTRAINT "quotes_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_delivery_requests" ADD CONSTRAINT "proposal_delivery_requests_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "public"."proposals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_delivery_requests" ADD CONSTRAINT "proposal_delivery_requests_proposal_version_id_proposal_versions_id_fk" FOREIGN KEY ("proposal_version_id") REFERENCES "public"."proposal_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_participants" ADD CONSTRAINT "proposal_participants_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "public"."proposals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_products" ADD CONSTRAINT "proposal_products_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "public"."proposals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_version_lines" ADD CONSTRAINT "proposal_version_lines_proposal_version_id_proposal_versions_id_fk" FOREIGN KEY ("proposal_version_id") REFERENCES "public"."proposal_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_versions" ADD CONSTRAINT "proposal_versions_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "public"."proposals"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposal_versions" ADD CONSTRAINT "proposal_versions_supersedes_id_proposal_versions_id_fk" FOREIGN KEY ("supersedes_id") REFERENCES "public"."proposal_versions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposals" ADD CONSTRAINT "proposals_pipeline_id_pipelines_id_fk" FOREIGN KEY ("pipeline_id") REFERENCES "public"."pipelines"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "proposals" ADD CONSTRAINT "proposals_stage_id_stages_id_fk" FOREIGN KEY ("stage_id") REFERENCES "public"."stages"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stages" ADD CONSTRAINT "stages_pipeline_id_pipelines_id_fk" FOREIGN KEY ("pipeline_id") REFERENCES "public"."pipelines"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channel_reconciliation_policies" ADD CONSTRAINT "channel_reconciliation_policies_channel_id_channels_id_fk" FOREIGN KEY ("channel_id") REFERENCES "public"."channels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "channel_reconciliation_policies" ADD CONSTRAINT "channel_reconciliation_policies_contract_id_channel_contracts_id_fk" FOREIGN KEY ("contract_id") REFERENCES "public"."channel_contracts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -6112,43 +6132,47 @@ CREATE INDEX "idx_customer_signals_person_status_created" ON "customer_signals" 
 CREATE INDEX "idx_customer_signals_assignee_status" ON "customer_signals" USING btree ("assigned_to_user_id","status");--> statement-breakpoint
 CREATE INDEX "idx_customer_signals_kind" ON "customer_signals" USING btree ("kind");--> statement-breakpoint
 CREATE INDEX "idx_customer_signals_resolved_booking" ON "customer_signals" USING btree ("resolved_booking_id");--> statement-breakpoint
-CREATE INDEX "idx_bcd_quote" ON "booking_crm_details" USING btree ("quote_id");--> statement-breakpoint
-CREATE INDEX "idx_bcd_quote_version" ON "booking_crm_details" USING btree ("quote_version_id");--> statement-breakpoint
+CREATE INDEX "idx_booking_proposal_details_proposal" ON "booking_proposal_details" USING btree ("proposal_id");--> statement-breakpoint
+CREATE INDEX "idx_booking_proposal_details_proposal_version" ON "booking_proposal_details" USING btree ("proposal_version_id");--> statement-breakpoint
 CREATE INDEX "idx_pipelines_entity" ON "pipelines" USING btree ("entity_type");--> statement-breakpoint
 CREATE INDEX "idx_pipelines_sort" ON "pipelines" USING btree ("sort_order","created_at");--> statement-breakpoint
 CREATE INDEX "idx_pipelines_entity_sort" ON "pipelines" USING btree ("entity_type","sort_order","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "uidx_pipelines_entity_name" ON "pipelines" USING btree ("entity_type","name");--> statement-breakpoint
-CREATE INDEX "idx_quote_participants_quote" ON "quote_participants" USING btree ("quote_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_participants_quote_primary" ON "quote_participants" USING btree ("quote_id","is_primary","created_at");--> statement-breakpoint
-CREATE INDEX "idx_quote_participants_person" ON "quote_participants" USING btree ("person_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "uidx_quote_participants_unique" ON "quote_participants" USING btree ("quote_id","person_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_products_quote" ON "quote_products" USING btree ("quote_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_products_quote_created" ON "quote_products" USING btree ("quote_id","created_at");--> statement-breakpoint
-CREATE INDEX "idx_quote_products_product" ON "quote_products" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_products_supplier_service" ON "quote_products" USING btree ("supplier_service_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_version_lines_version" ON "quote_version_lines" USING btree ("quote_version_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_version_lines_version_created" ON "quote_version_lines" USING btree ("quote_version_id","created_at");--> statement-breakpoint
-CREATE INDEX "idx_quote_version_lines_product" ON "quote_version_lines" USING btree ("product_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_version_lines_supplier_service" ON "quote_version_lines" USING btree ("supplier_service_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_quote" ON "quote_versions" USING btree ("quote_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_status" ON "quote_versions" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_supersedes" ON "quote_versions" USING btree ("supersedes_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_trip_snapshot" ON "quote_versions" USING btree ("trip_snapshot_id");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_quote_updated" ON "quote_versions" USING btree ("quote_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quote_versions_status_updated" ON "quote_versions" USING btree ("status","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_person" ON "quotes" USING btree ("person_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_org" ON "quotes" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_pipeline" ON "quotes" USING btree ("pipeline_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_stage" ON "quotes" USING btree ("stage_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_owner" ON "quotes" USING btree ("owner_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_status" ON "quotes" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "idx_quotes_accepted_version" ON "quotes" USING btree ("accepted_version_id");--> statement-breakpoint
-CREATE INDEX "idx_quotes_person_updated" ON "quotes" USING btree ("person_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_org_updated" ON "quotes" USING btree ("organization_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_pipeline_updated" ON "quotes" USING btree ("pipeline_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_stage_updated" ON "quotes" USING btree ("stage_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_owner_updated" ON "quotes" USING btree ("owner_id","updated_at");--> statement-breakpoint
-CREATE INDEX "idx_quotes_status_updated" ON "quotes" USING btree ("status","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposal_delivery_requests_proposal" ON "proposal_delivery_requests" USING btree ("proposal_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "uidx_proposal_delivery_requests_version" ON "proposal_delivery_requests" USING btree ("proposal_version_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "uidx_proposal_delivery_requests_command" ON "proposal_delivery_requests" USING btree ("command_scope","command_idempotency_key");--> statement-breakpoint
+CREATE UNIQUE INDEX "uidx_proposal_delivery_requests_claim" ON "proposal_delivery_requests" USING btree ("claim_action_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_participants_proposal" ON "proposal_participants" USING btree ("proposal_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_participants_proposal_primary" ON "proposal_participants" USING btree ("proposal_id","is_primary","created_at");--> statement-breakpoint
+CREATE INDEX "idx_proposal_participants_person" ON "proposal_participants" USING btree ("person_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "uidx_proposal_participants_unique" ON "proposal_participants" USING btree ("proposal_id","person_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_products_proposal" ON "proposal_products" USING btree ("proposal_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_products_proposal_created" ON "proposal_products" USING btree ("proposal_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_proposal_products_product" ON "proposal_products" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_products_supplier_service" ON "proposal_products" USING btree ("supplier_service_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_version_lines_version" ON "proposal_version_lines" USING btree ("proposal_version_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_version_lines_version_created" ON "proposal_version_lines" USING btree ("proposal_version_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_proposal_version_lines_product" ON "proposal_version_lines" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_version_lines_supplier_service" ON "proposal_version_lines" USING btree ("supplier_service_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_proposal" ON "proposal_versions" USING btree ("proposal_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_status" ON "proposal_versions" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_supersedes" ON "proposal_versions" USING btree ("supersedes_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_trip_snapshot" ON "proposal_versions" USING btree ("trip_snapshot_id");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_proposal_updated" ON "proposal_versions" USING btree ("proposal_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposal_versions_status_updated" ON "proposal_versions" USING btree ("status","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_person" ON "proposals" USING btree ("person_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_org" ON "proposals" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_pipeline" ON "proposals" USING btree ("pipeline_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_stage" ON "proposals" USING btree ("stage_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_owner" ON "proposals" USING btree ("owner_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_status" ON "proposals" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_proposals_accepted_version" ON "proposals" USING btree ("accepted_version_id");--> statement-breakpoint
+CREATE INDEX "idx_proposals_person_updated" ON "proposals" USING btree ("person_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_org_updated" ON "proposals" USING btree ("organization_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_pipeline_updated" ON "proposals" USING btree ("pipeline_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_stage_updated" ON "proposals" USING btree ("stage_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_owner_updated" ON "proposals" USING btree ("owner_id","updated_at");--> statement-breakpoint
+CREATE INDEX "idx_proposals_status_updated" ON "proposals" USING btree ("status","updated_at");--> statement-breakpoint
 CREATE INDEX "idx_stages_pipeline" ON "stages" USING btree ("pipeline_id");--> statement-breakpoint
 CREATE INDEX "idx_stages_sort" ON "stages" USING btree ("sort_order","created_at");--> statement-breakpoint
 CREATE INDEX "idx_stages_pipeline_sort" ON "stages" USING btree ("pipeline_id","sort_order","created_at");--> statement-breakpoint
@@ -6734,7 +6758,7 @@ CREATE INDEX "idx_booking_supplier_statuses_booking_created" ON "booking_supplie
 CREATE INDEX "idx_booking_supplier_statuses_service" ON "booking_supplier_statuses" USING btree ("supplier_service_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_supplier_statuses_supplier" ON "booking_supplier_statuses" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_supplier_statuses_invoice_line" ON "booking_supplier_statuses" USING btree ("supplier_invoice_line_id");--> statement-breakpoint
-CREATE INDEX "idx_booking_origins_quote_version" ON "booking_origins" USING btree ("quote_version_id");--> statement-breakpoint
+CREATE INDEX "idx_booking_origins_proposal_version" ON "booking_origins" USING btree ("proposal_version_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_trip_snapshot" ON "booking_origins" USING btree ("trip_snapshot_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_reservation_plan" ON "booking_origins" USING btree ("reservation_plan_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_catalog_price_response" ON "booking_origins" USING btree ("catalog_price_response_id");--> statement-breakpoint
@@ -7432,4 +7456,25 @@ CREATE INDEX "idx_cruise_search_index_waterways_gin" ON "cruise_search_index" US
 CREATE INDEX "idx_cruise_search_index_ports_gin" ON "cruise_search_index" USING gin ("ports");--> statement-breakpoint
 CREATE INDEX "idx_cruise_search_index_countries_gin" ON "cruise_search_index" USING gin ("countries");--> statement-breakpoint
 CREATE INDEX "idx_cruise_search_index_themes_gin" ON "cruise_search_index" USING gin ("themes");--> statement-breakpoint
-CREATE UNIQUE INDEX "uidx_cruise_search_index_external" ON "cruise_search_index" USING btree ("source_provider","source_ref") WHERE "cruise_search_index"."source" = 'external';
+CREATE UNIQUE INDEX "uidx_cruise_search_index_external" ON "cruise_search_index" USING btree ("source_provider","source_ref") WHERE "cruise_search_index"."source" = 'external';--> statement-breakpoint
+DO $$
+DECLARE
+  seeded_pipeline_id text := 'pipe_01kyy55np3ezq9kve9v2d99dbp';
+BEGIN
+  IF EXISTS (SELECT 1 FROM "pipelines" WHERE "entity_type" = 'proposal') THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO "pipelines" ("id", "entity_type", "name", "is_default", "sort_order")
+  VALUES (seeded_pipeline_id, 'proposal', 'Sales', true, 0);
+
+  INSERT INTO "stages"
+    ("id", "pipeline_id", "name", "sort_order", "probability", "is_closed", "is_won", "is_lost")
+  VALUES
+    ('stg_01kyy55np4e8dr6dgbsj5xvba3', seeded_pipeline_id, 'New Inquiry', 0, 10, false, false, false),
+    ('stg_01kyy55np4e8dr6dgcfwfbg464', seeded_pipeline_id, 'Qualified', 1, 25, false, false, false),
+    ('stg_01kyy55np4e8dr6dgjp6j29d23', seeded_pipeline_id, 'Proposal Sent', 2, 50, false, false, false),
+    ('stg_01kyy55np4e8dr6dgp4evy8xdx', seeded_pipeline_id, 'Negotiation', 3, 75, false, false, false),
+    ('stg_01kyy55np4e8dr6dgvkpdkvn9y', seeded_pipeline_id, 'Won', 4, 100, true, true, false),
+    ('stg_01kyy55np4e8dr6dgwer94cgpx', seeded_pipeline_id, 'Lost', 5, 0, true, false, true);
+END $$;

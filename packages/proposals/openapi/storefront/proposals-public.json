@@ -1,0 +1,200 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "CatalogSearchFilter": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["eq"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "field", "value"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["in"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["kind", "field", "values"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["range"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gte": {
+                "type": "number"
+              },
+              "lte": {
+                "type": "number"
+              }
+            },
+            "required": ["kind", "field"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["and"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["or"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          }
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/public/proposals/{proposalVersionId}": {
+      "get": {
+        "summary": "Get a public proposal",
+        "x-voyant-api-id": "@voyant-travel/proposals#presentation-extension.api.public",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "getPublicProposalsByProposalVersionId",
+        "tags": ["proposal-versions"],
+        "x-voyant-module": "proposal-versions",
+        "x-voyant-surface": "storefront",
+        "x-voyant-unit-id": "@voyant-travel/proposals#presentation-extension",
+        "x-voyant-package-name": "@voyant-travel/proposals"
+      }
+    },
+    "/v1/public/proposals/{proposalVersionId}/accept": {
+      "post": {
+        "summary": "Accept a public proposal",
+        "x-voyant-api-id": "@voyant-travel/proposals#presentation-extension.api.public",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "postPublicProposalsByProposalVersionIdAccept",
+        "tags": ["proposal-versions"],
+        "x-voyant-module": "proposal-versions",
+        "x-voyant-surface": "storefront",
+        "x-voyant-unit-id": "@voyant-travel/proposals#presentation-extension",
+        "x-voyant-package-name": "@voyant-travel/proposals"
+      }
+    },
+    "/v1/public/proposals/{proposalVersionId}/decline": {
+      "post": {
+        "summary": "Decline a public proposal",
+        "x-voyant-api-id": "@voyant-travel/proposals#presentation-extension.api.public",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "postPublicProposalsByProposalVersionIdDecline",
+        "tags": ["proposal-versions"],
+        "x-voyant-module": "proposal-versions",
+        "x-voyant-surface": "storefront",
+        "x-voyant-unit-id": "@voyant-travel/proposals#presentation-extension",
+        "x-voyant-package-name": "@voyant-travel/proposals"
+      }
+    },
+    "/v1/public/proposals/{proposalVersionId}/request-edits": {
+      "post": {
+        "summary": "Request proposal edits",
+        "x-voyant-api-id": "@voyant-travel/proposals#presentation-extension.api.public",
+        "responses": {
+          "200": {
+            "description": "Successful response."
+          }
+        },
+        "operationId": "postPublicProposalsByProposalVersionIdRequestEdits",
+        "tags": ["proposal-versions"],
+        "x-voyant-module": "proposal-versions",
+        "x-voyant-surface": "storefront",
+        "x-voyant-unit-id": "@voyant-travel/proposals#presentation-extension",
+        "x-voyant-package-name": "@voyant-travel/proposals"
+      }
+    }
+  },
+  "webhooks": {}
+}

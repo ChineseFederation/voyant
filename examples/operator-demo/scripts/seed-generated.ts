@@ -97,13 +97,13 @@ import {
 import { legalTerms } from "../../../packages/legal/src/terms/schema.ts"
 import {
   pipelines,
-  quoteParticipants,
-  quoteProducts,
-  quotes,
-  quoteVersionLines,
-  quoteVersions,
+  proposalParticipants,
+  proposalProducts,
+  proposals,
+  proposalVersionLines,
+  proposalVersions,
   stages,
-} from "../../../packages/quotes/src/schema-sales.ts"
+} from "../../../packages/proposals/src/schema-sales.ts"
 import {
   communicationLog,
   organizations as crmOrganizations,
@@ -128,7 +128,7 @@ const scaleConfig = {
     suppliers: 3,
     products: 3,
     bookings: 4,
-    quotes: 2,
+    proposals: 2,
     participantsPerBooking: 2,
   },
   medium: {
@@ -136,7 +136,7 @@ const scaleConfig = {
     suppliers: 5,
     products: 5,
     bookings: 6,
-    quotes: 3,
+    proposals: 3,
     participantsPerBooking: 3,
   },
   large: {
@@ -144,7 +144,7 @@ const scaleConfig = {
     suppliers: 7,
     products: 8,
     bookings: 10,
-    quotes: 5,
+    proposals: 5,
     participantsPerBooking: 4,
   },
 } as const
@@ -302,7 +302,7 @@ const worldPlanSchema = z.object({
       }),
     )
     .min(1),
-  quotes: z
+  proposals: z
     .array(
       z.object({
         title: z.string().min(4),
@@ -549,7 +549,7 @@ async function buildWorldPlan(params: {
     `Customers: ${counts.customers}`,
     `Suppliers: ${counts.suppliers}`,
     `Products: ${counts.products}`,
-    `Quotes: ${counts.quotes}`,
+    `Proposals: ${counts.proposals}`,
     `Bookings: ${counts.bookings}`,
     "",
     "Requirements:",
@@ -655,15 +655,15 @@ function normalizePlan(
           : fallbackSupplier?.name || plan.suppliers[0]?.name || "Seed Supplier",
       }
     }),
-    quotes: plan.quotes.slice(0, counts.quotes).map((quotePlan, index) => {
+    proposals: plan.proposals.slice(0, counts.proposals).map((proposalPlan, index) => {
       const fallbackCustomer = plan.customers[index % plan.customers.length]
       return {
-        ...quotePlan,
-        customerName: customersByName.has(quotePlan.customerName)
-          ? quotePlan.customerName
+        ...proposalPlan,
+        customerName: customersByName.has(proposalPlan.customerName)
+          ? proposalPlan.customerName
           : fallbackCustomer?.name || plan.customers[0]?.name || "Seed Customer",
-        contactEmail: quotePlan.contactEmail || fallbackCustomer?.primaryContact.email || "",
-        products: quotePlan.products
+        contactEmail: proposalPlan.contactEmail || fallbackCustomer?.primaryContact.email || "",
+        products: proposalPlan.products
           .map((item) => ({
             ...item,
             productName: productsByName.has(item.productName)
@@ -1662,7 +1662,7 @@ async function seedActivitiesAndSales(
     .insert(pipelines)
     .values({
       id: newId("pipelines"),
-      entityType: "quote",
+      entityType: "proposal",
       name: `Seed sales pipeline ${ctx.labelSlug}`,
       isDefault: false,
       sortOrder: 0,
@@ -1722,11 +1722,11 @@ async function seedActivitiesAndSales(
     ["won", wonStage.id],
   ])
 
-  for (const [index, quotePlan] of plan.quotes.entries()) {
-    const customerSeed = customerSeeds.get(quotePlan.customerName)
+  for (const [index, proposalPlan] of plan.proposals.entries()) {
+    const customerSeed = customerSeeds.get(proposalPlan.customerName)
     if (!customerSeed) continue
 
-    const productItems = quotePlan.products
+    const productItems = proposalPlan.products
       .map((productItem) => {
         const productSeed = productSeeds.get(productItem.productName)
         return productSeed
@@ -1738,49 +1738,49 @@ async function seedActivitiesAndSales(
       })
       .filter((value): value is NonNullable<typeof value> => Boolean(value))
 
-    const [quote] = await ctx.db
-      .insert(quotes)
+    const [proposal] = await ctx.db
+      .insert(proposals)
       .values({
-        id: newId("quotes"),
-        title: quotePlan.title,
+        id: newId("proposals"),
+        title: proposalPlan.title,
         personId:
-          customerSeed.emailToPersonId.get(quotePlan.contactEmail.toLowerCase()) ??
+          customerSeed.emailToPersonId.get(proposalPlan.contactEmail.toLowerCase()) ??
           customerSeed.primaryContactId,
         organizationId: customerSeed.organizationId,
         pipelineId: pipeline.id,
-        stageId: stageByName.get(quotePlan.stage) ?? proposalStage.id,
+        stageId: stageByName.get(proposalPlan.stage) ?? proposalStage.id,
         ownerId: ctx.ownerUserId,
-        status: quotePlan.stage === "won" ? "won" : "open",
+        status: proposalPlan.stage === "won" ? "won" : "open",
         valueAmountCents: productItems.reduce(
           (sum, item) => sum + item.productItem.quantity * 20_000,
           0,
         ),
         valueCurrency: plan.workspace.currency,
-        expectedCloseDate: quotePlan.closeDate,
+        expectedCloseDate: proposalPlan.closeDate,
         source: "operator_seed",
         sourceRef: ctx.labelSlug,
-        tags: ["seeded", quotePlan.stage],
+        tags: ["seeded", proposalPlan.stage],
         stageChangedAt: new Date(),
-        closedAt: quotePlan.stage === "won" ? new Date() : null,
+        closedAt: proposalPlan.stage === "won" ? new Date() : null,
       })
       .returning()
 
-    await ctx.db.insert(quoteParticipants).values({
-      id: newId("quote_participants"),
-      quoteId: quote.id,
+    await ctx.db.insert(proposalParticipants).values({
+      id: newId("proposal_participants"),
+      proposalId: proposal.id,
       personId: customerSeed.primaryContactId,
       role: "decision_maker",
       isPrimary: true,
     })
 
     for (const [lineIndex, item] of productItems.entries()) {
-      await ctx.db.insert(quoteProducts).values({
-        id: newId("quote_products"),
-        quoteId: quote.id,
+      await ctx.db.insert(proposalProducts).values({
+        id: newId("proposal_products"),
+        proposalId: proposal.id,
         productId: item.productSeed.productId,
         supplierServiceId: null,
         nameSnapshot: item.productItem.productName,
-        description: `Seeded quote line for ${item.productItem.productName}`,
+        description: `Seeded proposal line for ${item.productItem.productName}`,
         quantity: item.productItem.quantity,
         unitPriceAmountCents: 20_000 + lineIndex * 5_000,
         costAmountCents: 12_000 + lineIndex * 2_000,
@@ -1788,26 +1788,26 @@ async function seedActivitiesAndSales(
       })
     }
 
-    const [quoteVersion] = await ctx.db
-      .insert(quoteVersions)
+    const [proposalVersion] = await ctx.db
+      .insert(proposalVersions)
       .values({
-        id: newId("quote_versions"),
-        quoteId: quote.id,
-        status: quotePlan.stage === "won" ? "accepted" : "sent",
-        validUntil: shiftDateString(quotePlan.closeDate, 14),
+        id: newId("proposal_versions"),
+        proposalId: proposal.id,
+        status: proposalPlan.stage === "won" ? "accepted" : "sent",
+        validUntil: shiftDateString(proposalPlan.closeDate, 14),
         currency: plan.workspace.currency,
         subtotalAmountCents: productItems.length * 20_000,
         taxAmountCents: Math.round(productItems.length * 20_000 * 0.09),
         totalAmountCents: Math.round(productItems.length * 20_000 * 1.09),
-        notes: quotePlan.notes,
+        notes: proposalPlan.notes,
       })
       .returning()
 
     for (const [lineIndex, item] of productItems.entries()) {
       const totalAmount = item.productItem.quantity * (18_000 + lineIndex * 4_000)
-      await ctx.db.insert(quoteVersionLines).values({
-        id: newId("quote_version_lines"),
-        quoteVersionId: quoteVersion.id,
+      await ctx.db.insert(proposalVersionLines).values({
+        id: newId("proposal_version_lines"),
+        proposalVersionId: proposalVersion.id,
         productId: item.productSeed.productId,
         supplierServiceId: null,
         description: item.productItem.productName,
@@ -1822,14 +1822,14 @@ async function seedActivitiesAndSales(
       .insert(activities)
       .values({
         id: newId("activities"),
-        subject: `${quotePlan.title} follow-up`,
+        subject: `${proposalPlan.title} follow-up`,
         type: index === 0 ? "meeting" : "email",
         ownerId: ctx.ownerUserId,
-        status: quotePlan.stage === "won" ? "done" : "planned",
+        status: proposalPlan.stage === "won" ? "done" : "planned",
         dueAt: daysFromNow(5 + index),
-        completedAt: quotePlan.stage === "won" ? new Date() : null,
+        completedAt: proposalPlan.stage === "won" ? new Date() : null,
         location: "Operator HQ",
-        description: quotePlan.notes,
+        description: proposalPlan.notes,
       })
       .returning()
 
@@ -1844,8 +1844,8 @@ async function seedActivitiesAndSales(
       {
         id: newId("activity_links"),
         activityId: activity.id,
-        entityType: "quote",
-        entityId: quote.id,
+        entityType: "proposal",
+        entityId: proposal.id,
         role: "related",
       },
     ])
@@ -2372,7 +2372,7 @@ function printPlanSummary(plan: WorldPlan, args: SeedArgs) {
         customers: plan.customers.length,
         suppliers: plan.suppliers.length,
         products: plan.products.length,
-        quotes: plan.quotes.length,
+        proposals: plan.proposals.length,
         bookings: plan.bookings.length,
       },
       null,

@@ -196,7 +196,7 @@ export const defaultAdminHostNavMessages = {
   products: "Products",
   profitability: "Profitability",
   promotions: "Promotions",
-  quotes: "Quotes",
+  proposals: "Proposals",
   resources: "Resources",
   setup: "Setup",
   supplierInvoices: "Supplier invoices",

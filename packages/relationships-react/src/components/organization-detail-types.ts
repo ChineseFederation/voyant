@@ -7,7 +7,7 @@ export type OrganizationDetailTab =
   | "contactMethods"
   | "addresses"
   | "namedContacts"
-  | "quotes"
+  | "proposals"
   | "activities"
   | "bookings"
   | "invoices"
@@ -63,8 +63,8 @@ export interface OrganizationDetailPageSlots {
   addressesEnd?: ReactNode
   namedContactsContent?: ReactNode
   namedContactsEnd?: ReactNode
-  quotesContent?: ReactNode
-  quotesEnd?: ReactNode
+  proposalsContent?: ReactNode
+  proposalsEnd?: ReactNode
   activitiesContent?: ReactNode
   activitiesEnd?: ReactNode
   bookingsTab?: OrganizationCommercialContextTabSlot

@@ -77,9 +77,9 @@ Publishable workspace package names at this point:
 - `@voyant-travel/plugin-sanity-cms`
 - `@voyant-travel/plugin-smartbill`
 - `@voyant-travel/products-contracts`
-- `@voyant-travel/quotes-contracts`
-- `@voyant-travel/quotes-react`
-- `@voyant-travel/quotes`
+- `@voyant-travel/proposals-contracts`
+- `@voyant-travel/proposals-react`
+- `@voyant-travel/proposals`
 - `@voyant-travel/react`
 - `@voyant-travel/relationships-contracts`
 - `@voyant-travel/relationships-react`

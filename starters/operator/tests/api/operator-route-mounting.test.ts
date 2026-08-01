@@ -189,7 +189,7 @@ describe("operator composed route mounting (smoke)", () => {
 
   it("mounts lazy extensions (action-ledger health, proposals, catalog offers)", async () => {
     expect(await status("/v1/admin/action-ledger/health")).not.toBe(404)
-    expect(await status("/v1/public/proposals/qv_123")).not.toBe(404)
+    expect(await status("/v1/public/proposals/prvr_123")).not.toBe(404)
     expect(await status("/v1/admin/catalog/package-offers", "POST")).not.toBe(404)
   })
 

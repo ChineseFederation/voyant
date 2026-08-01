@@ -46,7 +46,7 @@ const policyKindSchema = z.enum([
 ])
 const targetKindSchema = z.enum([
   "booking",
-  "quote_version",
+  "proposal_version",
   "program",
   "product",
   "inventory_item",

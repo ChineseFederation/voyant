@@ -51,8 +51,8 @@ honest.
 | `lazy-additional-routes.ts` | package-owned-manual | 7 | lazy | `@voyant-travel/finance` (checkout) | Public payment-link / checkout-status routes. Finance already receives the checkout options → public route contribution on the existing finance module. |
 | `mcp.ts` | deployment-owned | 1 | lazy | deployment / agent tooling | Agent tool dispatch over trips MCP tools. Keep local unless agents become supported framework surface. |
 | `media-upload-routes.ts` | mixed | 7 | lazy | storage/media + `@voyant-travel/inventory` | Upload/serve are reusable; product brochure generation is an inventory extension. Needs storage adapter, video ticket signer, public-URL policy. |
-| `proposal-routes.ts` | mixed | 4 | lazy | `@voyant-travel/quotes` | Quote-version send + public proposal accept/decline are package-owned; acceptance orchestration (trip reserve, checkout handoff) is deployment-coupled. Split contract from orchestration. |
-| `quote-version-snapshot-routes.ts` | package-owned-manual | 1 | — | `@voyant-travel/quotes` | Quote-version snapshot route; belongs with quotes. |
+| `proposal-routes.ts` | mixed | 4 | lazy | `@voyant-travel/proposals` | Proposal-version send + public proposal accept/decline are package-owned; acceptance orchestration (trip reserve, checkout handoff) is deployment-coupled. Split contract from orchestration. |
+| `proposal-version-snapshot-routes.ts` | package-owned-manual | 1 | — | `@voyant-travel/proposals` | Proposal-version snapshot route; belongs with proposals. |
 | `settings.ts` | package-owned-manual | 10 | eager | `@voyant-travel/operator-settings` (new) or `@voyant-travel/finance` | Operator profile/payment instructions/defaults — framework infrastructure consumed by legal, checkout, storefront. Promote table + routes together. |
 
 ## Final state (migration complete)
@@ -65,7 +65,7 @@ part of the graph, generic Runtime, or Operator starter.
 - Package-owned extensions: `channel-push` (distribution), `booking-tax`
   (finance).
 - Deployment-local single-surface lazy modules/extensions (relative routes):
-  `flights`, `mcp`, `booking-schedule`, `quote-version-snapshot`,
+  `flights`, `mcp`, `booking-schedule`, `proposal-version-snapshot`,
   `action-ledger-health`, `proposal`, `catalog-offers`, `catalog-checkout`,
   `booking-maintenance`.
 - Deployment-local multi-prefix lazy modules (`lazyRoutes` — explicit paths over
@@ -86,7 +86,7 @@ follow-up where a second deployment would reuse them.
 - **Phase 3 (mount-only moves) — DONE:** `channel-push` (distribution
   extension), `booking-tax` (finance `createBookingTaxApiExtension`),
   `booking-schedule` (bookings extension + `payment-policy` public path), and
-  `quote-version-snapshot` (trips extension) now compose through the registry;
+  `proposal-version-snapshot` (trips extension) now compose through the registry;
   `booking-tax-preview.ts` deleted. `catalog-booking.ts` remains (it is lazy —
   deferred until Phase 1 lazy contributions land, so it does not regress Worker
   cold-start by going eager).

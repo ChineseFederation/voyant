@@ -1,5 +1,5 @@
 /**
- * Customer signals — lighter than `quotes` (no deal value or
+ * Customer signals — lighter than `proposals` (no deal value or
  * stages), heavier than `segments` (lifecycle + assignment). Records
  * "person X expressed interest in product/departure Y from source Z,
  * status pending". The most common use cases:

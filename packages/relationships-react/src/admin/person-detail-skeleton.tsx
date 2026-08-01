@@ -8,8 +8,8 @@ import { Skeleton } from "@voyant-travel/ui/components/skeleton"
  *   - Top bar (back button + name + edit/delete actions)
  *   - 12-col body grid:
  *       - lg:col-span-3  sidebar: avatar + identity card + details card
- *       - lg:col-span-6  main: tabs (Notes / Activities / Quotes) + editor + list
- *       - lg:col-span-3  aside: organization card + quotes summary
+ *       - lg:col-span-6  main: tabs (Notes / Activities / Proposals) + editor + list
+ *       - lg:col-span-3  aside: organization card + proposals summary
  */
 export function PersonDetailSkeleton() {
   return (

@@ -33,19 +33,19 @@ function firstExecuteRow<T>(result: unknown): T | undefined {
   return undefined
 }
 
-async function quoteExists(db: PostgresJsDatabase, quoteId: string) {
+async function proposalExists(db: PostgresJsDatabase, proposalId: string) {
   const tableResult = await db.execute(
-    sql<{ exists: boolean }[]>`select (to_regclass('public.quotes') is not null) as exists`,
+    sql<{ exists: boolean }[]>`select (to_regclass('public.proposals') is not null) as exists`,
   )
   const tableRow = firstExecuteRow<{ exists: boolean }>(tableResult)
   if (!tableRow?.exists) return false
 
-  const quoteResult = await db.execute(
+  const proposalResult = await db.execute(
     sql<{ exists: boolean }[]>`
-      select exists(select 1 from public.quotes where id = ${quoteId}) as exists
+      select exists(select 1 from public.proposals where id = ${proposalId}) as exists
     `,
   )
-  return !!firstExecuteRow<{ exists: boolean }>(quoteResult)?.exists
+  return !!firstExecuteRow<{ exists: boolean }>(proposalResult)?.exists
 }
 
 async function linkedEntityExists(db: PostgresJsDatabase, data: CreateActivityLinkInput) {
@@ -74,8 +74,8 @@ async function linkedEntityExists(db: PostgresJsDatabase, data: CreateActivityLi
         .limit(1)
       return !!row
     }
-    case "quote":
-      return quoteExists(db, data.entityId)
+    case "proposal":
+      return proposalExists(db, data.entityId)
   }
 }
 

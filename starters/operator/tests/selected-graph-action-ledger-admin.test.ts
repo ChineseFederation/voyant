@@ -39,7 +39,7 @@ describe("selected-graph Action Ledger admin composition", () => {
       "notifications",
       "commerce",
       "trips",
-      "quotes",
+      "proposals",
       "mice",
       "realtime",
       "action-ledger",

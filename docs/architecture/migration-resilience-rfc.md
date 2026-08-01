@@ -86,7 +86,7 @@ places today, but only because someone remembered each time:
 | `bookingsSupplierExtension` | bookings | `bookingSupplierStatuses`, `bookingActivityLog` | ✓ | ✓ |
 | `bookingsCreateExtension` | finance | (uses finance tables) | ✓ | ✓ |
 | `productsBookingExtension` | products | `bookingProductDetails`, `bookingItemProductDetails` | ✓ | ✓ |
-| `quotesBookingExtension` | quotes | `bookingQuoteDetails` | ✓ | ✓ |
+| `proposalsBookingExtension` | proposals | `bookingProposalDetails` | ✓ | ✓ |
 | `bookingOrigins` | bookings | `bookingOrigins` | ✓ | ✓ |
 | `distributionBookingExtension` | distribution | `bookingDistributionDetails` | ✓ | ✓ |
 
@@ -261,7 +261,7 @@ generated file**:
   export const schema = [
     "../../packages/db/src/schema/index.ts",
     "../../packages/relationships/src/schema.ts",
-    "../../packages/quotes/src/schema.ts",
+    "../../packages/proposals/src/schema.ts",
     // ...dependency-ordered, derived from the manifest...
   ]
   ```

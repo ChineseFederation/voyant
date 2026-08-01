@@ -5,7 +5,7 @@ export const paginationSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 })
 
-export const entityTypeSchema = z.enum(["organization", "person", "quote", "activity"])
+export const entityTypeSchema = z.enum(["organization", "person", "proposal", "activity"])
 export const customFieldTargetSchema = z.string().min(1)
 
 export const recordStatusSchema = z.enum(["active", "inactive", "archived"])

@@ -9,7 +9,7 @@ const manifests = [
   "packages/finance/src/voyant.ts",
   "packages/inventory/src/voyant.ts",
   "packages/legal/src/voyant.ts",
-  "packages/quotes/src/voyant.ts",
+  "packages/proposals/src/voyant.ts",
 ].map((file) => [file, readFileSync(file, "utf8")])
 
 const claims = new Map([
@@ -37,8 +37,8 @@ const claims = new Map([
   ["@voyant-travel/bookings#booking-supplier-extension.api", "bookings"],
   ["@voyant-travel/finance#booking-schedule-extension.api.admin", "bookings"],
   ["@voyant-travel/legal#api.contract-document", "contract-document"],
-  ["@voyant-travel/quotes#api", "quotes"],
-  ["@voyant-travel/quotes#proposal-extension.api.admin", "quotes"],
+  ["@voyant-travel/proposals#api", "proposals"],
+  ["@voyant-travel/proposals#presentation-extension.api.admin", "proposals"],
 ])
 
 for (const [apiId, document] of claims) {
@@ -76,8 +76,8 @@ const exactOperationOwners = new Map([
     ["@voyant-travel/finance#booking-schedule-extension.api.admin", 1],
   ],
   [
-    "packages/quotes/src/routes/quote-versions.ts",
-    ["@voyant-travel/quotes#proposal-extension.api.admin", 1],
+    "packages/proposals/src/routes/proposal-versions.ts",
+    ["@voyant-travel/proposals#presentation-extension.api.admin", 1],
   ],
 ])
 

@@ -3,9 +3,9 @@ export const crmRelationTypes = ["client", "partner", "supplier", "other"] as co
 export const crmRecordStatuses = ["active", "inactive", "archived"] as const
 export const crmActivityTypes = ["note", "call", "email", "meeting", "task", "follow_up"] as const
 export const crmActivityStatuses = ["planned", "done", "cancelled"] as const
-export const crmEntityTypes = ["none", "person", "organization", "quote", "activity"] as const
-const crmQuoteStatuses = ["open", "won", "lost", "archived"] as const
-const crmQuoteVersionStatuses = [
+export const crmEntityTypes = ["none", "person", "organization", "proposal", "activity"] as const
+const crmProposalStatuses = ["open", "won", "lost", "archived"] as const
+const crmProposalVersionStatuses = [
   "draft",
   "sent",
   "accepted",
@@ -19,8 +19,8 @@ export type CrmRecordStatus = (typeof crmRecordStatuses)[number]
 export type CrmActivityType = (typeof crmActivityTypes)[number]
 export type CrmActivityStatus = (typeof crmActivityStatuses)[number]
 export type CrmEntityType = (typeof crmEntityTypes)[number]
-export type CrmQuoteStatus = (typeof crmQuoteStatuses)[number]
-export type CrmQuoteVersionStatus = (typeof crmQuoteVersionStatuses)[number]
+export type CrmProposalStatus = (typeof crmProposalStatuses)[number]
+export type CrmProposalVersionStatus = (typeof crmProposalVersionStatuses)[number]
 
 export type CrmUiMessages = {
   common: {
@@ -42,8 +42,8 @@ export type CrmUiMessages = {
     relationTypeLabels: Record<CrmRelationType, string>
     recordStatusLabels: Record<CrmRecordStatus, string>
     entityTypeLabels: Record<CrmEntityType, string>
-    quoteStatusLabels: Record<CrmQuoteStatus, string>
-    quoteVersionStatusLabels: Record<CrmQuoteVersionStatus, string>
+    proposalStatusLabels: Record<CrmProposalStatus, string>
+    proposalVersionStatusLabels: Record<CrmProposalVersionStatus, string>
     relativeTime: {
       daysAgo: string
       weeksAgo: string
@@ -263,7 +263,7 @@ export type CrmUiMessages = {
       createFailed: string
     }
   }
-  createQuoteDialog: {
+  createProposalDialog: {
     title: string
     fields: {
       title: string
@@ -279,10 +279,10 @@ export type CrmUiMessages = {
       createFailed: string
     }
   }
-  quotesBoard: {
+  proposalsBoard: {
     fallbackName: string
   }
-  quoteSummaryCard: {
+  proposalSummaryCard: {
     unknown: string
     expectedClose: string
   }
@@ -345,7 +345,7 @@ export type CrmUiMessages = {
     }
     metrics: {
       people: string
-      openQuotes: string
+      openProposals: string
       pipelineValue: string
       won: string
     }
@@ -355,7 +355,7 @@ export type CrmUiMessages = {
       contactMethods: string
       addresses: string
       namedContacts: string
-      quotes: string
+      proposals: string
       activities: string
       bookings: string
       invoices: string
@@ -370,7 +370,7 @@ export type CrmUiMessages = {
     empty: {
       noPeople: string
       unnamed: string
-      noQuotes: string
+      noProposals: string
       noActivities: string
     }
     actions: {
@@ -422,14 +422,14 @@ export type CrmUiMessages = {
       }
     }
     metrics: {
-      openQuotes: string
+      openProposals: string
       pipelineValue: string
       documents: string
       activities: string
     }
     tabs: {
       overview: string
-      quotes: string
+      proposals: string
       activities: string
       relationships: string
       documents: string
@@ -525,7 +525,7 @@ export type CrmUiMessages = {
       other: string
     }
     empty: {
-      noQuotes: string
+      noProposals: string
       noActivities: string
       noRelationships: string
       noDocuments: string
@@ -579,24 +579,24 @@ export type CrmUiMessages = {
       saving: string
     }
   }
-  createQuoteVersionDialog: {
+  createProposalVersionDialog: {
     title: string
     fields: {
-      quote: string
+      proposal: string
       currency: string
       validUntil: string
     }
     placeholders: {
-      searchQuotes: string
+      searchProposals: string
       selectCurrency: string
       pickDate: string
     }
     empty: {
       loading: string
-      noQuotes: string
+      noProposals: string
     }
     validation: {
-      selectQuote: string
+      selectProposal: string
       selectCurrency: string
       createFailed: string
     }
@@ -604,7 +604,7 @@ export type CrmUiMessages = {
       create: string
     }
   }
-  quoteVersionLinesCard: {
+  proposalVersionLinesCard: {
     title: string
     empty: string
     fields: {
@@ -630,7 +630,7 @@ export type CrmUiMessages = {
     }
     empty: string
   }
-  quoteVersionsPage: {
+  proposalVersionsPage: {
     title: string
     description: string
     create: string
@@ -639,7 +639,7 @@ export type CrmUiMessages = {
       allStatuses: string
     }
     columns: {
-      quoteVersion: string
+      proposalVersion: string
       status: string
       total: string
       validUntil: string

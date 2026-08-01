@@ -4,7 +4,7 @@ export const adminDmcProductsMessages = {
   en: {
     products: {
       pageTitle: "Products",
-      pageDescription: "Manage your quotes, packages, and proposals.",
+      pageDescription: "Manage your products, packages, and proposals.",
       newAction: "New Product",
       searchPlaceholder: "Search products...",
       columnName: "Name",
@@ -19,7 +19,7 @@ export const adminDmcProductsMessages = {
       dialogEditTitle: "Edit Product",
       dialogNewTitle: "New Product",
       dialogEditDescription: "Update product details, travel dates, and pricing context.",
-      dialogNewDescription: "Create a new quote, package, or proposal.",
+      dialogNewDescription: "Create a new product, package, or proposal.",
       nameLabel: "Name",
       namePlaceholder: "Croatia Explorer 2025",
       descriptionLabel: "Description",
@@ -136,7 +136,7 @@ export const adminDmcProductsMessages = {
   ro: {
     products: {
       pageTitle: "Products",
-      pageDescription: "Manage your quotes, packages, and proposals.",
+      pageDescription: "Manage your products, packages, and proposals.",
       newAction: "New Product",
       searchPlaceholder: "Search products...",
       columnName: "Name",
@@ -151,7 +151,7 @@ export const adminDmcProductsMessages = {
       dialogEditTitle: "Edit Product",
       dialogNewTitle: "New Product",
       dialogEditDescription: "Update product details, travel dates, and pricing context.",
-      dialogNewDescription: "Create a new quote, package, or proposal.",
+      dialogNewDescription: "Create a new product, package, or proposal.",
       nameLabel: "Name",
       namePlaceholder: "Croatia Explorer 2025",
       descriptionLabel: "Description",

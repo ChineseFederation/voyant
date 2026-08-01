@@ -4,8 +4,8 @@ React hooks, query keys, providers, admin routes, and reusable UI for the
 Relationships module: people, organizations, activities, profile context,
 person documents, relationships, and customer signals.
 
-Quote panels are exposed as extension slots on person and organization detail
-pages. Quote lifecycle hooks and components live in `@voyant-travel/quotes-react`.
+Proposal panels are exposed as extension slots on person and organization detail
+pages. Proposal lifecycle hooks and components live in `@voyant-travel/proposals-react`.
 
 ## Install
 

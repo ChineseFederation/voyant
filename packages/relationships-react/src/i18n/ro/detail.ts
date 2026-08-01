@@ -41,7 +41,7 @@ export const crmUiRoDetailMessages = {
     },
     metrics: {
       people: "Persoane",
-      openQuotes: "Oferte deschise",
+      openProposals: "Propuneri deschise",
       pipelineValue: "Valoare pipeline",
       won: "Castigate",
     },
@@ -51,7 +51,7 @@ export const crmUiRoDetailMessages = {
       contactMethods: "Metode de contact",
       addresses: "Adrese",
       namedContacts: "Contacte",
-      quotes: "Oferte",
+      proposals: "Propuneri",
       activities: "Activitati",
       bookings: "Rezervari",
       invoices: "Facturi",
@@ -66,7 +66,7 @@ export const crmUiRoDetailMessages = {
     empty: {
       noPeople: "Nu exista persoane asociate acestei organizatii.",
       unnamed: "Fara nume",
-      noQuotes: "Nu exista oferte.",
+      noProposals: "Nu exista propuneri.",
       noActivities: "Nu exista activitati.",
     },
     actions: {
@@ -119,14 +119,14 @@ export const crmUiRoDetailMessages = {
       },
     },
     metrics: {
-      openQuotes: "Oferte deschise",
+      openProposals: "Propuneri deschise",
       pipelineValue: "Valoare pipeline",
       documents: "Documente",
       activities: "Activitati",
     },
     tabs: {
       overview: "Prezentare",
-      quotes: "Oferte",
+      proposals: "Propuneri",
       activities: "Activitati",
       relationships: "Relatii",
       documents: "Documente",
@@ -222,7 +222,7 @@ export const crmUiRoDetailMessages = {
       other: "Altul",
     },
     empty: {
-      noQuotes: "Nu exista oferte.",
+      noProposals: "Nu exista propuneri.",
       noActivities: "Nu exista activitati.",
       noRelationships: "Nu exista relatii asociate acestei persoane.",
       noDocuments: "Nu exista documente.",

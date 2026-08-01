@@ -48,25 +48,25 @@ async function runMultiPackageFixture(sources) {
 }
 
 describe("Phase 5 event authority checker", () => {
-  it("pins the package-owned Quotes proposal feedback event contract", async () => {
-    const manifest = await readFile(path.join(repoRoot, "packages/quotes/src/voyant.ts"), "utf8")
-    const runtime = await readFile(path.join(repoRoot, "packages/quotes/src/runtime.ts"), "utf8")
+  it("pins the package-owned Proposals proposal feedback event contract", async () => {
+    const manifest = await readFile(path.join(repoRoot, "packages/proposals/src/voyant.ts"), "utf8")
+    const runtime = await readFile(path.join(repoRoot, "packages/proposals/src/runtime.ts"), "utf8")
     const contract = manifest.match(
-      /\{\s*id: "@voyant-travel\/quotes#event\.proposal-feedback-requested",[\s\S]*?\n\s{4}\},/,
+      /\{\s*id: "@voyant-travel\/proposals#event\.proposal-feedback-requested",[\s\S]*?\n\s{4}\},/,
     )?.[0]
     const emittedPayload = runtime.match(
-      /"quote\.proposal_feedback\.requested",\s*\{([\s\S]*?)\n\s{10}\},\s*\{ category:/,
+      /"proposal\.proposal_feedback\.requested",\s*\{([\s\S]*?)\n\s{10}\},\s*\{ category:/,
     )?.[1]
 
-    assert.ok(contract, "Quotes must own the proposal feedback event declaration")
-    assert.ok(emittedPayload, "Quotes must emit the declared proposal feedback event")
-    assert.match(contract, /eventType: "quote\.proposal_feedback\.requested"/)
+    assert.ok(contract, "Proposals must own the proposal feedback event declaration")
+    assert.ok(emittedPayload, "Proposals must emit the declared proposal feedback event")
+    assert.match(contract, /eventType: "proposal\.proposal_feedback\.requested"/)
     assert.match(contract, /version: "1\.0\.0"/)
     assert.match(
       contract,
-      /required: \["quoteId", "quoteVersionId", "activityId", "message", "proposalUrl"\]/,
+      /required: \["proposalId", "proposalVersionId", "activityId", "message", "proposalUrl"\]/,
     )
-    const properties = ["quoteId", "quoteVersionId", "activityId", "message", "proposalUrl"]
+    const properties = ["proposalId", "proposalVersionId", "activityId", "message", "proposalUrl"]
     assert.deepEqual(
       [...emittedPayload.matchAll(/^\s+(\w+):/gm)].map((match) => match[1]),
       properties,
@@ -75,7 +75,7 @@ describe("Phase 5 event authority checker", () => {
     assert.match(contract, /message: \{ type: "string", minLength: 1, maxLength: 4000 \}/)
     assert.match(contract, /additionalProperties: false/)
     assert.match(contract, /visibility: "internal"/)
-    assert.match(contract, /audit: \{ sourceModule: "quotes", category: "domain" \}/)
+    assert.match(contract, /audit: \{ sourceModule: "proposals", category: "domain" \}/)
   })
 
   it("accepts an external versioned event with schema and audit metadata", async () => {

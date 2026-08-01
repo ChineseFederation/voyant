@@ -165,15 +165,15 @@ export const realtimeVoyantModule = defineModule({
   },
 })
 
-/** Quote-owned invalidations are selected only when both Quotes and Realtime are active. */
-export const realtimeQuotesInvalidationVoyantExtension = defineExtension({
-  id: "@voyant-travel/realtime#quotes-invalidation-extension",
+/** Proposal-owned invalidations are selected only when both Proposals and Realtime are active. */
+export const realtimeProposalsInvalidationVoyantExtension = defineExtension({
+  id: "@voyant-travel/realtime#proposals-invalidation-extension",
   packageName: "@voyant-travel/realtime",
-  localId: "realtime.quotes-invalidation-extension",
+  localId: "realtime.proposals-invalidation-extension",
   subscribers: [
-    ["quote.created", "realtimeQuoteCreatedInvalidationSubscriber"],
-    ["quote.updated", "realtimeQuoteUpdatedInvalidationSubscriber"],
-    ["quote.deleted", "realtimeQuoteDeletedInvalidationSubscriber"],
+    ["proposal.created", "realtimeProposalCreatedInvalidationSubscriber"],
+    ["proposal.updated", "realtimeProposalUpdatedInvalidationSubscriber"],
+    ["proposal.deleted", "realtimeProposalDeletedInvalidationSubscriber"],
   ].map(([eventType, exportName]) => ({
     id: `@voyant-travel/realtime#subscriber.admin-invalidation.${eventType}`,
     eventType,

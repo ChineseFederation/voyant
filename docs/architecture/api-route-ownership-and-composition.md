@@ -119,7 +119,7 @@ Examples from the current operator starter:
 | `catalog-content.ts` | Mounts content route factories from products, cruises, and accommodations. | Vertical packages should expose their own modules or route contributions. |
 | `catalog-offers.ts` | Operator admin offer/search/price route family. | Catalog or vertical adapter route module, depending on source ownership. |
 | `flights.ts` | Admin flight search, ancillary, seatmap, price, booking, order, and reference routes. | `@voyant-travel/flights` route module with injected connector and payment adapters. |
-| `proposal-routes.ts` | Admin quote-version send and public proposal accept/decline routes. | Quotes or proposal lifecycle extension, with notification/document adapters injected. |
+| `proposal-routes.ts` | Admin proposal-version send and public proposal accept/decline routes. | Proposals lifecycle lifecycle extension, with notification/document adapters injected. |
 | `booking-schedule.ts` | Payment schedule regeneration and public payment-policy resolution. | Finance/bookings route extension. |
 | `lazy-additional-routes.ts` and `payment-link-routes.ts` | Public payment link and checkout status routes. | Finance checkout/payment-link module. |
 | `media-upload-routes.ts` | Product brochure generation, upload tickets, and media serving. | Storage/media infrastructure module plus inventory extension for product brochure generation. |
@@ -225,8 +225,8 @@ Examples:
 - booking-specific finance actions mounted under bookings.
 - inventory authoring extensions mounted under products.
 - distribution channel-push actions mounted under distribution.
-- proposal lifecycle routes if the route interface is primarily an extension of
-  quote versions rather than a standalone proposal module.
+- Proposal lifecycle routes if the route interface is primarily an extension of
+  Proposal Versions rather than a standalone Proposals module.
 
 The extension should expose `ApiExtension` with `adminRoutes` and/or
 `publicRoutes`, and it should depend only on the adapters it needs.
@@ -801,8 +801,8 @@ Candidates:
   module that exists.
   - Options (already wired into finance today): payment providers, public
     checkout base URL, bank-transfer settings, notification dispatcher.
-- `proposal-routes.ts` -> quotes proposal lifecycle route module or quote
-  proposal extension.
+- `proposal-routes.ts` -> Proposals lifecycle route module or Proposal
+  presentation extension.
   - Options: notification provider, public proposal URL signer, acceptance
     workflow callbacks.
 - `media-upload-routes.ts` -> storage/media infrastructure module plus

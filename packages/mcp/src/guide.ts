@@ -4,7 +4,7 @@
  *
  * A client connecting to `/v1/admin/mcp` receives typed tool schemas and no
  * operating context: what this deployment is, which call sequence does a real
- * job, or the traps (a room quantity is a count of rooms; an accepted Quote
+ * job, or the traps (a room quantity is a count of rooms; an accepted Proposal
  * Version is not a confirmed booking). The decided design (voyant#3921 resolved
  * decision 2) puts that context in the two places every MCP client supports
  * today — the `instructions` string returned on `initialize` and read-only guide
@@ -13,7 +13,7 @@
  * Every domain claim is sourced, never invented: `UBIQUITOUS_LANGUAGE.md`
  * (vocabulary + commitment chain), `docs/architecture/booking-journey-architecture.md`
  * (quote/hold/commit split), `catalog-supply-models.md` (dynamic vs scheduled),
- * `accepted-quote-version-reservation-golden-flow.md` (accept → reserve → book),
+ * `accepted-proposal-version-reservation-golden-flow.md` (accept → reserve → book),
  * and `packages/inventory` product status/visibility + `publish_product`
  * (authoring vs publication).
  *
@@ -44,7 +44,7 @@ const GUIDE_TOPICS = [
   "overview",
   "discovery",
   "booking-journey",
-  "quotes",
+  "proposals",
   "products",
   "vocabulary",
   "confirmation",
@@ -63,7 +63,7 @@ export function buildServerInstructions(scope: GuideScope): string {
       ? "This key can read catalog and booking data and invoke state-changing Tools (subject to per-Tool scopes and the confirmation protocol below)."
       : "This key is READ-ONLY: it can list and read, but the create/update/publish/book Tools below are not reachable with it. Ignore write instructions."
   return [
-    "This MCP server is the admin surface of a Voyant deployment — an online travel agency, tour-operator, and destination-management platform. Through it you can discover and operate the operator's catalog (Products, Options, and dated departures/Slots), the sales pipeline (Quotes and Quote Versions), Bookings and their Travelers, and downstream Invoices and Payments.",
+    "This MCP server is the admin surface of a Voyant deployment — an online travel agency, tour-operator, and destination-management platform. Through it you can discover and operate the operator's catalog (Products, Options, and dated departures/Slots), the sales pipeline (Proposals and Proposal Versions), Bookings and their Travelers, and downstream Invoices and Payments.",
     "",
     access,
     "",
@@ -81,10 +81,10 @@ export function buildServerInstructions(scope: GuideScope): string {
     "",
     "START WITH THE GUIDE TOOLS",
     `Call \`voyant_guide\` (topics: ${GUIDE_TOPICS.join(", ")}) for the booking`,
-    "journey, quote lifecycle, product publication, and the confirmation/approval",
+    "journey, proposal lifecycle, product publication, and the confirmation/approval",
     "protocol. Call `voyant_glossary` for the canonical meaning of a domain term",
     "before you rely on it — several are easy to get subtly wrong (a room quantity is",
-    "a number of ROOMS, not travelers; accepting a Quote Version is not a confirmed",
+    "a number of ROOMS, not travelers; accepting a Proposal Version is not a confirmed",
     "booking).",
   ].join("\n")
 }
@@ -100,7 +100,7 @@ export function registerGuideTools(server: McpServer, scope: GuideScope): readon
       title: "Voyant operating guide",
       description:
         "Product judgment for operating this travel platform over MCP: the booking " +
-        "journey and supply models, quote versioning (acceptance is not confirmation), " +
+        "journey and supply models, proposal versioning (acceptance is not confirmation), " +
         "product authoring vs publication, room/traveler vocabulary, and the " +
         "confirmation/approval protocol. Pass a `topic`, or omit it for the index.",
       inputSchema: z.object({
@@ -124,7 +124,7 @@ export function registerGuideTools(server: McpServer, scope: GuideScope): readon
       title: "Voyant domain glossary",
       description:
         "Canonical definitions of Voyant domain terms (Product, Option Unit, Room " +
-        "Option, Traveler, Quote, Quote Version, Booking, Hold, Allocation, Slot, and " +
+        "Option, Traveler, Proposal, Proposal Version, Booking, Hold, Allocation, Slot, and " +
         "more), sourced from UBIQUITOUS_LANGUAGE.md. Pass a `term` to filter, or omit " +
         "for the full glossary.",
       inputSchema: z.object({
@@ -159,8 +159,8 @@ function guideSection(topic: GuideTopic, scope: GuideScope): string {
       return discoverySection()
     case "booking-journey":
       return bookingJourneySection(scope)
-    case "quotes":
-      return quotesSection(scope)
+    case "proposals":
+      return proposalsSection(scope)
     case "products":
       return productsSection(scope)
     case "vocabulary":
@@ -192,14 +192,14 @@ function overviewSection(scope: GuideScope): string {
     "- Option / Option Unit — a variant of a Product and its pricing/age band " +
     "(Adult, Child 3–11). Option Unit is NOT a room and NOT a traveler.\n" +
     "- Availability Slot — a concrete dated departure with remaining Capacity.\n" +
-    "- Quote / Quote Version — a sales pursuit and its immutable proposal revisions.\n" +
+    "- Proposal / Proposal Version — a sales pursuit and its immutable proposal revisions.\n" +
     "- Booking — the durable first-party commitment: Travelers, Booking Items, " +
     "Allocations, Fulfillments, state.\n" +
     "- Invoice / Payment — the money records downstream of a Booking.\n\n" +
     "Read these topics with `voyant_guide { topic }`:\n" +
     "- discovery — how to find the Tool you need.\n" +
-    "- booking-journey — quote → hold → commit, and which path a supply model takes.\n" +
-    "- quotes — Quote Version lifecycle; why acceptance is not confirmation.\n" +
+    "- booking-journey — Product → Booking Session → Quote → Hold/Commit/Booking; Proposal → accepted Version → Booking Session → Quote → Hold/Commit/Booking.\n" +
+    "- proposals — Proposal Version lifecycle; why acceptance is not confirmation.\n" +
     "- products — authoring a Product vs publishing it (a separate operation).\n" +
     "- vocabulary — room vs unit vs traveler; the trap that mis-books rooms.\n" +
     "- confirmation — the `_voyant` confirmation and approval protocol for writes.\n\n" +
@@ -221,13 +221,13 @@ function discoverySection(): string {
     "2. READS are collapsed by product area into one `<domain>_query` tool whose input " +
     "is a discriminated union on `resource`. Set `resource` to the record you want and " +
     "pass that resource's own arguments. Resources use the domain nouns — `product`, " +
-    "`option_unit`, `departure`, `quote`, `quote_version`, `booking`, `invoice` (the " +
+    "`option_unit`, `departure`, `proposal`, `proposal_version`, `booking`, `invoice` (the " +
     "domain term Slot surfaces as the `departures` resource).\n" +
     "3. WRITES stay one Tool each, named `verb_noun` (`create`/`update`/`publish` …), " +
     "so their action policy stays explicit.\n\n" +
     'Example lookups: catalog → `inventory_query` (`resource: "products"`/`"product"`); ' +
     'dated departures → `operations_query` (`resource: "departures"`); sales pursuit → ' +
-    "`quotes_query` (`quote`/`quote_version`); a commitment → `bookings_query` " +
+    "`proposals_query` (`proposal`/`proposal_version`); a commitment → `bookings_query` " +
     '(`resource: "booking"` — its Travelers and Items are part of the booking record, ' +
     "not separate traveler reads).\n\n" +
     "Only tools your key is authorized for are discoverable or callable; an " +
@@ -241,8 +241,10 @@ function bookingJourneySection(scope: GuideScope): string {
   return (
     "# The booking journey\n\n" +
     writeGate(scope) +
-    "The commitment ladder is: Quote → accepted Quote Version → reserve workflow → " +
-    "Booking → Fulfillment. Each step hardens the commitment.\n\n" +
+    "There are two commitment paths: Product → Booking Session → pricing Quote → " +
+    "optional Hold → Commit/Booking, and Proposal → accepted Proposal Version → " +
+    "Booking Session/reserve workflow → pricing Quote → optional Hold → " +
+    "Commit/Booking. Each step hardens the commitment.\n\n" +
     "## Two supply models decide the booking path\n\n" +
     "A Product's supply model is derived from its booking mode and drives which " +
     "journey applies (docs/architecture/catalog-supply-models.md):\n\n" +
@@ -254,11 +256,11 @@ function bookingJourneySection(scope: GuideScope): string {
     "escorted groups, cruises, owned series). The unit is a seat in a fixed dated " +
     "departure drawn from a finite allotment. Departures-first: you browse the dated " +
     "Availability Slots (date · seats left · price) and hold/allocate seats.\n\n" +
-    "## One journey, quote → hold → commit\n\n" +
-    "Whatever the supply model, the single-line journey is the same shape " +
+    "## Canonical customer booking flow\n\n" +
+    "Whatever the supply model, the direct booking path has the same shape " +
     "(docs/architecture/booking-journey-architecture.md):\n\n" +
-    "1. Quote — price the current selection (pax counts and bands, dates, Extras, " +
-    "accommodation, billing country for tax). A quote carries an `expiresAt` (~10 " +
+    "1. Pricing Quote — price the current selection (pax counts and bands, dates, Extras, " +
+    "accommodation, billing country for tax). A Quote carries an `expiresAt` (~10 " +
     "min default) and is a live-pricing snapshot, not a commitment.\n" +
     "2. Hold (where supported) — place a time-limited claim on inventory while details " +
     "are gathered. A Hold expires; it is not a Booking.\n" +
@@ -267,25 +269,31 @@ function bookingJourneySection(scope: GuideScope): string {
     "party — a `personId` or `organizationId` — travelers, rooms — in one call): it resolves the " +
     "booking reference and idempotency key server-side (you carry neither), validates before writing, and takes `_voyant.confirmed: true`.\n\n" +
     "Because commit is its own confirmed step, quoting or holding leaves no durable " +
-    "reservation. Do not treat a successful quote as a booked seat." +
+    "reservation. Do not treat a successful pricing Quote as a booked seat.\n\n" +
+    "## Bespoke Proposal flow\n\n" +
+    "Staff-managed bespoke sales use a separate sequence: Proposal → accepted " +
+    "Proposal Version → Booking Session / reserve workflow → pricing Quote for " +
+    "live catalog-backed lines → optional Hold → Commit/Booking. A Proposal Version " +
+    "freezes the bespoke Trip Envelope revision; a pricing Quote answers current price/terms for a " +
+    "specific selection." +
     (scope.writeEnabled
       ? ""
-      : "\n\nWith this read-only key you can inspect Quotes, Slots, and existing " +
-        "Bookings, but you cannot quote-to-commit.")
+      : "\n\nWith this read-only key you can inspect Proposals, Slots, and existing " +
+        "Bookings, but you cannot quote, hold, accept, or commit.")
   )
 }
 
-function quotesSection(scope: GuideScope): string {
+function proposalsSection(scope: GuideScope): string {
   return (
-    "# Quotes and Quote Versions — acceptance is NOT confirmation\n\n" +
+    "# Proposals and Proposal Versions — acceptance is NOT confirmation\n\n" +
     writeGate(scope) +
-    "A Quote is a tracked sales pursuit with a Person/Organization; it owns one or " +
-    "more Quote Versions. A Quote Version is an IMMUTABLE proposal revision that " +
+    "A Proposal is a tracked sales pursuit with a Person/Organization; it owns one or " +
+    "more Proposal Versions. A Proposal Version is an IMMUTABLE proposal revision that " +
     "freezes a Trip Envelope snapshot, pricing, and validity. Editing a sent Version " +
     "creates a new Version — you never mutate one in place.\n\n" +
     "The load-bearing rule (UBIQUITOUS_LANGUAGE.md; " +
-    "accepted-quote-version-reservation-golden-flow.md):\n\n" +
-    "ACCEPTING a Quote Version marks that Version accepted, closes the Quote as won, " +
+    "accepted-proposal-version-reservation-golden-flow.md):\n\n" +
+    "ACCEPTING a Proposal Version marks that Version accepted, closes the Proposal as won, " +
     "and SEEDS the reserve workflow. It does NOT mean any supplier component is " +
     "confirmed, and it does not by itself create a Booking. Acceptance is a customer " +
     "decision; confirmation is a downstream supplier/inventory outcome.\n\n" +
@@ -297,7 +305,7 @@ function quotesSection(scope: GuideScope): string {
     "never report an accepted Version to a customer as a confirmed trip." +
     (scope.writeEnabled
       ? ""
-      : "\n\nRead-only keys can read Quotes and Versions but cannot accept them.")
+      : "\n\nRead-only keys can read Proposals and Versions but cannot accept them.")
   )
 }
 
@@ -413,14 +421,18 @@ function glossary(term?: string): string {
     ],
     [
       "Participant",
-      "A role-bearer on a Quote/Booking/Program (traveler, booker, decision-maker, finance) — broader than Traveler.",
+      "A role-bearer on a Proposal/Booking/Program (traveler, booker, decision-maker, finance) — broader than Traveler.",
     ],
     [
       "Quote",
-      "A tracked sales pursuit with a Person/Organization; moves through Stages and owns one or more Quote Versions; may close won/lost.",
+      "An immutable, expiring, server-produced price and terms result for an exact Booking Session revision or equivalent provider pricing request. It may be followed by an optional Hold and then Commit/Booking. It is not a Proposal or Proposal Version.",
     ],
     [
-      "Quote Version",
+      "Proposal",
+      "A tracked sales pursuit with a Person/Organization; moves through Stages and owns one or more Proposal Versions; may close won/lost.",
+    ],
+    [
+      "Proposal Version",
       "An immutable proposal revision/alternative that freezes a Trip Envelope snapshot, pricing, and validity. Editing a sent Version creates a new Version.",
     ],
     [
@@ -433,7 +445,7 @@ function glossary(term?: string): string {
     ],
     [
       "Booking Origin",
-      "Bookings-owned provenance of how a Booking was created (accepted Quote Version, Trip snapshot, catalog response, provider ref, legacy id).",
+      "Bookings-owned provenance of how a Booking was created (accepted Proposal Version, Trip snapshot, catalog response, provider ref, legacy id).",
     ],
     [
       "Hold",
@@ -482,7 +494,7 @@ function glossary(term?: string): string {
     ],
     [
       "Accept",
-      "Records that the client chose a Quote Version (or accepted terms). Does NOT by itself mean every supplier component is confirmed.",
+      "Records that the client chose a Proposal Version (or accepted terms). Does NOT by itself mean every supplier component is confirmed.",
     ],
     [
       "Confirm",
@@ -490,7 +502,7 @@ function glossary(term?: string): string {
     ],
     [
       "Cancel",
-      "Operationally reverse a commitment (Booking, Allocation). Distinct from Void (financial reversal) and Close (end a Quote).",
+      "Operationally reverse a commitment (Booking, Allocation). Distinct from Void (financial reversal) and Close (end a Proposal).",
     ],
   ]
   const needle = term?.toLowerCase().trim()

@@ -112,14 +112,14 @@ describe("legal contract validation", () => {
     expect(
       insertContractSchema.parse({
         scope: "customer",
-        title: "Quote version contract",
-        targetKind: "quote_version",
-        targetId: "qver_123",
+        title: "Proposal version contract",
+        targetKind: "proposal_version",
+        targetId: "prvr_123",
         legacyTransactionOrderId: "ord_legacy",
       }),
     ).toMatchObject({
-      targetKind: "quote_version",
-      targetId: "qver_123",
+      targetKind: "proposal_version",
+      targetId: "prvr_123",
       legacyTransactionOrderId: "ord_legacy",
     })
   })
@@ -145,15 +145,15 @@ describe("legal contract validation", () => {
   it("requires Legal terms to target an explicit domain record or legacy compatibility ref", () => {
     expect(
       insertLegalTermSchema.parse({
-        targetKind: "quote_version",
-        targetId: "qver_123",
+        targetKind: "proposal_version",
+        targetId: "prvr_123",
         termType: "terms_and_conditions",
         title: "Proposal terms",
-        body: "Accepted quote version terms.",
+        body: "Accepted proposal version terms.",
       }),
     ).toMatchObject({
-      targetKind: "quote_version",
-      targetId: "qver_123",
+      targetKind: "proposal_version",
+      targetId: "prvr_123",
       acceptanceStatus: "pending",
       required: true,
     })

@@ -14,8 +14,8 @@ describe("booking origins", () => {
     const origin = toBookingOriginInsert(
       {
         bookingId: "book_1797",
-        originSource: "accepted_quote_version",
-        quoteVersionId: "qver_1797",
+        originSource: "accepted_proposal_version",
+        proposalVersionId: "prvr_1797",
         tripSnapshotId: "trsn_1797",
         reservationPlanId: "trplan_1797",
         catalogPriceResponseId: "cquo_1797",
@@ -34,8 +34,8 @@ describe("booking origins", () => {
 
     expect(origin).toEqual({
       bookingId: "book_1797",
-      originSource: "accepted_quote_version",
-      quoteVersionId: "qver_1797",
+      originSource: "accepted_proposal_version",
+      proposalVersionId: "prvr_1797",
       tripSnapshotId: "trsn_1797",
       reservationPlanId: "trplan_1797",
       catalogPriceResponseId: "cquo_1797",
@@ -61,7 +61,7 @@ describe("booking origins", () => {
     const link = getLegacyTransactionLinkFromBookingOrigin({
       bookingId: "book_1797",
       originSource: "legacy_transaction",
-      quoteVersionId: null,
+      proposalVersionId: null,
       tripSnapshotId: null,
       reservationPlanId: null,
       catalogPriceResponseId: null,

@@ -38,7 +38,11 @@ async function fixture(deploymentResources) {
     "packages/mice/src/runtime-contributor.ts",
     "host.getRuntimePort(relationshipsMiceRuntimePort)\nresolveDelegatePersonById\n",
   )
-  await write(root, "packages/quotes/src/runtime-contributor.ts", "createQuotesRuntime(host)\n")
+  await write(
+    root,
+    "packages/proposals/src/runtime-contributor.ts",
+    "createProposalsRuntime(host)\n",
+  )
   await write(
     root,
     "packages/relationships/src/runtime-contributor.ts",
@@ -80,15 +84,15 @@ it("rejects starter-side assembly of a migrated binding", async () => {
   )
 })
 
-it("rejects restored Quotes ownership of Trips route mutations", async () => {
+it("rejects restored Proposals ownership of Trips route mutations", async () => {
   const root = await fixture("return options.createRuntimePorts({ primitives })\n")
   await write(
     root,
-    "packages/quotes/src/runtime-contributor.ts",
-    "host.getRuntimePort(tripsRoutesRuntimePort)\ncreateQuotesRuntime(host, trips)\n",
+    "packages/proposals/src/runtime-contributor.ts",
+    "host.getRuntimePort(tripsRoutesRuntimePort)\ncreateProposalsRuntime(host, trips)\n",
   )
   await assert.rejects(
     execFileAsync(process.execPath, [checker, "--root", root]),
-    /quotes runtime contributor must not consume Trips route mutation authority/,
+    /proposals runtime contributor must not consume Trips route mutation authority/,
   )
 })

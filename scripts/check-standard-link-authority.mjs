@@ -52,7 +52,7 @@ for (const [owner, links] of Object.entries(expected)) {
 const bom = readFileSync(path.join(root, "packages/operator-standard/src/index.ts"), "utf8")
 const neutral = [
   ["legal", "contract-invoice"],
-  ["mice", "quote-program"],
+  ["mice", "proposal-program"],
 ]
 for (const [owner, link] of neutral) {
   if (!bom.includes(`@voyant-travel/${owner}/standard-product-links`)) {

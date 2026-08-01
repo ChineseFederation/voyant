@@ -47,7 +47,7 @@ describe("assembleAnonymousPaths (ADR-0008)", () => {
 
   it("honors a `publicPath` override when computing the mount", () => {
     const paths = assembleAnonymousPaths(
-      [mod("quote-versions", { publicPath: "proposals", anonymous: true })],
+      [mod("proposal-versions", { publicPath: "proposals", anonymous: true })],
       [],
     )
     expect(paths).toEqual(["/v1/public/proposals"])
@@ -69,7 +69,7 @@ describe("assembleAnonymousPaths (ADR-0008)", () => {
   it("unions module declarations with the explicit escape-hatch list, sorted + deduped", () => {
     const paths = assembleAnonymousPaths(
       [mod("catalog", { anonymous: true }), mod("bookings", { anonymous: true })],
-      [ext("quote-versions", { publicPath: "proposals", anonymous: true })],
+      [ext("proposal-versions", { publicPath: "proposals", anonymous: true })],
       ["/v1/finance/providers/netopia/callback", "/v1/public/catalog"], // dup of catalog
     )
     expect(paths).toEqual([

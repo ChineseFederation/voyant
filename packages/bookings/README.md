@@ -36,7 +36,7 @@ room/unit selection back onto the booking session totals.
 ## Origin and provenance
 
 Bookings owns durable booking origin records in `booking_origins`. The origin
-row is keyed by `booking_id` and can point at accepted Quote Versions, Trip
+row is keyed by `booking_id` and can point at accepted Proposal Versions, Trip
 snapshots, reservation plans, Catalog price/availability responses, Catalog
 booking snapshots, provider/source order refs, and legacy migrated transaction
 ids. New booking flows should write this owner path instead of

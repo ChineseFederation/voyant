@@ -1,6 +1,11 @@
 import { pgEnum } from "drizzle-orm/pg-core"
 
-export const entityTypeEnum = pgEnum("entity_type", ["organization", "person", "quote", "activity"])
+export const entityTypeEnum = pgEnum("entity_type", [
+  "organization",
+  "person",
+  "proposal",
+  "activity",
+])
 
 export const relationTypeEnum = pgEnum("relation_type", ["client", "partner", "supplier", "other"])
 

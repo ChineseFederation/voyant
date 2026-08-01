@@ -1,5 +1,5 @@
 import { financeNotificationsRuntimePort } from "@voyant-travel/finance/runtime-port"
-import { quotesNotificationsRuntimePort } from "@voyant-travel/quotes/runtime-port"
+import { proposalsNotificationsRuntimePort } from "@voyant-travel/proposals/runtime-port"
 import { storefrontVerificationRuntimePort } from "@voyant-travel/storefront/runtime-port"
 import { describe, expect, it } from "vitest"
 import { durableNotificationProviderPort } from "../../src/durable-provider-port.js"
@@ -22,7 +22,7 @@ describe("notifications deployment manifest", () => {
           { id: financeNotificationsRuntimePort.id },
           { id: "notifications.runtime" },
           { id: "notifications.reminder-job" },
-          { id: quotesNotificationsRuntimePort.id },
+          { id: proposalsNotificationsRuntimePort.id },
         ],
       },
       runtimePorts: [

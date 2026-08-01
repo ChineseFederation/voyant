@@ -23,7 +23,7 @@ Voyant grew **two** custom-field mechanisms with the same name and overlapping p
 
 2. **EAV side tables** (relationships: `custom_field_definitions` + `custom_field_values`).
    - Definitions **created at runtime** by an admin (CRUD API + UI), keyed by
-     `entityType ∈ {organization, person, quote, activity}`.
+     `entityType ∈ {organization, person, proposal, activity}`.
    - Values in a **`custom_field_values` side table** (one row per field/entity,
      typed value columns).
    - Rich type system: `varchar, text, double, monetary, date, boolean, enum,
@@ -88,13 +88,13 @@ on the entity. `custom_field_values` is retired.**
 ## Migration
 
 1. Add `custom_fields jsonb default '{}'` to `people`, `organizations`, and the
-   other EAV entities (`quotes`, `activities`). (Schema + framework bundle.)
+   other EAV entities (`proposals`, `activities`). (Schema + framework bundle.)
 2. **Repoint the generic value API** to read and write the entity's
    `custom_fields[namespace][key]` value.
 3. **Retire `custom_field_values` directly.** Custom fields had no production
    adoption, so the cutline intentionally has no EAV backfill, compatibility
    reader, or transitional adapter. `custom_field_definitions` stays.
-4. **Wrap pre-cutline entity JSON under `custom`.** The owning Bookings, Quotes,
+4. **Wrap pre-cutline entity JSON under `custom`.** The owning Bookings, Proposals,
    and Relationships packages each migrate only their own tables. Custom fields
    had no production adoption at this cutline, so this is a one-way migration
    with no flat compatibility reader or telemetry seam.
@@ -114,7 +114,7 @@ on the entity. `custom_field_values` is retired.**
    (`validateRelationshipsCustomFields`); reads return the column. The
    relationships factory moved Tier 1 → 2 to receive `capabilities.customFields`.
 3. **Repoint the generic value API. ✅ landed.**
-   - 3a — `custom_fields` column on `quotes` + `activities` (bundle `0003`).
+   - 3a — `custom_fields` column on `proposals` + `activities` (bundle `0003`).
    - 3b — the generic custom-fields package owns list/upsert/delete orchestration
      and namespace-bearing synthetic ids; entity packages contribute only their
      own table operations.

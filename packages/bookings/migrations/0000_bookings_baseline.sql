@@ -552,7 +552,7 @@ CREATE TABLE "booking_supplier_statuses" (
 CREATE TABLE "booking_origins" (
 	"booking_id" text PRIMARY KEY NOT NULL,
 	"origin_source" text DEFAULT 'manual' NOT NULL,
-	"quote_version_id" text,
+	"proposal_version_id" text,
 	"trip_snapshot_id" text,
 	"reservation_plan_id" text,
 	"catalog_price_response_id" text,
@@ -568,7 +568,7 @@ CREATE TABLE "booking_origins" (
 	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "ck_booking_origins_source" CHECK ("booking_origins"."origin_source" IN ('manual', 'direct_b2c', 'accepted_quote_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction'))
+	CONSTRAINT "ck_booking_origins_source" CHECK ("booking_origins"."origin_source" IN ('manual', 'direct_b2c', 'accepted_proposal_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction'))
 );
 --> statement-breakpoint
 CREATE TABLE "booking_staff_assignments" (
@@ -729,7 +729,7 @@ CREATE INDEX "idx_booking_supplier_statuses_booking_created" ON "booking_supplie
 CREATE INDEX "idx_booking_supplier_statuses_service" ON "booking_supplier_statuses" USING btree ("supplier_service_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_supplier_statuses_supplier" ON "booking_supplier_statuses" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_supplier_statuses_invoice_line" ON "booking_supplier_statuses" USING btree ("supplier_invoice_line_id");--> statement-breakpoint
-CREATE INDEX "idx_booking_origins_quote_version" ON "booking_origins" USING btree ("quote_version_id");--> statement-breakpoint
+CREATE INDEX "idx_booking_origins_proposal_version" ON "booking_origins" USING btree ("proposal_version_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_trip_snapshot" ON "booking_origins" USING btree ("trip_snapshot_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_reservation_plan" ON "booking_origins" USING btree ("reservation_plan_id");--> statement-breakpoint
 CREATE INDEX "idx_booking_origins_catalog_price_response" ON "booking_origins" USING btree ("catalog_price_response_id");--> statement-breakpoint

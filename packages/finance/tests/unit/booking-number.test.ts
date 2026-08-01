@@ -12,7 +12,7 @@ function dbWithTaken(taken: string[]) {
   const db = {
     select: () => ({
       from: () => ({
-        where: (predicate: unknown) => ({
+        where: (_predicate: unknown) => ({
           limit: async () => {
             // The predicate is an opaque drizzle SQL object, so the fake reads the
             // candidate off the call order the allocator uses.

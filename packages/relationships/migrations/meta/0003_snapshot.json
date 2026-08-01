@@ -2588,7 +2588,7 @@
       "values": [
         "organization",
         "person",
-        "quote",
+        "proposal",
         "activity",
         "booking"
       ]
@@ -2616,7 +2616,7 @@
       "values": [
         "organization",
         "person",
-        "quote",
+        "proposal",
         "activity"
       ]
     },

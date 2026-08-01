@@ -1,0 +1,71 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Proposals Booking Extension API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/admin/bookings/{bookingId}/proposal-details": {
+      "get": {
+        "summary": "Get Proposal details for a booking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "The booking's Proposal details, or null when none exist." }
+        },
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+      },
+      "put": {
+        "summary": "Create or update Proposal details for a booking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "proposalId": { "type": ["string", "null"] },
+                  "proposalVersionId": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "The saved booking Proposal details." }
+        },
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+      },
+      "delete": {
+        "summary": "Remove Proposal details from a booking",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "The Proposal details were removed." },
+          "404": { "description": "No Proposal details exist for the booking." }
+        },
+        "x-voyant-api-id": "@voyant-travel/proposals#booking-extension.api"
+      }
+    }
+  }
+}

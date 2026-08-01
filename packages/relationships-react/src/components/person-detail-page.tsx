@@ -81,7 +81,8 @@ export function PersonDetailPage({
   const personQuery = usePerson(id)
   const { remove, update } = usePersonMutation()
   const person = personQuery.data
-  const hasQuotesSlot = slots?.quotesContent !== undefined || slots?.quotesEnd !== undefined
+  const hasProposalsSlot =
+    slots?.proposalsContent !== undefined || slots?.proposalsEnd !== undefined
 
   useEffect(() => {
     const activeCommercialTabIsAvailable =
@@ -91,14 +92,14 @@ export function PersonDetailPage({
       (activeTab === "contracts" && Boolean(slots?.contractsTab))
 
     if (
-      (activeTab === "quotes" && !hasQuotesSlot) ||
+      (activeTab === "proposals" && !hasProposalsSlot) ||
       (isPersonCommercialTab(activeTab) && !activeCommercialTabIsAvailable)
     ) {
       setActiveTab("overview")
     }
   }, [
     activeTab,
-    hasQuotesSlot,
+    hasProposalsSlot,
     slots?.bookingsTab,
     slots?.invoicesTab,
     slots?.paymentsTab,
@@ -315,7 +316,8 @@ export function PersonMain({
 }: PersonMainProps) {
   const messages = useCrmUiMessagesOrDefault()
   const primaryDocuments = documents.filter((document) => document.isPrimary)
-  const hasQuotesSlot = slots?.quotesContent !== undefined || slots?.quotesEnd !== undefined
+  const hasProposalsSlot =
+    slots?.proposalsContent !== undefined || slots?.proposalsEnd !== undefined
 
   return (
     <main className="col-span-12 flex flex-col gap-4 lg:col-span-9">
@@ -324,8 +326,8 @@ export function PersonMain({
           <CardHeader className="pb-0">
             <TabsList className="h-auto flex-wrap justify-start [&_[data-slot=tabs-trigger]]:flex-none">
               <TabsTrigger value="overview">{messages.personDetail.tabs.overview}</TabsTrigger>
-              {hasQuotesSlot ? (
-                <TabsTrigger value="quotes">{messages.personDetail.tabs.quotes}</TabsTrigger>
+              {hasProposalsSlot ? (
+                <TabsTrigger value="proposals">{messages.personDetail.tabs.proposals}</TabsTrigger>
               ) : null}
               <TabsTrigger value="activities">
                 {messages.personDetail.tabs.activities} ({activities.length})
@@ -378,10 +380,10 @@ export function PersonMain({
               )}
               {slots?.overviewEnd}
             </TabsContent>
-            {hasQuotesSlot ? (
-              <TabsContent value="quotes" className="m-0">
-                {slots?.quotesContent}
-                {slots?.quotesEnd}
+            {hasProposalsSlot ? (
+              <TabsContent value="proposals" className="m-0">
+                {slots?.proposalsContent}
+                {slots?.proposalsEnd}
               </TabsContent>
             ) : null}
             <TabsContent value="activities" className="m-0">

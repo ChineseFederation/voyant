@@ -44,8 +44,8 @@ const fixturePaths = [
   "packages/core/src/runtime-port.ts",
   "packages/bookings/src/voyant.ts",
   "packages/bookings/src/runtime-contributor.ts",
-  "packages/quotes/src/voyant.ts",
-  "packages/quotes/src/runtime-contributor.ts",
+  "packages/proposals/src/voyant.ts",
+  "packages/proposals/src/runtime-contributor.ts",
   "scripts/generate-operator-starter-metadata.mjs",
   ".github/workflows/ci.yml",
 ]

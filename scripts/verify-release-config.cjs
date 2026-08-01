@@ -88,6 +88,10 @@ const isPublishedRange = (version) =>
   typeof version === "string" &&
   !version.startsWith("workspace:") &&
   semver.validRange(version) !== null
+const workspaceRange = (version) =>
+  typeof version === "string" && version.startsWith("workspace:")
+    ? version.slice("workspace:".length)
+    : null
 
 // The standard product distribution pins its runtime modules to the EXACT current version
 // (`workspace:*` → `X.Y.Z` on publish) so the published set is deterministic and
@@ -130,6 +134,12 @@ function collectWorkspaceRangeProblems(packages, projectedVersions = new Map()) 
           field === "peerDependencies" &&
           isPublishedRange(version) &&
           semver.satisfies(currentProviderVersion, version)
+        const workspacePeerRange = workspaceRange(version)
+        const isCompatibleWorkspacePeerRange =
+          field === "peerDependencies" &&
+          workspacePeerRange &&
+          semver.validRange(workspacePeerRange) !== null &&
+          semver.satisfies(currentProviderVersion, workspacePeerRange)
         const isExactStagedPeerRange =
           field === "peerDependencies" &&
           projectedConsumerVersion &&
@@ -137,7 +147,11 @@ function collectWorkspaceRangeProblems(packages, projectedVersions = new Map()) 
           !semver.satisfies(currentProviderVersion, version) &&
           version === `^${projectedProviderVersion}`
 
-        if (!isCompatiblePublishedPeerRange && !isExactStagedPeerRange) {
+        if (
+          !isCompatiblePublishedPeerRange &&
+          !isCompatibleWorkspacePeerRange &&
+          !isExactStagedPeerRange
+        ) {
           problems.push(
             `${packageJsonPath}: ${field}.${name} uses ${version}; expected ${expected}`,
           )

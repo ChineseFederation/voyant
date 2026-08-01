@@ -20,9 +20,9 @@ from the standard Node Operator and a dedicated storefront.
 
 ## Public proposal and payment pages
 
-`@voyant-travel/quotes-react/storefront` owns the public proposal query,
+`@voyant-travel/proposals-react/storefront` owns the public proposal query,
 lifecycle mutations, and presentation. The Operator proposal route supplies the
-quote-version path parameter, API base URL, and deployment-local customer
+proposal-version path parameter, API base URL, and deployment-local customer
 messages.
 
 `@voyant-travel/finance-react/storefront` owns payment-reference resolution,

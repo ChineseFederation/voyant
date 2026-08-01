@@ -7,7 +7,7 @@ import { bookings } from "./schema-core.js"
 export const bookingOriginSources = [
   "manual",
   "direct_b2c",
-  "accepted_quote_version",
+  "accepted_proposal_version",
   "catalog_price_availability",
   "catalog_snapshot",
   "provider_source_order",
@@ -28,7 +28,7 @@ export const bookingOrigins = pgTable(
       .primaryKey()
       .references(() => bookings.id, { onDelete: "cascade" }),
     originSource: text("origin_source").$type<BookingOriginSource>().notNull().default("manual"),
-    quoteVersionId: text("quote_version_id"),
+    proposalVersionId: text("proposal_version_id"),
     tripSnapshotId: text("trip_snapshot_id"),
     reservationPlanId: text("reservation_plan_id"),
     catalogPriceResponseId: text("catalog_price_response_id"),
@@ -50,9 +50,9 @@ export const bookingOrigins = pgTable(
   (table) => [
     check(
       "ck_booking_origins_source",
-      sql`${table.originSource} IN ('manual', 'direct_b2c', 'accepted_quote_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')`,
+      sql`${table.originSource} IN ('manual', 'direct_b2c', 'accepted_proposal_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')`,
     ),
-    index("idx_booking_origins_quote_version").on(table.quoteVersionId),
+    index("idx_booking_origins_proposal_version").on(table.proposalVersionId),
     index("idx_booking_origins_trip_snapshot").on(table.tripSnapshotId),
     index("idx_booking_origins_reservation_plan").on(table.reservationPlanId),
     index("idx_booking_origins_catalog_price_response").on(table.catalogPriceResponseId),

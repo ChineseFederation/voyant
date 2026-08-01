@@ -16,7 +16,7 @@ The only agent-facing tool seam lived inside `packages/trips` (`mcp-*.ts`): besp
 trips-only, returning MCP transport envelopes from the core, dispatched over an ad-hoc
 `POST /tools/:tool` (not real MCP), with no `requiredScopes` or risk metadata. We want
 framework capabilities — catalog, products, availability, pricing, bookings, finance,
-notifications, quotes, trips — usable by any agent through one authored-once contract,
+notifications, proposals, trips — usable by any agent through one authored-once contract,
 without leaking transport concerns into the domain packages.
 
 Two consumption topologies must both work: an **in-process** MCP mounted in the

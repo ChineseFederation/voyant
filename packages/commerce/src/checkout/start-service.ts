@@ -177,7 +177,7 @@ export async function startCatalogCheckout(
 }
 
 /**
- * Inquiry intent — write a quote for the operator to follow
+ * Inquiry intent — write a proposal for the operator to follow
  * up on, then cancel the booking so inventory isn't blocked.
  *
  * The pipeline + stage used can be pinned via env vars
@@ -208,18 +208,18 @@ async function startInquiryCheckout(
   }
 
   if (!pipelineId || !stageId) {
-    // No quote pipeline configured. Still cancel the booking so the
+    // No proposal pipeline configured. Still cancel the booking so the
     // hold doesn't linger, and return a stub inquiry reference.
     await releaseInquiryBooking(db, booking, eventBus)
     return {
       kind: "inquiry_received",
       bookingId: booking.id,
       inquiryId: `inq-${booking.id}`,
-      note: "No quote pipeline configured — set INQUIRY_PIPELINE_ID + INQUIRY_STAGE_ID to record a real quote.",
+      note: "No proposal pipeline configured — set INQUIRY_PIPELINE_ID + INQUIRY_STAGE_ID to record a real proposal.",
     }
   }
 
-  const quote = await context.options.checkoutInquiry.createInquiry(db, {
+  const proposal = await context.options.checkoutInquiry.createInquiry(db, {
     title: `Inquiry — booking ${booking.bookingNumber}`,
     pipelineId,
     stageId,
@@ -234,7 +234,7 @@ async function startInquiryCheckout(
   await releaseInquiryBooking(db, booking, eventBus)
 
   await eventBus?.emit("inquiry.created", {
-    quoteId: quote?.id ?? null,
+    proposalId: proposal?.id ?? null,
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
     pipelineId,
@@ -244,7 +244,7 @@ async function startInquiryCheckout(
   return {
     kind: "inquiry_received",
     bookingId: booking.id,
-    inquiryId: quote?.id ?? `inq-${booking.id}`,
+    inquiryId: proposal?.id ?? `inq-${booking.id}`,
   }
 }
 

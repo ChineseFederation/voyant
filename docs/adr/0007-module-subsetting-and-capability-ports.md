@@ -130,7 +130,7 @@ goal. See Alternatives.
   shipped). An extension's mount prefix (`ApiExtension.extension.module`) is a
   *path*, not a foreign key to a mounted module's `name` — the standard set
   legitimately contains, e.g., a `proposal` extension that mounts under
-  `quote-versions` with no module of that name — so a name-match "orphan" check is
+  `proposal-versions` with no module of that name — so a name-match "orphan" check is
   unsound. Ownership is therefore *declared* in `FRAMEWORK_EXTENSION_OWNERSHIP`
   (co-located with the manifest), and `subsetStandardManifest` cascades exclusion
   from it: dropping `bookings` also drops `finance/bookings-create-extension`

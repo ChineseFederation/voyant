@@ -1,6 +1,6 @@
 export const operatorAdminProductsMessagesEnCore = {
   pageTitle: "Products",
-  pageDescription: "Manage your quotes, packages, and proposals.",
+  pageDescription: "Manage your products, packages, and proposals.",
   searchPlaceholder: "Search products…",
   newProduct: "New product",
   tableName: "Name",

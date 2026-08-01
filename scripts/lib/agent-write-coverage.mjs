@@ -4,7 +4,7 @@
  * The committed admin OpenAPI documents are the authority on what a human
  * operator can change. An agent that is meant to do what an operator does needs
  * a Tool for each of those resources. Three modules shipped read Tools with the
- * matching writes missing — departures, notification templates, quote
+ * matching writes missing — departures, notification templates, proposal
  * authoring — and each was found only when someone asked the agent to do the
  * thing. This closes that loop at build time.
  *
@@ -20,7 +20,7 @@ const WRITE_METHODS = new Set(["post", "patch", "put", "delete"])
 const IGNORED_SEGMENTS = new Set(["v1", "admin", "api"])
 
 /**
- * Verb-ish trailing segments — `/quotes/{id}/send` is an action on a quote, not
+ * Verb-ish trailing segments — `/proposals/{id}/send` is an action on a proposal, not
  * a `send` resource. Anything here collapses into its parent resource.
  */
 const ACTION_SEGMENTS = new Set([
@@ -181,7 +181,7 @@ export function checkAgentWriteCoverageRatchet(rows, baseline) {
 /**
  * Reduce an admin path to a stable resource key: drop the version/surface
  * prefix and path parameters, collapse trailing action verbs, and singularize.
- * `/v1/admin/quotes/quotes/{id}/products` -> `quote/product`.
+ * `/v1/admin/proposals/proposals/{id}/products` -> `proposal/product`.
  */
 export function resourceKey(pathname) {
   const segments = pathname
@@ -196,7 +196,7 @@ export function resourceKey(pathname) {
   }
   if (segments.length === 0) return undefined
 
-  // A module mounted at its own name repeats it (`/quotes/quotes`). The repeat
+  // A module mounted at its own name repeats it (`/proposals/proposals`). The repeat
   // carries no extra meaning.
   const deduped = segments.filter(
     (segment, index) => index === 0 || segment !== segments[index - 1],
@@ -206,7 +206,7 @@ export function resourceKey(pathname) {
 
 /**
  * A Tool is write-capable when it asks for a scope that is not a read. Scopes
- * are the authoritative declaration (`quotes:write`, `notifications:send`,
+ * are the authoritative declaration (`proposals:write`, `notifications:send`,
  * `bookings:cancel`); tool naming is not.
  */
 function isWriteTool(tool) {
@@ -227,9 +227,9 @@ function dedupeByName(tools) {
 
 function coversResource(toolTokens, key) {
   // The resource's own noun is the last segment; a Tool covers the resource
-  // when it names that noun. `/quote/product` needs a Tool about products, not
-  // merely one about quotes, or add_quote_product's absence would hide behind
-  // create_quote.
+  // when it names that noun. `/proposal/product` needs a Tool about products, not
+  // merely one about proposals, or add_proposal_product's absence would hide behind
+  // create_proposal.
   const segments = key.split("/")
   const noun = segments[segments.length - 1]
   const nounTokens = noun.split("-").map(singularize).filter(Boolean)

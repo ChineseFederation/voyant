@@ -4,7 +4,7 @@
  *
  * Transport-agnostic (no Hono): a deployment mounts the HTTP routes over these
  * and injects the readers into the standard modules that need them (legal
- * contract variables, quotes proposal, commerce checkout tax, finance
+ * contract variables, proposals, commerce checkout tax, finance
  * booking-tax). The schema lives in `./schema`.
  */
 

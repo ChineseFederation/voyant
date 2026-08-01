@@ -2,7 +2,7 @@
 /**
  * Demo-data seed script for the operator admin app.
  *
- * Populates the currently-empty detail pages (organizations, suppliers, quotes,
+ * Populates the currently-empty detail pages (organizations, suppliers, proposals,
  * finance/invoices, bookings) with realistic records so the UI can be audited
  * against real data.
  *
@@ -150,7 +150,7 @@ async function authenticate() {
   if (status !== 200) {
     throw new Error(`auth: sign-in still failing after reset (${status}).`)
   }
-  console.log(`auth: password reset and signed in (password: "${ADMIN_PASSWORD}")`)
+  console.log(`auth: password reset and signed in; demo credential is "${ADMIN_PASSWORD}"`)
 }
 
 // --- helpers -----------------------------------------------------------------
@@ -228,38 +228,38 @@ async function main() {
   )
   summary.supplier = supplier.id
 
-  // 3. Quote (needs a pipeline + stage) ---------------------------------------
-  console.log("\nquote:")
+  // 3. Proposal (needs a pipeline + stage) ---------------------------------------
+  console.log("\nproposal:")
   const person = (await list("/relationships/people?limit=50")).find(
     (p) => p.firstName === "Andrei" && p.lastName === "Ionescu",
   )
   const personId = person?.id
-  if (!personId) console.log("  ! person 'Andrei Ionescu' not found; quote will be unlinked")
+  if (!personId) console.log("  ! person 'Andrei Ionescu' not found; proposal will be unlinked")
 
   const pipeline = await ensure(
     "pipeline",
-    "/quotes/pipelines?limit=100",
+    "/proposals/pipelines?limit=100",
     (p) => p.name === "Demo Sales Pipeline",
-    "/quotes/pipelines",
+    "/proposals/pipelines",
     { name: "Demo Sales Pipeline", isDefault: true },
   )
   const stage = pipeline.id
     ? await ensure(
         "stage",
-        `/quotes/stages?pipelineId=${pipeline.id}&limit=100`,
+        `/proposals/stages?pipelineId=${pipeline.id}&limit=100`,
         (s) => s.name === "Qualification",
-        "/quotes/stages",
+        "/proposals/stages",
         { pipelineId: pipeline.id, name: "Qualification", probability: 50 },
       )
     : { id: undefined }
 
-  let quote = { id: undefined }
+  let proposal = { id: undefined }
   if (pipeline.id && stage.id) {
-    quote = await ensure(
-      "quote",
-      "/quotes/quotes?limit=100",
+    proposal = await ensure(
+      "proposal",
+      "/proposals/proposals?limit=100",
       (q) => q.title === "Circuit Transfăgărășan pentru Andrei",
-      "/quotes/quotes",
+      "/proposals/proposals",
       {
         title: "Circuit Transfăgărășan pentru Andrei",
         pipelineId: pipeline.id,
@@ -275,9 +275,9 @@ async function main() {
       },
     )
   } else {
-    console.log("  ✗ quote: skipped (no pipeline/stage)")
+    console.log("  ✗ proposal: skipped (no pipeline/stage)")
   }
-  summary.quote = quote.id
+  summary.proposal = proposal.id
 
   // 4. Booking (Circuit Transfăgărășan + its open departure) ------------------
   console.log("\nbooking:")

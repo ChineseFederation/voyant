@@ -41,9 +41,9 @@ import type {
 import { ProductDetailPageProducts } from "@voyant-travel/inventory-react/storefront"
 import { VoyantAvailabilityProvider } from "@voyant-travel/operations-react/availability/provider"
 import type {
-  createQuotesPublicRouteContribution,
-  QuotesPublicRouteRuntime,
-} from "@voyant-travel/quotes-react/public-routes"
+  createProposalsPublicRouteContribution,
+  ProposalsPublicRouteRuntime,
+} from "@voyant-travel/proposals-react/public-routes"
 import { AdminWorkspaceRealtimeProvider } from "@voyant-travel/realtime-react"
 import {
   AccommodationDetailPage,
@@ -103,7 +103,7 @@ export interface StandardOperatorFrontend {
     finance?: ReturnType<typeof createFinancePublicRouteContribution>["routes"]
     localAuth?: LocalAuthRouteContribution["routes"]
     mcpConsent?: McpConsentRouteContribution["routes"]
-    quotes?: ReturnType<typeof createQuotesPublicRouteContribution>["routes"]
+    proposals?: ReturnType<typeof createProposalsPublicRouteContribution>["routes"]
     storefront?: StorefrontPresentationContribution["routes"]
   }
   createRouter<TRouteTree extends AnyRoute>(options: {
@@ -234,8 +234,8 @@ function createPresentationRuntime(
   const financeFactory = presentationFactories["@voyant-travel/finance#presentation.public"] as
     | FinancePublicPresentationFactory
     | undefined
-  const quotesFactory = presentationFactories["@voyant-travel/quotes#presentation.public"] as
-    | QuotesPublicPresentationFactory
+  const proposalsFactory = presentationFactories["@voyant-travel/proposals#presentation.public"] as
+    | ProposalsPublicPresentationFactory
     | undefined
   const storefrontFactory = presentationFactories[
     "@voyant-travel/storefront#presentation.customer"
@@ -293,7 +293,7 @@ function createPresentationRuntime(
       tripSummary: useOperatorAdminMessages().trips.paymentLinkSummary,
     }),
   })
-  const quotes = quotesFactory?.({
+  const proposals = proposalsFactory?.({
     getApiUrl: getAdminApiUrl,
     StorefrontMessagesProvider,
     useProposalMessages: () => useStorefrontMessages().proposal,
@@ -329,7 +329,7 @@ function createPresentationRuntime(
     },
   })
   const mcpConsent = mcpConsentFactory?.()
-  return { finance, localAuth, mcpConsent, quotes, storefront, workspace }
+  return { finance, localAuth, mcpConsent, proposals, storefront, workspace }
 }
 
 export function createStandardOperatorFrontend(
@@ -378,7 +378,7 @@ export function createStandardOperatorFrontend(
       ...(runtime.finance ? { finance: runtime.finance.routes } : {}),
       ...(runtime.localAuth ? { localAuth: runtime.localAuth.routes } : {}),
       ...(runtime.mcpConsent ? { mcpConsent: runtime.mcpConsent.routes } : {}),
-      ...(runtime.quotes ? { quotes: runtime.quotes.routes } : {}),
+      ...(runtime.proposals ? { proposals: runtime.proposals.routes } : {}),
       ...(runtime.storefront ? { storefront: runtime.storefront.routes } : {}),
     },
     createRouter<TRouteTree extends AnyRoute>({
@@ -410,9 +410,9 @@ type FinancePublicPresentationFactory = (
   runtime: FinancePublicRouteRuntime,
 ) => ReturnType<typeof createFinancePublicRouteContribution>
 
-type QuotesPublicPresentationFactory = (
-  runtime: QuotesPublicRouteRuntime,
-) => ReturnType<typeof createQuotesPublicRouteContribution>
+type ProposalsPublicPresentationFactory = (
+  runtime: ProposalsPublicRouteRuntime,
+) => ReturnType<typeof createProposalsPublicRouteContribution>
 
 function StandardStorefrontComposerPage(props: StorefrontComposerRouteProps) {
   return (

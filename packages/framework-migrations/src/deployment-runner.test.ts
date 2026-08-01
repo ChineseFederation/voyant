@@ -25,13 +25,13 @@ describe("expectedSchema", () => {
   it("does NOT expect a column added then later DROPPED (net add/drop wins)", () => {
     const e = expectedSchema([
       src("pkg", [
-        `CREATE TABLE "quotes" (\n\t"id" text PRIMARY KEY NOT NULL,\n\t"currency" text NOT NULL\n);`,
+        `CREATE TABLE "proposals" (\n\t"id" text PRIMARY KEY NOT NULL,\n\t"currency" text NOT NULL\n);`,
       ]),
       // a later deployment migration reverts the experiment
-      src("deployment", [`ALTER TABLE "quotes" DROP COLUMN "currency";`]),
+      src("deployment", [`ALTER TABLE "proposals" DROP COLUMN "currency";`]),
     ])
-    expect(e.columns.has("quotes.id")).toBe(true)
-    expect(e.columns.has("quotes.currency")).toBe(false)
+    expect(e.columns.has("proposals.id")).toBe(true)
+    expect(e.columns.has("proposals.currency")).toBe(false)
   })
 
   it("honors DROP COLUMN IF EXISTS", () => {

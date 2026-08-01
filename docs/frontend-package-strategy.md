@@ -32,7 +32,7 @@ presentation must not be copied into `starters/operator/src`.
 
 ## Why This Split Exists
 
-Starter apps should not force developers to build every screen from the raw domain package surface. A developer who adds relationships, quotes, bookings, products, or finance should have a fast path:
+Starter apps should not force developers to build every screen from the raw domain package surface. A developer who adds relationships, proposals, bookings, products, or finance should have a fast path:
 
 1. install the domain module
 2. install the React runtime package for that module
@@ -42,7 +42,7 @@ That gives Voyant a better product shape than a monolithic starter-only UI and a
 
 ## Naming Rules
 
-- Domain/runtime packages keep simple names like `@voyant-travel/relationships`, `@voyant-travel/quotes`, `@voyant-travel/bookings`, `@voyant-travel/inventory`, and `@voyant-travel/operations`.
+- Domain/runtime packages keep simple names like `@voyant-travel/relationships`, `@voyant-travel/proposals`, `@voyant-travel/bookings`, `@voyant-travel/inventory`, and `@voyant-travel/operations`.
 - React packages use `-react`, for example `@voyant-travel/relationships-react`.
   They own hooks, clients, providers, view-model helpers, and reusable module
   components.
@@ -126,8 +126,8 @@ The old combined customer-and-sales surface is split before v1:
 
 - `@voyant-travel/relationships` and `@voyant-travel/relationships-react` own people,
   organizations, activities, profile context, documents, and customer signals.
-- `@voyant-travel/quotes` and `@voyant-travel/quotes-react` own pipelines, stages,
-  quotes, quote versions, and proposal lifecycle UI.
+- `@voyant-travel/proposals` and `@voyant-travel/proposals-react` own pipelines, stages,
+  proposals, proposal versions, and proposal lifecycle UI.
 
 Future module candidates should add `-react` only when they justify reusable
 React runtime helpers or reusable module components. Not every Module needs a

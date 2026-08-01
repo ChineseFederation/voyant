@@ -69,7 +69,7 @@ Reasoning:
 ### Where `participant` remains correct
 
 - CRM activities
-- CRM Quotes
+- CRM Proposals
 - external APIs or standards that explicitly use `participant` outside the
   traveler domain
 

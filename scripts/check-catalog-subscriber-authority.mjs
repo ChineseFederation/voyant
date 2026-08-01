@@ -18,7 +18,7 @@ const failures = []
 const requireMatch = (source, pattern, message) => {
   if (!pattern.test(source)) failures.push(message)
 }
-const rejectMatch = (source, pattern, message) => {
+const _rejectMatch = (source, pattern, message) => {
   if (pattern.test(source)) failures.push(message)
 }
 

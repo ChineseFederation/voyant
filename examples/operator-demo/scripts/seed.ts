@@ -4,7 +4,7 @@
  * Operator seed script — a realistic tour-operator scenario.
  *
  * Seeds: 1 auth org, 5 staff users, a populated CRM (2 orgs, 30 people,
- * 1 sales pipeline with quotes/quote versions), 4 shared places, 6 suppliers,
+ * 1 sales pipeline with proposals/proposal versions), 4 shared places, 6 suppliers,
  * 6 products with availability, 6 bookings across lifecycle states with
  * matching finance docs, a cancellation policy, and a customer contract.
  *
@@ -95,15 +95,15 @@ import {
   facilityFeatures,
   facilityOperationSchedules,
 } from "@voyant-travel/operations"
-import { bookingQuoteDetails } from "@voyant-travel/quotes/booking-extension"
+import { bookingProposalDetails } from "@voyant-travel/proposals/booking-extension"
 import {
   pipelines,
-  quoteParticipants,
-  quotes,
-  quoteVersionLines,
-  quoteVersions,
+  proposalParticipants,
+  proposals,
+  proposalVersionLines,
+  proposalVersions,
   stages,
-} from "@voyant-travel/quotes/schema"
+} from "@voyant-travel/proposals/schema"
 import {
   activities,
   activityLinks,
@@ -236,7 +236,7 @@ async function reset() {
     // Booking extensions + bookings
     "booking_item_product_details",
     "booking_product_details",
-    "booking_crm_details",
+    "booking_proposal_details",
     "booking_distribution_details",
     "booking_traveler_travel_details",
     "booking_supplier_statuses",
@@ -315,11 +315,11 @@ async function reset() {
     "activity_participants",
     "activity_links",
     "activities",
-    "quote_version_lines",
-    "quote_versions",
-    "quote_products",
-    "quote_participants",
-    "quotes",
+    "proposal_version_lines",
+    "proposal_versions",
+    "proposal_products",
+    "proposal_participants",
+    "proposals",
     "stages",
     "pipelines",
     "custom_field_definitions",
@@ -993,7 +993,7 @@ async function seedSuppliers() {
   ])
 }
 
-// ---------- 5. CRM: orgs, people, pipeline, quotes, quote versions ----------
+// ---------- 5. CRM: orgs, people, pipeline, proposals, proposal versions ----------
 
 const CRM_ORGS = [
   {
@@ -1202,7 +1202,7 @@ async function seedCrm() {
   const stageIds: Record<string, string> = {}
   await db.insert(pipelines).values({
     id: pipelineId,
-    entityType: "quote",
+    entityType: "proposal",
     name: "Group & Leisure Sales",
     isDefault: true,
     sortOrder: 0,
@@ -1222,8 +1222,8 @@ async function seedCrm() {
     })
   }
 
-  // 6 quotes across stages
-  const QUOTE_SEEDS = [
+  // 6 proposals across stages
+  const PROPOSAL_SEEDS = [
     {
       title: "Northwind Q2 board retreat, Paris",
       stage: "qualified",
@@ -1274,12 +1274,12 @@ async function seedCrm() {
     },
   ] as const
 
-  const quoteIds: string[] = []
-  for (const o of QUOTE_SEEDS) {
-    const quoteId = newId("quotes")
-    quoteIds.push(quoteId)
-    await db.insert(quotes).values({
-      id: quoteId,
+  const proposalIds: string[] = []
+  for (const o of PROPOSAL_SEEDS) {
+    const proposalId = newId("proposals")
+    proposalIds.push(proposalId)
+    await db.insert(proposals).values({
+      id: proposalId,
       title: o.title,
       pipelineId,
       stageId: stageIds[o.stage]!,
@@ -1291,28 +1291,28 @@ async function seedCrm() {
       valueCurrency: o.currency,
       expectedCloseDate: yyyyMmDd(daysFromNow(14 + Math.floor(Math.random() * 60))),
     })
-    await db.insert(quoteParticipants).values({
-      id: newId("quote_participants"),
-      quoteId,
+    await db.insert(proposalParticipants).values({
+      id: newId("proposal_participants"),
+      proposalId,
       personId: people_ids[o.personIdx]!,
       role: "decision_maker",
       isPrimary: true,
     })
 
     if (o.value > 0) {
-      const quoteVersionId = newId("quote_versions")
-      await db.insert(quoteVersions).values({
-        id: quoteVersionId,
-        quoteId,
+      const proposalVersionId = newId("proposal_versions")
+      await db.insert(proposalVersions).values({
+        id: proposalVersionId,
+        proposalId,
         currency: o.currency,
         status: o.stage === "won" ? "accepted" : o.stage === "lost" ? "declined" : "sent",
         subtotalAmountCents: Math.round(o.value / 1.2),
         taxAmountCents: o.value - Math.round(o.value / 1.2),
         totalAmountCents: o.value,
       })
-      await db.insert(quoteVersionLines).values({
-        id: newId("quote_version_lines"),
-        quoteVersionId,
+      await db.insert(proposalVersionLines).values({
+        id: newId("proposal_version_lines"),
+        proposalVersionId,
         description: o.title,
         currency: o.currency,
         quantity: 1,
@@ -1437,15 +1437,15 @@ async function seedCrm() {
     {
       id: newId("activity_links"),
       activityId: actIds[0]!,
-      entityType: "quote",
-      entityId: quoteIds[0]!,
+      entityType: "proposal",
+      entityId: proposalIds[0]!,
       role: "primary",
     },
     {
       id: newId("activity_links"),
       activityId: actIds[1]!,
-      entityType: "quote",
-      entityId: quoteIds[1]!,
+      entityType: "proposal",
+      entityId: proposalIds[1]!,
       role: "primary",
     },
   ])
@@ -2459,10 +2459,10 @@ async function seedBookingsAndFinance() {
     })
 
     // Extension details — populated on every booking
-    await db.insert(bookingQuoteDetails).values({
+    await db.insert(bookingProposalDetails).values({
       bookingId,
-      quoteId: null,
-      quoteVersionId: null,
+      proposalId: null,
+      proposalVersionId: null,
     })
     await db.insert(bookingProductDetails).values({
       bookingId,

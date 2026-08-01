@@ -49,10 +49,10 @@ ownership.
 | `operator/catalog-content` | `@voyant-travel/inventory/content-extension`, `@voyant-travel/cruises/content-extension`, `@voyant-travel/accommodations/content-extension` | source registry and content policy |
 | `operator/media` | `@voyant-travel/inventory/brochure-extension` | storage and brochure printer |
 | `operator/booking-schedule-extension` | `@voyant-travel/finance/booking-schedule-extension` | payment-policy readers and settings |
-| `operator/quote-version-snapshot-extension` | `@voyant-travel/quotes/quote-version-snapshot-extension` | reserve/snapshot dependencies |
+| `operator/proposal-version-snapshot-extension` | `@voyant-travel/proposals/proposal-version-snapshot-extension` | reserve/snapshot dependencies |
 | `operator/booking-maintenance-extension` | `@voyant-travel/commerce/booking-maintenance-extension` | finance tax recompute |
 | `operator/action-ledger-health-extension` | `@voyant-travel/action-ledger/health-extension` | vertical drift checks |
-| `operator/proposal-extension` | `@voyant-travel/quotes/proposal-extension` | reserve/start-checkout dependencies and public URL |
+| `operator/proposal-extension` | `@voyant-travel/proposals/proposal-extension` | reserve/start-checkout dependencies and public URL |
 | `operator/catalog-offers-extension` | `@voyant-travel/catalog/offers-extension` | search and airport labels |
 | `operator/catalog-checkout-extension` | `@voyant-travel/commerce/catalog-checkout-extension` | card payment, tax, and bank transfer |
 

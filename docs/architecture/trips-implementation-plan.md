@@ -272,7 +272,7 @@ Scope:
   - payment provider config
   - bank-transfer details
   - per-booking contract template choice
-  - CRM Quote creation
+  - CRM Proposal creation
   - storefront URLs
 - Expose a service callable by both the existing single-line journey and the
   future composer checkout step.
@@ -598,6 +598,6 @@ before requiring `verify:full`.
   surfaces before treating flights as live composer components.
 - Build support/admin UI for component-level cancellation preview, cancellation
   execution, and staff-remediation queues.
-- Implement Quote Versions per ADR-0004 for quote approval, proposal
+- Implement Proposal Versions per ADR-0018 for proposal approval, proposal
   documents, and longer sales cycles while keeping reserve materialization at
   component lifecycle boundaries.

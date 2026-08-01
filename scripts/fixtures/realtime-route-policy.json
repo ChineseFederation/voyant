@@ -38,9 +38,9 @@
   "product.deleted": { "entity": "product", "idKeys": ["id"], "kind": "admin" },
   "product.updated": { "entity": "product", "idKeys": ["id"], "kind": "admin" },
   "promotion.changed": { "entity": "promotion", "idKeys": ["offerId"], "kind": "admin" },
-  "quote.created": { "entity": "quote", "idKeys": ["id"], "kind": "admin" },
-  "quote.deleted": { "entity": "quote", "idKeys": ["id"], "kind": "admin" },
-  "quote.updated": { "entity": "quote", "idKeys": ["id"], "kind": "admin" },
+  "proposal.created": { "entity": "proposal", "idKeys": ["id"], "kind": "admin" },
+  "proposal.deleted": { "entity": "proposal", "idKeys": ["id"], "kind": "admin" },
+  "proposal.updated": { "entity": "proposal", "idKeys": ["id"], "kind": "admin" },
   "supplier.created": { "entity": "supplier", "idKeys": ["id"], "kind": "admin" },
   "supplier.deleted": { "entity": "supplier", "idKeys": ["id"], "kind": "admin" },
   "supplier.updated": { "entity": "supplier", "idKeys": ["id"], "kind": "admin" }

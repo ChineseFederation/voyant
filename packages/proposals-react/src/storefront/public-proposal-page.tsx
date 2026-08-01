@@ -1,0 +1,518 @@
+"use client"
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { confirmDialog } from "@voyant-travel/ui/components"
+import { Loader2, MessageSquare } from "lucide-react"
+import { useState } from "react"
+import { useCrmUiI18nOrDefault } from "../i18n/index.js"
+
+export interface PublicProposalPageMessages {
+  unavailableTitle: string
+  noLongerAvailable: string
+  notFound: string
+  declineFailed: string
+  acceptFailed: string
+  requestEditsFailed: string
+  requestFailed: string
+  operatorFallbackName: string
+  operatorContactFallback: string
+  metricTotal: string
+  validUntil: string
+  statusLabel: string
+  colItem: string
+  colQty: string
+  colPrice: string
+  colTotal: string
+  noLines: string
+  subtotal: string
+  tax: string
+  accept: string
+  accepting: string
+  decline: string
+  declining: string
+  requestEdits: string
+  requestingEdits: string
+  requestEditsMessageLabel: string
+  requestEditsPlaceholder: string
+  requestEditsSent: string
+  declineConfirm: string
+  notSet: string
+  statuses: Record<string, string>
+}
+
+interface PublicProposalResponse {
+  data: PublicProposal
+}
+
+interface PublicProposal {
+  title: string
+  status: string
+  validUntil: string | null
+  notes: string | null
+  currency: string
+  subtotalAmountCents: number
+  taxAmountCents: number
+  totalAmountCents: number
+  media: Array<{
+    url: string
+    name: string
+    altText: string | null
+    mediaType: string
+  }>
+  lines: Array<{
+    description: string
+    quantity: number
+    unitPriceAmountCents: number
+    totalAmountCents: number
+    currency: string
+  }>
+  operator: {
+    name: string
+    legalName: string
+    address: string
+    phone: string
+    email: string
+    website: string
+    license: string
+    licenseAuthority: string
+  } | null
+  proposalUrl: string
+}
+
+interface DeclineProposalResponse {
+  data: {
+    status: string
+  }
+}
+
+interface RequestEditsProposalResponse {
+  data: {
+    status: string
+    feedbackId: string | null
+  }
+}
+
+interface AcceptProposalResponse {
+  data: {
+    status: string
+    currency: string
+    totalAmountCents: number
+  }
+}
+
+export interface PublicProposalPageProps {
+  proposalVersionId: string
+  apiBaseUrl: string
+  messages: PublicProposalPageMessages
+}
+
+export function PublicProposalPage({
+  proposalVersionId,
+  apiBaseUrl,
+  messages: t,
+}: PublicProposalPageProps) {
+  const { locale } = useCrmUiI18nOrDefault()
+  const queryClient = useQueryClient()
+  const [feedbackMessage, setFeedbackMessage] = useState("")
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const proposalQuery = useQuery({
+    queryKey: ["public-proposal", proposalVersionId],
+    queryFn: async () => {
+      const res = await fetch(
+        `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(proposalVersionId)}`,
+        { headers: { Accept: "application/json" } },
+      )
+      const body = (await res.json()) as Partial<PublicProposalResponse> & { error?: string }
+      if (!res.ok || !body.data) throw new Error(body.error ?? t.notFound)
+      return body.data
+    },
+  })
+  const decline = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(proposalVersionId)}/decline`,
+        { method: "POST", headers: { Accept: "application/json" } },
+      )
+      const body = (await res.json()) as Partial<DeclineProposalResponse> & { error?: string }
+      if (!res.ok || !body.data) throw new Error(body.error ?? t.declineFailed)
+      return body.data
+    },
+    onSuccess: ({ status }) => {
+      void queryClient.setQueryData<PublicProposal>(
+        ["public-proposal", proposalVersionId],
+        (data) => (data ? { ...data, status } : data),
+      )
+    },
+  })
+  const accept = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(proposalVersionId)}/accept`,
+        {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        },
+      )
+      const body = (await res.json()) as Partial<AcceptProposalResponse> & {
+        error?: string
+        failures?: Array<{ reason?: string }>
+      }
+      if (!res.ok || !body.data) {
+        throw new Error(publicMutationError(body, t.acceptFailed))
+      }
+      return body.data
+    },
+    onSuccess: (result) => {
+      void queryClient.setQueryData<PublicProposal>(
+        ["public-proposal", proposalVersionId],
+        (data) => (data ? { ...data, status: result.status } : data),
+      )
+    },
+  })
+  const requestEdits = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await fetch(
+        `${apiBaseUrl}/v1/public/proposals/${encodeURIComponent(proposalVersionId)}/request-edits`,
+        {
+          method: "POST",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        },
+      )
+      const body = (await res.json()) as Partial<RequestEditsProposalResponse> & {
+        error?: string
+      }
+      if (!res.ok || !body.data) throw new Error(body.error ?? t.requestEditsFailed)
+      return body.data
+    },
+    onSuccess: () => {
+      setFeedbackMessage("")
+      setFeedbackSubmitted(true)
+    },
+  })
+
+  if (proposalQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f5ef]">
+        <Loader2 className="size-8 animate-spin text-[#52645d]" />
+      </div>
+    )
+  }
+
+  if (proposalQuery.isError || !proposalQuery.data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f7f5ef] px-4 text-center">
+        <div className="max-w-md">
+          <h1 className="font-semibold text-2xl text-[#232826]">{t.unavailableTitle}</h1>
+          <p className="mt-3 text-[#52645d] text-sm">
+            {proposalQuery.error instanceof Error
+              ? proposalQuery.error.message
+              : t.noLongerAvailable}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const proposal = proposalQuery.data
+  const operatorName =
+    proposal.operator?.name || proposal.operator?.legalName || t.operatorFallbackName
+  const canAct = proposal.status === "sent"
+  const isMutating = accept.isPending || decline.isPending || requestEdits.isPending
+  const trimmedFeedback = feedbackMessage.trim()
+
+  return (
+    <div className="min-h-screen bg-[#f7f5ef] text-[#232826]">
+      <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 sm:px-6 lg:px-8">
+        <header className="border-[#d8d2c3] border-b pb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="font-medium text-[#52645d] text-sm">{operatorName}</p>
+              <h1 className="mt-2 max-w-3xl font-semibold text-3xl sm:text-4xl">
+                {proposal.title}
+              </h1>
+            </div>
+            <StatusPill status={proposal.status} statuses={t.statuses} />
+          </div>
+        </header>
+
+        <section className="grid gap-4 border-[#d8d2c3] border-b pb-6 sm:grid-cols-3">
+          <Metric
+            label={t.metricTotal}
+            value={formatMoney(proposal.totalAmountCents, proposal.currency, locale)}
+          />
+          <Metric label={t.validUntil} value={formatDate(proposal.validUntil, t.notSet, locale)} />
+          <Metric label={t.statusLabel} value={formatStatus(proposal.status, t.statuses)} />
+        </section>
+
+        {proposal.notes ? (
+          <section className="border-[#d8d2c3] border-b pb-6">
+            <p className="whitespace-pre-wrap text-[#3a443f] text-sm leading-relaxed">
+              {proposal.notes}
+            </p>
+          </section>
+        ) : null}
+
+        {proposal.media.some((item) => item.mediaType === "image") ? (
+          <section className="grid grid-cols-2 gap-3 border-[#d8d2c3] border-b pb-6 sm:grid-cols-3">
+            {proposal.media
+              .filter((item) => item.mediaType === "image")
+              .map((item) => (
+                <img
+                  key={item.url}
+                  src={item.url}
+                  alt={item.altText ?? item.name}
+                  className="aspect-video w-full rounded object-cover"
+                />
+              ))}
+          </section>
+        ) : null}
+
+        <section className="overflow-hidden border border-[#d8d2c3] bg-white">
+          <div className="grid grid-cols-12 border-[#d8d2c3] border-b bg-[#f0ece1] px-4 py-3 font-medium text-[#52645d] text-xs uppercase">
+            <div className="col-span-6">{t.colItem}</div>
+            <div className="col-span-2 text-right">{t.colQty}</div>
+            <div className="col-span-2 text-right">{t.colPrice}</div>
+            <div className="col-span-2 text-right">{t.colTotal}</div>
+          </div>
+          {proposal.lines.length === 0 ? (
+            <p className="px-4 py-8 text-center text-[#52645d] text-sm">{t.noLines}</p>
+          ) : (
+            <ul className="divide-y divide-[#e7e1d3]">
+              {proposal.lines.map((line) => (
+                <li
+                  key={proposalLineKey(line)}
+                  className="grid grid-cols-12 items-center gap-2 px-4 py-4"
+                >
+                  <div className="col-span-6 min-w-0">
+                    <p className="break-words font-medium">{line.description}</p>
+                  </div>
+                  <div className="col-span-2 text-right text-[#52645d]">{line.quantity}</div>
+                  <div className="col-span-2 text-right text-[#52645d]">
+                    {formatMoney(line.unitPriceAmountCents, line.currency, locale)}
+                  </div>
+                  <div className="col-span-2 text-right font-medium">
+                    {formatMoney(line.totalAmountCents, line.currency, locale)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="grid gap-2 border-[#d8d2c3] border-t bg-[#fbfaf6] px-4 py-4 text-sm">
+            <AmountRow
+              label={t.subtotal}
+              value={formatMoney(proposal.subtotalAmountCents, proposal.currency, locale)}
+            />
+            <AmountRow
+              label={t.tax}
+              value={formatMoney(proposal.taxAmountCents, proposal.currency, locale)}
+            />
+            <AmountRow
+              label={t.colTotal}
+              value={formatMoney(proposal.totalAmountCents, proposal.currency, locale)}
+              strong
+            />
+          </div>
+        </section>
+
+        <footer className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
+          <OperatorContact operator={proposal.operator} messages={t} />
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            {accept.error || decline.error || requestEdits.error ? (
+              <p className="text-[#9f3a2f] text-sm">
+                {accept.error instanceof Error
+                  ? accept.error.message
+                  : decline.error instanceof Error
+                    ? decline.error.message
+                    : requestEdits.error instanceof Error
+                      ? requestEdits.error.message
+                      : t.requestFailed}
+              </p>
+            ) : null}
+            {canAct ? (
+              <form
+                className="grid w-full gap-2 sm:min-w-96"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  if (trimmedFeedback) void requestEdits.mutateAsync(trimmedFeedback)
+                }}
+              >
+                <label htmlFor="proposal-edit-message" className="sr-only">
+                  {t.requestEditsMessageLabel}
+                </label>
+                <textarea
+                  id="proposal-edit-message"
+                  value={feedbackMessage}
+                  onChange={(event) => {
+                    setFeedbackMessage(event.target.value)
+                    setFeedbackSubmitted(false)
+                  }}
+                  placeholder={t.requestEditsPlaceholder}
+                  rows={3}
+                  className="min-h-24 w-full resize-y border border-[#d8d2c3] bg-white px-3 py-2 text-sm outline-none transition placeholder:text-[#8a8171] focus:border-[#52645d]"
+                  disabled={isMutating}
+                />
+                {feedbackSubmitted ? (
+                  <p className="text-[#3f4b26] text-sm">{t.requestEditsSent}</p>
+                ) : null}
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    className="h-10 bg-[#232826] px-5 font-medium text-sm text-white transition hover:bg-[#3a403d] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isMutating}
+                    onClick={() => void accept.mutateAsync()}
+                  >
+                    {accept.isPending ? t.accepting : t.accept}
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex h-10 items-center justify-center border border-[#52645d] px-4 font-medium text-[#3a443f] text-sm transition hover:bg-[#eef4df] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isMutating || !trimmedFeedback}
+                  >
+                    {requestEdits.isPending ? (
+                      t.requestingEdits
+                    ) : (
+                      <>
+                        <MessageSquare className="mr-1.5 size-4" aria-hidden="true" />
+                        {t.requestEdits}
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="h-10 border border-[#9f3a2f] px-4 font-medium text-[#9f3a2f] text-sm transition hover:bg-[#fff1ef] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isMutating}
+                    onClick={async () => {
+                      if (await confirmDialog(t.declineConfirm)) void decline.mutateAsync()
+                    }}
+                  >
+                    {decline.isPending ? t.declining : t.decline}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
+        </footer>
+      </main>
+    </div>
+  )
+}
+
+function StatusPill({
+  status,
+  statuses,
+}: {
+  status: string
+  statuses: PublicProposalPageMessages["statuses"]
+}) {
+  const palette =
+    status === "sent"
+      ? "border-[#6f7d4e] bg-[#eef4df] text-[#3f4b26]"
+      : status === "declined" || status === "expired"
+        ? "border-[#cda69b] bg-[#fff1ef] text-[#9f3a2f]"
+        : "border-[#b9b2a2] bg-[#f7f5ef] text-[#52645d]"
+
+  return (
+    <span
+      className={`inline-flex h-8 shrink-0 items-center justify-center border px-3 font-medium text-sm ${palette}`}
+    >
+      {formatStatus(status, statuses)}
+    </span>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="font-medium text-[#52645d] text-xs uppercase">{label}</p>
+      <p className="mt-1 font-semibold text-xl">{value}</p>
+    </div>
+  )
+}
+
+function AmountRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string
+  value: string
+  strong?: boolean
+}) {
+  return (
+    <div className={`flex items-center justify-between ${strong ? "font-semibold text-lg" : ""}`}>
+      <span className="text-[#52645d]">{label}</span>
+      <span>{value}</span>
+    </div>
+  )
+}
+
+function OperatorContact({
+  operator,
+  messages: t,
+}: {
+  operator: PublicProposal["operator"]
+  messages: PublicProposalPageMessages
+}) {
+  if (!operator) return <p className="text-[#52645d] text-sm">{t.operatorContactFallback}</p>
+
+  const contact = [operator.email, operator.phone, operator.website].filter(Boolean).join(" / ")
+
+  return (
+    <div className="max-w-xl text-[#52645d] text-sm">
+      <p className="font-medium text-[#232826]">{operator.legalName || operator.name}</p>
+      {operator.address ? <p className="mt-1">{operator.address}</p> : null}
+      {contact ? <p className="mt-1 break-words">{contact}</p> : null}
+      {operator.license ? (
+        <p className="mt-1">
+          {operator.license}
+          {operator.licenseAuthority ? `, ${operator.licenseAuthority}` : ""}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function proposalLineKey(line: PublicProposal["lines"][number]) {
+  return [
+    line.description,
+    line.quantity,
+    line.unitPriceAmountCents,
+    line.totalAmountCents,
+    line.currency,
+  ].join(":")
+}
+
+function publicMutationError(
+  body: { error?: string; failures?: Array<{ reason?: string }> },
+  fallback: string,
+) {
+  const reasons = body.failures
+    ?.map((failure) => failure.reason)
+    .filter((reason): reason is string => Boolean(reason))
+  if (body.error && reasons?.length) return `${body.error}: ${reasons.join(", ")}`
+  return body.error ?? fallback
+}
+
+function formatMoney(amountCents: number, currency: string, locale: string) {
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+    }).format(amountCents / 100)
+  } catch {
+    return `${(amountCents / 100).toFixed(2)} ${currency}`
+  }
+}
+
+function formatDate(value: string | null, notSetLabel: string, locale: string) {
+  if (!value) return notSetLabel
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value))
+}
+
+function formatStatus(status: string, statuses: PublicProposalPageMessages["statuses"]) {
+  return (
+    (statuses as Record<string, string>)[status] ??
+    status.slice(0, 1).toUpperCase() + status.slice(1)
+  )
+}

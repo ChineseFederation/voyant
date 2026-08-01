@@ -31,7 +31,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;--> statement-breakpoint
 DO $$ BEGIN
- CREATE TYPE "public"."entity_type" AS ENUM('organization', 'person', 'quote', 'activity');
+ CREATE TYPE "public"."entity_type" AS ENUM('organization', 'person', 'proposal', 'activity');
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;--> statement-breakpoint
 DO $$ BEGIN

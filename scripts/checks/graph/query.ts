@@ -8,13 +8,24 @@
  */
 
 /** Structural shape these queries need; the resolved graph satisfies it. */
+interface GraphUnitLike {
+  packageName?: string
+  requires?: { capabilities?: readonly string[] }
+  provides?: { ports?: readonly (string | { id?: string })[] }
+  runtimePorts?: readonly (string | { id?: string })[]
+}
+
+interface GraphPackageRecordLike {
+  packageName?: string
+}
+
 export interface GraphLike {
-  modules: readonly any[]
-  extensions: readonly any[]
-  plugins: readonly any[]
-  adapters: readonly any[]
-  providers: readonly any[]
-  packageRecords: readonly any[]
+  modules: readonly GraphUnitLike[]
+  extensions: readonly GraphUnitLike[]
+  plugins: readonly GraphUnitLike[]
+  adapters: readonly GraphUnitLike[]
+  providers: readonly GraphUnitLike[]
+  packageRecords: readonly GraphPackageRecordLike[]
 }
 
 /** Every selected unit, across modules/extensions/plugins/adapters/providers. */

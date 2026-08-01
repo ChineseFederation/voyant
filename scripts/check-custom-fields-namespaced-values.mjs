@@ -27,11 +27,11 @@ const bookingRouteRuntime = read("packages/bookings/src/route-runtime.ts")
 const relationshipRoutes = read("packages/relationships/src/routes/accounts.ts")
 const reader = read("packages/relationships/src/runtime-contributor.ts")
 const bookingLifecycle = read("packages/bookings/src/runtime-contributor.ts")
-const quoteLifecycle = read("packages/quotes/src/runtime-contributor.ts")
+const proposalLifecycle = read("packages/proposals/src/runtime-contributor.ts")
 const relationshipLifecycle = read("packages/relationships/src/runtime-contributor.ts")
+const proposalsBaselineMigration = read("packages/proposals/migrations/0000_proposals_baseline.sql")
 const migrations = [
   ["packages/bookings/migrations/20260716000300_namespace_custom_field_values.sql", ["bookings"]],
-  ["packages/quotes/migrations/20260716000301_namespace_custom_field_values.sql", ["quotes"]],
   [
     "packages/relationships/migrations/20260716000302_namespace_custom_field_values.sql",
     ["people", "organizations", "activities"],
@@ -65,7 +65,7 @@ if (
   !bookingLifecycle.includes(
     `COALESCE(custom_fields -> \${input.definition.namespace}, '{}'::jsonb)`,
   ) ||
-  !quoteLifecycle.includes(
+  !proposalLifecycle.includes(
     `COALESCE(custom_fields -> \${input.definition.namespace}, '{}'::jsonb)`,
   ) ||
   !relationshipLifecycle.includes(
@@ -75,7 +75,7 @@ if (
   failures.push("package-owned value upserts must merge into the trusted definition namespace")
 for (const [owner, source] of [
   ["Bookings", bookingLifecycle],
-  ["Quotes", quoteLifecycle],
+  ["Proposals", proposalLifecycle],
   ["Relationships", relationshipLifecycle],
 ]) {
   if (!source.includes(`\${input.definition.key}::text`))
@@ -168,7 +168,7 @@ if (!frameworkRetirementMigration.includes('DROP TABLE IF EXISTS "custom_field_v
   failures.push("framework migration must directly retire the unused custom-field value table")
 for (const [source, targets] of [
   [bookingLifecycle, ["booking"]],
-  [quoteLifecycle, ["quote"]],
+  [proposalLifecycle, ["proposal"]],
   [relationshipLifecycle, ["person", "organization", "activity"]],
 ]) {
   for (const target of targets) {
@@ -185,6 +185,11 @@ if (
   )
 )
   failures.push("the generic definitions package must not migrate entity-owned tables")
+if (
+  !proposalsBaselineMigration.includes("\"custom_fields\" jsonb DEFAULT '{}'::jsonb NOT NULL") ||
+  !proposalsBaselineMigration.includes('CREATE TABLE "proposals"')
+)
+  failures.push("proposals baseline must own namespaced custom_fields persistence")
 for (const [path, tables] of migrations) {
   const migration = read(path)
   if (!migration.includes("jsonb_build_object('custom', \"custom_fields\")"))

@@ -43,7 +43,7 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;--> statement-breakpoint
 DO $$ BEGIN
- CREATE TYPE "public"."legal_target_kind" AS ENUM('booking', 'quote_version', 'program', 'product', 'inventory_item', 'supplier_channel_relationship', 'provider_source_ref');
+ CREATE TYPE "public"."legal_target_kind" AS ENUM('booking', 'proposal_version', 'program', 'product', 'inventory_item', 'supplier_channel_relationship', 'provider_source_ref');
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;--> statement-breakpoint
 DO $$ BEGIN

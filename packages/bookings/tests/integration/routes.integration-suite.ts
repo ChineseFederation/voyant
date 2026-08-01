@@ -366,7 +366,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       CREATE TABLE IF NOT EXISTS booking_origins (
         booking_id text PRIMARY KEY NOT NULL REFERENCES bookings(id) ON DELETE cascade,
         origin_source text DEFAULT 'manual' NOT NULL,
-        quote_version_id text,
+        proposal_version_id text,
         trip_snapshot_id text,
         reservation_plan_id text,
         catalog_price_response_id text,
@@ -386,7 +386,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
           origin_source IN (
             'manual',
             'direct_b2c',
-            'accepted_quote_version',
+            'accepted_proposal_version',
             'catalog_price_availability',
             'catalog_snapshot',
             'provider_source_order',

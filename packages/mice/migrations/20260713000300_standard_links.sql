@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS "quotes_quote_mice_program" (
+CREATE TABLE IF NOT EXISTS "proposals_proposal_mice_program" (
 	"id" text PRIMARY KEY NOT NULL,
-	"quotes_quote_id" text NOT NULL,
+	"proposals_proposal_id" text NOT NULL,
 	"mice_program_id" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -70,9 +70,9 @@ CREATE TABLE IF NOT EXISTS "suppliers_supplier_mice_bid" (
 	"deleted_at" timestamp with time zone
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "quotes_quote_mice_program_pair_idx" ON "quotes_quote_mice_program" USING btree ("quotes_quote_id","mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "quotes_quote_mice_program_l_uniq" ON "quotes_quote_mice_program" USING btree ("quotes_quote_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "quotes_quote_mice_program_r_uniq" ON "quotes_quote_mice_program" USING btree ("mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "proposals_proposal_mice_program_pair_idx" ON "proposals_proposal_mice_program" USING btree ("proposals_proposal_id","mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "proposals_proposal_mice_program_l_uniq" ON "proposals_proposal_mice_program" USING btree ("proposals_proposal_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "proposals_proposal_mice_program_r_uniq" ON "proposals_proposal_mice_program" USING btree ("mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "relationships_organization_mice_program_pair_idx" ON "relationships_organization_mice_program" USING btree ("relationships_organization_id","mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "relationships_organization_mice_program_l_idx" ON "relationships_organization_mice_program" USING btree ("relationships_organization_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "relationships_organization_mice_program_r_uniq" ON "relationships_organization_mice_program" USING btree ("mice_program_id") WHERE "deleted_at" IS NULL;--> statement-breakpoint

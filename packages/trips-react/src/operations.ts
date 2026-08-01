@@ -19,7 +19,7 @@ import {
   cancelTripComponentsResponseSchema,
   previewTripCancellationResponseSchema,
   priceTripResponseSchema,
-  quoteVersionSnapshotApplyResponseSchema,
+  proposalVersionSnapshotApplyResponseSchema,
   reserveTripResponseSchema,
   startTripCheckoutResponseSchema,
   tripComponentResponseSchema,
@@ -175,19 +175,19 @@ export function freezeTripSnapshot(
   ).then((response) => response.data)
 }
 
-export function freezeTripSnapshotForQuoteVersion(
+export function freezeTripSnapshotForProposalVersion(
   client: FetchWithValidationOptions,
   envelopeId: string,
-  quoteVersionId: string,
+  proposalVersionId: string,
   input: CreateTripSnapshotBody = {},
 ) {
   return fetchWithValidation(
     adminComposerPath(
-      `/${encodeURIComponent(envelopeId)}/quote-versions/${encodeURIComponent(
-        quoteVersionId,
+      `/${encodeURIComponent(envelopeId)}/proposal-versions/${encodeURIComponent(
+        proposalVersionId,
       )}/snapshot`,
     ),
-    quoteVersionSnapshotApplyResponseSchema,
+    proposalVersionSnapshotApplyResponseSchema,
     client,
     { method: "POST", body: JSON.stringify(input) },
   ).then((response) => response.data)

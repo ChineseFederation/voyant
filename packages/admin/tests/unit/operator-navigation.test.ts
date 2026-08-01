@@ -73,11 +73,11 @@ describe("resolveOperatorAdminNavigation", () => {
         ],
       },
       {
-        id: "quotes",
+        id: "proposals",
         navigation: [
           {
             insertAfter: "bookings",
-            items: [{ id: "quotes", title: "Quotes", url: "/quotes" }],
+            items: [{ id: "proposals", title: "Proposals", url: "/proposals" }],
           },
         ],
       },
@@ -98,7 +98,7 @@ describe("resolveOperatorAdminNavigation", () => {
     })
     const ids = items.map((item) => item.id)
 
-    expect(ids).toEqual(["dashboard", "bookings", "quotes", "mice-programs", "action-ledger"])
+    expect(ids).toEqual(["dashboard", "bookings", "proposals", "mice-programs", "action-ledger"])
     expect(new Set(ids).size).toBe(ids.length)
   })
 })

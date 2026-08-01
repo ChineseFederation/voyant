@@ -28,9 +28,9 @@ const fixturePaths = [
   "packages/bookings/src/route-runtime.ts",
   "packages/bookings/src/routes-admin.ts",
   "packages/bookings/src/runtime-contributor.ts",
-  "packages/quotes/src/runtime-contributor.ts",
+  "packages/proposals/src/runtime-contributor.ts",
+  "packages/proposals/migrations/0000_proposals_baseline.sql",
   "packages/bookings/migrations/20260716000300_namespace_custom_field_values.sql",
-  "packages/quotes/migrations/20260716000301_namespace_custom_field_values.sql",
   "packages/relationships/migrations/20260716000302_namespace_custom_field_values.sql",
 ]
 
@@ -94,15 +94,15 @@ test("rejects synthetic ids without namespace identity", (t) => {
 
 test("rejects a missing package-owned value provider", (t) => {
   const root = createFixture(t)
-  const path = join(root, "packages/quotes/src/runtime-contributor.ts")
+  const path = join(root, "packages/proposals/src/runtime-contributor.ts")
   const source = readFileSync(path, "utf8").replace(
-    "[customFieldValueOperationsRuntimePort.id]: quoteCustomFieldValueOperations,",
+    "[customFieldValueOperationsRuntimePort.id]: proposalCustomFieldValueOperations,",
     "",
   )
   writeFileSync(path, source)
   assert.match(
     fixtureFailure(root),
-    /Quotes must register its custom-field value operations provider/,
+    /Proposals must register its custom-field value operations provider/,
   )
 })
 

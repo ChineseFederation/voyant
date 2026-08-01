@@ -1658,42 +1658,50 @@
       "@voyant-travel/products-contracts/validation-shared": [
         "../products-contracts/dist/validation-shared.d.ts"
       ],
+      "@voyant-travel/proposals": ["../proposals/dist/index.d.ts"],
+      "@voyant-travel/proposals-contracts": ["../proposals-contracts/dist/index.d.ts"],
+      "@voyant-travel/proposals-contracts/checkout-inquiry": [
+        "../proposals-contracts/dist/checkout-inquiry.d.ts"
+      ],
+      "@voyant-travel/proposals-contracts/runtime-port": [
+        "../proposals-contracts/dist/checkout-inquiry.d.ts"
+      ],
+      "@voyant-travel/proposals-contracts/validation": [
+        "../proposals-contracts/dist/validation.d.ts"
+      ],
+      "@voyant-travel/proposals-react": ["../proposals-react/dist/index.d.ts"],
+      "@voyant-travel/proposals-react/admin": ["../proposals-react/dist/admin/index.d.ts"],
+      "@voyant-travel/proposals-react/client": ["../proposals-react/dist/client.d.ts"],
+      "@voyant-travel/proposals-react/components/*": ["../proposals-react/dist/components/*.d.ts"],
+      "@voyant-travel/proposals-react/hooks": ["../proposals-react/dist/hooks/index.d.ts"],
+      "@voyant-travel/proposals-react/i18n": ["../proposals-react/dist/i18n/index.d.ts"],
+      "@voyant-travel/proposals-react/i18n/en": ["../proposals-react/dist/i18n/en.d.ts"],
+      "@voyant-travel/proposals-react/i18n/ro": ["../proposals-react/dist/i18n/ro.d.ts"],
+      "@voyant-travel/proposals-react/provider": ["../proposals-react/dist/provider.d.ts"],
+      "@voyant-travel/proposals-react/public-routes": [
+        "../proposals-react/dist/public-routes.d.ts"
+      ],
+      "@voyant-travel/proposals-react/query-keys": ["../proposals-react/dist/query-keys.d.ts"],
+      "@voyant-travel/proposals-react/storefront": [
+        "../proposals-react/dist/storefront/index.d.ts"
+      ],
+      "@voyant-travel/proposals-react/ui": ["../proposals-react/dist/ui.d.ts"],
+      "@voyant-travel/proposals/booking-extension": ["../proposals/dist/booking-extension.d.ts"],
+      "@voyant-travel/proposals/linkables": ["../proposals/dist/linkables.d.ts"],
+      "@voyant-travel/proposals/proposal-routes": ["../proposals/dist/proposal-routes.d.ts"],
+      "@voyant-travel/proposals/routes": ["../proposals/dist/routes/index.d.ts"],
+      "@voyant-travel/proposals/runtime-contributor": [
+        "../proposals/dist/runtime-contributor.d.ts"
+      ],
+      "@voyant-travel/proposals/runtime-port": ["../proposals/dist/runtime-port.d.ts"],
+      "@voyant-travel/proposals/schema": ["../proposals/dist/schema.d.ts"],
+      "@voyant-travel/proposals/tools": ["../proposals/dist/mcp-runtime.d.ts"],
+      "@voyant-travel/proposals/validation": ["../proposals/dist/validation.d.ts"],
+      "@voyant-travel/proposals/voyant": ["../proposals/dist/voyant.d.ts"],
       "@voyant-travel/public-document-delivery": ["../public-document-delivery/dist/index.d.ts"],
       "@voyant-travel/public-document-delivery/voyant": [
         "../public-document-delivery/dist/voyant.d.ts"
       ],
-      "@voyant-travel/quotes": ["../quotes/dist/index.d.ts"],
-      "@voyant-travel/quotes-contracts": ["../quotes-contracts/dist/index.d.ts"],
-      "@voyant-travel/quotes-contracts/checkout-inquiry": [
-        "../quotes-contracts/dist/checkout-inquiry.d.ts"
-      ],
-      "@voyant-travel/quotes-contracts/runtime-port": [
-        "../quotes-contracts/dist/checkout-inquiry.d.ts"
-      ],
-      "@voyant-travel/quotes-contracts/validation": ["../quotes-contracts/dist/validation.d.ts"],
-      "@voyant-travel/quotes-react": ["../quotes-react/dist/index.d.ts"],
-      "@voyant-travel/quotes-react/admin": ["../quotes-react/dist/admin/index.d.ts"],
-      "@voyant-travel/quotes-react/client": ["../quotes-react/dist/client.d.ts"],
-      "@voyant-travel/quotes-react/components/*": ["../quotes-react/dist/components/*.d.ts"],
-      "@voyant-travel/quotes-react/hooks": ["../quotes-react/dist/hooks/index.d.ts"],
-      "@voyant-travel/quotes-react/i18n": ["../quotes-react/dist/i18n/index.d.ts"],
-      "@voyant-travel/quotes-react/i18n/en": ["../quotes-react/dist/i18n/en.d.ts"],
-      "@voyant-travel/quotes-react/i18n/ro": ["../quotes-react/dist/i18n/ro.d.ts"],
-      "@voyant-travel/quotes-react/provider": ["../quotes-react/dist/provider.d.ts"],
-      "@voyant-travel/quotes-react/public-routes": ["../quotes-react/dist/public-routes.d.ts"],
-      "@voyant-travel/quotes-react/query-keys": ["../quotes-react/dist/query-keys.d.ts"],
-      "@voyant-travel/quotes-react/storefront": ["../quotes-react/dist/storefront/index.d.ts"],
-      "@voyant-travel/quotes-react/ui": ["../quotes-react/dist/ui.d.ts"],
-      "@voyant-travel/quotes/booking-extension": ["../quotes/dist/booking-extension.d.ts"],
-      "@voyant-travel/quotes/linkables": ["../quotes/dist/linkables.d.ts"],
-      "@voyant-travel/quotes/proposal-routes": ["../quotes/dist/proposal-routes.d.ts"],
-      "@voyant-travel/quotes/routes": ["../quotes/dist/routes/index.d.ts"],
-      "@voyant-travel/quotes/runtime-contributor": ["../quotes/dist/runtime-contributor.d.ts"],
-      "@voyant-travel/quotes/runtime-port": ["../quotes/dist/runtime-port.d.ts"],
-      "@voyant-travel/quotes/schema": ["../quotes/dist/schema.d.ts"],
-      "@voyant-travel/quotes/tools": ["../quotes/dist/mcp-runtime.d.ts"],
-      "@voyant-travel/quotes/validation": ["../quotes/dist/validation.d.ts"],
-      "@voyant-travel/quotes/voyant": ["../quotes/dist/voyant.d.ts"],
       "@voyant-travel/react": ["../react/dist/index.d.ts"],
       "@voyant-travel/react/provider": ["../react/dist/provider.d.ts"],
       "@voyant-travel/realtime": ["../realtime/dist/index.d.ts"],

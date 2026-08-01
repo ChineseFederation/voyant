@@ -38,7 +38,7 @@
 <p align="center">
   Voyant ships deployable starter apps, package-owned background execution, and
   a wide set of headless domain modules (catalog, commerce, inventory, operations,
-  relationships, quotes, bookings, finance, distribution, legal, charters,
+  relationships, proposals, bookings, finance, distribution, legal, charters,
   cruises, accommodation resale, and more) that you compose into your own
   travel platform.
 </p>
@@ -79,7 +79,7 @@ and deployable application shells that you own and extend.
   starters ship as real, runnable apps.
 - **A normalized travel operations data model** on PostgreSQL + Drizzle.
 - **Headless domain modules** for catalog, commerce, inventory, operations,
-  relationships, quotes, bookings, finance, distribution, legal, charters,
+  relationships, proposals, bookings, finance, distribution, legal, charters,
   cruises, accommodation resale, and more.
 - **Hono-based API transport** with optional Next.js route helpers.
 - **Package-owned subscribers and jobs** selected with their domain modules and
@@ -139,7 +139,7 @@ Voyant ships one first-party starter:
 | [`@voyant-travel/notifications`](./packages/notifications/README.md) | Email/SMS provider abstraction |
 | [`@voyant-travel/distribution`](./packages/distribution/README.md) | Channel distribution |
 | [`@voyant-travel/relationships`](./packages/relationships/README.md) | CRM: people, organizations, and pipelines |
-| [`@voyant-travel/quotes`](./packages/quotes/README.md) | Quotes and trip revisions |
+| [`@voyant-travel/proposals`](./packages/proposals/README.md) | Proposals and trip revisions |
 | [`@voyant-travel/trips`](./packages/trips) | Trip composition and itineraries |
 | [`@voyant-travel/identity`](./packages/identity/README.md) | Contact points, addresses, and named contacts |
 | [`@voyant-travel/storefront`](./packages/storefront) | Public booking-portal surface |
@@ -162,7 +162,7 @@ Reusable frontend surfaces live in the matching `-react` package for each
 domain module. Those packages own hooks, clients, providers, query keys,
 view-model helpers, reusable components, and `./ui` owner paths where needed.
 For example, [`@voyant-travel/relationships-react`](./packages/relationships-react/README.md),
-[`@voyant-travel/quotes-react`](./packages/quotes-react/README.md),
+[`@voyant-travel/proposals-react`](./packages/proposals-react/README.md),
 [`@voyant-travel/inventory-react`](./packages/inventory-react),
 [`@voyant-travel/commerce-react`](./packages/commerce-react), and
 [`@voyant-travel/bookings-react`](./packages/bookings-react). Bookings requirements

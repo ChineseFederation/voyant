@@ -13,7 +13,7 @@ import {
 export interface UpsertBookingOriginInput {
   bookingId: string
   originSource: BookingOriginSource
-  quoteVersionId?: string | null
+  proposalVersionId?: string | null
   tripSnapshotId?: string | null
   reservationPlanId?: string | null
   catalogPriceResponseId?: string | null
@@ -92,7 +92,7 @@ export function toBookingOriginInsert(
   return {
     bookingId: input.bookingId,
     originSource: input.originSource,
-    quoteVersionId: nullable(input.quoteVersionId),
+    proposalVersionId: nullable(input.proposalVersionId),
     tripSnapshotId: nullable(input.tripSnapshotId),
     reservationPlanId: nullable(input.reservationPlanId),
     catalogPriceResponseId: nullable(input.catalogPriceResponseId),
@@ -176,7 +176,7 @@ export async function upsertBookingOrigin(
       target: bookingOrigins.bookingId,
       set: {
         originSource: values.originSource,
-        quoteVersionId: values.quoteVersionId,
+        proposalVersionId: values.proposalVersionId,
         tripSnapshotId: values.tripSnapshotId,
         reservationPlanId: values.reservationPlanId,
         catalogPriceResponseId: values.catalogPriceResponseId,

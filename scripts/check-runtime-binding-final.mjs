@@ -19,7 +19,7 @@ const contributorRequirements = {
   inventory: "createInventoryRuntime(host.primitives)",
   legal: "createLegalRuntime",
   notifications: "createNotificationsRuntime",
-  quotes: "createQuotesRuntime",
+  proposals: "createProposalsRuntime",
 }
 
 const [deploymentResources, ...contributors] = await Promise.all([

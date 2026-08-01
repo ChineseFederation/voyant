@@ -166,7 +166,7 @@ describe("@voyant-travel/media service (pglite)", () => {
     await recordAssetUsage(db, { assetId: a.id, entityType: "product", entityId: "prod_1" })
     // Same tuple again ⇒ no duplicate row.
     await recordAssetUsage(db, { assetId: a.id, entityType: "product", entityId: "prod_1" })
-    await recordAssetUsage(db, { assetId: a.id, entityType: "quote", entityId: "quote_9" })
+    await recordAssetUsage(db, { assetId: a.id, entityType: "proposal", entityId: "prps_9" })
     await recordAssetUsage(db, { assetId: b.id, entityType: "product", entityId: "prod_2" })
 
     const all = await listAssetUsage(db, { limit: 50, offset: 0 })

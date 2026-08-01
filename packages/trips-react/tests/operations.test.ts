@@ -4,7 +4,7 @@ import {
   cancelTripComponents,
   createTrip,
   freezeTripSnapshot,
-  freezeTripSnapshotForQuoteVersion,
+  freezeTripSnapshotForProposalVersion,
   getTrip,
   getTripSnapshot,
   listTripSnapshots,
@@ -187,7 +187,7 @@ describe("trips react operations", () => {
     expect(JSON.parse(String(calls[2]?.init?.body))).toEqual({ createdBy: "agent_1" })
   })
 
-  it("freezes and applies a trip snapshot to a quote version through the operator bridge", async () => {
+  it("freezes and applies a trip snapshot to a proposal version through the operator bridge", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
     const client = {
       baseUrl: "https://app.example",
@@ -196,18 +196,18 @@ describe("trips react operations", () => {
         calls.push({ url, init })
         return jsonResponse({
           snapshot: { id: "trsn_123" },
-          quoteVersion: { id: "qver_123", quoteId: "quot_123" },
+          proposalVersion: { id: "prvr_123", proposalId: "prps_123" },
           lines: [],
         })
       },
     }
 
-    await freezeTripSnapshotForQuoteVersion(client, "trip_123", "qver_123", {
+    await freezeTripSnapshotForProposalVersion(client, "trip_123", "prvr_123", {
       createdBy: "agent_1",
     })
 
     expect(calls[0]?.url).toBe(
-      "https://app.example/v1/admin/trips/trip_123/quote-versions/qver_123/snapshot",
+      "https://app.example/v1/admin/trips/trip_123/proposal-versions/prvr_123/snapshot",
     )
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ createdBy: "agent_1" })
   })

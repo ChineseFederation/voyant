@@ -2119,7 +2119,7 @@
               "type": "string",
               "enum": [
                 "booking",
-                "quote_version",
+                "proposal_version",
                 "program",
                 "product",
                 "inventory_item",
@@ -2294,7 +2294,7 @@
                             "type": ["string", "null"],
                             "enum": [
                               "booking",
-                              "quote_version",
+                              "proposal_version",
                               "program",
                               "product",
                               "inventory_item",
@@ -2563,7 +2563,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -2792,7 +2792,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -3036,7 +3036,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -3300,7 +3300,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -3527,7 +3527,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -3855,7 +3855,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -4115,7 +4115,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -4306,7 +4306,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -4538,7 +4538,7 @@
                               "type": ["string", "null"],
                               "enum": [
                                 "booking",
-                                "quote_version",
+                                "proposal_version",
                                 "program",
                                 "product",
                                 "inventory_item",
@@ -4653,7 +4653,7 @@
                               "type": ["string", "null"],
                               "enum": [
                                 "booking",
-                                "quote_version",
+                                "proposal_version",
                                 "program",
                                 "product",
                                 "inventory_item",
@@ -4916,7 +4916,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -5176,7 +5176,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -5449,7 +5449,7 @@
                             "type": ["string", "null"],
                             "enum": [
                               "booking",
-                              "quote_version",
+                              "proposal_version",
                               "program",
                               "product",
                               "inventory_item",
@@ -5591,7 +5591,7 @@
                             "type": ["string", "null"],
                             "enum": [
                               "booking",
-                              "quote_version",
+                              "proposal_version",
                               "program",
                               "product",
                               "inventory_item",
@@ -5701,7 +5701,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -5833,7 +5833,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -6005,7 +6005,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -6180,7 +6180,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -6311,7 +6311,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -6551,7 +6551,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -8593,7 +8593,7 @@
               "type": "string",
               "enum": [
                 "booking",
-                "quote_version",
+                "proposal_version",
                 "program",
                 "product",
                 "inventory_item",
@@ -8675,7 +8675,7 @@
                             "type": ["string", "null"],
                             "enum": [
                               "booking",
-                              "quote_version",
+                              "proposal_version",
                               "program",
                               "product",
                               "inventory_item",
@@ -8783,7 +8783,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -8920,7 +8920,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -10142,7 +10142,7 @@
               "type": "string",
               "enum": [
                 "booking",
-                "quote_version",
+                "proposal_version",
                 "program",
                 "product",
                 "inventory_item",
@@ -10247,7 +10247,7 @@
                             "type": ["string", "null"],
                             "enum": [
                               "booking",
-                              "quote_version",
+                              "proposal_version",
                               "program",
                               "product",
                               "inventory_item",
@@ -10402,7 +10402,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -10565,7 +10565,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -10723,7 +10723,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",
@@ -10894,7 +10894,7 @@
                     "type": ["string", "null"],
                     "enum": [
                       "booking",
-                      "quote_version",
+                      "proposal_version",
                       "program",
                       "product",
                       "inventory_item",
@@ -11056,7 +11056,7 @@
                           "type": ["string", "null"],
                           "enum": [
                             "booking",
-                            "quote_version",
+                            "proposal_version",
                             "program",
                             "product",
                             "inventory_item",

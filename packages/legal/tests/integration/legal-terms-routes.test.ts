@@ -41,22 +41,22 @@ describe.skipIf(!DB_AVAILABLE)("Legal terms routes", () => {
     const created = await app.request("/", {
       method: "POST",
       ...json({
-        targetKind: "quote_version",
-        targetId: "qver_123",
+        targetKind: "proposal_version",
+        targetId: "prvr_123",
         termType: "terms_and_conditions",
         title: "Proposal terms",
-        body: "Customer accepts the quote-version terms.",
+        body: "Customer accepts the proposal-version terms.",
       }),
     })
 
     expect(created.status).toBe(201)
     const createdBody = await created.json()
     expect(createdBody.data.id).toMatch(/^ortm_/)
-    expect(createdBody.data.targetKind).toBe("quote_version")
-    expect(createdBody.data.targetId).toBe("qver_123")
+    expect(createdBody.data.targetKind).toBe("proposal_version")
+    expect(createdBody.data.targetId).toBe("prvr_123")
     expect(createdBody.data.legacyTransactionOrderId).toBeNull()
 
-    const listed = await app.request("/?targetKind=quote_version&targetId=qver_123")
+    const listed = await app.request("/?targetKind=proposal_version&targetId=prvr_123")
     expect(listed.status).toBe(200)
     const listedBody = await listed.json()
     expect(listedBody.total).toBe(1)

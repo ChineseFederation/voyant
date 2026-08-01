@@ -7,11 +7,11 @@ export type BookingReservationPlanLineKind =
 export type BookingReservationPlanStatus = "reserved" | "failed"
 
 export interface BookingReservationPlanOrigin {
-  source: "trips" | "accepted_quote_version" | "direct_b2c" | string
+  source: "trips" | "accepted_proposal_version" | "direct_b2c" | string
   tripEnvelopeId?: string | null
   tripSnapshotId?: string | null
-  quoteId?: string | null
-  quoteVersionId?: string | null
+  proposalId?: string | null
+  proposalVersionId?: string | null
   commercialSnapshotIds?: string[]
   metadata?: Record<string, unknown>
 }

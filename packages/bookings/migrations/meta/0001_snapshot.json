@@ -4984,8 +4984,8 @@
           "notNull": true,
           "default": "'manual'"
         },
-        "quote_version_id": {
-          "name": "quote_version_id",
+        "proposal_version_id": {
+          "name": "proposal_version_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -5084,11 +5084,11 @@
         }
       },
       "indexes": {
-        "idx_booking_origins_quote_version": {
-          "name": "idx_booking_origins_quote_version",
+        "idx_booking_origins_proposal_version": {
+          "name": "idx_booking_origins_proposal_version",
           "columns": [
             {
-              "expression": "quote_version_id",
+              "expression": "proposal_version_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5226,7 +5226,7 @@
       "checkConstraints": {
         "ck_booking_origins_source": {
           "name": "ck_booking_origins_source",
-          "value": "\"booking_origins\".\"origin_source\" IN ('manual', 'direct_b2c', 'accepted_quote_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')"
+          "value": "\"booking_origins\".\"origin_source\" IN ('manual', 'direct_b2c', 'accepted_proposal_version', 'catalog_price_availability', 'catalog_snapshot', 'provider_source_order', 'legacy_transaction')"
         }
       },
       "isRLSEnabled": false

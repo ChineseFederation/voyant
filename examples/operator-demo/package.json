@@ -21,7 +21,7 @@
     "@voyant-travel/inventory": "workspace:^",
     "@voyant-travel/legal": "workspace:^",
     "@voyant-travel/operations": "workspace:^",
-    "@voyant-travel/quotes": "workspace:^",
+    "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/relationships": "workspace:^",
     "better-auth": "1.6.23",
     "dotenv": "^17.4.2",

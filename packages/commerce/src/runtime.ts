@@ -10,7 +10,7 @@ import type {
   FinanceInventoryPaymentPolicyRuntime,
 } from "@voyant-travel/finance/runtime-port"
 import type { ApiModule } from "@voyant-travel/hono/module"
-import type { CheckoutInquiryRuntime } from "@voyant-travel/quotes-contracts/checkout-inquiry"
+import type { CheckoutInquiryRuntime } from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import type { BookingMaintenanceRoutesOptions } from "./checkout/routes.js"

@@ -84,6 +84,23 @@ test("accepts a compatible published comparator span", () => {
   )
 })
 
+test("accepts a compatible workspace peer comparator span", () => {
+  // Workspace protocol keeps local resolution, and pnpm publishes the bare
+  // comparator range so the package keeps its public compatibility line.
+  assert.deepEqual(
+    collectWorkspaceRangeProblems(
+      createPackages({
+        "@fixture/consumer": {
+          version: "1.1.0",
+          peerDependencies: { "@fixture/provider": "workspace:>=0.64.0 <2.0.0" },
+        },
+        "@fixture/provider": { version: "0.65.0" },
+      }),
+    ),
+    [],
+  )
+})
+
 test("rejects a published peer range the current provider version falls outside", () => {
   assert.notDeepEqual(
     collectWorkspaceRangeProblems(

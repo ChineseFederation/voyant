@@ -47,9 +47,9 @@ const consolidatedPackages = [
     factory: "createNotificationsRuntimePortContribution",
   },
   {
-    packageName: "@voyant-travel/quotes",
-    retiredPackageName: "@voyant-travel/quotes-node",
-    factory: "createQuotesRuntimePortContribution",
+    packageName: "@voyant-travel/proposals",
+    retiredPackageName: "@voyant-travel/proposals-node",
+    factory: "createProposalsRuntimePortContribution",
   },
 ]
 const manifests = readWorkspaceManifests()

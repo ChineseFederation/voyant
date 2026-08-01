@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- owner: deployment-graph; coverage fixtures intentionally keep graph declarations, OpenAPI artifacts, and failure cases in one authority test.
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises"
@@ -230,14 +231,14 @@ describe("check-deployment-graph-openapi-coverage", () => {
     const root = await createFixture({
       "graph.json": graph([
         {
-          id: "@voyant-travel/quotes",
-          localId: "quotes",
-          packageName: "@voyant-travel/quotes",
+          id: "@voyant-travel/proposals",
+          localId: "proposals",
+          packageName: "@voyant-travel/proposals",
           api: [
             {
-              id: "@voyant-travel/quotes#api",
+              id: "@voyant-travel/proposals#api",
               surface: "admin",
-              mount: "@voyant-travel/quotes",
+              mount: "@voyant-travel/proposals",
             },
           ],
         },
@@ -248,7 +249,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
     await assert.rejects(runChecker(root), (error) => {
       assert.match(error.stderr, /Deployment graph OpenAPI coverage failed/)
       assert.match(error.stderr, /deployment-graph-openapi-coverage:missing-docs/)
-      assert.match(error.stderr, /@voyant-travel\/quotes#api/)
+      assert.match(error.stderr, /@voyant-travel\/proposals#api/)
       return true
     })
   })
@@ -525,7 +526,7 @@ describe("check-deployment-graph-openapi-coverage", () => {
     const apiIds = {
       accommodations: "@voyant-travel/accommodations#content-extension.api.public",
       flights: "@voyant-travel/flights#api",
-      quotes: "@voyant-travel/quotes#proposal-extension.api.public",
+      proposals: "@voyant-travel/proposals#proposal-extension.api.public",
     }
     const root = await createFixture({
       "graph.json": graph(
@@ -559,15 +560,15 @@ describe("check-deployment-graph-openapi-coverage", () => {
             ],
           },
           {
-            id: "@voyant-travel/quotes#proposal-extension",
-            localId: "quotes.proposal-extension",
-            packageName: "@voyant-travel/quotes",
+            id: "@voyant-travel/proposals#proposal-extension",
+            localId: "proposals.proposal-extension",
+            packageName: "@voyant-travel/proposals",
             api: [
               {
-                id: apiIds.quotes,
+                id: apiIds.proposals,
                 surface: "public",
                 mount: "proposals",
-                openapi: { document: "quotes-proposal-public" },
+                openapi: { document: "proposals-proposal-public" },
               },
             ],
           },
@@ -586,9 +587,9 @@ describe("check-deployment-graph-openapi-coverage", () => {
           },
         },
       }),
-      "openapi/storefront/quotes-proposal-public.json": openapi({
-        "/v1/public/proposals/{quoteVersionId}": {
-          get: { responses: { 200: { description: "OK" } }, "x-voyant-api-id": apiIds.quotes },
+      "openapi/storefront/proposals-proposal-public.json": openapi({
+        "/v1/public/proposals/{proposalVersionId}": {
+          get: { responses: { 200: { description: "OK" } }, "x-voyant-api-id": apiIds.proposals },
         },
       }),
     })

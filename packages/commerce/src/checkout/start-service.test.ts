@@ -98,11 +98,11 @@ describe("startCatalogCheckout", () => {
     expect(result).toEqual({ kind: "hold_placed", bookingId: "bk_1" })
   })
 
-  it("creates an inquiry through the injected Quotes runtime", async () => {
+  it("creates an inquiry through the injected Proposals runtime", async () => {
     vi.spyOn(bookingsService, "cancelBooking").mockResolvedValue({} as never)
     const checkoutInquiry = {
       resolvePipeline: vi.fn().mockResolvedValue({ pipelineId: "pipeline_1", stageId: "stage_1" }),
-      createInquiry: vi.fn().mockResolvedValue({ id: "quote_1" }),
+      createInquiry: vi.fn().mockResolvedValue({ id: "prps_1" }),
     }
     const emit = vi.fn().mockResolvedValue(undefined)
     const db = stubDb([
@@ -131,7 +131,7 @@ describe("startCatalogCheckout", () => {
     ).resolves.toEqual({
       kind: "inquiry_received",
       bookingId: "bk_inquiry",
-      inquiryId: "quote_1",
+      inquiryId: "prps_1",
     })
     expect(checkoutInquiry.resolvePipeline).toHaveBeenCalledWith(db, {
       pipelineId: null,
@@ -147,7 +147,7 @@ describe("startCatalogCheckout", () => {
       }),
     )
     expect(emit).toHaveBeenCalledWith("inquiry.created", {
-      quoteId: "quote_1",
+      proposalId: "prps_1",
       bookingId: "bk_inquiry",
       bookingNumber: "BK-2001",
       pipelineId: "pipeline_1",
@@ -155,10 +155,10 @@ describe("startCatalogCheckout", () => {
     })
   })
 
-  it("keeps the inquiry fallback when Quotes has no configured pipeline", async () => {
+  it("keeps the inquiry fallback when Proposals has no configured pipeline", async () => {
     vi.spyOn(bookingsService, "cancelBooking").mockResolvedValue({} as never)
     const checkoutInquiry = {
-      resolvePipeline: vi.fn().mockRejectedValue(new Error("quotes unavailable")),
+      resolvePipeline: vi.fn().mockRejectedValue(new Error("proposals unavailable")),
       createInquiry: vi.fn(),
     }
 
@@ -181,7 +181,7 @@ describe("startCatalogCheckout", () => {
     expect(result).toMatchObject({
       kind: "inquiry_received",
       inquiryId: "inq-bk_fallback",
-      note: expect.stringContaining("No quote pipeline configured"),
+      note: expect.stringContaining("No proposal pipeline configured"),
     })
     expect(checkoutInquiry.createInquiry).not.toHaveBeenCalled()
   })

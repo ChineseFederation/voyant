@@ -203,12 +203,12 @@ describe("MCP guide layer", () => {
     const journey = await guideText(a, "booking-journey")
     expect(journey).toMatch(/dynamic/i)
     expect(journey).toMatch(/scheduled/i)
-    // Commit is a separate admitted operation, not a side effect of quote/hold.
+    // Commit is a separate admitted operation, not a side effect of proposal/hold.
     expect(journey).toMatch(/separate/i)
 
-    const quotes = await guideText(a, "quotes")
-    expect(quotes).toMatch(/accept/i)
-    expect(quotes).toMatch(/not.*confirm|confirm.*not|different state/i)
+    const proposals = await guideText(a, "proposals")
+    expect(proposals).toMatch(/accept/i)
+    expect(proposals).toMatch(/not.*confirm|confirm.*not|different state/i)
 
     const products = await guideText(a, "products")
     expect(products).toMatch(/publish/i)
@@ -227,14 +227,14 @@ describe("MCP guide layer", () => {
     const called = await readRpc(
       await app(["catalog:read"]).request(
         "/",
-        rpc("tools/call", { name: "voyant_glossary", arguments: { term: "Quote Version" } }),
+        rpc("tools/call", { name: "voyant_glossary", arguments: { term: "Proposal Version" } }),
       ),
     )
     const text =
       (called.result as { content?: Array<{ text: string }> } | undefined)?.content
         ?.map((p) => p.text)
         .join("\n") ?? ""
-    expect(text).toMatch(/Quote Version/)
+    expect(text).toMatch(/Proposal Version/)
     expect(text).toMatch(/immutable/i)
   })
 

@@ -82,7 +82,7 @@ export interface Subscription {
  * - Postgres-backed durable queue — for refund-saga-grade durability
  *
  * Event naming convention: `<resource>.<pastTenseAction>` in dot-case.
- * Examples: `booking.created`, `quote.accepted`, `payment.received`.
+ * Examples: `booking.created`, `proposal.accepted`, `payment.received`.
  */
 /**
  * Per-subscription options.

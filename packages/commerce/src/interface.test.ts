@@ -36,7 +36,7 @@ const operatedInput: CommercialDecisionInput = {
   },
   promotionCodes: ["EARLY10"],
   requestedAt: "2026-06-13T09:00:00.000Z",
-  idempotencyKey: "quote-version:quote_v1:item:catalog_item_operated_tour",
+  idempotencyKey: "proposal-version:prvr_v1:item:catalog_item_operated_tour",
 }
 
 const operatedInventoryAdapter: CommercialPriceAvailabilityAdapter = {
@@ -317,7 +317,7 @@ describe("commercial decision Interface", () => {
           externalRef: "sailing_2026_11_02",
         },
       },
-      idempotencyKey: "quote-version:quote_v1:item:cruise_sailing_2026_11_02",
+      idempotencyKey: "proposal-version:prvr_v1:item:cruise_sailing_2026_11_02",
     }
 
     const writes: Array<Parameters<CommercialSnapshotRepository["recordCommercialSnapshot"]>[0]> =
@@ -366,8 +366,8 @@ describe("commercial decision Interface", () => {
     const snapshot = await recordCommercialSnapshot(
       decision,
       {
-        kind: "quote-version",
-        id: "quote_version_1",
+        kind: "proposal-version",
+        id: "proposal_version_1",
       },
       repository,
     )
@@ -376,7 +376,7 @@ describe("commercial decision Interface", () => {
     expect(snapshot).toMatchObject({
       snapshotId: "commercial_snapshot_1",
       decisionId: decision.decisionId,
-      idempotencyKey: "quote-version:quote_v1:item:cruise_sailing_2026_11_02",
+      idempotencyKey: "proposal-version:prvr_v1:item:cruise_sailing_2026_11_02",
     })
   })
 })

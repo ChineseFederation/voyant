@@ -1,6 +1,6 @@
 # ADR-0004: Quotes are the travel-native sales artifact
 
-- **Status:** Accepted (2026-06-08)
+- **Status:** Superseded by [ADR-0018](./0018-proposals-as-travel-native-bespoke-sales-artifact.md) (2026-08-01)
 - **Relates to:** [#1541](https://github.com/voyant-travel/voyant/issues/1541), [AI travel experience composition](../architecture/ai-travel-experience-composition.md), [trips implementation plan](../architecture/trips-implementation-plan.md), [ADR-0005](./0005-retire-transactions-runtime.md)
 - **Builds on:** [ADR-0001](./0001-tenant-scoping.md) (deployment = tenancy boundary), [ADR-0002](./0002-contract-packages.md) (contract/runtime package split)
 

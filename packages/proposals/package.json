@@ -1,0 +1,154 @@
+{
+  "name": "@voyant-travel/proposals",
+  "version": "0.136.1",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./linkables": "./src/linkables.ts",
+    "./schema": "./src/schema.ts",
+    "./validation": "./src/validation.ts",
+    "./routes": "./src/routes/index.ts",
+    "./booking-extension": "./src/booking-extension.ts",
+    "./proposal-routes": "./src/proposal-routes.ts",
+    "./runtime-port": "./src/runtime-port.ts",
+    "./tools": "./src/mcp-runtime.ts",
+    "./runtime-contributor": "./src/runtime-contributor.ts",
+    "./voyant": "./src/voyant.ts",
+    "./openapi/admin": "./openapi/admin/proposals.json",
+    "./openapi/admin/proposals-booking": "./openapi/admin/proposals-booking.json",
+    "./openapi/admin/proposal-version-snapshot": "./openapi/admin/proposal-version-snapshot.json",
+    "./openapi/storefront": "./openapi/storefront/proposals-public.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm run build",
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=proposals_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:",
+    "@voyant-travel/action-ledger": "workspace:^",
+    "@voyant-travel/core": "workspace:^",
+    "@voyant-travel/proposals-contracts": "workspace:^",
+    "@voyant-travel/db": "workspace:^",
+    "@voyant-travel/types": "workspace:^",
+    "@voyant-travel/hono": "workspace:^",
+    "@voyant-travel/operator-settings": "workspace:^",
+    "@voyant-travel/relationships": "workspace:^",
+    "@voyant-travel/trips": "workspace:^",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "zod": "catalog:",
+    "@voyant-travel/tools": "workspace:^"
+  },
+  "devDependencies": {
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "catalog:"
+  },
+  "files": [
+    "dist",
+    "openapi",
+    "migrations/*.sql",
+    "migrations/meta/_journal.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./linkables": {
+        "types": "./dist/linkables.d.ts",
+        "import": "./dist/linkables.js",
+        "default": "./dist/linkables.js"
+      },
+      "./schema": {
+        "types": "./dist/schema.d.ts",
+        "import": "./dist/schema.js",
+        "default": "./dist/schema.js"
+      },
+      "./validation": {
+        "types": "./dist/validation.d.ts",
+        "import": "./dist/validation.js",
+        "default": "./dist/validation.js"
+      },
+      "./routes": {
+        "types": "./dist/routes/index.d.ts",
+        "import": "./dist/routes/index.js",
+        "default": "./dist/routes/index.js"
+      },
+      "./booking-extension": {
+        "types": "./dist/booking-extension.d.ts",
+        "import": "./dist/booking-extension.js",
+        "default": "./dist/booking-extension.js"
+      },
+      "./proposal-routes": {
+        "types": "./dist/proposal-routes.d.ts",
+        "import": "./dist/proposal-routes.js",
+        "default": "./dist/proposal-routes.js"
+      },
+      "./runtime-port": {
+        "types": "./dist/runtime-port.d.ts",
+        "import": "./dist/runtime-port.js",
+        "default": "./dist/runtime-port.js"
+      },
+      "./tools": {
+        "types": "./dist/mcp-runtime.d.ts",
+        "import": "./dist/mcp-runtime.js",
+        "default": "./dist/mcp-runtime.js"
+      },
+      "./runtime-contributor": {
+        "types": "./dist/runtime-contributor.d.ts",
+        "import": "./dist/runtime-contributor.js",
+        "default": "./dist/runtime-contributor.js"
+      },
+      "./voyant": {
+        "types": "./dist/voyant.d.ts",
+        "import": "./dist/voyant.js",
+        "default": "./dist/voyant.js"
+      },
+      "./openapi/admin": "./openapi/admin/proposals.json",
+      "./openapi/admin/proposals-booking": "./openapi/admin/proposals-booking.json",
+      "./openapi/admin/proposal-version-snapshot": "./openapi/admin/proposal-version-snapshot.json",
+      "./openapi/storefront": "./openapi/storefront/proposals-public.json"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/proposals"
+  },
+  "voyant": {
+    "schemaVersion": "voyant.package.v1",
+    "kind": "module",
+    "manifest": "./voyant",
+    "runtime": {
+      "entry": "./runtime-contributor",
+      "export": "createProposalsRuntimePortContribution"
+    },
+    "compatibleWith": {
+      "framework": ">=0.26.0",
+      "targets": [
+        "node"
+      ],
+      "modes": [
+        "local",
+        "managed-cloud",
+        "self-hosted"
+      ]
+    },
+    "schema": "./schema",
+    "requiresSchemas": [
+      "@voyant-travel/db"
+    ]
+  }
+}

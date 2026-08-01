@@ -70,8 +70,8 @@ const OPTIONAL_PERSON_REFERENCES: OptionalReference[] = [
   { table: "policy_acceptances", column: "accepted_by" },
   { table: "notification_deliveries", column: "person_id" },
   { table: "notification_reminder_runs", column: "person_id" },
-  { table: "quotes", column: "person_id" },
-  { table: "quote_participants", column: "person_id" },
+  { table: "proposals", column: "person_id" },
+  { table: "proposal_participants", column: "person_id" },
 ]
 
 const OPTIONAL_ORGANIZATION_REFERENCES: OptionalReference[] = [
@@ -86,7 +86,7 @@ const OPTIONAL_ORGANIZATION_REFERENCES: OptionalReference[] = [
   { table: "policy_assignments", column: "organization_id" },
   { table: "notification_deliveries", column: "organization_id" },
   { table: "notification_reminder_runs", column: "organization_id" },
-  { table: "quotes", column: "organization_id" },
+  { table: "proposals", column: "organization_id" },
 ]
 
 const OPTIONAL_PERSON_ENTITY_TARGET_REFERENCES: OptionalEntityTargetReference[] = [
@@ -97,7 +97,7 @@ const OPTIONAL_ORGANIZATION_ENTITY_TARGET_REFERENCES: OptionalEntityTargetRefere
   { table: "notification_deliveries", entityType: "organization" },
 ]
 
-function quoteIdentifier(identifier: string) {
+function proposalIdentifier(identifier: string) {
   return `"${identifier.replaceAll('"', '""')}"`
 }
 
@@ -155,18 +155,18 @@ async function updateOptionalReference(
 
   if (hasUpdatedAt) {
     await db.execute(sql`
-      UPDATE ${sql.raw(quoteIdentifier(reference.table))}
-      SET ${sql.raw(quoteIdentifier(reference.column))} = ${keepId},
+      UPDATE ${sql.raw(proposalIdentifier(reference.table))}
+      SET ${sql.raw(proposalIdentifier(reference.column))} = ${keepId},
           updated_at = NOW()
-      WHERE ${sql.raw(quoteIdentifier(reference.column))} = ${mergeId}
+      WHERE ${sql.raw(proposalIdentifier(reference.column))} = ${mergeId}
     `)
     return
   }
 
   await db.execute(sql`
-      UPDATE ${sql.raw(quoteIdentifier(reference.table))}
-      SET ${sql.raw(quoteIdentifier(reference.column))} = ${keepId}
-      WHERE ${sql.raw(quoteIdentifier(reference.column))} = ${mergeId}
+      UPDATE ${sql.raw(proposalIdentifier(reference.table))}
+      SET ${sql.raw(proposalIdentifier(reference.column))} = ${keepId}
+      WHERE ${sql.raw(proposalIdentifier(reference.column))} = ${mergeId}
     `)
 }
 
@@ -192,7 +192,7 @@ async function updateOptionalEntityTargetReference(
   if (!hasTargetType || !hasTargetId) return
 
   await db.execute(sql`
-    UPDATE ${sql.raw(quoteIdentifier(reference.table))}
+    UPDATE ${sql.raw(proposalIdentifier(reference.table))}
     SET target_id = ${keepId}
     WHERE target_type = ${reference.entityType}
       AND target_id = ${mergeId}
@@ -220,9 +220,9 @@ async function dedupeOptionalPersonJoinTable(
   const hasPerson = await tableHasColumn(db, reference.table, reference.personColumn)
   if (!hasOwner || !hasPerson) return
 
-  const table = sql.raw(quoteIdentifier(reference.table))
-  const ownerColumn = sql.raw(quoteIdentifier(reference.ownerColumn))
-  const personColumn = sql.raw(quoteIdentifier(reference.personColumn))
+  const table = sql.raw(proposalIdentifier(reference.table))
+  const ownerColumn = sql.raw(proposalIdentifier(reference.ownerColumn))
+  const personColumn = sql.raw(proposalIdentifier(reference.personColumn))
 
   await db.execute(sql`
     DELETE FROM ${table} merge_row
@@ -326,7 +326,7 @@ async function mergeEntityLinks(
 async function dedupePersonJoinTables(db: PostgresJsDatabase, keepId: string, mergeId: string) {
   await dedupeOptionalPersonJoinTable(
     db,
-    { table: "quote_participants", ownerColumn: "quote_id", personColumn: "person_id" },
+    { table: "proposal_participants", ownerColumn: "proposal_id", personColumn: "person_id" },
     keepId,
     mergeId,
   )

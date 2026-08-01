@@ -74,14 +74,17 @@ describe("standard Operator distribution", () => {
     expect(selected.extensions).toContain("@voyant-travel/catalog/offers-extension")
   })
 
-  it("removes quote-owned Realtime invalidations with the Quotes module", () => {
+  it("removes proposal-owned Realtime invalidations with the Proposals module", () => {
     const selected = selectStandardOperatorDistribution({
-      exclude: ["@voyant-travel/quotes"],
+      exclude: ["@voyant-travel/proposals"],
     })
 
-    expect(selected.modules).not.toContain("@voyant-travel/quotes")
+    expect(selected.modules).not.toContain("@voyant-travel/proposals")
     expect(selected.extensions).not.toContain(
-      "@voyant-travel/realtime/quotes-invalidation-extension",
+      "@voyant-travel/realtime/proposals-invalidation-extension",
+    )
+    expect(STANDARD_OPERATOR_DISTRIBUTION.extensions).toContain(
+      "@voyant-travel/realtime/proposals-invalidation-extension",
     )
     expect(selected.modules).toContain("@voyant-travel/realtime")
   })

@@ -1,0 +1,5868 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "CatalogSearchFilter": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["eq"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "field", "value"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["in"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["kind", "field", "values"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["range"]
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gte": {
+                "type": "number"
+              },
+              "lte": {
+                "type": "number"
+              }
+            },
+            "required": ["kind", "field"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["and"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["or"]
+              },
+              "clauses": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogSearchFilter"
+                }
+              }
+            },
+            "required": ["kind", "clauses"]
+          }
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/v1/admin/proposals/pipelines": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["organization", "person", "proposal", "activity"]
+            },
+            "required": false,
+            "name": "entityType",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of pipelines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "entityType": {
+                            "type": "string",
+                            "enum": ["organization", "person", "proposal", "activity"]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "isDefault": {
+                            "type": "boolean"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "entityType",
+                          "name",
+                          "isDefault",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsPipelines",
+        "summary": "GET /v1/admin/proposals/pipelines",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entityType": {
+                    "type": "string",
+                    "enum": ["organization", "person", "proposal", "activity"],
+                    "default": "proposal"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "isDefault": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "default": 0
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created pipeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "entityType": {
+                          "type": "string",
+                          "enum": ["organization", "person", "proposal", "activity"]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "entityType",
+                        "name",
+                        "isDefault",
+                        "sortOrder",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsPipelines",
+        "summary": "POST /v1/admin/proposals/pipelines",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/pipelines/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A pipeline by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "entityType": {
+                          "type": "string",
+                          "enum": ["organization", "person", "proposal", "activity"]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "entityType",
+                        "name",
+                        "isDefault",
+                        "sortOrder",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsPipelinesById",
+        "summary": "GET /v1/admin/proposals/pipelines/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entityType": {
+                    "type": "string",
+                    "enum": ["organization", "person", "proposal", "activity"],
+                    "default": "proposal"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "isDefault": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "default": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated pipeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "entityType": {
+                          "type": "string",
+                          "enum": ["organization", "person", "proposal", "activity"]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "isDefault": {
+                          "type": "boolean"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "entityType",
+                        "name",
+                        "isDefault",
+                        "sortOrder",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsPipelinesById",
+        "summary": "PATCH /v1/admin/proposals/pipelines/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pipeline deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Pipeline not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Pipeline has dependent records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsPipelinesById",
+        "summary": "DELETE /v1/admin/proposals/pipelines/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/stages": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "pipelineId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of stages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "pipelineId": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "probability": {
+                            "type": ["integer", "null"]
+                          },
+                          "isClosed": {
+                            "type": "boolean"
+                          },
+                          "isWon": {
+                            "type": "boolean"
+                          },
+                          "isLost": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "pipelineId",
+                          "name",
+                          "sortOrder",
+                          "probability",
+                          "isClosed",
+                          "isWon",
+                          "isLost",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsStages",
+        "summary": "GET /v1/admin/proposals/stages",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pipelineId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "probability": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "isClosed": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isWon": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isLost": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": ["pipelineId", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created stage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "probability": {
+                          "type": ["integer", "null"]
+                        },
+                        "isClosed": {
+                          "type": "boolean"
+                        },
+                        "isWon": {
+                          "type": "boolean"
+                        },
+                        "isLost": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "pipelineId",
+                        "name",
+                        "sortOrder",
+                        "probability",
+                        "isClosed",
+                        "isWon",
+                        "isLost",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsStages",
+        "summary": "POST /v1/admin/proposals/stages",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/stages/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A stage by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "probability": {
+                          "type": ["integer", "null"]
+                        },
+                        "isClosed": {
+                          "type": "boolean"
+                        },
+                        "isWon": {
+                          "type": "boolean"
+                        },
+                        "isLost": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "pipelineId",
+                        "name",
+                        "sortOrder",
+                        "probability",
+                        "isClosed",
+                        "isWon",
+                        "isLost",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsStagesById",
+        "summary": "GET /v1/admin/proposals/stages/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pipelineId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "probability": {
+                    "type": ["integer", "null"],
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "isClosed": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isWon": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "isLost": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated stage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "probability": {
+                          "type": ["integer", "null"]
+                        },
+                        "isClosed": {
+                          "type": "boolean"
+                        },
+                        "isWon": {
+                          "type": "boolean"
+                        },
+                        "isLost": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "pipelineId",
+                        "name",
+                        "sortOrder",
+                        "probability",
+                        "isClosed",
+                        "isWon",
+                        "isLost",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsStagesById",
+        "summary": "PATCH /v1/admin/proposals/stages/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stage deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsStagesById",
+        "summary": "DELETE /v1/admin/proposals/stages/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "personId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "organizationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "pipelineId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "stageId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "ownerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["open", "won", "lost", "archived"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of proposals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "personId": {
+                            "type": ["string", "null"]
+                          },
+                          "organizationId": {
+                            "type": ["string", "null"]
+                          },
+                          "pipelineId": {
+                            "type": "string"
+                          },
+                          "stageId": {
+                            "type": "string"
+                          },
+                          "ownerId": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["open", "won", "lost", "archived"]
+                          },
+                          "acceptedVersionId": {
+                            "type": ["string", "null"]
+                          },
+                          "valueAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "valueCurrency": {
+                            "type": ["string", "null"]
+                          },
+                          "paxCount": {
+                            "type": ["integer", "null"]
+                          },
+                          "expectedCloseDate": {
+                            "type": ["string", "null"]
+                          },
+                          "source": {
+                            "type": ["string", "null"]
+                          },
+                          "sourceRef": {
+                            "type": ["string", "null"]
+                          },
+                          "lostReason": {
+                            "type": ["string", "null"]
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "customFields": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "createdBy": {
+                            "type": ["string", "null"]
+                          },
+                          "updatedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "stageChangedAt": {
+                            "type": "string"
+                          },
+                          "closedAt": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "personId",
+                          "organizationId",
+                          "pipelineId",
+                          "stageId",
+                          "ownerId",
+                          "status",
+                          "acceptedVersionId",
+                          "valueAmountCents",
+                          "valueCurrency",
+                          "paxCount",
+                          "expectedCloseDate",
+                          "source",
+                          "sourceRef",
+                          "lostReason",
+                          "tags",
+                          "customFields",
+                          "description",
+                          "createdBy",
+                          "updatedBy",
+                          "createdAt",
+                          "updatedAt",
+                          "stageChangedAt",
+                          "closedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposals",
+        "summary": "GET /v1/admin/proposals/proposals",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "personId": {
+                    "type": ["string", "null"]
+                  },
+                  "organizationId": {
+                    "type": ["string", "null"]
+                  },
+                  "pipelineId": {
+                    "type": "string"
+                  },
+                  "stageId": {
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "type": ["string", "null"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "won", "lost", "archived"],
+                    "default": "open"
+                  },
+                  "acceptedVersionId": {
+                    "type": ["string", "null"]
+                  },
+                  "valueAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "valueCurrency": {
+                    "type": ["string", "null"]
+                  },
+                  "paxCount": {
+                    "type": ["integer", "null"],
+                    "minimum": 0
+                  },
+                  "description": {
+                    "type": ["string", "null"]
+                  },
+                  "expectedCloseDate": {
+                    "type": ["string", "null"],
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": ["string", "null"]
+                  },
+                  "sourceRef": {
+                    "type": ["string", "null"]
+                  },
+                  "lostReason": {
+                    "type": ["string", "null"]
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                },
+                "required": ["title", "pipelineId", "stageId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": ["string", "null"]
+                        },
+                        "organizationId": {
+                          "type": ["string", "null"]
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "stageId": {
+                          "type": "string"
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["open", "won", "lost", "archived"]
+                        },
+                        "acceptedVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "valueAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "valueCurrency": {
+                          "type": ["string", "null"]
+                        },
+                        "paxCount": {
+                          "type": ["integer", "null"]
+                        },
+                        "expectedCloseDate": {
+                          "type": ["string", "null"]
+                        },
+                        "source": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceRef": {
+                          "type": ["string", "null"]
+                        },
+                        "lostReason": {
+                          "type": ["string", "null"]
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "stageChangedAt": {
+                          "type": "string"
+                        },
+                        "closedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "personId",
+                        "organizationId",
+                        "pipelineId",
+                        "stageId",
+                        "ownerId",
+                        "status",
+                        "acceptedVersionId",
+                        "valueAmountCents",
+                        "valueCurrency",
+                        "paxCount",
+                        "expectedCloseDate",
+                        "source",
+                        "sourceRef",
+                        "lostReason",
+                        "tags",
+                        "customFields",
+                        "description",
+                        "createdBy",
+                        "updatedBy",
+                        "createdAt",
+                        "updatedAt",
+                        "stageChangedAt",
+                        "closedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposals",
+        "summary": "POST /v1/admin/proposals/proposals",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A proposal by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": ["string", "null"]
+                        },
+                        "organizationId": {
+                          "type": ["string", "null"]
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "stageId": {
+                          "type": "string"
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["open", "won", "lost", "archived"]
+                        },
+                        "acceptedVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "valueAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "valueCurrency": {
+                          "type": ["string", "null"]
+                        },
+                        "paxCount": {
+                          "type": ["integer", "null"]
+                        },
+                        "expectedCloseDate": {
+                          "type": ["string", "null"]
+                        },
+                        "source": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceRef": {
+                          "type": ["string", "null"]
+                        },
+                        "lostReason": {
+                          "type": ["string", "null"]
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "stageChangedAt": {
+                          "type": "string"
+                        },
+                        "closedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "personId",
+                        "organizationId",
+                        "pipelineId",
+                        "stageId",
+                        "ownerId",
+                        "status",
+                        "acceptedVersionId",
+                        "valueAmountCents",
+                        "valueCurrency",
+                        "paxCount",
+                        "expectedCloseDate",
+                        "source",
+                        "sourceRef",
+                        "lostReason",
+                        "tags",
+                        "customFields",
+                        "description",
+                        "createdBy",
+                        "updatedBy",
+                        "createdAt",
+                        "updatedAt",
+                        "stageChangedAt",
+                        "closedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalsById",
+        "summary": "GET /v1/admin/proposals/proposals/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "personId": {
+                    "type": ["string", "null"]
+                  },
+                  "organizationId": {
+                    "type": ["string", "null"]
+                  },
+                  "pipelineId": {
+                    "type": "string"
+                  },
+                  "stageId": {
+                    "type": "string"
+                  },
+                  "ownerId": {
+                    "type": ["string", "null"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["open", "won", "lost", "archived"],
+                    "default": "open"
+                  },
+                  "acceptedVersionId": {
+                    "type": ["string", "null"]
+                  },
+                  "valueAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "valueCurrency": {
+                    "type": ["string", "null"]
+                  },
+                  "paxCount": {
+                    "type": ["integer", "null"],
+                    "minimum": 0
+                  },
+                  "description": {
+                    "type": ["string", "null"]
+                  },
+                  "expectedCloseDate": {
+                    "type": ["string", "null"],
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": ["string", "null"]
+                  },
+                  "sourceRef": {
+                    "type": ["string", "null"]
+                  },
+                  "lostReason": {
+                    "type": ["string", "null"]
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": ["string", "null"]
+                        },
+                        "organizationId": {
+                          "type": ["string", "null"]
+                        },
+                        "pipelineId": {
+                          "type": "string"
+                        },
+                        "stageId": {
+                          "type": "string"
+                        },
+                        "ownerId": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["open", "won", "lost", "archived"]
+                        },
+                        "acceptedVersionId": {
+                          "type": ["string", "null"]
+                        },
+                        "valueAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "valueCurrency": {
+                          "type": ["string", "null"]
+                        },
+                        "paxCount": {
+                          "type": ["integer", "null"]
+                        },
+                        "expectedCloseDate": {
+                          "type": ["string", "null"]
+                        },
+                        "source": {
+                          "type": ["string", "null"]
+                        },
+                        "sourceRef": {
+                          "type": ["string", "null"]
+                        },
+                        "lostReason": {
+                          "type": ["string", "null"]
+                        },
+                        "tags": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "createdBy": {
+                          "type": ["string", "null"]
+                        },
+                        "updatedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "stageChangedAt": {
+                          "type": "string"
+                        },
+                        "closedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "personId",
+                        "organizationId",
+                        "pipelineId",
+                        "stageId",
+                        "ownerId",
+                        "status",
+                        "acceptedVersionId",
+                        "valueAmountCents",
+                        "valueCurrency",
+                        "paxCount",
+                        "expectedCloseDate",
+                        "source",
+                        "sourceRef",
+                        "lostReason",
+                        "tags",
+                        "customFields",
+                        "description",
+                        "createdBy",
+                        "updatedBy",
+                        "createdAt",
+                        "updatedAt",
+                        "stageChangedAt",
+                        "closedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsProposalsById",
+        "summary": "PATCH /v1/admin/proposals/proposals/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalsById",
+        "summary": "DELETE /v1/admin/proposals/proposals/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}/participants": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Participants for a proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalId": {
+                            "type": "string"
+                          },
+                          "personId": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": ["traveler", "booker", "decision_maker", "finance", "other"]
+                          },
+                          "isPrimary": {
+                            "type": "boolean"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalId",
+                          "personId",
+                          "role",
+                          "isPrimary",
+                          "createdAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalsByIdParticipants",
+        "summary": "GET /v1/admin/proposals/proposals/{id}/participants",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "personId": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["traveler", "booker", "decision_maker", "finance", "other"],
+                    "default": "other"
+                  },
+                  "isPrimary": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": ["personId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "personId": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": ["traveler", "booker", "decision_maker", "finance", "other"]
+                        },
+                        "isPrimary": {
+                          "type": "boolean"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "proposalId", "personId", "role", "isPrimary", "createdAt"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalsByIdParticipants",
+        "summary": "POST /v1/admin/proposals/proposals/{id}/participants",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-participants/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal participant deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal participant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalParticipantsById",
+        "summary": "DELETE /v1/admin/proposals/proposal-participants/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}/products": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products for a proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalId": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": ["string", "null"]
+                          },
+                          "supplierServiceId": {
+                            "type": ["string", "null"]
+                          },
+                          "nameSnapshot": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          },
+                          "unitPriceAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "costAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "currency": {
+                            "type": ["string", "null"]
+                          },
+                          "discountAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalId",
+                          "productId",
+                          "supplierServiceId",
+                          "nameSnapshot",
+                          "description",
+                          "quantity",
+                          "unitPriceAmountCents",
+                          "costAmountCents",
+                          "currency",
+                          "discountAmountCents",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalsByIdProducts",
+        "summary": "GET /v1/admin/proposals/proposals/{id}/products",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": ["string", "null"]
+                  },
+                  "supplierServiceId": {
+                    "type": ["string", "null"]
+                  },
+                  "nameSnapshot": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": ["string", "null"]
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  },
+                  "unitPriceAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "costAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "currency": {
+                    "type": ["string", "null"]
+                  },
+                  "discountAmountCents": {
+                    "type": ["integer", "null"]
+                  }
+                },
+                "required": ["nameSnapshot"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": ["string", "null"]
+                        },
+                        "supplierServiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "nameSnapshot": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "unitPriceAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "costAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "currency": {
+                          "type": ["string", "null"]
+                        },
+                        "discountAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "productId",
+                        "supplierServiceId",
+                        "nameSnapshot",
+                        "description",
+                        "quantity",
+                        "unitPriceAmountCents",
+                        "costAmountCents",
+                        "currency",
+                        "discountAmountCents",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalsByIdProducts",
+        "summary": "POST /v1/admin/proposals/proposals/{id}/products",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-products/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": ["string", "null"]
+                  },
+                  "supplierServiceId": {
+                    "type": ["string", "null"]
+                  },
+                  "nameSnapshot": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": ["string", "null"]
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  },
+                  "unitPriceAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "costAmountCents": {
+                    "type": ["integer", "null"]
+                  },
+                  "currency": {
+                    "type": ["string", "null"]
+                  },
+                  "discountAmountCents": {
+                    "type": ["integer", "null"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated proposal product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": ["string", "null"]
+                        },
+                        "supplierServiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "nameSnapshot": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": ["string", "null"]
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "unitPriceAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "costAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "currency": {
+                          "type": ["string", "null"]
+                        },
+                        "discountAmountCents": {
+                          "type": ["integer", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "productId",
+                        "supplierServiceId",
+                        "nameSnapshot",
+                        "description",
+                        "quantity",
+                        "unitPriceAmountCents",
+                        "costAmountCents",
+                        "currency",
+                        "discountAmountCents",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsProposalProductsById",
+        "summary": "PATCH /v1/admin/proposals/proposal-products/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal product deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalProductsById",
+        "summary": "DELETE /v1/admin/proposals/proposal-products/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}/media": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media for a proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalId": {
+                            "type": "string"
+                          },
+                          "mediaType": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "storageKey": {
+                            "type": ["string", "null"]
+                          },
+                          "mimeType": {
+                            "type": ["string", "null"]
+                          },
+                          "fileSize": {
+                            "type": ["integer", "null"]
+                          },
+                          "altText": {
+                            "type": ["string", "null"]
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalId",
+                          "mediaType",
+                          "name",
+                          "url",
+                          "storageKey",
+                          "mimeType",
+                          "fileSize",
+                          "altText",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalsByIdMedia",
+        "summary": "GET /v1/admin/proposals/proposals/{id}/media",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaType": {
+                    "type": "string",
+                    "enum": ["image", "video", "document"],
+                    "default": "image"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "url": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "storageKey": {
+                    "type": ["string", "null"]
+                  },
+                  "mimeType": {
+                    "type": ["string", "null"]
+                  },
+                  "fileSize": {
+                    "type": ["integer", "null"]
+                  },
+                  "altText": {
+                    "type": ["string", "null"]
+                  },
+                  "sortOrder": {
+                    "type": "integer"
+                  }
+                },
+                "required": ["name", "url"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "mediaType": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "storageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "mimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "fileSize": {
+                          "type": ["integer", "null"]
+                        },
+                        "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "sortOrder": {
+                          "type": "integer"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "mediaType",
+                        "name",
+                        "url",
+                        "storageKey",
+                        "mimeType",
+                        "fileSize",
+                        "altText",
+                        "sortOrder",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalsByIdMedia",
+        "summary": "POST /v1/admin/proposals/proposals/{id}/media",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-media/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal media deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal media not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalMediaById",
+        "summary": "DELETE /v1/admin/proposals/proposal-media/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": ["integer", "null"],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "proposalId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of proposal versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalId": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "sent",
+                              "accepted",
+                              "declined",
+                              "superseded",
+                              "expired"
+                            ]
+                          },
+                          "supersedesId": {
+                            "type": ["string", "null"]
+                          },
+                          "tripSnapshotId": {
+                            "type": ["string", "null"]
+                          },
+                          "validUntil": {
+                            "type": ["string", "null"]
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "subtotalAmountCents": {
+                            "type": "integer"
+                          },
+                          "taxAmountCents": {
+                            "type": "integer"
+                          },
+                          "totalAmountCents": {
+                            "type": "integer"
+                          },
+                          "notes": {
+                            "type": ["string", "null"]
+                          },
+                          "sentAt": {
+                            "type": ["string", "null"]
+                          },
+                          "viewedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "decidedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "archivedAt": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalId",
+                          "label",
+                          "status",
+                          "supersedesId",
+                          "tripSnapshotId",
+                          "validUntil",
+                          "currency",
+                          "subtotalAmountCents",
+                          "taxAmountCents",
+                          "totalAmountCents",
+                          "notes",
+                          "sentAt",
+                          "viewedAt",
+                          "decidedAt",
+                          "createdAt",
+                          "updatedAt",
+                          "archivedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["data", "total", "limit", "offset"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalVersions",
+        "summary": "GET /v1/admin/proposals/proposal-versions",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}/versions": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": ["string", "null"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"],
+                    "default": "draft"
+                  },
+                  "supersedesId": {
+                    "type": ["string", "null"]
+                  },
+                  "tripSnapshotId": {
+                    "type": ["string", "null"]
+                  },
+                  "validUntil": {
+                    "type": ["string", "null"],
+                    "format": "date"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "subtotalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "taxAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "totalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "notes": {
+                    "type": ["string", "null"]
+                  },
+                  "sentAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  },
+                  "viewedAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  },
+                  "decidedAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  }
+                },
+                "required": ["currency"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalsByIdVersions",
+        "summary": "POST /v1/admin/proposals/proposals/{id}/versions",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/validity": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "validUntil": {
+                    "type": ["string", "null"],
+                    "format": "date"
+                  }
+                },
+                "required": ["validUntil"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The proposal version with updated validity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsProposalVersionsByIdValidity",
+        "summary": "PATCH /v1/admin/proposals/proposal-versions/{id}/validity",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposals/{id}/versions/snapshot": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "The created proposal version snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalsByIdVersionsSnapshot",
+        "summary": "POST /v1/admin/proposals/proposals/{id}/versions/snapshot",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/expire": {
+      "post": {
+        "description": "Expire every sent proposal version past its validity date. Accepts an optional `now` JSON body; an empty or absent body is accepted. The body is parsed in the handler (not as a declared OpenAPI request body) because Hono's JSON validator would reject a zero-length `application/json` request before the handler runs.",
+        "responses": {
+          "200": {
+            "description": "The expired proposal versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalId": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": ["string", "null"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "draft",
+                              "sent",
+                              "accepted",
+                              "declined",
+                              "superseded",
+                              "expired"
+                            ]
+                          },
+                          "supersedesId": {
+                            "type": ["string", "null"]
+                          },
+                          "tripSnapshotId": {
+                            "type": ["string", "null"]
+                          },
+                          "validUntil": {
+                            "type": ["string", "null"]
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "subtotalAmountCents": {
+                            "type": "integer"
+                          },
+                          "taxAmountCents": {
+                            "type": "integer"
+                          },
+                          "totalAmountCents": {
+                            "type": "integer"
+                          },
+                          "notes": {
+                            "type": ["string", "null"]
+                          },
+                          "sentAt": {
+                            "type": ["string", "null"]
+                          },
+                          "viewedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "decidedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "archivedAt": {
+                            "type": ["string", "null"]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalId",
+                          "label",
+                          "status",
+                          "supersedesId",
+                          "tripSnapshotId",
+                          "validUntil",
+                          "currency",
+                          "subtotalAmountCents",
+                          "taxAmountCents",
+                          "totalAmountCents",
+                          "notes",
+                          "sentAt",
+                          "viewedAt",
+                          "decidedAt",
+                          "createdAt",
+                          "updatedAt",
+                          "archivedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsExpire",
+        "summary": "POST /v1/admin/proposals/proposal-versions/expire",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A proposal version by id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalVersionsById",
+        "summary": "GET /v1/admin/proposals/proposal-versions/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "proposalId": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": ["string", "null"]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                  },
+                  "supersedesId": {
+                    "type": ["string", "null"]
+                  },
+                  "tripSnapshotId": {
+                    "type": ["string", "null"]
+                  },
+                  "validUntil": {
+                    "type": ["string", "null"],
+                    "format": "date"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "subtotalAmountCents": {
+                    "type": "integer"
+                  },
+                  "taxAmountCents": {
+                    "type": "integer"
+                  },
+                  "totalAmountCents": {
+                    "type": "integer"
+                  },
+                  "notes": {
+                    "type": ["string", "null"]
+                  },
+                  "sentAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  },
+                  "viewedAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  },
+                  "decidedAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated proposal version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsProposalVersionsById",
+        "summary": "PATCH /v1/admin/proposals/proposal-versions/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal version deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalVersionsById",
+        "summary": "DELETE /v1/admin/proposals/proposal-versions/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/trip-snapshot": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tripSnapshotId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "subtotalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "taxAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "totalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": ["string", "null"]
+                        },
+                        "supplierServiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "description": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "default": 1
+                        },
+                        "unitPriceAmountCents": {
+                          "type": "integer",
+                          "default": 0
+                        },
+                        "totalAmountCents": {
+                          "type": "integer",
+                          "default": 0
+                        },
+                        "currency": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "componentId": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": ["description", "currency"]
+                    },
+                    "default": []
+                  }
+                },
+                "required": ["tripSnapshotId", "currency"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The proposal version with the applied trip snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "proposalVersion": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "proposalId": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": ["string", "null"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "sent",
+                                "accepted",
+                                "declined",
+                                "superseded",
+                                "expired"
+                              ]
+                            },
+                            "supersedesId": {
+                              "type": ["string", "null"]
+                            },
+                            "tripSnapshotId": {
+                              "type": ["string", "null"]
+                            },
+                            "validUntil": {
+                              "type": ["string", "null"]
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "subtotalAmountCents": {
+                              "type": "integer"
+                            },
+                            "taxAmountCents": {
+                              "type": "integer"
+                            },
+                            "totalAmountCents": {
+                              "type": "integer"
+                            },
+                            "notes": {
+                              "type": ["string", "null"]
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "viewedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "decidedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            },
+                            "archivedAt": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "proposalId",
+                            "label",
+                            "status",
+                            "supersedesId",
+                            "tripSnapshotId",
+                            "validUntil",
+                            "currency",
+                            "subtotalAmountCents",
+                            "taxAmountCents",
+                            "totalAmountCents",
+                            "notes",
+                            "sentAt",
+                            "viewedAt",
+                            "decidedAt",
+                            "createdAt",
+                            "updatedAt",
+                            "archivedAt"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "proposalVersionId": {
+                                "type": "string"
+                              },
+                              "productId": {
+                                "type": ["string", "null"]
+                              },
+                              "supplierServiceId": {
+                                "type": ["string", "null"]
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer"
+                              },
+                              "unitPriceAmountCents": {
+                                "type": "integer"
+                              },
+                              "totalAmountCents": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "proposalVersionId",
+                              "productId",
+                              "supplierServiceId",
+                              "description",
+                              "quantity",
+                              "unitPriceAmountCents",
+                              "totalAmountCents",
+                              "currency",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["proposalVersion", "lines"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdTripSnapshot",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/trip-snapshot",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/send": {
+      "post": {
+        "description": "Send a proposal version for client review. Accepts an optional `validUntil` JSON body; an empty or absent body is accepted. The body is parsed in the handler (not as a declared OpenAPI request body) because Hono's JSON validator would reject a zero-length `application/json` request before the handler runs.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sent proposal version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdSend",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/send",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/view": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The proposal version marked as viewed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdView",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/view",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/accept": {
+      "post": {
+        "description": "Accept a sent proposal version. Accepts an optional JSON body; an empty or absent body is accepted. The body is parsed in the handler (not as a declared OpenAPI request body) because Hono's JSON validator would reject a zero-length `application/json` request before the handler runs.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The accepted proposal version and its proposal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "proposal": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "personId": {
+                              "type": ["string", "null"]
+                            },
+                            "organizationId": {
+                              "type": ["string", "null"]
+                            },
+                            "pipelineId": {
+                              "type": "string"
+                            },
+                            "stageId": {
+                              "type": "string"
+                            },
+                            "ownerId": {
+                              "type": ["string", "null"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": ["open", "won", "lost", "archived"]
+                            },
+                            "acceptedVersionId": {
+                              "type": ["string", "null"]
+                            },
+                            "valueAmountCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "valueCurrency": {
+                              "type": ["string", "null"]
+                            },
+                            "paxCount": {
+                              "type": ["integer", "null"]
+                            },
+                            "expectedCloseDate": {
+                              "type": ["string", "null"]
+                            },
+                            "source": {
+                              "type": ["string", "null"]
+                            },
+                            "sourceRef": {
+                              "type": ["string", "null"]
+                            },
+                            "lostReason": {
+                              "type": ["string", "null"]
+                            },
+                            "tags": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "customFields": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "description": {
+                              "type": ["string", "null"]
+                            },
+                            "createdBy": {
+                              "type": ["string", "null"]
+                            },
+                            "updatedBy": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            },
+                            "stageChangedAt": {
+                              "type": "string"
+                            },
+                            "closedAt": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "title",
+                            "personId",
+                            "organizationId",
+                            "pipelineId",
+                            "stageId",
+                            "ownerId",
+                            "status",
+                            "acceptedVersionId",
+                            "valueAmountCents",
+                            "valueCurrency",
+                            "paxCount",
+                            "expectedCloseDate",
+                            "source",
+                            "sourceRef",
+                            "lostReason",
+                            "tags",
+                            "customFields",
+                            "description",
+                            "createdBy",
+                            "updatedBy",
+                            "createdAt",
+                            "updatedAt",
+                            "stageChangedAt",
+                            "closedAt"
+                          ]
+                        },
+                        "proposalVersion": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "proposalId": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": ["string", "null"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "draft",
+                                "sent",
+                                "accepted",
+                                "declined",
+                                "superseded",
+                                "expired"
+                              ]
+                            },
+                            "supersedesId": {
+                              "type": ["string", "null"]
+                            },
+                            "tripSnapshotId": {
+                              "type": ["string", "null"]
+                            },
+                            "validUntil": {
+                              "type": ["string", "null"]
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "subtotalAmountCents": {
+                              "type": "integer"
+                            },
+                            "taxAmountCents": {
+                              "type": "integer"
+                            },
+                            "totalAmountCents": {
+                              "type": "integer"
+                            },
+                            "notes": {
+                              "type": ["string", "null"]
+                            },
+                            "sentAt": {
+                              "type": ["string", "null"]
+                            },
+                            "viewedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "decidedAt": {
+                              "type": ["string", "null"]
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            },
+                            "archivedAt": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "proposalId",
+                            "label",
+                            "status",
+                            "supersedesId",
+                            "tripSnapshotId",
+                            "validUntil",
+                            "currency",
+                            "subtotalAmountCents",
+                            "taxAmountCents",
+                            "totalAmountCents",
+                            "notes",
+                            "sentAt",
+                            "viewedAt",
+                            "decidedAt",
+                            "createdAt",
+                            "updatedAt",
+                            "archivedAt"
+                          ]
+                        },
+                        "closedProposalVersions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "proposalId": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": ["string", "null"]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "draft",
+                                  "sent",
+                                  "accepted",
+                                  "declined",
+                                  "superseded",
+                                  "expired"
+                                ]
+                              },
+                              "supersedesId": {
+                                "type": ["string", "null"]
+                              },
+                              "tripSnapshotId": {
+                                "type": ["string", "null"]
+                              },
+                              "validUntil": {
+                                "type": ["string", "null"]
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "subtotalAmountCents": {
+                                "type": "integer"
+                              },
+                              "taxAmountCents": {
+                                "type": "integer"
+                              },
+                              "totalAmountCents": {
+                                "type": "integer"
+                              },
+                              "notes": {
+                                "type": ["string", "null"]
+                              },
+                              "sentAt": {
+                                "type": ["string", "null"]
+                              },
+                              "viewedAt": {
+                                "type": ["string", "null"]
+                              },
+                              "decidedAt": {
+                                "type": ["string", "null"]
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "archivedAt": {
+                                "type": ["string", "null"]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "proposalId",
+                              "label",
+                              "status",
+                              "supersedesId",
+                              "tripSnapshotId",
+                              "validUntil",
+                              "currency",
+                              "subtotalAmountCents",
+                              "taxAmountCents",
+                              "totalAmountCents",
+                              "notes",
+                              "sentAt",
+                              "viewedAt",
+                              "decidedAt",
+                              "createdAt",
+                              "updatedAt",
+                              "archivedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": ["proposal", "proposalVersion", "closedProposalVersions"]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdAccept",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/accept",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/decline": {
+      "post": {
+        "description": "Decline a sent proposal version. Accepts an optional JSON body; an empty or absent body is accepted. The body is parsed in the handler (not as a declared OpenAPI request body) because Hono's JSON validator would reject a zero-length `application/json` request before the handler runs.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The declined proposal version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalId": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": ["string", "null"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["draft", "sent", "accepted", "declined", "superseded", "expired"]
+                        },
+                        "supersedesId": {
+                          "type": ["string", "null"]
+                        },
+                        "tripSnapshotId": {
+                          "type": ["string", "null"]
+                        },
+                        "validUntil": {
+                          "type": ["string", "null"]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "subtotalAmountCents": {
+                          "type": "integer"
+                        },
+                        "taxAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "notes": {
+                          "type": ["string", "null"]
+                        },
+                        "sentAt": {
+                          "type": ["string", "null"]
+                        },
+                        "viewedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "decidedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "archivedAt": {
+                          "type": ["string", "null"]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalId",
+                        "label",
+                        "status",
+                        "supersedesId",
+                        "tripSnapshotId",
+                        "validUntil",
+                        "currency",
+                        "subtotalAmountCents",
+                        "taxAmountCents",
+                        "totalAmountCents",
+                        "notes",
+                        "sentAt",
+                        "viewedAt",
+                        "decidedAt",
+                        "createdAt",
+                        "updatedAt",
+                        "archivedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdDecline",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/decline",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-versions/{id}/lines": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lines for a proposal version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "proposalVersionId": {
+                            "type": "string"
+                          },
+                          "productId": {
+                            "type": ["string", "null"]
+                          },
+                          "supplierServiceId": {
+                            "type": ["string", "null"]
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          },
+                          "unitPriceAmountCents": {
+                            "type": "integer"
+                          },
+                          "totalAmountCents": {
+                            "type": "integer"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "proposalVersionId",
+                          "productId",
+                          "supplierServiceId",
+                          "description",
+                          "quantity",
+                          "unitPriceAmountCents",
+                          "totalAmountCents",
+                          "currency",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminProposalsProposalVersionsByIdLines",
+        "summary": "GET /v1/admin/proposals/proposal-versions/{id}/lines",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": ["string", "null"]
+                  },
+                  "supplierServiceId": {
+                    "type": ["string", "null"]
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  },
+                  "unitPriceAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "totalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["description", "currency"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created proposal version line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalVersionId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": ["string", "null"]
+                        },
+                        "supplierServiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "unitPriceAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalVersionId",
+                        "productId",
+                        "supplierServiceId",
+                        "description",
+                        "quantity",
+                        "unitPriceAmountCents",
+                        "totalAmountCents",
+                        "currency",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminProposalsProposalVersionsByIdLines",
+        "summary": "POST /v1/admin/proposals/proposal-versions/{id}/lines",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/proposals/proposal-version-lines/{id}": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": ["string", "null"]
+                  },
+                  "supplierServiceId": {
+                    "type": ["string", "null"]
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1
+                  },
+                  "unitPriceAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "totalAmountCents": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "currency": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated proposal version line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "proposalVersionId": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": ["string", "null"]
+                        },
+                        "supplierServiceId": {
+                          "type": ["string", "null"]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        },
+                        "unitPriceAmountCents": {
+                          "type": "integer"
+                        },
+                        "totalAmountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "proposalVersionId",
+                        "productId",
+                        "supplierServiceId",
+                        "description",
+                        "quantity",
+                        "unitPriceAmountCents",
+                        "totalAmountCents",
+                        "currency",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version line not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProposalsProposalVersionLinesById",
+        "summary": "PATCH /v1/admin/proposals/proposal-version-lines/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal version line deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    }
+                  },
+                  "required": ["success"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Proposal version line not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Proposal version conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminProposalsProposalVersionLinesById",
+        "summary": "DELETE /v1/admin/proposals/proposal-version-lines/{id}",
+        "tags": ["proposals"],
+        "x-voyant-module": "proposals",
+        "x-voyant-surface": "admin"
+      }
+    }
+  },
+  "webhooks": {}
+}

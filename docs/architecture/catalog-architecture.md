@@ -51,21 +51,41 @@ Today, Voyant forces a choice: import everything as if you owned it, or build so
 
 The missing concept is not another supplier field on `products`, and not a forced unification of every vertical into one polymorphic root. It is a **catalog plane** — a contract and a shared infrastructure layer — that lets vertical modules (operated or sourced) project into one normalized discovery surface, while keeping each vertical's operational complexity in its own module.
 
-### 1.1. Relationship to the existing commercial ladder
+### 1.1. Relationship to pricing Quotes, Proposals, and Booking
 
-Voyant already has a well-established commercial vocabulary documented in [`UBIQUITOUS_LANGUAGE.md`](../../UBIQUITOUS_LANGUAGE.md): the **Quote → Offer → Order → Booking → Fulfillment** ladder. Each step hardens the commitment from informational proposal to confirmed sale to delivered service. **Offer** in this vocabulary is a priced, dated, sellability-resolved proposal — sendable, acceptable, convertible to an Order.
+Voyant's active vocabulary is documented in
+[`UBIQUITOUS_LANGUAGE.md`](../../UBIQUITOUS_LANGUAGE.md). The catalog plane sits
+upstream of commitment:
 
-The catalog plane does **not** replace, rename, or compete with that ladder. It sits **upstream** of it:
+- The catalog plane answers *what is sellable, in what shape, projected from
+  where, with which editorial overlays applied*. It is the discovery / browse /
+  merchandising / search-index surface.
+- Direct catalog booking uses **Product → Booking Session → Pricing Quote +
+  optional Hold → Commit → Booking → Fulfillment**. A pricing Quote is an
+  immutable, expiring price and terms answer for an exact Booking Session
+  revision. A Hold, where supported, is a temporary inventory claim. Commit
+  creates the durable Booking.
+- Bespoke staff sales use **Proposal → accepted Proposal Version → Booking
+  Session → Pricing Quote + optional Hold → Commit → Booking / Component
+  Booking → Fulfillment**. A Proposal Version freezes the
+  bespoke Trip Envelope revision; it is distinct from a pricing Quote.
 
-- The catalog plane answers *what is sellable, in what shape, projected from where, with which editorial overlays applied*. It is the discovery / browse / merchandising / search-index surface.
-- The commercial ladder answers *how a specific sale is committed*. It is the transaction surface.
+The layers connect at two clean points:
 
-The two layers connect at two clean seams:
+1. **Pricing Quote creation reads the catalog plane.** When a customer or staff
+   member prices a Catalog Item through `POST /v1/{admin,public}/catalog/quote`,
+   the resolver returns the overlay-resolved view and live volatile fields
+   (price, availability, terms) flow through the source adapter.
+2. **Booking commit captures the catalog snapshot graph.** When a Booking
+   commits (per §5.3), it captures `booking_catalog_snapshot` rows alongside the
+   Booking / Booking Item structures. The snapshot freezes what was projected and
+   overlay-resolved at the moment of commitment; the Booking Items hold the
+   per-line transactional state.
 
-1. **Quote / Offer creation reads the catalog plane.** When a customer (or staff member) initiates a Quote or Offer for a CatalogEntry, the resolver returns the resolved view (with overlays applied) and the live volatile-live fields (price, availability) flow through the source adapter. The Offer is then a vertical-specific record — `StayOffer`, `CruiseOffer`, `ProductOffer` if needed, `PackageOffer` if/when the composite vertical exists.
-2. **Booking commit captures the catalog snapshot graph.** When a Booking commits (per §5.3), it captures `booking_catalog_snapshot` rows alongside the existing Booking / Booking Item / Order / Order Item structures from the ladder. The snapshot freezes what was projected and overlay-resolved at the moment of commitment; the Booking Items hold the per-line transactional state. They sit side-by-side in the booking record, with neither subsuming the other.
-
-**There is no generic `Offer` in the catalog plane.** Voyant Cloud already uses vertical-specific Offer suffixes (`StayOffer`, `CruiseOffer`, with paired hold/quote forms like `CruiseQuote`); this document follows the same convention. A universal cross-domain `CatalogOffer` would collide with the ladder vocabulary and obscure that each vertical has its own pricing topology. The unifying noun in the catalog plane is **CatalogEntry** (discovery shape), not **Offer** (commercial proposal).
+**There is no generic `Offer` or first-party `Order` in the catalog plane.**
+Vertical-specific upstream/provider terms may still appear where an external
+system uses them, but the unifying catalog noun is **Catalog Item** (discovery
+and booking shape) and the pricing response is a **Quote**.
 
 ## 2. Goals and non-goals
 
@@ -1213,8 +1233,12 @@ Flight adoption carries its own open questions in
 
 ## 11. Glossary
 
-- **CatalogEntry** — a sellable inventory record in any vertical; not a concrete table or type, but a contract that vertical modules implement. The unifying noun of the catalog plane (the discovery / browse / merchandising layer). Distinct from **Offer** (transaction-ladder term, vertical-specific suffix — see below).
-- **Offer** (vertical-specific suffix only) — a priced, dated, sellability-resolved proposal in Voyant's commercial ladder (`Quote → Offer → Order → Booking → Fulfillment`, per [`UBIQUITOUS_LANGUAGE.md`](../../UBIQUITOUS_LANGUAGE.md)). Always vertical-specific in code: `AccommodationOffer` for accommodations, `CruiseOffer` for cruises, `ProductOffer` for products if needed, `PackageOffer` for composite tour-packages if/when the vertical exists. This document explicitly does **not** introduce a generic `CatalogOffer` or cross-domain `Offer` — each vertical's pricing topology is different, and unifying the noun obscures that. The catalog plane's unifying noun is `CatalogEntry`, not `Offer`.
+- **Catalog Item** — a normalized sellable discovery and booking record in any vertical. The unifying noun of the catalog plane (the discovery / browse / merchandising layer).
+- **Pricing Quote** — an immutable, expiring, server-produced price and terms
+  result for an exact Booking Session revision or equivalent provider pricing
+  request, created through `/v1/{admin,public}/catalog/quote`. It may be followed
+  by an optional Hold and then Commit/Booking. It is distinct from a bespoke
+  Proposal Version.
 - **Vertical module** — a package modeling one kind of sellable inventory. Existing verticals: `products` (tours / experiences / standalone excursions), `cruises`, `accommodations` (hotels / stays for resale), `charters` (yachts), `extras` (booking add-ons).
 - **Catalog plane** — the cross-vertical projection / overlay / snapshot / indexer surface defined by `packages/catalog`.
 - **Provenance** — the `(source_kind, source_ref, source_connection_id, source_freshness)` tuple carried by every CatalogEntry.
@@ -1245,7 +1269,11 @@ Phase 2 (RAG) and Phase 3 (Flights) carry their own glossaries in their respecti
 
 ### Voyant-wide context
 
-- [`UBIQUITOUS_LANGUAGE.md`](../../UBIQUITOUS_LANGUAGE.md) — the canonical Voyant vocabulary, including the `Quote → Offer → Order → Booking → Fulfillment` commercial ladder. The catalog plane sits upstream of this ladder and uses vertical-specific Offer suffixes (see §1.1 and the glossary).
+- [`UBIQUITOUS_LANGUAGE.md`](../../UBIQUITOUS_LANGUAGE.md) — the canonical
+  Voyant vocabulary, including reusable catalog booking (`Product → Booking
+  Session → Quote + optional Hold → Commit → Booking`) and bespoke sales
+  (`Proposal → accepted Proposal Version → Booking Session → Quote + optional
+  Hold → Commit → Booking`).
 - [`event-delivery-and-durable-execution-policy.md`](./event-delivery-and-durable-execution-policy.md) — the canonical event envelope and delivery semantics that catalog webhook events ride on (see §5.8).
 - [`cruises-module.md`](./cruises-module.md) — the cruise vertical module, which adopts this contract.
 - [`schema-discipline.md`](./schema-discipline.md) — the intra-domain FK rule and cross-domain link discipline that this architecture builds on.

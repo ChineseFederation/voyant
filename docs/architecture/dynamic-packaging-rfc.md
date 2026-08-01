@@ -3,16 +3,16 @@
 Status: partially shipped — both keystone gaps landed (P1 #2081, P2 #2082); P3–P5 are follow-ups
 Owner: TBD
 Tracking: #1600 (closed → split into #2081 + #2082)
-Related (current): [`catalog-architecture.md`](./catalog-architecture.md), [`catalog-flights-architecture.md`](./catalog-flights-architecture.md), [`catalog-booking-engine.md`](./catalog-booking-engine.md), [`catalog-supply-models.md`](./catalog-supply-models.md), [ADR-0006](../adr/0006-live-availability-search-contract.md) (availability-search contract), `@voyant-travel/trips`, `@voyant-travel/quotes`, #1541 (Quotes — **shipped**), #1470 (Composite Products — **shipped**)
+Related (current): [`catalog-architecture.md`](./catalog-architecture.md), [`catalog-flights-architecture.md`](./catalog-flights-architecture.md), [`catalog-booking-engine.md`](./catalog-booking-engine.md), [`catalog-supply-models.md`](./catalog-supply-models.md), [ADR-0006](../adr/0006-live-availability-search-contract.md) (availability-search contract), `@voyant-travel/trips`, `@voyant-travel/proposals`, #1541 (Proposals — **shipped**), #1470 (Composite Products — **shipped**)
 
 > **Why this doc was rewritten.** The original RFC (#1600, 2026-06-09) pointed at a `dynamic-packaging-rfc.md` that never landed, named the package `@voyantjs/travel-composer` (now `@voyant-travel/trips`), and phased in work that has since shipped under #1541 and #1470. This version re-bases on the current code and cuts the scope down to the two pieces that genuinely **do not exist yet**.
 
 ## 1. What already shipped (no longer in scope)
 
-The original RFC's P0 and most of its "accept → reserve → checkout" spine converged from the Quotes/Trips/Composite-Products direction:
+The original RFC's P0 and most of its "accept → reserve → checkout" spine converged from the Proposals/Trips/Composite-Products direction:
 
 - **P0 — Trip commit backend (DONE).** `@voyant-travel/trips` has Trip Envelope + Trip Components, deterministic `priceTrip` / `reserveTrip` / `startCheckout` / `completeTripCheckout`, per-component compensation, and immutable `tripSnapshots` (`packages/trips/src/service*.ts`, `schema.ts`).
-- **PackageOffer → accept → reserve → checkout (SUBSTANTIALLY DONE via #1541).** `@voyant-travel/quotes` models a Quote (deal) → versioned proposals, each freezing a `TripSnapshot`. Public acceptance is a 3-phase advisory-locked saga (prepare → reserve-outside-txn → finalize) with crash recovery and race cleanup (`packages/quotes/src/proposal-routes.ts`). **#1612** made sourced-catalog acceptance reservation-safe; **#1605** covers concurrent accepts. QuoteVersions already support **alternatives** (`label`) and **revisions** (`supersedesId`).
+- **PackageOffer → accept → reserve → checkout (SUBSTANTIALLY DONE via #1541).** `@voyant-travel/proposals` models a Proposal (deal) → versioned proposals, each freezing a `TripSnapshot`. Public acceptance is a 3-phase advisory-locked saga (prepare → reserve-outside-txn → finalize) with crash recovery and race cleanup (`packages/proposals/src/proposal-routes.ts`). **#1612** made sourced-catalog acceptance reservation-safe; **#1605** covers concurrent accepts. Proposal Versions already support **alternatives** (`label`) and **revisions** (`supersedesId`).
 - **Composite Products (DONE, #1470).** Answers the original "where does `PackageOffer` live" open question for the pre-packaged case.
 - **`releaseHold` for owned inventory (DONE).** Now an optional method on the owned booking handler with a grace-deferred reaper (`packages/catalog/src/booking-engine/owned-handler.ts:181`). The RFC's "build it, don't assume it" caveat is resolved for owned rows; **sourced adapters still only expose `cancel`**.
 
@@ -46,7 +46,7 @@ What to add:
 - Services: `addRequirement` / `selectCandidate` (resolves a requirement into a pinned component). Candidate sourcing is admitted by the durable `source_trip_requirement_candidates` Tool and settled by the fixed Trips worker; synchronous sourcing/re-shop services are intentionally absent.
 - Invariants: TTL reaper, selected-uniqueness per requirement, required-requirement reserve gate.
 
-This now plugs straight into the **already-shipped** quote-acceptance saga rather than needing its own commit backend.
+This now plugs straight into the **already-shipped** Proposal Version acceptance saga rather than needing its own commit backend.
 
 ### 2.1 Contract-first — bring your own connector (Voyant Connect is not required)
 
@@ -86,7 +86,7 @@ Two honest caveats on the "BYO-ready" claim:
 - **AvailabilityCandidate** — normalized live adapter-search result.
 - **Trip Candidate** — an `AvailabilityCandidate` attached to a Requirement; ranked, TTL'd, resumable.
 
-These are added to `UBIQUITOUS_LANGUAGE.md` + an ADR for the contract extension before they become public API. (`PackageOffer` from the original RFC is effectively realized today as the QuoteVersion/TripSnapshot proposal; we do not introduce a second primitive for it.)
+These are added to `UBIQUITOUS_LANGUAGE.md` + an ADR for the contract extension before they become public API. (`PackageOffer` from the original RFC is effectively realized today as the ProposalVersion/TripSnapshot proposal; we do not introduce a second primitive for it.)
 
 ## 4. Contract sketches (Gap 1)
 
@@ -168,8 +168,8 @@ export function mergedFlightOfferToCandidate(o: MergedFlightOffer): Availability
 ## 5. Phased plan
 
 - **P1 — `searchAvailability` primitive (Gap 1) — SHIPPED (#2081 via PR #2084).** `supportsAvailabilitySearch` + `AvailabilitySearchRequest`/`AvailabilityCandidate`/`AvailabilitySearchResult` on the source-adapter contract, vertical-agnostic `fanOutAvailabilitySearch` (per-source timeout, vertical-gating, ranked merge, per-candidate origin + per-source cursor), owned-search-handler registry, and the flights `MergedFlightOffer → AvailabilityCandidate` bridge. Follow-up: the Voyant Connect `searchAvailability` adapter lives in the `connect-sdk` repo (unblocked once `catalog-contracts` publishes).
-- **P2 — Requirement/Candidate in Trips (Gap 2) — SHIPPED (#2082 via PRs #2087, #2088).** `trip_requirements` + `trip_candidates` schema, `addRequirement` / `selectCandidate` (pins a draft component) / `expireStaleTripCandidates`, the three invariants (TTL reaper, selected-uniqueness, required-requirement reserve gate), and durable Tool-admitted candidate sourcing through a fixed Trips worker. Inline HTTP/service fan-out and re-shop mutations were removed when the durable operation replaced them. Resolves into the existing quote-acceptance saga.
-- **P3 — package-level markup/pricing.** The only net-new pricing piece; the accept/reserve/checkout/freeze spine already exists in Quotes. Follow-up.
+- **P2 — Requirement/Candidate in Trips (Gap 2) — SHIPPED (#2082 via PRs #2087, #2088).** `trip_requirements` + `trip_candidates` schema, `addRequirement` / `selectCandidate` (pins a draft component) / `expireStaleTripCandidates`, the three invariants (TTL reaper, selected-uniqueness, required-requirement reserve gate), and durable Tool-admitted candidate sourcing through a fixed Trips worker. Inline HTTP/service fan-out and re-shop mutations were removed when the durable operation replaced them. Resolves into the existing Proposal Version acceptance saga.
+- **P3 — package-level markup/pricing.** The only net-new pricing piece; the accept/reserve/checkout/freeze spine already exists in Proposals. Follow-up.
 - **P4 — intent-driven auto-assembly + AI.** Max AI tools as callers shipped in `voyant-cloud` (`agent-core` `trips.ts`, platform PR #637) — they drive the P2 endpoints. Rules-based `assembleTrip(intent)` is the remaining follow-up.
 - **P5 — booking hardening** (durable saga, sourced-adapter `releaseHold`, cross-supplier drift correlation). Follow-up; owned `releaseHold` already exists.
 
@@ -182,7 +182,7 @@ export function mergedFlightOfferToCandidate(o: MergedFlightOffer): Availability
 
 ## 7. Success criteria
 
-- Staff or AI: **intent → live candidates → assembled priced trip → existing quote/proposal accept → reserve → checkout**, without pre-selecting entities.
+- Staff or AI: **intent → live candidates → assembled priced trip → Proposal Version accept → reserve → checkout**, without pre-selecting entities.
 - Owned + sourced supply in **one ranked candidate list** per requirement.
 - Changing one requirement **re-sources and re-prices**.
 - Net/margin/provenance never leak to public DTOs; price re-validated at reserve.

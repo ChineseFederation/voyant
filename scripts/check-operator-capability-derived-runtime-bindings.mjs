@@ -9,13 +9,13 @@ function argument(name, fallback) {
 
 const root = argument("--root", ".")
 const read = (relativePath) => readFile(path.join(root, relativePath), "utf8")
-const [deploymentResources, auth, customFields, mice, quotes, relationships, trips] =
+const [deploymentResources, auth, customFields, mice, proposals, relationships, trips] =
   await Promise.all([
     read("packages/runtime/src/deployment-resources.ts"),
     read("packages/auth/src/runtime-contributor.ts"),
     read("packages/custom-fields/src/runtime-contributor.ts"),
     read("packages/mice/src/runtime-contributor.ts"),
-    read("packages/quotes/src/runtime-contributor.ts"),
+    read("packages/proposals/src/runtime-contributor.ts"),
     read("packages/relationships/src/runtime-contributor.ts"),
     read("packages/trips/src/runtime-contributor.ts"),
   ])
@@ -24,7 +24,7 @@ const violations = []
 if (existsSync(path.join(root, "starters/operator/src/api/runtime/runtime-adapter.ts"))) {
   violations.push("starters/operator/src/api/runtime/runtime-adapter.ts must stay deleted")
 }
-const explicitBindings = ["identityAccess", "mice", "quotes", "relationshipsRoutes"]
+const explicitBindings = ["identityAccess", "mice", "proposals", "relationshipsRoutes"]
 
 for (const binding of explicitBindings) {
   if (new RegExp(`\\b${binding}\\s*:`).test(deploymentResources)) {
@@ -58,7 +58,7 @@ const contributorRequirements = [
     mice,
     ["host.getRuntimePort(relationshipsMiceRuntimePort)", "resolveDelegatePersonById"],
   ],
-  ["quotes", quotes, ["createQuotesRuntime(host"]],
+  ["proposals", proposals, ["createProposalsRuntime(host"]],
   ["custom-fields", customFields, ["customFieldsRuntimePort.id"]],
   [
     "relationships",
@@ -81,7 +81,7 @@ for (const [packageName, source] of [
   ["auth", auth],
   ["custom-fields", customFields],
   ["mice", mice],
-  ["quotes", quotes],
+  ["proposals", proposals],
   ["relationships", relationships],
   ["trips", trips],
 ]) {
@@ -97,8 +97,8 @@ if (relationships.includes("host.primitives.config.read")) {
     "relationships runtime contributor must not restore deployment-configured custom fields",
   )
 }
-if (quotes.includes("tripsRoutesRuntimePort")) {
-  violations.push("quotes runtime contributor must not consume Trips route mutation authority")
+if (proposals.includes("tripsRoutesRuntimePort")) {
+  violations.push("proposals runtime contributor must not consume Trips route mutation authority")
 }
 
 if (violations.length > 0) {

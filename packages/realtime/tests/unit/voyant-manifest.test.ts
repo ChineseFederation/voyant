@@ -10,7 +10,7 @@ import {
 } from "../../src/index.js"
 import { createLocalRealtimeProvider } from "../../src/providers/local.js"
 import {
-  realtimeQuotesInvalidationVoyantExtension,
+  realtimeProposalsInvalidationVoyantExtension,
   realtimeVoyantModule,
 } from "../../src/voyant.js"
 
@@ -115,8 +115,8 @@ describe("realtime deployment manifest", () => {
     )
     expect(realtimeVoyantModule.subscribers?.every(({ runtime }) => runtime != null)).toBe(true)
     expect(
-      realtimeQuotesInvalidationVoyantExtension.subscribers?.map(({ eventType }) => eventType),
-    ).toEqual(["quote.created", "quote.updated", "quote.deleted"])
+      realtimeProposalsInvalidationVoyantExtension.subscribers?.map(({ eventType }) => eventType),
+    ).toEqual(["proposal.created", "proposal.updated", "proposal.deleted"])
   })
 
   it("ships a conformance kit for deployment realtime providers", async () => {

@@ -12,11 +12,11 @@ import type {
 } from "@voyant-travel/trips"
 import { z } from "zod"
 
-export type QuoteVersionSnapshotApplyResult = {
+export type ProposalVersionSnapshotApplyResult = {
   snapshot: TripSnapshot
-  quoteVersion: {
+  proposalVersion: {
     id: string
-    quoteId: string
+    proposalId: string
     status: string
     tripSnapshotId: string | null
     currency: string
@@ -27,7 +27,7 @@ export type QuoteVersionSnapshotApplyResult = {
   }
   lines: Array<{
     id: string
-    quoteVersionId: string
+    proposalVersionId: string
     productId: string | null
     supplierServiceId: string | null
     description: string
@@ -62,8 +62,8 @@ export const tripSnapshotResponseSchema = singleEnvelope(unknownData) as z.ZodTy
 export const tripSnapshotsResponseSchema = singleEnvelope(unknownData) as z.ZodType<{
   data: TripSnapshot[]
 }>
-export const quoteVersionSnapshotApplyResponseSchema = singleEnvelope(unknownData) as z.ZodType<{
-  data: QuoteVersionSnapshotApplyResult
+export const proposalVersionSnapshotApplyResponseSchema = singleEnvelope(unknownData) as z.ZodType<{
+  data: ProposalVersionSnapshotApplyResult
 }>
 export const priceTripResponseSchema = singleEnvelope(unknownData) as z.ZodType<{
   data: PriceTripResult

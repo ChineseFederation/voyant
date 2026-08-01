@@ -3,10 +3,10 @@
  * Tool exposes.
  *
  * `check-agent-tool-coverage` asks whether a module has Tools at all. That is
- * not the same question: `@voyant-travel/quotes` shipped seven Tools and still
- * had no way to create a quote, so an agent could send and accept a proposal it
- * could never build. Read Tools passing for write coverage is how the same gap
- * reached production three times.
+ * not the same question: `@voyant-travel/proposals` shipped seven Tools and still
+ * had no way to create a Proposal, so an agent could send and accept a Proposal
+ * Version it could never build. Read Tools passing for write coverage is how the
+ * same gap reached production three times.
  *
  * Run with `--report` for the full matrix.
  */

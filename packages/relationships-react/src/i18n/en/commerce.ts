@@ -12,33 +12,33 @@ export const crmUiEnCommerceMessages = {
     },
     placeholders: {
       subject: "Discovery call with Acme",
-      entityId: "Search a person, company, or quote",
+      entityId: "Search a person, company, or proposal",
     },
     validation: {
       subjectRequired: "Subject is required",
       createFailed: "Failed to create activity",
     },
   },
-  createQuoteDialog: {
-    title: "New quote",
+  createProposalDialog: {
+    title: "New proposal",
     fields: {
       title: "Title",
       stage: "Stage",
     },
     placeholders: {
-      title: "New quote",
+      title: "New proposal",
       stage: "Select stage...",
     },
     validation: {
       titleRequired: "Title is required",
       stageRequired: "Stage is required",
-      createFailed: "Failed to create quote",
+      createFailed: "Failed to create proposal",
     },
   },
-  quotesBoard: {
+  proposalsBoard: {
     fallbackName: "Unnamed stage",
   },
-  quoteSummaryCard: {
+  proposalSummaryCard: {
     unknown: "Unknown",
     expectedClose: "Expected close",
   },
@@ -60,32 +60,32 @@ export const crmUiEnCommerceMessages = {
     addTagFailed: "Failed to add tag.",
     removeTagFailed: "Failed to remove tag.",
   },
-  createQuoteVersionDialog: {
-    title: "New quote version",
+  createProposalVersionDialog: {
+    title: "New proposal version",
     fields: {
-      quote: "Quote",
+      proposal: "Proposal",
       currency: "Currency",
       validUntil: "Valid until",
     },
     placeholders: {
-      searchQuotes: "Search quotes...",
+      searchProposals: "Search proposals...",
       selectCurrency: "Select currency...",
       pickDate: "Pick a date",
     },
     empty: {
       loading: "Loading...",
-      noQuotes: "No quotes found.",
+      noProposals: "No proposals found.",
     },
     validation: {
-      selectQuote: "Please select a quote",
+      selectProposal: "Please select a proposal",
       selectCurrency: "Please select a currency",
-      createFailed: "Failed to create quote version",
+      createFailed: "Failed to create proposal version",
     },
     actions: {
       create: "Create",
     },
   },
-  quoteVersionLinesCard: {
+  proposalVersionLinesCard: {
     title: "Version line items",
     empty: "No line items yet.",
     fields: {
@@ -111,22 +111,22 @@ export const crmUiEnCommerceMessages = {
     },
     empty: "No activities match your filters.",
   },
-  quoteVersionsPage: {
-    title: "Quote versions",
-    description: "Quote versions issued for quotes in your pipeline.",
-    create: "New quote version",
+  proposalVersionsPage: {
+    title: "Proposal versions",
+    description: "Proposal versions issued for proposals in your pipeline.",
+    create: "New proposal version",
     filters: {
       status: "Status",
       allStatuses: "All statuses",
     },
     columns: {
-      quoteVersion: "Version",
+      proposalVersion: "Version",
       status: "Status",
       total: "Total",
       validUntil: "Valid until",
       updated: "Updated",
     },
-    loadFailed: "Failed to load quotes.",
-    empty: "No quotes found.",
+    loadFailed: "Failed to load proposals.",
+    empty: "No proposals found.",
   },
 } as const

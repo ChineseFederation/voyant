@@ -14,7 +14,6 @@ const expected = [
   "api/admin/README.md",
   "api/public/README.md",
   "extensions/README.md",
-  "jobs/README.md",
   "links/README.md",
   "modules/README.md",
   "router.tsx",
@@ -22,7 +21,6 @@ const expected = [
   "start.ts",
   "styles.css",
   "subscribers/README.md",
-  "workflows/README.md",
 ].sort()
 assert.deepEqual(files, expected, "operator starter src authority changed; classify the new file")
 
@@ -31,11 +29,9 @@ for (const directory of [
   "api/admin",
   "api/public",
   "extensions",
-  "jobs",
   "links",
   "modules",
   "subscribers",
-  "workflows",
 ]) {
   assert(existsSync(join(starterRoot, directory, "README.md")), `${directory} overlay must remain`)
 }
@@ -56,12 +52,9 @@ const routeRegistry = readFileSync(
 for (const token of [
   "createStandardOperatorFrontend",
   "operatorFrontend.routes.docs",
-  'contribution: "localAuth" | "mcpConsent" | "storefront"',
-  'contribution: "finance" | "quotes"',
-  "MCP_CONSENT_PRESENTATION_ID",
+  "presentationRoute(route.route, contribution, route.member)",
   "operatorFrontend.workspace",
   "createStandardOperatorRouteFiles",
-  "STOREFRONT_PRESENTATION_ID",
   "selectedGraphPresentationFactories",
 ]) {
   assert(routeRegistry.includes(token), `package route registry must contain ${token}`)

@@ -1,12 +1,12 @@
 # ADR-0005: Retire transactions runtime before v1
 
 - **Status:** Accepted (2026-06-13)
-- **Relates to:** [ADR-0004](./0004-quotes-as-travel-native-sales-artifact.md), [product package strategy](../architecture/product-package-strategy.md)
+- **Relates to:** [ADR-0018](./0018-proposals-as-travel-native-bespoke-sales-artifact.md), [product package strategy](../architecture/product-package-strategy.md)
 - **Builds on:** [ADR-0001](./0001-tenant-scoping.md), [ADR-0002](./0002-contract-packages.md)
 
 ## Context
 
-ADR-0004 made Quote and Quote Version the travel-native sales artifacts, but it
+ADR-0018 makes Proposal and Proposal Version the travel-native sales artifacts, and ADR-0004
 intentionally did not retire the existing Transactions Offer primitive. The
 repository still has a generic `transactions` runtime package that sits between
 sellability and bookings with Offer, Order, participants, items, contact/staff
@@ -14,7 +14,7 @@ assignments, order terms, PII audit, and booking extension links.
 
 That generic ladder is now the wrong seam for v1:
 
-- bespoke proposal lifecycle belongs in Quotes and Quote Versions
+- bespoke proposal lifecycle belongs in Proposals and Proposal Versions
 - quote-time commercial decisions belong in Commerce and Trips snapshots
 - active reservation orchestration belongs in Bookings
 - payment, invoice, settlement, and collection state belongs in Finance
@@ -52,7 +52,7 @@ replaced by:
 Transactions Offer becomes legacy compatibility language only. Commerce must not
 construct or persist Transactions Offers as its normal sellability output.
 Commerce returns commercial decisions, price/availability responses, commercial
-snapshots, quote-version pricing inputs, booking drafts, or Trips price
+snapshots, proposal-version pricing inputs, booking drafts, or Trips price
 snapshots depending on the caller.
 
 `@voyant-travel/transactions-contracts` is also removed from the v1 workspace
@@ -62,14 +62,14 @@ contract seam.
 
 ## Required v1 ownership
 
-- Quotes owns Quote, Quote Version, proposal lifecycle, send/view/accept
+- Proposals owns Proposal, Proposal Version, proposal lifecycle, send/view/accept
   decisions, accepted-version state, and accept-to-reserve handoff.
 - Trips owns Trip Envelope draft workspaces, frozen trip snapshots,
   reservation plans, and checkout handoff handles.
 - Bookings owns active reservation orchestration for direct B2C checkout and
-  accepted Quote Version flows.
+  accepted Proposal Version flows.
 - Bookings owns the replacement for `booking_transaction_details`: origin and
-  provenance records or fields that can reference Quote Version, Trip snapshot,
+  provenance records or fields that can reference Proposal Version, Trip snapshot,
   Catalog price/availability response, Catalog snapshot, provider/source order
   ref, and legacy migrated transaction ids.
 - Finance owns payment and invoice targets through generic target references,
@@ -81,9 +81,9 @@ contract seam.
 
 ## Proposal-to-reserve sequence
 
-1. Quotes records that a Quote Version was accepted, closes the Quote won, and
+1. Proposals records that a Proposal Version was accepted, closes the Proposal won, and
    emits or calls an accept-to-reserve handoff.
-2. Trips receives the accepted Quote Version's frozen Trip snapshot and
+2. Trips receives the accepted Proposal Version's frozen Trip snapshot and
    prepares a reservation plan.
 3. Trips asks Commerce to re-evaluate priced lines through the Commerce
    Interface. Commerce returns commercial snapshots and source/provider handles
@@ -99,7 +99,7 @@ contract seam.
 7. Finance creates collection/payment/invoice targets against Booking,
    Schedule, Invoice, Guarantee, Program, or other explicit target refs.
 8. Legal attaches policy acceptance, terms, contracts, and signatures against
-   Booking, Quote Version, Program, provider/source ref, or other explicit target
+   Booking, Proposal Version, Program, provider/source ref, or other explicit target
    refs.
 
 ## Consequences
@@ -109,7 +109,7 @@ contract seam.
 - V1 removes a shallow package seam instead of renaming it.
 - Proposal, reservation, booking, finance, and legal state live in the Modules
   that actually own their behavior.
-- Direct B2C checkout and accepted Quote Version flows share Bookings
+- Direct B2C checkout and accepted Proposal Version flows share Bookings
   reservation orchestration instead of creating two reserve paths.
 - External order language remains available for provider/source systems without
   becoming a first-party generic Order Module.
@@ -150,13 +150,13 @@ Before removing the runtime package from templates:
 ### Rename transactions to orders
 
 Rejected. The name is clearer than `transactions`, but the Module would still be
-a generic coordination record between Quotes, Bookings, Finance, Legal,
+a generic coordination record between Proposals, Bookings, Finance, Legal,
 Distribution, and vertical adapters. That preserves the shallow seam.
 
 ### Keep Transactions Offer only
 
-Rejected for v1 runtime. ADR-0004 already moved travel-native proposal language
-to Quote Version. Commerce and Trips need commercial snapshots and
+Rejected for v1 runtime. ADR-0018 moves travel-native bespoke sales language to
+Proposal and Proposal Version. Commerce and Trips need commercial snapshots and
 price/availability responses, not another public Offer primitive.
 
 ### Keep transactions as a compatibility runtime package

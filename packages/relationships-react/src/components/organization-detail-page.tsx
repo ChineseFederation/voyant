@@ -41,7 +41,8 @@ export function OrganizationDetailPage({
   const [activityDialogOpen, setActivityDialogOpen] = useState(false)
   const orgQuery = useOrganization(id)
   const { remove, update } = useOrganizationMutation()
-  const hasQuotesSlot = slots?.quotesContent !== undefined || slots?.quotesEnd !== undefined
+  const hasProposalsSlot =
+    slots?.proposalsContent !== undefined || slots?.proposalsEnd !== undefined
 
   useEffect(() => {
     const activeCommercialTabIsAvailable =
@@ -51,14 +52,14 @@ export function OrganizationDetailPage({
       (activeTab === "contracts" && Boolean(slots?.contractsTab))
 
     if (
-      (activeTab === "quotes" && !hasQuotesSlot) ||
+      (activeTab === "proposals" && !hasProposalsSlot) ||
       (isOrganizationCommercialTab(activeTab) && !activeCommercialTabIsAvailable)
     ) {
       setActiveTab("overview")
     }
   }, [
     activeTab,
-    hasQuotesSlot,
+    hasProposalsSlot,
     slots?.bookingsTab,
     slots?.invoicesTab,
     slots?.paymentsTab,

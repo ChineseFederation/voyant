@@ -19,26 +19,26 @@ export const crmUiRoCommerceMessages = {
       createFailed: "Crearea activitatii a esuat",
     },
   },
-  createQuoteDialog: {
-    title: "Oferta noua",
+  createProposalDialog: {
+    title: "Propunere noua",
     fields: {
       title: "Titlu",
       stage: "Etapa",
     },
     placeholders: {
-      title: "Oferta noua",
+      title: "Propunere noua",
       stage: "Selecteaza etapa...",
     },
     validation: {
       titleRequired: "Titlul este obligatoriu",
       stageRequired: "Etapa este obligatorie",
-      createFailed: "Crearea ofertei a esuat",
+      createFailed: "Crearea propunerii a esuat",
     },
   },
-  quotesBoard: {
+  proposalsBoard: {
     fallbackName: "Etapa fara nume",
   },
-  quoteSummaryCard: {
+  proposalSummaryCard: {
     unknown: "Necunoscut",
     expectedClose: "Inchidere estimata",
   },
@@ -60,24 +60,24 @@ export const crmUiRoCommerceMessages = {
     addTagFailed: "Adaugarea etichetei a esuat.",
     removeTagFailed: "Stergerea etichetei a esuat.",
   },
-  createQuoteVersionDialog: {
-    title: "Versiune de oferta noua",
+  createProposalVersionDialog: {
+    title: "Versiune de propunere noua",
     fields: {
-      quote: "Oferta",
+      proposal: "Oferta",
       currency: "Moneda",
       validUntil: "Valabila pana la",
     },
     placeholders: {
-      searchQuotes: "Cauta oferte...",
+      searchProposals: "Cauta propuneri...",
       selectCurrency: "Selecteaza moneda...",
       pickDate: "Alege o data",
     },
     empty: {
       loading: "Se incarca...",
-      noQuotes: "Nu au fost gasite oferte.",
+      noProposals: "Nu au fost gasite propuneri.",
     },
     validation: {
-      selectQuote: "Selecteaza o oferta",
+      selectProposal: "Selecteaza o propunere",
       selectCurrency: "Selecteaza o moneda",
       createFailed: "Crearea versiunii de oferta a esuat",
     },
@@ -85,8 +85,8 @@ export const crmUiRoCommerceMessages = {
       create: "Creeaza",
     },
   },
-  quoteVersionLinesCard: {
-    title: "Linii versiune oferta",
+  proposalVersionLinesCard: {
+    title: "Linii versiune propunere",
     empty: "Nu exista inca linii.",
     fields: {
       description: "Descriere",
@@ -111,7 +111,7 @@ export const crmUiRoCommerceMessages = {
     },
     empty: "Nicio activitate nu corespunde filtrelor.",
   },
-  quoteVersionsPage: {
+  proposalVersionsPage: {
     title: "Versiuni oferta",
     description: "Versiuni emise pentru ofertele din pipeline.",
     create: "Versiune oferta noua",
@@ -120,13 +120,13 @@ export const crmUiRoCommerceMessages = {
       allStatuses: "Toate statusurile",
     },
     columns: {
-      quoteVersion: "Versiune",
+      proposalVersion: "Versiune",
       status: "Status",
       total: "Total",
       validUntil: "Valabila pana la",
       updated: "Actualizat",
     },
     loadFailed: "Incarcarea ofertelor a esuat.",
-    empty: "Nu au fost gasite oferte.",
+    empty: "Nu au fost gasite propuneri.",
   },
 } as const

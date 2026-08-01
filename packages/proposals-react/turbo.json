@@ -1,0 +1,11 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // Avoid the cyclic React tier while ensuring the dist-backed domain
+      // declarations consumed by tsconfig.build.json exist first.
+      "dependsOn": ["@voyant-travel/proposals#build"]
+    }
+  }
+}

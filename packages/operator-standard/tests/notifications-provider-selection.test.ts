@@ -1,7 +1,7 @@
 import { defineModule, defineProvider, providePort } from "@voyant-travel/core/project"
 import { durableNotificationProviderPort } from "@voyant-travel/notifications/durable-provider-port"
 import { notificationsVoyantModule } from "@voyant-travel/notifications/voyant"
-import { quotesProposalVoyantPlugin } from "@voyant-travel/quotes/voyant"
+import { proposalsPresentationVoyantExtension } from "@voyant-travel/proposals/voyant"
 import { describe, expect, it } from "vitest"
 
 import {
@@ -26,8 +26,8 @@ describe("notifications durable provider selection", () => {
     })
     const graph = await resolveDeploymentGraph({
       project: defineProject({
-        modules: [defineModule({ id: "@example/voyant-quotes-host" })],
-        extensions: [quotesProposalVoyantPlugin],
+        modules: [defineModule({ id: "@example/voyant-proposals-host" })],
+        extensions: [proposalsPresentationVoyantExtension],
         providers: [provider],
       }),
       deployment: {
@@ -40,7 +40,7 @@ describe("notifications durable provider selection", () => {
     expect(graph.diagnostics).toContainEqual(
       expect.objectContaining({
         code: "VOYANT_GRAPH_MISSING_CAPABILITY",
-        source: quotesProposalVoyantPlugin.id,
+        source: proposalsPresentationVoyantExtension.id,
         facet: "requires.capabilities",
       }),
     )

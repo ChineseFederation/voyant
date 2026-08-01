@@ -283,7 +283,7 @@ export type CommercialDecisionErrorCode =
 
 export interface CommercialSnapshotTarget {
   kind:
-    | "quote-version"
+    | "proposal-version"
     | "booking-draft"
     | "trip-component"
     | "catalog-quote"

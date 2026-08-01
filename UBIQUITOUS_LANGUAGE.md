@@ -13,7 +13,7 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | **Person**        | An individual contact known to the operator — the canonical CRM identity record.                      | *customer, client, contact*     |
 | **Organization** | A company or legal entity — represents a buyer, supplier, agency, or other counterparty.             | *account, company, client*      |
 | **Traveler**      | A person who actually travels on a booking; carries category (adult/child/infant/senior) and PII.     | *guest, pax, passenger*         |
-| **Participant**   | A role-bearer on a Quote, Quote Version, Booking, Program, or booking item (traveler, booker, decision-maker, finance). | *contact-on-deal*          |
+| **Participant**   | A role-bearer on a Proposal, Proposal Version, Booking, Program, or booking item (traveler, booker, decision-maker, finance). | *contact-on-deal*          |
 | **User**          | An authentication identity in the system; orthogonal to Person — staff and customers can both be Users. | *login, account*              |
 | **Supplier**      | An operational vendor we contract directly for delivery of owned or assembled products.                | *vendor, provider, source*      |
 | **Channel**       | A distribution counterparty selling our inventory (direct, OTA, affiliate, reseller, marketplace, API partner). | *partner, distributor*    |
@@ -38,11 +38,11 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 
 | Term              | Definition                                                                                       | Aliases to avoid       |
 | ----------------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
-| **Quote**         | A tracked travel sales pursuit with a Person/Organization; moves through Stages, owns value, participants, activities, and one or more Quote Versions, and may close won/lost. | *opportunity, deal* |
-| **Quote Version** | An immutable proposal revision or alternative sent to the client; freezes a Trip Envelope snapshot, pricing, validity, and decision state. | *proposal, estimate, package offer* |
-| **Pipeline**      | An ordered set of Stages a Quote moves through.                                                  | *funnel, board*        |
+| **Proposal**         | A tracked travel sales pursuit with a Person/Organization; moves through Stages, owns value, participants, activities, and one or more Proposal Versions, and may close won/lost. | *opportunity, deal* |
+| **Proposal Version** | An immutable proposal revision or alternative sent to the client; freezes a Trip Envelope snapshot, pricing, validity, and decision state. | *proposal, estimate, package offer* |
+| **Pipeline**      | An ordered set of Stages a Proposal moves through.                                                  | *funnel, board*        |
 | **Stage**         | A step within a Pipeline (e.g. Qualified -> Proposal -> Negotiation), with win/lost flags.       | *step, status*         |
-| **Activity**      | A logged interaction (call, email, meeting, task, follow-up) on a Quote or Person.               | *event, log entry*     |
+| **Activity**      | A logged interaction (call, email, meeting, task, follow-up) on a Proposal or Person.               | *event, log entry*     |
 | **Segment**       | A named list of People or Organizations grouped by criteria, used for targeting or bulk action.  | *list, group*          |
 
 ## Group travel & MICE
@@ -50,7 +50,7 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | Term              | Definition                                                                                       | Aliases to avoid       |
 | ----------------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
 | **MICE**          | Meetings, Incentives, Conferences, and Exhibitions: the group/business travel mode built around Programs, delegates, blocks, RFPs, and coordinated operations. | *events platform* |
-| **Program**       | The umbrella group engagement for MICE or corporate travel; links buyer organization, dates, requirements, agenda, delegates, blocks, quotes, bookings, contracts, invoices, and operational run sheets. | *event, project, package* |
+| **Program**       | The umbrella group engagement for MICE or corporate travel; links buyer organization, dates, requirements, agenda, delegates, blocks, proposals, bookings, contracts, invoices, and operational run sheets. | *event, project, package* |
 | **Program Requirement** | A demand record on a Program, such as rooms, function spaces, catering, AV, transfers, staffing, accessibility needs, or session capacity. | *request line* |
 | **Program Session** | A timed agenda item within a Program, optionally tied to function space, capacity, track, inclusions, and delegate enrollment. | *event, activity* |
 | **Delegate**      | A person participating in a Program with a role and lifecycle status; may later link to a Traveler, Booking, or storefront self-service identity. | *attendee, registrant* |
@@ -72,7 +72,7 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | **Room Option**       | A bookable accommodation option for resale or trip composition, usually with occupancy and board/rate choices. | *room unit (unless physical ops)* |
 | **Rate Plan**         | A resale/commercial accommodation price and policy choice, usually from a Supplier or Inventory Source. | *tariff*                      |
 | **Board Basis**       | The included-meals tier for an accommodation component (breakfast, half-board, full-board, all-inclusive). | *meal plan (when ambiguous)* |
-| **Stay Component**    | A date-range accommodation line within a Product, Quote Version, Booking, legacy Offer, or sourced Catalog Item. | *hotel reservation*            |
+| **Stay Component**    | A date-range accommodation line within a Product, Proposal Version, Booking, legacy Offer, or sourced Catalog Item. | *hotel reservation*            |
 | **Product Version**   | An immutable snapshot of a Product's structure at a point in time.                               | *revision, snapshot*           |
 | **Product Media**     | An image, video, or document attached to a Product or one of its Days.                           | *asset, attachment*            |
 | **Operated Group Departure** | A fixed Product instance/departure with capacity and product-internal components such as bus transport, stays, included excursions, guide assignment, rooming list, and dependent Extras. | *package when used for the aggregate* |
@@ -110,20 +110,26 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | **Cost**               | The amount we pay a Supplier — input to margin.                                                 | *buy price, net*       |
 | **Rate**               | A Supplier's per-unit tariff (per_person, per_night, per_vehicle, flat).                        | *supplier price*       |
 | **Price**              | The customer-facing sell amount.                                                                | *sell, retail*         |
+| **Quote**              | An immutable, expiring, server-produced price and terms result for an exact Booking Session revision or equivalent provider pricing request. A Quote is not a sales pursuit and is distinct from Proposal Version. | *proposal, estimate, package offer* |
 | **Cancellation Policy** | An ordered rule set defining refund percentages by cutoff window before service date.           | *refund schedule*      |
 | **Sellability**        | The resolved answer to "is this Product buyable now for this date / pax / market / channel?" — combines Availability, Pricing, Allotments, and Policies. | *bookability* |
 
 ## Commitment chain
 
-For travel-native bespoke sales, the ladder is **Quote -> accepted Quote Version -> reserve workflow -> Booking / Component Booking -> Fulfillment**. Each step hardens the commitment, but accepting a Quote Version is not the same as supplier confirmation. Generic first-party **Order** is retired from v1 runtime language by ADR-0005; use Booking, Booking Origin, Finance/Legal target links, or provider/source order refs instead.
+There are two canonical commitment flows:
+
+1. Reusable catalog booking: **Product -> Booking Session -> Quote + optional Hold -> Commit -> Booking -> Fulfillment**. A Quote prices an exact Booking Session revision for a short validity window; a Hold claims inventory where the source supports it; Commit creates the durable Booking.
+2. Bespoke travel sales: **Proposal -> accepted Proposal Version -> Booking Session -> Quote + optional Hold -> Commit -> Booking / Component Booking -> Fulfillment**. A Proposal Version freezes a bespoke Trip Envelope revision; accepting it marks the customer decision and seeds reservation, but does not by itself confirm suppliers or create a Booking.
+
+Generic first-party **Order** is retired from v1 runtime language by ADR-0005; use Booking, Booking Origin, Finance/Legal target links, or provider/source order refs instead.
 
 | Term                    | Definition                                                                                       | Aliases to avoid         |
 | ----------------------- | ------------------------------------------------------------------------------------------------ | ------------------------ |
-| **Legacy Offer**        | The transactions-package priced proposal primitive for pre-v1 offer-to-order flows; not the bespoke travel sales artifact staff agents call a Quote. | *quote, package offer, Offer as new public API* |
+| **Legacy Offer**        | The transactions-package priced proposal primitive for pre-v1 offer-to-order flows; not the bespoke travel sales artifact staff agents call a Proposal. | *proposal, package offer, Offer as new public API* |
 | **Legacy Order**        | The transactions-package commitment primitive retained only for migration/compatibility. Do not introduce it in new first-party v1 Interfaces. | *purchase order, generic order* |
 | **Provider Order Ref**  | An upstream source/provider identifier for a committed component when the external system uses order language. | *first-party Order* |
 | **Booking**             | The durable first-party commitment and customer-safe operational record: Travelers, booking items, Allocations, Fulfillments, redemptions, origin/provenance, and state. | *reservation, booking-record, Order* |
-| **Booking Origin**      | Bookings-owned provenance describing how a Booking was created: Quote Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id. | *booking_transaction_details, order link* |
+| **Booking Origin**      | Bookings-owned provenance describing how a Booking was created: Proposal Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id. | *booking_transaction_details, order link* |
 | **Booking Item**        | A line item on a Booking (unit, service, extra, fee, tax, discount, accommodation, transport). | *line, row, order item*  |
 | **Allocation**          | A capacity hold against a Slot, Pickup, or Resource — `held` → `confirmed` → `fulfilled`.        | *reservation-line, hold-record* |
 | **Legacy Order Term**   | A pre-v1 transactions term attached to a Legacy Order. New v1 terms belong to Legal policy/contract targets and Finance collection targets. | *clause, Order Term as new public API* |
@@ -160,7 +166,7 @@ For travel-native bespoke sales, the ladder is **Quote -> accepted Quote Version
 | **Payment Schedule**  | An installment plan attached to a Booking (deposit, installment, balance, hold) with due dates.  | *plan, instalments*           |
 | **Guarantee**         | A security hold (deposit, pre-auth, card-on-file, agency letter, or Service Voucher) ensuring eventual payment. | *deposit (overloaded)* |
 | **Payment Session**   | An active payment attempt against a target (Booking, Invoice, Schedule line, Guarantee, Program, or explicit legacy/provider reference). | *checkout, intent*            |
-| **Collection Plan**   | A preview of what will be collected from the customer and when.                                  | *quote-of-collections*        |
+| **Collection Plan**   | A preview of what will be collected from the customer and when.                                  | *quote-of-collections (technical alias only)* |
 
 ## Distribution
 
@@ -176,7 +182,7 @@ For travel-native bespoke sales, the ladder is **Quote -> accepted Quote Version
 
 | Term                  | Definition                                                                                       | Aliases to avoid          |
 | --------------------- | ------------------------------------------------------------------------------------------------ | ------------------------- |
-| **Contract**          | A signed legal document instance bound to a Booking, Quote Version, Program, Product, Supplier/Channel relationship, or explicit provider/source ref. | *agreement (overloaded)*  |
+| **Contract**          | A signed legal document instance bound to a Booking, Proposal Version, Program, Product, Supplier/Channel relationship, or explicit provider/source ref. | *agreement (overloaded)*  |
 | **Contract Template** | A reusable contract form with variable placeholders, rendered per instance.                      | *form, boilerplate*       |
 | **Signature**         | A record of a Contract being signed (signer, method, IP, timestamp).                             | *sign-event*              |
 | **Policy**            | A scoped rule set (cancellation, payment, T&C, guarantee, commission); versioned.                | *terms*                   |
@@ -225,24 +231,25 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 | **Issue**      | Produce a deliverable artifact (Service Voucher, invoice, contract, policy version).             | Fulfillment, Invoice, Contract, Policy Version |
 | **Fulfill**    | Mark operational delivery complete.                                                              | Booking Item, Allocation                 |
 | **Deliver**    | Push an issued artifact to the recipient over a channel (email, download, wallet, API).          | Fulfillment, Notification                |
-| **Accept**     | Record that the client chose a Quote Version or accepted required commercial/legal terms; does not by itself mean every supplier component is confirmed. | Quote Version, Policy Version, Contract, legacy Offer |
+| **Accept**     | Record that the client chose a Proposal Version or accepted required commercial/legal terms; does not by itself mean every supplier component is confirmed. | Proposal Version, Policy Version, Contract, legacy Offer |
 | **Redeem**     | Consume a Fulfillment at point of service.                                                       | Fulfillment                              |
 | **Cancel**     | Operationally reverse a commitment.                                                              | Booking, Allocation, Supplier status |
 | **Void**       | Financially reverse a document — distinct from Cancel.                                           | Invoice, Payment                         |
-| **Close**      | End a Quote with an outcome (won/lost/archived).                                                 | Quote                                    |
-| **Convert**    | Promote one entity to the next on the commitment ladder.                                         | Quote Version -> reserve workflow, Product/Catalog Item -> Booking, legacy Offer -> legacy Order |
+| **Close**      | End a Proposal with an outcome (won/lost/archived).                                                 | Proposal                                    |
+| **Convert**    | Promote one entity to the next on the commitment ladder.                                         | Proposal Version -> reserve workflow, Product/Catalog Item -> Booking, legacy Offer -> legacy Order |
 | **Reconcile**  | Compare expected vs. actual and emit Issues.                                                     | Channel Settlement                       |
 | **Settle**     | Post the financial outcome of Reconciliation.                                                    | Channel Settlement                       |
 | **Override**   | Manually set a Booking's status, bypassing the transition graph. Admin-only; always audit-logged with a required reason. | Booking |
 
 ## Relationships (the domain laws)
 
-- A **Person** may belong to zero or more **Organizations**; both can appear on Quotes, Programs, and Bookings.
-- A **Quote** belongs to one Person and/or Organization, moves through a Pipeline, and produces zero or more **Quote Versions**.
-- A **Quote Version** freezes a Trip Envelope snapshot; editing a sent Version creates another Version.
-- Accepting a **Quote Version** marks that Version accepted, closes the Quote won, and seeds the reserve workflow; it does not mean every live or manual component is supplier-confirmed.
-- A transactions **Legacy Offer** may still convert to a **Legacy Order** only in migration/compatibility flows; it is not the bespoke travel sales artifact called Quote.
-- A **Booking Origin** records whether a Booking came from an accepted Quote Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id.
+- A **Person** may belong to zero or more **Organizations**; both can appear on Proposals, Programs, and Bookings.
+- A **Proposal** belongs to one Person and/or Organization, moves through a Pipeline, and produces zero or more **Proposal Versions**.
+- A **Proposal Version** freezes a Trip Envelope snapshot; editing a sent Version creates another Version.
+- Accepting a **Proposal Version** marks that Version accepted, closes the Proposal won, and seeds the reserve workflow; it does not mean every live or manual component is supplier-confirmed.
+- A pricing **Quote** belongs to the Booking Platform pricing flow; it may precede an optional Hold and Commit/Booking, but it is not a Proposal Version and does not own sales-pipeline state.
+- A transactions **Legacy Offer** may still convert to a **Legacy Order** only in migration/compatibility flows; it is not the bespoke travel sales artifact called Proposal.
+- A **Booking Origin** records whether a Booking came from an accepted Proposal Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id.
 - A **Booking** is the first-party durable commitment record; do not require a generic first-party Order to create one.
 - A **Booking** holds **Allocations** against **Slots** (or Pickups, or Resources); each Allocation belongs to exactly one Booking Item.
 - Accommodation may be sold as **Sourced Inventory** or as a component of a **Product**, and may reference a **Place** for where the stay happens, but hotel/property operations are not a first-party implementation scenario.
@@ -261,7 +268,7 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 
 ## Example dialogue
 
-> **Sales agent:** "I've got a hot **Quote** with the Henderson family — eight **Travelers**, two weeks in Egypt. I sent them a **Quote Version** last week."
+> **Sales agent:** "I've got a hot **Proposal** with the Henderson family — eight **Travelers**, two weeks in Egypt. I sent them a **Proposal Version** last week."
 
 > **Operations manager:** "Good. If they accept that Version, run reserve. Live lines must recheck **Sellability** and **Cost** from our Cairo **Suppliers**; manual lines move into supplier confirmation."
 
@@ -291,11 +298,11 @@ These terms are used loosely in conversation. Pick the canonical form below; tre
 - **Tour / experience** — usually collapse to **Product**. **Trip** and **package** are overloaded: use **Product** for an operator-sold offering, **Operated Group Departure** for a fixed-capacity product instance, and **Trip Envelope** for a customer-facing aggregate of multiple component commitments.
 - **Place vs. legacy Facility** — use **Place** for shared physical places in new code and docs. `Facility` and `facilityId` remain compatibility names for current tables, routes, and public consumers.
 - **Accommodation vs. hotel operations** — accommodation is valid as catalog inventory, sourced resale, trip composition, or as a Place reference. Hotel/property operations are not a first-party Voyant implementation scenario.
-- **Quote vs. Opportunity** — the canonical sales pursuit is **Quote**. Opportunity is the old generic CRM name and should not appear in new public package surfaces.
-- **Quote Version vs. Legacy Offer** — both look like "a price proposal". **Quote Version** is the travel-native proposal revision or alternative that freezes a Trip Envelope snapshot and can be accepted into reserve. **Legacy Offer** is the transactions-package primitive for pre-v1 compatibility flows. They are not synonyms.
+- **Proposal vs. Opportunity** — the canonical sales pursuit is **Proposal**. Opportunity is the old generic CRM name and should not appear in new public package surfaces.
+- **Proposal Version vs. Legacy Offer** — both look like "a price proposal". **Proposal Version** is the travel-native proposal revision or alternative that freezes a Trip Envelope snapshot and can be accepted into reserve. **Legacy Offer** is the transactions-package primitive for pre-v1 compatibility flows. They are not synonyms.
 - **Legacy Order / Provider Order Ref vs. Booking** — **Legacy Order** is a transactions compatibility primitive, and **Provider Order Ref** is an upstream identifier. **Booking** is the first-party durable commitment and operational record. Do not recreate a generic first-party Order when Booking origin/provenance or provider refs carry the needed meaning.
 - **Reservation** — overloaded between "Hold" (a temporary inventory claim) and "Booking" (the persistent record). Use **Hold** or **Booking** — never "Reservation".
-- **Cancel vs. Void vs. Close** — different verbs for different domains. **Cancel** = operational reversal (Booking, Allocation). **Void** = financial reversal (Invoice, Payment). **Close** = end a Quote with an outcome. Don't blend them.
+- **Cancel vs. Void vs. Close** — different verbs for different domains. **Cancel** = operational reversal (Booking, Allocation). **Void** = financial reversal (Invoice, Payment). **Close** = end a Proposal with an outcome. Don't blend them.
 - **Hold vs. Allocation vs. Reservation** — **Hold** is the temporal status of a Booking before confirmation (`hold_expires_at`). **Allocation** is the inventory-line entity (`held` → `confirmed` → `fulfilled`). Avoid "Reservation".
 - **Supplier vs. Partner vs. Provider** — **Supplier** is the entity that sells us services. **Partner** is a relationship type on Organizations. **Provider** is for tech integrations (notification provider, storage provider) — do not call a hotel a "provider".
 - **Channel vs. Distribution vs. Partner** — **Channel** is the outbound resale entity (the OTA, affiliate, marketplace, or API partner). **Distribution** is the broader commercial-network subdomain covering Channel and Supplier-side connectivity. Don't say "Partner" when you mean Channel, and don't use Distribution as the name of a counterparty record.

@@ -8,7 +8,7 @@ import { Skeleton } from "@voyant-travel/ui/components/skeleton"
  *   - Top bar: back + org name + delete
  *   - 12-col grid:
  *       - lg:col-span-3  sidebar: identity + org details card
- *       - lg:col-span-6  main: tabs (People / Quotes / Activities) + list rows
+ *       - lg:col-span-6  main: tabs (People / Proposals / Activities) + list rows
  *       - lg:col-span-3  aside: metrics summary
  */
 export function OrganizationDetailSkeleton() {

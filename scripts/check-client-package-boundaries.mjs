@@ -125,10 +125,10 @@ const forbiddenImports = [
       "the legal contracts barrel mixes client metadata with routes, services, document generation, and action-ledger runtime code; browser code must use narrow client-safe subpaths",
   },
   {
-    module: "@voyant-travel/quotes",
-    replacement: "@voyant-travel/quotes/linkables",
+    module: "@voyant-travel/proposals",
+    replacement: "@voyant-travel/proposals/linkables",
     reason:
-      "the quotes root barrel mixes static linkables with route and proposal runtime code; browser code must use the linkables subpath",
+      "the proposals root barrel mixes static linkables with route and proposal runtime code; browser code must use the linkables subpath",
   },
   {
     module: "@voyant-travel/relationships",

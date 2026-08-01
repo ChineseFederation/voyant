@@ -36,7 +36,7 @@ Standard packages that today receive deployment-injected settings readers:
 | --- | --- | --- |
 | `commerce` (checkout) + `finance` (booking-tax ext) | `resolveBookingTaxSettings` / `updateBookingTaxSettings` | `booking_tax_settings` |
 | `legal` (contract variables) | `resolveOperatorProfile`, `resolveOperatorPaymentInstructions` | profile, payment-instructions |
-| `quotes` (proposal) | `resolveOperatorProfile` | profile |
+| `proposals` | `resolveOperatorProfile` | profile |
 | `finance` / `notifications` (checkout) | `resolveBankTransferDetails`, `resolvePublicCheckoutBaseUrl` | **env, not tables** (see correction) |
 
 Deployment-internal consumers (stay in the deployment regardless): `contract-document-variables.ts`, `payment-link-runtime.ts`, `catalog-checkout-options.ts`, `booking-schedule.ts`, and the environment/database/storage adapter in `runtime/smartbill-subscriber-runtime.ts`. SmartBill event declarations and registration are package-owned.
@@ -47,7 +47,7 @@ The doc lists "bank-transfer config" and (implicitly) the checkout base URL amon
 
 - `resolveBankTransferDetails(bindings)` and `resolvePublicCheckoutBaseUrlFromBindings(bindings)` (`runtime/payment-config.ts`) read **environment bindings only**; the settings tables are a *fallback* composed by a separate helper (`bankTransferDetailsFromOperatorSettings`).
 
-So these two values **stay deployment-injected** (they're env/config, correctly deployment-owned). The genuine collapse is the **profile / payment-instructions / payment-defaults / tax-settings** readers — still a meaningful set (legal, quotes, commerce, finance), but four env-shaped fields don't move.
+So these two values **stay deployment-injected** (they're env/config, correctly deployment-owned). The genuine collapse is the **profile / payment-instructions / payment-defaults / tax-settings** readers — still a meaningful set (legal, proposals, commerce, finance), but four env-shaped fields don't move.
 
 ## Migration impact — lower-risk than flagged
 
@@ -69,23 +69,23 @@ The honest residual: the existing migrations (`0019/0020/0034`) were generated a
 
 The deployment:
 - lists it in `additionalSchemas` (schema-only; routes not yet a package module),
-- imports the readers and **still injects them** into `buildOperatorProviders()` and the cross-module runtime wiring (legal/quotes/etc.) — but now from the package instead of `./routes/settings`.
+- imports the readers and **still injects them** into `buildOperatorProviders()` and the cross-module runtime wiring (legal/proposals/etc.) — but now from the package instead of `./routes/settings`.
 
 **Win:** the reader *implementations* + schema are package-owned and versioned with the framework; the deployment's `./routes/settings.ts` shrinks to route handlers over package readers. **Low risk:** no composition/registry change, drift-checkable.
 
 ### Stage 2 (optional) — settings becomes a standard module, wired at the framework layer
 Promote `mountOperatorSettingsRoutes` to a package `ApiModule` (`@voyant-travel/operator-settings` with `adminRoutes`/`publicRoutes`), move it from `additionalSchemas` to `modules`, and declare its runtime factory in the package manifest. Then:
 - `operator/operator-settings` leaves `deploymentLocalModules` (only `invitations` remains there),
-- the booking-tax extension + the legal/quotes/commerce settings readers **default to package-owned readers through typed runtime ports** — so the per-deployment injection of `resolveBookingTaxSettings` / `updateBookingTaxSettings` / `resolveOperatorProfile` / `resolveOperatorPaymentInstructions` goes away. The deployment overrides only values/policy, not the wiring.
+- the booking-tax extension + the legal/proposals/commerce settings readers **default to package-owned readers through typed runtime ports** — so the per-deployment injection of `resolveBookingTaxSettings` / `updateBookingTaxSettings` / `resolveOperatorProfile` / `resolveOperatorPaymentInstructions` goes away. The deployment overrides only values/policy, not the wiring.
 
-**Crucially, no leaf module depends on another leaf module.** The consuming factories (`legal`, `quotes`, `commerce`, `finance`) keep their existing **structural** reader option types and import nothing from `operator-settings`. Package manifests declare the required typed ports, and the deployment graph supplies their host implementations. See open question 2 for why this beats a direct dependency or a shared `*-contracts` package.
+**Crucially, no leaf module depends on another leaf module.** The consuming factories (`legal`, `proposals`, `commerce`, `finance`) keep their existing **structural** reader option types and import nothing from `operator-settings`. Package manifests declare the required typed ports, and the deployment graph supplies their host implementations. See open question 2 for why this beats a direct dependency or a shared `*-contracts` package.
 
 **Win:** collapses the injection the classification doc targeted; the deployment's local-module set drops to one (`invitations`). **Risk:** the framework package gains a (legitimate, BOM-level) dependency on `operator-settings`, and it commits the settings *routes* to a fixed standard surface — a real API commitment. Worth its own slice once Stage 1 lands.
 
 ## Open questions
 
 1. **Package vs. naming.** `@voyant-travel/operator-settings` keeps the `operator` name (it's the operator-profile/settings domain), or rename to `@voyant-travel/tenant-settings` / `@voyant-travel/organization-profile` to shed the deployment-name connotation? (The tables are operator-tenant identity + payment + tax config — generic to any deployment.)
-2. **Stage-2 cross-module coupling — DECIDED: neither a direct dependency nor a shared `*-contracts` package; wire at the framework layer.** The framing assumed legal/quotes/commerce must *reference* `operator-settings` somehow. They shouldn't — and structural typing already makes that unnecessary:
+2. **Stage-2 cross-module coupling — DECIDED: neither a direct dependency nor a shared `*-contracts` package; wire at the framework layer.** The framing assumed legal/proposals/commerce must *reference* `operator-settings` somehow. They shouldn't — and structural typing already makes that unnecessary:
    - Each consumer already declares the **shape** of the reader it needs as a ApiModule option (`resolveOperatorProfile?: (db) => …`, `resolveBookingTaxSettings?: (db) => …`). `operator-settings`' reader only has to be *assignable* to that shape. That structural seam is the decoupling — the same one the whole module-decoupling effort (≈85 cross-package `.references()` removed → plain `text()` columns) and all of Workstream B already rely on.
    - A `@voyant-travel/operator-settings-contracts` package would be over-engineering: a contract package earns its keep only when *multiple producers and consumers* must agree on a nominal type neither owns. Here each consumer owns its own minimal structural option type and there's effectively one producer. The contracts package adds a package + version + release-cadence entry to express a coupling that `(db) => Promise<Profile>` already expresses — and subtly re-couples the consumers to the contract's version.
    - **The wiring lives in typed ports selected by the graph, not in consumers.** The generated runtime connects package factories to deployment-owned implementations without a central package-id registry, so **no leaf module depends on another leaf module**.

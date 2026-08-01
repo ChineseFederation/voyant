@@ -32,9 +32,9 @@ export const realtimeInvalidationRoutes = {
   "supplier.created": (event) => adminHint("supplier", firstId(event, "id")),
   "supplier.updated": (event) => adminHint("supplier", firstId(event, "id")),
   "supplier.deleted": (event) => adminHint("supplier", firstId(event, "id")),
-  "quote.created": (event) => adminHint("quote", firstId(event, "id")),
-  "quote.updated": (event) => adminHint("quote", firstId(event, "id")),
-  "quote.deleted": (event) => adminHint("quote", firstId(event, "id")),
+  "proposal.created": (event) => adminHint("proposal", firstId(event, "id")),
+  "proposal.updated": (event) => adminHint("proposal", firstId(event, "id")),
+  "proposal.deleted": (event) => adminHint("proposal", firstId(event, "id")),
   "invoice.issued": (event) => adminHint("invoice", firstId(event, "invoiceId", "id")),
   "invoice.voided": (event) => adminHint("invoice", firstId(event, "invoiceId", "id")),
   "invoice.settled": (event) => adminHint("invoice", firstId(event, "invoiceId", "id")),
@@ -91,9 +91,12 @@ export const realtimeSupplierUpdatedInvalidationSubscriber =
   invalidationSubscriber("supplier.updated")
 export const realtimeSupplierDeletedInvalidationSubscriber =
   invalidationSubscriber("supplier.deleted")
-export const realtimeQuoteCreatedInvalidationSubscriber = invalidationSubscriber("quote.created")
-export const realtimeQuoteUpdatedInvalidationSubscriber = invalidationSubscriber("quote.updated")
-export const realtimeQuoteDeletedInvalidationSubscriber = invalidationSubscriber("quote.deleted")
+export const realtimeProposalCreatedInvalidationSubscriber =
+  invalidationSubscriber("proposal.created")
+export const realtimeProposalUpdatedInvalidationSubscriber =
+  invalidationSubscriber("proposal.updated")
+export const realtimeProposalDeletedInvalidationSubscriber =
+  invalidationSubscriber("proposal.deleted")
 export const realtimeInvoiceIssuedInvalidationSubscriber = invalidationSubscriber("invoice.issued")
 export const realtimeInvoiceVoidedInvalidationSubscriber = invalidationSubscriber("invoice.voided")
 export const realtimeInvoiceSettledInvalidationSubscriber =

@@ -20,7 +20,7 @@ const contributors = {
   inventory: "createInventoryRuntime(host.primitives)",
   legal: "createLegalRuntime",
   notifications: "createNotificationsRuntime",
-  quotes: "createQuotesRuntime",
+  proposals: "createProposalsRuntime",
 }
 
 async function fixture(generatedArguments) {

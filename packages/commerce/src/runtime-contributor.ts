@@ -18,7 +18,7 @@ import {
 import {
   type CheckoutInquiryRuntime,
   checkoutInquiryRuntimePort,
-} from "@voyant-travel/quotes-contracts/checkout-inquiry"
+} from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import { catalogCommerceRuntimeExtension } from "./catalog-runtime-extension.js"
 import {
   bookingMaintenanceRuntimePort,

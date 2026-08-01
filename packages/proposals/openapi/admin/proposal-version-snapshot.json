@@ -1,0 +1,34 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Voyant Proposal Version Snapshot API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/admin/trips/{envelopeId}/proposal-versions/{proposalVersionId}/snapshot": {
+      "post": {
+        "summary": "Freeze a Trip snapshot into a Proposal Version",
+        "parameters": [
+          {
+            "name": "envelopeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "proposalVersionId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "The updated Proposal Version and frozen Trip snapshot." },
+          "404": { "description": "The Trip or Proposal Version was not found." },
+          "409": { "description": "The Trip or Proposal Version cannot be snapshotted." }
+        },
+        "x-voyant-api-id": "@voyant-travel/proposals#proposal-version-snapshot-extension.api"
+      }
+    }
+  }
+}
