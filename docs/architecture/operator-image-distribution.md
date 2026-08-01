@@ -16,16 +16,40 @@ versioned client or extension protocols.
   release digest to the mutable convenience tag `latest`;
 - pull requests never invoke the workflow and never receive registry write
   permission;
-- publication fails closed if a release tag already exists. An automatic SHA
-  rerun re-verifies the existing artifact instead of overwriting it.
+- a fresh publication dispatch fails closed if its release tag already exists.
+  If an earlier attempt created the tag and then failed during final
+  verification, rerunning that same workflow adopts the existing immutable
+  digest only after both runnable platform images prove that their OCI revision
+  and version labels exactly match the workflow commit and requested release.
+  It then re-verifies the digest and re-attaches canonical provenance without
+  overwriting it. Automatic SHA reruns use the same recovery path;
+- all `promote-latest` dispatches share one version-independent concurrency
+  group, so two release promotions can never move `latest` concurrently.
 
-Every build targets `linux/amd64` and `linux/arm64`, emits an SBOM and maximum
-BuildKit provenance, and attaches GitHub build provenance to the registry
-artifact. Publication is complete only after the exact pushed manifest digest
-successfully runs the embedded migration plan, boots, answers `/healthz`, and
-dispatches the OpenAPI route. Promoting `latest` performs the same acceptance
-against the release digest before moving the tag and then proves that `latest`
-resolves to that digest.
+The `linux/amd64` and `linux/arm64` variants build concurrently on matching
+native GitHub runners. The workflow deliberately does not use QEMU: the
+production deploy tree includes architecture-specific native modules, so each
+variant must be assembled and exercised on its target architecture. A build
+pushes only an untagged, content-addressed platform image and emits an immutable
+digest receipt. That exact digest must run the embedded migration plan, boot,
+answer `/healthz`, and dispatch the OpenAPI route on its native runner before
+the receipt can reach finalization.
+
+After both native variants pass, the finalization job creates the canonical
+multi-platform tag from their digest receipts. It refuses to overwrite a tag
+that appeared after publication planning on a fresh workflow attempt. A failed
+job rerun may adopt that tag without rewriting it, but only after the same exact
+revision/version identity check used by a full-workflow recovery. Finalization
+verifies that the resulting index has exactly one `linux/amd64` and one
+`linux/arm64` image, and repeats migration, boot, and API acceptance against the
+exact canonical index digest. Other
+runnable platform descriptors are rejected; only BuildKit's explicit
+`unknown/unknown` attestation descriptors may accompany the two images. Every
+native build emits an SBOM and maximum BuildKit provenance; finalization also
+attaches GitHub build provenance to the canonical registry artifact, including
+during recovery reruns. Promoting `latest` performs the same acceptance against
+the release digest before moving the tag and then proves that `latest` resolves
+to that digest.
 
 `latest` is for discovery only. Voyant Platform and other production control
 planes **must pin `ghcr.io/voyant-travel/operator@sha256:<digest>`**. A rollout

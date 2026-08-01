@@ -19,6 +19,7 @@ on:
       - "scripts/generate-operator-application-metadata.mjs"
       - "scripts/run-generated-migrations.mjs"
       - "scripts/smoke-operator-image.sh"
+      - "scripts/verify-operator-image-identity.mjs"
       - "turbo.json"
   workflow_dispatch:
     inputs:
@@ -35,11 +36,11 @@ on:
         type: string
 
 concurrency:
-  group: operator-image-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.release_version }}
+  group: operator-image-${{ inputs.operation == 'promote-latest' && 'promote-latest' || format('{0}-{1}-{2}', github.ref, inputs.operation, inputs.release_version) }}
   cancel-in-progress: false
 
 # Keep the workflow default read-only. Registry and attestation privileges are
-# granted only to the two jobs that can be reached by main pushes or an explicit
+# granted only to jobs that can be reached by main pushes or an explicit
 # workflow dispatch; pull requests never invoke this workflow.
 permissions:
   contents: read
@@ -48,37 +49,23 @@ env:
   IMAGE_NAME: ghcr.io/voyant-travel/operator
 
 jobs:
-  publish:
-    name: publish-and-verify
+  plan:
+    name: publication-plan
     if: github.event_name == 'push' || inputs.operation == 'publish-release'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 5
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: voyant
-          POSTGRES_PASSWORD: voyant
-          POSTGRES_DB: voyant_starter_acceptance
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
-          --health-interval 1s
-          --health-timeout 1s
-          --health-retries 30
+      packages: read
+    outputs:
+      digest: ${{ steps.publication.outputs.digest }}
+      exists: ${{ steps.publication.outputs.exists }}
+      tag: ${{ steps.publication.outputs.tag }}
+      version: ${{ steps.publication.outputs.version }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 0
           filter: blob:none
-
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
@@ -93,8 +80,8 @@ jobs:
         id: publication
         shell: bash
         env:
-          OPERATION: ${{ inputs.operation }}
           RELEASE_VERSION: ${{ inputs.release_version }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
 
@@ -118,70 +105,253 @@ jobs:
 
           if existing=$(docker buildx imagetools inspect "$tag" 2>/dev/null); then
             digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$existing")
-            if [[ -z "$digest" ]]; then
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
               echo "Could not resolve the existing digest for $tag."
               exit 1
             fi
-            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$RUN_ATTEMPT" == "1" ]]; then
               echo "Immutable release tag $tag already exists at $digest."
               exit 1
             fi
-            echo "Automatic SHA publication is already present at $digest; verifying it again."
+            node scripts/verify-operator-image-identity.mjs \
+              "$IMAGE_NAME" "$IMAGE_NAME@$digest" "$GITHUB_SHA" "$version"
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              echo "Release recovery attempt $RUN_ATTEMPT found $tag at $digest; re-verifying it without overwriting."
+            else
+              echo "Automatic SHA publication is already present at $digest; verifying it again."
+            fi
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "digest=$digest" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build and push multi-platform image
+  build:
+    name: build-and-smoke-${{ matrix.arch }}
+    needs: plan
+    if: needs.plan.outputs.exists != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voyant
+          POSTGRES_PASSWORD: voyant
+          POSTGRES_DB: voyant_starter_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      # Each job runs on the same architecture it builds. Do not add QEMU: the
+      # production deploy tree contains architecture-specific native modules.
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push native platform image by digest
         id: build
-        if: steps.publication.outputs.exists != 'true'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: apps/operator/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.publication.outputs.tag }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
             IMAGE_SOURCE=${{ github.server_url }}/${{ github.repository }}
             IMAGE_REVISION=${{ github.sha }}
-            IMAGE_VERSION=${{ steps.publication.outputs.version }}
+            IMAGE_VERSION=${{ needs.plan.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.publication.outputs.version }}
-          cache-from: type=gha,scope=operator-image
-          cache-to: type=gha,mode=max,scope=operator-image
+            org.opencontainers.image.version=${{ needs.plan.outputs.version }}
+          cache-from: type=gha,scope=operator-image-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=operator-image-${{ matrix.arch }}
           provenance: mode=max
           sbom: true
 
-      - name: Resolve the exact published digest
+      - name: Record the immutable platform digest
+        id: platform
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Native $ARCH build did not produce a valid OCI digest: $DIGEST"
+            exit 1
+          fi
+          mkdir -p /tmp/operator-image-digests
+          touch "/tmp/operator-image-digests/$ARCH-${DIGEST#sha256:}"
+          echo "ref=$IMAGE_NAME@$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "$ARCH -> $IMAGE_NAME@$DIGEST"
+
+      - name: Migrate, boot, and API-smoke the native platform digest
+        run: scripts/smoke-operator-image.sh "${{ steps.platform.outputs.ref }}"
+
+      - name: Upload the platform digest receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: operator-image-digest-${{ matrix.arch }}
+          path: /tmp/operator-image-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  finalize:
+    name: finalize-and-verify
+    needs:
+      - plan
+      - build
+    if: ${{ always() && needs.plan.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: voyant
+          POSTGRES_PASSWORD: voyant
+          POSTGRES_DB: voyant_starter_acceptance
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voyant -d voyant_starter_acceptance"
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          filter: blob:none
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download native platform digest receipts
+        if: needs.plan.outputs.exists != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: operator-image-digest-*
+          path: /tmp/operator-image-digests
+          merge-multiple: true
+
+      - name: Create the canonical multi-platform image
+        if: needs.plan.outputs.exists != 'true'
+        shell: bash
+        env:
+          FINAL_TAG: ${{ needs.plan.outputs.tag }}
+          IMAGE_VERSION: ${{ needs.plan.outputs.version }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+
+          if existing=$(docker buildx imagetools inspect "$FINAL_TAG" 2>/dev/null); then
+            digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$existing")
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "Could not resolve the canonical digest for $FINAL_TAG."
+              exit 1
+            fi
+            if [[ "$RUN_ATTEMPT" == "1" ]]; then
+              echo "Canonical tag $FINAL_TAG appeared after publication planning at $digest; refusing to overwrite it."
+              exit 1
+            fi
+            node scripts/verify-operator-image-identity.mjs \
+              "$IMAGE_NAME" "$IMAGE_NAME@$digest" "$GITHUB_SHA" "$IMAGE_VERSION"
+            echo "Recovery attempt $RUN_ATTEMPT adopted $FINAL_TAG at $digest without overwriting it."
+            exit 0
+          fi
+
+          sources=()
+          for arch in amd64 arm64; do
+            mapfile -t receipts < <(find /tmp/operator-image-digests -maxdepth 1 -type f -name "$arch-*" -print)
+            if (( ${#receipts[@]} != 1 )); then
+              echo "Expected exactly one $arch digest receipt, found ${#receipts[@]}."
+              exit 1
+            fi
+            digest=${receipts[0]##*"$arch-"}
+            if ! [[ "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Invalid $arch digest receipt: $digest"
+              exit 1
+            fi
+            sources+=("$IMAGE_NAME@sha256:$digest")
+          done
+
+          docker buildx imagetools create --tag "$FINAL_TAG" "${sources[@]}"
+
+      - name: Resolve and verify the exact canonical digest
         id: image
         shell: bash
         env:
-          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
-          EXISTING_DIGEST: ${{ steps.publication.outputs.digest }}
+          EXISTING_DIGEST: ${{ needs.plan.outputs.digest }}
+          FINAL_TAG: ${{ needs.plan.outputs.tag }}
+          IMAGE_VERSION: ${{ needs.plan.outputs.version }}
         run: |
           set -euo pipefail
-          digest="${BUILT_DIGEST:-$EXISTING_DIGEST}"
+          manifest=$(docker buildx imagetools inspect "$FINAL_TAG")
+          digest=$(awk '$1 == "Digest:" { print $2; exit }' <<<"$manifest")
           if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "Publication did not produce a valid OCI digest: $digest"
             exit 1
           fi
+          if [[ -n "$EXISTING_DIGEST" && "$digest" != "$EXISTING_DIGEST" ]]; then
+            echo "Immutable tag drift: planned $EXISTING_DIGEST but resolved $digest."
+            exit 1
+          fi
+
+          node scripts/verify-operator-image-identity.mjs \
+            "$IMAGE_NAME" "$IMAGE_NAME@$digest" "$GITHUB_SHA" "$IMAGE_VERSION"
+
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=$IMAGE_NAME@$digest" >> "$GITHUB_OUTPUT"
-          echo "Published ${{ steps.publication.outputs.tag }} as $IMAGE_NAME@$digest"
+          echo "Published $FINAL_TAG as $IMAGE_NAME@$digest"
 
-      - name: Attest the pushed image
-        if: steps.publication.outputs.exists != 'true'
+      - name: Attest the canonical multi-platform image
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.image.outputs.digest }}
           push-to-registry: true
 
-      - name: Migrate, boot, and API-smoke the pushed digest
+      - name: Migrate, boot, and API-smoke the canonical digest
         run: scripts/smoke-operator-image.sh "${{ steps.image.outputs.ref }}"
 
   promote-latest:
