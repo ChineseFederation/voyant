@@ -354,6 +354,12 @@ jobs:
       - name: Migrate, boot, and API-smoke the canonical digest
         run: scripts/smoke-operator-image.sh "${{ steps.image.outputs.ref }}"
 
+      - name: Verify anonymous access to the public base digest
+        run: |
+          set -euo pipefail
+          docker logout ghcr.io
+          docker buildx imagetools inspect "${{ steps.image.outputs.ref }}" --raw >/dev/null
+
   promote-latest:
     name: promote-latest-and-verify
     if: github.event_name == 'workflow_dispatch' && inputs.operation == 'promote-latest'

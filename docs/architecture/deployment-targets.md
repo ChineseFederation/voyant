@@ -86,8 +86,11 @@ workload class well. On Node none of it is necessary.
   `node run-generated-migrations.mjs` as an explicit pre-rollout command and
   boots `dist/server/server.js`, which validates graph artifacts and required
   graph resource env before serving traffic. Startup does not own migrations.
-  The production artifact is published as `ghcr.io/voyant-travel/operator`;
-  production control planes pin its immutable digest. See
+  The public OSS artifact is published only as
+  `ghcr.io/voyant-travel/operator`; production control planes pin its immutable
+  digest. Self-hosters deploy that digest directly. A private downstream product
+  may use it as a digest-pinned base and publish its resulting derivative under
+  separate private provenance and release authority. See
   [Operator Image Distribution Contract](./operator-image-distribution.md) for
   tag promotion, OCI identity, provenance, digest acceptance, and provider
   binding compatibility rules.

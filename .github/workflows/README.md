@@ -47,6 +47,8 @@ Handles package releases:
 
 Publishes `ghcr.io/voyant-travel/operator` independently from npm packages:
 
+- GHCR is the sole public registry for the OSS operator base; no mirror is
+  published
 - pushes to `main` publish immutable `sha-<git-sha>` multi-architecture images
 - manual `publish-release` dispatches from `main` publish immutable semver tags
 - amd64 and arm64 variants build and pass digest-level acceptance concurrently
@@ -55,6 +57,8 @@ Publishes `ghcr.io/voyant-travel/operator` independently from npm packages:
   migration, boot, and API acceptance
 - BuildKit SBOM/provenance and a GitHub registry attestation accompany new
   artifacts
+- canonical publication finishes by resolving the exact digest without registry
+  credentials, so a private package cannot pass as the public base
 
 Pull requests do not trigger this workflow. Platform deployments consume a
 digest, never `latest`; see

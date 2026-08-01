@@ -144,11 +144,8 @@ so the composed graph stays resident. Env/secrets come from the platform (no
 `.env` in the image).
 
 ```bash
-# Build + push, from the repo root (custom Dockerfile path, so build locally and
-# push — or run the same `docker build` inside a Cloud Build `--config` step):
-IMAGE=REGION-docker.pkg.dev/PROJECT/voyant/operator
-docker build -f apps/operator/Dockerfile -t "$IMAGE" .
-docker push "$IMAGE"
+# Pin the public OSS image by the exact accepted multi-platform digest.
+IMAGE=ghcr.io/voyant-travel/operator@sha256:<digest>
 
 # Deploy (secrets via Secret Manager; DATABASE_URL_DIRECT = the pooled Node lane):
 gcloud run deploy operator \
@@ -157,6 +154,11 @@ gcloud run deploy operator \
   --set-env-vars="APP_URL=https://operator.example/api,DASH_BASE_URL=https://operator.example" \
   --set-secrets="DATABASE_URL_DIRECT=operator-db-direct:latest,BETTER_AUTH_ADMIN_SECRET=operator-admin-auth:latest,BETTER_AUTH_CUSTOMER_SECRET=operator-customer-auth:latest,SESSION_CLAIMS_ADMIN_SECRET=operator-admin-claims:latest,SESSION_CLAIMS_CUSTOMER_SECRET=operator-customer-claims:latest,VOYANT_CHECKOUT_CAPABILITY_SECRET=operator-checkout-capability:latest,INTERNAL_API_KEY=operator-internal-key:latest,ORIGIN_TRUST_SECRET=operator-origin-trust:latest"
 ```
+
+The GHCR package is the sole public operator image. Cloud Run can pull a public
+GHCR image directly, so this path does not require copying or retagging the base
+into another registry. Resolve a release tag to its accepted digest before
+deployment; never place `latest` in a service specification.
 
 The image uses the providers compiled from `voyant.config.ts` by default. To
 boot that same image with different infrastructure, set

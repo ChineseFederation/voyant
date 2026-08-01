@@ -8,6 +8,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKFLOW = ".github/workflows/operator-image.yml"
 const CI_WORKFLOW = ".github/workflows/ci.yml"
 const DOCKERFILE = "apps/operator/Dockerfile"
+const OPERATOR_README = "apps/operator/README.md"
 const SMOKE = "scripts/smoke-operator-image.sh"
 const IDENTITY = "scripts/verify-operator-image-identity.mjs"
 const CONTRACT = "docs/architecture/operator-image-distribution.md"
@@ -31,12 +32,19 @@ function requireFragments(path, text, fragments) {
 const workflow = source(WORKFLOW)
 const ci = source(CI_WORKFLOW)
 const dockerfile = source(DOCKERFILE)
+const operatorReadme = source(OPERATOR_README)
 const smoke = source(SMOKE)
 const identity = source(IDENTITY)
 const contract = source(CONTRACT)
 
 if (/^\s*pull_request\s*:/m.test(workflow)) {
   violations.push({ path: WORKFLOW, message: "pull requests must never trigger image publication" })
+}
+
+for (const match of workflow.matchAll(/^\s+registry:\s*(\S+)\s*$/gm)) {
+  if (match[1] !== "ghcr.io") {
+    violations.push({ path: WORKFLOW, message: "GHCR must remain the sole publication registry" })
+  }
 }
 
 requireFragments(WORKFLOW, workflow, [
@@ -119,6 +127,11 @@ requireFragments(WORKFLOW, workflow, [
   ["steps.release.outputs.ref", "latest promotion must accept the resolved release digest"],
   ["packages: write", "registry mutation must be granted at job scope"],
   ["attestations: write", "publication must grant the attestation permission"],
+  ["docker logout ghcr.io", "publication must remove registry credentials before its public check"],
+  [
+    `imagetools inspect "${EXPRESSION_START} steps.image.outputs.ref }}" --raw`,
+    "publication must prove anonymous access to the exact canonical digest",
+  ],
 ])
 
 if (workflow.includes("docker/setup-qemu-action")) {
@@ -165,6 +178,13 @@ requireFragments(DOCKERFILE, dockerfile, [
   ["org.opencontainers.image.source", "runtime image must label its source"],
   ["org.opencontainers.image.revision", "runtime image must label its revision"],
   ["org.opencontainers.image.version", "runtime image must label its version"],
+])
+requireFragments(OPERATOR_README, operatorReadme, [
+  [
+    "IMAGE=ghcr.io/voyant-travel/operator@sha256:<digest>",
+    "operator deployment guidance must pin the sole public GHCR image by digest",
+  ],
+  ["sole public operator image", "operator deployment guidance must identify one public image"],
 ])
 requireFragments(SMOKE, smoke, [
   ["node run-generated-migrations.mjs", "image acceptance must run embedded migrations"],
@@ -268,6 +288,15 @@ requireIdentityResult(
   "unexpected runnable or non-attestation platform descriptor",
 )
 requireFragments(CONTRACT, contract, [
+  [
+    "sole public OCI distribution point",
+    "distribution contract must name a single public registry",
+  ],
+  [
+    "supersedes #3976's original",
+    "distribution contract must replace the same-final-image premise with a public base",
+  ],
+  ["canonical base for downstream private products", "contract must define private derivatives"],
   ["@sha256:<digest>", "distribution contract must require digest pinning"],
   ["ADMIN_UI_EXTENSION_API_VERSION", "contract must separate extension API versioning"],
   ["APP_API_VERSION", "contract must separate Apps API versioning"],

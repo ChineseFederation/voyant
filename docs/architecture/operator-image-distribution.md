@@ -9,6 +9,8 @@ versioned client or extension protocols.
 
 `.github/workflows/operator-image.yml` is the only image publication authority:
 
+- GHCR is the sole public OCI distribution point for the OSS operator. The
+  workflow publishes `ghcr.io/voyant-travel/operator` and no registry mirror;
 - every push to `main` publishes an immutable `sha-<git-sha>` tag;
 - an explicit workflow dispatch from `main` publishes an immutable bare-semver
   release tag such as `0.225.0`;
@@ -49,19 +51,53 @@ native build emits an SBOM and maximum BuildKit provenance; finalization also
 attaches GitHub build provenance to the canonical registry artifact, including
 during recovery reruns. Promoting `latest` performs the same acceptance against
 the release digest before moving the tag and then proves that `latest` resolves
-to that digest.
+to that digest. Publication succeeds only if the canonical digest remains
+resolvable after the workflow logs out of GHCR, proving anonymous access to the
+public base.
 
-`latest` is for discovery only. Voyant Platform and other production control
-planes **must pin `ghcr.io/voyant-travel/operator@sha256:<digest>`**. A rollout
-records that digest and uses the same digest for its pre-rollout
-`node run-generated-migrations.mjs` invocation and all serving replicas.
+`latest` is for discovery only. Self-hosted and other direct consumers **must
+pin `ghcr.io/voyant-travel/operator@sha256:<digest>`** and use that same digest
+for the pre-rollout `node run-generated-migrations.mjs` invocation and all
+serving replicas. A downstream Platform build pins that public digest as its
+base input, records the relationship in provenance, and deploys the resulting
+private derivative by its own immutable digest.
 
 GitHub creates a new container package as private by default unless the
 organization has configured another default. The `voyant-travel` organization
-owner must make `operator` public if unauthenticated Platform pulls are a
-requirement, or provision a read-only GHCR credential to Platform. The workflow
-deliberately does not change package visibility. Visibility is an organization
-policy decision, not a source-controlled build side effect.
+owner must make `operator` public. The workflow deliberately does not mutate
+package visibility; instead, its final anonymous digest check fails closed until
+that one-time repository setting is correct.
+
+## Public base and private derivatives
+
+This supersedes #3976's original “Platform and self-hosters run the same final
+image” premise. The shared artifact is the public OSS product and base:
+self-hosters run it directly, while Platform builds a private downstream
+derivative from its exact digest. Both retain the same graph-native runtime and
+provider-binding contract, but the final public and private image digests are
+intentionally distinct and carry separate provenance.
+
+The published artifact is both a directly deployable OSS operator and the
+canonical base for downstream private products. A downstream build must consume
+the public base directly from GHCR by immutable digest:
+
+```dockerfile
+ARG VOYANT_OPERATOR_BASE
+FROM ${VOYANT_OPERATOR_BASE}
+
+# Add only downstream-owned private material and metadata.
+```
+
+For example, the downstream build supplies
+`--build-arg VOYANT_OPERATOR_BASE=ghcr.io/voyant-travel/operator@sha256:<digest>`.
+
+The downstream pipeline must reject tag-only base references, record the exact
+base name and digest in its own provenance, and run migration, boot, and API
+acceptance against the resulting derivative digest. The derivative has its own
+identity, SBOM, provenance, visibility, and release policy; it does not replace,
+retag, or mirror the public OSS artifact. Self-hosters deploy the public digest
+directly, while a private Platform derivative preserves that digest as its
+auditable source foundation.
 
 ## OCI identity
 
