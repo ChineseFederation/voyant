@@ -54,6 +54,7 @@ export const checkoutUiRo: CheckoutUiMessages = {
     },
     descriptions: {
       booking: "Plata rezervare",
+      booking_session: "Plata sesiune rezervare",
       booking_payment_schedule: "Avans rezervare",
       booking_guarantee: "Garantie rezervare",
       invoice: "Plata factura",

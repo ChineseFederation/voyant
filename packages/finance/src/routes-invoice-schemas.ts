@@ -69,6 +69,7 @@ const paymentSessionStatusValues = [
 ] as const
 
 const paymentSessionTargetTypeValues = [
+  "booking_session",
   "booking",
   "order",
   "invoice",

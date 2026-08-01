@@ -92,6 +92,9 @@ function toPublicPaymentTarget(
   if (session.invoiceId) {
     return { type: "invoice" as const, invoiceId: session.invoiceId }
   }
+  if (session.targetType === "booking_session" && session.targetId) {
+    return { type: "booking_session" as const, bookingSessionId: session.targetId }
+  }
   if (session.targetType === "flight_order" && session.targetId) {
     return { type: "flight_order" as const, flightOrderId: session.targetId }
   }

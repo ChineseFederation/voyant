@@ -137,8 +137,9 @@ tracers.
 
 ## Consequences
 
-- Booking Session is pre-commitment state. Abandonment must not leak Booking or
-  Finance records.
+- Booking Session is pre-commitment state. Abandonment must not leak a Booking;
+  pending Finance attempts are terminalized, while captured pre-Booking money
+  remains explicitly targeted at the terminal Session for reconciliation.
 - Quote is immutable and exact-revision scoped. Re-quoting after a material
   change supersedes prior pricing rather than mutating it.
 - Hold is inventory state, not a Booking. Owned Commit converts Hold to

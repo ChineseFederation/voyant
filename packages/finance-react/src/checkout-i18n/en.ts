@@ -54,6 +54,7 @@ export const checkoutUiEn: CheckoutUiMessages = {
     },
     descriptions: {
       booking: "Booking payment",
+      booking_session: "Booking session payment",
       booking_payment_schedule: "Booking deposit",
       booking_guarantee: "Booking guarantee",
       invoice: "Invoice payment",

@@ -17,6 +17,7 @@ export type {
   AbandonBookingSessionV1,
   AdoptBookingSessionV1,
   BookingSessionViewV1,
+  CommitBookingSessionV1,
   CreateBookingSessionV1,
   RenewBookingSessionV1,
   UpdateBookingSessionV1,
@@ -51,6 +52,7 @@ export interface OwnedProductBookingTracerInput {
   journeyKey: string
   state?: Record<string, unknown>
   quantity?: number
+  payment?: CommitBookingSessionV1["payment"]
   requestOptions?: BookingSessionRequestOptions
 }
 
@@ -61,6 +63,13 @@ export type OwnedProductBookingTracerResult =
       quoteOutcome: BookingSessionOutcomeV1
       holdOutcome: BookingSessionOutcomeV1
       commitOutcome: BookingSessionOutcomeV1
+    }
+  | {
+      kind: "payment_required"
+      session: BookingSessionRecordV1
+      quoteOutcome: BookingSessionOutcomeV1
+      holdOutcome: BookingSessionOutcomeV1
+      commitOutcome: Extract<BookingSessionOutcomeV1, { kind: "commit_result" }>
     }
   | {
       kind: "stopped"
@@ -299,11 +308,30 @@ export async function runOwnedProductBookingTracerV1(
       quoteId: quoteOutcome.quote.id,
       holdId: holdOutcome.hold.id,
       idempotencyKey: `${input.journeyKey}:commit`,
+      ...(input.payment ? { payment: input.payment } : {}),
     },
     sessionRequestOptions,
   )
 
   if (commitOutcome.kind !== "commit_result") {
+    return {
+      kind: "stopped",
+      stage: "commit",
+      outcome: commitOutcome,
+      session,
+      quoteOutcome,
+      holdOutcome,
+    }
+  }
+
+  if (commitOutcome.outcome.kind === "payment_required") {
+    return { kind: "payment_required", session, quoteOutcome, holdOutcome, commitOutcome }
+  }
+
+  if (
+    commitOutcome.outcome.kind !== "committed" &&
+    commitOutcome.outcome.kind !== "idempotent_replay"
+  ) {
     return {
       kind: "stopped",
       stage: "commit",

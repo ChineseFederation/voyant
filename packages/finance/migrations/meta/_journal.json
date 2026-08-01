@@ -43,6 +43,13 @@
       "when": 1784698562480,
       "tag": "20260722053500_payment_session_provider_connection",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785602400000,
+      "tag": "20260801164000_booking_session_payment_target_v1",
+      "breakpoints": true
     }
   ]
 }

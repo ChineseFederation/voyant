@@ -133,6 +133,9 @@ function derivePublicPaymentTarget(value: {
     return { type: "booking_guarantee" as const, bookingGuaranteeId: value.bookingGuaranteeId }
   }
   if (value.invoiceId) return { type: "invoice" as const, invoiceId: value.invoiceId }
+  if (value.targetType === "booking_session" && value.targetId) {
+    return { type: "booking_session" as const, bookingSessionId: value.targetId }
+  }
   if (value.targetType === "flight_order" && value.targetId) {
     return { type: "flight_order" as const, flightOrderId: value.targetId }
   }

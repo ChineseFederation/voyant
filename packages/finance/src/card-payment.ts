@@ -93,6 +93,29 @@ export interface PaymentAdapterCardPaymentExecution {
   idempotencyKey?: string
 }
 
+/** Resolve the deployment's canonical server-side payment callback URL. */
+export function resolvePaymentCallbackUrl(
+  env: Readonly<Record<string, unknown>>,
+): string | undefined {
+  const configured =
+    nonEmpty(env.PAYMENT_CALLBACK_BASE_URL) ??
+    nonEmpty(env.DASH_BASE_URL) ??
+    nonEmpty(env.APP_URL)?.replace(/\/api\/?$/, "")
+  if (!configured) return undefined
+  const url = new URL(configured)
+  if (
+    (url.protocol !== "http:" && url.protocol !== "https:") ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error("Payment callback base must be an absolute HTTP(S) origin")
+  }
+  return `${url.origin}/api/v1/public/payment-link/callback`
+}
+
 /**
  * Start a payment through a selected adapter without requiring an HTTP
  * framework context. Package runtimes use this function; the Hono-oriented
@@ -216,4 +239,10 @@ export function createPaymentAdapterCardPaymentStarter(
       idempotencyKey: options.idempotencyKey?.(args.sessionId),
     })
   }
+}
+
+function nonEmpty(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  const trimmed = value.trim()
+  return trimmed || undefined
 }

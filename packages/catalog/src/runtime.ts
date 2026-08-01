@@ -5,7 +5,7 @@ import { CATALOG_PRESENTATION_SUBJECT_MODULES } from "@voyant-travel/catalog/pre
 import type { CatalogSearchRuntime } from "@voyant-travel/catalog/search/routes"
 import { createReferencedSubjectReindexFanout } from "@voyant-travel/catalog/services/indexer"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
-import type { FinanceServiceRuntime } from "@voyant-travel/finance"
+import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
 import {
   ensureBookingEngineRegistry,
@@ -50,6 +50,7 @@ export function createCatalogRuntime(
     indexer?: CatalogIndexer
     resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
     resolveFinanceServiceRuntime?: (context: unknown) => FinanceServiceRuntime
+    resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
   } = {},
 ): CatalogRuntimePortContribution {
   configureCatalogRuntimeHost(primitives, extensions)
@@ -148,8 +149,10 @@ export function createCatalogRuntime(
       resolveRuntime: (context) => createCatalogSearchRuntime(context, resolveIndexer),
     },
     booking: createOperatorCatalogBookingRouteModuleOptions({
+      settings,
       resolveBookingsRelationshipsRuntime: options.resolveBookingsRelationshipsRuntime,
       resolveFinanceServiceRuntime: options.resolveFinanceServiceRuntime,
+      resolvePaymentAdapter: options.resolvePaymentAdapter,
     }),
     offers: createOperatorCatalogOffersRouteModuleOptions(
       (context) => withoutCatalogScopeChannel(resolveCatalogDefaultScope(context)),

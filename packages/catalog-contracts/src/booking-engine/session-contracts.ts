@@ -123,6 +123,12 @@ export const commitBookingSessionV1 = z.object({
   quoteId: z.string().min(1),
   holdId: z.string().min(1),
   idempotencyKey: z.string().min(8).max(128),
+  payment: z
+    .object({
+      returnUrl: z.string().url().optional(),
+      cancelUrl: z.string().url().optional(),
+    })
+    .optional(),
 })
 export type CommitBookingSessionV1 = z.input<typeof commitBookingSessionV1>
 

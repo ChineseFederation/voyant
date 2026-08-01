@@ -8,7 +8,7 @@ import {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,
 } from "./sessions-memory.js"
-import { createBookingSessionModule } from "./sessions-service.js"
+import { type BookingSessionPaymentPorts, createBookingSessionModule } from "./sessions-service.js"
 
 const BASE_PRICING = {
   currency: "EUR",
@@ -33,6 +33,7 @@ function createHarness(
     maxRenewalExtensionMs?: number
     maxSessionLifetimeMs?: number
   } = {},
+  payments?: BookingSessionPaymentPorts,
 ) {
   let currentNow = new Date("2026-08-01T12:00:00.000Z")
   let price = BASE_PRICING
@@ -55,6 +56,7 @@ function createHarness(
       placeCapacityHold: inventory.placeCapacityHold,
       releaseCapacityHold: inventory.releaseCapacityHold,
       commitOwnedBooking: inventory.commitOwnedBooking,
+      payments,
     },
   })
   return {
@@ -108,6 +110,102 @@ async function createQuoteAndHold(harness = createHarness()) {
 }
 
 describe("Booking Session v1 owned tracer", () => {
+  it("returns a stable payment_required continuation without creating a Booking", async () => {
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    const input = {
+      expectedRevision: session.revision,
+      quoteId: quote.id,
+      holdId: hold.id,
+      idempotencyKey: "commit_payment_required",
+    }
+
+    const first = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+    const retry = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+
+    expect(first).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "payment_required",
+        paymentTarget: "booking_session",
+        paymentSession: { id: "payment_session_1", status: "requires_redirect" },
+      },
+    })
+    expect(retry).toEqual(first)
+    expect(payment.prepareCalls).toBe(2)
+    expect(harness.inventory.bookingIds).toEqual([])
+    expect(harness.repository.commits.size).toBe(0)
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+    expect(harness.repository.quotes.get(quote.id)?.state).toBe("active")
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("active")
+  })
+
+  it("transfers an established Session payment in the atomic Commit transaction", async () => {
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+    const input = {
+      expectedRevision: session.revision,
+      quoteId: quote.id,
+      holdId: hold.id,
+      idempotencyKey: "commit_after_payment",
+    }
+
+    await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+    payment.established = true
+    const committed = await harness.module.commitSession(session.id, input, ANONYMOUS_ACCESS)
+
+    expect(committed).toMatchObject({ kind: "commit_result", outcome: { kind: "committed" } })
+    expect(harness.inventory.bookingIds).toHaveLength(1)
+    expect(payment.transfers).toEqual([
+      expect.objectContaining({
+        paymentSessionId: "payment_session_1",
+        bookingSessionId: session.id,
+        bookingId: harness.inventory.bookingIds[0],
+      }),
+    ])
+  })
+
+  it("returns a typed conflict when a reused Commit key maps to a changed payment requirement", async () => {
+    const payment = createPaymentHarness()
+    payment.ports.prepare = async () => {
+      throw new Error("booking_session_payment_idempotency_conflict")
+    }
+    const harness = createHarness({}, payment.ports)
+    const { session, quote, hold } = await createQuoteAndHold(harness)
+
+    await expect(
+      harness.module.commitSession(
+        session.id,
+        {
+          expectedRevision: session.revision,
+          quoteId: quote.id,
+          holdId: hold.id,
+          idempotencyKey: "commit_changed_payment_requirement",
+        },
+        ANONYMOUS_ACCESS,
+      ),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "idempotency_conflict" } })
+    expect(harness.inventory.bookingIds).toEqual([])
+    expect(harness.repository.sessions.get(session.id)?.state).toBe("active")
+  })
+
+  it("expires pending Session payments when the journey is abandoned", async () => {
+    const payment = createPaymentHarness()
+    const harness = createHarness({}, payment.ports)
+    const { session, hold } = await createQuoteAndHold(harness)
+
+    await harness.module.abandonSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "abandon_payment_pending" },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(payment.expirations).toEqual([expect.objectContaining({ bookingSessionId: session.id })])
+    expect(harness.repository.holds.get(hold.id)?.state).toBe("released")
+  })
+
   it("requires the caller-held anonymous Session capability before mutation", async () => {
     const harness = createHarness()
     const created = await harness.module.createSession(
@@ -928,6 +1026,50 @@ describe("Booking Session v1 owned tracer", () => {
     })
   })
 })
+
+function createPaymentHarness() {
+  const transfers: Array<{
+    tx: unknown
+    paymentSessionId: string
+    bookingSessionId: string
+    bookingId: string
+  }> = []
+  const expirations: Array<{ tx: unknown; bookingSessionId: string; at: Date }> = []
+  const harness = {
+    established: false,
+    prepareCalls: 0,
+    transfers,
+    expirations,
+    ports: undefined as unknown as BookingSessionPaymentPorts,
+  }
+  harness.ports = {
+    async prepare() {
+      harness.prepareCalls += 1
+      if (harness.established) {
+        return { kind: "established", paymentSessionId: "payment_session_1" }
+      }
+      return {
+        kind: "required",
+        allowedGuarantees: ["deposit"],
+        paymentSession: {
+          id: "payment_session_1",
+          status: "requires_redirect",
+          amountCents: 10_000,
+          currency: "EUR",
+          redirectUrl: "https://payments.example.test/session/1",
+          expiresAt: "2026-08-01T12:01:00.000Z",
+        },
+      }
+    },
+    async transferToBooking(input) {
+      transfers.push(input)
+    },
+    async expirePending(input) {
+      expirations.push(input)
+    },
+  }
+  return harness
+}
 
 function nextCreateKey(prefix: string): string {
   createCounter += 1

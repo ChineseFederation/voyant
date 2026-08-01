@@ -2,7 +2,7 @@ import type { CustomFieldsRuntime } from "@voyant-travel/core/custom-fields"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { PaymentAdapter } from "@voyant-travel/payments"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { startPaymentAdapterCardPayment } from "./card-payment.js"
+import { resolvePaymentCallbackUrl, startPaymentAdapterCardPayment } from "./card-payment.js"
 import type { CheckoutPaymentStarter } from "./checkout-service.js"
 import type { FinanceApiModuleOptions } from "./index.js"
 import {
@@ -155,26 +155,6 @@ function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {}
-}
-
-function resolvePaymentCallbackUrl(env: Readonly<Record<string, unknown>>): string | undefined {
-  const configured =
-    nonEmpty(env.PAYMENT_CALLBACK_BASE_URL) ??
-    nonEmpty(env.DASH_BASE_URL) ??
-    nonEmpty(env.APP_URL)?.replace(/\/api\/?$/, "")
-  if (!configured) return undefined
-  const url = new URL(configured)
-  if (
-    (url.protocol !== "http:" && url.protocol !== "https:") ||
-    url.username ||
-    url.password ||
-    url.pathname !== "/" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error("Payment callback base must be an absolute HTTP(S) origin")
-  }
-  return `${url.origin}/api/v1/public/payment-link/callback`
 }
 
 /** Compose Finance's payment schedule from statically selected domain providers. */

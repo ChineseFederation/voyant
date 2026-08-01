@@ -140,7 +140,9 @@ The canonical persistence shape is:
   `(session_id, idempotency_key)` replay record.
 
 Creating or abandoning a Booking Session does not create a Booking, booking
-number, Booking Item, Allocation, Finance record, or reporting row. Updating
+number, Booking Item, Allocation, or reporting row. A Commit that requires
+payment may create a Finance Payment Session targeted at the Booking Session;
+that pre-Booking payment attempt is not a Booking or a draft Booking. Updating
 price-relevant state increments the Session revision and supersedes active
 Quotes. Commit rejects stale revisions, expired/superseded Quotes, expired or
 mismatched Holds, and different server-recomputed prices. Stable idempotency
@@ -156,6 +158,30 @@ reference SDK and React hook are exported from `@voyant-travel/storefront-sdk`
 and `@voyant-travel/storefront-react`; they hide the route sequence while
 preserving returned revision, capability, Quote, Hold, and stable idempotency
 semantics.
+
+#### Payment-required Commit continuation
+
+The owned Product tracer resolves the effective customer payment policy from
+server-owned listing, category, supplier, and operator settings. When money is
+due at Commit, Finance creates or reuses an idempotent Payment Session targeted
+at the Booking Session and Catalog returns `payment_required`. The Session,
+Quote, and Hold remain live only until their existing expiries; initiating a
+payment does not silently extend spend authority.
+
+Provider redirects, delayed callbacks, duplicate callbacks, failures, and
+customer retries update the Finance Payment Session through the selected
+payment adapter. Storefront and authenticated callers resume by invoking the
+same typed Commit operation again. While payment remains pending, Commit
+creates no Booking. Once the Payment Session is `authorized` or `paid`, Commit
+creates the Booking exactly once and retargets the Payment Session—and its
+authorization—to that Booking inside the root PostgreSQL transaction. If the
+transaction rolls back, both the Booking graph and payment transfer roll back.
+
+Session expiry or abandonment releases the Hold and expires pending payment
+attempts. An already captured payment is retained against the terminal Booking
+Session for explicit reconciliation; it is never rewritten as unpaid or used
+to fabricate a Booking after spend authority expires. Booking lifecycle status
+continues to describe the travel commitment, never the payment state.
 
 ### 3.3. `cancelEntity`
 

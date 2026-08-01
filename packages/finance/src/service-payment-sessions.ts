@@ -59,6 +59,8 @@ function derivePaymentSessionTargetColumns(
   if (!explicitTarget) return {}
 
   switch (explicitTarget.type) {
+    case "booking_session":
+      return {}
     case "booking":
       return { bookingId: explicitTarget.bookingId }
     case "invoice":
@@ -167,11 +169,22 @@ export const financePaymentSessionService = {
           expiredAt: toTimestamp(data.expiredAt),
           expiresAt: toTimestamp(data.expiresAt),
         })
+        .onConflictDoNothing({ target: paymentSessions.idempotencyKey })
         .returning()
+
+    const loadIdempotentSession = async (writer: PostgresJsDatabase) => {
+      if (!data.idempotencyKey) return null
+      const [existing] = await writer
+        .select()
+        .from(paymentSessions)
+        .where(eq(paymentSessions.idempotencyKey, data.idempotencyKey))
+        .limit(1)
+      return existing ?? null
+    }
 
     const actionLedgerContext = runtime.actionLedgerContext
     if (actionLedgerContext) {
-      const [row] = await db.transaction(async (tx) => {
+      const row = await db.transaction(async (tx) => {
         const created = await createSession(tx)
 
         if (created[0]) {
@@ -186,15 +199,16 @@ export const financePaymentSessionService = {
           )
         }
 
-        return created
+        return created[0] ?? loadIdempotentSession(tx)
       })
 
-      return row ?? null
+      return row
     }
 
     const [row] = await createSession(db)
-    await touchPaymentSessionBooking(db, row)
-    return row ?? null
+    const resolved = row ?? (await loadIdempotentSession(db))
+    await touchPaymentSessionBooking(db, resolved ?? undefined)
+    return resolved
   },
 
   async updatePaymentSession(

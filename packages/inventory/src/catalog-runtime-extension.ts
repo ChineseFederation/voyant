@@ -1,6 +1,7 @@
 import type { CatalogInventoryRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
 import { createProductQuoteShapeEnricher } from "@voyant-travel/catalog/runtime-support"
-import { asc, eq, gt } from "drizzle-orm"
+import type { PaymentPolicy } from "@voyant-travel/finance"
+import { and, asc, eq, gt, isNotNull } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { registerProductBookingHandler } from "./booking-engine/product-runtime.js"
@@ -12,7 +13,7 @@ import { productPromotionsCatalogPolicy } from "./catalog-policy-promotions.js"
 import { productTaxonomyCatalogPolicy } from "./catalog-policy-taxonomy.js"
 import { buildProductDraftShape } from "./draft-shape.js"
 import { extrasCatalogPolicy } from "./extras.js"
-import { products } from "./schema.js"
+import { productCategories, productCategoryProducts, products } from "./schema.js"
 import { productsService } from "./service.js"
 import {
   buildProductSnapshotInput,
@@ -97,6 +98,38 @@ export const catalogInventoryRuntimeExtension = {
       .where(eq(products.id, productId))
       .limit(1)
     return product ?? null
+  },
+  async loadProductPaymentPolicyContext(db, productId) {
+    const [[product], [category]] = await Promise.all([
+      db
+        .select({
+          listingPolicy: products.customerPaymentPolicy,
+          supplierId: products.supplierId,
+          departureDate: products.startDate,
+        })
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1),
+      db
+        .select({ categoryPolicy: productCategories.customerPaymentPolicy })
+        .from(productCategoryProducts)
+        .innerJoin(productCategories, eq(productCategories.id, productCategoryProducts.categoryId))
+        .where(
+          and(
+            eq(productCategoryProducts.productId, productId),
+            isNotNull(productCategories.customerPaymentPolicy),
+          ),
+        )
+        .orderBy(asc(productCategoryProducts.sortOrder), asc(productCategoryProducts.createdAt))
+        .limit(1),
+    ])
+    if (!product) return null
+    return {
+      listingPolicy: (product.listingPolicy as PaymentPolicy | null | undefined) ?? null,
+      categoryPolicy: (category?.categoryPolicy as PaymentPolicy | null | undefined) ?? null,
+      supplierId: product.supplierId,
+      departureDate: product.departureDate,
+    }
   },
   enrichProductQuoteShape,
   buildSnapshotInput: (db, productId, options) => buildProductSnapshotInput(db, productId, options),

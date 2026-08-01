@@ -33,6 +33,7 @@ import {
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import type { PaymentAdapter } from "@voyant-travel/finance"
 import {
   type FinanceOperatorSettingsRuntime,
   financeOperatorSettingsRuntimePort,
@@ -79,6 +80,7 @@ import {
 type RuntimePortValue<T> = T | Promise<T>
 // Importing Cruises here would create a Catalog <-> Cruises package cycle.
 const cruisesRoutesRuntimePortReference = { id: "cruises.routes-runtime" } as const
+const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
 
 export interface CatalogRuntimePortContribution {
   search: RuntimePortValue<CatalogSearchRuntimeOptions>
@@ -158,6 +160,10 @@ export function createCatalogRuntimePortContribution(
             const eventBus = (context as { var?: { eventBus?: unknown } }).var?.eventBus
             return eventBus ? { eventBus: eventBus as never } : {}
           },
+          async resolvePaymentAdapter() {
+            if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
+            return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
+          },
         },
       )
     },
@@ -220,10 +226,23 @@ export function createCatalogRuntimePortContribution(
         const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
         const runtime = await contribution
         const services = await runtime.services
+        const [, , , distribution, , inventory, , settings] = await dependencies
         return createProductionBookingSessionModule({
           db,
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
+          payments: {
+            inventory,
+            distribution,
+            settings,
+            async resolvePaymentAdapter() {
+              if (host.hasRuntimePort?.(paymentAdapterRuntimePortReference) !== true) return null
+              return host.getRuntimePort<PaymentAdapter>(paymentAdapterRuntimePortReference)
+            },
+            paymentAdapterContext: {
+              env: host.primitives.env(undefined) as Readonly<Record<string, unknown>>,
+            },
+          },
         })
       },
       resolveRetentionMs: () => resolveBookingSessionRetentionMs(host.primitives.env(undefined)),

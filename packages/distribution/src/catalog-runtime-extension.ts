@@ -1,4 +1,5 @@
 import type { CatalogDistributionRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
+import type { PaymentPolicy } from "@voyant-travel/finance"
 import { and, asc, eq } from "drizzle-orm"
 
 import { channelProductMappings, channels, suppliers } from "./schema.js"
@@ -34,5 +35,13 @@ export const catalogDistributionRuntimeExtension = {
       .where(eq(suppliers.id, supplierId))
       .limit(1)
     return supplier ?? null
+  },
+  async loadSupplierPaymentPolicy(db, supplierId) {
+    const [supplier] = await db
+      .select({ policy: suppliers.customerPaymentPolicy })
+      .from(suppliers)
+      .where(eq(suppliers.id, supplierId))
+      .limit(1)
+    return (supplier?.policy as PaymentPolicy | null | undefined) ?? null
   },
 } satisfies CatalogDistributionRuntimeExtension

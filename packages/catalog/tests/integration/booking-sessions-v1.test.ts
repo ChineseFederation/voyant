@@ -1,6 +1,13 @@
 import { createDbClient } from "@voyant-travel/db"
 import { newId } from "@voyant-travel/db/lib/typeid"
-import { sql } from "drizzle-orm"
+import {
+  applyPaymentAdapterCallbackEvent,
+  createOrReuseBookingSessionPayment,
+  expirePendingBookingSessionPayments,
+  transferBookingSessionPaymentToBooking,
+} from "@voyant-travel/finance"
+import { paymentSessions } from "@voyant-travel/finance/schema"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import {
@@ -18,6 +25,7 @@ import {
   bookingSessionsTable,
 } from "../../src/booking-engine/sessions-schema.js"
 import {
+  type BookingSessionPaymentPorts,
   type CommitOwnedBookingInput,
   createBookingSessionModule,
 } from "../../src/booking-engine/sessions-service.js"
@@ -187,6 +195,79 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
     ])
   })
 
+  it("continues a paid Session into exactly one Booking under a concurrent Commit retry", async () => {
+    const repository = createDrizzleBookingSessionRepository(db)
+    const payments: BookingSessionPaymentPorts = {
+      async prepare({ session }) {
+        const [payment] = await db
+          .select()
+          .from(paymentSessions)
+          .where(eq(paymentSessions.targetId, session.id))
+          .limit(1)
+        if (!payment || (payment.status !== "authorized" && payment.status !== "paid")) {
+          throw new Error("Expected an established Session payment")
+        }
+        return { kind: "established", paymentSessionId: payment.id }
+      },
+      async transferToBooking({ tx, ...input }) {
+        await transferBookingSessionPaymentToBooking(tx as PostgresJsDatabase, input)
+      },
+      async expirePending({ tx, bookingSessionId, at }) {
+        await expirePendingBookingSessionPayments(tx as PostgresJsDatabase, bookingSessionId, at)
+      },
+    }
+    const module = createModule(
+      repository,
+      async (input) =>
+        db.transaction(async (tx) => {
+          const graph = await insertBookingGraph(tx as PostgresJsDatabase)
+          await input.consumeSources(tx, graph.bookingId, [graph.allocationId])
+          return { bookingId: graph.bookingId, allocationIds: [graph.allocationId] }
+        }),
+      payments,
+    )
+    const prepared = await createQuoteAndHold(module)
+    const payment = await createOrReuseBookingSessionPayment(db, {
+      bookingSessionId: prepared.session.id,
+      commitIdempotencyKey: "postgres_paid_continuation",
+      amountCents: PRICING.total,
+      currency: PRICING.currency,
+    })
+    if (!payment) throw new Error("Payment Session was not created")
+    await applyPaymentAdapterCallbackEvent(db, {
+      eventId: "evt_postgres_paid_continuation",
+      paymentSessionId: payment.id,
+      nextState: "paid",
+      occurredAt: "2026-08-01T12:00:00.000Z",
+      processorSessionId: "processor_postgres_paid_continuation",
+      processorPaymentId: "payment_postgres_paid_continuation",
+      idempotencyKey: "callback_postgres_paid_continuation",
+    })
+    const input = {
+      expectedRevision: prepared.session.revision,
+      quoteId: prepared.quote.id,
+      holdId: prepared.hold.id,
+      idempotencyKey: "postgres_paid_commit",
+    }
+
+    const outcomes = await Promise.all([
+      module.commitSession(prepared.session.id, input, ACCESS),
+      module.commitSession(prepared.session.id, input, ACCESS),
+    ])
+
+    expect(outcomes.filter(isCommitted)).toHaveLength(1)
+    expect(outcomes.filter(isReplay)).toHaveLength(1)
+    const [booking] = await db.select().from(bookings)
+    await expect(db.select().from(paymentSessions)).resolves.toEqual([
+      expect.objectContaining({
+        id: payment.id,
+        targetType: "booking",
+        targetId: booking?.id,
+        bookingId: booking?.id,
+      }),
+    ])
+  })
+
   it("serializes customer adoption, revokes the capability, and persists read audit", async () => {
     const repository = createDrizzleBookingSessionRepository(db)
     const module = createModule(repository, async () => {
@@ -249,6 +330,7 @@ function createModule(
     bookingId: string
     allocationIds: string[]
   }>,
+  payments?: BookingSessionPaymentPorts,
 ) {
   return createBookingSessionModule({
     ports: {
@@ -258,6 +340,7 @@ function createModule(
       placeCapacityHold: async () => "held",
       releaseCapacityHold: async () => {},
       commitOwnedBooking,
+      payments,
     },
   })
 }
@@ -325,6 +408,9 @@ async function resetTables(db: PostgresJsDatabase) {
       booking_session_holds,
       booking_session_quotes,
       booking_sessions,
+      payment_sessions,
+      payment_captures,
+      payment_authorizations,
       booking_allocations,
       booking_items,
       bookings

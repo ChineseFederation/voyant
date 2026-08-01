@@ -32,6 +32,7 @@ export const paymentSessionStatusSchema = z.enum([
   "expired",
 ])
 export const paymentSessionTargetTypeSchema = z.enum([
+  "booking_session",
   "booking",
   "order",
   "invoice",

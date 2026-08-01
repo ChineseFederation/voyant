@@ -13,7 +13,7 @@ import {
   resolveCatalogHoldTtlMs,
 } from "@voyant-travel/catalog/runtime-support"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import type { FinanceServiceRuntime } from "@voyant-travel/finance"
+import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import {
   computeBookingItemTaxLine,
   resolveBookingSellTaxRate,
@@ -72,13 +72,13 @@ function createOperatorCatalogBookingRoutesOptions(): CatalogBookingRoutesOption
   }
 }
 
-export function createOperatorCatalogBookingRouteModuleOptions(
-  options: {
-    resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
-    resolveFinanceServiceRuntime?: (context: Context) => FinanceServiceRuntime
-  } = {},
-): CatalogBookingRouteModuleOptions {
-  const { inventory, operations } = catalogRuntimeExtensions()
+export function createOperatorCatalogBookingRouteModuleOptions(options: {
+  resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+  resolveFinanceServiceRuntime?: (context: Context) => FinanceServiceRuntime
+  settings: FinanceOperatorSettingsRuntime
+  resolvePaymentAdapter?: () => PaymentAdapter | null | Promise<PaymentAdapter | null>
+}): CatalogBookingRouteModuleOptions {
+  const { distribution, inventory, operations } = catalogRuntimeExtensions()
   return {
     booking: createOperatorCatalogBookingRoutesOptions(),
     bookingSessions: {
@@ -107,6 +107,13 @@ export function createOperatorCatalogBookingRouteModuleOptions(
             },
           },
           financeRuntime: options.resolveFinanceServiceRuntime?.(c),
+          payments: {
+            inventory,
+            distribution,
+            settings: options.settings,
+            resolvePaymentAdapter: options.resolvePaymentAdapter,
+            paymentAdapterContext: { env: c.env as Readonly<Record<string, unknown>> },
+          },
         })
       },
       resolveAccess(c, actorKind) {

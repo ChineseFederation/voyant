@@ -41,6 +41,7 @@ export const paymentSessionStatusEnum = pgEnum("payment_session_status", [
 ])
 
 export const paymentSessionTargetTypeEnum = pgEnum("payment_session_target_type", [
+  "booking_session",
   "booking",
   "order",
   "invoice",

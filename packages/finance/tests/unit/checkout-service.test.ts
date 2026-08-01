@@ -694,14 +694,18 @@ function createCheckoutDb({
           if (table === paymentSessions) {
             insertedPaymentSessions.push(values)
             return {
-              returning() {
-                return Promise.resolve([
-                  {
-                    id: "ps_atomic_schedule",
-                    invoiceId: null,
-                    ...values,
+              onConflictDoNothing() {
+                return {
+                  returning() {
+                    return Promise.resolve([
+                      {
+                        id: "ps_atomic_schedule",
+                        invoiceId: null,
+                        ...values,
+                      },
+                    ])
                   },
-                ])
+                }
               },
             }
           }

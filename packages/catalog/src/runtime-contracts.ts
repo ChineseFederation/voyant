@@ -4,6 +4,7 @@ import type {
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { definePort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import type { PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { SourceAdapterContext } from "./adapter/contract.js"
 import type {
@@ -79,6 +80,7 @@ export interface CatalogDistributionRuntimeExtension {
     db: AnyDrizzleDb,
     supplierId: string,
   ): Promise<{ reservationTimeoutMinutes: number | null } | null>
+  loadSupplierPaymentPolicy(db: AnyDrizzleDb, supplierId: string): Promise<PaymentPolicy | null>
 }
 
 export interface CatalogCruisesRuntimeExtension extends CatalogPolicyRuntimeExtension {
@@ -156,6 +158,15 @@ export interface CatalogInventoryRuntimeExtension {
     db: AnyDrizzleDb,
     productId: string,
   ): Promise<{ supplierId: string | null; reservationTimeoutMinutes: number | null } | null>
+  loadProductPaymentPolicyContext(
+    db: AnyDrizzleDb,
+    productId: string,
+  ): Promise<{
+    listingPolicy: PaymentPolicy | null
+    categoryPolicy: PaymentPolicy | null
+    supplierId: string | null
+    departureDate: string | null
+  } | null>
   enrichProductQuoteShape: CatalogProductQuoteEnricher
   buildSnapshotInput(
     db: AnyDrizzleDb,

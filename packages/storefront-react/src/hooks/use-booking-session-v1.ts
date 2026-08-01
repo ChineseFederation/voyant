@@ -6,6 +6,7 @@ import {
   type AdoptBookingSessionV1,
   type BookingSessionRequestOptions,
   type BookingSessionViewV1,
+  type CommitBookingSessionV1,
   type CreateBookingSessionV1,
   createBookingSessionCapabilityV1,
   createVoyantStorefrontClient,
@@ -93,6 +94,18 @@ export function useAbandonBookingSessionV1() {
       requestOptions: BookingSessionRequestOptions
     }) =>
       client.bookingSessionsV1.abandon(request.sessionId, request.input, request.requestOptions),
+  })
+}
+
+/** Retry Commit after a payment redirect/callback using the same Session authority. */
+export function useCommitBookingSessionV1() {
+  const client = useBookingSessionClient()
+  return useMutation({
+    mutationFn: (request: {
+      sessionId: string
+      input: CommitBookingSessionV1
+      requestOptions: BookingSessionRequestOptions
+    }) => client.bookingSessionsV1.commit(request.sessionId, request.input, request.requestOptions),
   })
 }
 

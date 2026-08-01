@@ -250,6 +250,23 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
     nextAction: z.literal("establish_payment_guarantee"),
     paymentTarget: z.enum(["booking_session", "quote", "supplier_operation"]),
     allowedGuarantees: z.array(z.enum(["deposit", "pre_auth", "card_on_file", "agency_letter"])),
+    paymentSession: z.object({
+      id: z.string().min(1),
+      status: z.enum([
+        "pending",
+        "requires_redirect",
+        "processing",
+        "authorized",
+        "paid",
+        "failed",
+        "cancelled",
+        "expired",
+      ]),
+      amountCents: z.number().int().positive(),
+      currency: z.string().length(3),
+      redirectUrl: z.string().url().nullable(),
+      expiresAt: z.string().datetime().nullable(),
+    }),
   }),
   z.object({
     kind: z.literal("supplier_pending"),

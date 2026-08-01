@@ -909,6 +909,11 @@ export function derivePaymentSessionTarget(
   const explicitTarget = "target" in input ? input.target : undefined
   if (explicitTarget) {
     switch (explicitTarget.type) {
+      case "booking_session":
+        return {
+          targetType: "booking_session" as const,
+          targetId: explicitTarget.bookingSessionId,
+        }
       case "booking":
         return { targetType: "booking" as const, targetId: explicitTarget.bookingId }
       case "invoice":

@@ -424,6 +424,14 @@ function outcomeForScenario(
         nextAction: "establish_payment_guarantee",
         paymentTarget: "booking_session",
         allowedGuarantees: ["deposit", "pre_auth", "card_on_file"],
+        paymentSession: {
+          id: "pays_conformance",
+          status: "requires_redirect",
+          amountCents: 10_000,
+          currency: "EUR",
+          redirectUrl: "https://pay.example.test/session",
+          expiresAt: "2026-08-01T13:00:00.000Z",
+        },
       }
     case "supplier_pending":
       return {

@@ -56,6 +56,7 @@ export const paymentInstrumentListQuerySchema = paginationSchema.extend({
 })
 
 export const paymentTargetSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("booking_session"), bookingSessionId: z.string().min(1) }),
   z.object({ type: z.literal("booking"), bookingId: z.string().min(1) }),
   z.object({ type: z.literal("invoice"), invoiceId: z.string().min(1) }),
   z.object({

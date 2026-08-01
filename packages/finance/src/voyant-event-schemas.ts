@@ -391,6 +391,7 @@ export const paymentCompletedPayloadSchema = {
     paymentSessionId: { type: "string" },
     targetType: {
       enum: [
+        "booking_session",
         "booking",
         "order",
         "invoice",

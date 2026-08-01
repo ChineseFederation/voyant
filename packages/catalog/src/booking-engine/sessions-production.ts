@@ -8,12 +8,13 @@ import {
 import { createRouteActionRegistry } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-
 import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import { pricingBreakdownV1 } from "./contracts.js"
 import type { OwnedBookingHandlerRegistry, SelfServiceBillingParty } from "./owned-handler.js"
 import { engineParametersFromDraft } from "./routes.js"
+import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
+import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
 import {
   BookingSessionCommitRejectedError,
   type BookingSessionModule,
@@ -29,11 +30,19 @@ export interface ProductionBookingSessionModuleDeps {
   resolveOwnedHandlers(): OwnedBookingHandlerRegistry | Promise<OwnedBookingHandlerRegistry>
   relationships?: BookingsRelationshipsRuntime
   financeRuntime?: FinanceServiceRuntime
+  payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
 }
 
 export function createProductionBookingSessionModule(
   deps: ProductionBookingSessionModuleDeps,
 ): BookingSessionModule {
+  const payments = deps.payments
+    ? createProductionBookingSessionPaymentPorts({
+        db: deps.db,
+        financeRuntime: deps.financeRuntime,
+        ...deps.payments,
+      })
+    : undefined
   return createBookingSessionModule({
     ports: {
       repository: deps.repository,
@@ -104,6 +113,7 @@ export function createProductionBookingSessionModule(
         )
       },
       commitOwnedBooking: (input) => commitOwnedBooking(deps, input),
+      payments,
     },
   })
 }

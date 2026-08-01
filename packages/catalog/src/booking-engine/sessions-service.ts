@@ -212,7 +212,49 @@ export interface CommitOwnedBookingInput {
   requestFingerprint: string
   access: BookingSessionAccessContext
   now: Date
+  paymentSessionId?: string
   consumeSources(tx: unknown, bookingId: string, allocationIds: string[]): Promise<void>
+}
+
+export interface BookingSessionPaymentPorts {
+  prepare(input: {
+    session: BookingSessionInternalRecord
+    quote: BookingQuoteInternalRecord
+    hold: BookingHoldInternalRecord
+    commit: CommitBookingSessionV1
+    access: BookingSessionAccessContext
+    now: Date
+  }): Promise<
+    | { kind: "not_required" }
+    | { kind: "established"; paymentSessionId: string }
+    | {
+        kind: "required"
+        paymentSession: {
+          id: string
+          status:
+            | "pending"
+            | "requires_redirect"
+            | "processing"
+            | "authorized"
+            | "paid"
+            | "failed"
+            | "cancelled"
+            | "expired"
+          amountCents: number
+          currency: string
+          redirectUrl: string | null
+          expiresAt: string | null
+        }
+        allowedGuarantees: Array<"deposit" | "pre_auth" | "card_on_file" | "agency_letter">
+      }
+  >
+  transferToBooking(input: {
+    tx: unknown
+    paymentSessionId: string
+    bookingSessionId: string
+    bookingId: string
+  }): Promise<void>
+  expirePending(input: { tx: unknown; bookingSessionId: string; at: Date }): Promise<void>
 }
 
 export interface BookingSessionAccessContext {
@@ -255,6 +297,7 @@ export interface BookingSessionModulePorts {
     bookingId: string
     allocationIds: string[]
   }>
+  payments?: BookingSessionPaymentPorts
 }
 
 export interface BookingSessionModuleOptions {
@@ -803,6 +846,11 @@ export function createBookingSessionModule(
         session.revision += 1
         session.updatedAt = at
         await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+        await options.ports.payments?.expirePending({
+          tx,
+          bookingSessionId: session.id,
+          at,
+        })
         for (const quote of await repository.listActiveQuotes(session.id)) {
           quote.state = "superseded"
           await repository.saveQuote(quote)
@@ -953,6 +1001,37 @@ export function createBookingSessionModule(
 
       const { session, quote, hold, at } = preflight
 
+      let preparedPayment: Awaited<ReturnType<BookingSessionPaymentPorts["prepare"]>>
+      try {
+        preparedPayment = options.ports.payments
+          ? await options.ports.payments.prepare({
+              session,
+              quote,
+              hold,
+              commit: input,
+              access,
+              now: at,
+            })
+          : ({ kind: "not_required" } as const)
+      } catch (error) {
+        if (isIdempotencyConflictError(error)) return idempotencyConflict()
+        throw error
+      }
+      if (preparedPayment.kind === "required") {
+        return {
+          kind: "commit_result",
+          outcome: {
+            kind: "payment_required",
+            nextAction: "establish_payment_guarantee",
+            paymentTarget: "booking_session",
+            allowedGuarantees: preparedPayment.allowedGuarantees,
+            paymentSession: preparedPayment.paymentSession,
+          },
+        }
+      }
+      const paymentSessionId =
+        preparedPayment.kind === "established" ? preparedPayment.paymentSessionId : undefined
+
       const requestFingerprint = await commitRequestFingerprint(input)
       let committed: { bookingId: string; allocationIds: string[] }
       try {
@@ -964,6 +1043,7 @@ export function createBookingSessionModule(
           requestFingerprint,
           access,
           now: at,
+          paymentSessionId,
           async consumeSources(tx, bookingId, allocationIds) {
             const outcome: BookingLifecycleCommitOutcomeV1 = {
               kind: "committed",
@@ -1054,6 +1134,14 @@ export function createBookingSessionModule(
                 bookingId,
                 now: currentAt,
               })
+              if (paymentSessionId && options.ports.payments) {
+                await options.ports.payments.transferToBooking({
+                  tx,
+                  paymentSessionId,
+                  bookingSessionId: session.id,
+                  bookingId,
+                })
+              }
               await appendSessionAudit(repository, currentSession, "commit", access, currentAt, {
                 bookingId,
                 quoteId: currentQuote.id,
@@ -1300,6 +1388,7 @@ async function expireSession(
   tx: unknown,
 ): Promise<void> {
   await releaseLiveHolds(repository, ports, session, access, now, tx)
+  await ports.payments?.expirePending({ tx, bookingSessionId: session.id, at: now })
   for (const quote of await repository.listActiveQuotes(session.id)) {
     quote.state = "expired"
     await repository.saveQuote(quote)

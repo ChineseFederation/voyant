@@ -43,6 +43,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.extension.inventory" },
           { id: "catalog.extension.operations" },
           { id: "finance.operator-settings.runtime" },
+          { id: "payments.adapter.runtime", optional: true },
         ],
       },
       api: [

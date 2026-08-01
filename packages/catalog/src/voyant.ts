@@ -46,6 +46,7 @@ import {
 
 // Importing Cruises here would create a Catalog <-> Cruises package cycle.
 const cruisesRoutesRuntimePortReference = { id: "cruises.routes-runtime" } as const
+const paymentAdapterRuntimePortReference = { id: "payments.adapter.runtime" } as const
 
 const catalogAdminRuntime = {
   entry: "@voyant-travel/catalog-react/admin",
@@ -80,6 +81,7 @@ export const catalogVoyantModule = defineModule({
       requirePort(catalogInventoryRuntimeExtensionPort),
       requirePort(catalogOperationsRuntimeExtensionPort),
       requirePort(financeOperatorSettingsRuntimePort),
+      { ...paymentAdapterRuntimePortReference, optional: true },
     ],
   },
   provides: {

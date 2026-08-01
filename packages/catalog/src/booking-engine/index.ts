@@ -228,6 +228,10 @@ export {
   type InMemoryOwnedInventoryPorts,
 } from "./sessions-memory.js"
 export {
+  createProductionBookingSessionPaymentPorts,
+  type ProductionBookingSessionPaymentDeps,
+} from "./sessions-payment-production.js"
+export {
   createProductionBookingSessionModule,
   type ProductionBookingSessionModuleDeps,
 } from "./sessions-production.js"
