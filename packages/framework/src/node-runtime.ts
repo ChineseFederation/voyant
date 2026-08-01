@@ -46,6 +46,7 @@ import type {
   VoyantDeploymentEnvRequirement,
   VoyantDeploymentMode,
   VoyantDeploymentProviders,
+  VoyantRedisBindingConstraints,
 } from "./deployment-types.js"
 import { lowerVoyantGraphActionsToActionLedgerRegistry } from "./graph-action-ledger.js"
 import {
@@ -190,9 +191,12 @@ export type VoyantNodeRuntimeResources = Readonly<Record<string, unknown>>
 
 /** Graph-native deployment settings consumed by the resident Node host. */
 export interface VoyantNodeRuntimeDeployment {
-  mode: VoyantDeploymentMode
+  /** @deprecated Retained as generated-artifact metadata; runtime policy must not branch on it. */
+  mode?: VoyantDeploymentMode
   providers: Readonly<Record<string, string>> &
     Partial<Pick<VoyantDeploymentProviders, "scheduledJobs">>
+  /** Explicit properties of the concrete Redis binding selected at boot. */
+  redis?: VoyantRedisBindingConstraints
 }
 
 /** Inputs for booting a generated application graph in a resident Node process. */
@@ -334,9 +338,9 @@ export async function loadVoyantNodeRuntime(
     options.graphRuntime,
   )
   assertVoyantNodeRuntimeSupport({
-    mode: options.deployment.mode,
     providers: options.deployment.providers,
     providerPlan,
+    redis: resolveRedisBindingConstraints(options.deployment),
     requirements,
     env,
     hasAuthIntegration: Boolean(auth),
@@ -689,24 +693,10 @@ function isPostgresConnectionUrl(value: string): boolean {
   }
 }
 
-/**
- * Whether any binding in this plan resolves to Redis.
- *
- * Deliberately NOT "the cache/sharedState/rateLimit group" — those roles are
- * bound independently. Managed binds `cache: redis`, `rateLimit: redis` and
- * `sharedState: postgres`, so a group-wide test over-applies, and a test keyed
- * on `sharedState` alone would never fire there. Legacy stored snapshots also
- * carry `sharedState: redis` from an old backfill, so that role is the least
- * reliable signal of the three.
- */
-function bindsRedis(plan: VoyantNodeProviderPlan): boolean {
-  return plan.cache === "redis" || plan.sharedState === "redis" || plan.rateLimit === "redis"
-}
-
 function assertVoyantNodeRuntimeSupport(options: {
-  mode: VoyantDeploymentMode
   providers: Readonly<Record<string, string>>
   providerPlan: VoyantNodeProviderPlan
+  redis: VoyantRedisBindingConstraints
   requirements: VoyantGraphDeploymentRequirements
   env: VoyantNodeRuntimeEnv
   hasAuthIntegration: boolean
@@ -720,32 +710,19 @@ function assertVoyantNodeRuntimeSupport(options: {
     issues.push("the voyant-cloud admin-auth provider requires an injected auth integration")
   }
 
-  // Both Redis rules stay gated on the deployment context, and that is correct
-  // rather than provisional. They encode "this Redis instance is shared between
-  // tenants and reachable over an untrusted network" — which no provider value
-  // carries. `cache: "redis"` is equally true of a managed Upstash instance and
-  // of a self-hoster's Redis on a private network, and the two have opposite
-  // requirements. `allows self-hosted Redis providers to use plaintext TCP
-  // without a namespace` in node-runtime.test.ts is the specification for that.
-  //
-  // REDIS_NAMESPACE additionally cannot be declared unconditionally: the
-  // platform injects it only for images advertising `regionalRedisNamespaceV1`,
-  // an explicit allowlist rather than a version range, so a blanket requirement
-  // would hard-fail boot on managed images outside it (platform#1622).
-  //
-  // What IS wrong here is the name of the axis. This is not managed-versus-
-  // self-hosted; it is shared-untrusted infrastructure versus dedicated. A
-  // self-hoster on shared infrastructure would want both of these rules, which
-  // the current name makes unthinkable. See voyant#3976 item 1.
-  if (options.mode === "managed-cloud" && bindsRedis(options.providerPlan)) {
-    if (!options.env.REDIS_NAMESPACE?.trim()) {
+  const redisSelected =
+    options.providerPlan.cache === "redis" ||
+    options.providerPlan.sharedState === "redis" ||
+    options.providerPlan.rateLimit === "redis"
+  if (redisSelected) {
+    if (options.redis.isolation === "shared" && !options.env.REDIS_NAMESPACE?.trim()) {
       issues.push(
-        "managed-cloud Redis cache, shared-state, and rate-limit providers require REDIS_NAMESPACE",
+        "a shared Redis binding requires REDIS_NAMESPACE for cache, shared-state, and rate-limit keys",
       )
     }
-    if (!isSecureRedisUrl(options.env.REDIS_URL)) {
+    if (options.redis.network === "untrusted" && !isSecureRedisUrl(options.env.REDIS_URL)) {
       issues.push(
-        "managed-cloud Redis providers require rediss:// for Redis TCP or an HTTPS Redis REST URL with a token",
+        "a Redis binding on an untrusted network requires rediss:// for Redis TCP or an HTTPS Redis REST URL with a token",
       )
     }
   }
@@ -753,6 +730,18 @@ function assertVoyantNodeRuntimeSupport(options: {
   if (issues.length > 0) {
     throw new Error(`Voyant Node runtime is not ready to start:\n${formatIssues(issues)}`)
   }
+}
+
+function resolveRedisBindingConstraints(
+  deployment: VoyantNodeRuntimeDeployment,
+): VoyantRedisBindingConstraints {
+  if (deployment.redis) return deployment.redis
+  // Generated runtimes before the runtime-binding contract carried only mode.
+  // Preserve their exact safety posture while keeping all new policy on the
+  // binding itself.
+  return deployment.mode === "managed-cloud"
+    ? { isolation: "shared", network: "untrusted" }
+    : { isolation: "dedicated", network: "trusted" }
 }
 
 function nodeRuntimeEnvIssues(

@@ -1,5 +1,23 @@
 export type VoyantDeploymentMode = "managed-cloud" | "self-hosted" | "local"
 
+/** Whether one Redis keyspace is dedicated to this deployment or shared by several. */
+export type VoyantRedisBindingIsolation = "dedicated" | "shared"
+
+/** Whether Redis is reached over a trusted private network or an untrusted network. */
+export type VoyantRedisBindingNetwork = "trusted" | "untrusted"
+
+/**
+ * Security properties of the concrete Redis binding.
+ *
+ * These are deliberately independent: sharing requires key namespacing, while
+ * an untrusted network requires transport security. Neither property follows
+ * from who operates the deployment.
+ */
+export interface VoyantRedisBindingConstraints {
+  isolation: VoyantRedisBindingIsolation
+  network: VoyantRedisBindingNetwork
+}
+
 export type VoyantDeploymentProviderRole =
   | "database"
   | "storage"

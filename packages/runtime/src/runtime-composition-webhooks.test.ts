@@ -269,7 +269,7 @@ describe("Voyant outbound webhook composition", () => {
         adminAssetsDir: path.join(projectRoot, "admin"),
         env: { DATABASE_URL: "postgres://example.invalid/voyant" },
       }),
-    ).rejects.toThrow(/outboundWebhooks=.*is not supported/)
+    ).rejects.toThrow(/outboundWebhooks.*is not supported/)
     expect(mocks.loadVoyantNodeRuntime).not.toHaveBeenCalled()
   })
 

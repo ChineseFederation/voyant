@@ -23,7 +23,8 @@ Related:
 ## Rule
 
 **A Voyant application is a versioned, declarative package graph selected at
-build time and lowered to one resident Node application.**
+build time and lowered to one resident Node application. Infrastructure
+provider bindings are selected at boot inside that fixed graph.**
 
 Modules are **components of that one deployable, not deployment units.** A
 deployment does not drop, subtract, or substitute a standard module; there is no
@@ -302,10 +303,20 @@ Provider declarations explicitly list the unit-owned config, secret, and
 resource IDs their factories consume. Resolving one provider port validates only
 those declarations; unrelated providers in the same plugin package remain lazy.
 
-Provider selection is explicit in the resolved deployment. Environment variables
-satisfy the selected provider; their presence must not silently change provider
-choice. `managed-cloud`, `self-hosted`, and `local` are deployment modes for the
-same graph contract, not product profiles.
+The resolved deployment carries the image's default provider selections. A host
+may overlay them at boot only through `VOYANT_DEPLOYMENT_BINDINGS_JSON`; the
+generated runtime recreates its provider-selection view while retaining the
+same graph hash, units, static import closures, routes, jobs, and migrations.
+Provider-specific requirements are recomputed from the boot selection.
+Ordinary credential environment variables only satisfy the selected provider
+and must never silently change provider choice.
+
+Redis binding policy is expressed through two independent properties on that
+boot contract: `isolation` (`dedicated` or `shared`) and `network` (`trusted` or
+`untrusted`). Shared bindings require `REDIS_NAMESPACE`; untrusted bindings
+require secure transport. Historical `managed-cloud`, `self-hosted`, and
+`local` mode metadata remains readable for generated-artifact compatibility,
+but new runtime policy must not branch on it.
 
 ## Cloud Export And Self-Host Projection
 

@@ -4,6 +4,7 @@ import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/aut
 import { createVoyantGraphRuntime } from "@voyant-travel/framework/deployment-artifacts"
 import { legalDocumentArtifactProviderPort } from "@voyant-travel/legal"
 import { describe, expect, it, vi } from "vitest"
+import { VOYANT_DEPLOYMENT_BINDINGS_ENV } from "./deployment-bindings.js"
 import {
   configureSearchProviderRuntime,
   configureStandardLegalProviderRuntime,
@@ -41,6 +42,90 @@ describe("Voyant project runtime composition", () => {
     expect(
       mocks.tsImport.mock.calls.some(([url]) => url.includes("project-runtime.generated.ts")),
     ).toBe(false)
+  })
+
+  it("boots one generated artifact with two different provider binding configurations", async () => {
+    const projectRoot = await createGeneratedProject()
+    const providers = {
+      database: "postgres",
+      storage: "memory",
+      cache: "memory",
+      sharedState: "memory",
+      rateLimit: "memory",
+      adminAuth: "better-auth",
+      customerAuth: "better-auth",
+      outboundWebhooks: "postgres",
+    }
+    const createGraphRuntime = vi.fn((providerSelections: Readonly<Record<string, string>>) =>
+      createVoyantGraphRuntime({
+        graphHash: "graph-hash",
+        providerSelections,
+        entries: {},
+        modules: [],
+        plugins: [],
+      }),
+    )
+    const generatedProjectRuntime = {
+      kind: "application" as const,
+      graphHash: "graph-hash",
+      deployment: { mode: "self-hosted" as const, providers },
+      graphRuntime: createGraphRuntime(providers),
+      createGraphRuntime,
+      createRuntimePorts: () => ({}),
+    }
+    createGraphRuntime.mockClear()
+
+    await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin-cloud"),
+      generatedProjectRuntime,
+      env: {
+        DATABASE_URL: "postgres://example.invalid/voyant",
+        [VOYANT_DEPLOYMENT_BINDINGS_ENV]: JSON.stringify({
+          providers: {
+            adminAuth: "voyant-cloud",
+            customerAuth: "disabled",
+            outboundWebhooks: "none",
+          },
+        }),
+      },
+    })
+    await loadVoyantProject({
+      projectRoot,
+      adminAssetsDir: path.join(projectRoot, "admin-self-hosted"),
+      generatedProjectRuntime,
+      env: {
+        DATABASE_URL: "postgres://example.invalid/voyant",
+        [VOYANT_DEPLOYMENT_BINDINGS_ENV]: JSON.stringify({
+          providers: {
+            adminAuth: "better-auth",
+            customerAuth: "better-auth",
+            outboundWebhooks: "postgres",
+          },
+        }),
+      },
+    })
+
+    expect(createGraphRuntime).toHaveBeenCalledTimes(1)
+    expect(createGraphRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminAuth: "voyant-cloud",
+        customerAuth: "disabled",
+        outboundWebhooks: "none",
+      }),
+    )
+    expect(mocks.authRuntimeOptions.map(({ authMode }) => authMode)).toEqual([
+      "voyant-cloud",
+      "local",
+    ])
+    expect(mocks.loadVoyantNodeRuntime.mock.calls.map(([options]) => options.deployment)).toEqual([
+      expect.objectContaining({
+        providers: expect.objectContaining({ adminAuth: "voyant-cloud" }),
+      }),
+      expect.objectContaining({
+        providers: expect.objectContaining({ adminAuth: "better-auth" }),
+      }),
+    ])
   })
 
   it("activates and behaviorally preflights the concrete Standard Legal provider", async () => {

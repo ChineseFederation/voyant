@@ -49,6 +49,8 @@ export interface GeneratedProjectRuntime {
     providers: VoyantNodeRuntime["deployment"]["providers"]
   }
   graphRuntime: VoyantGraphRuntime
+  /** Recreate the fixed graph with boot-selected provider bindings. */
+  createGraphRuntime?: (providerSelections: Readonly<Record<string, string>>) => VoyantGraphRuntime
   createRuntimePorts(host: {
     primitives: VoyantRuntimeHostPrimitives
     runtimePorts?: VoyantGraphRuntimePorts
@@ -113,7 +115,9 @@ async function loadDeploymentGraphRuntime(artifactRoot: string): Promise<Generat
     parentURL: import.meta.url,
   })) as {
     GENERATED_GRAPH_RUNTIME_HASH?: string
-    createGeneratedGraphRuntime?: () => GeneratedProjectRuntime["graphRuntime"]
+    createGeneratedGraphRuntime?: (
+      providerSelections?: Readonly<Record<string, string>>,
+    ) => GeneratedProjectRuntime["graphRuntime"]
     createGeneratedGraphRuntimePorts?: GeneratedProjectRuntime["createRuntimePorts"]
   }
   const graph = JSON.parse(
@@ -140,6 +144,8 @@ async function loadDeploymentGraphRuntime(artifactRoot: string): Promise<Generat
       providers: { ...providers },
     },
     graphRuntime: namespace.createGeneratedGraphRuntime(),
+    createGraphRuntime: (providerSelections) =>
+      namespace.createGeneratedGraphRuntime!(providerSelections),
     createRuntimePorts: namespace.createGeneratedGraphRuntimePorts,
   }
 }

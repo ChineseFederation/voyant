@@ -607,13 +607,18 @@ export function createGeneratedGraphRuntimePorts(
   return ports
 }
 
-export function createGeneratedGraphRuntime(): VoyantGraphRuntime {
+export function createGeneratedGraphRuntime(
+  providerSelections: Readonly<Record<string, string>> = ${formatGeneratedValue(
+    input.graph.deployment.providers,
+    2,
+  )},
+): VoyantGraphRuntime {
   return createVoyantGraphRuntime({
     graphHash: GENERATED_GRAPH_RUNTIME_HASH,
     accessCatalog: ${formatGeneratedValue(input.graph.accessCatalog, 4)},
     eventCatalog: GENERATED_GRAPH_RUNTIME_EVENT_CATALOG,
     reportingCatalog: GENERATED_GRAPH_RUNTIME_REPORTING_CATALOG,
-    providerSelections: ${formatGeneratedValue(input.graph.deployment.providers, 4)},
+    providerSelections,
     entries: GENERATED_GRAPH_RUNTIME_IMPORTERS,
     modules: ${formatGeneratedValue(modules, 4)},
     extensions: ${formatGeneratedValue(extensions, 4)},
@@ -654,6 +659,7 @@ export function createGeneratedProjectRuntime() {
     graphHash: GENERATED_GRAPH_RUNTIME_HASH,
     deployment: GENERATED_PROJECT_RUNTIME_DEPLOYMENT,
     graphRuntime: createGeneratedGraphRuntime(),
+    createGraphRuntime: createGeneratedGraphRuntime,
     createRuntimePorts: createGeneratedGraphRuntimePorts,
     productJobs: GENERATED_PROJECT_PRODUCT_JOBS,
   }

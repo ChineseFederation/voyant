@@ -37,29 +37,33 @@ workload class well. On Node none of it is necessary.
 - **Managed Cloud entry:** `@voyant-travel/framework/node-runtime` boots the
   admitted generated graph with provisioned environment and secrets. Cloud does
   not synthesize or load a serialized product profile; the same graph-native
-  Node entry serves managed-cloud, self-hosted, and local deployment modes.
+  Node entry serves every provider-binding configuration.
   Storefront/site artifacts remain separate apps that consume the Node API.
 - **Bindings are real Node providers, not Cloudflare emulation.** The resolved
-  deployment graph's `deployment.providers` map selects the concrete Node
-  providers. `memory` uses in-process KV/object storage, `redis`/`postgres`
+  deployment graph's `deployment.providers` map supplies image defaults;
+  `VOYANT_DEPLOYMENT_BINDINGS_JSON` may overlay those selections at process
+  boot without changing modules, imports, routes, migrations, or another
+  compiled graph facet. `memory` uses in-process KV/object storage, `redis`/`postgres`
   back selected KV and rate-limit stores, and `s3-compatible` uses AWS SDK v3
   for AWS S3 or compatible services. `custom` resolves the selected
-  `storage.object` provider factory from an adapter package. Env vars configure
-  the graph-selected provider; their mere presence must not change provider
-  choice. There is no `caches.default` shim (the public-cache middleware reads
+  `storage.object` provider factory from an adapter package. Ordinary env vars
+  configure the boot-selected provider; their mere presence must not change
+  provider choice. The JSON binding contract is the sole provider-selection
+  input. There is no `caches.default` shim (the public-cache middleware reads
   `env.CACHE` directly).
   Redis-backed Node providers use the single `REDIS_URL` contract. Resident
   Node accepts `redis://` and `rediss://` TCP URLs plus the existing
   Upstash-compatible HTTP(S) REST URL with a token; Worker and shared utility
-  consumers keep using the REST adapter only. Managed Cloud rejects plaintext
-  `redis://` and requires `rediss://` for TCP, while HTTPS REST remains
-  accepted for compatibility. Local and self-hosted deployments may use
-  `redis://`, `rediss://`, HTTP, or HTTPS. Managed Cloud also requires a
-  deployment-static `REDIS_NAMESPACE` for every Redis role; the runtime
+  consumers keep using the REST adapter only. Redis security follows the
+  concrete binding rather than deployment mode. A binding declares
+  `network: "untrusted"` to reject plaintext `redis://` and require `rediss://`
+  for TCP (authenticated HTTPS REST remains accepted), and declares
+  `isolation: "shared"` to require a deployment-static `REDIS_NAMESPACE` for
+  every Redis role. The runtime
   prefixes cache keys with `voyant:v1:<namespace>:cache:` and rate-limit
-  counters with `voyant:v1:<namespace>:rate:`. Managed Cloud keeps
-  authoritative shared state on Postgres by default. If a self-hosted
-  deployment intentionally selects Redis for shared state and provides
+  counters with `voyant:v1:<namespace>:rate:`. The managed provider set keeps
+  authoritative shared state on Postgres by default. If any deployment
+  intentionally selects Redis for shared state and provides
   `REDIS_NAMESPACE`, the runtime uses `voyant:v1:<namespace>:state:` for that
   store. The namespace is immutable deployment identity, not per-request
   organization scoping.

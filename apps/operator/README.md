@@ -154,9 +154,18 @@ docker push "$IMAGE"
 gcloud run deploy operator \
   --image="$IMAGE" \
   --region=REGION --port=8080 --min-instances=1 --cpu-boost \
-  --set-env-vars="APP_URL=https://operator.example/api,DASH_BASE_URL=https://operator.example,VOYANT_ADMIN_AUTH_MODE=local" \
+  --set-env-vars="APP_URL=https://operator.example/api,DASH_BASE_URL=https://operator.example" \
   --set-secrets="DATABASE_URL_DIRECT=operator-db-direct:latest,BETTER_AUTH_ADMIN_SECRET=operator-admin-auth:latest,BETTER_AUTH_CUSTOMER_SECRET=operator-customer-auth:latest,SESSION_CLAIMS_ADMIN_SECRET=operator-admin-claims:latest,SESSION_CLAIMS_CUSTOMER_SECRET=operator-customer-claims:latest,VOYANT_CHECKOUT_CAPABILITY_SECRET=operator-checkout-capability:latest,INTERNAL_API_KEY=operator-internal-key:latest,ORIGIN_TRUST_SECRET=operator-origin-trust:latest"
 ```
+
+The image uses the providers compiled from `voyant.config.ts` by default. To
+boot that same image with different infrastructure, set
+`VOYANT_DEPLOYMENT_BINDINGS_JSON` to a JSON object containing a partial
+`providers` overlay. If any runtime-selected cache, shared-state, or rate-limit
+provider is Redis, the object must also contain
+`redis: { isolation: "dedicated" | "shared", network: "trusted" | "untrusted" }`.
+`VOYANT_ADMIN_AUTH_MODE` and `VOYANT_CUSTOMER_AUTH_MODE` are derived runtime
+values, not provider selectors.
 
 `/healthz` is the container/liveness probe. Set `ORIGIN_TRUST_SECRET` when a
 dispatcher fronts the service (it stamps `x-voyant-origin-trust`; `/healthz` is

@@ -542,6 +542,8 @@ describe("deployment graph artifacts", () => {
     expect(first).toContain('"@acme/voyant-loyalty#api.admin"')
     expect(first).toContain('"createLoyaltyModule"')
     expect(first).toContain("createGeneratedGraphRuntime")
+    expect(first).toContain("providerSelections: Readonly<Record<string, string>>")
+    expect(first).toContain("providerSelections,")
     expect(first).not.toContain("FRAMEWORK_RUNTIME_MANIFEST")
   })
 
@@ -778,6 +780,7 @@ describe("deployment graph artifacts", () => {
     expect(source).toContain(`GENERATED_GRAPH_RUNTIME_HASH = "${graph.contentHash}"`)
     expect(source).toContain("GENERATED_PROJECT_PRODUCT_JOBS")
     expect(source).toContain("productJobs: GENERATED_PROJECT_PRODUCT_JOBS")
+    expect(source).toContain("createGraphRuntime: createGeneratedGraphRuntime")
     expect(source).not.toContain("apps/")
     expect(() => buildProjectRuntimeModule({ graph })).toThrow(/must be target-neutral/)
   })

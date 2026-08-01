@@ -34,6 +34,9 @@ export {
   type VoyantDeploymentProviderRole,
   type VoyantDeploymentProviders,
   type VoyantDeploymentResourceRequirement,
+  type VoyantRedisBindingConstraints,
+  type VoyantRedisBindingIsolation,
+  type VoyantRedisBindingNetwork,
 } from "./deployment-types.js"
 export {
   type DeploymentExtensionDeclaration,

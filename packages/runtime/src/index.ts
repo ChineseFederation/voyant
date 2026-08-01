@@ -27,6 +27,7 @@ import {
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { resolveNodeDatabase } from "@voyant-travel/db/runtime"
 import type { VoyantGraphRuntimePorts } from "@voyant-travel/framework"
+import { deriveDeploymentRequirements } from "@voyant-travel/framework/deployment-graph"
 import {
   createVoyantNodeEnv,
   createVoyantNodeRuntimeHostPrimitives,
@@ -54,6 +55,10 @@ import {
 } from "./app-webhook-delivery-loop.js"
 import { requireVoyantAuthEnv } from "./auth-env.js"
 import { resolveVoyantCloudAuthEmailSender } from "./cloud-auth-email.js"
+import {
+  resolveRuntimeDeploymentBindings,
+  VOYANT_DEPLOYMENT_BINDINGS_ENV,
+} from "./deployment-bindings.js"
 import {
   resolveAdmittedHostRuntimePorts as admitHostPorts,
   createVoyantDeploymentResources,
@@ -147,14 +152,37 @@ export async function loadVoyantProject(
   const generated =
     options.generatedProjectRuntime ?? (await loadGeneratedProjectRuntime(artifactRoot))
   const graph = await readGeneratedDeploymentGraph(artifactRoot, generated)
-  const adminAuthProvider = generated.deployment.providers.adminAuth
-  const customerAuthProvider = selectedCustomerAuthProvider(
-    generated.deployment.providers.customerAuth,
+  const rawEnv = Object.fromEntries(Object.entries(options.env ?? process.env))
+  const deployment = resolveRuntimeDeploymentBindings(generated.deployment, rawEnv)
+  const providersChanged = !sameProviderSelections(
+    deployment.providers,
+    generated.deployment.providers,
   )
+  if (providersChanged && !generated.createGraphRuntime) {
+    throw new Error(
+      `${VOYANT_DEPLOYMENT_BINDINGS_ENV} changes provider selections, but this generated runtime predates boot-time provider bindings. Rebuild the image before applying the override.`,
+    )
+  }
+  const graphRuntime = providersChanged
+    ? generated.createGraphRuntime!(deployment.providers)
+    : generated.graphRuntime
+  if (
+    providersChanged &&
+    !sameProviderSelections(graphRuntime.providerSelections, deployment.providers)
+  ) {
+    throw new Error(
+      "The generated runtime did not apply the boot-selected deployment provider bindings.",
+    )
+  }
+  const deploymentRequirements =
+    deployment.source === "runtime"
+      ? deriveDeploymentRequirements(deployment.providers)
+      : graph.requirements
+  const adminAuthProvider = deployment.providers.adminAuth
+  const customerAuthProvider = selectedCustomerAuthProvider(deployment.providers.customerAuth)
   const authMode = selectedOperatorAuthMode(adminAuthProvider)
   const reporter = consoleReporter()
-  const providerPlan = resolveVoyantNodeProviderPlan(generated.deployment.providers)
-  const rawEnv = Object.fromEntries(Object.entries(options.env ?? process.env))
+  const providerPlan = resolveVoyantNodeProviderPlan(deployment.providers)
   const providerIssues = validateVoyantNodeProviderPlanEnv(providerPlan, rawEnv)
   if (providerIssues.length > 0) {
     throw new Error(
@@ -163,21 +191,20 @@ export async function loadVoyantProject(
   }
   const env = createVoyantNodeEnv(rawEnv, providerPlan)
   const authEnv = requireVoyantAuthEnv(env, authMode, customerAuthProvider)
-  const explicitRuntimePorts = admitHostPorts(options.host?.runtimePorts ?? {}, generated)
-  const selectedStoragePorts = await resolveSelectedGraphProviderPorts(
-    generated.graphRuntime,
-    rawEnv,
-    {
-      includedPorts: ["storage.object"],
-      excludedPorts: [
-        ...Object.keys(explicitRuntimePorts),
-        ...(providerPlan.storage === "custom" && options.host?.storage ? ["storage.object"] : []),
-      ],
-      deploymentValueAliases: { DATABASE_URL: ["DATABASE_URL_DIRECT"] },
-      resolveResource: (resource) =>
-        resource.kind === "database" ? resolveOptionalNodeDatabase(rawEnv) : undefined,
-    },
-  )
+  const explicitRuntimePorts = admitHostPorts(options.host?.runtimePorts ?? {}, {
+    deployment,
+    graphRuntime,
+  })
+  const selectedStoragePorts = await resolveSelectedGraphProviderPorts(graphRuntime, rawEnv, {
+    includedPorts: ["storage.object"],
+    excludedPorts: [
+      ...Object.keys(explicitRuntimePorts),
+      ...(providerPlan.storage === "custom" && options.host?.storage ? ["storage.object"] : []),
+    ],
+    deploymentValueAliases: { DATABASE_URL: ["DATABASE_URL_DIRECT"] },
+    resolveResource: (resource) =>
+      resource.kind === "database" ? resolveOptionalNodeDatabase(rawEnv) : undefined,
+  })
   let storage = resolveCustomStorageResolver(
     providerPlan.storage === "custom"
       ? (options.host?.storage ?? selectedStoragePorts["storage.object"])
@@ -193,21 +220,17 @@ export async function loadVoyantProject(
       resolveLocalStorageDir(rawEnv),
     )
   }
-  const selectedProviders = await resolveSelectedGraphRuntimeProviders(
-    generated.graphRuntime,
-    rawEnv,
-    {
-      excludedPorts: [...Object.keys(explicitRuntimePorts), "storage.object"],
-      deploymentValueAliases: { DATABASE_URL: ["DATABASE_URL_DIRECT"] },
-      resolveResource: (resource) => {
-        if (resource.kind === "database") return resolveOptionalNodeDatabase(rawEnv)
-        if (resource.kind === "document-storage") return storage.resolve("documents")
-        if (resource.kind === "document-renderer")
-          return createHttpDocumentRendererFromEnv(rawEnv) ?? createBundledDocumentRenderer()
-        return undefined
-      },
+  const selectedProviders = await resolveSelectedGraphRuntimeProviders(graphRuntime, rawEnv, {
+    excludedPorts: [...Object.keys(explicitRuntimePorts), "storage.object"],
+    deploymentValueAliases: { DATABASE_URL: ["DATABASE_URL_DIRECT"] },
+    resolveResource: (resource) => {
+      if (resource.kind === "database") return resolveOptionalNodeDatabase(rawEnv)
+      if (resource.kind === "document-storage") return storage.resolve("documents")
+      if (resource.kind === "document-renderer")
+        return createHttpDocumentRendererFromEnv(rawEnv) ?? createBundledDocumentRenderer()
+      return undefined
     },
-  )
+  })
   const selectedProviderPorts = Object.fromEntries(
     await Promise.all(
       selectedProviders.selectedProviders.map(async ({ port }) => [
@@ -225,7 +248,7 @@ export async function loadVoyantProject(
   const runtimeProviderPorts = { ...providerPorts, "storage.object": storage }
   const hostDeliverEvent = options.host?.deliverEvent
   const outboundWebhooks = resolveOutboundWebhookDeliveryEnqueuer({
-    provider: generated.deployment.providers.outboundWebhooks,
+    provider: deployment.providers.outboundWebhooks,
     createPostgres: () =>
       createPostgresWebhookDeliveryEnqueuer({
         resolveDatabase: (bindings) =>
@@ -244,10 +267,10 @@ export async function loadVoyantProject(
   const appWebhookRuntime = providerPorts[appsWebhookDeliveryRuntimePort.id] as
     | AppsWebhookDeliveryRuntime
     | undefined
-  const appsSelected = generated.graphRuntime.modules.some(
+  const appsSelected = graphRuntime.modules.some(
     (unit) => unit.id === "@voyant-travel/apps" || unit.packageName === "@voyant-travel/apps",
   )
-  const operatorWebhooksSelected = generated.graphRuntime.modules.some(
+  const operatorWebhooksSelected = graphRuntime.modules.some(
     (unit) =>
       unit.id === "@voyant-travel/webhook-delivery" ||
       unit.packageName === "@voyant-travel/webhook-delivery",
@@ -256,7 +279,7 @@ export async function loadVoyantProject(
   const appWebhooks =
     appsSelected && appWebhookRuntime
       ? createAppWebhookDeliveryEnqueuer({
-          contracts: (generated.graphRuntime.eventCatalog?.events ?? [])
+          contracts: (graphRuntime.eventCatalog?.events ?? [])
             .filter((event) => event.visibility === "external")
             .map((event) => ({
               eventId: event.id,
@@ -304,8 +327,8 @@ export async function loadVoyantProject(
   const projectLinks =
     options.generatedProjectLinks ?? (await loadGeneratedProjectLinks(artifactRoot))
   const authRuntime = createOperatorAuthNodeRuntime({
-    accessCatalog: generated.graphRuntime.accessCatalog,
-    activeModules: generated.graphRuntime.modules.map((unit) => unit.localId ?? unit.id),
+    accessCatalog: graphRuntime.accessCatalog,
+    activeModules: graphRuntime.modules.map((unit) => unit.localId ?? unit.id),
     appName: path.basename(projectRoot),
     authMode,
     reporter,
@@ -323,10 +346,11 @@ export async function loadVoyantProject(
     graphRuntime: activatedGraphRuntime,
     jobs: graph.jobs,
     deployment: {
-      mode: generated.deployment.mode ?? "self-hosted",
-      providers: generated.deployment.providers,
+      ...(deployment.mode ? { mode: deployment.mode } : {}),
+      providers: deployment.providers,
+      redis: deployment.redis,
     },
-    deploymentRequirements: graph.requirements,
+    deploymentRequirements,
     runtimePorts: deploymentResources.ports,
     eventDelivery,
     resources: deploymentResources.capabilities,
@@ -376,7 +400,7 @@ export async function loadVoyantProject(
           )
       : undefined
   const createOperatorWebhookWorkerLoop =
-    operatorWebhooksSelected && generated.deployment.providers.outboundWebhooks === "postgres"
+    operatorWebhooksSelected && deployment.providers.outboundWebhooks === "postgres"
       ? () =>
           createWebhookDeliveryLoop(
             createWebhookDeliveryWorker({
@@ -469,6 +493,21 @@ function selectedCustomerAuthProvider(provider: unknown): "better-auth" | "disab
   if (provider === "better-auth" || provider === "disabled") return provider
   throw new Error(
     `Unsupported deployment.providers.customerAuth value ${JSON.stringify(provider)}. Expected "better-auth" or "disabled".`,
+  )
+}
+
+function sameProviderSelections(
+  left: Readonly<Record<string, unknown>>,
+  right: Readonly<Record<string, unknown>>,
+): boolean {
+  const leftEntries = Object.entries(left).sort(([a], [b]) => a.localeCompare(b))
+  const rightEntries = Object.entries(right).sort(([a], [b]) => a.localeCompare(b))
+  return (
+    leftEntries.length === rightEntries.length &&
+    leftEntries.every(
+      ([role, provider], index) =>
+        role === rightEntries[index]?.[0] && provider === rightEntries[index]?.[1],
+    )
   )
 }
 

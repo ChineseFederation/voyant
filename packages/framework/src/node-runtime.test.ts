@@ -496,9 +496,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
         },
         auth: authIntegration(),
       }),
-    ).rejects.toThrow(
-      /managed-cloud Redis cache, shared-state, and rate-limit providers require REDIS_NAMESPACE/,
-    )
+    ).rejects.toThrow(/a shared Redis binding requires REDIS_NAMESPACE/)
   })
 
   it("rejects HTTP Redis REST URLs in managed cloud", async () => {
@@ -519,9 +517,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
         },
         auth: authIntegration(),
       }),
-    ).rejects.toThrow(
-      /managed-cloud Redis providers require rediss:\/\/ for Redis TCP or an HTTPS Redis REST URL with a token/,
-    )
+    ).rejects.toThrow(/a Redis binding on an untrusted network requires rediss:\/\//)
   })
 
   it("rejects plaintext Redis TCP URLs in managed cloud without leaking credentials", async () => {
@@ -548,9 +544,7 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
         },
         auth: authIntegration(),
       }),
-    ).rejects.toThrow(
-      /managed-cloud Redis providers require rediss:\/\/ for Redis TCP or an HTTPS Redis REST URL with a token/,
-    )
+    ).rejects.toThrow(/a Redis binding on an untrusted network requires rediss:\/\//)
 
     await expect(
       loadVoyantNodeRuntime({
@@ -669,5 +663,71 @@ describe("loadVoyantNodeRuntime Redis URL validation", () => {
     ).resolves.toMatchObject({
       deployment: { mode: "self-hosted" },
     })
+  })
+
+  it("requires a namespace for explicitly shared Redis regardless of legacy mode", async () => {
+    const providers = {
+      ...BASE_PROVIDERS,
+      adminAuth: "better-auth",
+      cache: "redis",
+    } satisfies VoyantDeploymentProviders
+
+    await expect(
+      loadVoyantNodeRuntime({
+        graphRuntime: emptyGraphRuntime(providers),
+        jobs: [],
+        deployment: {
+          mode: "self-hosted",
+          providers,
+          redis: { isolation: "shared", network: "trusted" },
+        },
+        deploymentRequirements: { resources: [] },
+        env: { REDIS_URL: "redis://example.redis.test:6379" },
+      }),
+    ).rejects.toThrow(/a shared Redis binding requires REDIS_NAMESPACE/)
+  })
+
+  it("requires transport security for explicitly untrusted Redis regardless of isolation", async () => {
+    const providers = {
+      ...BASE_PROVIDERS,
+      adminAuth: "better-auth",
+      cache: "redis",
+    } satisfies VoyantDeploymentProviders
+
+    await expect(
+      loadVoyantNodeRuntime({
+        graphRuntime: emptyGraphRuntime(providers),
+        jobs: [],
+        deployment: {
+          mode: "self-hosted",
+          providers,
+          redis: { isolation: "dedicated", network: "untrusted" },
+        },
+        deploymentRequirements: { resources: [] },
+        env: { REDIS_URL: "redis://example.redis.test:6379" },
+      }),
+    ).rejects.toThrow(/a Redis binding on an untrusted network requires rediss:\/\//)
+  })
+
+  it("does not infer Redis constraints from mode when the binding declares them", async () => {
+    const providers = {
+      ...BASE_PROVIDERS,
+      adminAuth: "better-auth",
+      cache: "redis",
+    } satisfies VoyantDeploymentProviders
+
+    await expect(
+      loadVoyantNodeRuntime({
+        graphRuntime: emptyGraphRuntime(providers),
+        jobs: [],
+        deployment: {
+          mode: "managed-cloud",
+          providers,
+          redis: { isolation: "dedicated", network: "trusted" },
+        },
+        deploymentRequirements: { resources: [] },
+        env: { REDIS_URL: "redis://example.redis.test:6379" },
+      }),
+    ).resolves.toMatchObject({ deployment: { mode: "managed-cloud" } })
   })
 })

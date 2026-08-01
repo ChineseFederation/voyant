@@ -199,7 +199,7 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Named Contact**   | A titled point-of-contact role at an Organization (e.g. "Procurement Manager Jane Doe").         | *role-contact*            |
 | **External Ref**    | A mapping between a Voyant entity and an ID in a third-party system (PMS, OTA, channel manager). | *external id, sync key*   |
 | **Brand Asset**     | An Operator-owned visual identity file. The standard set is a horizontal Logo and compact Icon, each with light-mode and dark-mode variants. | *contract logo, document logo* |
-| **Document Renderer** | A deployment-supplied capability that turns operator-rendered HTML into an output document such as PDF. Managed Voyant supplies its private renderer; self-hosters can bind an in-process provider or configure an HTTP endpoint. | *Cloudflare renderer, contract renderer* |
+| **Document Renderer** | A deployment-supplied capability that turns operator-rendered HTML into an output document such as PDF. The selected binding may provide an in-process renderer or an HTTP endpoint. | *Cloudflare renderer, contract renderer* |
 
 ---
 
