@@ -1,5 +1,66 @@
 # @voyant-travel/operator-standard
 
+## 0.19.0
+
+### Minor Changes
+
+- e65bd25: Rename the bespoke sales Quote domain to Proposals across packages, routes, schemas, migrations, generated graph authorities, and operator surfaces.
+
+  This beta-line release keeps no compatibility aliases, routes, package names, forwarding exports, views, or dual writes for the bespoke sales rename. Existing beta databases that contain the old bespoke quote schema must be dropped and recreated from the clean-slate migrations; there is no in-place migration path and no data-preservation guarantee for those beta databases.
+
+### Patch Changes
+
+- Updated dependencies [e65bd25]
+  - @voyant-travel/proposals@0.137.0
+  - @voyant-travel/proposals-contracts@0.109.0
+  - @voyant-travel/proposals-react@0.225.0
+  - @voyant-travel/bookings@0.227.0
+  - @voyant-travel/commerce@0.46.0
+  - @voyant-travel/legal@0.227.0
+  - @voyant-travel/legal-react@0.227.0
+  - @voyant-travel/relationships@0.133.0
+  - @voyant-travel/relationships-react@0.227.0
+  - @voyant-travel/mice@0.83.0
+  - @voyant-travel/notifications@0.145.0
+  - @voyant-travel/realtime@0.8.0
+  - @voyant-travel/trips-react@0.220.0
+  - @voyant-travel/mcp@0.15.1
+  - @voyant-travel/framework-migrations@0.10.9
+  - @voyant-travel/i18n@0.119.2
+  - @voyant-travel/accommodations@0.187.0
+  - @voyant-travel/bookings-react@0.227.0
+  - @voyant-travel/catalog@0.225.0
+  - @voyant-travel/distribution@0.217.0
+  - @voyant-travel/finance@0.227.0
+  - @voyant-travel/inventory@0.26.0
+  - @voyant-travel/storefront@0.229.0
+  - @voyant-travel/trips@0.220.0
+  - @voyant-travel/catalog-authoring@0.107.36
+  - @voyant-travel/commerce-react@0.109.0
+  - @voyant-travel/operator-settings@0.17.1
+  - @voyant-travel/action-ledger-react@0.116.0
+  - @voyant-travel/distribution-react@0.217.0
+  - @voyant-travel/flights-react@0.227.0
+  - @voyant-travel/identity-react@0.227.0
+  - @voyant-travel/mice-react@0.95.0
+  - @voyant-travel/notifications-react@0.145.0
+  - @voyant-travel/db@0.119.2
+  - @voyant-travel/finance-contracts@0.108.1
+  - @voyant-travel/storefront-react@0.229.0
+  - @voyant-travel/finance-react@0.227.0
+  - @voyant-travel/operations-react@0.108.0
+  - @voyant-travel/inventory-react@0.109.0
+  - @voyant-travel/admin-app@0.120.0
+  - @voyant-travel/catalog-react@0.225.0
+  - @voyant-travel/cruises-react@0.226.0
+  - @voyant-travel/operator-settings-react@0.84.0
+  - @voyant-travel/admin-host@0.78.0
+  - @voyant-travel/charters@0.225.0
+  - @voyant-travel/cruises@0.226.0
+  - @voyant-travel/flights@0.227.0
+  - @voyant-travel/identity@0.227.0
+  - @voyant-travel/operations@0.11.11
+
 ## 0.18.4
 
 ### Patch Changes

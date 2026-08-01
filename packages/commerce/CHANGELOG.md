@@ -1,5 +1,24 @@
 # @voyant-travel/commerce
 
+## 0.46.0
+
+### Minor Changes
+
+- e65bd25: Rename the bespoke sales Quote domain to Proposals across packages, routes, schemas, migrations, generated graph authorities, and operator surfaces.
+
+  This beta-line release keeps no compatibility aliases, routes, package names, forwarding exports, views, or dual writes for the bespoke sales rename. Existing beta databases that contain the old bespoke quote schema must be dropped and recreated from the clean-slate migrations; there is no in-place migration path and no data-preservation guarantee for those beta databases.
+
+### Patch Changes
+
+- Updated dependencies [e65bd25]
+  - @voyant-travel/proposals-contracts@0.109.0
+  - @voyant-travel/bookings@0.227.0
+  - @voyant-travel/catalog@0.225.0
+  - @voyant-travel/distribution@0.217.0
+  - @voyant-travel/finance@0.227.0
+  - @voyant-travel/db@0.119.2
+  - @voyant-travel/products-contracts@0.107.11
+
 ## 0.45.6
 
 ### Patch Changes

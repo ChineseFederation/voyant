@@ -1,5 +1,26 @@
 # @voyant-travel/trips-react
 
+## 0.220.0
+
+### Minor Changes
+
+- e65bd25: Rename the bespoke sales Quote domain to Proposals across packages, routes, schemas, migrations, generated graph authorities, and operator surfaces.
+
+  This beta-line release keeps no compatibility aliases, routes, package names, forwarding exports, views, or dual writes for the bespoke sales rename. Existing beta databases that contain the old bespoke quote schema must be dropped and recreated from the clean-slate migrations; there is no in-place migration path and no data-preservation guarantee for those beta databases.
+
+### Patch Changes
+
+- Updated dependencies [e65bd25]
+  - @voyant-travel/relationships-react@0.227.0
+  - @voyant-travel/i18n@0.119.2
+  - @voyant-travel/bookings-react@0.227.0
+  - @voyant-travel/catalog@0.225.0
+  - @voyant-travel/finance@0.227.0
+  - @voyant-travel/trips@0.220.0
+  - @voyant-travel/flights-react@0.227.0
+  - @voyant-travel/catalog-react@0.225.0
+  - @voyant-travel/flights@0.227.0
+
 ## 0.219.1
 
 ### Patch Changes

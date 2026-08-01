@@ -1,5 +1,13 @@
 # @voyant-travel/cruises
 
+## 0.226.0
+
+### Patch Changes
+
+- @voyant-travel/catalog@0.225.0
+- @voyant-travel/finance@0.227.0
+- @voyant-travel/db@0.119.2
+
 ## 0.225.0
 
 ### Patch Changes
