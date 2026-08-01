@@ -1,7 +1,7 @@
 import { availabilityHolds, availabilitySlots } from "@voyant-travel/availability/schema"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
-import { eq, isNull } from "drizzle-orm"
+import { and, eq, isNull } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { products } from "../../../../inventory/src/schema.js"
 import {
@@ -74,6 +74,47 @@ describe.skipIf(!DB_AVAILABLE)("availability hold lifecycle", () => {
       .from(availabilityHolds)
       .where(eq(availabilityHolds.holdToken, input.holdToken))
     expect(rows).toHaveLength(1)
+  })
+
+  it("allows exactly one concurrent claimant to take the last seat", async () => {
+    await db
+      .update(availabilitySlots)
+      .set({ initialPax: 1, remainingPax: 1 })
+      .where(eq(availabilitySlots.id, slotId))
+
+    const [first, second] = await Promise.all([
+      placeAvailabilityHold(db, {
+        draftId: "last_seat_a",
+        productId,
+        slotId,
+        paxCount: 1,
+        ttlMs: 30 * 60 * 1000,
+        holdToken: "last_seat_a",
+      }),
+      placeAvailabilityHold(db, {
+        draftId: "last_seat_b",
+        productId,
+        slotId,
+        paxCount: 1,
+        ttlMs: 30 * 60 * 1000,
+        holdToken: "last_seat_b",
+      }),
+    ])
+
+    expect([first.status, second.status].sort()).toEqual(["insufficient_capacity", "ok"])
+    expect(await remainingPax()).toBe(0)
+    const liveHolds = await db
+      .select()
+      .from(availabilityHolds)
+      .where(
+        and(
+          eq(availabilityHolds.slotId, slotId),
+          isNull(availabilityHolds.releasedAt),
+          isNull(availabilityHolds.convertedAt),
+        ),
+      )
+    expect(liveHolds).toHaveLength(1)
+    expect(liveHolds[0]?.paxCount).toBe(1)
   })
 
   it("reconciles capacity when a replay changes the passenger count", async () => {

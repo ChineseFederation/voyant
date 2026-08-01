@@ -12,6 +12,14 @@ import {
   updateBookingEngineSession,
   updateBookingEngineTravelers,
 } from "./booking-engine.js"
+import {
+  commitBookingSessionV1,
+  createBookingSessionV1,
+  holdBookingSessionV1,
+  quoteBookingSessionV1,
+  runOwnedProductBookingTracerV1,
+  updateBookingSessionV1,
+} from "./booking-session-v1.js"
 import { defaultStorefrontFetcher, type VoyantStorefrontClientOptions } from "./client.js"
 import {
   canRunBookingEngineAction,
@@ -44,6 +52,7 @@ import {
 } from "./operations.js"
 
 export * from "./booking-engine.js"
+export * from "./booking-session-v1.js"
 export type {
   StorefrontQueryParamValue,
   StorefrontRequestOptions,
@@ -207,6 +216,34 @@ export function createVoyantStorefrontClient(options: VoyantStorefrontClientOpti
       deriveState: deriveBookingEngineState,
       createSnapshot: createBookingEngineSnapshot,
       canRunAction: canRunBookingEngineAction,
+    },
+    bookingSessionsV1: {
+      create: (
+        input: Parameters<typeof createBookingSessionV1>[1],
+        requestOptions?: Parameters<typeof createBookingSessionV1>[2],
+      ) => createBookingSessionV1(client, input, requestOptions),
+      update: (
+        sessionId: string,
+        input: Parameters<typeof updateBookingSessionV1>[2],
+        requestOptions?: Parameters<typeof updateBookingSessionV1>[3],
+      ) => updateBookingSessionV1(client, sessionId, input, requestOptions),
+      quote: (
+        sessionId: string,
+        input: Parameters<typeof quoteBookingSessionV1>[2],
+        requestOptions?: Parameters<typeof quoteBookingSessionV1>[3],
+      ) => quoteBookingSessionV1(client, sessionId, input, requestOptions),
+      hold: (
+        sessionId: string,
+        input: Parameters<typeof holdBookingSessionV1>[2],
+        requestOptions?: Parameters<typeof holdBookingSessionV1>[3],
+      ) => holdBookingSessionV1(client, sessionId, input, requestOptions),
+      commit: (
+        sessionId: string,
+        input: Parameters<typeof commitBookingSessionV1>[2],
+        requestOptions?: Parameters<typeof commitBookingSessionV1>[3],
+      ) => commitBookingSessionV1(client, sessionId, input, requestOptions),
+      runOwnedProductTracer: (input: Parameters<typeof runOwnedProductBookingTracerV1>[1]) =>
+        runOwnedProductBookingTracerV1(client, input),
     },
     checkout: {
       previewCollection: (

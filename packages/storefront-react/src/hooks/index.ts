@@ -3,6 +3,7 @@ export {
   useAdminStorefrontSettings,
   useAdminStorefrontSettingsMutation,
 } from "./use-admin-storefront-settings.js"
+export { useOwnedProductBookingTracerV1 } from "./use-booking-session-v1.js"
 export {
   type UseStorefrontDepartureOptions,
   useStorefrontDeparture,

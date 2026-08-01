@@ -136,7 +136,19 @@ export function createCatalogRuntimePortContribution(
           operations,
         },
         settings,
-        { indexer: catalogIndexer },
+        {
+          indexer: catalogIndexer,
+          async resolveBookingsRelationshipsRuntime() {
+            if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
+            return host.getRuntimePort<BookingsRelationshipsRuntime>(
+              bookingsRelationshipsRuntimePort,
+            )
+          },
+          resolveFinanceServiceRuntime(context) {
+            const eventBus = (context as { var?: { eventBus?: unknown } }).var?.eventBus
+            return eventBus ? { eventBus: eventBus as never } : {}
+          },
+        },
       )
     },
   )

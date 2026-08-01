@@ -1,9 +1,11 @@
+import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import { validateEmbeddingCompatibility } from "@voyant-travel/catalog/embeddings/model-registry"
 import { type CatalogIndexer, resolveCatalogIndexer } from "@voyant-travel/catalog/indexer/provider"
 import { CATALOG_PRESENTATION_SUBJECT_MODULES } from "@voyant-travel/catalog/presentation-subjects"
 import type { CatalogSearchRuntime } from "@voyant-travel/catalog/search/routes"
 import { createReferencedSubjectReindexFanout } from "@voyant-travel/catalog/services/indexer"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { FinanceServiceRuntime } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
 import {
   ensureBookingEngineRegistry,
@@ -44,7 +46,11 @@ export function createCatalogRuntime(
   primitives: VoyantRuntimeHostPrimitives,
   extensions: CatalogRuntimeExtensions,
   settings: FinanceOperatorSettingsRuntime,
-  options: { indexer?: CatalogIndexer } = {},
+  options: {
+    indexer?: CatalogIndexer
+    resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+    resolveFinanceServiceRuntime?: (context: unknown) => FinanceServiceRuntime
+  } = {},
 ): CatalogRuntimePortContribution {
   configureCatalogRuntimeHost(primitives, extensions)
   let indexer: ReturnType<typeof resolveCatalogIndexer> | undefined
@@ -141,7 +147,10 @@ export function createCatalogRuntime(
     search: {
       resolveRuntime: (context) => createCatalogSearchRuntime(context, resolveIndexer),
     },
-    booking: createOperatorCatalogBookingRouteModuleOptions(),
+    booking: createOperatorCatalogBookingRouteModuleOptions({
+      resolveBookingsRelationshipsRuntime: options.resolveBookingsRelationshipsRuntime,
+      resolveFinanceServiceRuntime: options.resolveFinanceServiceRuntime,
+    }),
     offers: createOperatorCatalogOffersRouteModuleOptions(
       (context) => withoutCatalogScopeChannel(resolveCatalogDefaultScope(context)),
       (context) => {

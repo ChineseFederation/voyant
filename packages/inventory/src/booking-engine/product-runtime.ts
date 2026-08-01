@@ -44,52 +44,46 @@ function asPostgresDb(db: unknown): PostgresJsDatabase {
 
 export function registerProductBookingHandler(
   registry: OwnedBookingHandlerRegistry,
-  host: ProductBookingRuntimeHost,
+  _host: ProductBookingRuntimeHost,
 ): void {
   registry.register(
     createProductsBookingHandler({
       holds: {
-        async place(input) {
-          return host.withDatabase(async (rawDb) => {
-            const db = asPostgresDb(rawDb)
-            const result = await placeAvailabilityHold(db, input)
-            if (result.status === "ok") {
-              return {
-                status: "ok",
-                holdToken: result.hold.holdToken,
-                expiresAt: result.hold.expiresAt,
-              }
-            }
-            if (result.status === "slot_unlimited") {
-              return {
-                status: "ok",
-                holdToken: result.holdToken,
-                expiresAt: result.expiresAt,
-              }
-            }
-            if (result.status === "slot_not_found") {
-              return { status: "slot_not_found" }
-            }
+        async place(ctx, input) {
+          const db = asPostgresDb(ctx.db)
+          const result = await placeAvailabilityHold(db, input)
+          if (result.status === "ok") {
             return {
-              status: "insufficient_capacity",
-              remaining: result.remaining,
-              needed: result.needed,
+              status: "ok",
+              holdToken: result.hold.holdToken,
+              expiresAt: result.hold.expiresAt,
             }
-          })
+          }
+          if (result.status === "slot_unlimited") {
+            return {
+              status: "ok",
+              holdToken: result.holdToken,
+              expiresAt: result.expiresAt,
+            }
+          }
+          if (result.status === "slot_not_found") {
+            return { status: "slot_not_found" }
+          }
+          return {
+            status: "insufficient_capacity",
+            remaining: result.remaining,
+            needed: result.needed,
+          }
         },
-        async extend(input) {
-          return host.withDatabase(async (rawDb) => {
-            const db = asPostgresDb(rawDb)
-            const result = await extendAvailabilityHold(db, input)
-            if (result.status === "ok") return { status: "ok", expiresAt: result.expiresAt }
-            return { status: "not_found" }
-          })
+        async extend(ctx, input) {
+          const db = asPostgresDb(ctx.db)
+          const result = await extendAvailabilityHold(db, input)
+          if (result.status === "ok") return { status: "ok", expiresAt: result.expiresAt }
+          return { status: "not_found" }
         },
-        async release(holdToken) {
-          await host.withDatabase(async (rawDb) => {
-            const db = asPostgresDb(rawDb)
-            await releaseAvailabilityHold(db, holdToken)
-          })
+        async release(ctx, holdToken) {
+          const db = asPostgresDb(ctx.db)
+          await releaseAvailabilityHold(db, holdToken)
         },
       },
       async loadTravelerFields(ctx, productId) {

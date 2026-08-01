@@ -181,7 +181,7 @@ describe("catalog deployment manifest", () => {
           surface: "admin",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/holds", "/orders", "/quote", "/quotes/batch"],
+          transactional: ["/booking-sessions", "/holds", "/orders", "/quote", "/quotes/batch"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",
@@ -192,7 +192,7 @@ describe("catalog deployment manifest", () => {
           surface: "public",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/holds", "/quote", "/quotes/batch"],
+          transactional: ["/booking-sessions", "/holds", "/quote", "/quotes/batch"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",

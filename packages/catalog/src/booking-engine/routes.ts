@@ -697,6 +697,15 @@ async function handleHoldPlace(
         parameters: body.parameters,
       },
     )
+    if (result.status === "unavailable") {
+      return c.json(
+        {
+          error: "Hold conflicts with current availability",
+          code: result.reason,
+        },
+        409,
+      )
+    }
     // Record the hold on the draft that now carries it.
     //
     // `hold_expires_at` is the only evidence a hold exists that anything

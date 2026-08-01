@@ -109,6 +109,54 @@ Both branches use the same typed outcome vocabulary from
 caller does not infer commitment from draft Booking statuses, payment state, or
 supplier status strings.
 
+### 3.2.1. Owned Product v1 tracer implementation
+
+The first Booking Platform v1 runtime slice is the owned Product tracer:
+
+```text
+Product -> Booking Session -> exact-revision Quote -> real-capacity Hold -> Commit -> Booking + Allocation
+```
+
+It lives in `@voyant-travel/catalog/booking-engine` as a transport-neutral
+Booking Session module. The module owns Session, Quote, Hold, and Commit
+orchestration and calls a deployment-supplied owned-commit port for the single
+transaction that creates exactly one confirmed Booking and one or more
+Allocations. Anonymous public and authenticated staff route adapters mount the
+same module under `/v1/{public,admin}/catalog/booking-sessions`; the route layer
+only validates input, resolves the module, and serializes the typed outcome.
+Deployments use `createDrizzleBookingSessionRepository` for the Session/Quote/
+Hold/Commit tables and provide vertical-specific pricing, real-capacity Hold,
+and Booking+Allocation commit ports.
+
+The canonical persistence shape is:
+
+- `booking_sessions` with `bses` TypeID identity, semantic Product/Catalog Item
+  target, absolute expiry, lifecycle state, and optimistic revision.
+- `booking_session_quotes` with `bsqu` identity, immutable price and terms for
+  exactly one Session revision, expiry, fingerprint, and supersession state.
+- `booking_session_holds` with `bshd` identity, Session-owned inventory target,
+  quantity, absolute expiry, and conversion state.
+- `booking_session_commits` with `bscm` identity and a unique
+  `(session_id, idempotency_key)` replay record.
+
+Creating or abandoning a Booking Session does not create a Booking, booking
+number, Booking Item, Allocation, Finance record, or reporting row. Updating
+price-relevant state increments the Session revision and supersedes active
+Quotes. Commit rejects stale revisions, expired/superseded Quotes, expired or
+mismatched Holds, and different server-recomputed prices. Stable idempotency
+keys replay the original Commit result; a different key after consumption is
+rejected rather than creating another Booking.
+Anonymous Sessions return a capability once at creation. Public update, Quote,
+Hold, Commit, and Commit replay calls must present that capability; staff
+adapters use the same module without a public capability token.
+
+The dependency-light Storefront contract is exported from
+`@voyant-travel/catalog-contracts/booking-engine/session-contracts`. The
+reference SDK and React hook are exported from `@voyant-travel/storefront-sdk`
+and `@voyant-travel/storefront-react`; they hide the route sequence while
+preserving returned revision, capability, Quote, Hold, and stable idempotency
+semantics.
+
 ### 3.3. `cancelEntity`
 
 ```ts

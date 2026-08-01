@@ -26,6 +26,23 @@ export {
   type SelectCatalogQuote,
 } from "./booking-engine/schema.js"
 export {
+  bookingSessionCommitsTable,
+  bookingSessionHoldsTable,
+  bookingSessionOperationsTable,
+  bookingSessionQuotesTable,
+  bookingSessionsTable,
+  type InsertBookingSession,
+  type InsertBookingSessionCommit,
+  type InsertBookingSessionHold,
+  type InsertBookingSessionOperation,
+  type InsertBookingSessionQuote,
+  type SelectBookingSession,
+  type SelectBookingSessionCommit,
+  type SelectBookingSessionHold,
+  type SelectBookingSessionOperation,
+  type SelectBookingSessionQuote,
+} from "./booking-engine/sessions-schema.js"
+export {
   catalogOverlayHistoryTable,
   catalogOverlayTable,
   type InsertCatalogOverlay,

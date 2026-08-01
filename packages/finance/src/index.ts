@@ -37,6 +37,7 @@ import {
   financeNotificationsRuntimePort,
 } from "./runtime-port.js"
 
+export { FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION } from "./booking-create-policy.js"
 export type {
   CheckoutRouteRuntime,
   CheckoutRoutesOptions,
@@ -139,6 +140,7 @@ export {
   createSelfServiceCreateRuntime,
   type SelfServiceCreateRuntimeDeps,
 } from "./self-service-create-runtime.js"
+export type { FinanceServiceRuntime } from "./service.js"
 export { type PublicFinanceRuntimeOptions, publicFinanceService } from "./service-public.js"
 
 export const financeModule: Module = {

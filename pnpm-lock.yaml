@@ -5130,6 +5130,9 @@ importers:
       '@voyant-travel/storefront':
         specifier: workspace:^
         version: link:../storefront
+      '@voyant-travel/storefront-sdk':
+        specifier: workspace:^
+        version: link:../storefront-sdk
       '@voyant-travel/ui':
         specifier: workspace:^
         version: link:../ui
@@ -5160,6 +5163,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
       '@voyant-travel/finance':
         specifier: workspace:^
         version: link:../finance

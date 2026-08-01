@@ -414,6 +414,9 @@
       "@voyant-travel/catalog-contracts/booking-engine/promotions-contract": [
         "../catalog-contracts/dist/booking-engine/promotions-contract.d.ts"
       ],
+      "@voyant-travel/catalog-contracts/booking-engine/session-contracts": [
+        "../catalog-contracts/dist/booking-engine/session-contracts.d.ts"
+      ],
       "@voyant-travel/catalog-contracts/content": ["../catalog-contracts/dist/content.d.ts"],
       "@voyant-travel/catalog-contracts/contract": ["../catalog-contracts/dist/contract.d.ts"],
       "@voyant-travel/catalog-contracts/drift/events": [
@@ -459,6 +462,18 @@
       ],
       "@voyant-travel/catalog/booking-engine/schema": [
         "../catalog/dist/booking-engine/schema.d.ts"
+      ],
+      "@voyant-travel/catalog/booking-engine/sessions": [
+        "../catalog/dist/booking-engine/sessions-service.d.ts"
+      ],
+      "@voyant-travel/catalog/booking-engine/sessions-drizzle": [
+        "../catalog/dist/booking-engine/sessions-drizzle.d.ts"
+      ],
+      "@voyant-travel/catalog/booking-engine/sessions-routes": [
+        "../catalog/dist/booking-engine/sessions-routes.d.ts"
+      ],
+      "@voyant-travel/catalog/booking-engine/sessions-schema": [
+        "../catalog/dist/booking-engine/sessions-schema.d.ts"
       ],
       "@voyant-travel/catalog/booking-snapshot-subscriber": [
         "../catalog/dist/booking-snapshot-subscriber-runtime.d.ts"
@@ -1871,6 +1886,9 @@
       "@voyant-travel/storefront-sdk": ["../storefront-sdk/dist/index.d.ts"],
       "@voyant-travel/storefront-sdk/booking-engine": [
         "../storefront-sdk/dist/booking-engine.d.ts"
+      ],
+      "@voyant-travel/storefront-sdk/booking-session-v1": [
+        "../storefront-sdk/dist/booking-session-v1.d.ts"
       ],
       "@voyant-travel/storefront-sdk/client": ["../storefront-sdk/dist/client.d.ts"],
       "@voyant-travel/storefront-sdk/engine-state": ["../storefront-sdk/dist/engine-state.d.ts"],

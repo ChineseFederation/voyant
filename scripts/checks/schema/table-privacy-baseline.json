@@ -9,7 +9,6 @@
     "accommodations->operations": 13,
     "apps->custom-fields": 1,
     "bookings->action-ledger": 1,
-    "catalog->bookings": 1,
     "commerce->bookings": 6,
     "commerce->catalog": 1,
     "commerce->distribution": 4,

@@ -1,4 +1,3 @@
-import { bookingItems } from "@voyant-travel/bookings/schema"
 import type {
   CatalogBookingSnapshotExecutionContext,
   CatalogBookingSnapshotRuntime,
@@ -11,6 +10,7 @@ import {
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, eq, isNotNull } from "drizzle-orm"
 
+import { bookingItemsRef } from "../booking-engine/bookings-ref.js"
 import type { CatalogRuntimeServices } from "../runtime-contracts.js"
 import { catalogRuntimeExtensions, catalogRuntimeHost } from "./host.js"
 
@@ -84,9 +84,11 @@ export function createOperatorCatalogBookingSnapshotRuntime(
         sellerOperatorId,
         findBookingProductIds: async (bookingId) => {
           const items: { productId: string | null }[] = await db
-            .select({ productId: bookingItems.productId })
-            .from(bookingItems)
-            .where(and(eq(bookingItems.bookingId, bookingId), isNotNull(bookingItems.productId)))
+            .select({ productId: bookingItemsRef.productId })
+            .from(bookingItemsRef)
+            .where(
+              and(eq(bookingItemsRef.bookingId, bookingId), isNotNull(bookingItemsRef.productId)),
+            )
           return items.map(({ productId }) => productId)
         },
         buildSnapshotInput: (productId, options) =>

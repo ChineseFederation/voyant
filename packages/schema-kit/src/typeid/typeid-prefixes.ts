@@ -395,6 +395,11 @@ export const PREFIXES = {
   // §12.10 (chose option B: ship as a sibling table to
   // booking_session_states).
   booking_drafts: "bdrf",
+  booking_sessions: "bses",
+  booking_session_quotes: "bsqu",
+  booking_session_holds: "bshd",
+  booking_session_commits: "bscm",
+  booking_session_operations: "bsop",
 
   // --- TRAVEL COMPOSER ---
   trip_envelopes: "trip",

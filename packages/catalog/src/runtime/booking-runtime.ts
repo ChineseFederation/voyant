@@ -1,15 +1,19 @@
+import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import {
   type CatalogBookingRouteModuleOptions,
   type CatalogBookingRoutesOptions,
   catalogQuotesTable,
+  createProductionBookingSessionModule,
   OWNED_SOURCE_KIND,
   type QuoteEntityResult,
 } from "@voyant-travel/catalog/booking-engine"
+import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
 import {
   applyCatalogTaxToQuoteResult,
   resolveCatalogHoldTtlMs,
 } from "@voyant-travel/catalog/runtime-support"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import type { FinanceServiceRuntime } from "@voyant-travel/finance"
 import {
   computeBookingItemTaxLine,
   resolveBookingSellTaxRate,
@@ -68,15 +72,86 @@ function createOperatorCatalogBookingRoutesOptions(): CatalogBookingRoutesOption
   }
 }
 
-export function createOperatorCatalogBookingRouteModuleOptions(): CatalogBookingRouteModuleOptions {
+export function createOperatorCatalogBookingRouteModuleOptions(
+  options: {
+    resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+    resolveFinanceServiceRuntime?: (context: Context) => FinanceServiceRuntime
+  } = {},
+): CatalogBookingRouteModuleOptions {
   const { inventory, operations } = catalogRuntimeExtensions()
   return {
     booking: createOperatorCatalogBookingRoutesOptions(),
+    bookingSessions: {
+      resolveModule(c) {
+        const db = getCatalogBookingDb(c) as PostgresJsDatabase
+        return createProductionBookingSessionModule({
+          db,
+          repository: createDrizzleBookingSessionRepository(db),
+          resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
+          relationships: {
+            async loadPersonTravelSnapshot(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.loadPersonTravelSnapshot(...args)
+            },
+            async upsertPersonFromContact(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.upsertPersonFromContact(...args)
+            },
+            async getPersonById(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.getPersonById(...args)
+            },
+            async getOrganizationById(...args) {
+              const runtime = await requireRelationshipsRuntime(options)
+              return runtime.getOrganizationById(...args)
+            },
+          },
+          financeRuntime: options.resolveFinanceServiceRuntime?.(c),
+        })
+      },
+      resolveAccess(c, actorKind) {
+        const vars = c.var as {
+          userId?: string
+          organizationId?: string
+          actor?: string
+        }
+        const capability =
+          actorKind === "anonymous"
+            ? (c.req.header("Voyant-Booking-Session-Capability")?.trim() ??
+              readCookie(c.req.header("Cookie"), "voyant_booking_session"))
+            : undefined
+        return {
+          actorKind,
+          ...(vars.userId ? { principalId: vars.userId } : {}),
+          ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
+          ...(capability ? { capability } : {}),
+        }
+      },
+    },
     resolveRegistry: getBookingEngineRegistryFromContext,
     getProductContent: inventory.getProductContent,
     listAvailabilitySlots: operations.listAvailabilitySlots,
     getOwnedProductById: inventory.getOwnedProductById,
   }
+}
+
+async function requireRelationshipsRuntime(options: {
+  resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
+}): Promise<BookingsRelationshipsRuntime> {
+  const runtime = await options.resolveBookingsRelationshipsRuntime?.()
+  if (!runtime) {
+    throw new Error("booking_session_relationships_runtime_required")
+  }
+  return runtime
+}
+
+function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined
+  for (const part of cookieHeader.split(";")) {
+    const [rawKey, ...rawValue] = part.trim().split("=")
+    if (rawKey === name) return decodeURIComponent(rawValue.join("="))
+  }
+  return undefined
 }
 
 async function resolveHoldTtlMs(

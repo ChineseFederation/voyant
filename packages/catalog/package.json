@@ -41,6 +41,10 @@
     "./services/content": "./src/services/content-service.ts",
     "./booking-engine": "./src/booking-engine/index.ts",
     "./booking-engine/schema": "./src/booking-engine/schema.ts",
+    "./booking-engine/sessions": "./src/booking-engine/sessions-service.ts",
+    "./booking-engine/sessions-drizzle": "./src/booking-engine/sessions-drizzle.ts",
+    "./booking-engine/sessions-routes": "./src/booking-engine/sessions-routes.ts",
+    "./booking-engine/sessions-schema": "./src/booking-engine/sessions-schema.ts",
     "./booking-engine/draft-shape": "./src/booking-engine/draft-shape.ts",
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
     "./booking-engine/drafts-schema": "./src/booking-engine/drafts-schema.ts",
@@ -293,6 +297,26 @@
         "types": "./dist/booking-engine/schema.d.ts",
         "import": "./dist/booking-engine/schema.js",
         "default": "./dist/booking-engine/schema.js"
+      },
+      "./booking-engine/sessions": {
+        "types": "./dist/booking-engine/sessions-service.d.ts",
+        "import": "./dist/booking-engine/sessions-service.js",
+        "default": "./dist/booking-engine/sessions-service.js"
+      },
+      "./booking-engine/sessions-drizzle": {
+        "types": "./dist/booking-engine/sessions-drizzle.d.ts",
+        "import": "./dist/booking-engine/sessions-drizzle.js",
+        "default": "./dist/booking-engine/sessions-drizzle.js"
+      },
+      "./booking-engine/sessions-routes": {
+        "types": "./dist/booking-engine/sessions-routes.d.ts",
+        "import": "./dist/booking-engine/sessions-routes.js",
+        "default": "./dist/booking-engine/sessions-routes.js"
+      },
+      "./booking-engine/sessions-schema": {
+        "types": "./dist/booking-engine/sessions-schema.d.ts",
+        "import": "./dist/booking-engine/sessions-schema.js",
+        "default": "./dist/booking-engine/sessions-schema.js"
       },
       "./booking-engine/draft-shape": {
         "types": "./dist/booking-engine/draft-shape.d.ts",

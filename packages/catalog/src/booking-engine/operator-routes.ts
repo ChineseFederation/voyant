@@ -59,6 +59,7 @@ import {
 import { getOrderById, listOrders } from "./orders.js"
 import type { SourceAdapterRegistry } from "./registry.js"
 import { type CatalogBookingRoutesOptions, createCatalogBookingRoutes } from "./routes.js"
+import { type BookingSessionRoutesOptions, createBookingSessionRoutes } from "./sessions-routes.js"
 
 /**
  * A single resolved departure/slot as projected by `getProductContent`.
@@ -129,6 +130,7 @@ export interface CatalogBookingRouteModuleOptions {
    * these for `createCatalogBookingRoutes`.
    */
   booking: CatalogBookingRoutesOptions
+  bookingSessions?: Omit<BookingSessionRoutesOptions, "actorKind">
   /**
    * Resolve the process-local source-adapter registry for a request. Used by
    * the order-cancel handler to dispatch to the registered adapter.
@@ -397,6 +399,12 @@ export interface CatalogBookingMountTarget {
 }
 
 export const catalogBookingRoutePaths = [
+  "/v1/admin/catalog/booking-sessions",
+  "/v1/admin/catalog/booking-sessions/:sessionId",
+  "/v1/admin/catalog/booking-sessions/:sessionId/quote",
+  "/v1/admin/catalog/booking-sessions/:sessionId/hold",
+  "/v1/admin/catalog/booking-sessions/:sessionId/abandon",
+  "/v1/admin/catalog/booking-sessions/:sessionId/commit",
   "/v1/admin/catalog/quote",
   "/v1/admin/catalog/quotes/batch",
   "/v1/admin/catalog/drafts/:id",
@@ -408,6 +416,12 @@ export const catalogBookingRoutePaths = [
   "/v1/admin/catalog/orders/:id/cancel",
   "/v1/admin/bookings/:id/catalog-snapshot",
   "/v1/public/catalog/quote",
+  "/v1/public/catalog/booking-sessions",
+  "/v1/public/catalog/booking-sessions/:sessionId",
+  "/v1/public/catalog/booking-sessions/:sessionId/quote",
+  "/v1/public/catalog/booking-sessions/:sessionId/hold",
+  "/v1/public/catalog/booking-sessions/:sessionId/abandon",
+  "/v1/public/catalog/booking-sessions/:sessionId/commit",
   "/v1/public/catalog/quotes/batch",
   "/v1/public/catalog/drafts/:id",
   "/v1/public/catalog/holds/place",
@@ -420,9 +434,11 @@ export const catalogBookingTransactionalPaths = [
   "/v1/admin/catalog/quotes/batch",
   "/v1/admin/catalog/holds",
   "/v1/admin/catalog/orders",
+  "/v1/admin/catalog/booking-sessions",
   "/v1/public/catalog/quote",
   "/v1/public/catalog/quotes/batch",
   "/v1/public/catalog/holds",
+  "/v1/public/catalog/booking-sessions",
 ] as const
 
 export function mountCatalogBookingRoutes(
@@ -436,6 +452,23 @@ export function mountCatalogBookingRoutes(
     hono.route(
       prefix,
       stampOpenApiRegistryApiId(createCatalogBookingRoutes(options.booking), apiId),
+    )
+  }
+
+  if (options.bookingSessions) {
+    hono.route(
+      "/v1/admin/catalog",
+      stampOpenApiRegistryApiId(
+        createBookingSessionRoutes({ ...options.bookingSessions, actorKind: "staff" }),
+        "@voyant-travel/catalog#booking-engine.api.admin",
+      ),
+    )
+    hono.route(
+      "/v1/public/catalog",
+      stampOpenApiRegistryApiId(
+        createBookingSessionRoutes({ ...options.bookingSessions, actorKind: "anonymous" }),
+        "@voyant-travel/catalog#booking-engine.api.public",
+      ),
     )
   }
 

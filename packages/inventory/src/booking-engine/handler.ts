@@ -352,23 +352,29 @@ export interface OwnedProductsShapeLoaders {
  * omitted, the handler falls back to stamping no-ops.
  */
 export interface AvailabilityHoldBridge {
-  place: (input: {
-    draftId: string
-    productId: string
-    slotId: string
-    paxCount: number
-    ttlMs: number
-    holdToken?: string
-  }) => Promise<
+  place: (
+    ctx: OwnedHandlerContext,
+    input: {
+      draftId: string
+      productId: string
+      slotId: string
+      paxCount: number
+      ttlMs: number
+      holdToken?: string
+    },
+  ) => Promise<
     | { status: "ok"; holdToken: string; expiresAt: Date }
     | { status: "slot_not_found" }
     | { status: "insufficient_capacity"; remaining: number; needed: number }
   >
-  extend: (input: {
-    holdToken: string
-    ttlMs: number
-  }) => Promise<{ status: "ok"; expiresAt: Date } | { status: "not_found" }>
-  release: (holdToken: string) => Promise<void>
+  extend: (
+    ctx: OwnedHandlerContext,
+    input: {
+      holdToken: string
+      ttlMs: number
+    },
+  ) => Promise<{ status: "ok"; expiresAt: Date } | { status: "not_found" }>
+  release: (ctx: OwnedHandlerContext, holdToken: string) => Promise<void>
 }
 
 export interface CreateProductsBookingHandlerOptions extends OwnedProductsShapeLoaders {
@@ -608,11 +614,10 @@ export function createProductsBookingHandler(
      * — the journey wizard threads these from the draft's
      * Configure step (`departureSlotId` + summed `pax`).
      */
-    async placeHold(_ctx: OwnedHandlerContext, request) {
+    async placeHold(ctx: OwnedHandlerContext, request) {
       const token = request.draftId ?? `product_${Date.now().toString(36)}`
-      const expiresAt = new Date(Date.now() + request.ttlMs)
       if (!options.holds) {
-        return { holdToken: token, expiresAt }
+        return { status: "unavailable", reason: "unsupported" }
       }
       const params = (request.parameters ?? {}) as {
         slotId?: string
@@ -622,12 +627,9 @@ export function createProductsBookingHandler(
       const slotId = params.slotId
       const paxCount = params.paxCount ?? 1
       if (!slotId || !request.draftId) {
-        // No slot chosen yet → no inventory to lock. Return a
-        // stamping token so the journey can still call extend /
-        // release.
-        return { holdToken: token, expiresAt }
+        return { status: "unavailable", reason: "selection_incomplete" }
       }
-      const result = await options.holds.place({
+      const result = await options.holds.place(ctx, {
         draftId: request.draftId,
         productId: params.productId ?? request.entityId,
         slotId,
@@ -636,12 +638,16 @@ export function createProductsBookingHandler(
         holdToken: token,
       })
       if (result.status === "ok") {
-        return { holdToken: result.holdToken, expiresAt: result.expiresAt }
+        return { status: "held", holdToken: result.holdToken, expiresAt: result.expiresAt }
       }
-      // Capacity / lookup failures fall back to a stamping token
-      // — the journey commit will revalidate via the engine's
-      // re-quote and reject if capacity has dried up.
-      return { holdToken: token, expiresAt }
+      return result.status === "slot_not_found"
+        ? { status: "unavailable", reason: "slot_not_found" }
+        : {
+            status: "unavailable",
+            reason: "insufficient_capacity",
+            remaining: result.remaining,
+            needed: result.needed,
+          }
     },
 
     /**
@@ -744,7 +750,7 @@ export function createProductsBookingHandler(
     async extendHold(_ctx: OwnedHandlerContext, holdToken: string, request?: { ttlMs?: number }) {
       const ttlMs = request?.ttlMs ?? 30 * 60 * 1000
       if (options.holds) {
-        const result = await options.holds.extend({ holdToken, ttlMs })
+        const result = await options.holds.extend(_ctx, { holdToken, ttlMs })
         if (result.status === "ok") {
           return { holdToken, expiresAt: result.expiresAt }
         }
@@ -754,7 +760,7 @@ export function createProductsBookingHandler(
 
     async releaseHold(_ctx: OwnedHandlerContext, holdToken: string) {
       if (options.holds) {
-        await options.holds.release(holdToken)
+        await options.holds.release(_ctx, holdToken)
       }
     },
   }

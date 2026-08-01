@@ -112,8 +112,16 @@ export interface HoldRequest {
 }
 
 export interface HoldResult {
+  status?: "held"
   holdToken: string
   expiresAt: Date
+}
+
+export interface HoldUnavailableResult {
+  status: "unavailable"
+  reason: "selection_incomplete" | "slot_not_found" | "insufficient_capacity" | "unsupported"
+  remaining?: number
+  needed?: number
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -219,7 +227,10 @@ export interface OwnedBookingHandler {
   ): Promise<DeriveSelfServiceCommandResult>
 
   /** Optional: place / extend / release a soft hold on the row. */
-  placeHold?(ctx: OwnedHandlerContext, request: HoldRequest): Promise<HoldResult>
+  placeHold?(
+    ctx: OwnedHandlerContext,
+    request: HoldRequest,
+  ): Promise<HoldResult | HoldUnavailableResult>
   extendHold?(
     ctx: OwnedHandlerContext,
     holdToken: string,
