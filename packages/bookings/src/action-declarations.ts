@@ -174,6 +174,20 @@ export const BOOKING_ACTION_DECLARATIONS = {
         ),
       },
     },
+    previewTravelerRosterChange: {
+      ...amendmentWriteCapability,
+      id: "bookings:amendments:preview-traveler-roster-change",
+      resource: "booking",
+      action: "preview_traveler_roster_change_amendment",
+      graph: {
+        ...amendmentWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.preview-traveler-roster-change-amendment",
+        commandTargetField: "bookingId",
+        from: amendmentToolBinding(
+          "@voyant-travel/bookings#tool.preview-traveler-roster-change-amendment",
+        ),
+      },
+    },
     accept: {
       ...amendmentWriteCapability,
       id: "bookings:amendments:accept",
@@ -196,6 +210,18 @@ export const BOOKING_ACTION_DECLARATIONS = {
         id: "@voyant-travel/bookings#action.apply-booking-amendment",
         commandTargetField: "amendmentId",
         from: amendmentToolBinding("@voyant-travel/bookings#tool.apply-booking-amendment"),
+      },
+    },
+    reconcile: {
+      ...amendmentWriteCapability,
+      id: "bookings:amendments:reconcile",
+      resource: "booking-amendment",
+      action: "reconcile",
+      graph: {
+        ...amendmentWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.reconcile-booking-amendment",
+        commandTargetField: "amendmentId",
+        from: amendmentToolBinding("@voyant-travel/bookings#tool.reconcile-booking-amendment"),
       },
     },
   },

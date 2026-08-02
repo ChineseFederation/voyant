@@ -22,6 +22,7 @@ import {
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,
   bookingsSelfServiceCreateRuntimePort,
+  bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
 import { bookingsStaleHoldsJobRuntimePort } from "./stale-holds-job-runtime-port.js"
 import { bookingsVoyantAdmin } from "./voyant-admin.js"
@@ -342,6 +343,7 @@ export const bookingsVoyantModule = defineModule({
     // Authorizes a guest create. Without it only authenticated customers can
     // use the public create route.
     requirePort(bookingsGuestVerificationRuntimePort, { optional: true }),
+    requirePort(bookingsSupplierAmendmentRuntimePort, { optional: true }),
   ],
   customFieldTargets: [
     {
@@ -602,11 +604,33 @@ export const bookingsVoyantModule = defineModule({
       risk: "medium",
     },
     {
+      id: "@voyant-travel/bookings#tool.preview-traveler-roster-change-amendment",
+      name: "preview_traveler_roster_change_amendment",
+      runtime: {
+        entry: "@voyant-travel/bookings/tools",
+        export: "previewTravelerRosterChangeAmendmentTool",
+      },
+      requiredScopes: ["bookings:write"],
+      context: ["bookings"],
+      risk: "medium",
+    },
+    {
       id: "@voyant-travel/bookings#tool.apply-booking-amendment",
       name: "apply_booking_amendment",
       runtime: {
         entry: "@voyant-travel/bookings/tools",
         export: "applyBookingAmendmentTool",
+      },
+      requiredScopes: ["bookings:write"],
+      context: ["bookings"],
+      risk: "medium",
+    },
+    {
+      id: "@voyant-travel/bookings#tool.reconcile-booking-amendment",
+      name: "reconcile_booking_amendment",
+      runtime: {
+        entry: "@voyant-travel/bookings/tools",
+        export: "reconcileBookingAmendmentTool",
       },
       requiredScopes: ["bookings:write"],
       context: ["bookings"],

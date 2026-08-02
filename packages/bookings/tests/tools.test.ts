@@ -136,6 +136,8 @@ describe("bookings tools", () => {
       "get_booking",
       "list_bookings",
       "preview_traveler_correction_amendment",
+      "preview_traveler_roster_change_amendment",
+      "reconcile_booking_amendment",
     ])
     for (const t of list.filter((tool) => ["get_booking", "list_bookings"].includes(tool.name))) {
       expect(t.tier).toBe("read")
@@ -145,6 +147,8 @@ describe("bookings tools", () => {
       "accept_booking_amendment",
       "apply_booking_amendment",
       "preview_traveler_correction_amendment",
+      "preview_traveler_roster_change_amendment",
+      "reconcile_booking_amendment",
     ]) {
       expect(list.find((tool) => tool.name === name)).toMatchObject({
         tier: "write",
@@ -337,6 +341,53 @@ describe("bookings tools", () => {
       travelerId: "btr_1",
       bookingRevision: 1,
     })
+  })
+
+  it("dispatches priced roster previews and supplier reconciliation through the shared Amendment service", async () => {
+    const registry = createToolRegistry()
+    registry.registerAll(bookingsTools)
+    const preview = await registry.dispatch(
+      "preview_traveler_roster_change_amendment",
+      {
+        bookingId: "bk_1",
+        expectedBookingRevision: 3,
+        reason: "Add another traveler",
+        change: {
+          type: "traveler_add",
+          bookingItemIds: ["bitm_1"],
+          traveler: { firstName: "Ada", lastName: "Lovelace" },
+        },
+        idempotencyKey: "roster-preview-bk-1",
+      },
+      ctx({
+        async previewTravelerRosterChangeAmendment(input) {
+          expect(input).toMatchObject({
+            bookingId: "bk_1",
+            expectedBookingRevision: 3,
+            idempotencyKey: "roster-preview-bk-1",
+            change: { type: "traveler_add", bookingItemIds: ["bitm_1"] },
+          })
+          return { status: "availability_changed", bookingItemId: "bitm_1" }
+        },
+      }),
+    )
+    expect(preview).toEqual({ status: "availability_changed", bookingItemId: "bitm_1" })
+
+    const reconciled = await registry.dispatch(
+      "reconcile_booking_amendment",
+      { bookingId: "bk_1", amendmentId: "bamd_1", idempotencyKey: "test-key-1" },
+      ctx({
+        async reconcileBookingAmendment(input) {
+          expect(input).toEqual({
+            bookingId: "bk_1",
+            amendmentId: "bamd_1",
+            idempotencyKey: "test-key-1",
+          })
+          return { status: "not_found" }
+        },
+      }),
+    )
+    expect(reconciled).toEqual({ status: "not_found" })
   })
 
   it("resolves a booking by its human-readable booking number", async () => {

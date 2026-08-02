@@ -2636,6 +2636,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/bookings-contracts':
+        specifier: workspace:^
+        version: link:../bookings-contracts
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core

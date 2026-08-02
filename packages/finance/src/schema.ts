@@ -1,3 +1,4 @@
+export * from "./schema/amendments.js"
 export * from "./schema/booking-billing.js"
 export * from "./schema/enums.js"
 export * from "./schema/invoice-documents.js"

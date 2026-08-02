@@ -5,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { resolveMonthlyBookingLimit } from "./booking-plan-limit.js"
 import type { BookingTravelerSnapshot } from "./pii.js"
 import type { KmsBindings } from "./routes-shared.js"
+import type { BookingsFinanceRuntime, BookingsSupplierAmendmentRuntime } from "./runtime-port.js"
 import type { BookingStatus } from "./state-machine.js"
 
 export const BOOKING_ROUTE_RUNTIME_CONTAINER_KEY = "runtime.bookings.routes"
@@ -140,6 +141,8 @@ export interface BookingRouteRuntime {
   customFieldsForWrite?: CustomFieldRegistryResolver
   /** Per-`booking_item_type` public-overview enrichers (issue #2969). */
   overviewItemEnrichers?: Partial<Record<string, BookingOverviewItemEnricher>>
+  amendmentFinance?: BookingsFinanceRuntime
+  amendmentSupplier?: BookingsSupplierAmendmentRuntime
 }
 
 /**
@@ -164,6 +167,8 @@ export interface BookingRouteRuntimeOptions {
   recordCancellationFinancialSettlement?: RecordCancellationFinancialSettlement
   customFieldsForWrite?: CustomFieldRegistryResolver
   overviewItemEnrichers?: Partial<Record<string, BookingOverviewItemEnricher>>
+  amendmentFinance?: BookingsFinanceRuntime
+  amendmentSupplier?: BookingsSupplierAmendmentRuntime
 }
 
 function buildRuntimeEnv(bindings: KmsBindings): Record<string, string | undefined> {
@@ -203,5 +208,7 @@ export function buildBookingRouteRuntime(
     recordCancellationFinancialSettlement: options.recordCancellationFinancialSettlement,
     customFieldsForWrite: options.customFieldsForWrite,
     overviewItemEnrichers: options.overviewItemEnrichers,
+    amendmentFinance: options.amendmentFinance,
+    amendmentSupplier: options.amendmentSupplier,
   }
 }

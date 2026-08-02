@@ -15,8 +15,13 @@ import { createRouteActionRegistry } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import { checkFinanceActionLedgerDrift } from "./action-ledger-drift.js"
 import { createFinanceAppApiRuntime } from "./app-api-runtime.js"
+import { createBookingAmendmentFinanceRuntime } from "./booking-amendment-runtime.js"
 import { FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION } from "./booking-create-policy.js"
-import { financeHostRuntimePort } from "./runtime-port.js"
+import {
+  type FinanceOperatorSettingsRuntime,
+  financeHostRuntimePort,
+  financeOperatorSettingsRuntimePort,
+} from "./runtime-port.js"
 import type { SelfServiceBookingSourceRuntime } from "./self-service-booking-source.js"
 import { financeSelfServiceBookingSourceRuntimePort } from "./self-service-booking-source.js"
 import { createSelfServiceCreateRuntime } from "./self-service-create-runtime.js"
@@ -34,6 +39,14 @@ export function createFinanceRuntimePortContribution(
 ): Readonly<Record<string, unknown>> {
   const hasSource = host.hasRuntimePort?.(financeSelfServiceBookingSourceRuntimePort) === true
   const routeActions = createRouteActionRegistry()
+  const amendmentRuntime = createBookingAmendmentFinanceRuntime({
+    resolveBookingTaxSettings: async (db) =>
+      (
+        await host.getRuntimePort<FinanceOperatorSettingsRuntime>(
+          financeOperatorSettingsRuntimePort,
+        )
+      ).resolveBookingTaxSettings(db),
+  })
   if (hasSource) routeActions.register(FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION)
   return {
     [financeAppApiRuntimePort.id]: createFinanceAppApiRuntime(host.primitives),
@@ -43,6 +56,7 @@ export function createFinanceRuntimePortContribution(
     [financeHostRuntimePort.id]: { primitives: host.primitives },
     [bookingsFinanceRuntimePort.id]: {
       createStaleBookingHoldsJobRuntime: createFinanceStaleBookingHoldsJobRuntime,
+      ...amendmentRuntime,
     } satisfies BookingsFinanceRuntime,
     // The public create route lives in Bookings; Finance supplies the durable
     // command. Only contributed when a source provider is selected, so the

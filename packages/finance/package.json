@@ -53,6 +53,7 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/action-ledger": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/bookings-contracts": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/data-sdk": "^0.7.1",
     "@voyant-travel/db": "workspace:^",

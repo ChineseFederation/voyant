@@ -37,6 +37,7 @@ describe("bookings deployment manifest", () => {
         // Authorizes a guest create; without it only authenticated customers
         // can use the public create route.
         { id: "bookings.guest-verification.runtime", optional: true },
+        { id: "bookings.supplier-amendment.runtime", optional: true },
       ],
       api: [
         {
@@ -270,7 +271,19 @@ describe("bookings deployment manifest", () => {
             }),
             resolveVisibleValues: async () => ({}),
           },
-          "bookings.finance.runtime": { createStaleBookingHoldsJobRuntime: () => ({}) },
+          "bookings.finance.runtime": {
+            createStaleBookingHoldsJobRuntime: () => ({}),
+            quoteBookingAmendment: async () => {
+              throw new Error("not used")
+            },
+            recordBookingAmendment: async () => {
+              throw new Error("not used")
+            },
+          },
+          "bookings.supplier-amendment.runtime": {
+            dispatch: async () => [],
+            reconcile: async () => [],
+          },
           "bookings.relationships.runtime": {
             loadPersonTravelSnapshot: async () => null,
             upsertPersonFromContact: async () => null,

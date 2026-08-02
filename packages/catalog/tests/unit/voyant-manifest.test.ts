@@ -29,6 +29,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.draft-reaper-job" },
           { id: "catalog.reindex-products-job" },
           { id: "catalog.sources-sync-job" },
+          { id: "bookings.supplier-amendment.runtime" },
           { id: "cruises.routes-runtime" },
         ],
       },

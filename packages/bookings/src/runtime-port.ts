@@ -1,3 +1,7 @@
+import type {
+  BookingAmendmentFinancialConsequences,
+  BookingAmendmentPrice,
+} from "@voyant-travel/bookings-contracts"
 import { definePort } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -24,6 +28,76 @@ export interface BookingsFinanceRuntime {
     resolveDb: () => PostgresJsDatabase | Promise<PostgresJsDatabase>
     userId?: string
   }): BookingsExpireStaleHoldsJobRuntime
+  quoteBookingAmendment(
+    db: PostgresJsDatabase,
+    input: {
+      bookingId: string
+      currency: string
+      lines: ReadonlyArray<{
+        bookingItemId: string
+        productId: string | null
+        subtotalDeltaCents: number
+      }>
+    },
+  ): Promise<{
+    price: BookingAmendmentPrice
+    consequences: BookingAmendmentFinancialConsequences
+    policyVersion: string
+  }>
+  recordBookingAmendment(
+    tx: PostgresJsDatabase,
+    input: {
+      amendmentId: string
+      bookingId: string
+      idempotencyKey: string
+      price: BookingAmendmentPrice
+      consequences: BookingAmendmentFinancialConsequences
+      reason: string
+    },
+  ): Promise<{ adjustmentId: string; status: "recorded" | "replay" }>
+}
+
+export interface BookingSupplierAmendmentOperationInput {
+  bookingItemId: string
+  entityModule: string
+  entityId: string
+  sourceKind: string
+  sourceConnectionId: string
+  sourceRef: string
+  upstreamRef: string
+  desiredState: {
+    parameters?: Record<string, unknown>
+    party: { passengers: ReadonlyArray<Record<string, unknown>> }
+  }
+  requestFingerprint: string
+}
+
+export interface BookingsSupplierAmendmentRuntime {
+  dispatch(input: {
+    db: PostgresJsDatabase
+    amendmentId: string
+    bookingId: string
+    idempotencyKey: string
+    operations: ReadonlyArray<BookingSupplierAmendmentOperationInput>
+    now: Date
+  }): Promise<
+    ReadonlyArray<{
+      bookingItemId: string
+      supplierOperationId: string | null
+      outcome: "secured" | "pending" | "in_doubt" | "refused" | "idempotency_conflict"
+    }>
+  >
+  reconcile(input: {
+    db: PostgresJsDatabase
+    supplierOperationIds: ReadonlyArray<string>
+    now: Date
+  }): Promise<
+    ReadonlyArray<{
+      bookingItemId: string
+      supplierOperationId: string | null
+      outcome: "secured" | "pending" | "in_doubt" | "refused" | "idempotency_conflict"
+    }>
+  >
 }
 
 export interface BookingsInventoryRuntime {
@@ -154,7 +228,11 @@ export const bookingsAccommodationRuntimePort = objectPort<BookingsAccommodation
 )
 export const bookingsFinanceRuntimePort = objectPort<BookingsFinanceRuntime>(
   "bookings.finance.runtime",
-  ["createStaleBookingHoldsJobRuntime"],
+  ["createStaleBookingHoldsJobRuntime", "quoteBookingAmendment", "recordBookingAmendment"],
+)
+export const bookingsSupplierAmendmentRuntimePort = objectPort<BookingsSupplierAmendmentRuntime>(
+  "bookings.supplier-amendment.runtime",
+  ["dispatch", "reconcile"],
 )
 export const bookingsInventoryRuntimePort = objectPort<BookingsInventoryRuntime>(
   "bookings.inventory.runtime",

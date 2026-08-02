@@ -1,4 +1,8 @@
-import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
+// agent-quality: file-size exception -- owner: catalog; the package-owned manifest centralizes its APIs, Tools, runtime ports, and deployment declarations.
+import {
+  bookingsRelationshipsRuntimePort,
+  bookingsSupplierAmendmentRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import {
   defineExtension,
   defineModule,
@@ -96,6 +100,7 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogDraftReaperJobRuntimePort),
       providePort(catalogReindexJobRuntimePort),
       providePort(catalogSourcesSyncJobRuntimePort),
+      providePort(bookingsSupplierAmendmentRuntimePort),
       cruisesRoutesRuntimePortReference,
     ],
   },

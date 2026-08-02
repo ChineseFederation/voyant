@@ -138,7 +138,7 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Booking Session**     | The revisioned, resumable pre-Booking aggregate for one bookable target and selection. Anonymous access uses a hash-at-rest action-scoped capability; authenticated customers may atomically adopt it. Expiry or abandonment makes it unspendable and releases Holds; Commit consumes it. Its identifier is never authorization. | *cart id, checkout id, booking draft when referring to the canonical aggregate* |
 | **Booking**             | The durable first-party commercial commitment and customer-safe operational record, created only at the policy-defined Commit point: Travelers, booking items, Allocations, Fulfillments, redemptions, origin/provenance, and state. Distinct from customer intent, payment state, supplier confirmation, and fulfillment. | *reservation, booking-record, Order* |
 | **Booking Revision**    | An immutable before or proposed-after snapshot of one stable Booking aggregate. The Booking's integer revision is the optimistic-concurrency token; applying an Amendment advances it without changing Booking identity or reference. | *booking copy, replacement booking* |
-| **Booking Amendment**   | The admitted preview → accept when required → apply aggregate for changing an existing Booking. It owns policy decisions, price delta, downstream-effect classification, idempotency, and immutable Booking Revisions. | *edit booking, cancel-and-rebook* |
+| **Booking Amendment**   | The admitted preview → accept when required → apply aggregate for changing an existing Booking. It owns an expiring exact-revision quote, policy decisions, server-calculated price/fee/tax delta, collection/refund consequences, downstream-effect classification, idempotency, supplier-operation links, and immutable Booking Revisions. | *edit booking, cancel-and-rebook, client-calculated adjustment* |
 | **Booking Origin**      | Bookings-owned provenance describing how a Booking was created: Proposal Version, Trip snapshot, Catalog price/availability response, provider/source order ref, or legacy transaction id. | *booking_transaction_details, order link* |
 | **Booking Item**        | A line item on a Booking (unit, service, extra, fee, tax, discount, accommodation, transport). | *line, row, order item*  |
 | **Allocation**          | A capacity hold against a Slot, Pickup, or Resource — `held` → `confirmed` → `fulfilled`.        | *reservation-line, hold-record* |
@@ -146,6 +146,13 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Hold**                | A temporary, time-limited claim on inventory before Booking confirmation; expires.               | *option, soft-hold*      |
 | **Commit**              | The Booking Platform operation that may create a Booking. Owned inventory Commit validates exact Booking Session revision, Quote, live Hold, and required payment guarantee, then creates Booking, converts Hold to Allocation, and consumes Session/Quote in one transaction. Sourced inventory defaults to supplier-first and creates no Booking until supplier security unless an explicit operator-backed policy accepts fulfillment risk. | *checkout submit, book, confirm when ambiguous* |
 | **Supplier Operation**  | A persisted sourced-inventory upstream intent and dispatch record for reserve, modify, or cancel. Its subject is either a pre-Booking Booking Session or a post-Booking Booking Amendment linked to the affected Booking Item. It tracks pending, secured, refused, failed, or in-doubt outcomes separately from Booking status. | *draft booking, supplier booking status as booking status* |
+
+A priced traveler add/drop always previews and accepts an exact Booking Revision
+before apply. Owned capacity, Allocation, Booking Items, traveler assignments,
+the Finance adjustment, and the Booking revision change atomically. Sourced
+changes dispatch durable Supplier Operations first; only all-secured operations
+may project locally, while pending, in-doubt, refused, and partial outcomes stay
+explicit and reconcilable.
 
 ## Fulfillment & operations
 

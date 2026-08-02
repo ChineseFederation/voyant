@@ -164,6 +164,7 @@ export const typeIdSchemas = {
   creditNoteLineItem: typeIdSchema("credit_note_line_items"),
   supplierPayment: typeIdSchema("supplier_payments"),
   financeNote: typeIdSchema("finance_notes"),
+  financeAmendmentAdjustment: typeIdSchema("finance_amendment_adjustments"),
   resource: typeIdSchema("resources"),
   resourcePool: typeIdSchema("resource_pools"),
   resourcePoolMember: typeIdSchema("resource_pool_members"),

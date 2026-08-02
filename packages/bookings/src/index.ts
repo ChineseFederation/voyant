@@ -22,11 +22,13 @@ import { createBookingsRuntime } from "./runtime.js"
 import {
   type BookingsGuestVerificationRuntime,
   type BookingsSelfServiceCreateRuntime,
+  type BookingsSupplierAmendmentRuntime,
   bookingsAccommodationRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsGuestVerificationRuntimePort,
   bookingsRelationshipsRuntimePort,
   bookingsSelfServiceCreateRuntimePort,
+  bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
 
 export {
@@ -98,6 +100,7 @@ export {
   type BookingAmendmentCommandContext,
   bookingAmendmentService,
   type PreviewTravelerCorrectionResult,
+  type PreviewTravelerRosterChangeResult,
 } from "./service-amendments.js"
 export {
   type AddBookingGroupMemberInput,
@@ -225,11 +228,16 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
     const guestVerification = hasPort(bookingsGuestVerificationRuntimePort)
       ? ((await getPort(bookingsGuestVerificationRuntimePort)) as BookingsGuestVerificationRuntime)
       : undefined
+    const amendmentSupplier = hasPort(bookingsSupplierAmendmentRuntimePort)
+      ? ((await getPort(bookingsSupplierAmendmentRuntimePort)) as BookingsSupplierAmendmentRuntime)
+      : undefined
 
     const configured = createBookingsApiModule({
       ...provider.options,
       ...(selfServiceCreate ? { resolveSelfServiceCreate: () => selfServiceCreate } : {}),
       ...(guestVerification ? { resolveGuestVerification: () => guestVerification } : {}),
+      amendmentFinance: finance,
+      ...(amendmentSupplier ? { amendmentSupplier } : {}),
       resolveAuthenticatedPersonId: (c) => readCustomerPrincipal(c).personId,
       resolveAuthenticatedUserId: (c) => readCustomerPrincipal(c).userId,
     })

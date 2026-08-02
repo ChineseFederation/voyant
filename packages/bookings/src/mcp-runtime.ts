@@ -55,6 +55,11 @@ export const voyantToolContextContribution = defineToolContextContribution({
       isInternalRequest: c.var.isInternalRequest,
       enforceRbac: isStaffRbacEnforced(c.env),
     })
+    const amendmentRuntime = getBookingToolRouteRuntime(c)
+    const amendmentDependencies = {
+      finance: amendmentRuntime.amendmentFinance,
+      supplier: amendmentRuntime.amendmentSupplier,
+    }
     const buildBookingDetail = async (
       row: Awaited<ReturnType<typeof bookingsService.getBookingById>>,
     ) => {
@@ -136,6 +141,20 @@ export const voyantToolContextContribution = defineToolContextContribution({
               bookingId,
               command,
               bookingAmendmentToolCommandContext(c, idempotencyKey),
+              amendmentDependencies,
+            )
+            return visibleBookingAmendmentToolResult(db, c, reveal, "preview", result)
+          },
+          async previewTravelerRosterChangeAmendment(
+            input: Parameters<BookingsToolServices["previewTravelerRosterChangeAmendment"]>[0],
+          ) {
+            const { bookingId, idempotencyKey, ...command } = input
+            const result = await bookingAmendmentService.previewTravelerRosterChange(
+              db,
+              bookingId,
+              command,
+              bookingAmendmentToolCommandContext(c, idempotencyKey),
+              amendmentDependencies,
             )
             return visibleBookingAmendmentToolResult(db, c, reveal, "preview", result)
           },
@@ -150,6 +169,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
               amendmentId,
               proposedRevisionId,
               bookingAmendmentToolCommandContext(c, idempotencyKey),
+              amendmentDependencies,
             )
             return visibleBookingAmendmentToolResult(db, c, reveal, "accept", result)
           },
@@ -164,8 +184,22 @@ export const voyantToolContextContribution = defineToolContextContribution({
               amendmentId,
               command,
               bookingAmendmentToolCommandContext(c, idempotencyKey),
+              amendmentDependencies,
             )
             return visibleBookingAmendmentToolResult(db, c, reveal, "apply", result)
+          },
+          async reconcileBookingAmendment(
+            input: Parameters<BookingsToolServices["reconcileBookingAmendment"]>[0],
+          ) {
+            const { bookingId, amendmentId, idempotencyKey } = input
+            const result = await bookingAmendmentService.reconcile(
+              db,
+              bookingId,
+              amendmentId,
+              bookingAmendmentToolCommandContext(c, idempotencyKey),
+              amendmentDependencies,
+            )
+            return visibleBookingAmendmentToolResult(db, c, reveal, "reconcile", result)
           },
         },
       },
@@ -187,7 +221,7 @@ async function visibleBookingAmendmentToolResult(
   db: Parameters<typeof bookingAmendmentService.get>[0],
   c: Context<Env>,
   reveal: boolean,
-  action: "preview" | "accept" | "apply",
+  action: "preview" | "accept" | "apply" | "reconcile",
   result: unknown,
 ) {
   if (!isRecord(result) || !isRecord(result.amendment)) return result

@@ -1,6 +1,9 @@
+// agent-quality: file-size exception -- owner: catalog; one generated-runtime contributor map centralizes the package's lazy port factories and shared host primitives.
 import {
   type BookingsRelationshipsRuntime,
+  type BookingsSupplierAmendmentRuntime,
   bookingsRelationshipsRuntimePort,
+  bookingsSupplierAmendmentRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
 import type { CatalogSearchRuntimeOptions } from "@voyant-travel/catalog/api-runtime-ports"
 import {
@@ -41,6 +44,7 @@ import {
 import { financeSelfServiceBookingSourceRuntimePort } from "@voyant-travel/finance/self-service-booking-source"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { createCatalogBookingAmendmentRuntime } from "./booking-engine/amendment-runtime.js"
 import { DEFAULT_BOOKING_SESSION_TERMINAL_RETENTION_MS } from "./booking-session-maintenance-job.js"
 import {
   type CatalogBookingSessionMaintenanceJobRuntime,
@@ -183,6 +187,13 @@ export function createCatalogRuntimePortContribution(
     [catalogProjectionRuntimePort.id]: contribution.then((runtime) => runtime.projection),
     [catalogBookingSnapshotRuntimePort.id]: contribution.then((runtime) => runtime.bookingSnapshot),
     [catalogRuntimeServicesPort.id]: contribution.then((runtime) => runtime.services),
+    [bookingsSupplierAmendmentRuntimePort.id]: createCatalogBookingAmendmentRuntime({
+      async resolveRegistry() {
+        const runtime = await contribution
+        const services = await runtime.services
+        return services.ensureSourceRegistry(host.primitives.env(undefined))
+      },
+    }) satisfies BookingsSupplierAmendmentRuntime,
     // Gates Finance's self-service create action.
     [financeSelfServiceBookingSourceRuntimePort.id]: createSelfServiceBookingSourceProvider({
       async resolveOwnedHandlers() {

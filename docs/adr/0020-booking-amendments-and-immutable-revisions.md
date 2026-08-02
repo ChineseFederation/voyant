@@ -1,7 +1,7 @@
 # ADR-0020: Booking Amendments and immutable Booking revisions
 
 - **Status:** Accepted (2026-08-02)
-- **Closes:** [#4014](https://github.com/voyant-travel/voyant/issues/4014)
+- **Closes:** [#4014](https://github.com/voyant-travel/voyant/issues/4014), [#4015](https://github.com/voyant-travel/voyant/issues/4015)
 - **Builds on:** [ADR-0019](./0019-booking-v1-commitment-point-policies.md)
 
 ## Context
@@ -15,8 +15,10 @@ semantics.
 ## Decision
 
 Every v1 change to an existing Booking goes through a Booking Amendment. The
-first complete tracer is a traveler contact/name correction with no price,
-supplier, Finance, Legal, document, or fulfillment effect.
+first tracers are a traveler contact/name correction with no external effects
+and a priced traveler add/drop that changes the exact item roster, allocation,
+price, Finance consequences, supplier desired state, documents, and
+fulfillment follow-up.
 
 The Booking owns a positive integer `revision`. Every mutation of the Booking
 aggregate or its operational child state advances that token, including the
@@ -33,10 +35,38 @@ Amendment applied in the same PostgreSQL transaction. Two Amendments may be
 previewed from the same base revision, but at most one can apply; every later
 attempt observes `stale_revision`.
 
-The v1 lifecycle is `proposed → accepted → applied` when acceptance is required
-and `proposed → applied` when policy admits direct application. `rejected` and
-`failed` are reserved terminal states for the supplier-affecting workflow in
-#4015; this tracer does not manufacture transitions it cannot yet execute.
+The v1 lifecycle is `proposed → accepted → applying → applied` for priced or
+supplier-affecting changes and `proposed → applied` when policy admits direct
+application. `failed`, `in_doubt`, and `manual_review` are explicit outcomes;
+they are never collapsed into Booking status.
+
+### Priced traveler roster changes
+
+Preview binds a server-calculated price, fee, tax, collection/refund amounts,
+Finance consequences, exact Booking revision, proposed traveler/item/allocation
+snapshot, and a short expiry to the Amendment. The client supplies requested
+intent, never monetary deltas. Add/drop always requires acceptance of the
+specific proposed Booking Revision before expiry.
+
+For owned inventory, apply locks the Booking and Allocation, conditionally
+changes capacity, updates traveler assignments and item quantities, records the
+Finance adjustment, advances the Booking revision, and marks the Amendment
+applied in one PostgreSQL transaction. A capacity or revision race rolls the
+whole projection back.
+
+For sourced inventory, the immutable Amendment operation plan is first
+dispatched through durable Supplier Operations outside the Booking transaction.
+Only an all-secured result may enter the local transaction. Pending and
+in-doubt operations remain reconcilable; refusal is explicit; mixed outcomes
+stop in manual review. Reconciliation reads the same durable operations rather
+than creating a second upstream intent. Supplier calls are never made while a
+Booking database transaction is open.
+
+Finance owns price/tax policy and persists one idempotent Amendment adjustment.
+Catalog owns supplier dispatch and reconciliation. Bookings owns the Amendment
+aggregate and atomically projects the accepted result. These dependencies enter
+Bookings through runtime ports, avoiding package cycles and transport-specific
+implementations.
 
 Preview, acceptance, and apply are idempotent admitted commands. Anonymous
 customers use a Booking-scoped action capability, authenticated customers use
@@ -59,11 +89,13 @@ timestamps, changed fields, and the immutable snapshots.
 - Direct beta traveler mutation routes remain migration surfaces only; new v1
   callers use Amendment preview/accept/apply. Until those routes are retired,
   they advance the same Booking revision so outstanding previews become stale.
-- Name/contact corrections in this tracer always have a zero price delta and
+- Name/contact corrections always have a zero price delta and
   explicitly report every downstream effect as `not_required`.
-- Any change that may affect supplier inventory, price, fees, documents, or
-  fulfillment must use the priced supplier-affecting Amendment workflow in
-  #4015 rather than widening this tracer's policy.
+- Priced roster changes expose follow-up actions for collection/refund and
+  document reissue after the Booking projection commits; payment state and
+  document state remain owned by their respective modules.
+- Unsupported allocation shapes or incomplete supplier provenance fail closed
+  at preview rather than guessing how to mutate inventory.
 - Revision snapshots are immutable. The current Booking and traveler tables
   remain the operational projection.
 
