@@ -1,5 +1,11 @@
 # @voyant-travel/auth-react
 
+## 0.150.1
+
+### Patch Changes
+
+- bdc0443: Add admin channel binding and publication management UI.
+
 ## 0.150.0
 
 ### Patch Changes

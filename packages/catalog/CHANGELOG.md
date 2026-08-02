@@ -1,5 +1,11 @@
 # @voyant-travel/catalog
 
+## 0.227.1
+
+### Patch Changes
+
+- bdc0443: Add Distribution-owned channel publication contracts, persistence, TypeID prefixes, exact cutover snapshots, effective publication resolver primitives, and provider-neutral runtime wiring for Storefront and Commerce.
+
 ## 0.227.0
 
 ### Minor Changes

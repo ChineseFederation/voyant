@@ -1,5 +1,12 @@
 # @voyant-travel/auth
 
+## 0.150.1
+
+### Patch Changes
+
+- Updated dependencies [bdc0443]
+  - @voyant-travel/distribution@0.219.1
+
 ## 0.150.0
 
 ## 0.149.0

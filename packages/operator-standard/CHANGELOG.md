@@ -1,5 +1,21 @@
 # @voyant-travel/operator-standard
 
+## 0.19.3
+
+### Patch Changes
+
+- Updated dependencies [bdc0443]
+- Updated dependencies [bdc0443]
+  - @voyant-travel/auth-react@0.150.1
+  - @voyant-travel/distribution-react@0.219.1
+  - @voyant-travel/distribution@0.219.1
+  - @voyant-travel/catalog@0.227.1
+  - @voyant-travel/commerce@0.46.3
+  - @voyant-travel/storefront@0.231.1
+  - @voyant-travel/auth@0.150.1
+  - @voyant-travel/catalog-react@0.227.1
+  - @voyant-travel/storefront-react@0.231.1
+
 ## 0.19.2
 
 ### Patch Changes

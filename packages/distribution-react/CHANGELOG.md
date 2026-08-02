@@ -1,5 +1,11 @@
 # @voyant-travel/distribution-react
 
+## 0.219.1
+
+### Patch Changes
+
+- bdc0443: Add admin channel binding and publication management UI.
+
 ## 0.219.0
 
 ### Patch Changes

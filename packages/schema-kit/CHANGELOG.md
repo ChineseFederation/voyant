@@ -1,5 +1,11 @@
 # @voyant-travel/schema-kit
 
+## 0.116.2
+
+### Patch Changes
+
+- bdc0443: Add Distribution-owned channel publication contracts, persistence, TypeID prefixes, exact cutover snapshots, effective publication resolver primitives, and provider-neutral runtime wiring for Storefront and Commerce.
+
 ## 0.116.1
 
 ### Patch Changes

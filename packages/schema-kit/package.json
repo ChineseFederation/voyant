@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/schema-kit",
-  "version": "0.116.1",
+  "version": "0.116.2",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
