@@ -279,8 +279,12 @@ export const BOOKING_AMENDMENT_CAPABILITIES = {
   previewTravelerCorrection: toCapabilityDefinition(
     BOOKING_ACTION_DECLARATIONS.amendments.previewTravelerCorrection,
   ),
+  previewTravelerRosterChange: toCapabilityDefinition(
+    BOOKING_ACTION_DECLARATIONS.amendments.previewTravelerRosterChange,
+  ),
   accept: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.amendments.accept),
   apply: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.amendments.apply),
+  reconcile: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.amendments.reconcile),
 } as const
 
 export const BOOKING_ACTION_LEDGER_CAPABILITIES = [

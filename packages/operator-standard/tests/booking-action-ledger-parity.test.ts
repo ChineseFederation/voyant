@@ -24,12 +24,20 @@ describe("standard booking action-ledger authority", () => {
         capabilityId: "bookings:amendments:preview-traveler-correction",
       },
       {
+        id: "@voyant-travel/bookings#action.preview-traveler-roster-change-amendment",
+        capabilityId: "bookings:amendments:preview-traveler-roster-change",
+      },
+      {
         id: "@voyant-travel/bookings#action.accept-booking-amendment",
         capabilityId: "bookings:amendments:accept",
       },
       {
         id: "@voyant-travel/bookings#action.apply-booking-amendment",
         capabilityId: "bookings:amendments:apply",
+      },
+      {
+        id: "@voyant-travel/bookings#action.reconcile-booking-amendment",
+        capabilityId: "bookings:amendments:reconcile",
       },
     ])
     const accessScopes = (bookingsVoyantModule.access?.resources ?? []).flatMap((resource) =>
