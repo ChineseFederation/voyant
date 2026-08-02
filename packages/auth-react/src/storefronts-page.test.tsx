@@ -13,7 +13,7 @@ import { describe, expect, it, vi } from "vitest"
 import { createSelectedStorefrontAdminExtension } from "./admin.js"
 import { StorefrontsPage } from "./components/storefronts-page.js"
 import { authQueryKeys } from "./query-keys.js"
-import type { StorefrontsAdminApi } from "./storefronts-admin-api.js"
+import { createStorefrontsAdminApi, type StorefrontsAdminApi } from "./storefronts-admin-api.js"
 
 ;(
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -99,6 +99,19 @@ describe("storefront admin surface", () => {
     ])
     expect(fetcher.mock.calls.every(([, init]) => init?.credentials === "include")).toBe(true)
     expect(queryClient.getQueryData(authQueryKeys.storefrontList())).toEqual([STOREFRONT])
+  })
+
+  it("lists storefronts whose hosting kind is owned by the runtime provider", async () => {
+    // Voyant Cloud hosts the customer portal and booking engine itself and
+    // reports hosting kinds this package does not enumerate. Validating them
+    // against a closed enum rejects the whole array, so a healthy 200 renders
+    // as "Storefronts unavailable" with no console error to explain it.
+    const managed = { ...STOREFRONT, id: "storefront_2", hostingKind: "managed_portal" }
+    const api = createStorefrontsAdminApi("/api", async () =>
+      Response.json({ data: [STOREFRONT, managed] }),
+    )
+
+    await expect(api.listStorefronts()).resolves.toEqual([STOREFRONT, managed])
   })
 
   it("disables business controls when the runtime capability is unavailable", async () => {

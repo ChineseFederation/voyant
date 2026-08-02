@@ -1,7 +1,10 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { StorefrontDto } from "@voyant-travel/auth/storefront-admin-contracts"
+import type {
+  OperatorStorefrontHostingKind,
+  StorefrontDto,
+} from "@voyant-travel/auth/storefront-admin-contracts"
 import { useVoyantReactContext } from "@voyant-travel/react"
 import {
   Badge,
@@ -121,7 +124,7 @@ function CreateStorefrontForm({
   const copy = useAuthUiI18nOrDefault().messages.storefrontsPage.create
   const [name, setName] = useState("")
   const [slug, setSlug] = useState("")
-  const [hostingKind, setHostingKind] = useState<StorefrontDto["hostingKind"]>("external")
+  const [hostingKind, setHostingKind] = useState<OperatorStorefrontHostingKind>("external")
   const [siteId, setSiteId] = useState("")
 
   const create = useMutation({
@@ -197,7 +200,7 @@ function CreateStorefrontForm({
               id="storefront-hosting"
               value={hostingKind}
               onChange={(event) =>
-                setHostingKind(event.target.value as StorefrontDto["hostingKind"])
+                setHostingKind(event.target.value as OperatorStorefrontHostingKind)
               }
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
