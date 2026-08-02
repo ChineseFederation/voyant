@@ -268,6 +268,8 @@ export interface BookingSessionAccessContext {
   storefront?: { storefrontId: string; channelId: string }
   sessionTtlMs?: number
   staffAuthority?: { admitted: true; reason: string }
+  /** Additional Finance + Bookings authority for operator booking details. */
+  staffBookingAuthority?: { admitted: true; reason: string }
 }
 
 export interface BookingSessionModulePorts {

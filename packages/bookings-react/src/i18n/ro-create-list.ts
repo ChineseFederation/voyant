@@ -50,6 +50,25 @@ export const bookingsUiRoCreateList = {
       pricingPending: "Asteapta putin cat timp calculam totalul.",
       pricingUnavailable:
         "Nu am putut calcula pretul furnizorului. Verifica selectia si incearca din nou.",
+      sourcedBookingSessionRequired:
+        "Aceasta sursa nu accepta inca finalizarea prin Booking Session v1. Foloseste o sursa compatibila sau contacteaza operatiunile.",
+      promotionBookingSessionRequired:
+        "Codurile promotionale nu sunt inca autoritative in Booking Session v1. Elimina codul inainte de finalizarea rezervarii.",
+      paymentGuaranteeRequired:
+        "Aceasta rezervare necesita o garantie de plata, dar continuarea platii nu este disponibila.",
+      bookingSession: {
+        revisionConflict:
+          "Rezervarea s-a schimbat in timpul finalizarii. Verifica datele si incearca din nou.",
+        quoteChanged:
+          "Pretul s-a schimbat sau a expirat. Verifica totalul actualizat si incearca din nou.",
+        availabilityChanged:
+          "Disponibilitatea selectata nu mai este retinuta. Verifica plecarea si incearca din nou.",
+        quoteUnavailable:
+          "Produsul selectat nu a putut fi cotat. Verifica selectia si incearca din nou.",
+        commitRejected: "Rezervarea nu a putut fi finalizata din selectia curenta.",
+        notAuthorized: "Nu ai permisiunea de a finaliza aceasta rezervare.",
+        unknown: "Booking Session a respins cererea. Verifica rezervarea si incearca din nou.",
+      },
       overrideReason: "Adauga un motiv pentru totalul manual.",
       payment: "Completeaza calendarul de plata, cu un total egal valorii rezervarii.",
       paidPaymentDate: "Data platii este obligatorie cand plata este marcata ca deja achitata.",
@@ -64,12 +83,6 @@ export const bookingsUiRoCreateList = {
       valid: "Promotie aplicata. Total nou: {amount}.",
       invalid: "Acest cod promotional nu este valabil pentru rezervarea selectata.",
       unavailable: "Codul promotional nu a putut fi verificat. Incearca din nou.",
-    },
-    permissions: {
-      checking: "Se verifica permisiunile…",
-      denied:
-        "Ai nevoie de permisiuni de scriere pentru Rezervari si Finance pentru a crea rezervarea.",
-      error: "Permisiunile nu au putut fi verificate. Reincarca pagina si incearca din nou.",
     },
     actions: {
       create: "Creeaza rezervarea",

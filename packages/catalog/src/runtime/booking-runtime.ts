@@ -22,6 +22,7 @@ import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runt
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import { resolveBookingSessionStaffAuthorities } from "../booking-engine/sessions-staff-authority.js"
 import { requireCatalogRuntimeServices } from "../runtime-contracts.js"
 import {
   getBookingEngineRegistryFromContext,
@@ -140,14 +141,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
             actorKind: "staff" as const,
             ...(vars.userId ? { principalId: vars.userId } : {}),
             ...(vars.organizationId ? { organizationId: vars.organizationId } : {}),
-            ...(scopes.includes(requiredScope)
-              ? {
-                  staffAuthority: {
-                    admitted: true as const,
-                    reason: `scope:${requiredScope}`,
-                  },
-                }
-              : {}),
+            ...resolveBookingSessionStaffAuthorities(scopes, requiredScope),
           }
         }
         return {

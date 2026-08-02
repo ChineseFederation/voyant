@@ -236,8 +236,10 @@ schemas and types from `@voyant-travel/catalog-contracts/adapter/schemas` and
 contracts. The same functions remain available from
 `@voyant-travel/catalog/booking-engine` for consumers that prefer the narrower
 subpath. The module mounts these engine endpoints on both catalog API surfaces.
-They are not a second booking-row creation authority; creation is admitted
-through the Finance staff Tool:
+They are not a second booking-row creation authority. Booking Session Commit is
+the authenticated staff and storefront creation authority; it derives and
+executes Finance's durable command only after the exact Quote and Hold have
+been validated:
 
 - `/v1/admin/catalog/*`
 - `/v1/public/catalog/*`

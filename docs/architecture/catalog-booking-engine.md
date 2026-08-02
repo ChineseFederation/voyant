@@ -152,6 +152,26 @@ Anonymous Sessions return a capability once at creation. Public update, Quote,
 Hold, Commit, and Commit replay calls must present that capability; staff
 adapters use the same module without a public capability token.
 
+Admitted staff may attach a validated `staffBooking` selection containing
+operator decisions such as an existing CRM billing party, traveler details,
+payment schedules, document generation, internal notes, and an explicitly
+reasoned manual price override. Product identity, Slot, Catalog identity, Hold,
+booking number, authoritative quoted price, and Booking lifecycle state remain
+server-owned. Staff payment schedules describe collection state; they do not
+turn payment state into a Booking lifecycle status. The admin manual-booking
+form uses this path and no longer calls a Finance creation Tool directly.
+General authenticated Session operations require the Catalog Booking Session
+scope. The established `bookings:write` plus `finance:write` authority also
+admits the staff write route and is required for `staffBooking`; the Catalog
+scope alone cannot submit Finance-owned operator details.
+
+Until a sourced target implements the Supplier Operation side of this same v1
+protocol, the admin form rejects sourced Commit rather than bypassing the
+commitment point through the legacy direct-create path.
+The form likewise rejects promotion-code Commit until promotion evaluation is
+part of the immutable Booking Session Quote; a legacy preview cannot authorize
+the final Booking price.
+
 The dependency-light Storefront contract is exported from
 `@voyant-travel/catalog-contracts/booking-engine/session-contracts`. The
 reference SDK and React hook are exported from `@voyant-travel/storefront-sdk`

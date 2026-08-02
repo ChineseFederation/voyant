@@ -45,6 +45,18 @@ export type BookingsUiCreateListMessages = {
       amount: string
       pricingPending: string
       pricingUnavailable: string
+      sourcedBookingSessionRequired: string
+      promotionBookingSessionRequired: string
+      paymentGuaranteeRequired: string
+      bookingSession: {
+        revisionConflict: string
+        quoteChanged: string
+        availabilityChanged: string
+        quoteUnavailable: string
+        commitRejected: string
+        notAuthorized: string
+        unknown: string
+      }
       overrideReason: string
       payment: string
       paidPaymentDate: string
@@ -59,11 +71,6 @@ export type BookingsUiCreateListMessages = {
       valid: string
       invalid: string
       unavailable: string
-    }
-    permissions: {
-      checking: string
-      denied: string
-      error: string
     }
     actions: {
       create: string

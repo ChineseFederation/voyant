@@ -2,16 +2,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const financeCreate = vi.hoisted(() => ({
   createFromDraft: vi.fn(),
+  resolvedCommand: undefined as Record<string, unknown> | undefined,
   runtimeDeps: undefined as
     | {
         resolveSource():
           | Promise<{
+              resolveBookingSource(input: unknown): Promise<{
+                status: "ok"
+                command: Record<string, unknown>
+              }>
               consumeBookingSource(
                 tx: unknown,
                 input: { draftId: string; quoteId: string; bookingId: string },
               ): Promise<void>
             }>
           | {
+              resolveBookingSource(input: unknown): Promise<{
+                status: "ok"
+                command: Record<string, unknown>
+              }>
               consumeBookingSource(
                 tx: unknown,
                 input: { draftId: string; quoteId: string; bookingId: string },
@@ -155,13 +164,64 @@ describe("normalizeProductSelection", () => {
       /booking_session_selection_forbidden_field/,
     )
   })
+
+  it("accepts operator booking details only for admitted staff", () => {
+    const staffBooking = {
+      personId: "per_staff_selected",
+      contactFirstName: "Ada",
+      contactLastName: "Lovelace",
+      contactEmail: "ada@example.test",
+      internalNotes: "Call before arrival",
+      travelers: [
+        {
+          clientTravelerKey: "trav_1",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+      ],
+      paymentSchedules: [
+        {
+          scheduleType: "balance",
+          status: "pending",
+          dueDate: "2026-09-01",
+          currency: "EUR",
+          amountCents: 10_000,
+        },
+      ],
+    }
+    const normalized = normalizeProductSelection(
+      PRODUCT_TARGET,
+      { staffBooking },
+      {
+        actorKind: "staff",
+        principalId: "usr_staff",
+        staffAuthority: { admitted: true, reason: "manual_booking" },
+        staffBookingAuthority: { admitted: true, reason: "bookings_and_finance_write" },
+      },
+    )
+
+    expect(normalized).toMatchObject({ staffBooking })
+    expect(() =>
+      normalizeProductSelection(
+        PRODUCT_TARGET,
+        { staffBooking },
+        {
+          actorKind: "customer",
+          principalId: "usr_customer",
+        },
+      ),
+    ).toThrow(/booking_session_selection_forbidden_field:selection\.staffBooking/)
+  })
 })
 
 describe("production Booking Session ports", () => {
   beforeEach(() => {
     financeCreate.createFromDraft.mockReset()
+    financeCreate.resolvedCommand = undefined
     financeCreate.createFromDraft.mockImplementation(async (input) => {
       const source = await financeCreate.runtimeDeps?.resolveSource()
+      const resolved = await source?.resolveBookingSource({})
+      financeCreate.resolvedCommand = resolved?.command
       await source?.consumeBookingSource(input.db, {
         draftId: input.draftId,
         quoteId: input.quoteId,
@@ -247,6 +307,82 @@ describe("production Booking Session ports", () => {
     if (access.actorKind === "staff") {
       expect(financeCreate.createFromDraft.mock.calls[0]?.[0]).not.toHaveProperty("storefront")
     }
+  })
+
+  it("commits admitted staff booking details while Session-owned fields win", async () => {
+    const access = {
+      actorKind: "staff" as const,
+      principalId: "usr_staff",
+      staffAuthority: { admitted: true as const, reason: "manual_booking" },
+      staffBookingAuthority: {
+        admitted: true as const,
+        reason: "bookings_and_finance_write",
+      },
+    }
+    const module = createCommittableProductionModule({
+      productId: "derived_product",
+      optionId: "derived_option",
+      slotId: "derived_slot",
+      availabilityHoldToken: "derived_hold",
+      personId: "per_derived",
+    })
+    const created = await module.createSession(
+      {
+        idempotencyKey: "create_staff_details",
+        target: PRODUCT_TARGET,
+        selection: {
+          configure: { pax: { adult: 1 }, departureSlotId: "slot_1" },
+          staffBooking: {
+            personId: "per_selected",
+            contactFirstName: "Ada",
+            contactLastName: "Lovelace",
+            contactEmail: "ada@example.test",
+            internalNotes: "Call before arrival",
+            initialStatus: "awaiting_payment",
+            bookingNumber: "CLIENT-1",
+            travelers: [
+              {
+                clientTravelerKey: "trav_1",
+                firstName: "Ada",
+                lastName: "Lovelace",
+                isPrimary: true,
+              },
+            ],
+          },
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      access,
+      "staff_details",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        quoteId: prepared.quoteId,
+        holdId: prepared.holdId,
+        idempotencyKey: "commit_staff_details",
+      },
+      access,
+    )
+
+    expect(financeCreate.resolvedCommand).toMatchObject({
+      productId: "derived_product",
+      slotId: "derived_slot",
+      availabilityHoldToken: "derived_hold",
+      personId: "per_selected",
+      internalNotes: "Call before arrival",
+      initialStatus: "confirmed",
+      travelers: [{ firstName: "Ada", lastName: "Lovelace" }],
+    })
+    expect(financeCreate.resolvedCommand).not.toHaveProperty("bookingNumber")
   })
 
   it("uses retained provenance when an adopted customer commits", async () => {
@@ -532,7 +668,7 @@ describe("production Booking Session ports", () => {
   })
 })
 
-function createCommittableProductionModule() {
+function createCommittableProductionModule(command: Record<string, unknown> = {}) {
   const repository = createInMemoryBookingSessionRepository()
   const handlers = createOwnedBookingHandlerRegistry()
   handlers.register({
@@ -557,7 +693,7 @@ function createCommittableProductionModule() {
       }
     },
     async deriveSelfServiceCommand() {
-      return { status: "ok", command: {} as never }
+      return { status: "ok", command }
     },
   })
   const tx = {

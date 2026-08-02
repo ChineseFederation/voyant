@@ -1,9 +1,11 @@
 import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
+  applyBookingSessionStaffSelectionV1,
   createSelfServiceCreateRuntime,
   FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION,
   type FinanceServiceRuntime,
+  normalizeBookingSessionStaffSelectionV1,
 } from "@voyant-travel/finance"
 import { createRouteActionRegistry } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
@@ -46,8 +48,8 @@ export function createProductionBookingSessionModule(
   return createBookingSessionModule({
     ports: {
       repository: deps.repository,
-      normalizeSelection: async ({ selection, target }) =>
-        normalizeProductSelection(target, selection),
+      normalizeSelection: async ({ selection, target, access }) =>
+        normalizeProductSelection(target, selection, access),
       composeQuote: async ({ session, tx }) => {
         const handlers = await deps.resolveOwnedHandlers()
         const handler = handlers.resolve(entityModuleForSession(session.target))
@@ -155,6 +157,10 @@ async function commitOwnedBookingInTransaction(
     },
   )
   if (derived.status !== "ok") throw new BookingSessionCommitRejectedError(derived.reason)
+  const command =
+    input.access.actorKind === "staff" && input.access.staffBookingAuthority?.admitted
+      ? applyStaffSelection(derived.command, input.session.statePayload)
+      : derived.command
 
   const routeActions = createRouteActionRegistry()
   routeActions.register(FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION)
@@ -163,7 +169,7 @@ async function commitOwnedBookingInTransaction(
       async resolveBookingSource() {
         return {
           status: "ok" as const,
-          command: derived.command as never,
+          command: command as never,
           holdExpiresAt: input.hold.expiresAt,
         }
       },
@@ -220,6 +226,9 @@ async function resolveBilling(
   tx: PostgresJsDatabase,
 ): Promise<SelfServiceBillingParty | null> {
   const contact = billingContact(input.session.statePayload)
+  if (input.access.actorKind === "staff" && input.access.staffBookingAuthority?.admitted) {
+    if (contact.personId || contact.organizationId) return contact
+  }
   if (!contact.contactEmail && !contact.contactPhone) return null
   // Authentication identifies the actor, not the buyer. In particular, a
   // staff user id must never be persisted as the Booking's CRM person id.
@@ -240,10 +249,11 @@ async function resolveBilling(
 function billingContact(payload: Record<string, unknown>) {
   const billing = asRecord(payload.billing)
   const contact = asRecord(billing?.contact)
+  const staffBooking = asRecord(payload.staffBooking)
   const trim = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null)
   return {
-    personId: null,
-    organizationId: null,
+    personId: trim(staffBooking?.personId),
+    organizationId: trim(staffBooking?.organizationId),
     contactFirstName: trim(contact?.firstName),
     contactLastName: trim(contact?.lastName),
     contactEmail: trim(contact?.email),
@@ -325,12 +335,20 @@ function pricingBasisFromBreakdown(
 export function normalizeProductSelection(
   target: CommitOwnedBookingInput["session"]["target"],
   selection: Record<string, unknown>,
+  access?: CommitOwnedBookingInput["access"],
 ): Record<string, unknown> {
   if (target.kind !== "product") {
     throw new InvalidBookingSessionSelectionError("unsupported_target")
   }
-  rejectForbiddenSelection(selection)
   const source = asRecord(selection) ?? {}
+  const { staffBooking: rawStaffBooking, ...customerSelection } = source
+  rejectForbiddenSelection(customerSelection)
+  if (
+    rawStaffBooking !== undefined &&
+    (access?.actorKind !== "staff" || !access.staffBookingAuthority?.admitted)
+  ) {
+    throw new InvalidBookingSessionSelectionError("forbidden_field", "selection.staffBooking")
+  }
   const configure = asRecord(source.configure)
   const billing = asRecord(source.billing)
   const billingContact = asRecord(billing?.contact)
@@ -369,7 +387,18 @@ export function normalizeProductSelection(
     addons: arrayValue(source.addons)
       ?.map(normalizeAddon)
       .filter((value): value is Record<string, unknown> => value != null),
+    ...(rawStaffBooking !== undefined
+      ? { staffBooking: normalizeBookingSessionStaffSelectionV1(rawStaffBooking) }
+      : {}),
   })
+}
+
+function applyStaffSelection(
+  baseCommand: Record<string, unknown>,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  const staffBooking = asRecord(payload.staffBooking)
+  return staffBooking ? applyBookingSessionStaffSelectionV1(baseCommand, staffBooking) : baseCommand
 }
 
 function rejectForbiddenSelection(value: unknown, path = "selection"): void {

@@ -281,6 +281,12 @@ export {
   recordPaidBookingCancellationSettlement,
 } from "./booking-lifecycle.js"
 export {
+  applyBookingSessionStaffSelectionV1,
+  type BookingSessionStaffSelectionV1,
+  bookingSessionStaffSelectionV1,
+  normalizeBookingSessionStaffSelectionV1,
+} from "./booking-session-staff-selection.js"
+export {
   type BookingTaxRouteOptions,
   type BookingTaxSettings,
   computeBookingItemTaxLine,

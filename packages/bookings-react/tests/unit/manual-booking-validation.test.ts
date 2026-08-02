@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import {
   buildManualBookingQuoteDraft,
+  buildManualBookingSessionSelection,
   formatManualBookingAmount,
   manualBookingTravelersToRows,
   normalizeCatalogBookingSlot,
@@ -336,6 +337,66 @@ describe("manual booking validation", () => {
       sourceConnectionId: "connection_1",
       sourceRef: "supplier-product-42",
     })
+  })
+
+  it("moves operator details under the staff-only Session selection", () => {
+    const quoteDraft = buildManualBookingQuoteDraft({
+      productId: "prod_1",
+      optionId: "opt_1",
+      slotId: "slot_1",
+      quantities: { unit_1: 1 },
+      units: [
+        {
+          optionId: "opt_1",
+          optionUnitId: "unit_1",
+          unitName: "Tour",
+          unitType: "service",
+          occupancyMax: null,
+          initial: 10,
+          reserved: 0,
+          remaining: 10,
+        },
+      ],
+      travelers: valid.travelers,
+      contact: null,
+      promotionCode: "",
+      paymentSchedule: { mode: "full", installments: [] },
+    })
+    if (!quoteDraft) throw new Error("expected quote draft")
+
+    const selection = buildManualBookingSessionSelection({
+      quoteDraft,
+      booking: {
+        productId: "client_product",
+        optionId: "client_option",
+        slotId: "client_slot",
+        bookingNumber: "CLIENT-1",
+        initialStatus: "awaiting_payment",
+        personId: "person_1",
+        internalNotes: "Call before arrival",
+        suppressNotifications: true,
+        catalogSellAmountCents: 12_500,
+        confirmedSellAmountCents: 11_000,
+        priceOverrideReason: "Operator adjustment",
+      },
+      catalogAmountCents: 12_500,
+      confirmedAmountCents: 11_000,
+      priceOverrideReason: "Operator adjustment",
+    })
+
+    expect(selection).not.toHaveProperty("entity")
+    expect(selection).toMatchObject({
+      configure: { departureSlotId: "slot_1" },
+      staffBooking: {
+        personId: "person_1",
+        internalNotes: "Call before arrival",
+        suppressNotifications: true,
+        manualPriceOverride: { amountCents: 11_000, reason: "Operator adjustment" },
+      },
+    })
+    expect(selection).not.toHaveProperty("staffBooking.productId")
+    expect(selection).not.toHaveProperty("staffBooking.bookingNumber")
+    expect(selection).not.toHaveProperty("staffBooking.initialStatus")
   })
 
   it("quotes a selected dynamic traveler category using its pricing band", () => {

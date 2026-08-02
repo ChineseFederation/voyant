@@ -34,8 +34,19 @@ export function createProductionBookingSessionPaymentPorts(
   deps: ProductionBookingSessionPaymentDeps,
 ): BookingSessionPaymentPorts {
   return {
-    async prepare({ session, quote, hold, commit, now }) {
+    async prepare({ session, quote, hold, commit, access, now }) {
       if (session.target.kind !== "product") return { kind: "not_required" }
+      // An admitted staff workflow can establish its collection plan directly
+      // on the atomic Booking command (including already-recorded offline
+      // payments). That explicit schedule is the guarantee decision; do not
+      // start a second customer checkout session alongside it.
+      if (
+        access.actorKind === "staff" &&
+        access.staffBookingAuthority?.admitted &&
+        hasStaffPaymentSchedule(session.statePayload)
+      ) {
+        return { kind: "not_required" }
+      }
 
       const context = await deps.inventory.loadProductPaymentPolicyContext(
         deps.db,
@@ -142,6 +153,11 @@ export function createProductionBookingSessionPaymentPorts(
       await expirePendingBookingSessionPayments(tx as PostgresJsDatabase, bookingSessionId, at)
     },
   }
+}
+
+function hasStaffPaymentSchedule(payload: Record<string, unknown>): boolean {
+  const staffBooking = record(payload.staffBooking)
+  return Array.isArray(staffBooking?.paymentSchedules) && staffBooking.paymentSchedules.length > 0
 }
 
 function projectPaymentSession(session: {

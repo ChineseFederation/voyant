@@ -24,8 +24,8 @@ Those helpers target existing public booking sessions for customer-portal
 state and room-selection repricing. They do not create bookings.
 
 The `./journey` subpath retains composable booking-draft sections for trip and
-staff-tool composition. The retired routed admin/storefront creation shell is
-not part of the public API. The `./storefront` subpath retains only
+staff Booking Session composition. The retired routed admin/storefront creation
+shell is not part of the public API. The `./storefront` subpath retains only
 contract-variable mapping for customer documents.
 
 ## UI components

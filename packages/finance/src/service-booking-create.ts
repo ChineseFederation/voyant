@@ -586,7 +586,7 @@ export const bookingCreateSchema = bookingCreateBaseSchema
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
 
-export const bookingCreateToolSchema = bookingCreateBaseSchema
+const bookingCreateOperatorInputSchema = bookingCreateBaseSchema
   .omit({
     sellAmountCentsOverride: true,
     catalogSellAmountCents: true,
@@ -613,6 +613,21 @@ export const bookingCreateToolSchema = bookingCreateBaseSchema
       .array(extraLineInputSchema.omit({ unitSellAmountCents: true, totalSellAmountCents: true }))
       .optional(),
   })
+
+export const bookingSessionStaffSelectionV1 = bookingCreateOperatorInputSchema
+  .omit({
+    productId: true,
+    optionId: true,
+    slotId: true,
+    catalogId: true,
+    availabilityHoldToken: true,
+    bookingNumber: true,
+    initialStatus: true,
+  })
+  .superRefine(requireUniqueClientTravelerKeys)
+  .superRefine(requireKnownTravelerKeys)
+
+export const bookingCreateToolSchema = bookingCreateOperatorInputSchema
   .superRefine(requireCompleteBookingParty)
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
