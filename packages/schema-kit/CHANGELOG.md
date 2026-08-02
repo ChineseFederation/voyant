@@ -1,5 +1,13 @@
 # @voyant-travel/schema-kit
 
+## 0.116.3
+
+### Patch Changes
+
+- 79606bb: Add Booking Platform v1 supplier-first Commit orchestration with durable
+  Supplier Operations, typed pending and ambiguous outcomes, operator
+  reconciliation and manual resolution, and a replay-safe sourced cruise tracer.
+
 ## 0.116.2
 
 ### Patch Changes

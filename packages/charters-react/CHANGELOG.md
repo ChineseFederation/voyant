@@ -1,5 +1,12 @@
 # @voyant-travel/charters-react
 
+## 0.228.0
+
+### Patch Changes
+
+- @voyant-travel/charters@0.228.0
+- @voyant-travel/catalog-react@0.228.0
+
 ## 0.227.0
 
 ### Patch Changes

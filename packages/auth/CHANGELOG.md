@@ -1,5 +1,11 @@
 # @voyant-travel/auth
 
+## 0.150.2
+
+### Patch Changes
+
+- @voyant-travel/distribution@0.220.0
+
 ## 0.150.1
 
 ### Patch Changes

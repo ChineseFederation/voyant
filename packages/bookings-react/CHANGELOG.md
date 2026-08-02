@@ -1,5 +1,31 @@
 # @voyant-travel/bookings-react
 
+## 0.230.0
+
+### Patch Changes
+
+- 72c6753: Migrate the admin manual-booking form to authenticated Booking Session v1
+  Quote, Hold, and Commit, with validated staff-only booking details and payment
+  schedules preserved by the atomic Finance command.
+- Updated dependencies [72c6753]
+- Updated dependencies [79606bb]
+  - @voyant-travel/catalog@0.228.0
+  - @voyant-travel/finance@0.230.0
+  - @voyant-travel/bookings@0.230.0
+  - @voyant-travel/catalog-contracts@0.114.0
+  - @voyant-travel/cruises@0.229.0
+  - @voyant-travel/accommodations@0.190.0
+  - @voyant-travel/catalog-react@0.228.0
+  - @voyant-travel/inventory-react@0.112.0
+  - @voyant-travel/storefront-react@0.232.0
+  - @voyant-travel/distribution-react@0.220.0
+  - @voyant-travel/finance-react@0.230.0
+  - @voyant-travel/identity-react@0.230.0
+  - @voyant-travel/legal-react@0.230.0
+  - @voyant-travel/operations-react@0.111.0
+  - @voyant-travel/commerce-react@0.112.0
+  - @voyant-travel/relationships-react@0.230.0
+
 ## 0.229.0
 
 ### Patch Changes

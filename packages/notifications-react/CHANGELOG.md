@@ -1,5 +1,7 @@
 # @voyant-travel/notifications-react
 
+## 0.146.2
+
 ## 0.146.1
 
 ## 0.146.0

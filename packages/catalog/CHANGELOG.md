@@ -1,5 +1,24 @@
 # @voyant-travel/catalog
 
+## 0.228.0
+
+### Minor Changes
+
+- 79606bb: Add Booking Platform v1 supplier-first Commit orchestration with durable
+  Supplier Operations, typed pending and ambiguous outcomes, operator
+  reconciliation and manual resolution, and a replay-safe sourced cruise tracer.
+
+### Patch Changes
+
+- 72c6753: Migrate the admin manual-booking form to authenticated Booking Session v1
+  Quote, Hold, and Commit, with validated staff-only booking details and payment
+  schedules preserved by the atomic Finance command.
+- Updated dependencies [72c6753]
+- Updated dependencies [79606bb]
+  - @voyant-travel/finance@0.230.0
+  - @voyant-travel/bookings@0.230.0
+  - @voyant-travel/catalog-contracts@0.114.0
+
 ## 0.227.1
 
 ### Patch Changes

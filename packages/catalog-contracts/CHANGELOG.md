@@ -1,5 +1,13 @@
 # @voyant-travel/catalog-contracts
 
+## 0.114.0
+
+### Minor Changes
+
+- 79606bb: Add Booking Platform v1 supplier-first Commit orchestration with durable
+  Supplier Operations, typed pending and ambiguous outcomes, operator
+  reconciliation and manual resolution, and a replay-safe sourced cruise tracer.
+
 ## 0.113.0
 
 ### Minor Changes

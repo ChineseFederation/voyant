@@ -1,5 +1,21 @@
 # @voyant-travel/cruises
 
+## 0.229.0
+
+### Minor Changes
+
+- 79606bb: Add Booking Platform v1 supplier-first Commit orchestration with durable
+  Supplier Operations, typed pending and ambiguous outcomes, operator
+  reconciliation and manual resolution, and a replay-safe sourced cruise tracer.
+
+### Patch Changes
+
+- Updated dependencies [72c6753]
+- Updated dependencies [79606bb]
+  - @voyant-travel/catalog@0.228.0
+  - @voyant-travel/finance@0.230.0
+  - @voyant-travel/cruises-contracts@0.105.12
+
 ## 0.228.0
 
 ### Patch Changes
