@@ -1,5 +1,28 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.4.0
+
+### Patch Changes
+
+- 5ed518e: Move the Voyant Connect sources plugin into the monorepo at
+  `packages/plugins/voyant-connect` and consume it as a workspace package.
+
+  `packages/catalog` previously depended on the published plugin, whose peer
+  ranges resolved back to `@voyant-travel/catalog` and `@voyant-travel/cruises`.
+  That cycle meant the monorepo could not resolve its own lockfile until its own
+  publish had landed, and it dragged a stale `@voyant-travel/bookings-contracts`
+  into catalog's resolution — breaking two catalog suites on import. Both are
+  fixed by the move.
+
+  The plugin keeps its registry dependencies on `@voyant-travel/connect-adapter`,
+  `connect-cruises`, `connect-sdk`, and `data-sdk`: those are Connect's own public
+  surface and remain in the connect repository.
+
+- Updated dependencies [5ed518e]
+- Updated dependencies [15c1c64]
+  - @voyant-travel/catalog@0.231.0
+  - @voyant-travel/cruises@0.232.0
+
 ## 0.3.3
 
 ### Patch Changes
@@ -35,6 +58,7 @@
 - dd463c1: `prepareVoyantConnectSources` can now build enumerate-path sources without a
   network connection enumeration, and threads cruise read memoization through both
   planes (#94):
+
   - `connections` — pass a pre-fetched connection list to skip the `list()` call.
   - `connectionCache` — a read-through `{ get, set }` hook (e.g. backed by Workers
     KV) so a cold isolate can reuse the serializable connection list.

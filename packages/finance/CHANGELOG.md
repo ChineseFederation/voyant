@@ -1,5 +1,24 @@
 # @voyant-travel/finance
 
+## 0.233.0
+
+### Minor Changes
+
+- 15c1c64: Add the Booking v1 priced traveler-roster Amendment lifecycle: immutable and
+  expiring exact-revision previews, server-owned price/tax and collection/refund
+  consequences, acceptance, transactional owned-capacity projection, durable
+  sourced Supplier Operation dispatch and reconciliation, explicit partial and
+  uncertain outcomes, and consistent authenticated, storefront, and Tool
+  transports.
+
+### Patch Changes
+
+- Updated dependencies [15c1c64]
+  - @voyant-travel/bookings-contracts@0.112.0
+  - @voyant-travel/bookings@0.233.0
+  - @voyant-travel/db@0.119.3
+  - @voyant-travel/finance-contracts@0.109.1
+
 ## 0.232.0
 
 ### Patch Changes

@@ -1,5 +1,72 @@
 # @voyant-travel/operator-standard
 
+## 0.19.8
+
+### Patch Changes
+
+- 5ed518e: Move the Voyant Connect sources plugin into the monorepo at
+  `packages/plugins/voyant-connect` and consume it as a workspace package.
+
+  `packages/catalog` previously depended on the published plugin, whose peer
+  ranges resolved back to `@voyant-travel/catalog` and `@voyant-travel/cruises`.
+  That cycle meant the monorepo could not resolve its own lockfile until its own
+  publish had landed, and it dragged a stale `@voyant-travel/bookings-contracts`
+  into catalog's resolution — breaking two catalog suites on import. Both are
+  fixed by the move.
+
+  The plugin keeps its registry dependencies on `@voyant-travel/connect-adapter`,
+  `connect-cruises`, `connect-sdk`, and `data-sdk`: those are Connect's own public
+  surface and remain in the connect repository.
+
+- Updated dependencies [5ed518e]
+- Updated dependencies [15c1c64]
+  - @voyant-travel/plugin-voyant-connect@0.4.0
+  - @voyant-travel/catalog@0.231.0
+  - @voyant-travel/bookings@0.233.0
+  - @voyant-travel/finance@0.233.0
+  - @voyant-travel/accommodations@0.193.0
+  - @voyant-travel/bookings-react@0.233.0
+  - @voyant-travel/charters@0.231.0
+  - @voyant-travel/commerce@0.46.7
+  - @voyant-travel/cruises@0.232.0
+  - @voyant-travel/distribution@0.223.0
+  - @voyant-travel/flights@0.233.0
+  - @voyant-travel/inventory@0.27.2
+  - @voyant-travel/operations@0.12.2
+  - @voyant-travel/proposals@0.137.6
+  - @voyant-travel/storefront@0.235.0
+  - @voyant-travel/trips@0.226.0
+  - @voyant-travel/trips-react@0.226.0
+  - @voyant-travel/legal@0.233.0
+  - @voyant-travel/mice@0.89.0
+  - @voyant-travel/notifications@0.146.5
+  - @voyant-travel/relationships@0.133.6
+  - @voyant-travel/finance-react@0.233.0
+  - @voyant-travel/flights-react@0.233.0
+  - @voyant-travel/inventory-react@0.115.0
+  - @voyant-travel/operator-settings@0.17.7
+  - @voyant-travel/operator-settings-react@0.90.0
+  - @voyant-travel/db@0.119.3
+  - @voyant-travel/finance-contracts@0.109.1
+  - @voyant-travel/action-ledger-react@0.122.0
+  - @voyant-travel/distribution-react@0.223.0
+  - @voyant-travel/identity-react@0.233.0
+  - @voyant-travel/legal-react@0.233.0
+  - @voyant-travel/operations-react@0.114.0
+  - @voyant-travel/storefront-react@0.235.0
+  - @voyant-travel/mice-react@0.101.0
+  - @voyant-travel/admin-app@0.126.0
+  - @voyant-travel/catalog-react@0.231.0
+  - @voyant-travel/commerce-react@0.115.0
+  - @voyant-travel/relationships-react@0.233.0
+  - @voyant-travel/cruises-react@0.232.0
+  - @voyant-travel/admin-host@0.84.0
+  - @voyant-travel/proposals-react@0.231.0
+  - @voyant-travel/identity@0.233.0
+  - @voyant-travel/notifications-react@0.146.5
+  - @voyant-travel/auth@0.150.6
+  - @voyant-travel/auth-react@0.150.6
+
 ## 0.19.7
 
 ### Patch Changes

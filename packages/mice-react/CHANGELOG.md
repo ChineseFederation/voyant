@@ -1,5 +1,12 @@
 # @voyant-travel/mice-react
 
+## 0.101.0
+
+### Patch Changes
+
+- @voyant-travel/mice@0.89.0
+- @voyant-travel/relationships-react@0.233.0
+
 ## 0.100.0
 
 ### Patch Changes

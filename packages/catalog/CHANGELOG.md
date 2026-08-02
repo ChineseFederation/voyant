@@ -1,5 +1,39 @@
 # @voyant-travel/catalog
 
+## 0.231.0
+
+### Minor Changes
+
+- 15c1c64: Add the Booking v1 priced traveler-roster Amendment lifecycle: immutable and
+  expiring exact-revision previews, server-owned price/tax and collection/refund
+  consequences, acceptance, transactional owned-capacity projection, durable
+  sourced Supplier Operation dispatch and reconciliation, explicit partial and
+  uncertain outcomes, and consistent authenticated, storefront, and Tool
+  transports.
+
+### Patch Changes
+
+- 5ed518e: Move the Voyant Connect sources plugin into the monorepo at
+  `packages/plugins/voyant-connect` and consume it as a workspace package.
+
+  `packages/catalog` previously depended on the published plugin, whose peer
+  ranges resolved back to `@voyant-travel/catalog` and `@voyant-travel/cruises`.
+  That cycle meant the monorepo could not resolve its own lockfile until its own
+  publish had landed, and it dragged a stale `@voyant-travel/bookings-contracts`
+  into catalog's resolution — breaking two catalog suites on import. Both are
+  fixed by the move.
+
+  The plugin keeps its registry dependencies on `@voyant-travel/connect-adapter`,
+  `connect-cruises`, `connect-sdk`, and `data-sdk`: those are Connect's own public
+  surface and remain in the connect repository.
+
+- Updated dependencies [5ed518e]
+- Updated dependencies [15c1c64]
+  - @voyant-travel/plugin-voyant-connect@0.4.0
+  - @voyant-travel/bookings@0.233.0
+  - @voyant-travel/finance@0.233.0
+  - @voyant-travel/db@0.119.3
+
 ## 0.230.0
 
 ### Minor Changes

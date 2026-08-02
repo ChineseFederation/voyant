@@ -1,5 +1,16 @@
 # @voyant-travel/schema-kit
 
+## 0.117.0
+
+### Minor Changes
+
+- 15c1c64: Add the Booking v1 priced traveler-roster Amendment lifecycle: immutable and
+  expiring exact-revision previews, server-owned price/tax and collection/refund
+  consequences, acceptance, transactional owned-capacity projection, durable
+  sourced Supplier Operation dispatch and reconciliation, explicit partial and
+  uncertain outcomes, and consistent authenticated, storefront, and Tool
+  transports.
+
 ## 0.116.3
 
 ### Patch Changes
