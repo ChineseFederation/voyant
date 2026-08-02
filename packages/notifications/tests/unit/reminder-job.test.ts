@@ -41,6 +41,7 @@ describe("due reminders job", () => {
     const env = { DATABASE_URL: "postgres://test" }
     const options = {}
     await runDueNotificationRemindersJob({
+      hasPort: () => false,
       getPort: async () => ({
         resolveDb: async () => db,
         resolveEnv: async () => env,

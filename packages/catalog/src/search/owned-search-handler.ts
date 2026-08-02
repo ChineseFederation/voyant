@@ -15,7 +15,7 @@ import type {
   AvailabilitySearchRequest,
   AvailabilitySearchResult,
   SourceAdapterContext,
-} from "@voyant-travel/catalog-contracts"
+} from "@voyant-travel/catalog-contracts/adapter/contract"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 /** Context passed to an owned search handler. Mirrors `OwnedHandlerContext`. */

@@ -8,11 +8,18 @@ export type ReminderDeliveryJob = {
   reminderRunId: string
 }
 
+export type BookingActionDeadlineResolver = (input: {
+  sourceModule: "finance"
+  sourceType: "booking_payment_schedule"
+  sourceIds: ReadonlyArray<string>
+}) => Promise<ReadonlyMap<string, string>>
+
 export type NotificationTaskRuntime = {
   providers: ReadonlyArray<NotificationProvider>
   publicCustomerPortalBaseUrl?: string | null
   reminderSweepLockManager?: ExecutionLockManager
   enqueueReminderDelivery?: (job: ReminderDeliveryJob) => Promise<void>
+  resolveBookingActionDeadline?: BookingActionDeadlineResolver
 }
 
 export type NotificationTaskRuntimeOptions = {
@@ -21,6 +28,7 @@ export type NotificationTaskRuntimeOptions = {
   reminderSweepLockManager?: ExecutionLockManager
   enqueueReminderDelivery?: (job: ReminderDeliveryJob) => Promise<void>
   resolveProviders?: (env: NotificationTaskEnv) => ReadonlyArray<NotificationProvider>
+  resolveBookingActionDeadline?: BookingActionDeadlineResolver
 }
 
 export function buildNotificationTaskRuntime(
@@ -39,5 +47,6 @@ export function buildNotificationTaskRuntime(
     publicCustomerPortalBaseUrl: options.publicCustomerPortalBaseUrl ?? null,
     reminderSweepLockManager: options.reminderSweepLockManager,
     enqueueReminderDelivery: options.enqueueReminderDelivery,
+    resolveBookingActionDeadline: options.resolveBookingActionDeadline,
   }
 }

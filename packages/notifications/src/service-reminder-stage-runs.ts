@@ -52,6 +52,7 @@ import {
   toDateString,
   toTimestamp,
 } from "./service-shared.js"
+import type { BookingActionDeadlineResolver } from "./task-runtime.js"
 
 function buildStageDedupeKey(
   ruleId: string,
@@ -434,7 +435,9 @@ export async function runStageBasedDueReminders(
   db: PostgresJsDatabase,
   dispatcher: NotificationService,
   input: RunDueRemindersInput = {},
-  options: NotificationPortalContextOptions = {},
+  options: NotificationPortalContextOptions & {
+    resolveBookingActionDeadline?: BookingActionDeadlineResolver
+  } = {},
 ): Promise<ReminderSweepResult> {
   const now = toTimestamp(input.now) ?? new Date()
   const today = startOfUtcDay(now)
@@ -445,7 +448,13 @@ export async function runStageBasedDueReminders(
   for (const rule of rules) {
     const stages = await listStagesForRule(db, rule.id)
     if (stages.length === 0) continue
-    const targets = await fetchTargetsForRule(db, rule, stages, today)
+    const targets = await fetchTargetsForRule(
+      db,
+      rule,
+      stages,
+      today,
+      options.resolveBookingActionDeadline,
+    )
     if (targets.length === 0) continue
     const tally = await processStageRuleTargets(db, {
       rule,
@@ -471,6 +480,7 @@ export async function queueStageBasedDueReminders(
   db: PostgresJsDatabase,
   enqueueDelivery: ReminderDeliveryEnqueuer,
   input: RunDueRemindersInput = {},
+  options: { resolveBookingActionDeadline?: BookingActionDeadlineResolver } = {},
 ): Promise<ReminderQueueResult> {
   const now = toTimestamp(input.now) ?? new Date()
   const today = startOfUtcDay(now)
@@ -481,7 +491,13 @@ export async function queueStageBasedDueReminders(
   for (const rule of rules) {
     const stages = await listStagesForRule(db, rule.id)
     if (stages.length === 0) continue
-    const targets = await fetchTargetsForRule(db, rule, stages, today)
+    const targets = await fetchTargetsForRule(
+      db,
+      rule,
+      stages,
+      today,
+      options.resolveBookingActionDeadline,
+    )
     if (targets.length === 0) continue
     const tally = await processStageRuleTargets(db, {
       rule,

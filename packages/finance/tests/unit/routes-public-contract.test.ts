@@ -150,6 +150,7 @@ const paymentOptions: PublicBookingPaymentOptions = {
       scheduleType: "deposit",
       status: "pending",
       dueDate: "2026-06-10",
+      dueTimeZone: "UTC",
       currency: "EUR",
       amountCents: 30000,
       notes: null,

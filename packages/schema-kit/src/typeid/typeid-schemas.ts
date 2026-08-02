@@ -100,6 +100,7 @@ export const typeIdSchemas = {
   bookingActivity: typeIdSchema("booking_activity_log"),
   bookingNote: typeIdSchema("booking_notes"),
   bookingDocument: typeIdSchema("booking_documents"),
+  bookingActionProjection: typeIdSchema("booking_action_projections"),
   availabilityRule: typeIdSchema("availability_rules"),
   availabilityStartTime: typeIdSchema("availability_start_times"),
   availabilitySlot: typeIdSchema("availability_slots"),

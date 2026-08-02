@@ -8,11 +8,23 @@ describe("operations deployment manifest", () => {
       id: "@voyant-travel/operations",
       packageName: "@voyant-travel/operations",
       provides: {
-        ports: [{ id: "catalog.extension.operations" }, { id: "operations.expired-holds-job" }],
+        ports: [
+          { id: "catalog.extension.operations" },
+          { id: "operations.expired-holds-job" },
+          { id: "bookings.booking-action-projection.runtime" },
+        ],
       },
       // Required as well as provided — the job resolves the port at run time and
       // composition rejects an undeclared request.
-      runtimePorts: [{ id: "operations.expired-holds-job" }],
+      runtimePorts: [
+        { id: "operations.expired-holds-job" },
+        { id: "bookings.booking-action-projection.runtime" },
+        {
+          id: "bookings.booking-action-source.runtime",
+          optional: true,
+          cardinality: "many",
+        },
+      ],
       jobs: [
         {
           id: "operations.release-expired-availability-holds",
@@ -21,13 +33,27 @@ describe("operations deployment manifest", () => {
             export: "runOperationsReleaseExpiredHoldsJob",
           },
         },
+        {
+          id: "operations.project-booking-actions",
+          runtime: {
+            entry: "@voyant-travel/operations/booking-actions-job",
+            export: "runBookingActionIncrementalProjectionJob",
+          },
+        },
+        {
+          id: "operations.rebuild-booking-actions",
+          runtime: {
+            entry: "@voyant-travel/operations/booking-actions-job",
+            export: "runBookingActionProjectionRebuildJob",
+          },
+        },
       ],
       api: [
         {
           id: "@voyant-travel/operations#api.admin",
           surface: "admin",
           openapi: { document: "operations" },
-          runtime: { entry: "@voyant-travel/operations", export: "operationsApiModule" },
+          runtime: { entry: "@voyant-travel/operations", export: "createOperationsVoyantRuntime" },
         },
       ],
       schema: [{ id: "@voyant-travel/operations#schema" }],
@@ -133,7 +159,7 @@ describe("operations deployment manifest", () => {
     const actions = operationsVoyantModule.actions ?? []
     const readTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:read"))
     expect(readTools).toHaveLength(8)
-    expect(actions).toHaveLength(10)
+    expect(actions).toHaveLength(11)
     for (const tool of readTools) {
       expect(tool).toMatchObject({
         requiredScopes: ["operations:read"],
@@ -161,6 +187,7 @@ describe("operations deployment manifest", () => {
 
     expect(writeTools.map((tool) => tool.name).sort()).toEqual([
       "create_departure",
+      "rebuild_booking_actions",
       "update_departure",
     ])
 
@@ -185,12 +212,20 @@ describe("operations deployment manifest", () => {
             parentAnchor: { targetType: "product", targetIdField: "productId" },
           },
         })
-      } else {
+      } else if (tool.name === "update_departure") {
         expect(action).toMatchObject({
           approval: "required",
           targetLifecycle: "existing",
           commandTargetField: "id",
           reversible: true,
+        })
+      } else {
+        expect(action).toMatchObject({
+          id: "@voyant-travel/operations#action.rebuild-booking-actions",
+          approval: "required",
+          targetType: "booking-action-projection",
+          targetLifecycle: "existing",
+          reversible: false,
         })
       }
     }

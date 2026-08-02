@@ -1,3 +1,4 @@
+import type { BookingActionSyncSummary } from "@voyant-travel/bookings-contracts/booking-actions"
 import type { ToolContext, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import type { z } from "zod"
 
@@ -21,6 +22,7 @@ export interface OperationsToolServices {
     id: string,
     patch: Partial<z.infer<typeof availabilitySlotCoreSchema>> & { updatedAt?: string },
   ): Promise<unknown>
+  rebuildBookingActions(): Promise<BookingActionSyncSummary>
   getAvailabilityOverview(query: z.infer<typeof availabilityOverviewQuerySchema>): Promise<unknown>
   getAvailabilityAggregates(
     query: z.infer<typeof availabilityAggregatesQuerySchema>,

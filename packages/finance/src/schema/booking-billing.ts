@@ -26,6 +26,8 @@ export const bookingPaymentSchedules = pgTable(
     scheduleType: paymentScheduleTypeEnum("schedule_type").notNull().default("balance"),
     status: paymentScheduleStatusEnum("status").notNull().default("pending"),
     dueDate: date("due_date").notNull(),
+    /** IANA zone whose local calendar date `dueDate` belongs to. */
+    dueTimeZone: text("due_time_zone").notNull().default("UTC"),
     currency: text("currency").notNull(),
     amountCents: integer("amount_cents").notNull(),
     notes: text("notes"),

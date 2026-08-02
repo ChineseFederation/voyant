@@ -1,9 +1,14 @@
+import {
+  bookingActionProjectionRuntimePort,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import type { Module } from "@voyant-travel/core"
+import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { ApiModule } from "@voyant-travel/hono/module"
 
 import { availabilityLinkable } from "./availability/index.js"
 import { placesLinkable } from "./places/index.js"
-import { operationsAdminRoutes } from "./routes.js"
+import { createOperationsAdminRoutes, operationsAdminRoutes } from "./routes.js"
 import {
   checkOperationalAvailability,
   confirmResourceHold,
@@ -25,10 +30,21 @@ export const operationsApiModule: ApiModule = {
 
 export const operationsApiModules = [operationsApiModule] as const
 
+export const createOperationsVoyantRuntime = defineGraphRuntimeFactory(
+  async ({ getPort, getPorts }) => ({
+    module: operationsModule,
+    adminRoutes: createOperationsAdminRoutes({
+      projection: await getPort(bookingActionProjectionRuntimePort),
+      sources: await getPorts(bookingActionSourceRuntimePort),
+    }),
+  }),
+)
+
 export * from "./availability/index.js"
 export * from "./availability/rrule.js"
 export * from "./availability/service-catalog-plane-departures.js"
 export * from "./availability/service-holds.js"
+export * from "./booking-actions/index.js"
 export * from "./ground/index.js"
 export * from "./places/index.js"
 export * from "./resources/index.js"

@@ -1,7 +1,9 @@
 // agent-quality: file-size exception -- owner: catalog; one generated-runtime contributor map centralizes the package's lazy port factories and shared host primitives.
 import {
+  type BookingActionSourceRuntime,
   type BookingsRelationshipsRuntime,
   type BookingsSupplierAmendmentRuntime,
+  bookingActionSourceRuntimePort,
   bookingsRelationshipsRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
@@ -44,6 +46,7 @@ import {
 import { financeSelfServiceBookingSourceRuntimePort } from "@voyant-travel/finance/self-service-booking-source"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { catalogBookingActionSource } from "./booking-action-source.js"
 import { createCatalogBookingAmendmentRuntime } from "./booking-engine/amendment-runtime.js"
 import { DEFAULT_BOOKING_SESSION_TERMINAL_RETENTION_MS } from "./booking-session-maintenance-job.js"
 import {
@@ -180,6 +183,8 @@ export function createCatalogRuntimePortContribution(
     },
   }
   return {
+    [bookingActionSourceRuntimePort.id]:
+      catalogBookingActionSource satisfies BookingActionSourceRuntime,
     [catalogSearchRuntimePort.id]: contribution.then((runtime) => runtime.search),
     [catalogBookingRuntimePort.id]: contribution.then((runtime) => runtime.booking),
     [catalogOffersRuntimePort.id]: contribution.then((runtime) => runtime.offers),

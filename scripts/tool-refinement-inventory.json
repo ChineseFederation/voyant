@@ -33,9 +33,19 @@
       "note": "Not stated. The passenger-composition constraint is enforced on the field with no description on it or in the Tool text."
     },
     {
+      "id": "@voyant-travel/finance:book_product:paymentSchedules[].dueTimeZone",
+      "documented": true,
+      "note": "Documented. The dueTimeZone field description states that it is the IANA timezone for the local payment business date."
+    },
+    {
       "id": "@voyant-travel/finance:create_booking:booking",
       "documented": true,
       "note": "Documented. The Tool description states the billing-party rule in full: set `personId` for a private client or `organizationId` for a company, at least one mandatory (voyant#3814)."
+    },
+    {
+      "id": "@voyant-travel/finance:create_booking:booking.paymentSchedules[].dueTimeZone",
+      "documented": true,
+      "note": "Documented. The dueTimeZone field description states that it is the IANA timezone for the local payment business date."
     },
     {
       "id": "@voyant-travel/finance:issue_invoice_from_booking:command",

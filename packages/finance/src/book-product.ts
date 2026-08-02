@@ -23,7 +23,11 @@ import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
 import { z } from "zod"
 
 import { type BookingCreateInput, bookingCreateSchema } from "./service-booking-create.js"
-import { paymentScheduleStatusSchema, paymentScheduleTypeSchema } from "./validation-shared.js"
+import {
+  ianaTimeZoneSchema,
+  paymentScheduleStatusSchema,
+  paymentScheduleTypeSchema,
+} from "./validation-shared.js"
 
 const bookProductTravelerSchema = z.object({
   clientTravelerKey: z
@@ -148,6 +152,7 @@ export const bookProductToolInputSchema = z.object({
         scheduleType: paymentScheduleTypeSchema.default("balance"),
         status: paymentScheduleStatusSchema.default("pending"),
         dueDate: z.string().min(1),
+        dueTimeZone: ianaTimeZoneSchema.default("UTC"),
         currency: z.string().min(3).max(3),
         amountCents: z.number().int().min(0),
         notes: z.string().optional().nullable(),

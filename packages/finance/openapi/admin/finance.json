@@ -10390,6 +10390,9 @@
                           "dueDate": {
                             "type": "string"
                           },
+                          "dueTimeZone": {
+                            "type": "string"
+                          },
                           "currency": {
                             "type": "string"
                           },
@@ -10416,6 +10419,7 @@
                           "scheduleType",
                           "status",
                           "dueDate",
+                          "dueTimeZone",
                           "currency",
                           "amountCents",
                           "notes",
@@ -10492,6 +10496,13 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "dueTimeZone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "default": "UTC",
+                    "description": "IANA timezone for the local business date, for example Europe/Bucharest."
+                  },
                   "currency": {
                     "type": "string",
                     "minLength": 3,
@@ -10564,6 +10575,9 @@
                         "dueDate": {
                           "type": "string"
                         },
+                        "dueTimeZone": {
+                          "type": "string"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -10590,6 +10604,7 @@
                         "scheduleType",
                         "status",
                         "dueDate",
+                        "dueTimeZone",
                         "currency",
                         "amountCents",
                         "notes",
@@ -10814,6 +10829,9 @@
                           "dueDate": {
                             "type": "string"
                           },
+                          "dueTimeZone": {
+                            "type": "string"
+                          },
                           "currency": {
                             "type": "string"
                           },
@@ -10840,6 +10858,7 @@
                           "scheduleType",
                           "status",
                           "dueDate",
+                          "dueTimeZone",
                           "currency",
                           "amountCents",
                           "notes",
@@ -10962,6 +10981,13 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "dueTimeZone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "default": "UTC",
+                    "description": "IANA timezone for the local business date, for example Europe/Bucharest."
+                  },
                   "currency": {
                     "type": "string",
                     "minLength": 3,
@@ -11029,6 +11055,9 @@
                         "dueDate": {
                           "type": "string"
                         },
+                        "dueTimeZone": {
+                          "type": "string"
+                        },
                         "currency": {
                           "type": "string"
                         },
@@ -11055,6 +11084,7 @@
                         "scheduleType",
                         "status",
                         "dueDate",
+                        "dueTimeZone",
                         "currency",
                         "amountCents",
                         "notes",

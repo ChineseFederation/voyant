@@ -447,6 +447,7 @@ export const publicFinanceService = {
         scheduleType: schedule.scheduleType,
         status: schedule.status,
         dueDate: schedule.dueDate,
+        dueTimeZone: schedule.dueTimeZone,
         currency: schedule.currency,
         amountCents: schedule.amountCents,
         notes: schedule.notes ?? null,

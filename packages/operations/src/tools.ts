@@ -1,3 +1,4 @@
+import { bookingActionSyncSummarySchema } from "@voyant-travel/bookings-contracts/booking-actions"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -206,6 +207,14 @@ const DEPARTURE_WRITE_RISK = {
   sideEffects: ["data-write"],
 } as const
 
+const BOOKING_ACTION_REBUILD_RISK = {
+  destructive: false,
+  reversible: false,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write"],
+} as const
+
 export const CREATE_DEPARTURE_HANDLER_POLICY = {
   capabilityId: `${OWNER}#tool.create-departure`,
   capabilityVersion: VERSION,
@@ -308,6 +317,29 @@ export const updateDepartureTool = defineTool<
     return parseJsonResult(departureOutputSchema, {
       departure: await operations(ctx).updateDeparture(id, patch),
     })
+  },
+})
+
+export const rebuildBookingActionsTool = defineTool<
+  Record<string, never>,
+  z.infer<typeof bookingActionSyncSummarySchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.rebuild-booking-actions`,
+  name: "rebuild_booking_actions",
+  description:
+    "Deterministically rebuild the Booking action projection from the currently selected Catalog, Finance, and Legal source providers. Use this only for reconciliation or repair; ordinary projection refreshes are scheduled automatically.",
+  inputSchema: z.object({}).strict(),
+  outputSchema: bookingActionSyncSummarySchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: BOOKING_ACTION_REBUILD_RISK,
+  annotations: { idempotentHint: true },
+  async handler(_input, ctx) {
+    return bookingActionSyncSummarySchema.parse(await operations(ctx).rebuildBookingActions())
   },
 })
 
@@ -477,7 +509,11 @@ export const listAvailabilityCloseoutsTool = defineTool<
   },
 })
 
-export const operationsWriteTools = [createDepartureTool, updateDepartureTool] as const
+export const operationsWriteTools = [
+  createDepartureTool,
+  updateDepartureTool,
+  rebuildBookingActionsTool,
+] as const
 
 export const operationsTools = [
   getAvailabilityOverviewTool,

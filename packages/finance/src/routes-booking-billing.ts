@@ -94,6 +94,7 @@ const bookingPaymentScheduleSchema = z.object({
   scheduleType: z.enum(["deposit", "installment", "balance", "hold", "other"]),
   status: z.enum(["pending", "due", "paid", "waived", "cancelled", "expired"]),
   dueDate: isoString,
+  dueTimeZone: z.string(),
   currency: z.string(),
   amountCents: z.number().int(),
   notes: z.string().nullable(),

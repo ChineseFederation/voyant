@@ -32,8 +32,11 @@ import type {
   NotificationService,
   RunDueRemindersInput,
 } from "./service-shared.js"
+import type { BookingActionDeadlineResolver } from "./task-runtime.js"
 
-export type NotificationReminderDeliveryOptions = NotificationPortalContextOptions
+export type NotificationReminderDeliveryOptions = NotificationPortalContextOptions & {
+  resolveBookingActionDeadline?: BookingActionDeadlineResolver
+}
 
 export {
   bookingIsPaidInFullForNotification,
@@ -181,8 +184,9 @@ export async function queueDueReminders(
   db: PostgresJsDatabase,
   input: RunDueRemindersInput = {},
   enqueueDelivery: ReminderDeliveryEnqueuer,
+  options: { resolveBookingActionDeadline?: BookingActionDeadlineResolver } = {},
 ) {
-  return queueStageBasedDueReminders(db, enqueueDelivery, input)
+  return queueStageBasedDueReminders(db, enqueueDelivery, input, options)
 }
 
 export async function deliverReminderRun(

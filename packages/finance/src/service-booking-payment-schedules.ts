@@ -125,6 +125,7 @@ export const financeBookingPaymentScheduleService = {
       amountCents: number
       currency: string
       dueDate: string
+      dueTimeZone?: string
       notes?: string | null
     }>,
     options: { replace?: boolean } = {},
@@ -153,6 +154,7 @@ export const financeBookingPaymentScheduleService = {
         scheduleType: persistedType as "deposit" | "balance" | "installment" | "hold" | "other",
         status: (due <= today ? "due" : "pending") as "pending" | "due",
         dueDate: entry.dueDate,
+        dueTimeZone: entry.dueTimeZone ?? "UTC",
         currency: entry.currency,
         amountCents: Math.max(0, Math.round(entry.amountCents)),
         notes: entry.notes ?? null,
@@ -245,6 +247,7 @@ export const financeBookingPaymentScheduleService = {
             scheduleType: "deposit",
             status: depositDueDate <= today ? "due" : "pending",
             dueDate: toDateString(depositDueDate),
+            dueTimeZone: "UTC",
             currency: booking.sellCurrency,
             amountCents: depositAmountCents,
             notes: data.notes ?? null,
@@ -254,6 +257,7 @@ export const financeBookingPaymentScheduleService = {
             scheduleType: "balance",
             status: balanceDueDate <= today ? "due" : "pending",
             dueDate: toDateString(balanceDueDate),
+            dueTimeZone: "UTC",
             currency: booking.sellCurrency,
             amountCents: Math.max(0, totalAmountCents - depositAmountCents),
             notes: data.notes ?? null,
@@ -265,6 +269,7 @@ export const financeBookingPaymentScheduleService = {
             scheduleType: "balance",
             status: singleDueDate <= today ? "due" : "pending",
             dueDate: toDateString(singleDueDate),
+            dueTimeZone: "UTC",
             currency: booking.sellCurrency,
             amountCents: totalAmountCents,
             notes: data.notes ?? null,

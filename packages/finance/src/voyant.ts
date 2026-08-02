@@ -1,6 +1,7 @@
 // agent-quality: file-size exception -- owner: finance; the package-owned deployment declarations remain centralized in one manifest.
 import { actionLedgerFinanceDriftRuntimePort } from "@voyant-travel/action-ledger/runtime-port"
 import {
+  bookingActionSourceRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsSelfServiceCreateRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
@@ -69,6 +70,7 @@ export const financeVoyantModule = defineModule({
     ports: [
       providePort(actionLedgerFinanceDriftRuntimePort),
       providePort(bookingsFinanceRuntimePort),
+      providePort(bookingActionSourceRuntimePort),
       providePort(financeHostRuntimePort),
       providePort(financeAppApiRuntimePort),
       // The public booking-create route lives in Bookings; Finance supplies

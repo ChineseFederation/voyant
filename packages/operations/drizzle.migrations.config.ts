@@ -14,7 +14,12 @@ export default defineConfig({
   // runtime consumers, but operations must NOT create those tables in its own
   // migration — so this config lists operations' owned schema files explicitly
   // (the barrel's availability re-export is intentionally excluded here).
-  schema: ["./src/ground/schema.ts", "./src/places/schema.ts", "./src/resources/schema.ts"],
+  schema: [
+    "./src/booking-actions/schema.ts",
+    "./src/ground/schema.ts",
+    "./src/places/schema.ts",
+    "./src/resources/schema.ts",
+  ],
   out: "./migrations",
   dialect: "postgresql",
 })

@@ -25,6 +25,7 @@ describe("legal deployment manifest", () => {
           { id: "legal.contract-document.runtime" },
           { id: "legal.document-artifact-provider" },
           { id: "legal.contract-document.job-runtime" },
+          { id: "bookings.booking-action-source.runtime" },
         ],
       },
       api: [

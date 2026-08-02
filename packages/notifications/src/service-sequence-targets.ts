@@ -6,6 +6,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { NotificationReminderRule, NotificationReminderRuleStage } from "./schema.js"
 import type { ReminderTargetSnapshot } from "./service-sequence.js"
 import { addUtcDays, startOfUtcDay } from "./service-shared.js"
+import type { BookingActionDeadlineResolver } from "./task-runtime.js"
 
 /**
  * Computes the date range a target's `due_date` (or `issue_date`) needs to
@@ -63,6 +64,7 @@ const PAYABLE_BOOKING_STATUSES = [
 async function fetchOpenPaymentScheduleTargets(
   db: PostgresJsDatabase,
   envelopes: DateEnvelopes = {},
+  resolveBookingActionDeadline?: BookingActionDeadlineResolver,
 ): Promise<ReminderTargetSnapshot[]> {
   const conditions = [
     or(eq(bookingPaymentSchedules.status, "pending"), eq(bookingPaymentSchedules.status, "due")),
@@ -86,10 +88,18 @@ async function fetchOpenPaymentScheduleTargets(
     .from(bookingPaymentSchedules)
     .leftJoin(bookings, eq(bookings.id, bookingPaymentSchedules.bookingId))
     .where(and(...conditions))
+  const projectedDeadlines = resolveBookingActionDeadline
+    ? await resolveBookingActionDeadline({
+        sourceModule: "finance",
+        sourceType: "booking_payment_schedule",
+        sourceIds: rows.map(({ id }) => id),
+      })
+    : new Map<string, string>()
   return rows.map((row) => ({
     id: row.id,
     bookingId: row.bookingId,
     dueDate: row.dueDate,
+    dueAt: projectedDeadlines.get(row.id) ?? null,
     issuedAt: null,
     departureDate: row.departureDate,
     bookingCreatedAt: row.bookingCreatedAt ? row.bookingCreatedAt.toISOString() : null,
@@ -142,6 +152,7 @@ async function fetchOpenInvoiceTargets(
     id: row.id,
     bookingId: row.bookingId,
     dueDate: row.dueDate,
+    dueAt: null,
     issuedAt: row.issueDate,
     departureDate: row.departureDate,
     bookingCreatedAt: row.bookingCreatedAt ? row.bookingCreatedAt.toISOString() : null,
@@ -162,10 +173,18 @@ export async function fetchTargetsForRule(
   rule: NotificationReminderRule,
   stages: NotificationReminderRuleStage[] = [],
   today: Date = new Date(),
+  resolveBookingActionDeadline?: BookingActionDeadlineResolver,
 ): Promise<ReminderTargetSnapshot[]> {
   if (rule.targetType === "booking_payment_schedule") {
     const dueEnv = computeAnchorDateEnvelope(stages, today, "due_date")
-    return fetchOpenPaymentScheduleTargets(db, dueEnv ? { paymentScheduleDueDate: dueEnv } : {})
+    return fetchOpenPaymentScheduleTargets(
+      db,
+      // A local business date cannot be safely pushed down against a UTC
+      // envelope. When the authoritative projection is selected, fetch the
+      // open set and let the exact projected instant drive the stage window.
+      !resolveBookingActionDeadline && dueEnv ? { paymentScheduleDueDate: dueEnv } : {},
+      resolveBookingActionDeadline,
+    )
   }
   if (rule.targetType === "invoice") {
     const dueEnv = computeAnchorDateEnvelope(stages, today, "due_date")

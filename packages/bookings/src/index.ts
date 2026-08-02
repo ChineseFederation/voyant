@@ -14,15 +14,18 @@ import {
 import { bookingRoutes } from "./routes.js"
 import { bookingAmendmentPublicRoutes } from "./routes-amendments.js"
 import { publicBookingRoutes } from "./routes-public.js"
+import { createPublicBookingActionRoutes } from "./routes-public-booking-actions.js"
 import {
   createSelfServiceBookingRoutes,
   type SelfServiceCreateRouteOptions,
 } from "./routes-public-self-service-create.js"
 import { createBookingsRuntime } from "./runtime.js"
 import {
+  type BookingActionProjectionRuntime,
   type BookingsGuestVerificationRuntime,
   type BookingsSelfServiceCreateRuntime,
   type BookingsSupplierAmendmentRuntime,
+  bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsGuestVerificationRuntimePort,
@@ -161,7 +164,9 @@ export const bookingsModule: Module = {
 
 export interface BookingsApiModuleOptions
   extends BookingRouteRuntimeOptions,
-    SelfServiceCreateRouteOptions {}
+    SelfServiceCreateRouteOptions {
+  bookingActions?: BookingActionProjectionRuntime
+}
 
 export function createBookingsApiModule(options: BookingsApiModuleOptions = {}): ApiModule {
   const module: Module = {
@@ -194,6 +199,7 @@ export function createBookingsApiModule(options: BookingsApiModuleOptions = {}):
     publicRoutes: new OpenAPIHono()
       .route("/", publicBookingRoutes)
       .route("/", bookingAmendmentPublicRoutes)
+      .route("/", createPublicBookingActionRoutes(options.bookingActions))
       .route("/", createSelfServiceBookingRoutes(options)),
     anonymous: true,
     optionalCustomerAuth: true,
@@ -231,6 +237,9 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
     const amendmentSupplier = hasPort(bookingsSupplierAmendmentRuntimePort)
       ? ((await getPort(bookingsSupplierAmendmentRuntimePort)) as BookingsSupplierAmendmentRuntime)
       : undefined
+    const bookingActions = hasPort(bookingActionProjectionRuntimePort)
+      ? await getPort(bookingActionProjectionRuntimePort)
+      : undefined
 
     const configured = createBookingsApiModule({
       ...provider.options,
@@ -238,6 +247,7 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
       ...(guestVerification ? { resolveGuestVerification: () => guestVerification } : {}),
       amendmentFinance: finance,
       ...(amendmentSupplier ? { amendmentSupplier } : {}),
+      ...(bookingActions ? { bookingActions } : {}),
       resolveAuthenticatedPersonId: (c) => readCustomerPrincipal(c).personId,
       resolveAuthenticatedUserId: (c) => readCustomerPrincipal(c).userId,
     })

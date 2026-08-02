@@ -38,6 +38,7 @@ import { bookingItemTaxLines, bookingPaymentSchedules, travelCredits } from "./s
 import { type FinanceServiceRuntime, financeService, toRows } from "./service.js"
 import { TravelCreditServiceError, travelCreditsService } from "./service-travel-credits.js"
 import {
+  ianaTimeZoneSchema,
   paymentMethodSchema,
   paymentScheduleStatusSchema,
   paymentScheduleTypeSchema,
@@ -72,6 +73,7 @@ const paymentScheduleInputSchema = z.object({
   scheduleType: paymentScheduleTypeSchema.default("balance"),
   status: paymentScheduleStatusSchema.default("pending"),
   dueDate: z.string().min(1),
+  dueTimeZone: ianaTimeZoneSchema.default("UTC"),
   currency: z.string().min(3).max(3),
   amountCents: z.number().int().min(0),
   notes: z.string().optional().nullable(),
@@ -2543,6 +2545,7 @@ export async function createBookingMutation(
               scheduleType: schedule.scheduleType,
               status: schedule.status,
               dueDate: schedule.dueDate,
+              dueTimeZone: schedule.dueTimeZone,
               currency: schedule.currency,
               amountCents: schedule.amountCents,
               notes: schedule.notes ?? null,

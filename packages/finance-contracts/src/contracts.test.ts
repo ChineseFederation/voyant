@@ -3,6 +3,7 @@ import {
   financeAppApiRuntimePort,
   insertBookingItemCommissionSchema,
   insertBookingItemTaxLineSchema,
+  insertBookingPaymentScheduleSchema,
   insertPaymentAuthorizationSchema,
   insertPaymentCaptureSchema,
   insertPaymentSchema,
@@ -59,6 +60,19 @@ describe("finance-contracts", () => {
     expect(paymentMethodSchema.parse("travel_credit")).toBe("travel_credit")
     expect(travelCreditSourceTypeSchema.parse("goodwill")).toBe("goodwill")
     expect(travelCreditSourceTypeSchema.parse("promotion")).toBe("promotion")
+  })
+
+  it("keeps payment business dates bound to a valid explicit timezone", () => {
+    const input = {
+      dueDate: "2026-03-29",
+      dueTimeZone: "Europe/Bucharest",
+      currency: "EUR",
+      amountCents: 10_000,
+    }
+    expect(insertBookingPaymentScheduleSchema.parse(input).dueTimeZone).toBe("Europe/Bucharest")
+    expect(() =>
+      insertBookingPaymentScheduleSchema.parse({ ...input, dueTimeZone: "not/a-zone" }),
+    ).toThrow(/IANA timezone/)
   })
 
   it("rejects invalid enum values", () => {

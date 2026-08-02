@@ -33,6 +33,12 @@ describe("notifications deployment manifest", () => {
           optional: true,
           conformance: expect.any(Object),
         },
+        { id: "bookings.booking-action-projection.runtime", optional: true },
+        {
+          id: "bookings.booking-action-source.runtime",
+          optional: true,
+          cardinality: "many",
+        },
       ],
       api: [
         {

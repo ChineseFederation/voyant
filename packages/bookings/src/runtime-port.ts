@@ -2,6 +2,14 @@ import type {
   BookingAmendmentFinancialConsequences,
   BookingAmendmentPrice,
 } from "@voyant-travel/bookings-contracts"
+import type {
+  BookingActionListQuery,
+  BookingActionRecord,
+  BookingActionSourceSnapshot,
+  BookingActionSyncMode,
+  BookingActionSyncSummary,
+  PublicBookingActionRecord,
+} from "@voyant-travel/bookings-contracts/booking-actions"
 import { definePort } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -113,6 +121,63 @@ export interface BookingsRelationshipsRuntime {
   ): Promise<{ id: string } | null>
   getPersonById(db: PostgresJsDatabase, personId: string): Promise<unknown | null>
   getOrganizationById(db: PostgresJsDatabase, organizationId: string): Promise<unknown | null>
+}
+
+/**
+ * A module-owned reader of current authoritative obligations.
+ *
+ * Implementations must reread source tables and return their current state;
+ * event payloads are only wake-up signals and must never be projected as
+ * authority. The `sourceModule/sourceType/sourceId` tuple must be stable.
+ */
+export interface BookingActionSourceRuntime {
+  id: string
+  sourceModule: string
+  read(
+    db: PostgresJsDatabase,
+    options: { changedAfter?: Date },
+  ): Promise<ReadonlyArray<BookingActionSourceSnapshot>>
+}
+
+export interface BookingActionProjectionService {
+  synchronize(
+    sources: ReadonlyArray<BookingActionSourceRuntime>,
+    mode: BookingActionSyncMode,
+  ): Promise<BookingActionSyncSummary>
+  listStaff(query: BookingActionListQuery): Promise<{
+    data: BookingActionRecord[]
+    count: number
+    limit: number
+    offset: number
+    asOf: string
+  }>
+  listCustomer(bookingId: string): Promise<{
+    data: PublicBookingActionRecord[]
+    asOf: string
+  }>
+  getDeadlineBySource(input: {
+    sourceModule: string
+    sourceType: string
+    sourceId: string
+  }): Promise<{
+    dueAt: string
+    timeZone: string
+    deadlineSemantics: "instant" | "local_date_end"
+  } | null>
+  getDeadlinesBySource(input: {
+    sourceModule: string
+    sourceType: string
+    sourceIds: ReadonlyArray<string>
+  }): Promise<ReadonlyMap<string, string>>
+}
+
+/** Operations-owned read/projection boundary consumed by API and reminder modules. */
+export interface BookingActionProjectionRuntime {
+  create(db: PostgresJsDatabase): BookingActionProjectionService
+  synchronize(
+    sources: ReadonlyArray<BookingActionSourceRuntime>,
+    mode: BookingActionSyncMode,
+  ): Promise<BookingActionSyncSummary>
 }
 
 function objectPort<T extends object>(id: string, methods: readonly string[] = []) {
@@ -249,4 +314,12 @@ export const bookingsSelfServiceCreateRuntimePort = objectPort<BookingsSelfServi
 export const bookingsGuestVerificationRuntimePort = objectPort<BookingsGuestVerificationRuntime>(
   "bookings.guest-verification.runtime",
   ["peekVerifiedDestination", "consume"],
+)
+export const bookingActionSourceRuntimePort = objectPort<BookingActionSourceRuntime>(
+  "bookings.booking-action-source.runtime",
+  ["read"],
+)
+export const bookingActionProjectionRuntimePort = objectPort<BookingActionProjectionRuntime>(
+  "bookings.booking-action-projection.runtime",
+  ["create", "synchronize"],
 )

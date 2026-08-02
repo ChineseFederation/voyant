@@ -16,6 +16,7 @@ import {
 import { BOOKING_VOYANT_ACTIONS } from "./action-declarations.js"
 import { bookingsReportingDeclaration } from "./reporting-definitions.js"
 import {
+  bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsGuestVerificationRuntimePort,
@@ -344,6 +345,7 @@ export const bookingsVoyantModule = defineModule({
     // use the public create route.
     requirePort(bookingsGuestVerificationRuntimePort, { optional: true }),
     requirePort(bookingsSupplierAmendmentRuntimePort, { optional: true }),
+    requirePort(bookingActionProjectionRuntimePort, { optional: true }),
   ],
   customFieldTargets: [
     {

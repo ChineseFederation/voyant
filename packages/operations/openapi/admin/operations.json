@@ -41876,6 +41876,382 @@
         "x-voyant-surface": "admin",
         "x-voyant-api-id": "@voyant-travel/operations#api.admin"
       }
+    },
+    "/v1/admin/operations/booking-actions": {
+      "get": {
+        "tags": [
+          "Booking actions"
+        ],
+        "summary": "List the operations booking-action work queue",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "bookingSessionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hold_expiry",
+                "deposit_due",
+                "balance_due",
+                "installment_due",
+                "supplier_response_due",
+                "supplier_reconciliation_due",
+                "legal_acceptance_due",
+                "legal_signature_due"
+              ]
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "due",
+                "overdue",
+                "escalated",
+                "satisfied",
+                "cancelled",
+                "superseded",
+                "invalid_source"
+              ]
+            },
+            "required": false,
+            "name": "state",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "dueFrom",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "dueTo",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-projected booking actions and deadlines",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "providerId": {
+                            "type": "string"
+                          },
+                          "sourceModule": {
+                            "type": "string"
+                          },
+                          "sourceType": {
+                            "type": "string"
+                          },
+                          "sourceId": {
+                            "type": "string"
+                          },
+                          "sourceUpdatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "hold_expiry",
+                              "deposit_due",
+                              "balance_due",
+                              "installment_due",
+                              "supplier_response_due",
+                              "supplier_reconciliation_due",
+                              "legal_acceptance_due",
+                              "legal_signature_due"
+                            ]
+                          },
+                          "bookingId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "bookingSessionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "dueAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "dueLocalDate": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date"
+                          },
+                          "timeZone": {
+                            "type": "string"
+                          },
+                          "deadlineSemantics": {
+                            "type": "string",
+                            "enum": [
+                              "instant",
+                              "local_date_end"
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "scheduled",
+                              "due",
+                              "overdue",
+                              "escalated",
+                              "satisfied",
+                              "cancelled",
+                              "superseded",
+                              "invalid_source"
+                            ]
+                          },
+                          "satisfiedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date-time"
+                          },
+                          "escalationPolicy": {
+                            "type": "object",
+                            "properties": {
+                              "dueWindowSeconds": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "default": 86400
+                              },
+                              "escalateAfterSeconds": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "default": 259200
+                              }
+                            }
+                          },
+                          "operatorNextAction": {
+                            "type": "string",
+                            "enum": [
+                              "monitor_hold",
+                              "collect_payment",
+                              "contact_customer",
+                              "reconcile_supplier_operation",
+                              "review_supplier_operation",
+                              "obtain_legal_acceptance",
+                              "obtain_signature",
+                              "none"
+                            ]
+                          },
+                          "customerVisible": {
+                            "type": "boolean"
+                          },
+                          "customerNextAction": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "complete_booking",
+                              "make_payment",
+                              "await_supplier_confirmation",
+                              "accept_terms",
+                              "sign_contract",
+                              "none",
+                              null
+                            ]
+                          },
+                          "safeMetadata": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "projectedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "providerId",
+                          "sourceModule",
+                          "sourceType",
+                          "sourceId",
+                          "sourceUpdatedAt",
+                          "kind",
+                          "bookingId",
+                          "bookingSessionId",
+                          "dueAt",
+                          "dueLocalDate",
+                          "timeZone",
+                          "deadlineSemantics",
+                          "state",
+                          "satisfiedAt",
+                          "escalationPolicy",
+                          "operatorNextAction",
+                          "customerVisible",
+                          "customerNextAction",
+                          "safeMetadata",
+                          "projectedAt"
+                        ]
+                      }
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "limit": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "offset": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "count",
+                    "limit",
+                    "offset",
+                    "asOf"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/operations/booking-actions/rebuild": {
+      "post": {
+        "tags": [
+          "Booking actions"
+        ],
+        "summary": "Deterministically rebuild booking actions from authoritative modules",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Projection rebuild summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "incremental",
+                        "rebuild"
+                      ]
+                    },
+                    "providers": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "projected": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "unchanged": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "invalidated": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "mode",
+                    "providers",
+                    "projected",
+                    "unchanged",
+                    "invalidated"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "webhooks": {}

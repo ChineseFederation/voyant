@@ -3,7 +3,9 @@ import {
   actionLedgerFinanceDriftRuntimePort,
 } from "@voyant-travel/action-ledger/runtime-port"
 import {
+  type BookingActionSourceRuntime,
   type BookingsFinanceRuntime,
+  bookingActionSourceRuntimePort,
   bookingsFinanceRuntimePort,
   bookingsSelfServiceCreateRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
@@ -15,6 +17,7 @@ import { createRouteActionRegistry } from "@voyant-travel/tools"
 import { eq } from "drizzle-orm"
 import { checkFinanceActionLedgerDrift } from "./action-ledger-drift.js"
 import { createFinanceAppApiRuntime } from "./app-api-runtime.js"
+import { financeBookingActionSource } from "./booking-action-source.js"
 import { createBookingAmendmentFinanceRuntime } from "./booking-amendment-runtime.js"
 import { FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION } from "./booking-create-policy.js"
 import {
@@ -49,6 +52,8 @@ export function createFinanceRuntimePortContribution(
   })
   if (hasSource) routeActions.register(FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION)
   return {
+    [bookingActionSourceRuntimePort.id]:
+      financeBookingActionSource satisfies BookingActionSourceRuntime,
     [financeAppApiRuntimePort.id]: createFinanceAppApiRuntime(host.primitives),
     [actionLedgerFinanceDriftRuntimePort.id]: {
       checkFinanceDrift: checkFinanceActionLedgerDrift,

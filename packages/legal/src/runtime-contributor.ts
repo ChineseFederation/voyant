@@ -1,9 +1,14 @@
+import {
+  type BookingActionSourceRuntime,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import { commerceLegalRuntimePort } from "@voyant-travel/commerce/runtime-port"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { DocumentRenderer } from "@voyant-travel/core/document-rendering"
 import type { VoyantPort } from "@voyant-travel/core/project"
 import type { StorageProvider } from "@voyant-travel/storage"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { legalBookingActionSource } from "./booking-action-source.js"
 import { createCommerceLegalRuntime } from "./commerce-runtime.js"
 import { legalContractDocumentJobRuntimePort } from "./contract-document-job-runtime-port.js"
 import { legalContractDocumentRuntimePort } from "./contract-document-runtime-port.js"
@@ -48,6 +53,8 @@ export function createLegalRuntimePortContribution(
     module.createLegalRuntime(host.primitives),
   )
   return {
+    [bookingActionSourceRuntimePort.id]:
+      legalBookingActionSource satisfies BookingActionSourceRuntime,
     [commerceLegalRuntimePort.id]: createCommerceLegalRuntime(host.primitives),
     [legalRuntimePort.id]: runtime.then((value) => value.legal),
     [legalContractDocumentRuntimePort.id]: runtime.then((value) => value.contractDocument),

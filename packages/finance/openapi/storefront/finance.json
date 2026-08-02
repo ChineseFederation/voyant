@@ -1090,6 +1090,9 @@
                               "dueDate": {
                                 "type": "string"
                               },
+                              "dueTimeZone": {
+                                "type": "string"
+                              },
                               "currency": {
                                 "type": "string"
                               },
@@ -1105,6 +1108,7 @@
                               "scheduleType",
                               "status",
                               "dueDate",
+                              "dueTimeZone",
                               "currency",
                               "amountCents",
                               "notes"

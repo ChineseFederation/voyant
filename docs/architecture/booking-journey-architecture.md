@@ -34,6 +34,34 @@ Current implementation state, August 2026:
 - Accepted Proposal Versions seed the same v1 Booking Session lifecycle from a
   frozen Trip Snapshot. Trips coordinates the aggregate while Catalog continues
   to own the per-component Quote, Hold, supplier-operation, and Commit seams.
+- Operations projects time-bound Hold, Payment Schedule, Supplier Operation,
+  and Contract obligations into one Booking Action work queue. The projection
+  is rebuildable and never becomes a second workflow authority: Catalog,
+  Finance, and Legal readers always reread their own current rows. Public
+  Booking routes expose a redacted next-action shape, and payment reminders use
+  the projection's timezone-resolved deadline instant.
+
+### Booking Action projection boundary
+
+`booking_action_projections` is an Operations-owned read model with a stable
+`providerId + sourceModule + sourceType + sourceId` identity. Source modules
+provide current snapshots through a many-valued runtime port. Duplicate,
+delayed, and out-of-order wake-ups converge because snapshots are reread from
+source tables, fingerprints make unchanged writes no-ops, and an older
+`sourceUpdatedAt` cannot replace a newer projection.
+
+The frequent incremental job uses a bounded overlap window; a daily full
+rebuild deterministically rereads every source and marks missing source rows as
+`invalid_source`. Neither the staff queue nor the public next-action route has
+an edit operation. Satisfaction, cancellation, and supersession must happen in
+the authoritative Hold, Payment Schedule, Supplier Operation, or Contract
+service and then flow back through projection.
+
+Payment Schedule deadlines are calendar dates with an explicit IANA timezone.
+Operations resolves local end-of-day to an instant using the named zone, so DST
+and non-UTC operators do not inherit the former implicit `T00:00:00Z`
+interpretation. Notifications refresh and consume this projected instant before
+evaluating payment reminder stages.
 
 Five load-bearing rules, in order of importance:
 

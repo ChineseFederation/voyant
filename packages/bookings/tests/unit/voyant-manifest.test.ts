@@ -38,6 +38,7 @@ describe("bookings deployment manifest", () => {
         // can use the public create route.
         { id: "bookings.guest-verification.runtime", optional: true },
         { id: "bookings.supplier-amendment.runtime", optional: true },
+        { id: "bookings.booking-action-projection.runtime", optional: true },
       ],
       api: [
         {

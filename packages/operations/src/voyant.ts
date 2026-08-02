@@ -1,3 +1,7 @@
+import {
+  bookingActionProjectionRuntimePort,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 
@@ -36,6 +40,7 @@ export const operationsVoyantModule = defineModule({
     ports: [
       providePort(catalogOperationsRuntimeExtensionPort),
       providePort(operationsExpiredHoldsJobRuntimePort),
+      providePort(bookingActionProjectionRuntimePort),
     ],
   },
   // The reaper resolves this port at run time, so the module has to declare it
@@ -43,7 +48,11 @@ export const operationsVoyantModule = defineModule({
   // then fails only when the job actually fires:
   // `composeVoyantGraphRuntime: module "@voyant-travel/operations" requested
   // undeclared port "operations.expired-holds-job"`.
-  runtimePorts: [requirePort(operationsExpiredHoldsJobRuntimePort)],
+  runtimePorts: [
+    requirePort(operationsExpiredHoldsJobRuntimePort),
+    requirePort(bookingActionProjectionRuntimePort),
+    requirePort(bookingActionSourceRuntimePort, { optional: true, cardinality: "many" }),
+  ],
   jobs: [
     {
       id: "operations.release-expired-availability-holds",
@@ -61,6 +70,38 @@ export const operationsVoyantModule = defineModule({
         export: "runOperationsReleaseExpiredHoldsJob",
       },
     },
+    {
+      id: "operations.project-booking-actions",
+      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "* * * * *", overlap: "skip" },
+          economical: { cron: "*/15 * * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/operations/booking-actions-job",
+        export: "runBookingActionIncrementalProjectionJob",
+      },
+    },
+    {
+      id: "operations.rebuild-booking-actions",
+      schedule: { cron: "17 2 * * *", overlap: "skip" },
+      scheduling: {
+        required: true,
+        profiles: {
+          eager: { cron: "17 2 * * *", overlap: "skip" },
+          economical: { cron: "17 2 * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "17 2 * * *", overlap: "skip" },
+        },
+      },
+      runtime: {
+        entry: "@voyant-travel/operations/booking-actions-job",
+        export: "runBookingActionProjectionRebuildJob",
+      },
+    },
   ],
   api: [
     {
@@ -71,7 +112,7 @@ export const operationsVoyantModule = defineModule({
       transactional: true,
       runtime: {
         entry: "@voyant-travel/operations",
-        export: "operationsApiModule",
+        export: "createOperationsVoyantRuntime",
       },
     },
   ],
@@ -231,6 +272,17 @@ export const operationsVoyantModule = defineModule({
       risk: "medium",
     },
     {
+      id: "@voyant-travel/operations#tool.rebuild-booking-actions",
+      name: "rebuild_booking_actions",
+      runtime: {
+        entry: "@voyant-travel/operations/tools",
+        export: "rebuildBookingActionsTool",
+      },
+      requiredScopes: ["operations:write"],
+      context: ["operations"],
+      risk: "medium",
+    },
+    {
       id: "@voyant-travel/operations#tool.list-departures",
       name: "list_departures",
       runtime: {
@@ -367,6 +419,24 @@ export const operationsVoyantModule = defineModule({
       effectBoundary: "local",
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/operations#tool.update-departure"] },
+    },
+    {
+      id: "@voyant-travel/operations#action.rebuild-booking-actions",
+      version: "v1",
+      kind: "execute",
+      targetType: "booking-action-projection",
+      resource: "operations",
+      action: "write",
+      requiredScopes: ["operations:write"],
+      risk: "medium",
+      ledger: "required",
+      approval: "required",
+      reversible: false,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/operations#tool.rebuild-booking-actions"] },
     },
     {
       id: "@voyant-travel/operations#action.get-departure",

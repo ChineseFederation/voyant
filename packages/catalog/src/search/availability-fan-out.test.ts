@@ -3,7 +3,7 @@ import type {
   AvailabilitySearchRequest,
   AvailabilitySearchResult,
   SourceAdapter,
-} from "@voyant-travel/catalog-contracts"
+} from "@voyant-travel/catalog-contracts/adapter/contract"
 import { describe, expect, it } from "vitest"
 
 import { fanOutAvailabilitySearch } from "./availability-fan-out.js"

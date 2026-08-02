@@ -29,6 +29,13 @@
       "when": 1782921600000,
       "tag": "0003_resource_pool_members_unique_pair",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785699380030,
+      "tag": "0004_operations_baseline",
+      "breakpoints": true
     }
   ]
 }

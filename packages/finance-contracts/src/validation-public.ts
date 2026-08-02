@@ -81,6 +81,7 @@ export const publicBookingPaymentScheduleSchema = z.object({
   scheduleType: paymentScheduleTypeSchema,
   status: paymentScheduleStatusSchema,
   dueDate: z.string(),
+  dueTimeZone: z.string(),
   currency: z.string(),
   amountCents: z.number().int(),
   notes: z.string().nullable(),

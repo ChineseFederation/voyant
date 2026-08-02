@@ -7,6 +7,7 @@ import {
   getOperatorDashboardSummaryTool,
   type OperationsToolServices,
   operationsTools,
+  rebuildBookingActionsTool,
   resolveOperatorDashboardWindow,
   updateDepartureTool,
 } from "../src/tools.js"
@@ -31,6 +32,7 @@ function contextWith(overrides: Partial<OperationsToolServices>): ToolContext & 
     operations: {
       createDeparture: unavailable,
       updateDeparture: unavailable,
+      rebuildBookingActions: unavailable,
       getAvailabilityOverview: unavailable,
       getAvailabilityAggregates: unavailable,
       listAvailabilityRules: unavailable,
@@ -215,6 +217,26 @@ describe("Operations tools", () => {
         notes: "Meet at the station - platform 2",
       },
     })
+  })
+
+  it("rebuilds Booking actions through the authoritative projection service", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(rebuildBookingActionsTool)
+    const summary = {
+      mode: "rebuild" as const,
+      providers: 3,
+      projected: 8,
+      unchanged: 5,
+      invalidated: 1,
+    }
+
+    await expect(
+      writeRegistry.dispatch(
+        "rebuild_booking_actions",
+        {},
+        contextWith({ rebuildBookingActions: async () => summary }),
+      ),
+    ).resolves.toEqual(summary)
   })
 
   it("accepts the compatibility productId field but surfaces a rejected ownership move", async () => {

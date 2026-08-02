@@ -1,9 +1,15 @@
 import { executeAdmittedCreatedTargetCommand } from "@voyant-travel/action-ledger/created-command"
 import type { ActionLedgerRequestContextValues } from "@voyant-travel/action-ledger/request-context"
+import {
+  type BookingActionProjectionRuntime,
+  type BookingActionSourceRuntime,
+  bookingActionProjectionRuntimePort,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
-import { defineToolContextContribution, ToolError } from "@voyant-travel/tools"
+import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import { availabilityService } from "./availability/service.js"
@@ -13,7 +19,7 @@ export * from "./tools.js"
 
 export const voyantToolContextContribution = defineToolContextContribution({
   context: ["operations"],
-  contribute: ({ request, context }) => {
+  contribute: ({ request, context, resources }) => {
     const c = request as Context<{
       Variables: ActionLedgerRequestContextValues & { eventBus?: EventBus }
     }>
@@ -93,6 +99,25 @@ export const voyantToolContextContribution = defineToolContextContribution({
             }
             throw error
           }
+        },
+        async rebuildBookingActions() {
+          const projection = requireService(
+            resources[bookingActionProjectionRuntimePort.id] as
+              | BookingActionProjectionRuntime
+              | undefined,
+            bookingActionProjectionRuntimePort.id,
+          )
+          bookingActionProjectionRuntimePort.test(projection)
+          const sourceResource = resources[bookingActionSourceRuntimePort.id]
+          const sources = (
+            sourceResource === undefined
+              ? []
+              : Array.isArray(sourceResource)
+                ? sourceResource
+                : [sourceResource]
+          ) as BookingActionSourceRuntime[]
+          for (const source of sources) bookingActionSourceRuntimePort.test(source)
+          return projection.synchronize(sources, "rebuild")
         },
         getAvailabilityOverview: (
           query: Parameters<typeof availabilityService.getAvailabilityOverview>[1],

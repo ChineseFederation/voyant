@@ -447,6 +447,7 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/bookings-contracts": "workspace:^",
     "@voyant-travel/connect-sdk": "0.9.1",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",

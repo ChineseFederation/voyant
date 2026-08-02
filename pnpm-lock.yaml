@@ -1691,6 +1691,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/bookings-contracts':
+        specifier: workspace:^
+        version: link:../bookings-contracts
       '@voyant-travel/catalog-contracts':
         specifier: workspace:^
         version: link:../catalog-contracts
@@ -3424,6 +3427,9 @@ importers:
       '@voyant-travel/bookings':
         specifier: workspace:^
         version: link:../bookings
+      '@voyant-travel/bookings-contracts':
+        specifier: workspace:^
+        version: link:../bookings-contracts
       '@voyant-travel/commerce':
         specifier: workspace:^
         version: link:../commerce
@@ -4108,6 +4114,12 @@ importers:
       '@voyant-travel/availability':
         specifier: workspace:^
         version: link:../availability
+      '@voyant-travel/bookings':
+        specifier: workspace:^
+        version: link:../bookings
+      '@voyant-travel/bookings-contracts':
+        specifier: workspace:^
+        version: link:../bookings-contracts
       '@voyant-travel/catalog':
         specifier: workspace:^
         version: link:../catalog
@@ -4139,6 +4151,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.5.2
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config

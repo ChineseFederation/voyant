@@ -28,6 +28,7 @@ describe("finance deployment manifest", () => {
         ports: [
           { id: "action-ledger.finance-drift-runtime" },
           { id: "bookings.finance.runtime" },
+          { id: "bookings.booking-action-source.runtime" },
           { id: "finance.host.runtime" },
           { id: "finance.app-api.runtime" },
           // The public booking-create route lives in Bookings; Finance

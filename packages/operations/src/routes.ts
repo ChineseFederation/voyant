@@ -3,6 +3,10 @@ import { openApiValidationHook } from "@voyant-travel/hono"
 import { Hono } from "hono"
 
 import { availabilityAdminRoutes, availabilityRoutes } from "./availability/routes.js"
+import {
+  type BookingActionRoutesOptions,
+  createBookingActionAdminRoutes,
+} from "./booking-actions/routes.js"
 import { groundRoutes } from "./ground/routes.js"
 import { facilitiesRoutes } from "./places/routes.js"
 import { resourcesRoutes } from "./resources/routes.js"
@@ -27,6 +31,15 @@ operationsAdminRoutes.route("/availability", availabilityAdminRoutes)
 operationsAdminRoutes.route("/", resourcesRoutes)
 operationsAdminRoutes.route("/", groundRoutes)
 operationsAdminRoutes.route("/", facilitiesRoutes)
+
+export function createOperationsAdminRoutes(options?: BookingActionRoutesOptions) {
+  const routes = new OpenAPIHono({ defaultHook: openApiValidationHook })
+    .route("/availability", availabilityAdminRoutes)
+    .route("/", resourcesRoutes)
+    .route("/", groundRoutes)
+    .route("/", facilitiesRoutes)
+  return options ? routes.route("/", createBookingActionAdminRoutes(options)) : routes
+}
 
 export type OperationsRoutes = typeof operationsRoutes
 export type OperationsAdminRoutes = typeof operationsAdminRoutes

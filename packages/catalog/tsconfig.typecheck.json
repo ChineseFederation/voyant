@@ -299,6 +299,9 @@
       "@voyant-travel/bookings-contracts/amendments": [
         "../bookings-contracts/dist/amendments.d.ts"
       ],
+      "@voyant-travel/bookings-contracts/booking-actions": [
+        "../bookings-contracts/dist/booking-actions.d.ts"
+      ],
       "@voyant-travel/bookings-contracts/traveler-schemas": [
         "../bookings-contracts/dist/traveler-schemas.d.ts"
       ],
@@ -1543,6 +1546,9 @@
       ],
       "@voyant-travel/operations-react/resources/ui": [
         "../operations-react/dist/resources/ui.d.ts"
+      ],
+      "@voyant-travel/operations/booking-actions-job": [
+        "../operations/dist/booking-actions/job.d.ts"
       ],
       "@voyant-travel/operations/catalog-runtime-extension": [
         "../operations/dist/catalog-runtime-extension.d.ts"

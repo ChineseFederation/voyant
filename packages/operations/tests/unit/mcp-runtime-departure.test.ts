@@ -145,4 +145,40 @@ describe("departure created-target runtime", () => {
       },
     })
   })
+
+  it("resolves all selected booking-action sources for a deterministic rebuild", async () => {
+    const sourceA = { id: "catalog", sourceModule: "catalog", read: vi.fn() }
+    const sourceB = { id: "finance", sourceModule: "finance", read: vi.fn() }
+    const synchronize = vi.fn().mockResolvedValue({
+      mode: "rebuild",
+      providers: 2,
+      projected: 4,
+      unchanged: 3,
+      invalidated: 0,
+    })
+    const contribution = await voyantToolContextContribution.contribute({
+      request: {
+        var: { actor: "staff" },
+        get(key: string) {
+          return this.var[key as keyof typeof this.var]
+        },
+        req: { header: () => null },
+      } as never,
+      context: { db: {} } as never,
+      resources: {
+        "bookings.booking-action-projection.runtime": {
+          create: vi.fn(),
+          synchronize,
+        },
+        "bookings.booking-action-source.runtime": [sourceA, sourceB],
+      },
+    })
+    if (!contribution.operations) throw new Error("missing Operations runtime")
+
+    await expect(contribution.operations.rebuildBookingActions()).resolves.toMatchObject({
+      mode: "rebuild",
+      providers: 2,
+    })
+    expect(synchronize).toHaveBeenCalledWith([sourceA, sourceB], "rebuild")
+  })
 })

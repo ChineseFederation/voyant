@@ -18,7 +18,7 @@ import type {
   AvailabilitySearchRequest,
   SourceAdapter,
   SourceAdapterContext,
-} from "@voyant-travel/catalog-contracts"
+} from "@voyant-travel/catalog-contracts/adapter/contract"
 import type { OwnedAvailabilitySearchHandler, OwnedSearchContext } from "./owned-search-handler.js"
 
 /** Per-source outcome, returned alongside merged candidates for partial-success UX. */

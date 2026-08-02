@@ -17,11 +17,17 @@ export async function sendDueNotificationReminders(
 ) {
   const runtime = buildNotificationTaskRuntime(env, options)
   const dispatcher = createNotificationService(runtime.providers)
+  const projectionOptions = runtime.resolveBookingActionDeadline
+    ? { resolveBookingActionDeadline: runtime.resolveBookingActionDeadline }
+    : undefined
   const runSweep: () => Promise<ReminderQueueResult | ReminderSweepResult> = () =>
     runtime.enqueueReminderDelivery
-      ? queueDueReminders(db, input, runtime.enqueueReminderDelivery)
+      ? projectionOptions
+        ? queueDueReminders(db, input, runtime.enqueueReminderDelivery, projectionOptions)
+        : queueDueReminders(db, input, runtime.enqueueReminderDelivery)
       : runDueReminders(db, dispatcher, input, {
           publicCustomerPortalBaseUrl: runtime.publicCustomerPortalBaseUrl,
+          resolveBookingActionDeadline: runtime.resolveBookingActionDeadline,
         })
 
   if (!runtime.reminderSweepLockManager) {

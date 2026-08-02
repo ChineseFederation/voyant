@@ -1,4 +1,8 @@
 import {
+  bookingActionProjectionRuntimePort,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
+import {
   defineExtension,
   defineModule,
   providePort,
@@ -23,6 +27,8 @@ export const notificationsVoyantModule = defineModule({
     requirePort(notificationsRuntimePort),
     requirePort(notificationsReminderJobRuntimePort),
     requirePort(durableNotificationProviderPort, { optional: true }),
+    requirePort(bookingActionProjectionRuntimePort, { optional: true }),
+    requirePort(bookingActionSourceRuntimePort, { optional: true, cardinality: "many" }),
   ],
   provides: {
     capabilities: ["notifications.delivery"],

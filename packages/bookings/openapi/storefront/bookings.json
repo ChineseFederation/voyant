@@ -5929,6 +5929,135 @@
           }
         }
       }
+    },
+    "/v1/public/bookings/{bookingId}/actions": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "tags": ["Bookings"],
+        "summary": "List customer-safe next actions for a booking",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redacted server-projected booking actions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "hold_expiry",
+                              "deposit_due",
+                              "balance_due",
+                              "installment_due",
+                              "supplier_response_due",
+                              "supplier_reconciliation_due",
+                              "legal_acceptance_due",
+                              "legal_signature_due"
+                            ]
+                          },
+                          "bookingId": {
+                            "type": ["string", "null"]
+                          },
+                          "dueAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "dueLocalDate": {
+                            "type": ["string", "null"],
+                            "format": "date"
+                          },
+                          "timeZone": {
+                            "type": "string"
+                          },
+                          "deadlineSemantics": {
+                            "type": "string",
+                            "enum": ["instant", "local_date_end"]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "scheduled",
+                              "due",
+                              "overdue",
+                              "escalated",
+                              "satisfied",
+                              "cancelled",
+                              "superseded",
+                              "invalid_source"
+                            ]
+                          },
+                          "satisfiedAt": {
+                            "type": ["string", "null"],
+                            "format": "date-time"
+                          },
+                          "customerNextAction": {
+                            "type": ["string", "null"],
+                            "enum": [
+                              "complete_booking",
+                              "make_payment",
+                              "await_supplier_confirmation",
+                              "accept_terms",
+                              "sign_contract",
+                              "none",
+                              null
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "bookingId",
+                          "dueAt",
+                          "dueLocalDate",
+                          "timeZone",
+                          "deadlineSemantics",
+                          "state",
+                          "satisfiedAt",
+                          "customerNextAction"
+                        ]
+                      }
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["data", "asOf"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing booking access capability"
+          },
+          "403": {
+            "description": "Booking does not belong to the active storefront channel"
+          },
+          "501": {
+            "description": "Booking action projection is not selected"
+          }
+        }
+      }
     }
   },
   "webhooks": {}

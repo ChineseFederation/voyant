@@ -25,6 +25,8 @@ export type ReminderTargetSnapshot = {
   id: string
   bookingId: string | null
   dueDate: string | null
+  /** Authoritative instant from the Operations booking-action projection. */
+  dueAt?: string | null
   issuedAt: string | null
   departureDate: string | null
   bookingCreatedAt: string | null
@@ -193,7 +195,11 @@ export function resolveAnchor(
 ): Date | null {
   switch (anchor) {
     case "due_date":
-      return target.dueDate ? new Date(`${target.dueDate}T00:00:00Z`) : null
+      return target.dueAt
+        ? new Date(target.dueAt)
+        : target.dueDate
+          ? new Date(`${target.dueDate}T00:00:00Z`)
+          : null
     case "booking_created_at":
       return target.bookingCreatedAt ? new Date(target.bookingCreatedAt) : null
     case "departure_date":
@@ -243,8 +249,11 @@ export function evaluateStage(
   }, null)
 
   let daysUntilDue: number | null = null
-  if (target.dueDate) {
-    daysUntilDue = daysBetweenUtc(new Date(`${target.dueDate}T00:00:00Z`), today)
+  if (target.dueAt || target.dueDate) {
+    daysUntilDue = daysBetweenUtc(
+      target.dueAt ? new Date(target.dueAt) : new Date(`${target.dueDate!}T00:00:00Z`),
+      today,
+    )
   }
 
   if (!cadenceElapsed(today, lastAttempt, stage, daysUntilDue)) {

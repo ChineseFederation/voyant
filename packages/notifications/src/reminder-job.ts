@@ -1,3 +1,7 @@
+import {
+  bookingActionProjectionRuntimePort,
+  bookingActionSourceRuntimePort,
+} from "@voyant-travel/bookings/runtime-port"
 import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/project"
 import { durableNotificationProviderPort } from "./durable-provider-port.js"
 import { notificationsReminderJobRuntimePort } from "./reminder-job-runtime-port.js"
@@ -15,7 +19,22 @@ export async function runDueNotificationRemindersJob(
 ): Promise<void> {
   const runtime = await context.getPort(notificationsReminderJobRuntimePort)
   const [db, env] = await Promise.all([runtime.resolveDb(), runtime.resolveEnv()])
-  await sendDueNotificationReminders(db, env, {}, await runtime.resolveRuntimeOptions(env))
+  const options = await runtime.resolveRuntimeOptions(env)
+  if (context.hasPort(bookingActionProjectionRuntimePort)) {
+    const [projection, sources] = await Promise.all([
+      context.getPort(bookingActionProjectionRuntimePort),
+      context.getPorts(bookingActionSourceRuntimePort),
+    ])
+    await projection.synchronize(sources, "incremental")
+    const service = projection.create(db)
+    options.resolveBookingActionDeadline = (source) =>
+      service.getDeadlinesBySource({
+        sourceModule: source.sourceModule,
+        sourceType: source.sourceType,
+        sourceIds: source.sourceIds,
+      })
+  }
+  await sendDueNotificationReminders(db, env, {}, options)
 }
 
 /** Reconcile and deliver package-owned durable notification send operations. */

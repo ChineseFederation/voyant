@@ -406,6 +406,7 @@ export const PREFIXES = {
   booking_session_holds: "bshd",
   booking_session_commits: "bscm",
   booking_session_operations: "bsop",
+  booking_action_projections: "bkap",
   booking_session_audit_events: "bsae",
   supplier_operations: "suop",
 

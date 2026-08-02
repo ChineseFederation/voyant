@@ -1,5 +1,23 @@
 import { z } from "zod"
 
+export const ianaTimeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .describe("IANA timezone for the local business date, for example Europe/Bucharest.")
+  .refine(
+    (value) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value }).format()
+        return true
+      } catch {
+        return false
+      }
+    },
+    { message: "Expected a valid IANA timezone" },
+  )
+
 export const invoiceStatusSchema = z.enum([
   "draft",
   "pending_external_allocation",
