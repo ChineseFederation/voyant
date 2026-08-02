@@ -1,5 +1,19 @@
 # @voyant-travel/schema-kit
 
+## 0.116.1
+
+### Patch Changes
+
+- 5d3b563: Complete the Booking Session v1 owned Product tracer with server-derived access context,
+  creation-only anonymous capability material, idempotent Quote/Hold/update/abandon/Commit
+  operations, and production Commit wiring through the admitted Finance self-service create
+  transaction callback.
+- f25ad34: Add the Booking Platform v1 lifecycle commitment-policy schemas and reusable conformance scenarios.
+
+  Implement the first owned Product Booking Session v1 tracer with exact-revision
+  Quote, capability-gated public mutations, real-capacity Hold, atomic Commit
+  outcome, persistent repository adapter, Storefront SDK, and React hook surfaces.
+
 ## 0.116.0
 
 ### Minor Changes

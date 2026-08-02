@@ -1,5 +1,12 @@
 # @voyant-travel/apps
 
+## 0.14.1
+
+### Patch Changes
+
+- Updated dependencies [2601445]
+  - @voyant-travel/finance-contracts@0.109.0
+
 ## 0.14.0
 
 ### Minor Changes

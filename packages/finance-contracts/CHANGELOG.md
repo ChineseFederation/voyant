@@ -1,5 +1,20 @@
 # @voyant-travel/finance-contracts
 
+## 0.109.0
+
+### Minor Changes
+
+- 2601445: Continue owned Product Booking Session Commit through an idempotent pre-Booking
+  Finance payment session, selected payment adapter, and atomic transfer to the
+  created Booking. Expose typed payment-required continuation and recovery through
+  the shared route contract, Storefront SDK, and React hooks.
+
+### Patch Changes
+
+- Updated dependencies [5d3b563]
+- Updated dependencies [f25ad34]
+  - @voyant-travel/schema-kit@0.116.1
+
 ## 0.108.1
 
 ### Patch Changes
