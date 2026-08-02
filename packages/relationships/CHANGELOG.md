@@ -1,5 +1,14 @@
 # @voyant-travel/crm
 
+## 0.133.5
+
+### Patch Changes
+
+- Updated dependencies [ed8610c]
+  - @voyant-travel/custom-fields@0.2.23
+  - @voyant-travel/bookings@0.232.0
+  - @voyant-travel/identity@0.232.0
+
 ## 0.133.4
 
 ### Patch Changes

@@ -1,5 +1,22 @@
 # @voyant-travel/catalog
 
+## 0.230.0
+
+### Minor Changes
+
+- e93c0a7: Generalize durable Supplier Operations from Session-only reserve intents to
+  explicit Booking Session or Booking Amendment subjects, with linked Booking
+  Items and reserve, modify, and cancel operation kinds. Add the source-adapter
+  desired-state modification contract and Amendment-safe dispatch,
+  idempotency, ambiguity, and reconciliation behavior.
+
+### Patch Changes
+
+- Updated dependencies [e93c0a7]
+  - @voyant-travel/catalog-contracts@0.115.0
+  - @voyant-travel/bookings@0.232.0
+  - @voyant-travel/finance@0.232.0
+
 ## 0.229.0
 
 ### Patch Changes
