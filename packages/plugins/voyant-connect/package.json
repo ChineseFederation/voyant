@@ -1,0 +1,71 @@
+{
+  "name": "@voyant-travel/plugin-voyant-connect",
+  "version": "0.3.3",
+  "description": "Voyant Connect sources plugin for Voyant deployments.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/plugins/voyant-connect"
+  },
+  "type": "module",
+  "keywords": [
+    "voyant",
+    "voyant-connect",
+    "plugin",
+    "sources",
+    "sdk",
+    "typescript"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "typecheck": "NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run --passWithNoTests",
+    "build": "pnpm run clean && NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm --workspace-concurrency=1 --filter @voyant-travel/plugin-voyant-connect... run build"
+  },
+  "dependencies": {
+    "@voyant-travel/connect-adapter": "^0.5.0",
+    "@voyant-travel/connect-cruises": "^0.6.2",
+    "@voyant-travel/connect-sdk": "^0.10.0",
+    "@voyant-travel/data-sdk": "^0.8.0"
+  },
+  "peerDependencies": {
+    "@voyant-travel/catalog": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/cruises": "workspace:^",
+    "@voyant-travel/cruises-contracts": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@voyant-travel/catalog": {
+      "optional": true
+    },
+    "@voyant-travel/cruises": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  }
+}

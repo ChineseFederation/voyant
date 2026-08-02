@@ -1596,6 +1596,7 @@
       "@voyant-travel/plugin-sanity-cms/plugin": ["../plugins/sanity-cms/dist/plugin.d.ts"],
       "@voyant-travel/plugin-sanity-cms/types": ["../plugins/sanity-cms/dist/types.d.ts"],
       "@voyant-travel/plugin-sanity-cms/voyant": ["../plugins/sanity-cms/dist/voyant.d.ts"],
+      "@voyant-travel/plugin-voyant-connect": ["../plugins/voyant-connect/dist/index.d.ts"],
       "@voyant-travel/products-contracts": ["../products-contracts/dist/index.d.ts"],
       "@voyant-travel/products-contracts/content-shape": [
         "../products-contracts/dist/content-shape.d.ts"

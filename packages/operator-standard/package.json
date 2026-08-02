@@ -112,7 +112,7 @@
     "@voyant-travel/connect-sdk": "0.9.1",
     "@voyant-travel/framework-migrations": "workspace:*",
     "@voyant-travel/identity-react": "workspace:*",
-    "@voyant-travel/plugin-voyant-connect": "^0.3.2",
+    "@voyant-travel/plugin-voyant-connect": "workspace:*",
     "@voyant-travel/runtime-core": "workspace:*",
     "@voyant-travel/tools": "workspace:*",
     "@voyant-travel/utils": "workspace:*",

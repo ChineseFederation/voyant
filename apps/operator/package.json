@@ -93,7 +93,7 @@
     "@voyant-travel/operator-settings-react": "workspace:^",
     "@voyant-travel/operator-standard": "workspace:^",
     "@voyant-travel/payments": "workspace:^",
-    "@voyant-travel/plugin-voyant-connect": "^0.3.2",
+    "@voyant-travel/plugin-voyant-connect": "workspace:^",
     "@voyant-travel/proposals": "workspace:^",
     "@voyant-travel/proposals-contracts": "workspace:^",
     "@voyant-travel/proposals-react": "workspace:^",

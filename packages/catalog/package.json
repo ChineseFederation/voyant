@@ -452,7 +452,7 @@
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
-    "@voyant-travel/plugin-voyant-connect": "^0.3.2",
+    "@voyant-travel/plugin-voyant-connect": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
