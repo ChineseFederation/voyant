@@ -146,6 +146,12 @@ tracers.
   Allocation atomically.
 - Supplier Operation is sourced-inventory state, not a Booking. Supplier
   pending and ambiguity remain typed lifecycle outcomes.
+- Supplier Operation is not Commit-specific storage. Its subject is explicit:
+  a pre-Booking operation belongs to a Booking Session, while a post-Booking
+  operation belongs to a Booking Amendment and links the affected Booking Item.
+  Reserve, modify, and cancel share the same durable dispatch, idempotency, and
+  reconciliation rules; only their owning workflow decides when a local
+  projection may advance.
 - Finance collection, invoices, schedules, guarantees, and payment sessions use
   explicit Finance targets. They do not define Booking status.
 - Fulfillment starts after Booking creation. Service Voucher issuance,

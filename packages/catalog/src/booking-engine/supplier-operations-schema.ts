@@ -1,6 +1,8 @@
 import type {
   SupplierCommitmentPolicyV1,
+  SupplierOperationKindV1,
   SupplierOperationStateV1,
+  SupplierOperationSubjectTypeV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/supplier-operations"
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { sql } from "drizzle-orm"
@@ -25,18 +27,20 @@ export const supplierOperationsTable = pgTable(
   "supplier_operations",
   {
     id: typeId("supplier_operations"),
-    sessionId: typeIdRef("session_id")
-      .notNull()
-      .references(() => bookingSessionsTable.id, { onDelete: "restrict" }),
+    subjectType: text("subject_type").$type<SupplierOperationSubjectTypeV1>().notNull(),
+    subjectId: text("subject_id").notNull(),
+    sessionId: typeIdRef("session_id").references(() => bookingSessionsTable.id, {
+      onDelete: "restrict",
+    }),
     scopeKey: text("scope_key").notNull().default("session"),
-    quoteId: typeIdRef("quote_id")
-      .notNull()
-      .references(() => bookingSessionQuotesTable.id, { onDelete: "restrict" }),
+    quoteId: typeIdRef("quote_id").references(() => bookingSessionQuotesTable.id, {
+      onDelete: "restrict",
+    }),
     holdId: typeIdRef("hold_id").references(() => bookingSessionHoldsTable.id, {
       onDelete: "restrict",
     }),
-    commitIdempotencyKey: text("commit_idempotency_key").notNull(),
-    operationKind: text("operation_kind").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    operationKind: text("operation_kind").$type<SupplierOperationKindV1>().notNull(),
     state: text("state").$type<SupplierOperationStateV1>().notNull(),
     commitmentPolicy: text("commitment_policy").$type<SupplierCommitmentPolicyV1>().notNull(),
     entityModule: text("entity_module").notNull(),
@@ -53,6 +57,8 @@ export const supplierOperationsTable = pgTable(
     upstreamRef: text("upstream_ref"),
     upstreamStatus: text("upstream_status"),
     bookingId: text("booking_id"),
+    bookingItemId: text("booking_item_id"),
+    amendmentId: text("amendment_id"),
     lastErrorClass: text("last_error_class"),
     safeEvidence: jsonb("safe_evidence").$type<Record<string, unknown>>().notNull().default({}),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
@@ -67,7 +73,15 @@ export const supplierOperationsTable = pgTable(
   },
   (table) => [
     check("supplier_operations_id_typeid", sql`${table.id} LIKE 'suop_%'`),
-    check("supplier_operations_kind", sql`${table.operationKind} = 'reserve'`),
+    check(
+      "supplier_operations_subject_type",
+      sql`${table.subjectType} IN ('booking_session','booking_amendment')`,
+    ),
+    check(
+      "supplier_operations_subject_shape",
+      sql`(${table.subjectType} = 'booking_session' AND ${table.sessionId} IS NOT NULL AND ${table.quoteId} IS NOT NULL AND ${table.amendmentId} IS NULL) OR (${table.subjectType} = 'booking_amendment' AND ${table.sessionId} IS NULL AND ${table.quoteId} IS NULL AND ${table.bookingId} IS NOT NULL AND ${table.bookingItemId} IS NOT NULL AND ${table.amendmentId} IS NOT NULL)`,
+    ),
+    check("supplier_operations_kind", sql`${table.operationKind} IN ('reserve','modify','cancel')`),
     check(
       "supplier_operations_state",
       sql`${table.state} IN ('queued','submitted','pending','succeeded','refused','cancelled','in_doubt','manual_review','manually_resolved')`,
@@ -78,13 +92,14 @@ export const supplierOperationsTable = pgTable(
     ),
     check("supplier_operations_attempt_count", sql`${table.attemptCount} >= 0`),
     check("supplier_operations_version", sql`${table.version} >= 0`),
-    uniqueIndex("uidx_supplier_operations_session_commit").on(
-      table.sessionId,
+    uniqueIndex("uidx_supplier_operations_subject_command").on(
+      table.subjectType,
+      table.subjectId,
       table.scopeKey,
-      table.commitIdempotencyKey,
+      table.idempotencyKey,
     ),
-    uniqueIndex("uidx_supplier_operations_session_reserve_guard")
-      .on(table.sessionId, table.scopeKey, table.operationKind)
+    uniqueIndex("uidx_supplier_operations_subject_active_guard")
+      .on(table.subjectType, table.subjectId, table.scopeKey, table.operationKind)
       .where(
         sql`${table.state} IN ('queued','submitted','pending','succeeded','in_doubt','manual_review') OR (${table.state} = 'manually_resolved' AND ${table.upstreamStatus} = 'succeeded')`,
       ),
@@ -94,6 +109,7 @@ export const supplierOperationsTable = pgTable(
     ),
     index("idx_supplier_operations_state_reconcile").on(table.state, table.nextReconcileAt),
     index("idx_supplier_operations_session_created").on(table.sessionId, table.createdAt),
+    index("idx_supplier_operations_amendment_created").on(table.amendmentId, table.createdAt),
     index("idx_supplier_operations_upstream").on(table.sourceConnectionId, table.upstreamRef),
   ],
 )

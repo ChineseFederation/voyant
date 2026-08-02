@@ -307,11 +307,157 @@ describe("Supplier Operation workflow", () => {
     })
     expect(reserve).toHaveBeenCalledTimes(1)
   })
+
+  it("persists an Amendment modify intent before dispatch and replays it once", async () => {
+    const repository = memoryRepository()
+    const modifyReservation = vi.fn(async (_context, request) => {
+      expect(repository.rows[0]).toMatchObject({
+        subjectType: "booking_amendment",
+        subjectId: "bamd_1",
+        bookingId: "book_1",
+        bookingItemId: "bitm_1",
+        amendmentId: "bamd_1",
+        operationKind: "modify",
+        state: "submitted",
+        attemptCount: 1,
+      })
+      expect(request.idempotency_key).toBe("bamd_1:bitm_1:apply-key:modify")
+      return { upstream_ref: "UP-BOOKING", status: "confirmed" as const }
+    })
+    const workflow = workflowWith(repository, { modifyReservation })
+    const amendmentInput = {
+      amendmentId: "bamd_1",
+      bookingId: "book_1",
+      bookingItemId: "bitm_1",
+      idempotencyKey: "apply-key",
+      requestFingerprint: "roster-after-hash",
+      operationKind: "modify" as const,
+      entityModule: "cruises",
+      entityId: "crus_1",
+      sourceKind: "cruise:test",
+      sourceConnectionId: "conn_1",
+      sourceRef: "CRUISE-1",
+      request: {
+        upstream_ref: "UP-BOOKING",
+        desired_state: { party: { passengers: [{ id: "trav_1" }, { id: "trav_2" }] } },
+        idempotency_key: "caller-key-is-replaced",
+      },
+      adapterContext: { connection_id: "conn_1" },
+      now: new Date("2026-08-02T10:00:00.000Z"),
+    }
+
+    await expect(workflow.dispatchAmendment(amendmentInput)).resolves.toMatchObject({
+      kind: "secured",
+      operation: { state: "succeeded", upstreamRef: "UP-BOOKING" },
+    })
+    await expect(workflow.dispatchAmendment(amendmentInput)).resolves.toMatchObject({
+      kind: "secured",
+      operation: { attemptCount: 1 },
+    })
+    expect(modifyReservation).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not redispatch an ambiguous Amendment and reconciles it by upstream reference", async () => {
+    const repository = memoryRepository()
+    const modifyReservation = vi.fn(async () => {
+      throw new Error("supplier accepted the write but the response timed out")
+    })
+    const getReservation = vi.fn(async () => ({
+      upstream_ref: "UP-BOOKING",
+      status: "confirmed" as const,
+      last_operation_idempotency_key: "bamd_2:bitm_1:apply-key:modify",
+      source_updated_at: new Date("2026-08-02T10:01:00.000Z"),
+    }))
+    const workflow = workflowWith(repository, { modifyReservation, getReservation })
+    const amendmentInput = {
+      amendmentId: "bamd_2",
+      bookingId: "book_1",
+      bookingItemId: "bitm_1",
+      idempotencyKey: "apply-key",
+      requestFingerprint: "roster-after-hash",
+      operationKind: "modify" as const,
+      entityModule: "cruises",
+      entityId: "crus_1",
+      sourceKind: "cruise:test",
+      sourceConnectionId: "conn_1",
+      sourceRef: "CRUISE-1",
+      request: {
+        upstream_ref: "UP-BOOKING",
+        desired_state: { party: { passengers: [{ id: "trav_1" }] } },
+        idempotency_key: "ignored",
+      },
+      adapterContext: { connection_id: "conn_1" },
+      now: new Date("2026-08-02T10:00:00.000Z"),
+    }
+    const dispatched = await workflow.dispatchAmendment(amendmentInput)
+    if (dispatched.kind !== "in_doubt") throw new Error("expected in-doubt operation")
+    await expect(workflow.dispatchAmendment(amendmentInput)).resolves.toMatchObject({
+      kind: "in_doubt",
+      operation: { attemptCount: 1 },
+    })
+    await expect(
+      workflow.reconcile(dispatched.operation, {
+        adapterContext: { connection_id: "conn_1" },
+        now: new Date("2026-08-02T10:02:00.000Z"),
+      }),
+    ).resolves.toMatchObject({ kind: "secured", operation: { state: "succeeded" } })
+    expect(modifyReservation).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps a modification in doubt when the read cannot prove the desired effect", async () => {
+    const repository = memoryRepository()
+    const modifyReservation = vi.fn(async () => {
+      throw new Error("response timed out")
+    })
+    const getReservation = vi.fn(async () => ({
+      upstream_ref: "UP-BOOKING",
+      status: "confirmed" as const,
+      source_updated_at: new Date("2026-08-02T10:01:00.000Z"),
+    }))
+    const workflow = workflowWith(repository, { modifyReservation, getReservation })
+    const dispatched = await workflow.dispatchAmendment({
+      amendmentId: "bamd_3",
+      bookingId: "book_1",
+      bookingItemId: "bitm_1",
+      idempotencyKey: "apply-key",
+      requestFingerprint: "desired-state-hash",
+      operationKind: "modify",
+      entityModule: "cruises",
+      entityId: "crus_1",
+      sourceKind: "cruise:test",
+      sourceConnectionId: "conn_1",
+      sourceRef: "CRUISE-1",
+      request: {
+        upstream_ref: "UP-BOOKING",
+        desired_state: { party: { passengers: [{ id: "trav_1" }] } },
+        idempotency_key: "ignored",
+      },
+      adapterContext: { connection_id: "conn_1" },
+      now: new Date("2026-08-02T10:00:00.000Z"),
+    })
+    if (dispatched.kind !== "in_doubt") throw new Error("expected in-doubt operation")
+
+    await expect(
+      workflow.reconcile(dispatched.operation, {
+        adapterContext: { connection_id: "conn_1" },
+        now: new Date("2026-08-02T10:02:00.000Z"),
+      }),
+    ).resolves.toMatchObject({
+      kind: "in_doubt",
+      operation: {
+        state: "in_doubt",
+        lastErrorClass: "modification_effect_unproven",
+        safeEvidence: { modificationEffectProven: false },
+      },
+    })
+  })
 })
 
 function workflowWith(
   repository: ReturnType<typeof memoryRepository>,
-  methods: Pick<SourceAdapter, "reserve"> & Partial<Pick<SourceAdapter, "getReservation">>,
+  methods: Partial<
+    Pick<SourceAdapter, "reserve" | "modifyReservation" | "cancel" | "getReservation">
+  >,
 ) {
   const registry = createSourceAdapterRegistry()
   registry.register("conn_1", {
@@ -320,10 +466,14 @@ function workflowWith(
       verticals: ["cruises"],
       supportsLiveResolution: true,
       supportsDriftDetection: false,
-      supportsBookingForwarding: true,
+      supportsBookingForwarding: Boolean(methods.reserve),
       supportsReservationRetrieval: Boolean(methods.getReservation),
       supportsReservationLookupByIdempotencyKey: Boolean(methods.getReservation),
-      postBookOperations: ["status"],
+      postBookOperations: [
+        "status",
+        ...(methods.modifyReservation ? (["modify"] as const) : []),
+        ...(methods.cancel ? (["cancel"] as const) : []),
+      ],
     },
     ...methods,
   })
@@ -360,9 +510,10 @@ function memoryRepository(): SupplierOperationRepository & {
     async createOrReplay(record): Promise<CreateSupplierOperationResult> {
       const replay = rows.find(
         (row) =>
-          row.sessionId === record.sessionId &&
+          row.subjectType === record.subjectType &&
+          row.subjectId === record.subjectId &&
           row.scopeKey === record.scopeKey &&
-          row.commitIdempotencyKey === record.commitIdempotencyKey,
+          row.idempotencyKey === record.idempotencyKey,
       )
       if (replay) {
         return replay.requestFingerprint === record.requestFingerprint
@@ -371,7 +522,8 @@ function memoryRepository(): SupplierOperationRepository & {
       }
       const blocking = rows.find(
         (row) =>
-          row.sessionId === record.sessionId &&
+          row.subjectType === record.subjectType &&
+          row.subjectId === record.subjectId &&
           row.scopeKey === record.scopeKey &&
           blocksReplacement(row),
       )
@@ -384,13 +536,14 @@ function memoryRepository(): SupplierOperationRepository & {
     async get(operationId) {
       return rows.find((row) => row.id === operationId) ?? null
     },
-    async getByCommit(sessionId, commitIdempotencyKey, scopeKey) {
+    async getByIdempotency(subjectType, subjectId, idempotencyKey, scopeKey) {
       return (
         rows.find(
           (row) =>
-            row.sessionId === sessionId &&
+            row.subjectType === subjectType &&
+            row.subjectId === subjectId &&
             (!scopeKey || row.scopeKey === scopeKey) &&
-            row.commitIdempotencyKey === commitIdempotencyKey,
+            row.idempotencyKey === idempotencyKey,
         ) ?? null
       )
     },

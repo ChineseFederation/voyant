@@ -1,7 +1,9 @@
 import type {
   SupplierCommitmentPolicyV1,
+  SupplierOperationKindV1,
   SupplierOperationRecordV1,
   SupplierOperationStateV1,
+  SupplierOperationSubjectTypeV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/supplier-operations"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
@@ -14,12 +16,16 @@ import {
 
 export interface SupplierOperationInternalRecord {
   id: string
-  sessionId: string
+  subjectType: SupplierOperationSubjectTypeV1
+  subjectId: string
+  sessionId?: string
   scopeKey: string
-  quoteId: string
+  quoteId?: string
   holdId?: string
-  commitIdempotencyKey: string
-  operationKind: "reserve"
+  bookingItemId?: string
+  amendmentId?: string
+  idempotencyKey: string
+  operationKind: SupplierOperationKindV1
   state: SupplierOperationStateV1
   commitmentPolicy: SupplierCommitmentPolicyV1
   entityModule: string
@@ -57,9 +63,10 @@ export type CreateSupplierOperationResult =
 export interface SupplierOperationRepository {
   createOrReplay(record: SupplierOperationInternalRecord): Promise<CreateSupplierOperationResult>
   get(operationId: string): Promise<SupplierOperationInternalRecord | null>
-  getByCommit(
-    sessionId: string,
-    commitIdempotencyKey: string,
+  getByIdempotency(
+    subjectType: SupplierOperationSubjectTypeV1,
+    subjectId: string,
+    idempotencyKey: string,
     scopeKey?: string,
   ): Promise<SupplierOperationInternalRecord | null>
   getBySession(sessionId: string): Promise<SupplierOperationInternalRecord | null>
@@ -71,6 +78,7 @@ export interface SupplierOperationRepository {
   list(input: {
     state?: SupplierOperationStateV1
     sessionId?: string
+    amendmentId?: string
     limit: number
   }): Promise<SupplierOperationInternalRecord[]>
   claimDispatch(operationId: string, at: Date): Promise<SupplierOperationInternalRecord | null>
@@ -122,9 +130,10 @@ export function createDrizzleSupplierOperationRepository(
     return row ? mapSupplierOperation(row) : null
   }
 
-  async function getByCommit(
-    sessionId: string,
-    commitIdempotencyKey: string,
+  async function getByIdempotency(
+    subjectType: SupplierOperationSubjectTypeV1,
+    subjectId: string,
+    idempotencyKey: string,
     scopeKey?: string,
   ): Promise<SupplierOperationInternalRecord | null> {
     const [row] = await db
@@ -132,9 +141,10 @@ export function createDrizzleSupplierOperationRepository(
       .from(supplierOperationsTable)
       .where(
         and(
-          eq(supplierOperationsTable.sessionId, sessionId),
+          eq(supplierOperationsTable.subjectType, subjectType),
+          eq(supplierOperationsTable.subjectId, subjectId),
           ...(scopeKey ? [eq(supplierOperationsTable.scopeKey, scopeKey)] : []),
-          eq(supplierOperationsTable.commitIdempotencyKey, commitIdempotencyKey),
+          eq(supplierOperationsTable.idempotencyKey, idempotencyKey),
         ),
       )
       .limit(1)
@@ -143,9 +153,10 @@ export function createDrizzleSupplierOperationRepository(
 
   return {
     async createOrReplay(record) {
-      const replay = await getByCommit(
-        record.sessionId,
-        record.commitIdempotencyKey,
+      const replay = await getByIdempotency(
+        record.subjectType,
+        record.subjectId,
+        record.idempotencyKey,
         record.scopeKey,
       )
       if (replay) {
@@ -153,7 +164,27 @@ export function createDrizzleSupplierOperationRepository(
           ? { status: "replay", operation: replay }
           : { status: "conflict" }
       }
-      if (await getBlockingBySession(record.sessionId, record.scopeKey)) {
+      const [blocking] = await db
+        .select()
+        .from(supplierOperationsTable)
+        .where(
+          and(
+            eq(supplierOperationsTable.subjectType, record.subjectType),
+            eq(supplierOperationsTable.subjectId, record.subjectId),
+            eq(supplierOperationsTable.scopeKey, record.scopeKey),
+            eq(supplierOperationsTable.operationKind, record.operationKind),
+            inArray(supplierOperationsTable.state, [
+              "queued",
+              "submitted",
+              "pending",
+              "succeeded",
+              "in_doubt",
+              "manual_review",
+            ]),
+          ),
+        )
+        .limit(1)
+      if (blocking) {
         return { status: "conflict" }
       }
       const [created] = await db
@@ -162,14 +193,15 @@ export function createDrizzleSupplierOperationRepository(
         .onConflictDoNothing()
         .returning()
       if (created) return { status: "created", operation: mapSupplierOperation(created) }
-      const existing = await getByCommit(
-        record.sessionId,
-        record.commitIdempotencyKey,
+      const existing = await getByIdempotency(
+        record.subjectType,
+        record.subjectId,
+        record.idempotencyKey,
         record.scopeKey,
       )
       if (
         !existing ||
-        existing.commitIdempotencyKey !== record.commitIdempotencyKey ||
+        existing.idempotencyKey !== record.idempotencyKey ||
         existing.requestFingerprint !== record.requestFingerprint
       ) {
         return { status: "conflict" }
@@ -186,8 +218,8 @@ export function createDrizzleSupplierOperationRepository(
       return row ? mapSupplierOperation(row) : null
     },
 
-    async getByCommit(sessionId, commitIdempotencyKey, scopeKey) {
-      return getByCommit(sessionId, commitIdempotencyKey, scopeKey)
+    async getByIdempotency(subjectType, subjectId, idempotencyKey, scopeKey) {
+      return getByIdempotency(subjectType, subjectId, idempotencyKey, scopeKey)
     },
 
     async getBySession(sessionId) {
@@ -212,6 +244,7 @@ export function createDrizzleSupplierOperationRepository(
       const conditions = [
         ...(input.state ? [eq(supplierOperationsTable.state, input.state)] : []),
         ...(input.sessionId ? [eq(supplierOperationsTable.sessionId, input.sessionId)] : []),
+        ...(input.amendmentId ? [eq(supplierOperationsTable.amendmentId, input.amendmentId)] : []),
       ]
       const rows = await db
         .select()
@@ -277,11 +310,17 @@ export function createDrizzleSupplierOperationRepository(
 }
 
 export function createSupplierOperationRecord(input: {
-  sessionId: string
+  subjectType: SupplierOperationSubjectTypeV1
+  subjectId: string
+  sessionId?: string
   scopeKey?: string
-  quoteId: string
+  quoteId?: string
   holdId?: string
-  commitIdempotencyKey: string
+  bookingId?: string
+  bookingItemId?: string
+  amendmentId?: string
+  idempotencyKey: string
+  operationKind: SupplierOperationKindV1
   commitmentPolicy?: SupplierCommitmentPolicyV1
   entityModule: string
   entityId: string
@@ -292,16 +331,22 @@ export function createSupplierOperationRecord(input: {
   requestFingerprint: string
   adapterIdempotencyKey: string
   requestPayload: Record<string, unknown>
+  upstreamRef?: string
   now: Date
 }): SupplierOperationInternalRecord {
   return {
     id: newId("supplier_operations"),
-    sessionId: input.sessionId,
+    subjectType: input.subjectType,
+    subjectId: input.subjectId,
+    ...(input.sessionId ? { sessionId: input.sessionId } : {}),
     scopeKey: input.scopeKey ?? "session",
-    quoteId: input.quoteId,
+    ...(input.quoteId ? { quoteId: input.quoteId } : {}),
     ...(input.holdId ? { holdId: input.holdId } : {}),
-    commitIdempotencyKey: input.commitIdempotencyKey,
-    operationKind: "reserve",
+    ...(input.bookingId ? { bookingId: input.bookingId } : {}),
+    ...(input.bookingItemId ? { bookingItemId: input.bookingItemId } : {}),
+    ...(input.amendmentId ? { amendmentId: input.amendmentId } : {}),
+    idempotencyKey: input.idempotencyKey,
+    operationKind: input.operationKind,
     state: "queued",
     commitmentPolicy: input.commitmentPolicy ?? "supplier_first",
     entityModule: input.entityModule,
@@ -313,6 +358,7 @@ export function createSupplierOperationRecord(input: {
     requestFingerprint: input.requestFingerprint,
     adapterIdempotencyKey: input.adapterIdempotencyKey,
     requestPayload: input.requestPayload,
+    ...(input.upstreamRef ? { upstreamRef: input.upstreamRef } : {}),
     version: 0,
     attemptCount: 0,
     safeEvidence: { intentPersistedBeforeDispatch: true },
@@ -326,10 +372,14 @@ export function serializeSupplierOperation(
 ): SupplierOperationRecordV1 {
   return {
     id: operation.id,
-    sessionId: operation.sessionId,
+    subjectType: operation.subjectType,
+    subjectId: operation.subjectId,
+    sessionId: operation.sessionId ?? null,
     scopeKey: operation.scopeKey,
-    quoteId: operation.quoteId,
+    quoteId: operation.quoteId ?? null,
     holdId: operation.holdId ?? null,
+    bookingItemId: operation.bookingItemId ?? null,
+    amendmentId: operation.amendmentId ?? null,
     operationKind: operation.operationKind,
     state: operation.state,
     commitmentPolicy: operation.commitmentPolicy,
@@ -362,11 +412,13 @@ export function serializeSupplierOperation(
 function toInsert(record: SupplierOperationInternalRecord) {
   return {
     id: record.id,
+    subjectType: record.subjectType,
+    subjectId: record.subjectId,
     sessionId: record.sessionId,
     scopeKey: record.scopeKey,
     quoteId: record.quoteId,
     holdId: record.holdId,
-    commitIdempotencyKey: record.commitIdempotencyKey,
+    idempotencyKey: record.idempotencyKey,
     operationKind: record.operationKind,
     state: record.state,
     commitmentPolicy: record.commitmentPolicy,
@@ -379,6 +431,9 @@ function toInsert(record: SupplierOperationInternalRecord) {
     requestFingerprint: record.requestFingerprint,
     adapterIdempotencyKey: record.adapterIdempotencyKey,
     requestPayload: record.requestPayload,
+    bookingId: record.bookingId,
+    bookingItemId: record.bookingItemId,
+    amendmentId: record.amendmentId,
     version: record.version,
     attemptCount: record.attemptCount,
     safeEvidence: record.safeEvidence,
@@ -390,12 +445,16 @@ function toInsert(record: SupplierOperationInternalRecord) {
 function mapSupplierOperation(row: SelectSupplierOperation): SupplierOperationInternalRecord {
   return {
     id: row.id,
-    sessionId: row.sessionId,
+    subjectType: row.subjectType,
+    subjectId: row.subjectId,
+    ...(row.sessionId ? { sessionId: row.sessionId } : {}),
     scopeKey: row.scopeKey,
-    quoteId: row.quoteId,
+    ...(row.quoteId ? { quoteId: row.quoteId } : {}),
     ...(row.holdId ? { holdId: row.holdId } : {}),
-    commitIdempotencyKey: row.commitIdempotencyKey,
-    operationKind: "reserve",
+    ...(row.bookingItemId ? { bookingItemId: row.bookingItemId } : {}),
+    ...(row.amendmentId ? { amendmentId: row.amendmentId } : {}),
+    idempotencyKey: row.idempotencyKey,
+    operationKind: row.operationKind,
     state: row.state,
     commitmentPolicy: row.commitmentPolicy,
     entityModule: row.entityModule,

@@ -5,6 +5,8 @@ import type { AvailabilitySearchRequest, AvailabilitySearchResult } from "./avai
 import type {
   CancelRequest,
   CancelResult,
+  ModifyReservationRequest,
+  ModifyReservationResult,
   ReserveRequest,
   ReserveResult,
 } from "./booking-forwarding.js"
@@ -138,6 +140,12 @@ export interface SourceAdapter {
 
   /** Forward a cancel request. */
   cancel?(ctx: SourceAdapterContext, request: CancelRequest): Promise<CancelResult>
+
+  /** Replace the desired mutable state of an existing reservation. */
+  modifyReservation?(
+    ctx: SourceAdapterContext,
+    request: ModifyReservationRequest,
+  ): Promise<ModifyReservationResult>
 
   /**
    * Fetch one reservation by upstream reference. Capability-gated by

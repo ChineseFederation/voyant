@@ -145,7 +145,7 @@ Generic first-party **Order** is retired from v1 runtime language by ADR-0005; u
 | **Legacy Order Term**   | A pre-v1 transactions term attached to a Legacy Order. New v1 terms belong to Legal policy/contract targets and Finance collection targets. | *clause, Order Term as new public API* |
 | **Hold**                | A temporary, time-limited claim on inventory before Booking confirmation; expires.               | *option, soft-hold*      |
 | **Commit**              | The Booking Platform operation that may create a Booking. Owned inventory Commit validates exact Booking Session revision, Quote, live Hold, and required payment guarantee, then creates Booking, converts Hold to Allocation, and consumes Session/Quote in one transaction. Sourced inventory defaults to supplier-first and creates no Booking until supplier security unless an explicit operator-backed policy accepts fulfillment risk. | *checkout submit, book, confirm when ambiguous* |
-| **Supplier Operation**  | A persisted sourced-inventory Commit intent and upstream dispatch record. It tracks supplier pending, secured, failed, or in-doubt outcomes separately from Booking status. | *draft booking, supplier booking status as booking status* |
+| **Supplier Operation**  | A persisted sourced-inventory upstream intent and dispatch record for reserve, modify, or cancel. Its subject is either a pre-Booking Booking Session or a post-Booking Booking Amendment linked to the affected Booking Item. It tracks pending, secured, refused, failed, or in-doubt outcomes separately from Booking status. | *draft booking, supplier booking status as booking status* |
 
 ## Fulfillment & operations
 

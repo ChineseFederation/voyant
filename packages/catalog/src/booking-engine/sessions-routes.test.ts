@@ -18,10 +18,14 @@ const PUBLIC_CAPABILITY = `bcap_${"a".repeat(43)}`
 const WRONG_CAPABILITY = `bcap_${"b".repeat(43)}`
 const SUPPLIER_OPERATION = {
   id: "suop_route_1",
+  subjectType: "booking_session" as const,
+  subjectId: "bses_route_1",
   sessionId: "bses_route_1",
   scopeKey: "session",
   quoteId: "bsqu_route_1",
   holdId: null,
+  bookingItemId: null,
+  amendmentId: null,
   operationKind: "reserve" as const,
   state: "manual_review" as const,
   commitmentPolicy: "supplier_first" as const,

@@ -21,6 +21,7 @@ export interface SupplierOperationOperatorService {
     input: {
       state?: SupplierOperationStateV1
       sessionId?: string
+      amendmentId?: string
       limit: number
     },
     access: BookingSessionAccessContext,
@@ -54,6 +55,7 @@ export function createSupplierOperationOperatorService(deps: {
         await createDrizzleSupplierOperationRepository(deps.db).list({
           ...(input.state ? { state: input.state } : {}),
           ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+          ...(input.amendmentId ? { amendmentId: input.amendmentId } : {}),
           limit: input.limit,
         })
       ).map(serializeSupplierOperation)
@@ -87,7 +89,7 @@ export function createSupplierOperationOperatorService(deps: {
       if (outcome.kind === "idempotency_conflict") {
         throw new Error("supplier_operation_idempotency_conflict")
       }
-      if (outcome.kind === "failed") {
+      if (outcome.kind === "failed" && outcome.operation.sessionId) {
         await reopenSupplierPendingSession(deps.db, outcome.operation.sessionId, now())
       }
       outcome.operation.safeEvidence = {
@@ -98,17 +100,19 @@ export function createSupplierOperationOperatorService(deps: {
         },
       }
       await repository.save(outcome.operation)
-      await appendOperatorAudit(
-        deps.db,
-        outcome.operation.sessionId,
-        "supplier_reconcile",
-        access,
-        {
-          supplierOperationId: outcome.operation.id,
-          state: outcome.operation.state,
-          idempotencyKey: input.idempotencyKey,
-        },
-      )
+      if (outcome.operation.sessionId) {
+        await appendOperatorAudit(
+          deps.db,
+          outcome.operation.sessionId,
+          "supplier_reconcile",
+          access,
+          {
+            supplierOperationId: outcome.operation.id,
+            state: outcome.operation.state,
+            idempotencyKey: input.idempotencyKey,
+          },
+        )
+      }
       return serializeSupplierOperation(outcome.operation)
     },
     async resolve(operationId, input, access) {
@@ -161,7 +165,7 @@ export function createSupplierOperationOperatorService(deps: {
           },
         }
         await repository.save(operation)
-        if (input.resolution !== "succeeded") {
+        if (input.resolution !== "succeeded" && operation.sessionId) {
           const sessions = createDrizzleBookingSessionRepository(tx)
           const session = await sessions.getSession(operation.sessionId)
           if (session?.state === "supplier_pending") {
@@ -170,11 +174,13 @@ export function createSupplierOperationOperatorService(deps: {
             await sessions.saveSession(session)
           }
         }
-        await appendOperatorAudit(tx, operation.sessionId, "supplier_manual_resolve", access, {
-          supplierOperationId: operation.id,
-          resolution: input.resolution,
-          reason: input.reason,
-        })
+        if (operation.sessionId) {
+          await appendOperatorAudit(tx, operation.sessionId, "supplier_manual_resolve", access, {
+            supplierOperationId: operation.id,
+            resolution: input.resolution,
+            reason: input.reason,
+          })
+        }
         return serializeSupplierOperation(operation)
       })
     },

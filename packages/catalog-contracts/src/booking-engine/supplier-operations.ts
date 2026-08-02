@@ -16,13 +16,23 @@ export type SupplierOperationStateV1 = z.infer<typeof supplierOperationStateV1>
 export const supplierCommitmentPolicyV1 = z.enum(["supplier_first", "operator_backed"])
 export type SupplierCommitmentPolicyV1 = z.infer<typeof supplierCommitmentPolicyV1>
 
+export const supplierOperationSubjectTypeV1 = z.enum(["booking_session", "booking_amendment"])
+export type SupplierOperationSubjectTypeV1 = z.infer<typeof supplierOperationSubjectTypeV1>
+
+export const supplierOperationKindV1 = z.enum(["reserve", "modify", "cancel"])
+export type SupplierOperationKindV1 = z.infer<typeof supplierOperationKindV1>
+
 export const supplierOperationRecordV1 = z.object({
   id: z.string().min(1),
-  sessionId: z.string().min(1),
+  subjectType: supplierOperationSubjectTypeV1,
+  subjectId: z.string().min(1),
+  sessionId: z.string().min(1).nullable(),
   scopeKey: z.string().min(1),
-  quoteId: z.string().min(1),
+  quoteId: z.string().min(1).nullable(),
   holdId: z.string().min(1).nullable(),
-  operationKind: z.literal("reserve"),
+  bookingItemId: z.string().min(1).nullable(),
+  amendmentId: z.string().min(1).nullable(),
+  operationKind: supplierOperationKindV1,
   state: supplierOperationStateV1,
   commitmentPolicy: supplierCommitmentPolicyV1,
   entityModule: z.string().min(1),
@@ -54,6 +64,7 @@ export type SupplierOperationRecordV1 = z.infer<typeof supplierOperationRecordV1
 export const listSupplierOperationsQueryV1 = z.object({
   state: supplierOperationStateV1.optional(),
   sessionId: z.string().min(1).optional(),
+  amendmentId: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })
 export type ListSupplierOperationsQueryV1 = z.input<typeof listSupplierOperationsQueryV1>

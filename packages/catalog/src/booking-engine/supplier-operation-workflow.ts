@@ -1,4 +1,6 @@
 import {
+  type CancelRequest,
+  type ModifyReservationRequest,
   ReservationDispatchError,
   type ReserveRequest,
   type ReserveResult,
@@ -35,8 +37,29 @@ export interface DispatchSupplierReservationInput {
   now: Date
 }
 
+export interface DispatchSupplierAmendmentInput {
+  amendmentId: string
+  bookingId: string
+  bookingItemId: string
+  scopeKey?: string
+  idempotencyKey: string
+  requestFingerprint: string
+  operationKind: "modify" | "cancel"
+  entityModule: string
+  entityId: string
+  sourceKind: string
+  sourceConnectionId: string
+  sourceRef: string
+  request: ModifyReservationRequest | CancelRequest
+  adapterContext: SourceAdapterContext
+  now: Date
+}
+
 export interface SupplierOperationWorkflow {
   dispatch(input: DispatchSupplierReservationInput): Promise<SupplierOperationWorkflowOutcome>
+  dispatchAmendment(
+    input: DispatchSupplierAmendmentInput,
+  ): Promise<SupplierOperationWorkflowOutcome>
   reconcile(
     operation: SupplierOperationInternalRecord,
     input: { adapterContext: SourceAdapterContext; now: Date },
@@ -68,11 +91,14 @@ export function createSupplierOperationWorkflow(deps: {
       )
       const claim = await deps.repository.createOrReplay(
         createSupplierOperationRecord({
+          subjectType: "booking_session",
+          subjectId: input.sessionId,
           sessionId: input.sessionId,
           scopeKey,
           quoteId: input.quoteId,
           ...(input.holdId ? { holdId: input.holdId } : {}),
-          commitIdempotencyKey: input.commitIdempotencyKey,
+          idempotencyKey: input.commitIdempotencyKey,
+          operationKind: "reserve",
           entityModule: input.entityModule,
           entityId: input.entityId,
           sourceKind: input.sourceKind,
@@ -126,6 +152,122 @@ export function createSupplierOperationWorkflow(deps: {
         operation.state = "succeeded"
         await deps.repository.save(operation)
         return { kind: "secured", operation, result }
+      } catch (error) {
+        operation.updatedAt = input.now
+        operation.lastErrorClass = errorClass(error)
+        if (error instanceof ReservationDispatchError && error.certainty === "not_sent") {
+          operation.state = "queued"
+          operation.submittedAt = undefined
+          operation.nextReconcileAt = new Date(input.now.getTime() + reconcileAfterMs)
+          operation.safeEvidence = { dispatchCertainty: "not_sent" }
+          await deps.repository.save(operation)
+          return { kind: "pending", operation }
+        }
+        operation.state = "in_doubt"
+        operation.nextReconcileAt = new Date(input.now.getTime() + reconcileAfterMs)
+        operation.safeEvidence = { dispatchCertainty: "possibly_sent" }
+        await deps.repository.save(operation)
+        return { kind: "in_doubt", operation }
+      }
+    },
+
+    async dispatchAmendment(input) {
+      const adapter = deps.registry.resolveByConnection(input.sourceConnectionId)
+      const supported =
+        input.operationKind === "modify"
+          ? adapter?.capabilities.postBookOperations.includes("modify") &&
+            Boolean(adapter.modifyReservation)
+          : adapter?.capabilities.postBookOperations.includes("cancel") && Boolean(adapter.cancel)
+      const adapterIdempotencyKey = `${input.amendmentId}:${input.bookingItemId}:${input.idempotencyKey}:${input.operationKind}`
+      const record = createSupplierOperationRecord({
+        subjectType: "booking_amendment",
+        subjectId: input.amendmentId,
+        scopeKey: input.scopeKey ?? input.bookingItemId,
+        bookingId: input.bookingId,
+        bookingItemId: input.bookingItemId,
+        amendmentId: input.amendmentId,
+        idempotencyKey: input.idempotencyKey,
+        operationKind: input.operationKind,
+        entityModule: input.entityModule,
+        entityId: input.entityId,
+        sourceKind: input.sourceKind,
+        sourceConnectionId: input.sourceConnectionId,
+        sourceRef: input.sourceRef,
+        upstreamRef: input.request.upstream_ref,
+        adapterKind: adapter?.kind ?? input.sourceKind,
+        requestFingerprint: input.requestFingerprint,
+        adapterIdempotencyKey,
+        requestPayload: safeAmendmentRequestPayload(input),
+        now: input.now,
+      })
+      if (!supported || !adapter) {
+        record.state = "refused"
+        record.lastErrorClass = `${input.operationKind}_unsupported`
+        record.resolvedAt = input.now
+        const claim = await deps.repository.createOrReplay(record)
+        if (claim.status === "conflict") return { kind: "idempotency_conflict" }
+        return { kind: "failed", operation: claim.operation }
+      }
+      const claim = await deps.repository.createOrReplay(record)
+      if (claim.status === "conflict") return { kind: "idempotency_conflict" }
+      const replay = outcomeForStoredOperation(claim.operation)
+      if (claim.status === "replay" && replay) return replay
+      const operation = await deps.repository.claimDispatch(claim.operation.id, input.now)
+      if (!operation) {
+        const current = await deps.repository.get(claim.operation.id)
+        return current
+          ? (outcomeForStoredOperation(current) ?? { kind: "in_doubt", operation: current })
+          : { kind: "in_doubt", operation: claim.operation }
+      }
+      try {
+        const result =
+          input.operationKind === "modify"
+            ? await adapter.modifyReservation!(input.adapterContext, {
+                ...(input.request as ModifyReservationRequest),
+                idempotency_key: operation.adapterIdempotencyKey,
+              })
+            : await adapter.cancel!(input.adapterContext, {
+                ...(input.request as CancelRequest),
+                idempotency_key: operation.adapterIdempotencyKey,
+              })
+        operation.updatedAt = input.now
+        operation.upstreamStatus = result.status
+        operation.safeEvidence = {
+          dispatchCertainty: "acknowledged",
+          upstreamStatus: result.status,
+          ...(input.operationKind === "cancel" && "refund_amount" in result
+            ? {
+                refundAmount: result.refund_amount,
+                refundCurrency: result.refund_currency,
+              }
+            : {}),
+          ...(input.operationKind === "modify" && "upstream_payload" in result
+            ? redactSupplierEvidence(result.upstream_payload)
+            : {}),
+        }
+        if (result.status === "pending") {
+          operation.state = "pending"
+          operation.nextReconcileAt = new Date(input.now.getTime() + reconcileAfterMs)
+          await deps.repository.save(operation)
+          return { kind: "pending", operation }
+        }
+        if (result.status === "failed" || result.status === "refused") {
+          operation.state = "refused"
+          operation.resolvedAt = input.now
+          await deps.repository.save(operation)
+          return { kind: "failed", operation }
+        }
+        operation.state = "succeeded"
+        operation.resolvedAt = input.now
+        await deps.repository.save(operation)
+        return {
+          kind: "secured",
+          operation,
+          result: {
+            upstream_ref: operation.upstreamRef!,
+            status: result.status === "cancelled" ? "confirmed" : result.status,
+          },
+        }
       } catch (error) {
         operation.updatedAt = input.now
         operation.lastErrorClass = errorClass(error)
@@ -207,7 +349,7 @@ export function createSupplierOperationWorkflow(deps: {
           return { kind: "failed", operation }
         }
         if (result.status === "cancelled") {
-          operation.state = "cancelled"
+          operation.state = operation.operationKind === "cancel" ? "succeeded" : "cancelled"
           operation.resolvedAt = input.now
           operation.nextReconcileAt = undefined
           operation.safeEvidence = {
@@ -215,7 +357,17 @@ export function createSupplierOperationWorkflow(deps: {
             ...redactSupplierEvidence(result.upstream_payload),
           }
           await deps.repository.save(operation)
-          return { kind: "failed", operation }
+          return operation.operationKind === "cancel"
+            ? {
+                kind: "secured",
+                operation,
+                result: {
+                  upstream_ref: result.upstream_ref,
+                  status: "confirmed",
+                  upstream_payload: result.upstream_payload,
+                },
+              }
+            : { kind: "failed", operation }
         }
         if (result.status === "pending" || result.status === "cancelling") {
           operation.state = "pending"
@@ -226,6 +378,22 @@ export function createSupplierOperationWorkflow(deps: {
           }
           await deps.repository.save(operation)
           return { kind: "pending", operation }
+        }
+        if (
+          operation.operationKind === "modify" &&
+          result.last_operation_idempotency_key !== operation.adapterIdempotencyKey &&
+          result.state_fingerprint !== operation.requestFingerprint
+        ) {
+          operation.state = "in_doubt"
+          operation.lastErrorClass = "modification_effect_unproven"
+          operation.nextReconcileAt = new Date(input.now.getTime() + reconcileAfterMs)
+          operation.safeEvidence = {
+            ...operation.safeEvidence,
+            observationStatus: result.status,
+            modificationEffectProven: false,
+          }
+          await deps.repository.save(operation)
+          return { kind: "in_doubt", operation }
         }
         operation.state = "succeeded"
         operation.upstreamStatus = result.status
@@ -258,17 +426,44 @@ export function createSupplierOperationWorkflow(deps: {
   }
 }
 
+function safeAmendmentRequestPayload(
+  input: DispatchSupplierAmendmentInput,
+): Record<string, unknown> {
+  if (input.operationKind === "cancel") {
+    const request = input.request as CancelRequest
+    return {
+      upstream_ref: request.upstream_ref,
+      ...(request.reason ? { reason: request.reason } : {}),
+      ...(request.scope ? { scope: request.scope } : {}),
+    }
+  }
+  const request = input.request as ModifyReservationRequest
+  return {
+    upstream_ref: request.upstream_ref,
+    desiredStateSummary: {
+      parameters: redactSupplierParameters(request.desired_state.parameters ?? {}),
+      passengerCount: Array.isArray(request.desired_state.party?.passengers)
+        ? request.desired_state.party.passengers.length
+        : undefined,
+    },
+    ...(request.scope ? { scope: request.scope } : {}),
+  }
+}
+
 async function operationFailedWithoutDispatch(
   repository: SupplierOperationRepository,
   input: DispatchSupplierReservationInput,
   reason: string,
 ): Promise<SupplierOperationWorkflowOutcome> {
   const operation = createSupplierOperationRecord({
+    subjectType: "booking_session",
+    subjectId: input.sessionId,
     sessionId: input.sessionId,
     scopeKey: input.scopeKey,
     quoteId: input.quoteId,
     ...(input.holdId ? { holdId: input.holdId } : {}),
-    commitIdempotencyKey: input.commitIdempotencyKey,
+    idempotencyKey: input.commitIdempotencyKey,
+    operationKind: "reserve",
     entityModule: input.entityModule,
     entityId: input.entityId,
     sourceKind: input.sourceKind,

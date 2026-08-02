@@ -85,6 +85,13 @@
       "when": 1785672000000,
       "tag": "20260802150000_booking_session_component_pending",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785679200000,
+      "tag": "20260802170000_amendment_supplier_operations",
+      "breakpoints": true
     }
   ]
 }

@@ -325,6 +325,23 @@ export const cancelResultSchema = z.object({
   pending_channel: z.string().optional(),
 })
 
+export const modifyReservationRequestSchema = z.object({
+  upstream_ref: z.string().min(1),
+  desired_state: z.object({
+    parameters: recordSchema.optional(),
+    party: recordSchema.optional(),
+  }),
+  scope: sourceAdapterRequestScopeSchema.optional(),
+  idempotency_key: z.string().min(1),
+})
+
+export const modifyReservationResultSchema = z.object({
+  upstream_ref: z.string().min(1),
+  status: z.enum(["pending", "confirmed", "ticketed", "refused", "failed"]),
+  source_updated_at: z.date().optional(),
+  upstream_payload: recordSchema.optional(),
+})
+
 export const reservationStatusSchema = z.enum([
   "held",
   "confirmed",
@@ -352,6 +369,8 @@ export const getReservationRequestSchema = z.union([
 export const getReservationResultSchema = z.object({
   upstream_ref: z.string(),
   status: reservationStatusSchema,
+  last_operation_idempotency_key: z.string().optional(),
+  state_fingerprint: z.string().optional(),
   source_updated_at: z.date().optional(),
   upstream_payload: recordSchema.optional(),
 })

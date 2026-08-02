@@ -109,6 +109,7 @@ export {
 } from "./booking-engine/routes.js"
 export {
   createSupplierOperationWorkflow,
+  type DispatchSupplierAmendmentInput,
   type DispatchSupplierReservationInput,
   type SupplierOperationWorkflow,
   type SupplierOperationWorkflowOutcome,

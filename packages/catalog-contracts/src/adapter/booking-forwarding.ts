@@ -71,3 +71,26 @@ export interface CancelResult {
    */
   pending_channel?: string
 }
+
+/**
+ * Replace the mutable commercial party/selection of an existing reservation.
+ * The desired state is complete rather than patch-shaped so replay and
+ * reconciliation do not depend on an upstream partial-update vocabulary.
+ */
+export interface ModifyReservationRequest {
+  upstream_ref: string
+  desired_state: {
+    parameters?: Record<string, unknown>
+    party?: Record<string, unknown>
+  }
+  scope?: SourceAdapterRequestScope
+  /** Replay-safe write key. Same key means the same desired state. */
+  idempotency_key: string
+}
+
+export interface ModifyReservationResult {
+  upstream_ref: string
+  status: "pending" | "confirmed" | "ticketed" | "refused" | "failed"
+  source_updated_at?: Date
+  upstream_payload?: Record<string, unknown>
+}

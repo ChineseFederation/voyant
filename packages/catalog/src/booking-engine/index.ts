@@ -283,6 +283,7 @@ export {
 } from "./sessions-service.js"
 export {
   createSupplierOperationWorkflow,
+  type DispatchSupplierAmendmentInput,
   type DispatchSupplierReservationInput,
   type SupplierOperationWorkflow,
   type SupplierOperationWorkflowOutcome,

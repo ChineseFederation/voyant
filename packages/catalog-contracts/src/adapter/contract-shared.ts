@@ -3,6 +3,7 @@
 import type { Provenance } from "../provenance.js"
 import type {
   CancelResult,
+  ModifyReservationResult,
   ReserveResult,
   SourceAdapterRequestScope,
 } from "./booking-forwarding.js"
@@ -11,6 +12,8 @@ import type { ProviderCapabilityDeclaration } from "./provider-contracts.js"
 export type {
   CancelRequest,
   CancelResult,
+  ModifyReservationRequest,
+  ModifyReservationResult,
   ReserveRequest,
   ReserveResult,
   SourceAdapterRequestScope,
@@ -63,11 +66,19 @@ export type GetReservationRequest =
       scope?: SourceAdapterRequestScope
     }
 
-export type ReservationStatus = ReserveResult["status"] | CancelResult["status"] | "cancelling"
+export type ReservationStatus =
+  | ReserveResult["status"]
+  | CancelResult["status"]
+  | ModifyReservationResult["status"]
+  | "cancelling"
 
 export interface GetReservationResult {
   upstream_ref: string
   status: ReservationStatus
+  /** Stable write key of the last upstream mutation, when the source exposes it. */
+  last_operation_idempotency_key?: string
+  /** Adapter-computed fingerprint of the mutable reservation state. */
+  state_fingerprint?: string
   /** When the upstream itself last modified this reservation. */
   source_updated_at?: Date
   /** Opaque per-vertical payload (itinerary, pricing snapshot, traveler details). */

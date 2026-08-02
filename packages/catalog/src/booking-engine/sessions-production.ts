@@ -269,11 +269,14 @@ async function commitSourcedBooking(
       rawTx as PostgresJsDatabase,
     ).createOrReplay(
       createSupplierOperationRecord({
+        subjectType: "booking_session",
+        subjectId: input.session.id,
         sessionId: input.session.id,
         scopeKey: input.supplierOperationScope,
         quoteId: input.quote.id,
         ...(input.hold ? { holdId: input.hold.id } : {}),
-        commitIdempotencyKey: input.idempotencyKey,
+        idempotencyKey: input.idempotencyKey,
+        operationKind: "reserve",
         entityModule: sourced.entityModule,
         entityId: sourced.entityId,
         sourceKind: sourced.sourceKind,
@@ -333,7 +336,7 @@ async function commitSourcedBooking(
     }
   }
   if (result.kind === "failed") {
-    await reopenSessionAfterSupplierFailure(deps, result.operation.sessionId, input.now)
+    await reopenSessionAfterSupplierFailure(deps, input.session.id, input.now)
     return {
       kind: "supplier_failed" as const,
       nextAction:
