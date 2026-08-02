@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./amendments": "./src/amendments.ts",
     "./validation": "./src/validation.ts",
     "./traveler-schemas": "./src/traveler-schemas.ts"
   },
@@ -26,6 +27,11 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./amendments": {
+        "types": "./dist/amendments.d.ts",
+        "import": "./dist/amendments.js",
+        "default": "./dist/amendments.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

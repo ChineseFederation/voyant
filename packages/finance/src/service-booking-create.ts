@@ -1747,6 +1747,7 @@ async function reconcileBookingCreatePricing(
       sellAmountCents: requestedTotal,
       sellCurrency: pricingCurrency,
       priceOverride: finalPriceOverride,
+      revision: sql`${bookings.revision} + 1`,
       updatedAt: new Date(),
     })
     .where(eq(bookings.id, booking.id))

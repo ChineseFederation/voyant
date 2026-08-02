@@ -291,6 +291,9 @@
       "@voyant-travel/availability/voyant": ["../availability/dist/voyant.d.ts"],
       "@voyant-travel/bookings": ["../bookings/dist/index.d.ts"],
       "@voyant-travel/bookings-contracts": ["../bookings-contracts/dist/index.d.ts"],
+      "@voyant-travel/bookings-contracts/amendments": [
+        "../bookings-contracts/dist/amendments.d.ts"
+      ],
       "@voyant-travel/bookings-contracts/traveler-schemas": [
         "../bookings-contracts/dist/traveler-schemas.d.ts"
       ],
@@ -1811,6 +1814,9 @@
         "../storefront-react/dist/storefront/index.d.ts"
       ],
       "@voyant-travel/storefront-sdk": ["../storefront-sdk/dist/index.d.ts"],
+      "@voyant-travel/storefront-sdk/booking-amendments": [
+        "../storefront-sdk/dist/booking-amendments.d.ts"
+      ],
       "@voyant-travel/storefront-sdk/booking-engine": [
         "../storefront-sdk/dist/booking-engine.d.ts"
       ],

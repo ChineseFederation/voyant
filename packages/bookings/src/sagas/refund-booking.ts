@@ -261,7 +261,11 @@ export function buildRefundBookingSaga(deps: RefundBookingDeps) {
 
           await tx
             .update(bookings)
-            .set({ ...patch, updatedAt: new Date() })
+            .set({
+              ...patch,
+              revision: sql`${bookings.revision} + 1`,
+              updatedAt: new Date(),
+            })
             .where(eq(bookings.id, input.bookingId))
           await tx.insert(bookingActivityLog).values({
             bookingId: input.bookingId,

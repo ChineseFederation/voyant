@@ -30,7 +30,7 @@
  */
 
 import { bookings } from "@voyant-travel/bookings/schema"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { PaymentPolicy, PaymentPolicySource } from "./payment-policy.js"
@@ -197,7 +197,11 @@ export async function stampPolicySourceOnBooking(
 
   await db
     .update(bookings)
-    .set({ internalNotes: next, updatedAt: new Date() })
+    .set({
+      internalNotes: next,
+      revision: sql`${bookings.revision} + 1`,
+      updatedAt: new Date(),
+    })
     .where(eq(bookings.id, bookingId))
 }
 

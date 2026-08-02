@@ -33,6 +33,7 @@ function bookingDetail(id: string, status: "draft" | "confirmed" | "cancelled") 
   return {
     id,
     bookingNumber: "B-1001",
+    revision: 1,
     status,
     personId: null,
     organizationId: null,
@@ -128,16 +129,28 @@ describe("bookings tools", () => {
     registry.registerAll(bookingsTools)
     const list = registry.list()
     expect(list.map((t) => t.name).sort()).toEqual([
+      "accept_booking_amendment",
+      "apply_booking_amendment",
       "cancel_booking",
       "confirm_booking",
       "get_booking",
       "list_bookings",
+      "preview_traveler_correction_amendment",
     ])
-    for (const t of list.filter(
-      (tool) => tool.name !== "cancel_booking" && tool.name !== "confirm_booking",
-    )) {
+    for (const t of list.filter((tool) => ["get_booking", "list_bookings"].includes(tool.name))) {
       expect(t.tier).toBe("read")
       expect(t.requiredScopes).toEqual(["bookings:read"])
+    }
+    for (const name of [
+      "accept_booking_amendment",
+      "apply_booking_amendment",
+      "preview_traveler_correction_amendment",
+    ]) {
+      expect(list.find((tool) => tool.name === name)).toMatchObject({
+        tier: "write",
+        requiredScopes: ["bookings:write"],
+        riskPolicy: { destructive: false, reversible: false, sideEffects: ["data-write"] },
+      })
     }
     expect(list.find((tool) => tool.name === "cancel_booking")).toMatchObject({
       tier: "destructive",
@@ -290,6 +303,39 @@ describe("bookings tools", () => {
           totalSellAmountCents: 80_000,
         },
       ],
+    })
+  })
+
+  it("dispatches an idempotent traveler correction preview through the shared Amendment service", async () => {
+    const registry = createToolRegistry()
+    registry.registerAll(bookingsTools)
+    const result = await registry.dispatch(
+      "preview_traveler_correction_amendment",
+      {
+        bookingId: "bk_1",
+        travelerId: "btr_1",
+        expectedBookingRevision: 1,
+        reason: "Correct the travel document spelling",
+        patch: { firstName: "Ada" },
+        idempotencyKey: "amendment-preview-bk-1",
+      },
+      ctx({
+        async previewTravelerCorrectionAmendment(input) {
+          expect(input.idempotencyKey).toBe("amendment-preview-bk-1")
+          return {
+            status: "no_op",
+            bookingId: input.bookingId,
+            travelerId: input.travelerId,
+            bookingRevision: input.expectedBookingRevision,
+          }
+        },
+      }),
+    )
+    expect(result).toEqual({
+      status: "no_op",
+      bookingId: "bk_1",
+      travelerId: "btr_1",
+      bookingRevision: 1,
     })
   })
 

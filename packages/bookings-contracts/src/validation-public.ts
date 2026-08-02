@@ -268,7 +268,17 @@ export const publicCheckoutCapabilitySchema = z.object({
 export const publicGuestBookingAccessSchema = z.object({
   token: z.string().min(1),
   expiresAt: z.string(),
-  actions: z.array(z.enum(["overview:read", "payment:read", "payment:start"])),
+  actions: z.array(
+    z.enum([
+      "overview:read",
+      "payment:read",
+      "payment:start",
+      "amendment:read",
+      "amendment:preview",
+      "amendment:accept",
+      "amendment:apply",
+    ]),
+  ),
 })
 
 export const publicBookingSessionSchema = z.object({
@@ -355,6 +365,7 @@ export const publicBookingOverviewFulfillmentSchema = z.object({
 export const publicBookingOverviewSchema = z.object({
   bookingId: z.string(),
   bookingNumber: z.string(),
+  revision: z.number().int().positive(),
   status: bookingStatusSchema,
   sellCurrency: z.string(),
   sellAmountCents: z.number().int().nullable(),

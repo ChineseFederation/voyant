@@ -1,6 +1,7 @@
 export * from "./extras/schema.js"
 export * from "./requirements/schema.js"
 export * from "./schema/travel-details.js"
+export * from "./schema-amendments.js"
 export * from "./schema-core.js"
 export * from "./schema-groups.js"
 export * from "./schema-items.js"

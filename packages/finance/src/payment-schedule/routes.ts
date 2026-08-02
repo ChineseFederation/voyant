@@ -30,7 +30,7 @@ import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { openApiValidationHook, parseJsonBody } from "@voyant-travel/hono"
 import type { ApiExtension } from "@voyant-travel/hono/module"
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import { BOOKING_SCHEDULE_SUBSCRIBER_RUNTIME_KEY } from "../booking-schedule/subscriber-runtime.js"
@@ -312,6 +312,7 @@ async function handleRegenerateSchedule(
       .update(bookings)
       .set({
         customerPaymentPolicy: (body.customerPaymentPolicy ?? null) as unknown,
+        revision: sql`${bookings.revision} + 1`,
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, bookingId))

@@ -37,6 +37,30 @@ const bookingWriteCapability = {
   graph: { kind: "execute", from: adminRouteBinding },
 } as const
 
+const amendmentToolBinding = (toolId: string) => ({ tools: [toolId] })
+
+const amendmentDurability = {
+  strategy: "transactional",
+  testReference: "packages/bookings/tests/integration/booking-amendments.test.ts",
+} as const
+
+const amendmentWriteCapability = {
+  version: "v1",
+  risk: "medium",
+  ledgerPolicy: "required",
+  approvalPolicy: "none",
+  reversible: false,
+  allowedActorTypes: ["staff"],
+  requiredGrants: [{ resource: "bookings", action: "write" }],
+  graph: {
+    kind: "execute",
+    targetLifecycle: "existing",
+    availability: { status: "available" },
+    effectBoundary: "local",
+    durability: amendmentDurability,
+  },
+} as const
+
 export const BOOKING_ACTION_DECLARATIONS = {
   piiRead: {
     id: "bookings-pii:read",
@@ -135,9 +159,50 @@ export const BOOKING_ACTION_DECLARATIONS = {
       graph: { ...bookingWriteCapability.graph, id: "booking.status.override" },
     },
   },
+  amendments: {
+    previewTravelerCorrection: {
+      ...amendmentWriteCapability,
+      id: "bookings:amendments:preview-traveler-correction",
+      resource: "booking",
+      action: "preview_traveler_correction_amendment",
+      graph: {
+        ...amendmentWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.preview-traveler-correction-amendment",
+        commandTargetField: "bookingId",
+        from: amendmentToolBinding(
+          "@voyant-travel/bookings#tool.preview-traveler-correction-amendment",
+        ),
+      },
+    },
+    accept: {
+      ...amendmentWriteCapability,
+      id: "bookings:amendments:accept",
+      resource: "booking-amendment",
+      action: "accept",
+      graph: {
+        ...amendmentWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.accept-booking-amendment",
+        commandTargetField: "amendmentId",
+        from: amendmentToolBinding("@voyant-travel/bookings#tool.accept-booking-amendment"),
+      },
+    },
+    apply: {
+      ...amendmentWriteCapability,
+      id: "bookings:amendments:apply",
+      resource: "booking-amendment",
+      action: "apply",
+      graph: {
+        ...amendmentWriteCapability.graph,
+        id: "@voyant-travel/bookings#action.apply-booking-amendment",
+        commandTargetField: "amendmentId",
+        from: amendmentToolBinding("@voyant-travel/bookings#tool.apply-booking-amendment"),
+      },
+    },
+  },
 } as const satisfies {
   piiRead: BookingActionDeclaration
   status: Record<string, BookingActionDeclaration>
+  amendments: Record<string, BookingActionDeclaration>
 }
 
 function toCapabilityDefinition<const T extends BookingActionDeclaration>(
@@ -184,12 +249,22 @@ export const BOOKING_STATUS_CAPABILITIES = {
   override: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.override),
 } as const
 
+export const BOOKING_AMENDMENT_CAPABILITIES = {
+  previewTravelerCorrection: toCapabilityDefinition(
+    BOOKING_ACTION_DECLARATIONS.amendments.previewTravelerCorrection,
+  ),
+  accept: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.amendments.accept),
+  apply: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.amendments.apply),
+} as const
+
 export const BOOKING_ACTION_LEDGER_CAPABILITIES = [
   BOOKING_PII_READ_CAPABILITY,
   ...Object.values(BOOKING_STATUS_CAPABILITIES),
+  ...Object.values(BOOKING_AMENDMENT_CAPABILITIES),
 ] as const
 
 export const BOOKING_VOYANT_ACTIONS = [
   toVoyantAction(BOOKING_ACTION_DECLARATIONS.piiRead),
   ...Object.values(BOOKING_ACTION_DECLARATIONS.status).map(toVoyantAction),
+  ...Object.values(BOOKING_ACTION_DECLARATIONS.amendments).map(toVoyantAction),
 ] as const

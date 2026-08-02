@@ -95,6 +95,8 @@ export const PREFIXES = {
   booking_pii_access_log: "bkpl",
   booking_notes: "bnot",
   booking_documents: "bdoc",
+  booking_amendments: "bkam",
+  booking_revisions: "bkrv",
   booking_groups: "bkgr",
   booking_group_members: "bkgm",
   booking_session_states: "bkst",

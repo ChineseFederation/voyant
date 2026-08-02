@@ -1,5 +1,5 @@
 // agent-quality: file-size exception -- owner: bookings; existing service module stays co-located until a dedicated split preserves behavior and tests.
-import { and, asc, desc, eq, inArray, or } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { applyOverviewEnrichers } from "./overview-enrichment.js"
 import {
@@ -632,6 +632,7 @@ async function buildOverviewSnapshot(
   return {
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
+    revision: booking.revision,
     status: booking.status,
     sellCurrency: booking.sellCurrency,
     sellAmountCents: booking.sellAmountCents ?? null,
@@ -1554,6 +1555,7 @@ export const publicBookingsService = {
           .set({
             sellCurrency: resolvedCurrency,
             sellAmountCents: totalSellAmountCents,
+            revision: sql`${bookings.revision} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, bookingId))

@@ -355,6 +355,8 @@ jobs:
                 tests/integration/created-target-tools.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/booking-create.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/booking-amendments.test.ts
               pnpm --filter @voyant-travel/legal exec vitest run \
                 tests/integration/contract-lifecycle-command.test.ts
               pnpm --filter @voyant-travel/notifications exec vitest run \

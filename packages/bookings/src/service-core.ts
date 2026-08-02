@@ -742,7 +742,11 @@ async function recomputeBookingPaxFromTravelers(db: PostgresJsDatabase, bookingI
   const pax = row?.pax ?? 0
   await db
     .update(bookings)
-    .set({ pax: pax > 0 ? pax : null, updatedAt: new Date() })
+    .set({
+      pax: pax > 0 ? pax : null,
+      revision: sql`${bookings.revision} + 1`,
+      updatedAt: new Date(),
+    })
     .where(eq(bookings.id, bookingId))
 }
 
@@ -860,7 +864,10 @@ function mapDeliveryFormatToFulfillment(format: string) {
 }
 
 async function touchBookingUpdatedAt(db: PostgresJsDatabase, bookingId: string, now = new Date()) {
-  await db.update(bookings).set({ updatedAt: now }).where(eq(bookings.id, bookingId))
+  await db
+    .update(bookings)
+    .set({ revision: sql`${bookings.revision} + 1`, updatedAt: now })
+    .where(eq(bookings.id, bookingId))
 }
 
 async function getConvertProductData(
@@ -3118,6 +3125,7 @@ const bookingsServiceInternal = {
         .update(bookings)
         .set({
           ...updateData,
+          revision: sql`${bookings.revision} + 1`,
           contactFirstName:
             data.contactFirstName === undefined ? undefined : (data.contactFirstName ?? null),
           contactLastName:
@@ -3246,6 +3254,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            revision: sql`${bookings.revision} + 1`,
             acceptedAt: booking.accepted_at ?? now,
             holdExpiresAt: null,
             notificationsSuppressed: suppressNotifications,
@@ -3419,6 +3428,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             status: "confirmed",
+            revision: sql`${bookings.revision} + 1`,
             acceptedAt: booking.accepted_at ?? now,
             confirmedAt: now,
             paidAt: now,
@@ -3528,6 +3538,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             holdExpiresAt,
+            revision: sql`${bookings.revision} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -3617,6 +3628,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            revision: sql`${bookings.revision} + 1`,
             holdExpiresAt: null,
             updatedAt: new Date(),
           })
@@ -3798,6 +3810,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            revision: sql`${bookings.revision} + 1`,
             holdExpiresAt: null,
             notificationsSuppressed: suppressNotifications,
             updatedAt: new Date(),
@@ -3937,6 +3950,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            revision: sql`${bookings.revision} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -4036,6 +4050,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             ...patch,
+            revision: sql`${bookings.revision} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, id))
@@ -4223,7 +4238,11 @@ const bookingsServiceInternal = {
             )
         }
 
-        const [row] = await tx.update(bookings).set(updates).where(eq(bookings.id, id)).returning()
+        const [row] = await tx
+          .update(bookings)
+          .set({ ...updates, revision: sql`${bookings.revision} + 1` })
+          .where(eq(bookings.id, id))
+          .returning()
         if (data.status === "cancelled" || data.status === "expired") {
           await runtime.closePaymentSchedulesForBooking?.(tx as PostgresJsDatabase, id, data.status)
         }
@@ -4334,18 +4353,19 @@ const bookingsServiceInternal = {
     userId?: string,
   ) {
     return db.transaction(async (tx) => {
-      await lockBookingItemsForParticipantMutation(tx, bookingId)
-      await lockBookingTravelersForParticipantMutation(tx, bookingId)
-
       const [booking] = await tx
         .select({ id: bookings.id })
         .from(bookings)
         .where(eq(bookings.id, bookingId))
+        .for("update")
         .limit(1)
 
       if (!booking) {
         return null
       }
+
+      await lockBookingItemsForParticipantMutation(tx, bookingId)
+      await lockBookingTravelersForParticipantMutation(tx, bookingId)
 
       const participantType = data.participantType
       const travelerCategory =
@@ -4396,20 +4416,41 @@ const bookingsServiceInternal = {
     travelerId: string,
     data: UpdateTravelerRecordInput,
   ) {
-    const [row] = await db
-      .update(bookingTravelers)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(bookingTravelers.id, travelerId))
-      .returning()
+    return db.transaction(async (rawTx) => {
+      const tx = rawTx as PostgresJsDatabase
+      const [candidate] = await tx
+        .select({ bookingId: bookingTravelers.bookingId })
+        .from(bookingTravelers)
+        .where(eq(bookingTravelers.id, travelerId))
+        .limit(1)
+      if (!candidate) return null
 
-    if (!row) {
-      return null
-    }
+      const [booking] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.id, candidate.bookingId))
+        .for("update")
+        .limit(1)
+      if (!booking) return null
 
-    await ensureParticipantFlags(db, row.bookingId, row.id, data)
-    await recomputeBookingPaxFromTravelers(db, row.bookingId)
+      const [row] = await tx
+        .update(bookingTravelers)
+        .set({ ...data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(bookingTravelers.id, travelerId),
+            eq(bookingTravelers.bookingId, candidate.bookingId),
+          ),
+        )
+        .returning()
 
-    return row
+      if (!row) return null
+
+      await ensureParticipantFlags(tx, row.bookingId, row.id, data)
+      await recomputeBookingPaxFromTravelers(tx, row.bookingId)
+
+      return row
+    })
   },
 
   /**
@@ -4523,14 +4564,37 @@ const bookingsServiceInternal = {
   },
 
   async deleteTravelerRecord(db: PostgresJsDatabase, travelerId: string) {
-    const [row] = await db
-      .delete(bookingTravelers)
-      .where(eq(bookingTravelers.id, travelerId))
-      .returning({ id: bookingTravelers.id, bookingId: bookingTravelers.bookingId })
+    return db.transaction(async (rawTx) => {
+      const tx = rawTx as PostgresJsDatabase
+      const [candidate] = await tx
+        .select({ bookingId: bookingTravelers.bookingId })
+        .from(bookingTravelers)
+        .where(eq(bookingTravelers.id, travelerId))
+        .limit(1)
+      if (!candidate) return null
 
-    if (row) await recomputeBookingPaxFromTravelers(db, row.bookingId)
+      const [booking] = await tx
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.id, candidate.bookingId))
+        .for("update")
+        .limit(1)
+      if (!booking) return null
 
-    return row ?? null
+      const [row] = await tx
+        .delete(bookingTravelers)
+        .where(
+          and(
+            eq(bookingTravelers.id, travelerId),
+            eq(bookingTravelers.bookingId, candidate.bookingId),
+          ),
+        )
+        .returning({ id: bookingTravelers.id, bookingId: bookingTravelers.bookingId })
+      if (!row) return null
+
+      await recomputeBookingPaxFromTravelers(tx, row.bookingId)
+      return row
+    })
   },
 
   listTravelers(db: PostgresJsDatabase, bookingId: string) {
@@ -4820,6 +4884,7 @@ const bookingsServiceInternal = {
     const patch: Record<string, unknown> = {
       sellAmountCents,
       costAmountCents,
+      revision: sql`${bookings.revision} + 1`,
       updatedAt: new Date(),
     }
     if (fxStatus === "ok") {
@@ -5471,6 +5536,7 @@ const bookingsServiceInternal = {
           .update(bookings)
           .set({
             redeemedAt,
+            revision: sql`${bookings.revision} + 1`,
             updatedAt: new Date(),
           })
           .where(eq(bookings.id, bookingId))

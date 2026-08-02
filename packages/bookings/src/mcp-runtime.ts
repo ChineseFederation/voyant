@@ -34,8 +34,11 @@ import {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 import type { Env } from "./routes-shared.js"
+import { bookingPiiAccessLog } from "./schema.js"
 import { bookingsService } from "./service.js"
+import { bookingAmendmentService } from "./service-amendments.js"
 import { bookingToolDetailSchema } from "./tool-output-schemas.js"
+import type { BookingsToolServices } from "./tools.js"
 
 export * from "./tools.js"
 
@@ -124,6 +127,46 @@ export const voyantToolContextContribution = defineToolContextContribution({
               loadBookingDetail,
             })
           },
+          async previewTravelerCorrectionAmendment(
+            input: Parameters<BookingsToolServices["previewTravelerCorrectionAmendment"]>[0],
+          ) {
+            const { bookingId, idempotencyKey, ...command } = input
+            const result = await bookingAmendmentService.previewTravelerCorrection(
+              db,
+              bookingId,
+              command,
+              bookingAmendmentToolCommandContext(c, idempotencyKey),
+            )
+            return visibleBookingAmendmentToolResult(db, c, reveal, "preview", result)
+          },
+          async acceptBookingAmendment(
+            input: Parameters<BookingsToolServices["acceptBookingAmendment"]>[0],
+          ) {
+            const { bookingId, amendmentId, proposedRevisionId, idempotencyKey } = input
+            const existing = await bookingAmendmentService.get(db, bookingId, amendmentId)
+            if (!existing) return { status: "not_found" as const }
+            const result = await bookingAmendmentService.accept(
+              db,
+              amendmentId,
+              proposedRevisionId,
+              bookingAmendmentToolCommandContext(c, idempotencyKey),
+            )
+            return visibleBookingAmendmentToolResult(db, c, reveal, "accept", result)
+          },
+          async applyBookingAmendment(
+            input: Parameters<BookingsToolServices["applyBookingAmendment"]>[0],
+          ) {
+            const { bookingId, amendmentId, idempotencyKey, ...command } = input
+            const existing = await bookingAmendmentService.get(db, bookingId, amendmentId)
+            if (!existing) return { status: "not_found" as const }
+            const result = await bookingAmendmentService.apply(
+              db,
+              amendmentId,
+              command,
+              bookingAmendmentToolCommandContext(c, idempotencyKey),
+            )
+            return visibleBookingAmendmentToolResult(db, c, reveal, "apply", result)
+          },
         },
       },
       contributeBookingsExtrasToolContext(input),
@@ -131,6 +174,67 @@ export const voyantToolContextContribution = defineToolContextContribution({
     )
   },
 })
+
+function bookingAmendmentToolCommandContext(c: Context<Env>, idempotencyKey: string) {
+  return {
+    actor: "staff" as const,
+    actorId: c.get("userId") ?? c.get("agentId") ?? null,
+    idempotencyKey,
+  }
+}
+
+async function visibleBookingAmendmentToolResult(
+  db: Parameters<typeof bookingAmendmentService.get>[0],
+  c: Context<Env>,
+  reveal: boolean,
+  action: "preview" | "accept" | "apply",
+  result: unknown,
+) {
+  if (!isRecord(result) || !isRecord(result.amendment)) return result
+  const amendment = result.amendment
+  if (reveal) {
+    await db.insert(bookingPiiAccessLog).values({
+      bookingId: String(amendment.bookingId),
+      travelerId: String(amendment.travelerId),
+      actorId: c.get("userId") ?? c.get("agentId") ?? null,
+      actorType: c.get("actor") ?? null,
+      callerType: c.get("callerType") ?? null,
+      action: "read",
+      outcome: "allowed",
+      reason: "amendment_history_reveal",
+      metadata: { source: "booking_amendment_tool", amendmentId: amendment.id, action },
+    })
+    return result
+  }
+  return { ...result, amendment: redactBookingAmendmentHistory(amendment) }
+}
+
+function redactBookingAmendmentHistory(amendment: Record<string, unknown>) {
+  const revisions = Array.isArray(amendment.revisions)
+    ? amendment.revisions.map((revision) => {
+        if (!isRecord(revision) || !isRecord(revision.snapshot)) return revision
+        const travelers = Array.isArray(revision.snapshot.travelers)
+          ? revision.snapshot.travelers.map((traveler) =>
+              isRecord(traveler)
+                ? {
+                    ...redactTravelerIdentity(
+                      traveler as Record<string, unknown> & {
+                        firstName?: string | null
+                        lastName?: string | null
+                        email?: string | null
+                        phone?: string | null
+                      },
+                    ),
+                    personId: null,
+                  }
+                : traveler,
+            )
+          : revision.snapshot.travelers
+        return { ...revision, snapshot: { ...revision.snapshot, travelers } }
+      })
+    : amendment.revisions
+  return { ...amendment, revisions }
+}
 
 type BufferedEvent = {
   event: string

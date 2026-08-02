@@ -1614,6 +1614,10 @@
                             "bookingNumber": {
                               "type": "string"
                             },
+                            "revision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
                             "status": {
                               "type": "string",
                               "enum": [
@@ -3215,6 +3219,10 @@
                         "bookingNumber": {
                           "type": "string"
                         },
+                        "revision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
                         "status": {
                           "type": "string",
                           "enum": [
@@ -3495,6 +3503,7 @@
                       "required": [
                         "bookingId",
                         "bookingNumber",
+                        "revision",
                         "status",
                         "sellCurrency",
                         "sellAmountCents",
@@ -3902,6 +3911,7 @@
                           "required": [
                             "bookingId",
                             "bookingNumber",
+                            "revision",
                             "status",
                             "sellCurrency",
                             "sellAmountCents",
@@ -3931,7 +3941,15 @@
                               "type": "array",
                               "items": {
                                 "type": "string",
-                                "enum": ["overview:read", "payment:read", "payment:start"]
+                                "enum": [
+                                  "overview:read",
+                                  "payment:read",
+                                  "payment:start",
+                                  "amendment:read",
+                                  "amendment:preview",
+                                  "amendment:accept",
+                                  "amendment:apply"
+                                ]
                               }
                             }
                           },
@@ -4267,6 +4285,2485 @@
                   "properties": {
                     "error": {
                       "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "travelerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "expectedBookingRevision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "patch": {
+                    "type": "object",
+                    "properties": {
+                      "firstName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "lastName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255
+                      },
+                      "email": {
+                        "type": ["string", "null"],
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": ["string", "null"],
+                        "maxLength": 50
+                      },
+                      "preferredLanguage": {
+                        "type": ["string", "null"],
+                        "maxLength": 35
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["travelerId", "expectedBookingRevision", "reason", "patch"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent or no-op preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["ok"]
+                            },
+                            "amendment": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "bookingId": {
+                                  "type": "string"
+                                },
+                                "travelerId": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["traveler_correction"]
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                                },
+                                "baseBookingRevision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "resultBookingRevision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "acceptanceRequired": {
+                                  "type": "boolean"
+                                },
+                                "policyDecisions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "string"
+                                      },
+                                      "decision": {
+                                        "type": "string",
+                                        "enum": ["allowed", "acceptance_required"]
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["code", "version", "decision", "reason"]
+                                  }
+                                },
+                                "priceDelta": {
+                                  "type": "object",
+                                  "properties": {
+                                    "amountCents": {
+                                      "type": "number",
+                                      "enum": [0]
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["amountCents", "currency"]
+                                },
+                                "effects": {
+                                  "type": "object",
+                                  "properties": {
+                                    "finance": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "legal": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "documents": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "fulfillment": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "supplier": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    }
+                                  },
+                                  "required": [
+                                    "finance",
+                                    "legal",
+                                    "documents",
+                                    "fulfillment",
+                                    "supplier"
+                                  ]
+                                },
+                                "nextActions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": ["accept", "apply"]
+                                  }
+                                },
+                                "requestedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "requestedActor": {
+                                  "type": "string",
+                                  "enum": ["customer", "staff", "partner", "system"]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "acceptedAt": {
+                                  "type": ["string", "null"]
+                                },
+                                "acceptedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "acceptedActor": {
+                                  "type": ["string", "null"],
+                                  "enum": ["customer", "staff", "partner", "system", null]
+                                },
+                                "appliedAt": {
+                                  "type": ["string", "null"]
+                                },
+                                "appliedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "appliedActor": {
+                                  "type": ["string", "null"],
+                                  "enum": ["customer", "staff", "partner", "system", null]
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                },
+                                "updatedAt": {
+                                  "type": "string"
+                                },
+                                "revisions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "amendmentId": {
+                                        "type": "string"
+                                      },
+                                      "bookingId": {
+                                        "type": "string"
+                                      },
+                                      "bookingRevision": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "role": {
+                                        "type": "string",
+                                        "enum": ["before", "proposed_after"]
+                                      },
+                                      "snapshot": {
+                                        "type": "object",
+                                        "properties": {
+                                          "bookingId": {
+                                            "type": "string"
+                                          },
+                                          "bookingNumber": {
+                                            "type": "string"
+                                          },
+                                          "revision": {
+                                            "type": "integer",
+                                            "exclusiveMinimum": 0
+                                          },
+                                          "travelers": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "personId": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "participantType": {
+                                                  "type": "string",
+                                                  "enum": ["traveler", "occupant", "other"]
+                                                },
+                                                "travelerCategory": {
+                                                  "type": ["string", "null"],
+                                                  "enum": [
+                                                    "adult",
+                                                    "child",
+                                                    "infant",
+                                                    "senior",
+                                                    "other",
+                                                    null
+                                                  ]
+                                                },
+                                                "firstName": {
+                                                  "type": "string"
+                                                },
+                                                "lastName": {
+                                                  "type": "string"
+                                                },
+                                                "email": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "phone": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "preferredLanguage": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "isPrimary": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "personId",
+                                                "participantType",
+                                                "travelerCategory",
+                                                "firstName",
+                                                "lastName",
+                                                "email",
+                                                "phone",
+                                                "preferredLanguage",
+                                                "isPrimary"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "bookingId",
+                                          "bookingNumber",
+                                          "revision",
+                                          "travelers"
+                                        ]
+                                      },
+                                      "changedFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "authorizedBy": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      },
+                                      "createdAt": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "amendmentId",
+                                      "bookingId",
+                                      "bookingRevision",
+                                      "role",
+                                      "snapshot",
+                                      "changedFields",
+                                      "authorizedBy",
+                                      "reason",
+                                      "createdAt"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "bookingId",
+                                "travelerId",
+                                "kind",
+                                "status",
+                                "baseBookingRevision",
+                                "resultBookingRevision",
+                                "acceptanceRequired",
+                                "policyDecisions",
+                                "priceDelta",
+                                "effects",
+                                "nextActions",
+                                "requestedBy",
+                                "requestedActor",
+                                "reason",
+                                "acceptedAt",
+                                "acceptedBy",
+                                "acceptedActor",
+                                "appliedAt",
+                                "appliedBy",
+                                "appliedActor",
+                                "createdAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": ["status", "amendment"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["no_op"]
+                            },
+                            "bookingId": {
+                              "type": "string"
+                            },
+                            "travelerId": {
+                              "type": "string"
+                            },
+                            "bookingRevision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": ["status", "bookingId", "travelerId", "bookingRevision"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["not_found"]
+                            }
+                          },
+                          "required": ["status"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["idempotency_conflict"]
+                            }
+                          },
+                          "required": ["status"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["stale_revision"]
+                            },
+                            "currentBookingRevision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": ["status", "currentBookingRevision"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Traveler correction preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["ok"]
+                            },
+                            "amendment": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "bookingId": {
+                                  "type": "string"
+                                },
+                                "travelerId": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["traveler_correction"]
+                                },
+                                "status": {
+                                  "type": "string",
+                                  "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                                },
+                                "baseBookingRevision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "resultBookingRevision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "acceptanceRequired": {
+                                  "type": "boolean"
+                                },
+                                "policyDecisions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "version": {
+                                        "type": "string"
+                                      },
+                                      "decision": {
+                                        "type": "string",
+                                        "enum": ["allowed", "acceptance_required"]
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["code", "version", "decision", "reason"]
+                                  }
+                                },
+                                "priceDelta": {
+                                  "type": "object",
+                                  "properties": {
+                                    "amountCents": {
+                                      "type": "number",
+                                      "enum": [0]
+                                    },
+                                    "currency": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": ["amountCents", "currency"]
+                                },
+                                "effects": {
+                                  "type": "object",
+                                  "properties": {
+                                    "finance": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "legal": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "documents": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "fulfillment": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    },
+                                    "supplier": {
+                                      "type": "string",
+                                      "enum": ["not_required"]
+                                    }
+                                  },
+                                  "required": [
+                                    "finance",
+                                    "legal",
+                                    "documents",
+                                    "fulfillment",
+                                    "supplier"
+                                  ]
+                                },
+                                "nextActions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": ["accept", "apply"]
+                                  }
+                                },
+                                "requestedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "requestedActor": {
+                                  "type": "string",
+                                  "enum": ["customer", "staff", "partner", "system"]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "acceptedAt": {
+                                  "type": ["string", "null"]
+                                },
+                                "acceptedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "acceptedActor": {
+                                  "type": ["string", "null"],
+                                  "enum": ["customer", "staff", "partner", "system", null]
+                                },
+                                "appliedAt": {
+                                  "type": ["string", "null"]
+                                },
+                                "appliedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "appliedActor": {
+                                  "type": ["string", "null"],
+                                  "enum": ["customer", "staff", "partner", "system", null]
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                },
+                                "updatedAt": {
+                                  "type": "string"
+                                },
+                                "revisions": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "amendmentId": {
+                                        "type": "string"
+                                      },
+                                      "bookingId": {
+                                        "type": "string"
+                                      },
+                                      "bookingRevision": {
+                                        "type": "integer",
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "role": {
+                                        "type": "string",
+                                        "enum": ["before", "proposed_after"]
+                                      },
+                                      "snapshot": {
+                                        "type": "object",
+                                        "properties": {
+                                          "bookingId": {
+                                            "type": "string"
+                                          },
+                                          "bookingNumber": {
+                                            "type": "string"
+                                          },
+                                          "revision": {
+                                            "type": "integer",
+                                            "exclusiveMinimum": 0
+                                          },
+                                          "travelers": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "personId": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "participantType": {
+                                                  "type": "string",
+                                                  "enum": ["traveler", "occupant", "other"]
+                                                },
+                                                "travelerCategory": {
+                                                  "type": ["string", "null"],
+                                                  "enum": [
+                                                    "adult",
+                                                    "child",
+                                                    "infant",
+                                                    "senior",
+                                                    "other",
+                                                    null
+                                                  ]
+                                                },
+                                                "firstName": {
+                                                  "type": "string"
+                                                },
+                                                "lastName": {
+                                                  "type": "string"
+                                                },
+                                                "email": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "phone": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "preferredLanguage": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "isPrimary": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "personId",
+                                                "participantType",
+                                                "travelerCategory",
+                                                "firstName",
+                                                "lastName",
+                                                "email",
+                                                "phone",
+                                                "preferredLanguage",
+                                                "isPrimary"
+                                              ]
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "bookingId",
+                                          "bookingNumber",
+                                          "revision",
+                                          "travelers"
+                                        ]
+                                      },
+                                      "changedFields": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "authorizedBy": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      },
+                                      "createdAt": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "amendmentId",
+                                      "bookingId",
+                                      "bookingRevision",
+                                      "role",
+                                      "snapshot",
+                                      "changedFields",
+                                      "authorizedBy",
+                                      "reason",
+                                      "createdAt"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "bookingId",
+                                "travelerId",
+                                "kind",
+                                "status",
+                                "baseBookingRevision",
+                                "resultBookingRevision",
+                                "acceptanceRequired",
+                                "policyDecisions",
+                                "priceDelta",
+                                "effects",
+                                "nextActions",
+                                "requestedBy",
+                                "requestedActor",
+                                "reason",
+                                "acceptedAt",
+                                "acceptedBy",
+                                "acceptedActor",
+                                "appliedAt",
+                                "appliedBy",
+                                "appliedActor",
+                                "createdAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": ["status", "amendment"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["no_op"]
+                            },
+                            "bookingId": {
+                              "type": "string"
+                            },
+                            "travelerId": {
+                              "type": "string"
+                            },
+                            "bookingRevision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": ["status", "bookingId", "travelerId", "bookingRevision"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["not_found"]
+                            }
+                          },
+                          "required": ["status"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["idempotency_conflict"]
+                            }
+                          },
+                          "required": ["status"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": ["stale_revision"]
+                            },
+                            "currentBookingRevision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            }
+                          },
+                          "required": ["status", "currentBookingRevision"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid Idempotency-Key header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking or traveler not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking Amendment history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "bookingId": {
+                            "type": "string"
+                          },
+                          "travelerId": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["traveler_correction"]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                          },
+                          "baseBookingRevision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "resultBookingRevision": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                          },
+                          "acceptanceRequired": {
+                            "type": "boolean"
+                          },
+                          "policyDecisions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "decision": {
+                                  "type": "string",
+                                  "enum": ["allowed", "acceptance_required"]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["code", "version", "decision", "reason"]
+                            }
+                          },
+                          "priceDelta": {
+                            "type": "object",
+                            "properties": {
+                              "amountCents": {
+                                "type": "number",
+                                "enum": [0]
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["amountCents", "currency"]
+                          },
+                          "effects": {
+                            "type": "object",
+                            "properties": {
+                              "finance": {
+                                "type": "string",
+                                "enum": ["not_required"]
+                              },
+                              "legal": {
+                                "type": "string",
+                                "enum": ["not_required"]
+                              },
+                              "documents": {
+                                "type": "string",
+                                "enum": ["not_required"]
+                              },
+                              "fulfillment": {
+                                "type": "string",
+                                "enum": ["not_required"]
+                              },
+                              "supplier": {
+                                "type": "string",
+                                "enum": ["not_required"]
+                              }
+                            },
+                            "required": ["finance", "legal", "documents", "fulfillment", "supplier"]
+                          },
+                          "nextActions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": ["accept", "apply"]
+                            }
+                          },
+                          "requestedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "requestedActor": {
+                            "type": "string",
+                            "enum": ["customer", "staff", "partner", "system"]
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "acceptedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "acceptedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "acceptedActor": {
+                            "type": ["string", "null"],
+                            "enum": ["customer", "staff", "partner", "system", null]
+                          },
+                          "appliedAt": {
+                            "type": ["string", "null"]
+                          },
+                          "appliedBy": {
+                            "type": ["string", "null"]
+                          },
+                          "appliedActor": {
+                            "type": ["string", "null"],
+                            "enum": ["customer", "staff", "partner", "system", null]
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          },
+                          "revisions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "amendmentId": {
+                                  "type": "string"
+                                },
+                                "bookingId": {
+                                  "type": "string"
+                                },
+                                "bookingRevision": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "role": {
+                                  "type": "string",
+                                  "enum": ["before", "proposed_after"]
+                                },
+                                "snapshot": {
+                                  "type": "object",
+                                  "properties": {
+                                    "bookingId": {
+                                      "type": "string"
+                                    },
+                                    "bookingNumber": {
+                                      "type": "string"
+                                    },
+                                    "revision": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0
+                                    },
+                                    "travelers": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "personId": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "participantType": {
+                                            "type": "string",
+                                            "enum": ["traveler", "occupant", "other"]
+                                          },
+                                          "travelerCategory": {
+                                            "type": ["string", "null"],
+                                            "enum": [
+                                              "adult",
+                                              "child",
+                                              "infant",
+                                              "senior",
+                                              "other",
+                                              null
+                                            ]
+                                          },
+                                          "firstName": {
+                                            "type": "string"
+                                          },
+                                          "lastName": {
+                                            "type": "string"
+                                          },
+                                          "email": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "phone": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "preferredLanguage": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "isPrimary": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "personId",
+                                          "participantType",
+                                          "travelerCategory",
+                                          "firstName",
+                                          "lastName",
+                                          "email",
+                                          "phone",
+                                          "preferredLanguage",
+                                          "isPrimary"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "bookingId",
+                                    "bookingNumber",
+                                    "revision",
+                                    "travelers"
+                                  ]
+                                },
+                                "changedFields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "authorizedBy": {
+                                  "type": ["string", "null"]
+                                },
+                                "reason": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "amendmentId",
+                                "bookingId",
+                                "bookingRevision",
+                                "role",
+                                "snapshot",
+                                "changedFields",
+                                "authorizedBy",
+                                "reason",
+                                "createdAt"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "bookingId",
+                          "travelerId",
+                          "kind",
+                          "status",
+                          "baseBookingRevision",
+                          "resultBookingRevision",
+                          "acceptanceRequired",
+                          "policyDecisions",
+                          "priceDelta",
+                          "effects",
+                          "nextActions",
+                          "requestedBy",
+                          "requestedActor",
+                          "reason",
+                          "acceptedAt",
+                          "acceptedBy",
+                          "acceptedActor",
+                          "appliedAt",
+                          "appliedBy",
+                          "appliedActor",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments/{amendmentId}": {
+      "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "amendmentId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking Amendment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "travelerId": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["traveler_correction"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                        },
+                        "baseBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "resultBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "acceptanceRequired": {
+                          "type": "boolean"
+                        },
+                        "policyDecisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "decision": {
+                                "type": "string",
+                                "enum": ["allowed", "acceptance_required"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["code", "version", "decision", "reason"]
+                          }
+                        },
+                        "priceDelta": {
+                          "type": "object",
+                          "properties": {
+                            "amountCents": {
+                              "type": "number",
+                              "enum": [0]
+                            },
+                            "currency": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["amountCents", "currency"]
+                        },
+                        "effects": {
+                          "type": "object",
+                          "properties": {
+                            "finance": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "legal": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "documents": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "fulfillment": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "supplier": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            }
+                          },
+                          "required": ["finance", "legal", "documents", "fulfillment", "supplier"]
+                        },
+                        "nextActions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["accept", "apply"]
+                          }
+                        },
+                        "requestedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "requestedActor": {
+                          "type": "string",
+                          "enum": ["customer", "staff", "partner", "system"]
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "acceptedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "appliedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "revisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amendmentId": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": "string"
+                              },
+                              "bookingRevision": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["before", "proposed_after"]
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "bookingId": {
+                                    "type": "string"
+                                  },
+                                  "bookingNumber": {
+                                    "type": "string"
+                                  },
+                                  "revision": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "travelers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "personId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "participantType": {
+                                          "type": "string",
+                                          "enum": ["traveler", "occupant", "other"]
+                                        },
+                                        "travelerCategory": {
+                                          "type": ["string", "null"],
+                                          "enum": [
+                                            "adult",
+                                            "child",
+                                            "infant",
+                                            "senior",
+                                            "other",
+                                            null
+                                          ]
+                                        },
+                                        "firstName": {
+                                          "type": "string"
+                                        },
+                                        "lastName": {
+                                          "type": "string"
+                                        },
+                                        "email": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "phone": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "preferredLanguage": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "isPrimary": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "personId",
+                                        "participantType",
+                                        "travelerCategory",
+                                        "firstName",
+                                        "lastName",
+                                        "email",
+                                        "phone",
+                                        "preferredLanguage",
+                                        "isPrimary"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": ["bookingId", "bookingNumber", "revision", "travelers"]
+                              },
+                              "changedFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "authorizedBy": {
+                                "type": ["string", "null"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "amendmentId",
+                              "bookingId",
+                              "bookingRevision",
+                              "role",
+                              "snapshot",
+                              "changedFields",
+                              "authorizedBy",
+                              "reason",
+                              "createdAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "travelerId",
+                        "kind",
+                        "status",
+                        "baseBookingRevision",
+                        "resultBookingRevision",
+                        "acceptanceRequired",
+                        "policyDecisions",
+                        "priceDelta",
+                        "effects",
+                        "nextActions",
+                        "requestedBy",
+                        "requestedActor",
+                        "reason",
+                        "acceptedAt",
+                        "acceptedBy",
+                        "acceptedActor",
+                        "appliedAt",
+                        "appliedBy",
+                        "appliedActor",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking Amendment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/accept": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "amendmentId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "proposedRevisionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["proposedRevisionId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted Booking Amendment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "travelerId": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["traveler_correction"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                        },
+                        "baseBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "resultBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "acceptanceRequired": {
+                          "type": "boolean"
+                        },
+                        "policyDecisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "decision": {
+                                "type": "string",
+                                "enum": ["allowed", "acceptance_required"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["code", "version", "decision", "reason"]
+                          }
+                        },
+                        "priceDelta": {
+                          "type": "object",
+                          "properties": {
+                            "amountCents": {
+                              "type": "number",
+                              "enum": [0]
+                            },
+                            "currency": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["amountCents", "currency"]
+                        },
+                        "effects": {
+                          "type": "object",
+                          "properties": {
+                            "finance": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "legal": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "documents": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "fulfillment": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "supplier": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            }
+                          },
+                          "required": ["finance", "legal", "documents", "fulfillment", "supplier"]
+                        },
+                        "nextActions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["accept", "apply"]
+                          }
+                        },
+                        "requestedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "requestedActor": {
+                          "type": "string",
+                          "enum": ["customer", "staff", "partner", "system"]
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "acceptedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "appliedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "revisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amendmentId": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": "string"
+                              },
+                              "bookingRevision": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["before", "proposed_after"]
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "bookingId": {
+                                    "type": "string"
+                                  },
+                                  "bookingNumber": {
+                                    "type": "string"
+                                  },
+                                  "revision": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "travelers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "personId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "participantType": {
+                                          "type": "string",
+                                          "enum": ["traveler", "occupant", "other"]
+                                        },
+                                        "travelerCategory": {
+                                          "type": ["string", "null"],
+                                          "enum": [
+                                            "adult",
+                                            "child",
+                                            "infant",
+                                            "senior",
+                                            "other",
+                                            null
+                                          ]
+                                        },
+                                        "firstName": {
+                                          "type": "string"
+                                        },
+                                        "lastName": {
+                                          "type": "string"
+                                        },
+                                        "email": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "phone": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "preferredLanguage": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "isPrimary": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "personId",
+                                        "participantType",
+                                        "travelerCategory",
+                                        "firstName",
+                                        "lastName",
+                                        "email",
+                                        "phone",
+                                        "preferredLanguage",
+                                        "isPrimary"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": ["bookingId", "bookingNumber", "revision", "travelers"]
+                              },
+                              "changedFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "authorizedBy": {
+                                "type": ["string", "null"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "amendmentId",
+                              "bookingId",
+                              "bookingRevision",
+                              "role",
+                              "snapshot",
+                              "changedFields",
+                              "authorizedBy",
+                              "reason",
+                              "createdAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "travelerId",
+                        "kind",
+                        "status",
+                        "baseBookingRevision",
+                        "resultBookingRevision",
+                        "acceptanceRequired",
+                        "policyDecisions",
+                        "priceDelta",
+                        "effects",
+                        "nextActions",
+                        "requestedBy",
+                        "requestedActor",
+                        "reason",
+                        "acceptedAt",
+                        "acceptedBy",
+                        "acceptedActor",
+                        "appliedAt",
+                        "appliedBy",
+                        "appliedActor",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid Idempotency-Key header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking Amendment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Acceptance conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments/{amendmentId}/apply": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "amendmentId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedBookingRevision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "proposedRevisionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["expectedBookingRevision", "proposedRevisionId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied Booking Amendment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "travelerId": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["traveler_correction"]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["proposed", "accepted", "applied", "rejected", "failed"]
+                        },
+                        "baseBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "resultBookingRevision": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "acceptanceRequired": {
+                          "type": "boolean"
+                        },
+                        "policyDecisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "version": {
+                                "type": "string"
+                              },
+                              "decision": {
+                                "type": "string",
+                                "enum": ["allowed", "acceptance_required"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["code", "version", "decision", "reason"]
+                          }
+                        },
+                        "priceDelta": {
+                          "type": "object",
+                          "properties": {
+                            "amountCents": {
+                              "type": "number",
+                              "enum": [0]
+                            },
+                            "currency": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["amountCents", "currency"]
+                        },
+                        "effects": {
+                          "type": "object",
+                          "properties": {
+                            "finance": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "legal": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "documents": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "fulfillment": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            },
+                            "supplier": {
+                              "type": "string",
+                              "enum": ["not_required"]
+                            }
+                          },
+                          "required": ["finance", "legal", "documents", "fulfillment", "supplier"]
+                        },
+                        "nextActions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": ["accept", "apply"]
+                          }
+                        },
+                        "requestedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "requestedActor": {
+                          "type": "string",
+                          "enum": ["customer", "staff", "partner", "system"]
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "acceptedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "acceptedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "appliedAt": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedBy": {
+                          "type": ["string", "null"]
+                        },
+                        "appliedActor": {
+                          "type": ["string", "null"],
+                          "enum": ["customer", "staff", "partner", "system", null]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "revisions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amendmentId": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": "string"
+                              },
+                              "bookingRevision": {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                              },
+                              "role": {
+                                "type": "string",
+                                "enum": ["before", "proposed_after"]
+                              },
+                              "snapshot": {
+                                "type": "object",
+                                "properties": {
+                                  "bookingId": {
+                                    "type": "string"
+                                  },
+                                  "bookingNumber": {
+                                    "type": "string"
+                                  },
+                                  "revision": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0
+                                  },
+                                  "travelers": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "personId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "participantType": {
+                                          "type": "string",
+                                          "enum": ["traveler", "occupant", "other"]
+                                        },
+                                        "travelerCategory": {
+                                          "type": ["string", "null"],
+                                          "enum": [
+                                            "adult",
+                                            "child",
+                                            "infant",
+                                            "senior",
+                                            "other",
+                                            null
+                                          ]
+                                        },
+                                        "firstName": {
+                                          "type": "string"
+                                        },
+                                        "lastName": {
+                                          "type": "string"
+                                        },
+                                        "email": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "phone": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "preferredLanguage": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "isPrimary": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "personId",
+                                        "participantType",
+                                        "travelerCategory",
+                                        "firstName",
+                                        "lastName",
+                                        "email",
+                                        "phone",
+                                        "preferredLanguage",
+                                        "isPrimary"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": ["bookingId", "bookingNumber", "revision", "travelers"]
+                              },
+                              "changedFields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "authorizedBy": {
+                                "type": ["string", "null"]
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "amendmentId",
+                              "bookingId",
+                              "bookingRevision",
+                              "role",
+                              "snapshot",
+                              "changedFields",
+                              "authorizedBy",
+                              "reason",
+                              "createdAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "bookingId",
+                        "travelerId",
+                        "kind",
+                        "status",
+                        "baseBookingRevision",
+                        "resultBookingRevision",
+                        "acceptanceRequired",
+                        "policyDecisions",
+                        "priceDelta",
+                        "effects",
+                        "nextActions",
+                        "requestedBy",
+                        "requestedActor",
+                        "reason",
+                        "acceptedAt",
+                        "acceptedBy",
+                        "acceptedActor",
+                        "appliedAt",
+                        "appliedBy",
+                        "appliedActor",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid Idempotency-Key header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking Amendment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Apply conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
                     }
                   },
                   "required": ["error"]

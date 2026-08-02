@@ -579,8 +579,41 @@ export const bookingsVoyantModule = defineModule({
       context: ["bookings"],
       risk: "critical",
     },
+    {
+      id: "@voyant-travel/bookings#tool.preview-traveler-correction-amendment",
+      name: "preview_traveler_correction_amendment",
+      runtime: {
+        entry: "@voyant-travel/bookings/tools",
+        export: "previewTravelerCorrectionAmendmentTool",
+      },
+      requiredScopes: ["bookings:write"],
+      context: ["bookings"],
+      risk: "medium",
+    },
+    {
+      id: "@voyant-travel/bookings#tool.accept-booking-amendment",
+      name: "accept_booking_amendment",
+      runtime: {
+        entry: "@voyant-travel/bookings/tools",
+        export: "acceptBookingAmendmentTool",
+      },
+      requiredScopes: ["bookings:write"],
+      context: ["bookings"],
+      risk: "medium",
+    },
+    {
+      id: "@voyant-travel/bookings#tool.apply-booking-amendment",
+      name: "apply_booking_amendment",
+      runtime: {
+        entry: "@voyant-travel/bookings/tools",
+        export: "applyBookingAmendmentTool",
+      },
+      requiredScopes: ["bookings:write"],
+      context: ["bookings"],
+      risk: "medium",
+    },
   ],
-  actions: BOOKING_VOYANT_ACTIONS,
+  actions: [...BOOKING_VOYANT_ACTIONS],
   admin: bookingsVoyantAdmin,
   lifecycle: {
     uninstall: { default: "retain-data", purge: "not-supported" },

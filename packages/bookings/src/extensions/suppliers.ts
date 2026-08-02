@@ -1,7 +1,7 @@
 import type { Extension } from "@voyant-travel/core"
 import { parseJsonBody } from "@voyant-travel/hono"
 import type { ApiExtension } from "@voyant-travel/hono/module"
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { Hono } from "hono"
 import { z } from "zod"
@@ -35,7 +35,10 @@ const updateSupplierStatusSchema = supplierStatusCoreSchema.partial().extend({
 // ---------- service ----------
 
 async function touchBookingUpdatedAt(db: PostgresJsDatabase, bookingId: string, now = new Date()) {
-  await db.update(bookings).set({ updatedAt: now }).where(eq(bookings.id, bookingId))
+  await db
+    .update(bookings)
+    .set({ revision: sql`${bookings.revision} + 1`, updatedAt: now })
+    .where(eq(bookings.id, bookingId))
 }
 
 const supplierStatusService = {

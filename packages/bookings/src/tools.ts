@@ -8,6 +8,14 @@
  * PII surface) and are not exposed here.
  * `cancel_booking` always uses an action-ledger approval before execution.
  */
+
+import {
+  acceptBookingAmendmentSchema,
+  applyBookingAmendmentSchema,
+  bookingAmendmentPreviewResultSchema,
+  bookingAmendmentSchema,
+  previewTravelerCorrectionSchema,
+} from "@voyant-travel/bookings-contracts"
 import {
   admitHandlerActionPolicy,
   defineTool,
@@ -85,6 +93,15 @@ export interface BookingsToolServices {
   cancelBooking(
     input: z.infer<typeof cancelBookingToolInputSchema>,
     admitted: ToolHandlerActionPolicyContext,
+  ): Promise<unknown>
+  previewTravelerCorrectionAmendment(
+    input: z.infer<typeof previewTravelerCorrectionAmendmentToolInputSchema>,
+  ): Promise<unknown>
+  acceptBookingAmendment(
+    input: z.infer<typeof acceptBookingAmendmentToolInputSchema>,
+  ): Promise<unknown>
+  applyBookingAmendment(
+    input: z.infer<typeof applyBookingAmendmentToolInputSchema>,
   ): Promise<unknown>
 }
 
@@ -304,11 +321,140 @@ export const confirmBookingTool = defineTool<
   },
 })
 
+const amendmentCommandFields = {
+  bookingId: z.string().min(1).describe("The stable Booking id."),
+  amendmentId: z.string().min(1).describe("The Booking Amendment id."),
+  idempotencyKey: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Stable key for safely replaying this exact Amendment command."),
+}
+
+export const previewTravelerCorrectionAmendmentToolInputSchema =
+  previewTravelerCorrectionSchema.extend({
+    bookingId: amendmentCommandFields.bookingId,
+    idempotencyKey: amendmentCommandFields.idempotencyKey,
+  })
+
+export const acceptBookingAmendmentToolInputSchema = acceptBookingAmendmentSchema.extend({
+  bookingId: amendmentCommandFields.bookingId,
+  amendmentId: amendmentCommandFields.amendmentId,
+  idempotencyKey: amendmentCommandFields.idempotencyKey,
+})
+
+export const applyBookingAmendmentToolInputSchema = applyBookingAmendmentSchema.extend({
+  bookingId: amendmentCommandFields.bookingId,
+  amendmentId: amendmentCommandFields.amendmentId,
+  idempotencyKey: amendmentCommandFields.idempotencyKey,
+})
+
+const acceptBookingAmendmentToolOutputSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ok"), amendment: bookingAmendmentSchema }),
+  z.object({ status: z.literal("already_applied"), amendment: bookingAmendmentSchema }),
+  z.object({ status: z.literal("not_found") }),
+  z.object({ status: z.literal("revision_mismatch") }),
+  z.object({ status: z.literal("acceptance_not_required") }),
+  z.object({
+    status: z.literal("stale_revision"),
+    currentBookingRevision: z.number().int().positive(),
+  }),
+])
+
+const applyBookingAmendmentToolOutputSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("ok"), amendment: bookingAmendmentSchema }),
+  z.object({ status: z.literal("not_found") }),
+  z.object({ status: z.literal("revision_mismatch") }),
+  z.object({ status: z.literal("acceptance_required") }),
+  z.object({ status: z.literal("invalid_state") }),
+  z.object({
+    status: z.literal("stale_revision"),
+    currentBookingRevision: z.number().int().positive(),
+  }),
+])
+
+const bookingAmendmentWriteRisk = {
+  destructive: false,
+  reversible: false,
+  dryRunSupported: false,
+  confirmationRequired: false,
+  sideEffects: ["data-write"],
+} as const
+
+export const previewTravelerCorrectionAmendmentTool = defineTool({
+  owner: "@voyant-travel/bookings",
+  capabilityId: "@voyant-travel/bookings#tool.preview-traveler-correction-amendment",
+  capabilityVersion: "v1",
+  name: "preview_traveler_correction_amendment",
+  description:
+    "Create an immutable, idempotent before/proposed-after preview for a traveler correction without replacing the Booking.",
+  inputSchema: previewTravelerCorrectionAmendmentToolInputSchema,
+  outputSchema: bookingAmendmentPreviewResultSchema,
+  requiredScopes: ["bookings:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: bookingAmendmentWriteRisk,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx: BookingsToolContext) {
+    return parseJsonResult(
+      bookingAmendmentPreviewResultSchema,
+      await bookings(ctx).previewTravelerCorrectionAmendment(input),
+    )
+  },
+})
+
+export const acceptBookingAmendmentTool = defineTool({
+  owner: "@voyant-travel/bookings",
+  capabilityId: "@voyant-travel/bookings#tool.accept-booking-amendment",
+  capabilityVersion: "v1",
+  name: "accept_booking_amendment",
+  description:
+    "Record explicit acceptance of the exact proposed Booking revision when the Amendment policy requires it.",
+  inputSchema: acceptBookingAmendmentToolInputSchema,
+  outputSchema: acceptBookingAmendmentToolOutputSchema,
+  requiredScopes: ["bookings:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: bookingAmendmentWriteRisk,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx: BookingsToolContext) {
+    return parseJsonResult(
+      acceptBookingAmendmentToolOutputSchema,
+      await bookings(ctx).acceptBookingAmendment(input),
+    )
+  },
+})
+
+export const applyBookingAmendmentTool = defineTool({
+  owner: "@voyant-travel/bookings",
+  capabilityId: "@voyant-travel/bookings#tool.apply-booking-amendment",
+  capabilityVersion: "v1",
+  name: "apply_booking_amendment",
+  description:
+    "Atomically apply an accepted or directly-applicable Amendment to the stable Booking revision.",
+  inputSchema: applyBookingAmendmentToolInputSchema,
+  outputSchema: applyBookingAmendmentToolOutputSchema,
+  requiredScopes: ["bookings:write"],
+  audience: { source: "grant", allowed: ["staff"] },
+  tier: "write",
+  riskPolicy: bookingAmendmentWriteRisk,
+  annotations: { idempotentHint: true },
+  async handler(input, ctx: BookingsToolContext) {
+    return parseJsonResult(
+      applyBookingAmendmentToolOutputSchema,
+      await bookings(ctx).applyBookingAmendment(input),
+    )
+  },
+})
+
 export const bookingsTools = [
   listBookingsTool,
   getBookingTool,
   confirmBookingTool,
   cancelBookingTool,
+  previewTravelerCorrectionAmendmentTool,
+  acceptBookingAmendmentTool,
+  applyBookingAmendmentTool,
 ] as const
 
 // Extension Tools are wrapped at the package's canonical `./tools` entry so

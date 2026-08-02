@@ -19,6 +19,18 @@ describe("standard booking action-ledger authority", () => {
       { id: "booking.status.start", capabilityId: "bookings:status:start" },
       { id: "booking.status.complete", capabilityId: "bookings:status:complete" },
       { id: "booking.status.override", capabilityId: "bookings:status:override" },
+      {
+        id: "@voyant-travel/bookings#action.preview-traveler-correction-amendment",
+        capabilityId: "bookings:amendments:preview-traveler-correction",
+      },
+      {
+        id: "@voyant-travel/bookings#action.accept-booking-amendment",
+        capabilityId: "bookings:amendments:accept",
+      },
+      {
+        id: "@voyant-travel/bookings#action.apply-booking-amendment",
+        capabilityId: "bookings:amendments:apply",
+      },
     ])
     const accessScopes = (bookingsVoyantModule.access?.resources ?? []).flatMap((resource) =>
       resource.actions.map(

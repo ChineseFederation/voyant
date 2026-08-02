@@ -37,6 +37,8 @@ export const bookings = pgTable(
   {
     id: typeId("bookings"),
     bookingNumber: text("booking_number").notNull().unique(),
+    /** Optimistic-concurrency token for immutable Booking revisions. */
+    revision: integer("revision").notNull().default(1),
     status: bookingStatusEnum("status").notNull().default("draft"),
     personId: text("person_id"),
     organizationId: text("organization_id"),
@@ -128,6 +130,7 @@ export const bookings = pgTable(
       // agent-quality: raw-sql reviewed -- owner: bookings; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
       sql`(${table.baseSellAmountCents} IS NULL AND ${table.baseCostAmountCents} IS NULL) OR ${table.baseCurrency} IS NOT NULL`,
     ),
+    check("ck_bookings_revision_positive", sql`${table.revision} > 0`),
   ],
 )
 

@@ -8,6 +8,11 @@
       "note": "Not stated. The Tool description covers what the call does, not the cross-field condition the refinement enforces."
     },
     {
+      "id": "@voyant-travel/bookings:preview_traveler_correction_amendment:patch",
+      "documented": true,
+      "note": "Documented. The `patch` field description states that at least one traveler correction field must be provided."
+    },
+    {
       "id": "@voyant-travel/commerce:create_promotion:<root>",
       "documented": false,
       "note": "Not stated. The discount-type/amount pairing rule (percent vs fixed amount, and the currency it needs) is enforced only by the refinement."

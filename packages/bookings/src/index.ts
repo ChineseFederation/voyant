@@ -12,6 +12,7 @@ import {
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
 import { bookingRoutes } from "./routes.js"
+import { bookingAmendmentPublicRoutes } from "./routes-amendments.js"
 import { publicBookingRoutes } from "./routes-public.js"
 import {
   createSelfServiceBookingRoutes,
@@ -91,6 +92,13 @@ export type {
   UpdateTravelerWithTravelDetailsInput,
 } from "./service.js"
 export { bookingsService } from "./service.js"
+export {
+  type AcceptBookingAmendmentResult,
+  type ApplyBookingAmendmentResult,
+  type BookingAmendmentCommandContext,
+  bookingAmendmentService,
+  type PreviewTravelerCorrectionResult,
+} from "./service-amendments.js"
 export {
   type AddBookingGroupMemberInput,
   type BookingGroupListQuery,
@@ -182,6 +190,7 @@ export function createBookingsApiModule(options: BookingsApiModuleOptions = {}):
     adminRoutes: bookingRoutes,
     publicRoutes: new OpenAPIHono()
       .route("/", publicBookingRoutes)
+      .route("/", bookingAmendmentPublicRoutes)
       .route("/", createSelfServiceBookingRoutes(options)),
     anonymous: true,
     optionalCustomerAuth: true,

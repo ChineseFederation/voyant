@@ -1052,7 +1052,10 @@ export async function touchLinkedBookingUpdatedAt(
   now = new Date(),
 ) {
   if (!bookingId) return
-  await db.update(bookings).set({ updatedAt: now }).where(eq(bookings.id, bookingId))
+  await db
+    .update(bookings)
+    .set({ revision: sql`${bookings.revision} + 1`, updatedAt: now })
+    .where(eq(bookings.id, bookingId))
 }
 
 /**

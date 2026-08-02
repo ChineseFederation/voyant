@@ -60,6 +60,7 @@ import {
   type BookingRouteRuntime,
   buildBookingRouteRuntime,
 } from "./route-runtime.js"
+import { bookingAmendmentAdminRoutes } from "./routes-amendments.js"
 import { bookingGroupRoutes } from "./routes-groups.js"
 import { createBookingsAdminRoute as createRoute } from "./routes-openapi.js"
 import type { publicBookingRoutes } from "./routes-public.js"
@@ -1290,6 +1291,7 @@ const namespacedCustomFields = z.record(z.string(), jsonObject)
 const bookingSchema = z.object({
   id: z.string(),
   bookingNumber: z.string(),
+  revision: z.number().int().positive(),
   status: bookingStatusSchema,
   personId: z.string().nullable(),
   organizationId: z.string().nullable(),
@@ -3838,6 +3840,7 @@ const documentsRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHoo
 // POST routes (`/expire-stale`, `/pricing-preview`) must be matched
 // before the `coreCrudRoutes` `/{id}` catch-all — so coreCrud is mounted LAST.
 export const bookingRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+  .route("/", bookingAmendmentAdminRoutes)
   .route("/", readsRoutes)
   .route("/", lifecycleRoutes)
   .route("/", actionLedgerRoutes)

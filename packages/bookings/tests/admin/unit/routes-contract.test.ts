@@ -70,6 +70,7 @@ const confirmedAt = new Date("2026-05-15T12:00:00.000Z")
 const booking: Booking = {
   id: "bkg_1",
   bookingNumber: "BK-0001",
+  revision: 1,
   status: "confirmed",
   personId: "per_1",
   organizationId: null,

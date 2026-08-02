@@ -25,7 +25,15 @@ export const checkoutCapabilityActions = [
 
 export type CheckoutCapabilityAction = (typeof checkoutCapabilityActions)[number]
 
-export const guestBookingAccessActions = ["overview:read", "payment:read", "payment:start"] as const
+export const guestBookingAccessActions = [
+  "overview:read",
+  "payment:read",
+  "payment:start",
+  "amendment:read",
+  "amendment:preview",
+  "amendment:accept",
+  "amendment:apply",
+] as const
 
 export type GuestBookingAccessAction = (typeof guestBookingAccessActions)[number]
 

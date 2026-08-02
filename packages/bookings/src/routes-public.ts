@@ -165,7 +165,7 @@ function activeStorefrontOrigin(c: Context<Env>) {
   }
 }
 
-function activeStorefrontChannelGuard(): MiddlewareHandler<Env> {
+export function activeStorefrontChannelGuard(): MiddlewareHandler<Env> {
   return async (c, next) => {
     if (!activeStorefrontOrigin(c)) {
       return c.json({ error: "active_storefront_channel_required" }, 403)
@@ -174,7 +174,7 @@ function activeStorefrontChannelGuard(): MiddlewareHandler<Env> {
   }
 }
 
-async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
+export async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
   const requestOrigin = activeStorefrontOrigin(c)
   if (!requestOrigin) {
     return c.json({ error: "active_storefront_channel_required" }, 403)

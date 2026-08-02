@@ -1,6 +1,6 @@
 import { bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 interface StoredAcceptance {
@@ -152,6 +152,7 @@ export async function persistAcceptanceSignature(
       .update(bookings)
       .set({
         internalNotes: cleanedNotes.length > 0 ? cleanedNotes : null,
+        revision: sql`${bookings.revision} + 1`,
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, booking.id))

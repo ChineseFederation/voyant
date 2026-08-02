@@ -11,6 +11,7 @@
   "sideEffects": false,
   "exports": {
     ".": "./src/index.ts",
+    "./booking-amendments": "./src/booking-amendments.ts",
     "./booking-session-v1": "./src/booking-session-v1.ts",
     "./booking-engine": "./src/booking-engine.ts",
     "./client": "./src/client.ts",
@@ -29,6 +30,7 @@
   },
   "peerDependencies": {
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/bookings-contracts": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/storefront": "workspace:^",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/bookings-contracts": "workspace:^",
     "@voyant-travel/catalog-contracts": "workspace:^",
     "@voyant-travel/finance": "workspace:^",
     "@voyant-travel/storefront": "workspace:^",
@@ -54,6 +57,11 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./booking-amendments": {
+        "types": "./dist/booking-amendments.d.ts",
+        "import": "./dist/booking-amendments.js",
+        "default": "./dist/booking-amendments.js"
       },
       "./booking-session-v1": {
         "types": "./dist/booking-session-v1.d.ts",

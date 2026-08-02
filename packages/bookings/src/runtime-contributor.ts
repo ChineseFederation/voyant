@@ -37,6 +37,7 @@ const bookingCustomFieldValues: CustomFieldValueLifecycleRuntime = {
               ),
             true
           ),
+          revision = revision + 1,
           updated_at = now()
           WHERE custom_fields -> ${definition.namespace} ? ${definition.key}`,
     )
@@ -46,6 +47,7 @@ const bookingCustomFieldValues: CustomFieldValueLifecycleRuntime = {
     await database.execute(
       sql`UPDATE bookings
           SET custom_fields = custom_fields #- ARRAY[${definition.namespace}, ${definition.key}]::text[],
+              revision = revision + 1,
               updated_at = now()
           WHERE custom_fields -> ${definition.namespace} ? ${definition.key}`,
     )
@@ -83,6 +85,7 @@ const bookingCustomFieldValueOperations: CustomFieldValueOperationsRuntime = {
                     ),
                   true
                 ),
+                revision = revision + 1,
                 updated_at = now()
             WHERE id = ${input.entityId}
             RETURNING id`,
@@ -96,6 +99,7 @@ const bookingCustomFieldValueOperations: CustomFieldValueOperationsRuntime = {
       await database.execute(
         sql`UPDATE bookings
             SET custom_fields = custom_fields #- ARRAY[${input.definition.namespace}, ${input.definition.key}]::text[],
+                revision = revision + 1,
                 updated_at = now()
             WHERE id = ${input.entityId}
               AND custom_fields -> ${input.definition.namespace} ? ${input.definition.key}

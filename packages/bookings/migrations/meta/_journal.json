@@ -43,6 +43,13 @@
       "when": 1785600600000,
       "tag": "20260801161000_booking_origin_storefront_channel",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785686400000,
+      "tag": "20260802160000_booking_traveler_amendments",
+      "breakpoints": true
     }
   ]
 }

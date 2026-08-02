@@ -19,7 +19,7 @@ import {
   type PaymentPolicy,
   type PaymentPolicySource,
 } from "@voyant-travel/finance"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 import type { CheckoutStartOptions } from "./options.js"
@@ -361,7 +361,11 @@ async function markAwaitingPayment(
   const patch = transitionBooking(booking.status, "awaiting_payment")
   await db
     .update(bookings)
-    .set({ ...patch, updatedAt: new Date() })
+    .set({
+      ...patch,
+      revision: sql`${bookings.revision} + 1`,
+      updatedAt: new Date(),
+    })
     .where(eq(bookings.id, booking.id))
 }
 

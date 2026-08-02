@@ -1,4 +1,11 @@
 import {
+  acceptBookingAmendment,
+  applyBookingAmendment,
+  getBookingAmendment,
+  listBookingAmendments,
+  previewTravelerCorrection,
+} from "./booking-amendments.js"
+import {
   bootstrapBookingEnginePayment,
   confirmBookingEngineSession,
   expireBookingEngineSession,
@@ -55,6 +62,7 @@ import {
   updatePublicBookingSessionState,
 } from "./operations.js"
 
+export * from "./booking-amendments.js"
 export * from "./booking-engine.js"
 export * from "./booking-session-v1.js"
 export type {
@@ -220,6 +228,32 @@ export function createVoyantStorefrontClient(options: VoyantStorefrontClientOpti
       deriveState: deriveBookingEngineState,
       createSnapshot: createBookingEngineSnapshot,
       canRunAction: canRunBookingEngineAction,
+    },
+    bookingAmendments: {
+      previewTravelerCorrection: (
+        bookingId: string,
+        input: Parameters<typeof previewTravelerCorrection>[2],
+        requestOptions: Parameters<typeof previewTravelerCorrection>[3],
+      ) => previewTravelerCorrection(client, bookingId, input, requestOptions),
+      list: (bookingId: string, requestOptions?: Parameters<typeof listBookingAmendments>[2]) =>
+        listBookingAmendments(client, bookingId, requestOptions),
+      get: (
+        bookingId: string,
+        amendmentId: string,
+        requestOptions?: Parameters<typeof getBookingAmendment>[3],
+      ) => getBookingAmendment(client, bookingId, amendmentId, requestOptions),
+      accept: (
+        bookingId: string,
+        amendmentId: string,
+        input: Parameters<typeof acceptBookingAmendment>[3],
+        requestOptions: Parameters<typeof acceptBookingAmendment>[4],
+      ) => acceptBookingAmendment(client, bookingId, amendmentId, input, requestOptions),
+      apply: (
+        bookingId: string,
+        amendmentId: string,
+        input: Parameters<typeof applyBookingAmendment>[3],
+        requestOptions: Parameters<typeof applyBookingAmendment>[4],
+      ) => applyBookingAmendment(client, bookingId, amendmentId, input, requestOptions),
     },
     bookingSessionsV1: {
       create: (
