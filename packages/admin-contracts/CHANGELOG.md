@@ -1,5 +1,17 @@
 # @voyant-travel/admin-contracts
 
+## 0.105.0
+
+### Minor Changes
+
+- f7adc5b: Add configurable Product families, stable subtypes, explicit minute durations, family-first quick starts, and standard family Catalog views.
+
+### Patch Changes
+
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/products-contracts@0.108.0
+
 ## 0.104.21
 
 ### Patch Changes

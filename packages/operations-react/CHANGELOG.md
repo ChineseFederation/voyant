@@ -1,5 +1,23 @@
 # @voyant-travel/operations-react
 
+## 0.112.0
+
+### Minor Changes
+
+- f7adc5b: Expose a shared operated-departure logistics workspace for room, vehicle, and
+  seat assignments, with same-slot parent validation and vehicle-seat invariants.
+
+### Patch Changes
+
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/bookings-react@0.231.0
+  - @voyant-travel/inventory-react@0.113.0
+  - @voyant-travel/operations@0.12.0
+  - @voyant-travel/i18n@0.119.3
+
 ## 0.111.0
 
 ### Patch Changes

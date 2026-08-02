@@ -1,5 +1,11 @@
 # @voyant-travel/i18n
 
+## 0.119.3
+
+### Patch Changes
+
+- f7adc5b: Add configurable Product families, stable subtypes, explicit minute durations, family-first quick starts, and standard family Catalog views.
+
 ## 0.119.2
 
 ### Patch Changes

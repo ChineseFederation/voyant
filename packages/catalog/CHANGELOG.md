@@ -1,5 +1,13 @@
 # @voyant-travel/catalog
 
+## 0.229.0
+
+### Patch Changes
+
+- f7adc5b: Make Product status the lifecycle authority and active Channel assignments the distribution authority, while retaining legacy visibility fields as deprecated API compatibility data.
+  - @voyant-travel/bookings@0.231.0
+  - @voyant-travel/finance@0.231.0
+
 ## 0.228.0
 
 ### Minor Changes

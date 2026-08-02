@@ -1,5 +1,17 @@
 # @voyant-travel/admin
 
+## 0.134.1
+
+### Patch Changes
+
+- f7adc5b: Preserve product and departure context when starting a manual booking, fall back
+  to owned inventory when catalog search is unavailable, derive departure end
+  times from explicit product duration, and route local operator sign-up through
+  the admin authentication realm. Name icon-only combobox controls for assistive
+  technology.
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/i18n@0.119.3
+
 ## 0.134.0
 
 ### Minor Changes

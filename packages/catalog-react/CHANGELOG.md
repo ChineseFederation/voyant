@@ -1,5 +1,22 @@
 # @voyant-travel/catalog-react
 
+## 0.229.0
+
+### Minor Changes
+
+- f7adc5b: Add configurable Product families, stable subtypes, explicit minute durations, family-first quick starts, and standard family Catalog views.
+
+### Patch Changes
+
+- f7adc5b: Make Product status the lifecycle authority and active Channel assignments the distribution authority, while retaining legacy visibility fields as deprecated API compatibility data.
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/inventory-react@0.113.0
+  - @voyant-travel/i18n@0.119.3
+  - @voyant-travel/commerce-react@0.113.0
+  - @voyant-travel/distribution-react@0.221.0
+
 ## 0.228.0
 
 ### Patch Changes

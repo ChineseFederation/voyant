@@ -1,5 +1,36 @@
 # @voyant-travel/bookings-react
 
+## 0.231.0
+
+### Patch Changes
+
+- f7adc5b: Preserve product and departure context when starting a manual booking, fall back
+  to owned inventory when catalog search is unavailable, derive departure end
+  times from explicit product duration, and route local operator sign-up through
+  the admin authentication realm. Name icon-only combobox controls for assistive
+  technology.
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/inventory-react@0.113.0
+  - @voyant-travel/catalog@0.229.0
+  - @voyant-travel/catalog-react@0.229.0
+  - @voyant-travel/inventory@0.27.0
+  - @voyant-travel/operations-react@0.112.0
+  - @voyant-travel/i18n@0.119.3
+  - @voyant-travel/commerce-react@0.113.0
+  - @voyant-travel/distribution-react@0.221.0
+  - @voyant-travel/finance-react@0.231.0
+  - @voyant-travel/identity-react@0.231.0
+  - @voyant-travel/legal-react@0.231.0
+  - @voyant-travel/storefront-react@0.233.0
+  - @voyant-travel/accommodations@0.191.0
+  - @voyant-travel/relationships-react@0.231.0
+  - @voyant-travel/bookings@0.231.0
+  - @voyant-travel/cruises@0.230.0
+  - @voyant-travel/finance@0.231.0
+
 ## 0.230.0
 
 ### Patch Changes

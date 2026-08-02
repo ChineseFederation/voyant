@@ -1,5 +1,30 @@
 # @voyant-travel/inventory-react
 
+## 0.113.0
+
+### Minor Changes
+
+- f7adc5b: Add configurable Product families, stable subtypes, explicit minute durations, family-first quick starts, and standard family Catalog views.
+
+### Patch Changes
+
+- f7adc5b: Preserve product and departure context when starting a manual booking, fall back
+  to owned inventory when catalog search is unavailable, derive departure end
+  times from explicit product duration, and route local operator sign-up through
+  the admin authentication realm. Name icon-only combobox controls for assistive
+  technology.
+- f7adc5b: Make Product status the lifecycle authority and active Channel assignments the distribution authority, while retaining legacy visibility fields as deprecated API compatibility data.
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+- Updated dependencies [f7adc5b]
+  - @voyant-travel/catalog-react@0.229.0
+  - @voyant-travel/inventory@0.27.0
+  - @voyant-travel/operations@0.12.0
+  - @voyant-travel/i18n@0.119.3
+  - @voyant-travel/finance-react@0.231.0
+  - @voyant-travel/storefront-react@0.233.0
+  - @voyant-travel/finance@0.231.0
+
 ## 0.112.0
 
 ### Patch Changes

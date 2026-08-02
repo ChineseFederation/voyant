@@ -1,5 +1,15 @@
 # @voyant-travel/products-contracts
 
+## 0.108.0
+
+### Minor Changes
+
+- f7adc5b: Add configurable Product families, stable subtypes, explicit minute durations, family-first quick starts, and standard family Catalog views.
+
+### Patch Changes
+
+- f7adc5b: Make Product status the lifecycle authority and active Channel assignments the distribution authority, while retaining legacy visibility fields as deprecated API compatibility data.
+
 ## 0.107.13
 
 ### Patch Changes
