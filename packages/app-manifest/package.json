@@ -1,0 +1,68 @@
+{
+  "name": "@voyant-travel/app-manifest",
+  "version": "0.0.0",
+  "description": "Validate and compile a Voyant app release manifest, and reproduce the release digest the marketplace admits.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./compiler": "./src/compiler.ts",
+    "./contracts": "./src/contracts.ts",
+    "./primitives": "./src/primitives.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm --workspace-concurrency=1 --filter @voyant-travel/app-manifest... run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./compiler": {
+        "types": "./dist/compiler.d.ts",
+        "import": "./dist/compiler.js",
+        "default": "./dist/compiler.js"
+      },
+      "./contracts": {
+        "types": "./dist/contracts.d.ts",
+        "import": "./dist/contracts.js",
+        "default": "./dist/contracts.js"
+      },
+      "./primitives": {
+        "types": "./dist/primitives.d.ts",
+        "import": "./dist/primitives.js",
+        "default": "./dist/primitives.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "dependencies": {
+    "@voyant-travel/admin-extension-sdk": "workspace:^",
+    "@voyant-travel/custom-fields-contracts": "workspace:^",
+    "@voyant-travel/webhook-delivery-contracts": "workspace:^",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/app-manifest"
+  }
+}

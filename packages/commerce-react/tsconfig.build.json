@@ -184,6 +184,10 @@
       "@voyant-travel/admin/ui-extensions": ["../admin/dist/ui-extensions/index.d.ts"],
       "@voyant-travel/admin/ui-extensions/registry": ["../admin/dist/ui-extensions/registry.d.ts"],
       "@voyant-travel/allotments": ["../allotments/dist/index.d.ts"],
+      "@voyant-travel/app-manifest": ["../app-manifest/dist/index.d.ts"],
+      "@voyant-travel/app-manifest/compiler": ["../app-manifest/dist/compiler.d.ts"],
+      "@voyant-travel/app-manifest/contracts": ["../app-manifest/dist/contracts.d.ts"],
+      "@voyant-travel/app-manifest/primitives": ["../app-manifest/dist/primitives.d.ts"],
       "@voyant-travel/apps": ["../apps/dist/index.d.ts"],
       "@voyant-travel/apps-react": ["../apps-react/dist/index.d.ts"],
       "@voyant-travel/apps-react/admin": ["../apps-react/dist/admin.d.ts"],
@@ -717,6 +721,7 @@
       "@voyant-travel/cruises/validation": ["../cruises/dist/validation.d.ts"],
       "@voyant-travel/cruises/voyant": ["../cruises/dist/voyant.d.ts"],
       "@voyant-travel/custom-fields": ["../custom-fields/dist/index.d.ts"],
+      "@voyant-travel/custom-fields-contracts": ["../custom-fields-contracts/dist/index.d.ts"],
       "@voyant-travel/custom-fields-react": ["../custom-fields-react/dist/index.d.ts"],
       "@voyant-travel/custom-fields-react/admin": ["../custom-fields-react/dist/admin.d.ts"],
       "@voyant-travel/custom-fields-react/hooks": ["../custom-fields-react/dist/hooks/index.d.ts"],
@@ -1959,6 +1964,9 @@
       "@voyant-travel/utils/timezones": ["../utils/dist/timezones.d.ts"],
       "@voyant-travel/vite-config": ["../vite-config/dist/index.d.ts"],
       "@voyant-travel/webhook-delivery": ["../webhook-delivery/dist/index.d.ts"],
+      "@voyant-travel/webhook-delivery-contracts": [
+        "../webhook-delivery-contracts/dist/index.d.ts"
+      ],
       "@voyant-travel/webhook-delivery/admin-contracts": [
         "../webhook-delivery/dist/admin-contracts.d.ts"
       ],

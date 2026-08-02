@@ -7,7 +7,7 @@ import {
   signWebhookPayload,
   verifyWebhookPayloadSignature,
   webhookBodyExcerpt,
-} from "../src/security.js"
+} from "./index.js"
 
 describe("webhook delivery security", () => {
   it("uses a versioned SHA-256 HMAC signature", () => {

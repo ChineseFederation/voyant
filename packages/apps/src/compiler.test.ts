@@ -1,8 +1,17 @@
 import { ADMIN_UI_EXTENSION_SLOTS } from "@voyant-travel/admin-extension-sdk/types"
+import type { VoyantGraphEventCatalog } from "@voyant-travel/core/project"
 import { describe, expect, it } from "vitest"
 import { compileAppManifest } from "./compiler.js"
 import { APP_ADMIN_EXTENSION_SLOTS, appManifestSchema } from "./contracts.js"
 import { validManifest } from "./test-fixtures.js"
+
+/**
+ * Identity, typed as the host's real catalog. It asserts that
+ * `VoyantGraphEventCatalog` still satisfies the structural shape
+ * `compileAppManifest` declares, now that the compiler lives in
+ * `@voyant-travel/app-manifest` and cannot import the framework type.
+ */
+const hostEventCatalog = (catalog: VoyantGraphEventCatalog): VoyantGraphEventCatalog => catalog
 
 describe("app manifest compiler", () => {
   it("accepts truthful disclosure of publisher-custodied encrypted secrets", () => {
@@ -105,7 +114,7 @@ describe("app manifest compiler", () => {
 
     expect(() =>
       compileAppManifest(validManifest, {
-        eventCatalog: {
+        eventCatalog: hostEventCatalog({
           schemaVersion: "voyant.event-catalog.v1",
           events: [
             {
@@ -121,13 +130,13 @@ describe("app manifest compiler", () => {
               redactedFields: [],
             },
           ],
-        },
+        }),
       }),
     ).toThrow(/not an external event contract/)
 
     expect(() =>
       compileAppManifest(validManifest, {
-        eventCatalog: {
+        eventCatalog: hostEventCatalog({
           schemaVersion: "voyant.event-catalog.v1",
           events: [
             {
@@ -143,7 +152,7 @@ describe("app manifest compiler", () => {
               redactedFields: [],
             },
           ],
-        },
+        }),
       }),
     ).toThrow(/not an external event contract/)
   })

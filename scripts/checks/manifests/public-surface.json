@@ -1,0 +1,34 @@
+{
+  "$comment": [
+    "The intended public npm surface \u2014 see issue #4059.",
+    "Two groups: the third-party extension surface, and the Connect contract surface.",
+    "The dependency closure of this list must EQUAL this list; verify:public-surface enforces that.",
+    "Adding an entry widens what external developers may depend on. Do it deliberately.",
+    "This is not yet a publish gate: ~95 other packages are still published until the",
+    "first-party repos have a build path (#4059 item 4)."
+  ],
+  "extensionSurface": [
+    "@voyant-travel/admin-extension-sdk",
+    "@voyant-travel/app-manifest",
+    "@voyant-travel/custom-fields-contracts",
+    "@voyant-travel/ui",
+    "@voyant-travel/webhook-delivery-contracts"
+  ],
+  "connectContractSurface": [
+    "@voyant-travel/accommodations-contracts",
+    "@voyant-travel/catalog-contracts",
+    "@voyant-travel/charters-contracts",
+    "@voyant-travel/cruises-contracts",
+    "@voyant-travel/flights-contracts",
+    "@voyant-travel/products-contracts",
+    "@voyant-travel/schema-kit"
+  ],
+  "$notTripsContracts": [
+    "There is deliberately no trips-contracts entry. A Trip Envelope composes",
+    "already-committed components (tripComponentKindEnum: catalog_booking,",
+    "flight_order, external_order, placeholders) and is not sourced from a",
+    "supplier; a supplier-sold tour or package is a Product. The Connect source",
+    "verticals are accommodations, charters, cruises, flights, and products.",
+    "See connect#106."
+  ]
+}

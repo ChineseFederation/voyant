@@ -25,6 +25,7 @@
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/core": "workspace:^",
+    "@voyant-travel/custom-fields-contracts": "workspace:^",
     "@voyant-travel/db": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "drizzle-orm": "catalog:",
