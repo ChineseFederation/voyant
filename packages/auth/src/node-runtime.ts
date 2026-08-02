@@ -264,6 +264,12 @@ export interface CustomerAuthRuntimeContext {
   methods: CustomerAuthMethods
   /** Buyer capabilities are independent from identity sign-up methods. */
   accountPolicy?: CustomerBuyerAccountPolicy | null
+  /** Server-derived Storefront sales-channel context for downstream public routes. */
+  storefrontChannel?: {
+    storefrontId: string
+    channelId: string
+    channelStatus?: string | null
+  }
 }
 
 export interface CustomerAuthSocialPolicy {
@@ -1155,6 +1161,19 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
       const session = await auth.api.getSession({ headers: request.headers })
 
       if (!session) {
+        if (customerSurface && customerContext?.storefrontChannel) {
+          return {
+            isAnonymousRequest: true,
+            userId: "anonymous-storefront",
+            organizationId: null,
+            callerType: "session",
+            actor: "customer",
+            audience: "customer",
+            realm: "customer",
+            scopes: [],
+            storefrontChannel: customerContext.storefrontChannel,
+          }
+        }
         return null
       }
 
@@ -1207,6 +1226,9 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
           realm: "customer" as const,
           scopes: [],
           email: session.user.email ?? null,
+          ...(customerContext?.storefrontChannel
+            ? { storefrontChannel: customerContext.storefrontChannel }
+            : {}),
         }
         if (!buyer) {
           return {

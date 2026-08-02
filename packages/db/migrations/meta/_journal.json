@@ -78,6 +78,13 @@
       "when": 1785307891626,
       "tag": "0010_mcp_oauth_provider",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785605400000,
+      "tag": "20260801173000_storefront_channel_binding_cutover",
+      "breakpoints": true
     }
   ]
 }

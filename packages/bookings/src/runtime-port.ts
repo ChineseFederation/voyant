@@ -88,6 +88,8 @@ export interface BookingsSelfServiceCreateRuntime {
     quoteId: string
     /** Proven identity: an account, or a contact a challenge verified. */
     caller: { personId?: string; verifiedEmail?: string; verifiedPhone?: string }
+    /** Server-derived storefront/channel binding for immutable booking provenance. */
+    storefront: { storefrontId: string; channelId: string }
     /** Stable request key; the durable command claims against it. */
     idempotencyKey: string
     /** Proves the caller holds the draft they are booking. */

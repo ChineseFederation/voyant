@@ -43,6 +43,8 @@ export function createDrizzleBookingSessionRepository(
           actorKind: record.actorKind,
           ownerPrincipalId: record.ownerPrincipalId ?? null,
           ownerOrganizationId: record.ownerOrganizationId ?? null,
+          storefrontId: record.storefrontOrigin?.storefrontId ?? null,
+          channelId: record.storefrontOrigin?.channelId ?? null,
           targetKind: record.target.kind,
           productId: record.target.productId,
           catalogItemId: record.target.catalogItemId,
@@ -90,6 +92,8 @@ export function createDrizzleBookingSessionRepository(
           actorKind: record.actorKind,
           ownerPrincipalId: record.ownerPrincipalId ?? null,
           ownerOrganizationId: record.ownerOrganizationId ?? null,
+          storefrontId: record.storefrontOrigin?.storefrontId ?? null,
+          channelId: record.storefrontOrigin?.channelId ?? null,
           targetKind: record.target.kind,
           productId: record.target.productId,
           catalogItemId: record.target.catalogItemId,
@@ -393,6 +397,10 @@ function mapSession(row: SelectBookingSession): BookingSessionInternalRecord {
     actorKind: row.actorKind as BookingSessionInternalRecord["actorKind"],
     ownerPrincipalId: row.ownerPrincipalId ?? undefined,
     ownerOrganizationId: row.ownerOrganizationId ?? undefined,
+    storefrontOrigin:
+      row.storefrontId && row.channelId
+        ? { storefrontId: row.storefrontId, channelId: row.channelId }
+        : undefined,
     state: row.state as BookingSessionInternalRecord["state"],
     revision: row.revision,
     statePayload: row.statePayload,

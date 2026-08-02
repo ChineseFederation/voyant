@@ -44,4 +44,7 @@ export const authQueryKeys = {
     [...authQueryKeys.storefront(storefrontId), "keys"] as const,
   storefrontProviderCredentials: (storefrontId: string) =>
     [...authQueryKeys.storefront(storefrontId), "provider-credentials"] as const,
+  storefrontChannels: () => [...authQueryKeys.storefronts(), "channels"] as const,
+  storefrontChannelBinding: (storefrontId: string) =>
+    [...authQueryKeys.storefront(storefrontId), "channel-binding"] as const,
 }

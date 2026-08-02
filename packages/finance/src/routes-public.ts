@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- public finance routes share origin guards across checkout, invoices, documents, and payment sessions.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import {
   type CheckoutCapabilityAction,
@@ -5,6 +6,7 @@ import {
 } from "@voyant-travel/bookings/checkout-capability"
 import type { EventBus } from "@voyant-travel/core"
 import { idempotencyKey, openApiValidationHook, UnauthorizedApiError } from "@voyant-travel/hono"
+import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context, MiddlewareHandler } from "hono"
 
@@ -39,6 +41,15 @@ export interface PublicFinanceRouteOptions {
 
 const errorResponseSchema = z.object({ error: z.string() })
 
+type BookingStorefrontOriginRow = {
+  storefrontId: string | null
+  channelId: string | null
+}
+
+function rowsOf<T>(result: unknown): T[] {
+  return Array.isArray(result) ? (result as T[]) : ((result as { rows?: T[] })?.rows ?? [])
+}
+
 function paymentConflictError(error: unknown) {
   if (error instanceof Error) {
     return error.message
@@ -55,6 +66,47 @@ async function requireBookingCheckoutCapability(
   await requireCheckoutCapability(c, bookingId, action, getRuntimeEnv(c))
 }
 
+function activeStorefrontOrigin(c: Context<Env>) {
+  const storefrontChannel = c.get("storefrontChannel")
+  if (
+    !storefrontChannel?.storefrontId ||
+    !storefrontChannel.channelId ||
+    storefrontChannel.channelStatus !== "active"
+  ) {
+    return null
+  }
+
+  return {
+    storefrontId: storefrontChannel.storefrontId,
+    channelId: storefrontChannel.channelId,
+  }
+}
+
+async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
+  const requestOrigin = activeStorefrontOrigin(c)
+  if (!requestOrigin) {
+    return c.json({ error: "active_storefront_channel_required" }, 403)
+  }
+
+  // agent-quality: raw SQL keeps Finance from importing Bookings' origin table.
+  const bookingOrigin = rowsOf<BookingStorefrontOriginRow>(
+    await c.get("db").execute(sql`
+      SELECT storefront_id AS "storefrontId", channel_id AS "channelId"
+      FROM booking_origins
+      WHERE booking_id = ${bookingId}
+      LIMIT 1
+    `),
+  )[0]
+  if (
+    bookingOrigin?.storefrontId !== requestOrigin.storefrontId ||
+    bookingOrigin.channelId !== requestOrigin.channelId
+  ) {
+    return c.json({ error: "booking_storefront_origin_mismatch" }, 403)
+  }
+
+  return null
+}
+
 function bookingCheckoutCapability(action: CheckoutCapabilityAction): MiddlewareHandler<Env> {
   return async (c, next) => {
     const bookingId = c.req.param("bookingId")
@@ -63,6 +115,8 @@ function bookingCheckoutCapability(action: CheckoutCapabilityAction): Middleware
     }
 
     await requireBookingCheckoutCapability(c, bookingId, action)
+    const denied = await requireBookingStorefrontOrigin(c, bookingId)
+    if (denied) return denied
     await next()
   }
 }
@@ -80,6 +134,8 @@ function invoiceCheckoutCapability(action: CheckoutCapabilityAction): Middleware
     }
 
     await requireBookingCheckoutCapability(c, bookingId, action)
+    const denied = await requireBookingStorefrontOrigin(c, bookingId)
+    if (denied) return denied
     await next()
   }
 }
@@ -106,6 +162,10 @@ const validateTravelCreditRoute = createRoute({
         "application/json": { schema: z.object({ data: publicTravelCreditValidationSchema }) },
       },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -120,6 +180,10 @@ const documentByReferenceRoute = createRoute({
       content: {
         "application/json": { schema: z.object({ data: publicFinanceDocumentLookupSchema }) },
       },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Finance document not found",
@@ -147,6 +211,10 @@ const bookingDocumentsRoute = createRoute({
         "application/json": { schema: z.object({ data: publicBookingFinanceDocumentsSchema }) },
       },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking documents not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -165,6 +233,10 @@ const bookingDocumentByReferenceRoute = createRoute({
       content: {
         "application/json": { schema: z.object({ data: publicFinanceDocumentLookupSchema }) },
       },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Finance document not found",
@@ -185,6 +257,10 @@ const bookingPaymentsRoute = createRoute({
         "application/json": { schema: z.object({ data: publicBookingFinancePaymentsSchema }) },
       },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking payments not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -204,6 +280,10 @@ const bookingPaymentOptionsRoute = createRoute({
         "application/json": { schema: z.object({ data: publicBookingPaymentOptionsSchema }) },
       },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking payment options not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -220,6 +300,10 @@ const paymentSessionByIdRoute = createRoute({
     200: {
       description: "A redacted public payment-session projection",
       content: { "application/json": { schema: z.object({ data: publicPaymentSessionSchema }) } },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Payment session not found",
@@ -248,6 +332,10 @@ const startSchedulePaymentSessionRoute = createRoute({
       description: "Started payment session for a booking payment schedule",
       content: { "application/json": { schema: z.object({ data: publicPaymentSessionSchema }) } },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking payment schedule not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -274,6 +362,10 @@ const startGuaranteePaymentSessionRoute = createRoute({
     201: {
       description: "Started payment session for a booking guarantee",
       content: { "application/json": { schema: z.object({ data: publicPaymentSessionSchema }) } },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Booking guarantee not found",
@@ -302,6 +394,10 @@ const startInvoicePaymentSessionRoute = createRoute({
       description: "Started payment session for an invoice",
       content: { "application/json": { schema: z.object({ data: publicPaymentSessionSchema }) } },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Invoice not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -322,6 +418,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
       const input = c.req.valid("json")
       if (input.bookingId) {
         await requireBookingCheckoutCapability(c, input.bookingId, "payment:read")
+        const denied = await requireBookingStorefrontOrigin(c, input.bookingId)
+        if (denied) return denied
       }
 
       const result = await publicFinanceService.validateTravelCredit(c.get("db"), input)
@@ -336,6 +434,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
 
       if (document?.bookingId) {
         await requireBookingCheckoutCapability(c, document.bookingId, "payment:read")
+        const denied = await requireBookingStorefrontOrigin(c, document.bookingId)
+        if (denied) return denied
       }
 
       return document ? c.json({ data: document }, 200) : notFound(c, "Finance document not found")
@@ -345,6 +445,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingDocumentsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
+      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      if (denied) return denied
 
       const documents = await publicFinanceService.getBookingDocuments(c.get("db"), bookingId, {
         resolveDocumentDownloadUrl: (storageKey) => resolveDocumentDownloadUrl(c.env, storageKey),
@@ -357,6 +459,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingDocumentByReferenceRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
+      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      if (denied) return denied
       const query = c.req.valid("query")
 
       const document = await publicFinanceService.getBookingDocumentByReference(
@@ -373,6 +477,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingPaymentsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
+      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      if (denied) return denied
 
       const payments = await publicFinanceService.getBookingPayments(c.get("db"), bookingId)
 
@@ -381,6 +487,8 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
     .openapi(bookingPaymentOptionsRoute, async (c) => {
       const { bookingId } = c.req.valid("param")
       await requireBookingCheckoutCapability(c, bookingId, "payment:read")
+      const denied = await requireBookingStorefrontOrigin(c, bookingId)
+      if (denied) return denied
 
       const paymentOptions = await publicFinanceService.getBookingPaymentOptions(
         c.get("db"),
@@ -416,6 +524,20 @@ export function createPublicFinanceRoutes(options: PublicFinanceRouteOptions = {
       }
 
       const session = await publicFinanceService.getPaymentSession(c.get("db"), paymentSessionId)
+      if (session?.bookingId) {
+        const denied = await requireBookingStorefrontOrigin(c, session.bookingId)
+        if (denied) return denied
+      }
+      if (!session?.bookingId && session?.invoiceId) {
+        const bookingId = await publicFinanceService.getInvoiceBookingId(
+          c.get("db"),
+          session.invoiceId,
+        )
+        if (bookingId) {
+          const denied = await requireBookingStorefrontOrigin(c, bookingId)
+          if (denied) return denied
+        }
+      }
 
       return session ? c.json({ data: session }, 200) : notFound(c, "Payment session not found")
     })

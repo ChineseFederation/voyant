@@ -1,7 +1,11 @@
 import { assembleAnonymousPaths } from "@voyant-travel/hono"
 import { describe, expect, it } from "vitest"
 
-import { createStorefrontApiModule, storefrontAnonymousPublicPaths } from "../../src/index.js"
+import {
+  createStorefrontApiModule,
+  storefrontAnonymousPublicPaths,
+  storefrontOptionalCustomerAuthPaths,
+} from "../../src/index.js"
 
 describe("createStorefrontApiModule", () => {
   it("declares only the guest storefront route families next to the owned public routes", () => {
@@ -25,14 +29,25 @@ describe("createStorefrontApiModule", () => {
       "/v1/public/offers",
       "/v1/public/settings",
     ])
+    expect(module.optionalCustomerAuth).toBe(storefrontOptionalCustomerAuthPaths)
+    expect(module.optionalCustomerAuth).toEqual([
+      "/bookings",
+      "/departures",
+      "/leads",
+      "/newsletter",
+      "/offers",
+      "/products",
+      "/settings",
+    ])
 
     const anonymouslyMatchedDepartureAndSettingsRoutes = new Set(
       module.publicRoutes?.routes
         .filter(
-          ({ path }) =>
-            path === "/settings" ||
-            path.startsWith("/settings/") ||
-            path.startsWith("/departures/"),
+          ({ method, path }) =>
+            method !== "ALL" &&
+            (path === "/settings" ||
+              path.startsWith("/settings/") ||
+              path.startsWith("/departures/")),
         )
         .map(({ method, path }) => `${method} ${path}`),
     )

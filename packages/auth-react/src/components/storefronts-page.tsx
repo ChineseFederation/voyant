@@ -99,6 +99,7 @@ function StorefrontsView({ api }: { api: StorefrontsAdminApi }) {
               storefront={selected}
               businessAccounts={capabilities?.businessAccounts ?? false}
               manageProviders={capabilities?.manageProviders ?? false}
+              channelBinding={capabilities?.channelBinding ?? false}
               onError={setActionError}
               onClose={() => setSelectedId(null)}
             />

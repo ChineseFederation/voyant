@@ -56,6 +56,16 @@ export interface CommerceAcceptanceDraftInput {
   requestMeta: { clientIp?: string; userAgent?: string }
 }
 
+export interface CheckoutPublicationGuard {
+  isProductPublished(input: {
+    db: PostgresJsDatabase
+    bookingId: string
+    productId: string
+    storefrontId: string
+    channelId: string
+  }): Promise<boolean>
+}
+
 /**
  * Options shared by the checkout materialization + start-service. All
  * structural — no deployment imports, no platform bindings.
@@ -117,6 +127,12 @@ export interface CheckoutStartOptions extends CheckoutModuleOptions {
     db: PostgresJsDatabase,
     input: CommerceAcceptanceDraftInput,
   ): Promise<void>
+  /**
+   * Rechecks Distribution-owned effective product publication for a bound
+   * storefront/channel before checkout can start. Injected so Commerce stays
+   * provider-neutral and does not import Distribution.
+   */
+  publication?: CheckoutPublicationGuard
   /**
    * Start the card-payment provider session for the `card` checkout intent.
    * INJECTED so commerce never imports a specific payment provider (which

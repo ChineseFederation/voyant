@@ -23,6 +23,11 @@ export type Env = {
     workflowRunId?: string
     workflowStepId?: string
     isInternalRequest?: boolean
+    storefrontChannel?: {
+      storefrontId: string
+      channelId: string
+      channelStatus?: string | null
+    }
     container?: ModuleContainer
     eventBus?: EventBus
   }

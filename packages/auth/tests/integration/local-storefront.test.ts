@@ -1,6 +1,6 @@
 import { createDbClient } from "@voyant-travel/db"
 import type { KmsEnvelope } from "@voyant-travel/db/schema/iam"
-import { authOrganization } from "@voyant-travel/db/schema/iam"
+import { authOrganization, storefronts } from "@voyant-travel/db/schema/iam"
 import { eq } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it } from "vitest"
 import type { StorefrontCredentialCipher } from "../../src/storefront-credentials.js"
@@ -12,6 +12,7 @@ import type {
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
 const ORG_ID = "org_storefront_test"
+const OTHER_ORG_ID = "org_storefront_test_other"
 
 // Deterministic in-memory cipher: base64 stands in for KMS ciphertext so the
 // round-trip (encrypt → store envelope → decrypt) is exercised end-to-end.
@@ -36,16 +37,26 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
   const resolveContext: StorefrontResolveContext = { bindings: {}, db }
 
   beforeEach(async () => {
+    await db.delete(authOrganization).where(eq(authOrganization.id, OTHER_ORG_ID))
     await db.delete(authOrganization).where(eq(authOrganization.id, ORG_ID))
-    await db.insert(authOrganization).values({
-      id: ORG_ID,
-      name: "Test Operator",
-      slug: `test-operator-${ORG_ID}`,
-      createdAt: new Date(),
-    })
+    await db.insert(authOrganization).values([
+      {
+        id: ORG_ID,
+        name: "Test Operator",
+        slug: `test-operator-${ORG_ID}`,
+        createdAt: new Date(),
+      },
+      {
+        id: OTHER_ORG_ID,
+        name: "Other Test Operator",
+        slug: `test-operator-${OTHER_ORG_ID}`,
+        createdAt: new Date(),
+      },
+    ])
   })
 
   afterAll(async () => {
+    await db.delete(authOrganization).where(eq(authOrganization.id, OTHER_ORG_ID))
     await db.delete(authOrganization).where(eq(authOrganization.id, ORG_ID))
   })
 
@@ -119,6 +130,28 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
 
     await adapter.revokeApiKey(context, shop.id, rotated.id)
     expect(await adapter.resolveStorefrontByApiKey(resolveContext, rotated.token)).toBeNull()
+  })
+
+  it("rejects an origin with cross-organization exact and wildcard matches", async () => {
+    await createShop()
+    await db.insert(storefronts).values({
+      organizationId: OTHER_ORG_ID,
+      name: "Other Shop",
+      slug: "other-shop",
+      hostingKind: "external",
+      allowedOrigins: ["https://*.example.com"],
+      methods: {
+        emailCode: true,
+        emailPassword: false,
+        google: false,
+        facebook: false,
+        apple: false,
+      },
+    })
+
+    await expect(
+      adapter.resolveStorefrontByOrigin(resolveContext, "https://shop.example.com"),
+    ).rejects.toThrow(/multiple storefronts/i)
   })
 
   it("stores, lists, resolves, and gates provider credentials", async () => {

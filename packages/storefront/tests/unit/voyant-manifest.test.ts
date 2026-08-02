@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { catalogPublicationRuntimePort } from "@voyant-travel/catalog/runtime-contracts"
+import { Hono } from "hono"
+import { describe, expect, it, vi } from "vitest"
 import { createStorefrontVoyantRuntime } from "../../src/index.js"
 import {
   storefrontCustomerPortalRuntimePort,
@@ -36,7 +38,11 @@ describe("storefront deployment manifest", () => {
         ],
       },
       runtime: { entry: "@voyant-travel/storefront", export: "createStorefrontVoyantRuntime" },
-      runtimePorts: [{ id: "storefront.offers.runtime" }, { id: "storefront.intake.runtime" }],
+      runtimePorts: [
+        { id: "storefront.offers.runtime" },
+        { id: "storefront.intake.runtime" },
+        { id: catalogPublicationRuntimePort.id },
+      ],
       api: [
         {
           id: "@voyant-travel/storefront#api.admin",
@@ -86,6 +92,8 @@ describe("storefront deployment manifest", () => {
   })
 
   it("mounts only selected Storefront API surfaces", async () => {
+    const requestedPorts: string[] = []
+    const isProductPublished = vi.fn(async () => false)
     const runtime = await createStorefrontVoyantRuntime({
       unitId: "@voyant-travel/storefront",
       projectConfig: {},
@@ -100,12 +108,41 @@ describe("storefront deployment manifest", () => {
       },
       runtimePorts: {},
       hasPort: () => true,
-      getPort: async <TProvider>() => ({}) as TProvider,
+      getPort: async <TProvider>(port: { id: string }) => {
+        requestedPorts.push(port.id)
+        return (
+          port.id === catalogPublicationRuntimePort.id ? { isProductPublished } : {}
+        ) as TProvider
+      },
       getPorts: async <TProvider>() => [] as TProvider[],
     })
 
     expect(runtime.adminRoutes).toBeUndefined()
     expect(runtime.publicRoutes).toBeDefined()
+    expect(requestedPorts).toContain(catalogPublicationRuntimePort.id)
+
+    const db = {}
+    const app = new Hono()
+      .use("*", async (context, next) => {
+        context.set("db" as never, db as never)
+        context.set(
+          "storefrontChannel" as never,
+          {
+            storefrontId: "sf_bound",
+            channelId: "chan_bound",
+            channelStatus: "active",
+          } as never,
+        )
+        await next()
+      })
+      .route("/", runtime.publicRoutes as never)
+    await app.request("/products/prod_1/departures")
+
+    expect(isProductPublished).toHaveBeenCalledWith({
+      db,
+      productId: "prod_1",
+      channelId: "chan_bound",
+    })
   })
 
   it("does not duplicate externally owned event authority", () => {

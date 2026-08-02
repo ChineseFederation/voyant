@@ -1,5 +1,8 @@
+// agent-quality: file-size exception -- distribution manifest centralizes ports, events, subscribers, jobs, and deployment-owned links.
 import {
   catalogDistributionRuntimeExtensionPort,
+  catalogProjectionRuntimePort,
+  catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
 } from "@voyant-travel/catalog/ports"
 import {
@@ -10,15 +13,35 @@ import {
 } from "@voyant-travel/core/project"
 import { financeDistributionPaymentPolicyRuntimePort } from "@voyant-travel/finance/runtime-port"
 import { channelPushRuntimePort } from "./channel-push/runtime-port.js"
+import { distributionPublicationIntentWorkerRuntimePort } from "./publication-intent-runtime-port.js"
 import {
+  channelLifecycleEventPayloadSchema,
+  channelProductMappingChangedEventPayloadSchema,
   productPublicationChangedEventPayloadSchema,
+  productSupplierReassignedEventPayloadSchema,
   supplierLifecycleEventPayloadSchema,
 } from "./voyant-event-schemas.js"
-
 import {
   distributionBookingVoyantExtensionDefinition,
   distributionChannelPushVoyantExtensionDefinition,
 } from "./voyant-extensions.js"
+
+const publicationIntentSubscriberRuntimeExports = {
+  "product.created": "createPublicationProductCreatedIntentSubscriberGraphRuntime",
+  "product.updated": "createPublicationProductUpdatedIntentSubscriberGraphRuntime",
+  "product.deleted": "createPublicationProductDeletedIntentSubscriberGraphRuntime",
+  "supplier.created": "createPublicationSupplierCreatedIntentSubscriberGraphRuntime",
+  "supplier.updated": "createPublicationSupplierUpdatedIntentSubscriberGraphRuntime",
+  "supplier.deleted": "createPublicationSupplierDeletedIntentSubscriberGraphRuntime",
+  "channel.created": "createPublicationChannelCreatedIntentSubscriberGraphRuntime",
+  "channel.updated": "createPublicationChannelUpdatedIntentSubscriberGraphRuntime",
+  "channel.deleted": "createPublicationChannelDeletedIntentSubscriberGraphRuntime",
+  "product.supplier.reassigned": "createPublicationSupplierReassignedIntentSubscriberGraphRuntime",
+} as const
+
+const publicationIntentSubscriberEvents = Object.keys(
+  publicationIntentSubscriberRuntimeExports,
+) as Array<keyof typeof publicationIntentSubscriberRuntimeExports>
 
 export const distributionBookingVoyantPlugin = defineExtension({
   ...distributionBookingVoyantExtensionDefinition,
@@ -39,10 +62,18 @@ export const distributionVoyantModule = defineModule({
     ports: [
       providePort(channelPushRuntimePort),
       providePort(catalogDistributionRuntimeExtensionPort),
+      providePort(catalogPublicationRuntimePort),
+      providePort(distributionPublicationIntentWorkerRuntimePort),
       providePort(financeDistributionPaymentPolicyRuntimePort),
     ],
   },
-  requires: { ports: [requirePort(catalogRuntimeServicesPort)] },
+  requires: {
+    ports: [requirePort(catalogRuntimeServicesPort), requirePort(catalogProjectionRuntimePort)],
+  },
+  // The wakeup job resolves the worker runtime through its graph factory.
+  // Providing the port makes the deployment provider available; declaring it
+  // here also authorizes this module's job runtime to request that provider.
+  runtimePorts: [requirePort(distributionPublicationIntentWorkerRuntimePort)],
   api: [
     {
       id: "@voyant-travel/distribution#api.external-refs",
@@ -75,6 +106,25 @@ export const distributionVoyantModule = defineModule({
       },
     },
   ],
+  jobs: [
+    {
+      id: "distribution.publication-reindex-intents",
+      wakeup: true,
+      runtime: {
+        entry: "@voyant-travel/distribution/publication-intent-worker",
+        export: "runDistributionPublicationIntentWorkerJob",
+      },
+    },
+  ],
+  subscribers: publicationIntentSubscriberEvents.map((eventType) => ({
+    id: `@voyant-travel/distribution#subscriber.publication-intent-${eventType.replaceAll(".", "-")}`,
+    eventType,
+    source: "@voyant-travel/distribution/publication-intent-subscribers",
+    runtime: {
+      entry: "@voyant-travel/distribution/publication-intent-subscribers",
+      export: publicationIntentSubscriberRuntimeExports[eventType],
+    },
+  })),
   schema: [
     {
       id: "@voyant-travel/distribution#schema",
@@ -85,6 +135,30 @@ export const distributionVoyantModule = defineModule({
     {
       id: "@voyant-travel/distribution#migrations",
       source: "./migrations",
+    },
+  ],
+  setupMigrations: [
+    {
+      id: "@voyant-travel/distribution#setup.publication-catalog-backfill.v1",
+      source: "@voyant-travel/distribution/setup/publication-catalog-backfill",
+      runtime: {
+        entry: "@voyant-travel/distribution/setup/publication-catalog-backfill",
+        export: "runPublicationCatalogBackfillSetupMigration",
+      },
+      dependsOn: ["@voyant-travel/distribution#migrations"],
+    },
+    {
+      id: "@voyant-travel/distribution#setup.storefront-channel-bindings.v1",
+      source: "@voyant-travel/distribution/setup/storefront-channel-bindings",
+      runtime: {
+        entry: "@voyant-travel/distribution/setup/storefront-channel-bindings",
+        export: "runStorefrontChannelBindingSetupMigration",
+      },
+      dependsOn: [
+        "@voyant-travel/db#migrations",
+        "@voyant-travel/distribution#migrations",
+        "@voyant-travel/storefront#migrations",
+      ],
     },
   ],
   access: {
@@ -481,6 +555,11 @@ export const distributionVoyantModule = defineModule({
   ],
   links: [
     {
+      id: "@voyant-travel/distribution#linkable.channel",
+      kind: "linkable",
+      source: "@voyant-travel/distribution/linkables",
+    },
+    {
       id: "@voyant-travel/distribution#linkable.supplier",
       kind: "linkable",
       source: "@voyant-travel/distribution/linkables",
@@ -492,6 +571,14 @@ export const distributionVoyantModule = defineModule({
       eventType: "product.publication.changed",
       version: "1.0.0",
       payloadSchema: productPublicationChangedEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "distribution", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/distribution#event.channel-product-mapping-changed",
+      eventType: "channel.product_mapping.changed",
+      version: "1.0.0",
+      payloadSchema: channelProductMappingChangedEventPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "distribution", category: "domain" },
     },
@@ -516,6 +603,38 @@ export const distributionVoyantModule = defineModule({
       eventType: "supplier.deleted",
       version: "1.0.0",
       payloadSchema: supplierLifecycleEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "distribution", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/distribution#event.channel-created",
+      eventType: "channel.created",
+      version: "1.0.0",
+      payloadSchema: channelLifecycleEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "distribution", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/distribution#event.channel-updated",
+      eventType: "channel.updated",
+      version: "1.0.0",
+      payloadSchema: channelLifecycleEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "distribution", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/distribution#event.channel-deleted",
+      eventType: "channel.deleted",
+      version: "1.0.0",
+      payloadSchema: channelLifecycleEventPayloadSchema,
+      visibility: "internal",
+      audit: { sourceModule: "distribution", category: "domain" },
+    },
+    {
+      id: "@voyant-travel/distribution#event.product-supplier-reassigned",
+      eventType: "product.supplier.reassigned",
+      version: "1.0.0",
+      payloadSchema: productSupplierReassignedEventPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "distribution", category: "domain" },
     },

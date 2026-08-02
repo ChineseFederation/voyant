@@ -25,9 +25,22 @@ const db = DB_AVAILABLE ? createTestDb() : (null as never)
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("db" as never, db)
+    c.set(
+      "storefrontChannel" as never,
+      {
+        storefrontId: "sf_bound",
+        channelId: "chan_bound",
+        channelStatus: "active",
+      } as never,
+    )
     await next()
   })
-  .route("/", createStorefrontPublicRoutes())
+  .route(
+    "/",
+    createStorefrontPublicRoutes({
+      publication: { isProductPublished: async () => true },
+    }),
+  )
 
 /**
  * Seed a public product with one default option, a room unit, a meeting point,

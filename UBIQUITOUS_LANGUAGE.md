@@ -16,7 +16,8 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | **Participant**   | A role-bearer on a Proposal, Proposal Version, Booking, Program, or booking item (traveler, booker, decision-maker, finance). | *contact-on-deal*          |
 | **User**          | An authentication identity in the system; orthogonal to Person — staff and customers can both be Users. | *login, account*              |
 | **Supplier**      | An operational vendor we contract directly for delivery of owned or assembled products.                | *vendor, provider, source*      |
-| **Channel**       | A distribution counterparty selling our inventory (direct, OTA, affiliate, reseller, marketplace, API partner). | *partner, distributor*    |
+| **Storefront**    | A concrete customer-facing commerce access identity: one frontend, site, mobile app, or approved public application that authenticates public API access. | *theme, website shell, public channel* |
+| **Channel**       | The sales and distribution context that controls assortment and commercial behavior for direct, OTA, affiliate, reseller, marketplace, or API sales. A Channel may serve zero or many Storefronts. | *partner, distributor, storefront* |
 | **Actor type**    | The authorization role of the caller: `staff`, `customer`, `partner`, or `supplier`.                  | *role, audience*                |
 
 ## Commercial network & sourcing
@@ -29,6 +30,8 @@ platform. Terms are grouped by subdomain. Use the **bold** term; treat
 | **Inventory Source** | A technical upstream source of inventory data or booking capability (Connect, GDS, direct API, CSV import). | *supplier, provider, feed*   |
 | **Operator Link**    | A capability-bearing relationship between an Operator and a counterparty for catalog, availability, booking, or sync. | *connection, partnership* |
 | **Distribution**     | The commercial-network subdomain for supplier-side and channel-side counterparties, source/operator links, external refs, mappings, allotments, channel push, webhooks, and reconciliation. | *network, partnerships, outbound-only distribution* |
+| **Publication**      | Distribution-owned permission for a Channel to sell a Product. Publication is default-deny; product rules override supplier rules; publication is necessary but not sufficient for sale. | *listing, mapping, visibility* |
+| **Channel Product Mapping** | External identifier, routing, and synchronization configuration that relates a Product to a Channel's external product/rate/category records. It is not publication authority. | *publication, listing permission* |
 | **Catalog Item**     | A normalized sellable discovery and booking record used by admin search, storefront, composer, or CMS sync regardless of provenance. | *CatalogEntry, product, listing* |
 | **Operated Inventory** | Inventory the Operator owns or manages operationally in optional local module-owned records.     | *local product*                      |
 | **Sourced Inventory** | Inventory the Operator sells but does not operate, reached through an Inventory Source.           | *external product, imported product* |
@@ -262,7 +265,10 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 - A **Booking Item** produces zero or more **Fulfillments**; each Fulfillment is delivered over exactly one channel.
 - An **Invoice** targets a Booking, Program, Organization, Supplier/Channel relationship, Schedule line, or explicit legacy/provider reference. It does not require a generic first-party Order.
 - A **Payment Schedule** belongs to a Booking; each schedule line resolves via a **Payment Session** to one or more **Payments**.
-- A **Channel** sells via an **Allotment** (its reserved inventory) and earns via **Commission Rules**; **Settlement** runs reconcile its activity.
+- A **Storefront** binds to exactly one **Channel** after migration; public request context derives Channel from Storefront identity, never from caller-submitted parameters.
+- A **Channel** sells via **Publication** (assortment permission), **Allotment** (reserved inventory), and **Commission Rules**; **Settlement** runs reconcile its activity.
+- **Publication** is separate from **Channel Product Mapping**. A Publication without a mapping can sell through a direct Storefront; a Mapping without Publication cannot expose or push a Product after cutover.
+- A Product-specific Publication decision overrides a Supplier-specific Publication decision. If neither exists, the Product is unpublished.
 - A **Policy** is assigned by scope (Product, Channel, Market, Booking); a **Policy Acceptance** binds a specific Policy Version to a Person or Booking.
 - **Cost** ≠ **Rate** ≠ **Price**: Cost is what we pay, Rate is the Supplier's per-unit tariff input, Price is what the customer sees.
 - A **Product** is canonical module-owned truth; a **Catalog Item** is a derived sellable read model that may resolve to a Product or to Sourced Inventory.
@@ -311,7 +317,8 @@ These terms are used loosely in conversation. Pick the canonical form below; tre
 - **Cancel vs. Void vs. Close** — different verbs for different domains. **Cancel** = operational reversal (Booking, Allocation). **Void** = financial reversal (Invoice, Payment). **Close** = end a Proposal with an outcome. Don't blend them.
 - **Hold vs. Allocation vs. Reservation** — **Hold** is the temporal status of a Booking before confirmation (`hold_expires_at`). **Allocation** is the inventory-line entity (`held` → `confirmed` → `fulfilled`). Avoid "Reservation".
 - **Supplier vs. Partner vs. Provider** — **Supplier** is the entity that sells us services. **Partner** is a relationship type on Organizations. **Provider** is for tech integrations (notification provider, storage provider) — do not call a hotel a "provider".
-- **Channel vs. Distribution vs. Partner** — **Channel** is the outbound resale entity (the OTA, affiliate, marketplace, or API partner). **Distribution** is the broader commercial-network subdomain covering Channel and Supplier-side connectivity. Don't say "Partner" when you mean Channel, and don't use Distribution as the name of a counterparty record.
+- **Storefront vs. Channel** — **Storefront** is the authenticated customer-facing access identity. **Channel** is the sales/distribution context and assortment authority. Do not let frontend composition or public request parameters choose publication authority.
+- **Channel vs. Distribution vs. Partner** — **Channel** is the sales/distribution context (direct, OTA, affiliate, marketplace, or API). **Distribution** is the broader commercial-network subdomain covering Channel and Supplier-side connectivity. Don't say "Partner" when you mean Channel, and don't use Distribution as the name of a counterparty record.
 - **Supplier vs. Operator vs. Inventory Source** — **Supplier** is an operational vendor in local managed operations. **Operator** is the principal commercial/operational party in the network. **Inventory Source** is the technical integration path. TUI or Viking may be the upstream Operating party while Connect or a GDS is only the Inventory Source.
 - **Product vs. Catalog Item** — **Product** is canonical local truth with admin ownership and operational modeling. **Catalog Item** is the normalized discovery projection that can represent either a local Product or Sourced Inventory. Do not import external inventory into Product just to make it searchable.
 - **Reseller vs. Channel** — **Reseller** is a role an Operator can play relative to inventory. **Channel** is a distribution entity that sells our inventory. They overlap in commerce but are not the same record.

@@ -1,11 +1,37 @@
-import { bookingsService } from "@voyant-travel/bookings"
+import * as bookingsModule from "@voyant-travel/bookings"
 import * as financeModule from "@voyant-travel/finance"
 import { handleApiError } from "@voyant-travel/hono"
 import { Hono } from "hono"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { CheckoutAcceptedPaymentPolicy, CheckoutStartOptions } from "./options.js"
 import { createCatalogCheckoutRoutes } from "./routes.js"
-import { CatalogCheckoutStartError, startCatalogCheckout } from "./start-service.js"
+import type { CatalogCheckoutStartContext } from "./start-service.js"
+import {
+  CatalogCheckoutStartError,
+  startCatalogCheckout as startCatalogCheckoutService,
+} from "./start-service.js"
+
+const DEFAULT_STOREFRONT_CHANNEL = {
+  storefrontId: "sf_1",
+  channelId: "chan_1",
+  channelStatus: "active",
+} as const
+
+function startCatalogCheckout(
+  context: CatalogCheckoutStartContext,
+  body: Parameters<typeof startCatalogCheckoutService>[1],
+) {
+  return startCatalogCheckoutService(
+    {
+      ...context,
+      storefrontChannel:
+        context.storefrontChannel === undefined
+          ? DEFAULT_STOREFRONT_CHANNEL
+          : context.storefrontChannel,
+    },
+    body,
+  )
+}
 
 function stubOptions(overrides: Partial<CheckoutStartOptions> = {}): CheckoutStartOptions {
   return {
@@ -22,16 +48,20 @@ function stubOptions(overrides: Partial<CheckoutStartOptions> = {}): CheckoutSta
     resolveBankTransferInstructions: vi
       .fn()
       .mockResolvedValue({ beneficiary: "Acme", iban: "RO00", bankName: "Bank" }),
+    publication: { isProductPublished: vi.fn().mockResolvedValue(true) },
     ...overrides,
   }
 }
 
-/** Stub db whose first `select().from().where().limit()` returns `bookingRows`. */
-function stubDb(bookingRows: unknown[]) {
+/** Stub db whose first select returns the booking and second returns its product. */
+function stubDb(bookingRows: unknown[], productRows: unknown[] = [{ productId: "prod_1" }]) {
+  let selectCount = 0
   return {
     select: () => ({
       from: () => ({
-        where: () => ({ limit: async () => bookingRows }),
+        where: () => ({
+          limit: async () => (selectCount++ === 0 ? bookingRows : productRows),
+        }),
       }),
     }),
   } as never
@@ -83,6 +113,56 @@ function queuedDb(selectRows: unknown[][]) {
 describe("startCatalogCheckout", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.spyOn(bookingsModule, "getBookingOriginByBookingId").mockResolvedValue({
+      storefrontId: DEFAULT_STOREFRONT_CHANNEL.storefrontId,
+      channelId: DEFAULT_STOREFRONT_CHANNEL.channelId,
+    } as never)
+  })
+
+  it("rejects checkout without active storefront channel context before side effects", async () => {
+    const publication = { isProductPublished: vi.fn().mockResolvedValue(true) }
+    const persistAcceptanceDraftContract = vi.fn()
+
+    const err = await startCatalogCheckout(
+      {
+        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        env: {},
+        storefrontChannel: null,
+        options: stubOptions({ publication, persistAcceptanceDraftContract }),
+      },
+      { bookingId: "bk_1", paymentIntent: "hold" },
+    ).catch((error: unknown) => error)
+
+    expect(err).toBeInstanceOf(CatalogCheckoutStartError)
+    expect(err).toMatchObject({ code: "active_storefront_channel_required", status: 409 })
+    expect(publication.isProductPublished).not.toHaveBeenCalled()
+    expect(persistAcceptanceDraftContract).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["missing origin", null],
+    ["storefront mismatch", { storefrontId: "sf_other", channelId: "chan_1" }],
+    ["channel mismatch", { storefrontId: "sf_1", channelId: "chan_other" }],
+  ])("rejects checkout for immutable booking origin %s", async (_case, bookingOrigin) => {
+    vi.mocked(bookingsModule.getBookingOriginByBookingId).mockResolvedValueOnce(
+      bookingOrigin as never,
+    )
+    const publication = { isProductPublished: vi.fn().mockResolvedValue(true) }
+    const persistAcceptanceDraftContract = vi.fn()
+
+    const err = await startCatalogCheckout(
+      {
+        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        env: {},
+        options: stubOptions({ publication, persistAcceptanceDraftContract }),
+      },
+      { bookingId: "bk_1", paymentIntent: "hold" },
+    ).catch((error: unknown) => error)
+
+    expect(err).toBeInstanceOf(CatalogCheckoutStartError)
+    expect(err).toMatchObject({ code: "booking_storefront_origin_mismatch", status: 409 })
+    expect(publication.isProductPublished).not.toHaveBeenCalled()
+    expect(persistAcceptanceDraftContract).not.toHaveBeenCalled()
   })
 
   it("places a hold for an existing booking", async () => {
@@ -98,8 +178,62 @@ describe("startCatalogCheckout", () => {
     expect(result).toEqual({ kind: "hold_placed", bookingId: "bk_1" })
   })
 
+  it("denies bound-storefront checkout when a booking product is unpublished", async () => {
+    const publication = { isProductPublished: vi.fn().mockResolvedValue(false) }
+    const { db } = queuedDb([
+      [{ id: "bk_1", status: "on_hold", holdExpiresAt: null }],
+      [{ productId: "prod_unpublished" }],
+    ])
+
+    const err = await startCatalogCheckout(
+      {
+        db,
+        env: {},
+        storefrontChannel: {
+          storefrontId: "sf_1",
+          channelId: "chan_1",
+          channelStatus: "active",
+        },
+        options: stubOptions({ publication }),
+      },
+      { bookingId: "bk_1", paymentIntent: "hold" },
+    ).catch((error: unknown) => error)
+
+    expect(err).toBeInstanceOf(CatalogCheckoutStartError)
+    expect(err).toMatchObject({ code: "product_not_published", status: 409 })
+    expect(publication.isProductPublished).toHaveBeenCalledWith({
+      db,
+      bookingId: "bk_1",
+      productId: "prod_unpublished",
+      storefrontId: "sf_1",
+      channelId: "chan_1",
+    })
+  })
+
+  it("denies bound-storefront checkout for inactive channels before publication lookup", async () => {
+    const publication = { isProductPublished: vi.fn().mockResolvedValue(true) }
+
+    const err = await startCatalogCheckout(
+      {
+        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        env: {},
+        storefrontChannel: {
+          storefrontId: "sf_1",
+          channelId: "chan_inactive",
+          channelStatus: "inactive",
+        },
+        options: stubOptions({ publication }),
+      },
+      { bookingId: "bk_1", paymentIntent: "hold" },
+    ).catch((error: unknown) => error)
+
+    expect(err).toBeInstanceOf(CatalogCheckoutStartError)
+    expect(err).toMatchObject({ code: "active_storefront_channel_required", status: 409 })
+    expect(publication.isProductPublished).not.toHaveBeenCalled()
+  })
+
   it("creates an inquiry through the injected Proposals runtime", async () => {
-    vi.spyOn(bookingsService, "cancelBooking").mockResolvedValue({} as never)
+    vi.spyOn(bookingsModule.bookingsService, "cancelBooking").mockResolvedValue({} as never)
     const checkoutInquiry = {
       resolvePipeline: vi.fn().mockResolvedValue({ pipelineId: "pipeline_1", stageId: "stage_1" }),
       createInquiry: vi.fn().mockResolvedValue({ id: "prps_1" }),
@@ -156,7 +290,7 @@ describe("startCatalogCheckout", () => {
   })
 
   it("keeps the inquiry fallback when Proposals has no configured pipeline", async () => {
-    vi.spyOn(bookingsService, "cancelBooking").mockResolvedValue({} as never)
+    vi.spyOn(bookingsModule.bookingsService, "cancelBooking").mockResolvedValue({} as never)
     const checkoutInquiry = {
       resolvePipeline: vi.fn().mockRejectedValue(new Error("proposals unavailable")),
       createInquiry: vi.fn(),
@@ -215,7 +349,7 @@ describe("startCatalogCheckout", () => {
 
   it("does not mark an existing booking awaiting payment when no proforma series is active", async () => {
     const booking = { id: "bk_1", status: "on_hold", holdExpiresAt: null }
-    const { db, calls } = queuedDb([[booking], []])
+    const { db, calls } = queuedDb([[booking], [{ productId: "prod_1" }]])
 
     const err = await startCatalogCheckout(
       { db, env: {}, options: stubOptions() },
@@ -257,7 +391,7 @@ describe("startCatalogCheckout", () => {
     }
     const inserts: Array<{ table: unknown; values: Record<string, unknown> }> = []
     const updates: Record<string, unknown>[] = []
-    const selectRows = [[booking], []]
+    const selectRows = [[booking], [{ productId: "prod_1" }]]
     const nextRows = () => selectRows.shift() ?? []
     type AwaitableRows = Promise<unknown[]> & { limit: () => Promise<unknown[]> }
     type SelectChain = {
@@ -374,7 +508,7 @@ describe("startCatalogCheckout", () => {
 
   describe("invoicing mode", () => {
     function bankTransferDb(booking: Record<string, unknown>) {
-      const selectRows = [[booking], []]
+      const selectRows = [[booking], [{ productId: "prod_1" }]]
       const nextRows = () => selectRows.shift() ?? []
       type AwaitableRows = Promise<unknown[]> & { limit: () => Promise<unknown[]> }
       type SelectChain = { from: () => SelectChain; where: () => AwaitableRows }

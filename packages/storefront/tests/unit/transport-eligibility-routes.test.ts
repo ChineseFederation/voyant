@@ -5,38 +5,51 @@ import { createStorefrontPublicRoutes } from "../../src/routes-public.js"
 
 describe("storefront transport eligibility routes", () => {
   it("returns blocking issues and warnings through configured rules", async () => {
-    const app = new Hono().route(
-      "/",
-      createStorefrontPublicRoutes({
-        resolveTransportEligibilityRules({ departureId, productId, travelEndsOn }) {
-          expect(departureId).toBe("dep_456")
-          expect(productId).toBe("prod_123")
-          expect(travelEndsOn).toBe("2026-08-08")
+    const app = new Hono()
+      .use("*", async (c, next) => {
+        c.set(
+          "storefrontChannel" as never,
+          {
+            storefrontId: "sf_bound",
+            channelId: "chan_bound",
+            channelStatus: "active",
+          } as never,
+        )
+        await next()
+      })
+      .route(
+        "/",
+        createStorefrontPublicRoutes({
+          publication: { isProductPublished: async () => true },
+          resolveTransportEligibilityRules({ departureId, productId, travelEndsOn }) {
+            expect(departureId).toBe("dep_456")
+            expect(productId).toBe("prod_123")
+            expect(travelEndsOn).toBe("2026-08-08")
 
-          return [
-            {
-              id: "rule_passport_eg",
-              label: "Egypt passport and visa",
-              productId: "prod_123",
-              destinationCountries: ["EG"],
-              nationalityCountries: ["RO"],
-              minValidityDaysAfterReturn: 180,
-              visaRequired: true,
-            },
-            {
-              id: "rule_minor_ca",
-              label: "Canada minor consent advisory",
-              productId: "prod_123",
-              destinationCountries: ["CA"],
-              nationalityCountries: ["US"],
-              maxAge: 17,
-              minorConsentRequired: true,
-              severity: "warning",
-            },
-          ]
-        },
-      }),
-    )
+            return [
+              {
+                id: "rule_passport_eg",
+                label: "Egypt passport and visa",
+                productId: "prod_123",
+                destinationCountries: ["EG"],
+                nationalityCountries: ["RO"],
+                minValidityDaysAfterReturn: 180,
+                visaRequired: true,
+              },
+              {
+                id: "rule_minor_ca",
+                label: "Canada minor consent advisory",
+                productId: "prod_123",
+                destinationCountries: ["CA"],
+                nationalityCountries: ["US"],
+                maxAge: 17,
+                minorConsentRequired: true,
+                severity: "warning",
+              },
+            ]
+          },
+        }),
+      )
 
     const res = await app.request("/products/prod_123/departures/dep_456/eligibility", {
       method: "POST",

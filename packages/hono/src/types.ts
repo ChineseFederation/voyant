@@ -75,6 +75,16 @@ export type VoyantVariables = CoreVoyantVariables & {
   reporter?: Reporter
   /** Logical app name stamped on telemetry, alongside {@link reporter}. */
   appName?: string
+  /**
+   * Server-derived Storefront sales-channel context. Public request parameters
+   * must not set this; auth/middleware derives it from the resolved storefront
+   * identity and its deployment-owned Channel binding.
+   */
+  storefrontChannel?: {
+    storefrontId: string
+    channelId: string
+    channelStatus?: string | null
+  }
 }
 
 /** Handler contract for application-authored Hono API routes. */

@@ -15,6 +15,11 @@ import {
 } from "./routes.js"
 
 const emptyResults: SearchResults = { total: 0, hits: [], facets: {} }
+const activeStorefrontChannel = {
+  storefrontId: "sf_web",
+  channelId: "chan_website",
+  channelStatus: "active",
+}
 
 function createIndexer(
   search: (slice: IndexerSlice, request: SearchRequest) => Promise<SearchResults> = async () =>
@@ -38,9 +43,18 @@ function createIndexer(
   }
 }
 
-function routeApp(options: Parameters<typeof createCatalogSearchRoutes>[0]) {
+function routeApp(
+  options: Parameters<typeof createCatalogSearchRoutes>[0],
+  storefrontChannel: typeof activeStorefrontChannel | null = activeStorefrontChannel,
+) {
   const app = new Hono()
   app.onError(handleApiError)
+  if (options.surface === "public" && storefrontChannel) {
+    app.use("*", async (c, next) => {
+      c.set("storefrontChannel" as never, storefrontChannel as never)
+      await next()
+    })
+  }
   app.route("/v1/admin/catalog", createCatalogSearchRoutes(options))
   return app
 }
@@ -140,6 +154,10 @@ describe("createCatalogSearchRoutes", () => {
       executeSearch,
     })
     const app = new Hono()
+    app.use("/v1/public/*", async (c, next) => {
+      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      await next()
+    })
     app.route("/v1/admin/catalog", module.adminRoutes!)
     app.route("/v1/public/catalog", module.publicRoutes!)
 
@@ -165,10 +183,11 @@ describe("createCatalogSearchRoutes", () => {
       locale: "ro-RO",
       audience: "customer",
       market: "default",
+      channel: "chan_website",
     })
   })
 
-  it("uses the public default channel and allows explicit channel overrides", async () => {
+  it("uses the trusted storefront channel for public search and permits admin preview channel", async () => {
     const executeSearch = vi.fn(
       async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,
     )
@@ -185,18 +204,17 @@ describe("createCatalogSearchRoutes", () => {
       executeSearch,
     })
     const app = new Hono()
+    app.use("/v1/public/*", async (c, next) => {
+      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      await next()
+    })
     app.route("/v1/admin/catalog", module.adminRoutes!)
     app.route("/v1/public/catalog", module.publicRoutes!)
 
     await app.request("/v1/admin/catalog/search", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ vertical: "products", mode: "keyword" }),
-    })
-    await app.request("/v1/public/catalog/search", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ vertical: "products", mode: "keyword" }),
+      body: JSON.stringify({ vertical: "products", mode: "keyword", channel: "chan_preview" }),
     })
     await app.request("/v1/public/catalog/search", {
       method: "POST",
@@ -204,9 +222,34 @@ describe("createCatalogSearchRoutes", () => {
       body: JSON.stringify({ vertical: "products", mode: "keyword", channel: "chan_b2b" }),
     })
 
-    expect(executeSearch.mock.calls[0]?.[0].slice.channel).toBeUndefined()
+    expect(executeSearch.mock.calls[0]?.[0].slice.channel).toBe("chan_preview")
     expect(executeSearch.mock.calls[1]?.[0].slice.channel).toBe("chan_website")
-    expect(executeSearch.mock.calls[2]?.[0].slice.channel).toBe("chan_b2b")
+  })
+
+  it("denies public search without an active storefront channel context", async () => {
+    const executeSearch = vi.fn(
+      async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,
+    )
+    const app = routeApp(
+      {
+        surface: "public",
+        resolveRuntime: () => ({
+          indexer: createIndexer(),
+          defaultScope: { locale: "en-GB", audience: "staff", market: "default" },
+        }),
+        executeSearch,
+      },
+      null,
+    )
+
+    const response = await app.request("/v1/admin/catalog/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vertical: "products", mode: "keyword", channel: "chan_body" }),
+    })
+
+    expect(response.status).toBe(403)
+    expect(executeSearch).not.toHaveBeenCalled()
   })
 
   it("downgrades semantic modes to keyword when embeddings are unavailable", async () => {
@@ -327,6 +370,10 @@ describe("createCatalogSearchRoutes", () => {
       executeSearch,
     })
     const app = new Hono()
+    app.use("/v1/public/*", async (c, next) => {
+      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      await next()
+    })
     app.route("/v1/public/catalog", module.publicRoutes!)
 
     const response = await app.request("/v1/public/catalog/search", {

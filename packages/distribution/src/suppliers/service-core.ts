@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { publicationServiceOperations } from "../service/publications.js"
 import { supplierDirectoryProjections, suppliers } from "./schema.js"
 import type {
   CreateSupplierInput,
@@ -228,9 +229,15 @@ export async function updateSupplier(
 }
 
 export async function deleteSupplier(db: PostgresJsDatabase, id: string) {
-  const [row] = await db
-    .delete(suppliers)
-    .where(eq(suppliers.id, id))
-    .returning({ id: suppliers.id })
-  return row ?? null
+  return db.transaction(async (tx) => {
+    const affectedProductIds = await publicationServiceOperations.captureSupplierDeletionReindex(
+      tx,
+      { supplierId: id },
+    )
+    const [row] = await tx
+      .delete(suppliers)
+      .where(eq(suppliers.id, id))
+      .returning({ id: suppliers.id })
+    return row ? { ...row, affectedProductIds } : null
+  })
 }

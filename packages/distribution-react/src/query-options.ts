@@ -10,6 +10,11 @@ import type { UseCommissionRulesOptions } from "./hooks/use-commission-rules.js"
 import type { UseContractsOptions } from "./hooks/use-contracts.js"
 import type { UseMappingsOptions } from "./hooks/use-mappings.js"
 import type { UseProductsOptions } from "./hooks/use-products.js"
+import type {
+  UseEffectivePublicationOptions,
+  UseProductPublicationsOptions,
+  UseSupplierPublicationsOptions,
+} from "./hooks/use-publications.js"
 import type { UseSuppliersOptions } from "./hooks/use-suppliers.js"
 import type { UseWebhookEventsOptions } from "./hooks/use-webhook-events.js"
 import { distributionQueryKeys } from "./query-keys.js"
@@ -25,9 +30,12 @@ import {
   channelListResponse,
   channelProductMappingListResponse,
   channelProductMappingSingleResponse,
+  channelProductPublicationListResponse,
   channelSingleResponse,
+  channelSupplierPublicationListResponse,
   channelWebhookEventListResponse,
   channelWebhookEventSingleResponse,
+  effectivePublicationSingleResponse,
   productListResponse,
   productSingleResponse,
   supplierListResponse,
@@ -284,6 +292,83 @@ export function getMappingQueryOptions(
         `/v1/admin/distribution/product-mappings/${id}`,
         channelProductMappingSingleResponse,
         client,
+      )
+    },
+  })
+}
+
+export function getProductPublicationsQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseProductPublicationsOptions = {},
+) {
+  const { enabled: _enabled = true, ...filters } = options
+  return queryOptions({
+    queryKey: distributionQueryKeys.productPublicationsList(filters),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters.channelId) params.set("channelId", filters.channelId)
+      if (filters.productId) params.set("productId", filters.productId)
+      if (filters.decision) params.set("decision", filters.decision)
+      appendPagination(params, filters)
+      const qs = params.toString()
+      return fetchWithValidation(
+        `/v1/admin/distribution/product-publications${qs ? `?${qs}` : ""}`,
+        channelProductPublicationListResponse,
+        client,
+      )
+    },
+  })
+}
+
+export function getSupplierPublicationsQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseSupplierPublicationsOptions = {},
+) {
+  const { enabled: _enabled = true, ...filters } = options
+  return queryOptions({
+    queryKey: distributionQueryKeys.supplierPublicationsList(filters),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters.channelId) params.set("channelId", filters.channelId)
+      if (filters.supplierId) params.set("supplierId", filters.supplierId)
+      if (filters.decision) params.set("decision", filters.decision)
+      appendPagination(params, filters)
+      const qs = params.toString()
+      return fetchWithValidation(
+        `/v1/admin/distribution/supplier-publications${qs ? `?${qs}` : ""}`,
+        channelSupplierPublicationListResponse,
+        client,
+      )
+    },
+  })
+}
+
+export function getEffectivePublicationQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseEffectivePublicationOptions,
+) {
+  return queryOptions({
+    queryKey: distributionQueryKeys.effectivePublication(
+      options.channelId ?? "",
+      options.productId ?? "",
+      options.canonicalSupplierId,
+    ),
+    queryFn: async () => {
+      if (!options.channelId || !options.productId) {
+        throw new Error("getEffectivePublicationQueryOptions requires channelId and productId")
+      }
+      return fetchWithValidation(
+        "/v1/admin/distribution/publications/effective",
+        effectivePublicationSingleResponse,
+        client,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            channelId: options.channelId,
+            productId: options.productId,
+            canonicalSupplierId: options.canonicalSupplierId ?? undefined,
+          }),
+        },
       )
     },
   })

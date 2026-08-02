@@ -91,6 +91,46 @@ const documentGenerationInputSchema = z
   })
   .default({ contractDocument: false, invoiceDocument: false, invoiceType: "invoice" })
 
+const storefrontOriginInputSchema = z.object({
+  storefrontId: z.string().min(1),
+  channelId: z.string().min(1),
+})
+
+async function persistFirstBookingStorefrontOrigin(
+  db: PostgresJsDatabase,
+  input: {
+    bookingId: string
+    storefrontId: string
+    channelId: string
+    buyerKind: "guest" | "personal" | "business"
+  },
+) {
+  const metadata = JSON.stringify({
+    source: "finance.self_service_create.create_booking",
+    catalogSnapshotIds: [],
+    itemCount: 0,
+    buyerKind: input.buyerKind,
+  })
+  // agent-quality: raw SQL avoids a cross-package booking_origins table import; ON CONFLICT DO NOTHING preserves first-write origin.
+  await db.execute(sql`
+    INSERT INTO booking_origins (
+      booking_id,
+      origin_source,
+      storefront_id,
+      channel_id,
+      metadata
+    )
+    VALUES (
+      ${input.bookingId},
+      'direct_b2c',
+      ${input.storefrontId},
+      ${input.channelId},
+      ${metadata}::jsonb
+    )
+    ON CONFLICT (booking_id) DO NOTHING
+  `)
+}
+
 const itemLineInputSchema = z.object({
   /**
    * Stable client-side key (e.g. `unit:optu_adult`). Server stamps
@@ -538,6 +578,9 @@ const bookingCreateBaseSchema = z.object({
 })
 
 export const bookingCreateSchema = bookingCreateBaseSchema
+  .extend({
+    storefrontOrigin: storefrontOriginInputSchema.optional(),
+  })
   .superRefine(requirePriceOverrideReason)
   .superRefine(requireCompleteBookingParty)
   .superRefine(requireUniqueClientTravelerKeys)
@@ -2365,6 +2408,14 @@ export async function createBookingMutation(
         throw new BookingCreateAbort({ status: "product_not_found" })
       }
       const bookingId = booking.id
+      if (input.storefrontOrigin) {
+        await persistFirstBookingStorefrontOrigin(tx, {
+          bookingId,
+          storefrontId: input.storefrontOrigin.storefrontId,
+          channelId: input.storefrontOrigin.channelId,
+          buyerKind: input.personId ? "personal" : "guest",
+        })
+      }
       if (input.extraLines?.length) {
         await tx.insert(bookingItems).values(
           input.extraLines.map((line) => {

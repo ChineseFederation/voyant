@@ -226,6 +226,22 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
           }
         },
         "operationId": "postPublicFinanceTravelCreditsValidate",
@@ -363,6 +379,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -516,6 +548,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -684,6 +732,22 @@
               }
             }
           },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "404": {
             "description": "Finance document not found",
             "content": {
@@ -819,6 +883,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -1105,6 +1185,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -1483,6 +1579,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -2141,6 +2253,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }
@@ -2819,6 +2947,22 @@
               }
             }
           },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "404": {
             "description": "Booking guarantee not found",
             "content": {
@@ -3481,6 +3625,22 @@
                     }
                   },
                   "required": ["data"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
                 }
               }
             }

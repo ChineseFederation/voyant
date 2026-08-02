@@ -16,8 +16,8 @@ import type { IndexerSlice } from "@voyant-travel/catalog-contracts/indexer/cont
 export type OwnedProductStorefrontListabilityInput = {
   audience: IndexerSlice["audience"]
   channel?: string
-  /** Resolves whether the product is published to an active sales channel. */
-  hasActiveChannelMapping: () => boolean | Promise<boolean>
+  /** Resolves Distribution-owned effective product publication for the channel. */
+  isEffectivelyPublished: () => boolean | Promise<boolean>
 }
 
 /**
@@ -28,18 +28,13 @@ export type OwnedProductStorefrontListabilityInput = {
  * runs, so the caller only reaches here for an owned product that is otherwise
  * publicly sellable.
  *
- * Legacy customer slices have no `channel`, so they keep the old direct
- * storefront behavior for backward compatibility. Channel-scoped customer
- * slices require an active mapping for that exact channel, so a website surface
- * and a B2B surface can expose different product sets.
- *
- * External audiences (partner / supplier slices) also require channel
- * mappings. See docs/architecture/catalog-supply-models.md and
- * federated-operating-mode.md.
+ * Public and external slices require an explicit server-derived channel.
+ * Unchannelled customer slices remain buildable for compatibility with existing
+ * index infrastructure, but they are no longer an authorization fallback.
  */
 export async function isOwnedProductStorefrontListable(
   input: OwnedProductStorefrontListabilityInput,
 ): Promise<boolean> {
-  if (input.audience === "customer" && !input.channel) return true
-  return input.hasActiveChannelMapping()
+  if (!input.channel) return false
+  return input.isEffectivelyPublished()
 }

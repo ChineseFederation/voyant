@@ -7,6 +7,8 @@ import type {
   channelInventoryReleaseExecutions,
   channelInventoryReleaseRules,
   channelProductMappings,
+  channelProductPublications,
+  channelPublicationReindexIntents,
   channelReconciliationItems,
   channelReconciliationPolicies,
   channelReconciliationRuns,
@@ -16,6 +18,7 @@ import type {
   channelSettlementItems,
   channelSettlementPolicies,
   channelSettlementRuns,
+  channelSupplierPublications,
   channels,
   channelWebhookEvents,
   externalRefs,
@@ -33,6 +36,8 @@ import {
   channelInventoryReleaseExecutionSchema,
   channelInventoryReleaseRuleSchema,
   channelProductMappingSchema,
+  channelProductPublicationSchema,
+  channelPublicationReindexIntentSchema,
   channelReconciliationItemSchema,
   channelReconciliationPolicySchema,
   channelReconciliationRunSchema,
@@ -43,7 +48,10 @@ import {
   channelSettlementItemSchema,
   channelSettlementPolicySchema,
   channelSettlementRunSchema,
+  channelSupplierPublicationSchema,
   channelWebhookEventSchema,
+  effectivePublicationSchema,
+  supplierPublicationPreviewResponseSchema,
 } from "../../src/routes/openapi-schemas.js"
 
 /**
@@ -160,6 +168,53 @@ const productMappingRow: InferSelectModel<typeof channelProductMappings> = {
   lastPushedContentHash: null,
   lastPushedContentAt: null,
   createdAt,
+  updatedAt,
+}
+
+const productPublicationRow: InferSelectModel<typeof channelProductPublications> = {
+  id: "channel_product_publications_000000000000",
+  channelId: channelRow.id,
+  productId: productMappingRow.productId,
+  decision: "include",
+  reason: "Published for storefront channel",
+  createdBy: "user_0000000000000000000000000",
+  updatedBy: "user_0000000000000000000000000",
+  metadata: null,
+  createdAt,
+  updatedAt,
+}
+
+const supplierPublicationRow: InferSelectModel<typeof channelSupplierPublications> = {
+  id: "channel_supplier_publications_00000000000",
+  channelId: channelRow.id,
+  supplierId: "sup_0000000000000000000000000",
+  decision: "exclude",
+  reason: "Supplier paused",
+  createdBy: "user_0000000000000000000000000",
+  updatedBy: "user_0000000000000000000000000",
+  metadata: { note: "manual" },
+  createdAt,
+  updatedAt,
+}
+
+const publicationReindexIntentRow: InferSelectModel<typeof channelPublicationReindexIntents> = {
+  id: "channel_publication_reindex_intents_000000",
+  channelId: channelRow.id,
+  kind: "supplier",
+  productId: null,
+  supplierId: supplierPublicationRow.supplierId,
+  cursor: null,
+  status: "pending",
+  attempts: 0,
+  nextAttemptAt: createdAt,
+  leaseOwner: null,
+  leaseUntil: null,
+  requestedBy: "user_0000000000000000000000000",
+  lastError: null,
+  metadata: null,
+  requestedAt: createdAt,
+  processingStartedAt: null,
+  completedAt: null,
   updatedAt,
 }
 
@@ -424,6 +479,21 @@ const cases: Array<{ name: string; row: object; schema: z.ZodTypeAny }> = [
   { name: "contract", row: contractRow, schema: channelContractSchema },
   { name: "commission rule", row: commissionRuleRow, schema: channelCommissionRuleSchema },
   { name: "product mapping", row: productMappingRow, schema: channelProductMappingSchema },
+  {
+    name: "product publication",
+    row: productPublicationRow,
+    schema: channelProductPublicationSchema,
+  },
+  {
+    name: "supplier publication",
+    row: supplierPublicationRow,
+    schema: channelSupplierPublicationSchema,
+  },
+  {
+    name: "publication reindex intent",
+    row: publicationReindexIntentRow,
+    schema: channelPublicationReindexIntentSchema,
+  },
   { name: "booking link", row: bookingLinkRow, schema: channelBookingLinkSchema },
   { name: "webhook event", row: webhookEventRow, schema: channelWebhookEventSchema },
   { name: "inventory allotment", row: allotmentRow, schema: channelInventoryAllotmentSchema },
@@ -491,4 +561,39 @@ describe("distribution Drizzle-backed response contracts", () => {
       expect(parsed.success ? null : parsed.error.toString()).toBeNull()
     })
   }
+})
+
+describe("distribution publication response contracts", () => {
+  it("the effective publication envelope satisfies the declared schema", () => {
+    const wire = {
+      data: {
+        channelId: channelRow.id,
+        productId: productMappingRow.productId,
+        canonicalSupplierId: supplierPublicationRow.supplierId,
+        published: true,
+        decision: "include",
+        reason: "product_decision",
+        source: "product",
+        ruleId: productPublicationRow.id,
+        message: "Product publication explicitly includes the product.",
+      },
+    }
+    const parsed = z.object({ data: effectivePublicationSchema }).safeParse(wire)
+    expect(parsed.success ? null : parsed.error.toString()).toBeNull()
+  })
+
+  it("the supplier publication preview envelope satisfies the declared schema", () => {
+    const wire = {
+      data: {
+        channelId: channelRow.id,
+        supplierId: supplierPublicationRow.supplierId,
+        decision: "include",
+        reason: null,
+        metadata: null,
+      },
+      affectedProductCount: 12,
+    }
+    const parsed = supplierPublicationPreviewResponseSchema.safeParse(wire)
+    expect(parsed.success ? null : parsed.error.toString()).toBeNull()
+  })
 })

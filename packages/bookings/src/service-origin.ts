@@ -23,6 +23,8 @@ export interface UpsertBookingOriginInput {
   providerSourceConnectionId?: string | null
   providerSourceRef?: string | null
   providerOrderRef?: string | null
+  storefrontId?: string | null
+  channelId?: string | null
   legacyTransactionOfferId?: string | null
   legacyTransactionOrderId?: string | null
   legacyTransactionIds?: BookingOriginLegacyTransactionIds | null
@@ -42,6 +44,8 @@ export interface DirectB2CBookingOriginItemInput {
 export interface DirectB2CBookingOriginInput {
   bookingId: string
   externalBookingRef?: string | null
+  storefrontId?: string | null
+  channelId?: string | null
   items?: DirectB2CBookingOriginItemInput[]
   buyerKind?: "guest" | "personal" | "business"
 }
@@ -58,6 +62,8 @@ export interface CatalogReservationBookingOriginInput {
   providerSourceConnectionId?: string | null
   providerSourceRef?: string | null
   providerOrderRef?: string | null
+  storefrontId?: string | null
+  channelId?: string | null
   metadata?: Record<string, unknown> | null
 }
 
@@ -102,6 +108,8 @@ export function toBookingOriginInsert(
     providerSourceConnectionId: nullable(input.providerSourceConnectionId),
     providerSourceRef: nullable(input.providerSourceRef),
     providerOrderRef: nullable(input.providerOrderRef),
+    storefrontId: nullable(input.storefrontId),
+    channelId: nullable(input.channelId),
     legacyTransactionOfferId: nullable(input.legacyTransactionOfferId),
     legacyTransactionOrderId: nullable(input.legacyTransactionOrderId),
     legacyTransactionIds: buildLegacyTransactionIds(input),
@@ -128,6 +136,8 @@ export function toDirectB2CBookingOriginInput(
     bookingId: input.bookingId,
     originSource: "direct_b2c",
     catalogSnapshotId: singleOrNull(catalogSnapshotIds),
+    storefrontId: nullable(input.storefrontId),
+    channelId: nullable(input.channelId),
     metadata: {
       source: "public_bookings_service.create_session",
       externalBookingRef: nullable(input.externalBookingRef),
@@ -152,6 +162,8 @@ export function toCatalogReservationBookingOriginInput(
     providerSourceConnectionId: nullable(input.providerSourceConnectionId),
     providerSourceRef: nullable(input.providerSourceRef),
     providerOrderRef: nullable(input.providerOrderRef),
+    storefrontId: nullable(input.storefrontId),
+    channelId: nullable(input.channelId),
     metadata: {
       source: "bookings.submit_reservation_plan",
       tripEnvelopeId: nullable(input.tripEnvelopeId),
@@ -167,39 +179,20 @@ export async function upsertBookingOrigin(
 ): Promise<BookingOrigin> {
   const values = toBookingOriginInsert(input)
 
-  // Cast: AnyDrizzleDb's union does not unify insert().onConflictDoUpdate()
+  // Cast: AnyDrizzleDb's union does not unify insert().onConflictDoNothing()
   // across drivers, though all supported Postgres drivers implement it.
   const [origin] = await (db as PostgresJsDatabase)
     .insert(bookingOrigins)
     .values(values)
-    .onConflictDoUpdate({
-      target: bookingOrigins.bookingId,
-      set: {
-        originSource: values.originSource,
-        proposalVersionId: values.proposalVersionId,
-        tripSnapshotId: values.tripSnapshotId,
-        reservationPlanId: values.reservationPlanId,
-        catalogPriceResponseId: values.catalogPriceResponseId,
-        catalogSnapshotId: values.catalogSnapshotId,
-        providerSourceKind: values.providerSourceKind,
-        providerSourceProvider: values.providerSourceProvider,
-        providerSourceConnectionId: values.providerSourceConnectionId,
-        providerSourceRef: values.providerSourceRef,
-        providerOrderRef: values.providerOrderRef,
-        legacyTransactionOfferId: values.legacyTransactionOfferId,
-        legacyTransactionOrderId: values.legacyTransactionOrderId,
-        legacyTransactionIds: values.legacyTransactionIds,
-        metadata: values.metadata,
-        updatedAt: values.updatedAt,
-      },
-    })
+    .onConflictDoNothing({ target: bookingOrigins.bookingId })
     .returning()
 
-  if (!origin) {
-    throw new Error("Unable to persist booking origin")
-  }
+  if (origin) return origin
 
-  return origin
+  const existing = await getBookingOriginByBookingId(db as PostgresJsDatabase, input.bookingId)
+  if (existing) return existing
+
+  throw new Error("Unable to persist booking origin")
 }
 
 export async function getBookingOriginByBookingId(

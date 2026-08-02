@@ -29,6 +29,7 @@ import {
   openApiValidationHook,
   stampOpenApiRegistryApiId,
   UnauthorizedApiError,
+  type VoyantVariables,
 } from "@voyant-travel/hono"
 import type { ApiExtension } from "@voyant-travel/hono/module"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -49,7 +50,7 @@ type CheckoutEnv = {
     db: PostgresJsDatabase
     eventBus?: EventBus
     container?: { resolve(key: string): unknown }
-  }
+  } & Pick<VoyantVariables, "storefrontChannel">
 }
 
 const errorResponseSchema = z.object({ error: z.string() })
@@ -191,6 +192,7 @@ export function createCatalogCheckoutRoutes(
               eventBus: c.var.eventBus,
               resolveRuntime: (key) => c.var.container?.resolve(key),
               requestMeta: checkoutRequestMeta(c),
+              storefrontChannel: c.get("storefrontChannel"),
               options: resolved,
             },
             body,

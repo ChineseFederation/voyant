@@ -314,6 +314,43 @@ export type DistributionUiMessages = {
       paginationPage: string
       paginationPrevious: string
       paginationNext: string
+      publication: {
+        open: string
+        title: string
+        titleEmpty: string
+        defaultDeny: string
+        precedence: string
+        inactiveWarning: string
+        productsTitle: string
+        suppliersTitle: string
+        productLabel: string
+        supplierLabel: string
+        productPlaceholder: string
+        supplierPlaceholder: string
+        supplierOptional: string
+        decisionLabel: string
+        include: string
+        exclude: string
+        reasonLabel: string
+        reasonPlaceholder: string
+        saveProduct: string
+        saveSupplier: string
+        previewSupplier: string
+        supplierImpact: string
+        confirmSupplierImpact: string
+        previewRequiredCurrent: string
+        productsEmpty: string
+        suppliersEmpty: string
+        noReason: string
+        editRule: string
+        deleteRule: string
+        whyTitle: string
+        whyDescription: string
+        published: string
+        denied: string
+        source: string
+        reason: string
+      }
     }
   }
   details: {

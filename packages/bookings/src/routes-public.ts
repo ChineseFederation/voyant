@@ -22,6 +22,7 @@ import {
 } from "./route-runtime.js"
 import { createBookingsPublicRoute as createRoute } from "./routes-openapi.js"
 import { type Env, getRuntimeEnv, notFound } from "./routes-shared.js"
+import { getBookingOriginByBookingId } from "./service-origin.js"
 import { type PublicBookingsServiceResolvers, publicBookingsService } from "./service-public.js"
 import {
   publicBookingOverviewAccessQuerySchema,
@@ -148,6 +149,48 @@ function getRouteRuntime(c: Context): BookingRouteRuntime {
   }
 }
 
+function activeStorefrontOrigin(c: Context<Env>) {
+  const storefrontChannel = c.get("storefrontChannel")
+  if (
+    !storefrontChannel?.storefrontId ||
+    !storefrontChannel.channelId ||
+    storefrontChannel.channelStatus !== "active"
+  ) {
+    return null
+  }
+
+  return {
+    storefrontId: storefrontChannel.storefrontId,
+    channelId: storefrontChannel.channelId,
+  }
+}
+
+function activeStorefrontChannelGuard(): MiddlewareHandler<Env> {
+  return async (c, next) => {
+    if (!activeStorefrontOrigin(c)) {
+      return c.json({ error: "active_storefront_channel_required" }, 403)
+    }
+    await next()
+  }
+}
+
+async function requireBookingStorefrontOrigin(c: Context<Env>, bookingId: string) {
+  const requestOrigin = activeStorefrontOrigin(c)
+  if (!requestOrigin) {
+    return c.json({ error: "active_storefront_channel_required" }, 403)
+  }
+
+  const bookingOrigin = await getBookingOriginByBookingId(c.get("db"), bookingId)
+  if (
+    bookingOrigin?.storefrontId !== requestOrigin.storefrontId ||
+    bookingOrigin.channelId !== requestOrigin.channelId
+  ) {
+    return c.json({ error: "booking_storefront_origin_mismatch" }, 403)
+  }
+
+  return null
+}
+
 function publicResolvers(c: Context): PublicBookingsServiceResolvers {
   const runtime = getRouteRuntime(c)
   return {
@@ -166,6 +209,10 @@ const getSessionRoute = createRoute({
     200: {
       description: "Booking session snapshot",
       content: { "application/json": { schema: z.object({ data: publicBookingSessionSchema }) } },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Booking session not found",
@@ -189,6 +236,10 @@ const updateSessionRoute = createRoute({
       description: "Updated booking session snapshot",
       content: { "application/json": { schema: z.object({ data: publicBookingSessionSchema }) } },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking session not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -210,6 +261,10 @@ const getSessionStateRoute = createRoute({
       content: {
         "application/json": { schema: z.object({ data: publicBookingSessionStateSchema }) },
       },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Booking session not found",
@@ -234,6 +289,10 @@ const updateSessionStateRoute = createRoute({
       content: {
         "application/json": { schema: z.object({ data: publicBookingSessionStateSchema }) },
       },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
       description: "Booking session not found",
@@ -261,6 +320,10 @@ const repriceSessionRoute = createRoute({
     },
     400: {
       description: "Booking session contains an invalid item selection",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
       content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
@@ -293,6 +356,10 @@ const confirmSessionRoute = createRoute({
       description: "Monthly booking plan limit reached",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking session not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -319,6 +386,10 @@ const expireSessionRoute = createRoute({
       description: "Expired booking session snapshot",
       content: { "application/json": { schema: z.object({ data: publicBookingSessionSchema }) } },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking session not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -341,6 +412,10 @@ const overviewRoute = createRoute({
     },
     401: {
       description: "Missing guest booking access capability",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
       content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
@@ -370,6 +445,10 @@ const guestLookupRoute = createRoute({
         "application/json": { schema: z.object({ data: publicGuestBookingLookupResponseSchema }) },
       },
     },
+    403: {
+      description: "Missing or mismatched active storefront channel context",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     404: {
       description: "Booking overview not found",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -388,37 +467,49 @@ const guestLookupRoute = createRoute({
 // the `.openapi()` chain — middleware is positional, so it must precede the
 // routes it guards.
 const publicBookingApp = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+publicBookingApp.use("/sessions/:sessionId", activeStorefrontChannelGuard())
 publicBookingApp.use("/sessions/:sessionId", sessionResourceGuard())
+publicBookingApp.use("/sessions/:sessionId/state", activeStorefrontChannelGuard())
 publicBookingApp.use("/sessions/:sessionId/state", sessionResourceGuard())
 publicBookingApp.use(
   "/sessions/:sessionId/reprice",
+  activeStorefrontChannelGuard(),
   sessionCapability("session:reprice"),
   idempotencyKey(),
 )
 publicBookingApp.use(
   "/sessions/:sessionId/confirm",
+  activeStorefrontChannelGuard(),
   sessionCapability("session:finalize"),
   idempotencyKey(),
 )
 publicBookingApp.use(
   "/sessions/:sessionId/expire",
+  activeStorefrontChannelGuard(),
   sessionCapability("session:finalize"),
   idempotencyKey(),
 )
+publicBookingApp.use("/overview", activeStorefrontChannelGuard())
+publicBookingApp.use("/guest-lookup", activeStorefrontChannelGuard())
 
 export const publicBookingRoutes = publicBookingApp
   .openapi(getSessionRoute, async (c) => {
-    const session = await publicBookingsService.getSessionById(
-      c.get("db"),
-      c.req.valid("param").sessionId,
-    )
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
+    const session = await publicBookingsService.getSessionById(c.get("db"), sessionId)
 
     return session ? c.json({ data: session }, 200) : notFound(c, "Booking session not found")
   })
   .openapi(updateSessionRoute, async (c) => {
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
     const result = await publicBookingsService.updateSession(
       c.get("db"),
-      c.req.valid("param").sessionId,
+      sessionId,
       c.req.valid("json"),
       c.get("userId"),
       publicResolvers(c),
@@ -435,17 +526,22 @@ export const publicBookingRoutes = publicBookingApp
     return c.json({ data: result.session }, 200)
   })
   .openapi(getSessionStateRoute, async (c) => {
-    const state = await publicBookingsService.getSessionState(
-      c.get("db"),
-      c.req.valid("param").sessionId,
-    )
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
+    const state = await publicBookingsService.getSessionState(c.get("db"), sessionId)
 
     return state ? c.json({ data: state }, 200) : notFound(c, "Booking session not found")
   })
   .openapi(updateSessionStateRoute, async (c) => {
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
     const result = await publicBookingsService.updateSessionState(
       c.get("db"),
-      c.req.valid("param").sessionId,
+      sessionId,
       c.req.valid("json"),
       publicResolvers(c),
       c.get("userId"),
@@ -458,9 +554,13 @@ export const publicBookingRoutes = publicBookingApp
     return c.json({ data: result.state }, 200)
   })
   .openapi(repriceSessionRoute, async (c) => {
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
     const result = await publicBookingsService.repriceSession(
       c.get("db"),
-      c.req.valid("param").sessionId,
+      sessionId,
       c.req.valid("json"),
     )
 
@@ -479,9 +579,13 @@ export const publicBookingRoutes = publicBookingApp
     return c.json({ data: { pricing: result.pricing, session: result.session } }, 200)
   })
   .openapi(confirmSessionRoute, async (c) => {
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
     const result = await publicBookingsService.confirmSession(
       c.get("db"),
-      c.req.valid("param").sessionId,
+      sessionId,
       c.req.valid("json"),
       c.get("userId"),
       {
@@ -507,9 +611,13 @@ export const publicBookingRoutes = publicBookingApp
     return c.json({ data: result.session }, 200)
   })
   .openapi(expireSessionRoute, async (c) => {
+    const sessionId = c.req.valid("param").sessionId
+    const denied = await requireBookingStorefrontOrigin(c, sessionId)
+    if (denied) return denied
+
     const result = await publicBookingsService.expireSession(
       c.get("db"),
-      c.req.valid("param").sessionId,
+      sessionId,
       c.req.valid("json"),
       c.get("userId"),
       {
@@ -563,6 +671,9 @@ export const publicBookingRoutes = publicBookingApp
       await requireGuestBookingAccess(c, overview.bookingId, "overview:read", getRuntimeEnv(c))
     }
 
+    const denied = await requireBookingStorefrontOrigin(c, overview.bookingId)
+    if (denied) return denied
+
     return c.json({ data: overview }, 200)
   })
   .openapi(guestLookupRoute, async (c) => {
@@ -582,6 +693,9 @@ export const publicBookingRoutes = publicBookingApp
     if (!overview) {
       return notFound(c, "Booking overview not found")
     }
+
+    const denied = await requireBookingStorefrontOrigin(c, overview.bookingId)
+    if (denied) return denied
 
     const capability = await issueGuestBookingAccess(overview.bookingId, getRuntimeEnv(c))
     c.header("Set-Cookie", guestBookingAccessCookie(capability.token, capability.expiresAt), {

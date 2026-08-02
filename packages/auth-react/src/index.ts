@@ -37,6 +37,8 @@ export {
   type StorefrontsAdminApi,
   storefrontApiKeysQueryOptions,
   storefrontCapabilitiesQueryOptions,
+  storefrontChannelBindingQueryOptions,
+  storefrontChannelsQueryOptions,
   storefrontListQueryOptions,
   storefrontProviderCredentialsQueryOptions,
 } from "./storefronts-admin-api.js"

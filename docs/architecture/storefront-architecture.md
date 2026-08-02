@@ -7,6 +7,7 @@ The goal is simple:
 
 - keep `storefront` as the customer-facing product/runtime concept
 - keep `/v1/public/*` as the external-facing HTTP boundary
+- derive sales Channel authority from resolved Storefront identity
 - separate public contracts from admin CRUD semantics
 - keep the final storefront application starter-owned while the shared public
   contract remains framework-owned
@@ -100,7 +101,35 @@ Rule:
 The shared storefront/public contract should be reusable and typed, not
 starter-local glue.
 
-### 6. Public context should stay explicit
+### 6. Public channel context is server-derived
+
+A Storefront is the authenticated identity of one customer-facing frontend or
+application. A Channel is the sales and distribution context that controls
+assortment and commercial behavior. Those are separate identities:
+
+- every active Storefront binds to exactly one active Channel after migration
+- a Channel may have zero or many Storefronts
+- the Storefront-to-Channel association is deployment-composed link data
+- neither Storefront nor Channel owns a cross-package foreign key to the other
+- frontend route composition is never publication authority
+
+Public runtime resolves Storefront identity from the admitted Storefront API key
+or approved origin and then resolves the bound Channel. Public callers cannot
+select, override, or probe Channel context by request parameter, header, body, or
+URL shape. Admin callers may select a Channel only on authorized preview and
+management surfaces.
+
+During migration, a deployment may carry an explicit temporary default Channel
+for compatibility. After cutover, an active unbound Storefront fails closed, and
+an inactive bound Channel denies public access.
+
+Rule:
+
+Public Storefront request context carries immutable server-derived Storefront
+and Channel identities. Public request input must never authorize Channel
+selection.
+
+### 7. Public context should stay explicit
 
 Public contract behavior may depend on context such as:
 
@@ -110,14 +139,35 @@ Public contract behavior may depend on context such as:
 - customer/session identity when authenticated
 
 That context should be explicit in the public contract and routing model instead
-of hidden as starter-local behavior.
+of hidden as starter-local behavior. Channel is explicit in the server-side
+context object, but it is not caller-authored on public routes.
 
 Rule:
 
 Storefront/public behavior should make locale/market/channel context explicit
 when it affects the contract.
 
-### 7. Mutable checkout sessions use scoped capabilities
+### 8. Publication gates the public commerce journey
+
+Product listability, direct catalog and content reads, pricing, sellability,
+booking-session creation, repricing, payment bootstrap, checkout finalization,
+and channel push use the same Distribution publication policy for the resolved
+Channel. Search projections are an optimization of that policy, not the only
+enforcement point.
+
+Identifier-based access to unpublished Products uses the ordinary public
+not-found or unavailable response so the API does not disclose inaccessible
+Products. Publication is necessary but not sufficient: lifecycle, activation,
+visibility, availability, pricing, allotment, policy, and sellability gates still
+apply independently.
+
+Rule:
+
+Every public commerce boundary rechecks effective publication for the resolved
+Storefront Channel before returning customer-facing product, price,
+availability, or booking state.
+
+### 9. Mutable checkout sessions use scoped capabilities
 
 Public catalog, availability, and pricing reads can stay anonymously readable
 when the operator chooses to expose them. Booking/session checkout surfaces are
@@ -156,7 +206,7 @@ customer checkout state.
 
 ## Frontend Layering
 
-### 8. Keep the frontend split clear
+### 10. Keep the frontend split clear
 
 Voyant already has distinct frontend layers that should remain separate:
 
@@ -173,7 +223,7 @@ Keep public contracts, module React packages, and final storefront apps as
 distinct layers. Reusable module UI belongs in `*-react`; storefront owns final
 page composition and deployment-specific presentation.
 
-### 9. Preserve editable storefront composition
+### 11. Preserve editable storefront composition
 
 Voyant should keep final storefront presentation editable in the app/starter or
 surface package. The retired registry/source-installed block approach is no
@@ -194,7 +244,7 @@ should not be replaced with a closed turnkey frontend system.
 
 ## Template Ownership
 
-### 10. Storefront apps should remain starter-owned
+### 12. Storefront apps should remain starter-owned
 
 The final storefront application should remain app/starter-owned.
 
@@ -213,7 +263,7 @@ Rule:
 The final storefront UX is starter-owned even when the shared public contract
 is framework-owned.
 
-### 11. Shared public contracts should reduce app-local compatibility code
+### 13. Shared public contracts should reduce app-local compatibility code
 
 When a shared public/storefront contract exists upstream, downstream apps should
 not need local wrappers just to consume it.
@@ -238,13 +288,17 @@ When adding or reviewing a storefront/public capability:
 2. Keep the HTTP surface under `/v1/public/*`.
 3. Keep `storefront` as the package/runtime term, not a nested HTTP namespace.
 4. Shape the public payload around customer-facing needs, not admin CRUD.
-5. Make market/locale/channel context explicit when it affects the contract.
-6. Require a scoped checkout capability for PII-bearing session reads,
+5. Derive Channel from resolved Storefront identity; never accept public
+   caller-selected Channel authority.
+6. Make market/locale/channel context explicit when it affects the contract.
+7. Apply the shared publication guard before public catalog, pricing,
+   sellability, booking-session, payment bootstrap, and checkout responses.
+8. Require a scoped checkout capability for PII-bearing session reads,
    customer-entered state updates, repricing mutations, finalization, and
    payment bootstrap.
-7. Keep payment amounts server-derived from booking/payment targets.
-8. Keep the final storefront shell starter-owned.
-9. Preserve editable storefront composition while using `-react` for runtime
+9. Keep payment amounts server-derived from booking/payment targets.
+10. Keep the final storefront shell starter-owned.
+11. Preserve editable storefront composition while using `-react` for runtime
    helpers and reusable module components.
 
 ## Non-Goals

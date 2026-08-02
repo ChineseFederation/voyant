@@ -18,7 +18,7 @@ import {
   Label,
   Separator,
 } from "@voyant-travel/ui/components"
-import { Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
+import { AlertTriangle, Check, Copy, KeyRound, Plus, RefreshCw, Trash2, X } from "lucide-react"
 import { useState } from "react"
 
 import { useAuthUiI18nOrDefault } from "../i18n/provider.js"
@@ -26,6 +26,8 @@ import { authQueryKeys } from "../query-keys.js"
 import {
   type StorefrontsAdminApi,
   storefrontApiKeysQueryOptions,
+  storefrontChannelBindingQueryOptions,
+  storefrontChannelsQueryOptions,
 } from "../storefronts-admin-api.js"
 import { AccountSection, ProvidersSection } from "./storefront-account-sections.js"
 
@@ -34,6 +36,7 @@ export function StorefrontDetail({
   storefront,
   businessAccounts,
   manageProviders,
+  channelBinding,
   onError,
   onClose,
 }: {
@@ -41,6 +44,7 @@ export function StorefrontDetail({
   storefront: StorefrontDto
   businessAccounts: boolean
   manageProviders: boolean
+  channelBinding: boolean
   onError: (error: string | null) => void
   onClose: () => void
 }) {
@@ -102,6 +106,14 @@ export function StorefrontDetail({
         <OriginsEditor api={api} storefront={storefront} onError={onError} />
 
         <Separator />
+        <ChannelBindingSection
+          api={api}
+          storefront={storefront}
+          available={channelBinding}
+          onError={onError}
+        />
+
+        <Separator />
         <KeysSection api={api} storefront={storefront} onError={onError} />
 
         <Separator />
@@ -144,6 +156,158 @@ export function StorefrontDetail({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function ChannelBindingSection({
+  api,
+  storefront,
+  available,
+  onError,
+}: {
+  api: StorefrontsAdminApi
+  storefront: StorefrontDto
+  available: boolean
+  onError: (error: string | null) => void
+}) {
+  const queryClient = useQueryClient()
+  const copy = useAuthUiI18nOrDefault().messages.storefrontsPage
+  const [selectedChannelId, setSelectedChannelId] = useState(
+    storefront.channelBinding?.channelId ?? "",
+  )
+  const channelsQuery = useQuery({
+    ...storefrontChannelsQueryOptions(api),
+    enabled: available,
+  })
+  const bindingQuery = useQuery({
+    ...storefrontChannelBindingQueryOptions(api, storefront.id),
+    enabled: available,
+  })
+  const binding = bindingQuery.data ?? storefront.channelBinding ?? null
+  const channels = channelsQuery.data ?? []
+  const activeChannels = channels.filter((channel) => channel.status === "active")
+  const boundChannel = binding?.channelId
+    ? (channels.find((channel) => channel.id === binding.channelId) ?? null)
+    : null
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: authQueryKeys.storefrontList() })
+    void queryClient.invalidateQueries({
+      queryKey: authQueryKeys.storefrontChannelBinding(storefront.id),
+    })
+  }
+
+  const save = useMutation({
+    mutationFn: () => api.setChannelBinding(storefront.id, { channelId: selectedChannelId }),
+    onSuccess: (result) => {
+      onError(null)
+      queryClient.setQueryData(authQueryKeys.storefrontChannelBinding(storefront.id), result)
+      void invalidate()
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : copy.actionFailed),
+  })
+  const clear = useMutation({
+    mutationFn: () => api.clearChannelBinding(storefront.id),
+    onSuccess: () => {
+      onError(null)
+      setSelectedChannelId("")
+      queryClient.setQueryData(authQueryKeys.storefrontChannelBinding(storefront.id), null)
+      void invalidate()
+    },
+    onError: (error) => onError(error instanceof Error ? error.message : copy.actionFailed),
+  })
+
+  if (!available) {
+    return (
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-medium">{copy.channel.title}</h3>
+          <p className="text-xs text-muted-foreground">{copy.channel.unavailable}</p>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-sm font-medium">{copy.channel.title}</h3>
+        <p className="text-xs text-muted-foreground">{copy.channel.description}</p>
+      </div>
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="flex gap-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{copy.channel.defaultDeny}</span>
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={`storefront-channel-${storefront.id}`}>{copy.channel.selectLabel}</Label>
+        <select
+          id={`storefront-channel-${storefront.id}`}
+          value={selectedChannelId}
+          disabled={channelsQuery.isPending || activeChannels.length === 0}
+          onChange={(event) => setSelectedChannelId(event.target.value)}
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">{copy.channel.selectPlaceholder}</option>
+          {activeChannels.map((channel) => (
+            <option key={channel.id} value={channel.id}>
+              {channel.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {channelsQuery.isPending || bindingQuery.isPending ? (
+        <p className="text-xs text-muted-foreground">{copy.channel.loading}</p>
+      ) : activeChannels.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{copy.channel.noActiveChannels}</p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant={binding?.channelStatus === "active" ? "default" : "secondary"}>
+          {binding
+            ? copy.channel.boundStatus
+                .replace(
+                  "{channel}",
+                  binding.channelName ?? boundChannel?.name ?? binding.channelId,
+                )
+                .replace("{status}", binding.channelStatus)
+            : copy.channel.unboundStatus}
+        </Badge>
+        {boundChannel && boundChannel.status !== "active" ? (
+          <span className="text-xs text-destructive">{copy.channel.inactiveWarning}</span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={
+            !selectedChannelId || save.isPending || selectedChannelId === binding?.channelId
+          }
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? copy.channel.saving : copy.channel.save}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!binding || clear.isPending}
+          onClick={async () => {
+            if (
+              await confirmDialog({
+                description: copy.channel.clearConfirm,
+                confirmLabel: copy.channel.clear,
+                destructive: true,
+              })
+            ) {
+              clear.mutate()
+            }
+          }}
+        >
+          {copy.channel.clear}
+        </Button>
+      </div>
+    </section>
   )
 }
 

@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- existing auth runtime tests are extended here to keep request-auth regressions colocated.
 import { describe, expect, it, vi } from "vitest"
 
 import {
@@ -11,7 +12,11 @@ import {
   STOREFRONT_KEY_HEADER,
   STOREFRONT_ORIGIN_HEADER,
 } from "../../src/storefront-customer-auth-resolver.js"
-import type { StorefrontDto, StorefrontRuntimeProvider } from "../../src/storefront-runtime-port.js"
+import type {
+  StorefrontChannelBindingDto,
+  StorefrontDto,
+  StorefrontRuntimeProvider,
+} from "../../src/storefront-runtime-port.js"
 
 describe("buildBetterAuthCookieAdvancedOptions", () => {
   it("leaves Better Auth cookie defaults untouched when the domain is unset", () => {
@@ -523,15 +528,24 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
     createdAt: "2026-07-19T00:00:00.000Z",
     updatedAt: "2026-07-19T00:00:00.000Z",
   }
+  const ACTIVE_BINDING: StorefrontChannelBindingDto = {
+    storefrontId: "sf_1",
+    channelId: "chan_web",
+    channelName: "Web",
+    channelStatus: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  }
 
   function fakeProvider(
     resolveStorefrontByApiKey?: () => Promise<unknown>,
   ): StorefrontRuntimeProvider {
-    return {
+    const provider: Partial<StorefrontRuntimeProvider> = {
       resolveStorefrontByApiKey:
         resolveStorefrontByApiKey ?? (async () => ({ storefront: STOREFRONT, key: null })),
       resolveProviderCredentials: async () => ({}),
-    } as unknown as StorefrontRuntimeProvider
+    }
+    return provider as StorefrontRuntimeProvider
   }
 
   function makeRuntime(provider: StorefrontRuntimeProvider) {
@@ -543,6 +557,7 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
       openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
       resolveCustomerAuthContext: createLocalStorefrontCustomerAuthResolver({
         provider,
+        resolveStorefrontChannelBinding: async () => ACTIVE_BINDING,
         openResolveContext: async () => ({
           context: { bindings: {}, db: {} as never },
           dispose: async () => {},
@@ -599,6 +614,36 @@ describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () =
       [STOREFRONT_ORIGIN_HEADER]: "https://evil.example.com",
       [STOREFRONT_KEY_HEADER]: "vpk_token",
     })
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ error: "forbidden" })
+  })
+
+  it("returns 403 when a valid storefront has no active channel binding", async () => {
+    const response = await createOperatorAuthNodeRuntime({
+      accessCatalog: { resources: [], presets: [] },
+      appName: "auth-test",
+      authMode: "local",
+      reporter: { captureException: vi.fn() },
+      openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
+      resolveCustomerAuthContext: createLocalStorefrontCustomerAuthResolver({
+        provider: fakeProvider(),
+        resolveStorefrontChannelBinding: async () => null,
+        openResolveContext: async () => ({
+          context: { bindings: {}, db: {} as never },
+          dispose: async () => {},
+        }),
+      }),
+    }).handler.fetch(
+      new Request("https://shop.example.com/auth/customer/config", {
+        headers: {
+          [STOREFRONT_ORIGIN_HEADER]: "https://shop.example.com",
+          [STOREFRONT_KEY_HEADER]: "vpk_token",
+        },
+      }),
+      ENV,
+      { waitUntil: vi.fn() } as never,
+    )
+
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: "forbidden" })
   })
@@ -712,9 +757,17 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
     createdAt: "2026-07-19T00:00:00.000Z",
     updatedAt: "2026-07-19T00:00:00.000Z",
   }
+  const ACTIVE_BINDING: StorefrontChannelBindingDto = {
+    storefrontId: "sf_cors",
+    channelId: "chan_web",
+    channelName: "Web",
+    channelStatus: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+  }
 
   function corsProvider(): StorefrontRuntimeProvider {
-    return {
+    const provider: Partial<StorefrontRuntimeProvider> = {
       resolveStorefrontByApiKey: async (_context: unknown, token: string) =>
         token ? { storefront: STOREFRONT, key: null } : null,
       resolveStorefrontByOrigin: async (_context: unknown, origin: string) =>
@@ -722,7 +775,8 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
           ? STOREFRONT
           : null,
       resolveProviderCredentials: async () => ({}),
-    } as unknown as StorefrontRuntimeProvider
+    }
+    return provider as StorefrontRuntimeProvider
   }
 
   function makeRuntime() {
@@ -734,6 +788,7 @@ describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
       openDatabase: () => ({ db: {} as never, dispose: async () => {} }),
       resolveCustomerCorsOrigin: createLocalStorefrontCorsOriginResolver({
         provider: corsProvider(),
+        resolveStorefrontChannelBinding: async () => ACTIVE_BINDING,
         openResolveContext: async () => ({
           context: { bindings: {}, db: {} as never },
           dispose: async () => {},

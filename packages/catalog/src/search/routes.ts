@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- search routes keep schemas, public guard, and admin preview behavior together for OpenAPI generation.
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import type {
   IndexerAdapter,
@@ -191,6 +192,10 @@ const searchRoute = createRoute({
       description: "invalid_request — body failed validation, or `vertical` is missing",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Public storefront channel context is missing or inactive",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
     500: {
       description: "Search execution failed",
       content: { "application/json": { schema: errorResponseSchema } },
@@ -325,6 +330,7 @@ export function createCatalogSearchApiModule(options: CatalogSearchRoutesOptions
     module: { name: "catalog" },
     adminRoutes: createCatalogSearchRoutes({ ...options, surface: "admin" }),
     publicRoutes: createCatalogSearchRoutes({ ...options, surface: "public" }),
+    optionalCustomerAuth: true,
   }
 }
 
@@ -358,12 +364,16 @@ async function handleSearch(
     shouldUseEmbeddingMode(requestedMode) && !runtime.embeddings && !body.query_embedding
       ? "keyword"
       : requestedMode
+  const channel = resolveChannel(c, options, runtime, body)
+  if (options.surface === "public" && !channel) {
+    return c.json({ error: "Public storefront channel context is required." }, 403)
+  }
   const slice: IndexerSlice = {
     vertical: body.vertical,
     locale: body.locale ?? runtime.defaultScope.locale,
     audience: resolveAudience(options, runtime),
     market: body.market ?? runtime.defaultScope.market,
-    channel: resolveChannel(options, runtime, body),
+    channel,
   }
   const request = buildSearchRequest(body, mode)
 
@@ -402,12 +412,20 @@ function resolveAudience(
 }
 
 function resolveChannel(
+  c: Context,
   options: CatalogSearchRoutesWithSurfaceOptions,
   runtime: CatalogSearchRuntime,
   body: CatalogSearchBody,
 ): string | undefined {
+  if (options.surface === "public") {
+    const storefrontChannel = c.get("storefrontChannel" as never) as
+      | { channelId?: string | null; channelStatus?: string | null }
+      | undefined
+    if (storefrontChannel?.channelStatus !== "active") return undefined
+    return storefrontChannel.channelId ?? undefined
+  }
   if (body.channel) return body.channel
-  return options.surface === "public" ? runtime.defaultScope.channel : undefined
+  return runtime.defaultScope.channel
 }
 
 function buildSearchRequest(body: CatalogSearchBody, mode: SearchMode): SearchRequest {

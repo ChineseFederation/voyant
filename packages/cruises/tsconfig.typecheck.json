@@ -257,13 +257,18 @@
       "@voyant-travel/auth/identity-access-runtime-port": [
         "../auth/dist/identity-access-runtime-port.d.ts"
       ],
+      "@voyant-travel/auth/linkables": ["../auth/dist/linkables.d.ts"],
       "@voyant-travel/auth/node-runtime": ["../auth/dist/node-runtime.d.ts"],
       "@voyant-travel/auth/permissions": ["../auth/dist/permissions.d.ts"],
       "@voyant-travel/auth/ports": ["../auth/dist/ports.d.ts"],
       "@voyant-travel/auth/runtime-contributor": ["../auth/dist/runtime-contributor.d.ts"],
       "@voyant-travel/auth/server": ["../auth/dist/server.d.ts"],
+      "@voyant-travel/auth/standard-links": ["../auth/dist/standard-links.d.ts"],
       "@voyant-travel/auth/storefront-admin-contracts": [
         "../auth/dist/storefront-admin-contracts.d.ts"
+      ],
+      "@voyant-travel/auth/storefront-channel-binding-provider": [
+        "../auth/dist/storefront-channel-binding-provider.d.ts"
       ],
       "@voyant-travel/auth/storefront-credentials": ["../auth/dist/storefront-credentials.d.ts"],
       "@voyant-travel/auth/storefront-customer-auth-resolver": [
@@ -943,11 +948,26 @@
       "@voyant-travel/distribution/payment-policy-runtime": [
         "../distribution/dist/payment-policy-runtime.d.ts"
       ],
+      "@voyant-travel/distribution/publication-intent-runtime-port": [
+        "../distribution/dist/publication-intent-runtime-port.d.ts"
+      ],
+      "@voyant-travel/distribution/publication-intent-subscribers": [
+        "../distribution/dist/publication-intent-subscribers.d.ts"
+      ],
+      "@voyant-travel/distribution/publication-intent-worker": [
+        "../distribution/dist/publication-intent-worker.d.ts"
+      ],
       "@voyant-travel/distribution/routes": ["../distribution/dist/routes.d.ts"],
       "@voyant-travel/distribution/runtime-contributor": [
         "../distribution/dist/runtime-contributor.d.ts"
       ],
       "@voyant-travel/distribution/schema": ["../distribution/dist/schema.d.ts"],
+      "@voyant-travel/distribution/setup/publication-catalog-backfill": [
+        "../distribution/dist/publication-catalog-backfill-setup.d.ts"
+      ],
+      "@voyant-travel/distribution/setup/storefront-channel-bindings": [
+        "../distribution/dist/storefront-channel-binding-setup.d.ts"
+      ],
       "@voyant-travel/distribution/tools": ["../distribution/dist/mcp-runtime.d.ts"],
       "@voyant-travel/distribution/validation": ["../distribution/dist/validation.d.ts"],
       "@voyant-travel/distribution/voyant": ["../distribution/dist/voyant.d.ts"],

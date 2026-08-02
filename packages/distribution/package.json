@@ -13,6 +13,11 @@
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
     "./payment-policy-runtime": "./src/payment-policy-runtime.ts",
+    "./publication-intent-worker": "./src/publication-intent-worker.ts",
+    "./publication-intent-subscribers": "./src/publication-intent-subscribers.ts",
+    "./publication-intent-runtime-port": "./src/publication-intent-runtime-port.ts",
+    "./setup/publication-catalog-backfill": "./src/publication-catalog-backfill-setup.ts",
+    "./setup/storefront-channel-bindings": "./src/storefront-channel-binding-setup.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./mcp-runtime": "./src/mcp-runtime.ts",
     "./tools": "./src/mcp-runtime.ts",
@@ -109,6 +114,31 @@
         "types": "./dist/payment-policy-runtime.d.ts",
         "import": "./dist/payment-policy-runtime.js",
         "default": "./dist/payment-policy-runtime.js"
+      },
+      "./publication-intent-worker": {
+        "types": "./dist/publication-intent-worker.d.ts",
+        "import": "./dist/publication-intent-worker.js",
+        "default": "./dist/publication-intent-worker.js"
+      },
+      "./publication-intent-subscribers": {
+        "types": "./dist/publication-intent-subscribers.d.ts",
+        "import": "./dist/publication-intent-subscribers.js",
+        "default": "./dist/publication-intent-subscribers.js"
+      },
+      "./publication-intent-runtime-port": {
+        "types": "./dist/publication-intent-runtime-port.d.ts",
+        "import": "./dist/publication-intent-runtime-port.js",
+        "default": "./dist/publication-intent-runtime-port.js"
+      },
+      "./setup/publication-catalog-backfill": {
+        "types": "./dist/publication-catalog-backfill-setup.d.ts",
+        "import": "./dist/publication-catalog-backfill-setup.js",
+        "default": "./dist/publication-catalog-backfill-setup.js"
+      },
+      "./setup/storefront-channel-bindings": {
+        "types": "./dist/storefront-channel-binding-setup.d.ts",
+        "import": "./dist/storefront-channel-binding-setup.js",
+        "default": "./dist/storefront-channel-binding-setup.js"
       },
       "./runtime-contributor": {
         "types": "./dist/runtime-contributor.d.ts",

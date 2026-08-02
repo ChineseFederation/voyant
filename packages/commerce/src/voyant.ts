@@ -1,5 +1,6 @@
 import {
   catalogCommerceRuntimeExtensionPort,
+  catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
 } from "@voyant-travel/catalog/ports"
 import {
@@ -161,6 +162,7 @@ export const commerceVoyantModule = defineModule({
     requirePort(commerceLegalRuntimePort),
     requirePort(commerceCardPaymentRuntimePort, { optional: true }),
     requirePort(catalogRuntimeServicesPort),
+    requirePort(catalogPublicationRuntimePort),
     requirePort(financeDistributionPaymentPolicyRuntimePort),
     requirePort(financeAccommodationsPaymentPolicyRuntimePort),
     requirePort(financeCruisesPaymentPolicyRuntimePort),

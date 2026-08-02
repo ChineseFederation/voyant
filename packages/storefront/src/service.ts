@@ -83,6 +83,7 @@ export interface StorefrontServiceOptions {
     | Promise<StorefrontTransportEligibilityRuleInput[]>
     | StorefrontTransportEligibilityRuleInput[]
   intake?: StorefrontIntakeOptions
+  publication?: StorefrontPublicationGuard
 }
 
 export interface StorefrontRequestContext extends StorefrontIntakeContext {
@@ -90,6 +91,18 @@ export interface StorefrontRequestContext extends StorefrontIntakeContext {
   eventBus?: EventBus
   env?: unknown
   context?: unknown
+  /** Server-derived storefront identity; never sourced from public params. */
+  storefrontId?: string | null
+  /** Server-derived sales channel bound to the storefront identity. */
+  channelId?: string | null
+  channelStatus?: string | null
+}
+
+export interface StorefrontPublicationGuard {
+  isProductPublished(input: {
+    productId: string
+    context: StorefrontRequestContext
+  }): Promise<boolean> | boolean
 }
 
 export interface StorefrontOfferResolvers {

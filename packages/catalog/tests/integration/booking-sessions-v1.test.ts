@@ -34,6 +34,7 @@ const DB_AVAILABLE = Boolean(process.env.TEST_DATABASE_URL)
 const ACCESS = {
   actorKind: "anonymous" as const,
   capability: "bcap_postgres_booking_session_capability_1234567890",
+  storefront: { storefrontId: "sf_pg", channelId: "chan_pg" },
 }
 const PRICING = {
   currency: "EUR",
@@ -287,12 +288,22 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "postgres_adopt_one" },
-        { actorKind: "customer", principalId: "customer_pg_1", capability: ACCESS.capability },
+        {
+          actorKind: "customer",
+          principalId: "customer_pg_1",
+          capability: ACCESS.capability,
+          storefront: ACCESS.storefront,
+        },
       ),
       module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "postgres_adopt_two" },
-        { actorKind: "customer", principalId: "customer_pg_2", capability: ACCESS.capability },
+        {
+          actorKind: "customer",
+          principalId: "customer_pg_2",
+          capability: ACCESS.capability,
+          storefront: ACCESS.storefront,
+        },
       ),
     ])
     expect([first.kind, second.kind].sort()).toEqual(["rejected", "session_adopted"])
@@ -304,6 +315,8 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
         ownerPrincipalId: winningPrincipal,
         capabilityHash: null,
         capabilityScopes: [],
+        storefrontId: "sf_pg",
+        channelId: "chan_pg",
         revision: 2,
       }),
     ])
@@ -315,6 +328,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       module.resumeSession(created.session.id, {
         actorKind: "customer",
         principalId: winningPrincipal,
+        storefront: ACCESS.storefront,
       }),
     ).resolves.toMatchObject({ kind: "session_resumed", session: { redaction: "none" } })
     await expect(db.select().from(bookingSessionAuditEventsTable)).resolves.toEqual([

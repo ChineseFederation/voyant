@@ -150,3 +150,18 @@ export const channelSettlementApprovalStatusEnum = pgEnum("channel_settlement_ap
   "approved",
   "rejected",
 ])
+
+export const channelPublicationDecisionEnum = pgEnum("channel_publication_decision", [
+  "include",
+  "exclude",
+])
+
+export const channelPublicationReindexIntentStatusEnum = pgEnum(
+  "channel_publication_reindex_intent_status",
+  ["pending", "processing", "completed", "failed"],
+)
+
+export const channelPublicationReindexIntentKindEnum = pgEnum(
+  "channel_publication_reindex_intent_kind",
+  ["product", "supplier", "catalog"],
+)

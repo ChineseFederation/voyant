@@ -2,7 +2,14 @@ import type { CatalogDistributionRuntimeExtension } from "@voyant-travel/catalog
 import type { PaymentPolicy } from "@voyant-travel/finance"
 import { and, asc, eq } from "drizzle-orm"
 
-import { channelProductMappings, channels, suppliers } from "./schema.js"
+import { publicationProductsRef } from "./publication-product-ref.js"
+import { resolveEffectivePublication } from "./publication-resolver.js"
+import {
+  channelProductPublications,
+  channelSupplierPublications,
+  channels,
+  suppliers,
+} from "./schema.js"
 
 export const catalogDistributionRuntimeExtension = {
   async loadActiveChannelIds(db) {
@@ -13,20 +20,61 @@ export const catalogDistributionRuntimeExtension = {
       .orderBy(asc(channels.createdAt))
     return rows.map(({ id }) => id)
   },
-  async hasActiveSalesChannelMapping(db, productId, channelId) {
-    const conditions = [
-      eq(channelProductMappings.productId, productId),
-      eq(channelProductMappings.active, true),
-      eq(channels.status, "active"),
-    ]
-    if (channelId) conditions.push(eq(channelProductMappings.channelId, channelId))
-    const rows = await db
-      .select({ id: channelProductMappings.id })
-      .from(channelProductMappings)
-      .innerJoin(channels, eq(channels.id, channelProductMappings.channelId))
-      .where(and(...conditions))
-      .limit(1)
-    return rows.length > 0
+  async hasEffectiveProductPublication(db, productId, channelId) {
+    if (!channelId) return false
+    const [channel, product, productRule] = await Promise.all([
+      db
+        .select({ id: channels.id, status: channels.status })
+        .from(channels)
+        .where(eq(channels.id, channelId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      db
+        .select({ id: publicationProductsRef.id, supplierId: publicationProductsRef.supplierId })
+        .from(publicationProductsRef)
+        .where(eq(publicationProductsRef.id, productId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      db
+        .select({
+          id: channelProductPublications.id,
+          decision: channelProductPublications.decision,
+        })
+        .from(channelProductPublications)
+        .where(
+          and(
+            eq(channelProductPublications.channelId, channelId),
+            eq(channelProductPublications.productId, productId),
+          ),
+        )
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ])
+    const supplierRule = product?.supplierId
+      ? await db
+          .select({
+            id: channelSupplierPublications.id,
+            decision: channelSupplierPublications.decision,
+          })
+          .from(channelSupplierPublications)
+          .where(
+            and(
+              eq(channelSupplierPublications.channelId, channelId),
+              eq(channelSupplierPublications.supplierId, product.supplierId),
+            ),
+          )
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : null
+
+    return resolveEffectivePublication({
+      channelId,
+      productId,
+      canonicalSupplierId: product?.supplierId ?? null,
+      channelStatus: channel?.status ?? null,
+      productRule,
+      supplierRule,
+    }).published
   },
   async loadSupplierReservationTimeout(db, supplierId) {
     const [supplier] = await db

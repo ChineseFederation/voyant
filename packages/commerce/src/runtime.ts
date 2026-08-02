@@ -1,5 +1,8 @@
 import { createIndexerService } from "@voyant-travel/catalog"
-import type { CatalogRuntimeServices } from "@voyant-travel/catalog/runtime-contracts"
+import type {
+  CatalogPublicationRuntime,
+  CatalogRuntimeServices,
+} from "@voyant-travel/catalog/runtime-contracts"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { noDepositPolicy, resolveEffectivePaymentPolicy } from "@voyant-travel/finance"
@@ -74,6 +77,7 @@ interface CommerceRuntimeRequirements {
   inventory: CommerceInventoryRuntime
   legal: CommerceLegalRuntime
   catalog: CatalogRuntimeServices
+  publication: CatalogPublicationRuntime
   distribution: FinanceDistributionPaymentPolicyRuntime
   accommodations: FinanceAccommodationsPaymentPolicyRuntime
   cruises: FinanceCruisesPaymentPolicyRuntime
@@ -99,6 +103,7 @@ export function createCommerceRuntime(requirements: CommerceRuntimeRequirements)
     inventory,
     legal,
     catalog,
+    publication,
     distribution,
     accommodations,
     cruises,
@@ -148,6 +153,10 @@ export function createCommerceRuntime(requirements: CommerceRuntimeRequirements)
       persistAcceptanceDraftContract: (db, input) =>
         legal.persistAcceptanceDraftContract(db, input),
       startCardPayment: cardPayment?.createStartCardPayment(context),
+      publication: {
+        isProductPublished: ({ db, productId, channelId }) =>
+          publication.isProductPublished({ db, productId, channelId }),
+      },
       checkoutInquiry,
     }),
     checkoutDatabase: {

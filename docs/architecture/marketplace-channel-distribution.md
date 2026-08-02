@@ -38,8 +38,16 @@ Viator/GetYourGuide are **channels**, not inventory sources.
 In Voyant vocabulary:
 
 - **Owned Product**: the local provider runs the experience.
-- **Channel**: a third-party sales surface that distributes the owned product.
-- **Channel Product Mapping**: the relationship between a Voyant product/option and the marketplace's product/option identifier.
+- **Channel**: the sales and distribution context that controls assortment and
+  commercial behavior. Third-party marketplaces are Channels, and direct
+  storefronts also resolve to a Channel.
+- **Publication**: Distribution-owned permission for a Channel to sell a
+  Product. Publication can be authored at Product or Supplier scope and is
+  default-deny.
+- **Channel Product Mapping**: the external identifier, routing, and
+  synchronization configuration between a Voyant product/option and the
+  marketplace's product/option identifier. Mapping is not publication
+  authority.
 - **Channel Booking Link**: the relationship between a Voyant booking and the marketplace booking/reference.
 - **Channel Adapter**: the integration package that exposes Voyant inventory and booking operations in the channel's required API shape.
 
@@ -91,8 +99,8 @@ The target shape is:
 
 ```txt
 Voyant product / option / unit
-  -> channel product mapping
-  -> channel reads product/availability/price
+  -> publication decision + optional channel product mapping
+  -> channel reads product/availability/price only when effectively published
   -> customer books on channel
   -> channel reserves or books through Voyant adapter
   -> Voyant creates local booking + allocation
@@ -134,6 +142,60 @@ Mapping must support:
 - start-time/language/pickup variants when the channel treats them as separate options
 - active/inactive mapping state
 - validation feedback from the channel
+
+Mapping answers "how do we identify and synchronize this Product with this
+external Channel?" It does not answer "may this Channel sell this Product?"
+After migration, an active Mapping without effective Publication may remain
+useful for setup, validation, or reconciliation, but it cannot expose a Product
+to public catalog, pricing, booking, or channel push. A direct Storefront may
+sell an effectively published Product with no external Mapping.
+
+## 5.1 Publication Authority
+
+Distribution owns two publication rule types:
+
+- Product publication: one include or exclude decision for a Channel and
+  Product.
+- Supplier publication: one include or exclude decision for a Channel and
+  canonical Supplier.
+
+Publication is default-deny. The effective decision is resolved in this order:
+
+1. Missing or inactive Channel denies.
+2. A Product-specific decision wins.
+3. Otherwise a Supplier-specific decision applies when the Product has a
+   canonical Supplier.
+4. Otherwise the Product is unpublished.
+
+A Product without a canonical Supplier can only be published explicitly. Product
+eligibility stays outside this resolver: inactive lifecycle, private visibility,
+availability, pricing, allotment, policy, and sellability gates may still deny a
+published Product.
+
+Supplier publication changes can affect many Products, so they hand off durable,
+bounded, resumable reindex work. Product publication changes enqueue targeted
+Channel/Product reindex work. The admin request completes after the durable
+handoff rather than after traversing a supplier's full assortment.
+
+The compatibility cutover follows the same rule. Its schema migration creates
+one `catalog` reindex intent; it does not synchronously materialize the
+Channels-by-Products Cartesian set. The publication-intent worker walks active,
+public Products and active Channels in independently bounded ID-ordered pages,
+inserts missing include rules with conflict-safe writes, and persists a
+composite `afterProductId`/`productId`/`afterChannelId` cursor. A Product is
+reindexed only after its final Channel page is materialized. Operators observe
+progress through the intent's
+`status`, `cursor`, `attempts`, `lastError`, `processingStartedAt`, and
+`completedAt` fields. A checkpoint retains the processing lease; it never
+returns the row to `pending`, where a concurrent enqueue could collide with the
+pending-subject uniqueness constraint.
+
+Product lifecycle intents may be Channel-independent. This is required for
+Channel and Supplier deletion: the deleting transaction captures affected
+Product IDs before cascading or clearing rules, records global Product intents,
+and only then removes the subject. Supplier deletion also removes its
+publication rules and clears the legacy canonical Supplier mirror, preventing
+orphaned rules from remaining effective.
 
 ## 6. Channel Connectivity Modes
 
@@ -440,9 +502,33 @@ Avoid language such as "import from Viator" in this direction.
 
 ## 16. Storefront Impact
 
-This direction does not require Voyant's storefront to change.
+Direct Storefronts and external marketplace Channels use the same Channel
+assortment authority.
 
-The marketplace is the storefront for channel bookings. Voyant may still run its own storefront in parallel, but channel distribution should operate through distribution and channel APIs, not storefront routes.
+The marketplace is the customer-facing surface for channel bookings. Voyant may
+also run one or more direct Storefronts in parallel. Each active Storefront binds
+to exactly one active Channel through deployment-composed link data; a Channel
+may serve many Storefronts. Public Storefront requests derive Channel from the
+resolved Storefront API key or approved origin, not from caller-submitted
+Channel input.
+
+The DB package migration owns only the link-table DDL and Storefront-local
+origin-overlap validation. Channel creation, binding backfill, and the
+fail-closed active-binding check run as a Distribution-owned setup migration
+after the DB, Storefront, and Distribution schema migration facets. This keeps
+fresh installs independent of package migration ordering while preserving one
+transactional, idempotent cutover.
+
+The prior-visible publication snapshot is also a Distribution-owned setup
+migration, never a hard `requiresSchemas` edge to operated Inventory. It runs
+after all selected schema facets: operated deployments snapshot active public
+Products when the Inventory table is present, while sourced-only deployments
+record an explicit empty Product snapshot. Active Channels are snapshotted in
+both modes, and the two linear sets are stamped atomically before workers run.
+
+Storefront publication is still Distribution policy. Frontend composition may
+choose layout, content placement, and routes, but it never grants Product
+publication.
 
 Shared inventory must remain consistent across:
 

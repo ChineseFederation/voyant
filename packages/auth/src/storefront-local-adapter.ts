@@ -77,6 +77,17 @@ function toApiKeyDto(row: SelectStorefrontApiKey): StorefrontApiKeyDto {
   }
 }
 
+function originsOverlap(left: string, right: string): boolean {
+  if (left === right) return true
+  if (left.startsWith("https://*.") && !right.startsWith("https://*.")) {
+    return isStorefrontOriginAllowed(right, [left])
+  }
+  if (right.startsWith("https://*.") && !left.startsWith("https://*.")) {
+    return isStorefrontOriginAllowed(left, [right])
+  }
+  return false
+}
+
 export function createLocalStorefrontAdapter(options: {
   /**
    * Resolve the KMS-backed credential cipher for a deployment. Called with the
@@ -146,6 +157,28 @@ export function createLocalStorefrontAdapter(options: {
     return toStorefrontDto(row)
   }
 
+  async function assertNoOverlappingOrigins(
+    context: StorefrontRequestContext,
+    storefrontId: string | null,
+    allowedOrigins: readonly string[],
+  ): Promise<void> {
+    if (allowedOrigins.length === 0) return
+    const rows = await context.db
+      .select({ id: storefronts.id, allowedOrigins: storefronts.allowedOrigins })
+      .from(storefronts)
+      .where(eq(storefronts.organizationId, context.organizationId))
+    for (const row of rows) {
+      if (storefrontId && row.id === storefrontId) continue
+      for (const candidate of allowedOrigins) {
+        if (row.allowedOrigins.some((existing) => originsOverlap(candidate, existing))) {
+          throw new StorefrontInputError(
+            "Storefront allowed origin overlaps another storefront in this organization.",
+          )
+        }
+      }
+    }
+  }
+
   async function issueKeyRow(
     context: StorefrontRequestContext,
     storefront: SelectStorefront,
@@ -197,6 +230,7 @@ export function createLocalStorefrontAdapter(options: {
         },
       )
       const allowedOrigins = normalizeStorefrontAllowedOrigins(input.allowedOrigins)
+      await assertNoOverlappingOrigins(context, null, allowedOrigins)
       if (input.hostingKind === "external" && input.siteId) {
         throw new StorefrontInputError("External storefronts cannot reference a hosting site.")
       }
@@ -226,6 +260,7 @@ export function createLocalStorefrontAdapter(options: {
       if (patch.name !== undefined) update.name = patch.name.trim()
       if (patch.allowedOrigins !== undefined) {
         update.allowedOrigins = normalizeStorefrontAllowedOrigins(patch.allowedOrigins)
+        await assertNoOverlappingOrigins(context, storefrontId, update.allowedOrigins)
       }
       if (patch.accountPolicy !== undefined) {
         update.accountPolicy = normalizeStorefrontCustomerAccountPolicy(patch.accountPolicy)
@@ -252,8 +287,10 @@ export function createLocalStorefrontAdapter(options: {
 
     async setAllowedOrigins(context, storefrontId, origins) {
       await requireOwnedStorefront(context, storefrontId)
+      const allowedOrigins = normalizeStorefrontAllowedOrigins(origins)
+      await assertNoOverlappingOrigins(context, storefrontId, allowedOrigins)
       return persistStorefrontPatch(context, storefrontId, {
-        allowedOrigins: normalizeStorefrontAllowedOrigins(origins),
+        allowedOrigins,
       })
     },
 
@@ -335,16 +372,13 @@ export function createLocalStorefrontAdapter(options: {
       // Preflight authorization is keyless, so it cannot select a single
       // storefront up front. Exact-origin entries are filtered in SQL via array
       // containment; wildcard (`https://*.host`) declarations are matched in
-      // memory over the small self-host storefront set. First match wins — a
-      // browser origin resolves to at most one storefront in practice.
-      const [exactMatch] = await context.db
+      // memory over the small self-host storefront set. Multiple matches are
+      // rejected so keyless preflight cannot authorize an ambiguous origin.
+      const exactMatches = await context.db
         .select()
         .from(storefronts)
         // agent-quality: raw-sql reviewed -- Postgres text[] containment authorizes the exact declared origin without loading every row.
         .where(sql`${storefronts.allowedOrigins} @> ARRAY[${origin}]::text[]`)
-        .limit(1)
-      if (exactMatch) return toStorefrontDto(exactMatch)
-
       const wildcardCandidates = await context.db
         .select()
         .from(storefronts)
@@ -352,10 +386,17 @@ export function createLocalStorefrontAdapter(options: {
         .where(
           sql`EXISTS (SELECT 1 FROM unnest(${storefronts.allowedOrigins}) AS o WHERE o LIKE 'https://*.%')`,
         )
-      for (const row of wildcardCandidates) {
-        if (isStorefrontOriginAllowed(origin, row.allowedOrigins)) return toStorefrontDto(row)
+      const wildcardMatches = wildcardCandidates.filter((row) =>
+        isStorefrontOriginAllowed(origin, row.allowedOrigins),
+      )
+      const matchesByStorefrontId = new Map(
+        [...exactMatches, ...wildcardMatches].map((row) => [row.id, row]),
+      )
+      const matches = [...matchesByStorefrontId.values()]
+      if (matches.length > 1) {
+        throw new StorefrontInputError("Storefront origin resolves to multiple storefronts.")
       }
-      return null
+      return matches[0] ? toStorefrontDto(matches[0]) : null
     },
 
     async updateAccountPolicy(context, storefrontId, policy) {

@@ -16,6 +16,16 @@ export interface CommissionRulesListFilters extends PaginationFilters {
 export interface MappingsListFilters extends PaginationFilters {
   channelId?: string | undefined
 }
+export interface ProductPublicationsListFilters extends PaginationFilters {
+  channelId?: string | undefined
+  productId?: string | undefined
+  decision?: "include" | "exclude" | undefined
+}
+export interface SupplierPublicationsListFilters extends PaginationFilters {
+  channelId?: string | undefined
+  supplierId?: string | undefined
+  decision?: "include" | "exclude" | undefined
+}
 export interface BookingLinksListFilters extends PaginationFilters {
   channelId?: string | undefined
 }
@@ -61,6 +71,25 @@ export const distributionQueryKeys = {
   mappingsList: (filters: MappingsListFilters) =>
     [...distributionQueryKeys.mappings(), "list", filters] as const,
   mapping: (id: string) => [...distributionQueryKeys.mappings(), "detail", id] as const,
+
+  productPublications: () => [...distributionQueryKeys.all, "product-publications"] as const,
+  productPublicationsList: (filters: ProductPublicationsListFilters) =>
+    [...distributionQueryKeys.productPublications(), "list", filters] as const,
+  supplierPublications: () => [...distributionQueryKeys.all, "supplier-publications"] as const,
+  supplierPublicationsList: (filters: SupplierPublicationsListFilters) =>
+    [...distributionQueryKeys.supplierPublications(), "list", filters] as const,
+  effectivePublication: (
+    channelId: string,
+    productId: string,
+    canonicalSupplierId?: string | null,
+  ) =>
+    [
+      ...distributionQueryKeys.all,
+      "effective-publication",
+      channelId,
+      productId,
+      canonicalSupplierId ?? null,
+    ] as const,
 
   bookingLinks: () => [...distributionQueryKeys.all, "booking-links"] as const,
   bookingLinksList: (filters: BookingLinksListFilters) =>

@@ -1,3 +1,7 @@
+import {
+  type CatalogPublicationRuntime,
+  catalogPublicationRuntimePort,
+} from "@voyant-travel/catalog/runtime-contracts"
 import type { Module } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import { stampOpenApiRegistryApiId } from "@voyant-travel/hono"
@@ -201,7 +205,19 @@ export const storefrontAnonymousPublicPaths = [
   "/offers",
   "/settings",
 ] as const
-export const storefrontOptionalCustomerAuthPaths = ["/bookings"] as const
+// These guest-facing route families still need the customer-auth resolver to
+// derive trusted Storefront -> Channel context from the BFF key/origin. A
+// missing session remains anonymous; a successfully resolved storefront is
+// carried into publication and checkout guards.
+export const storefrontOptionalCustomerAuthPaths = [
+  "/bookings",
+  "/departures",
+  "/leads",
+  "/newsletter",
+  "/offers",
+  "/products",
+  "/settings",
+] as const
 
 export type StorefrontApiModuleOptions = Parameters<typeof createStorefrontPublicRoutes>[0]
 
@@ -225,13 +241,24 @@ export function createStorefrontApiModule(options?: StorefrontApiModuleOptions):
 }
 
 export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(async ({ api, getPort }) => {
-  const [offers, persistence] = await Promise.all([
+  const [offers, persistence, publication] = await Promise.all([
     getPort(storefrontOffersRuntimePort),
     getPort(storefrontIntakeRuntimePort),
+    getPort<CatalogPublicationRuntime>(catalogPublicationRuntimePort),
   ])
   const configured = createStorefrontApiModule({
     offers,
     intake: { persistence },
+    publication: {
+      isProductPublished: ({ productId, context }) => {
+        if (!context.db || !context.channelId) return false
+        return publication.isProductPublished({
+          db: context.db,
+          productId,
+          channelId: context.channelId,
+        })
+      },
+    },
   })
   const selected: ApiModule = { module: configured.module }
   if (api.some(({ surface }) => surface === "admin") && configured.adminRoutes) {

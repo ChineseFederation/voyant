@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- node runtime composes deployment ports, auth, links, workers, and generated project wiring.
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
 import path from "node:path"
@@ -19,12 +20,23 @@ import {
   type OperatorAuthEmailSender,
   type OperatorAuthNodeEnv,
 } from "@voyant-travel/auth/node-runtime"
+import { createLinkServiceStorefrontChannelBindingProvider } from "@voyant-travel/auth/storefront-channel-binding-provider"
+import {
+  createLocalStorefrontCorsOriginResolver,
+  createLocalStorefrontCustomerAuthResolver,
+} from "@voyant-travel/auth/storefront-customer-auth-resolver"
+import {
+  type StorefrontResolveContext,
+  type StorefrontRuntimeProvider,
+  storefrontRuntimePort,
+} from "@voyant-travel/auth/storefront-runtime-port"
 import {
   createHttpDocumentRendererFromEnv,
   type EventEnvelope,
   type LinkDefinition,
 } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
+import { createLinkServiceFactory } from "@voyant-travel/db/links"
 import { resolveNodeDatabase } from "@voyant-travel/db/runtime"
 import type { VoyantGraphRuntimePorts } from "@voyant-travel/framework"
 import { deriveDeploymentRequirements } from "@voyant-travel/framework/deployment-graph"
@@ -326,6 +338,44 @@ export async function loadVoyantProject(
   }
   const projectLinks =
     options.generatedProjectLinks ?? (await loadGeneratedProjectLinks(artifactRoot))
+  const storefrontRuntimeProvider = deploymentResources.ports[storefrontRuntimePort.id] as
+    | StorefrontRuntimeProvider
+    | undefined
+  const storefrontChannelBinding = createLinkServiceStorefrontChannelBindingProvider()
+  const createRequestLinkService =
+    projectLinks.length > 0 ? createLinkServiceFactory(projectLinks) : undefined
+  const openStorefrontResolveContext = async (
+    env: OperatorAuthNodeEnv,
+  ): Promise<{ context: StorefrontResolveContext; dispose: () => Promise<void> }> => {
+    const db = resolveNodeDatabase(env) as StorefrontResolveContext["db"]
+    const bindings: Record<string, unknown> = { ...env }
+    return {
+      context: {
+        bindings,
+        db,
+        link: createRequestLinkService?.(() => db),
+      },
+      dispose: async () => {},
+    }
+  }
+  const localStorefrontCustomerAuth =
+    storefrontRuntimeProvider && !options.host?.resolveCustomerAuthContext
+      ? createLocalStorefrontCustomerAuthResolver({
+          provider: storefrontRuntimeProvider,
+          openResolveContext: openStorefrontResolveContext,
+          resolveStorefrontChannelBinding: (context, storefrontId) =>
+            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
+        })
+      : undefined
+  const localStorefrontCorsOrigin =
+    storefrontRuntimeProvider && !options.host?.resolveCustomerCorsOrigin
+      ? createLocalStorefrontCorsOriginResolver({
+          provider: storefrontRuntimeProvider,
+          openResolveContext: openStorefrontResolveContext,
+          resolveStorefrontChannelBinding: (context, storefrontId) =>
+            storefrontChannelBinding.getStorefrontChannelBinding(context, storefrontId),
+        })
+      : undefined
   const authRuntime = createOperatorAuthNodeRuntime({
     accessCatalog: graphRuntime.accessCatalog,
     activeModules: graphRuntime.modules.map((unit) => unit.localId ?? unit.id),
@@ -334,11 +384,17 @@ export async function loadVoyantProject(
     reporter,
     ...(customerBusinessAccountOnboarding ? { customerBusinessAccountOnboarding } : {}),
     resolveEmailSender: options.host?.resolveAuthEmailSender ?? resolveVoyantCloudAuthEmailSender,
-    ...(options.host?.resolveCustomerAuthContext
-      ? { resolveCustomerAuthContext: options.host.resolveCustomerAuthContext }
+    ...(options.host?.resolveCustomerAuthContext || localStorefrontCustomerAuth
+      ? {
+          resolveCustomerAuthContext:
+            options.host?.resolveCustomerAuthContext ?? localStorefrontCustomerAuth,
+        }
       : {}),
-    ...(options.host?.resolveCustomerCorsOrigin
-      ? { resolveCustomerCorsOrigin: options.host.resolveCustomerCorsOrigin }
+    ...(options.host?.resolveCustomerCorsOrigin || localStorefrontCorsOrigin
+      ? {
+          resolveCustomerCorsOrigin:
+            options.host?.resolveCustomerCorsOrigin ?? localStorefrontCorsOrigin,
+        }
       : {}),
   })
   const runtime = await loadVoyantNodeRuntime({

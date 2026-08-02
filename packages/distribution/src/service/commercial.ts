@@ -4,7 +4,7 @@ import { ApiHttpError, RequestValidationError } from "@voyant-travel/hono"
 import { and, desc, eq, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { classifyMappingUpdate, emitProductPublicationChanged } from "../events.js"
+import { classifyMappingUpdate, emitChannelProductMappingChanged } from "../events.js"
 import {
   type ChannelBookingLink,
   channelBookingLinks,
@@ -259,9 +259,7 @@ export const commercialServiceOperations = {
     await requireChannel(db, data.channelId)
     const [row] = await db.insert(channelProductMappings).values(data).returning()
     if (row) {
-      // Adding a mapping can make the product pass storefront listability —
-      // signal so catalog integrations reindex its customer-facing slices.
-      await emitProductPublicationChanged(eventBus, db, {
+      await emitChannelProductMappingChanged(eventBus, db, {
         productId: row.productId,
         channelId: row.channelId,
         mappingId: row.id,
@@ -302,7 +300,7 @@ export const commercialServiceOperations = {
       .where(eq(channelProductMappings.id, id))
       .returning()
     if (row && previous) {
-      await emitProductPublicationChanged(eventBus, db, {
+      await emitChannelProductMappingChanged(eventBus, db, {
         productId: row.productId,
         channelId: row.channelId,
         mappingId: row.id,
@@ -310,13 +308,8 @@ export const commercialServiceOperations = {
         nextActive: row.active,
         operation: classifyMappingUpdate(previous.active, row.active),
       })
-      // Reassigning the mapping to a different product (or channel) removes it
-      // from the previous (product, channel) — that product may now be
-      // unpublished, so it needs its own event or its catalog doc stays stale
-      // (voyant#2636 review). The subscriber re-derives listability from DB, so
-      // this is a removal trigger from the old product's perspective.
       if (previous.productId !== row.productId || previous.channelId !== row.channelId) {
-        await emitProductPublicationChanged(eventBus, db, {
+        await emitChannelProductMappingChanged(eventBus, db, {
           productId: previous.productId,
           channelId: previous.channelId,
           mappingId: row.id,
@@ -350,9 +343,7 @@ export const commercialServiceOperations = {
       .where(eq(channelProductMappings.id, id))
       .returning({ id: channelProductMappings.id })
     if (row && previous) {
-      // Removing a mapping can drop the product below storefront listability —
-      // signal so catalog integrations tombstone / reindex the slice.
-      await emitProductPublicationChanged(eventBus, db, {
+      await emitChannelProductMappingChanged(eventBus, db, {
         productId: previous.productId,
         channelId: previous.channelId,
         mappingId: row.id,

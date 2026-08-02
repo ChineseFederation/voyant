@@ -29,7 +29,36 @@ const BASELINE_PATH = "scripts/agent-write-coverage-baseline.json"
  * module's baseline over adding entries here; this is for resources that will
  * never be an agent surface, not for a backlog.
  */
-const ALLOWLIST = new Map<string, { rationale: string }>([])
+const ALLOWLIST = new Map<string, { rationale: string }>([
+  [
+    "@voyant-travel/auth:storefront/channel-binding",
+    {
+      rationale:
+        "Storefront channel binding is a deployment-owned cutover control; keep it human-admin only until a reviewed agent Tool workflow exists.",
+    },
+  ],
+  [
+    "@voyant-travel/distribution:distribution/product-publication",
+    {
+      rationale:
+        "Publication policy changes are high-impact merchandising controls; they remain human-admin only while durable reindexing owns propagation.",
+    },
+  ],
+  [
+    "@voyant-travel/distribution:distribution/supplier-publication",
+    {
+      rationale:
+        "Supplier publication policy changes are high-impact merchandising controls; they remain human-admin only while durable reindexing owns propagation.",
+    },
+  ],
+  [
+    "@voyant-travel/distribution:distribution/publication/effective",
+    {
+      rationale:
+        "Effective publication preview is an admin validation surface for publication policy and is intentionally not a write Tool.",
+    },
+  ],
+])
 
 void main()
 

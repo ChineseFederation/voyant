@@ -51,7 +51,14 @@ export interface SelfServiceCreateRouteOptions {
 
 type Env = {
   Bindings: Record<string, string | undefined>
-  Variables: { db: PostgresJsDatabase }
+  Variables: {
+    db: PostgresJsDatabase
+    storefrontChannel?: {
+      storefrontId: string
+      channelId: string
+      channelStatus?: string | null
+    }
+  }
 }
 
 const errorResponseSchema = z.object({ error: z.string() })
@@ -83,6 +90,22 @@ function readDraftCapabilityToken(c: Context): string | undefined {
   const cookie = c.req.header("Cookie") ?? ""
   const match = /(?:^|;\s*)voyant_booking_draft=([^;]+)/.exec(cookie)
   return match?.[1] ? decodeURIComponent(match[1]) : undefined
+}
+
+function getActiveStorefrontChannel(c: Context<Env>) {
+  const storefrontChannel = c.get("storefrontChannel")
+  if (
+    !storefrontChannel?.storefrontId ||
+    !storefrontChannel.channelId ||
+    storefrontChannel.channelStatus !== "active"
+  ) {
+    return null
+  }
+
+  return {
+    storefrontId: storefrontChannel.storefrontId,
+    channelId: storefrontChannel.channelId,
+  }
 }
 
 /** Rejections map to a status the caller can act on without string matching. */
@@ -182,6 +205,10 @@ export function createSelfServiceBookingRoutes(options: SelfServiceCreateRouteOp
   return routes.openapi(createBookingRoute, async (c) => {
     const body = c.req.valid("json")
     const db = c.get("db")
+    const storefront = getActiveStorefrontChannel(c)
+    if (!storefront) {
+      return c.json({ error: "active_storefront_channel_required" }, 403)
+    }
 
     const create = options.resolveSelfServiceCreate?.(c)
     if (!create) return c.json({ error: "self_service_booking_unavailable" }, 501)
@@ -219,6 +246,7 @@ export function createSelfServiceBookingRoutes(options: SelfServiceCreateRouteOp
         ...(verified?.channel === "email" ? { verifiedEmail: verified.destination } : {}),
         ...(verified?.channel === "sms" ? { verifiedPhone: verified.destination } : {}),
       },
+      storefront,
       idempotencyKey: c.req.header("Idempotency-Key") ?? "",
       // Issued when the draft was created. Presented as a header by
       // non-browser callers, or as the HttpOnly cookie for browsers.

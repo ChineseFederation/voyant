@@ -128,8 +128,8 @@ export function createProductsDocumentBuilder(
       isOwnedProductStorefrontListable({
         audience: slice.audience,
         channel: slice.channel,
-        hasActiveChannelMapping: () =>
-          distribution.hasActiveSalesChannelMapping(db, product.id, slice.channel),
+        isEffectivelyPublished: () =>
+          distribution.hasEffectiveProductPublication(db, product.id, slice.channel),
       }),
   })
 }

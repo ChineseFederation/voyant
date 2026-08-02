@@ -12,6 +12,7 @@ import { createTeamAdminRoutes } from "../../src/team-routes.js"
 import {
   authCustomerBusinessAccountsVoyantModule,
   authInvitationsVoyantModule,
+  authStorefrontVoyantModule,
   authTeamVoyantModule,
 } from "../../src/voyant.js"
 
@@ -165,6 +166,32 @@ describe("auth identity/access deployment manifests", () => {
         { action: "read" },
         { action: "write", sensitive: true, wildcard: "explicit" },
         { action: "delete", sensitive: true, wildcard: "explicit" },
+      ],
+    })
+  })
+
+  it("declares storefront as a linkable identity and deployment-owned channel link", () => {
+    expect(authStorefrontVoyantModule).toMatchObject({
+      id: "@voyant-travel/auth#storefront",
+      links: [
+        {
+          id: "@voyant-travel/auth#linkable.storefront",
+          kind: "linkable",
+          source: "@voyant-travel/auth/linkables",
+        },
+        {
+          id: "@voyant-travel/auth#link.storefront-channel",
+          kind: "definition",
+          source: "@voyant-travel/auth/standard-links",
+        },
+      ],
+      api: [
+        {
+          surface: "admin",
+          mount: "storefronts",
+          resource: "storefronts",
+          transactional: true,
+        },
       ],
     })
   })

@@ -45,6 +45,18 @@ export const storefrontSchema = z
     hostOnlyCookies: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    channelBinding: z
+      .object({
+        storefrontId: z.string(),
+        channelId: z.string(),
+        channelName: z.string().nullable(),
+        channelStatus: z.string(),
+        createdAt: z.string().nullable(),
+        updatedAt: z.string().nullable(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
   })
   .strict()
 
@@ -83,6 +95,7 @@ export const storefrontAdminCapabilitiesSchema = z
   .object({
     businessAccounts: z.boolean(),
     manageProviders: z.boolean(),
+    channelBinding: z.boolean(),
   })
   .strict()
 
@@ -115,6 +128,10 @@ export const issueStorefrontApiKeyInputSchema = z
 
 export const updateStorefrontAccountPolicyInputSchema = storefrontCustomerAccountPolicySchema
 export const updateStorefrontMethodsInputSchema = storefrontCustomerAuthMethodsSchema
+
+export const setStorefrontChannelBindingInputSchema = z
+  .object({ channelId: z.string().trim().min(1) })
+  .strict()
 
 export const putStorefrontProviderCredentialInputSchema = z
   .object({

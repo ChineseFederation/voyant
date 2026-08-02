@@ -1,5 +1,6 @@
 import {
   catalogCommerceRuntimeExtensionPort,
+  catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
 } from "@voyant-travel/catalog/runtime-contracts"
 import {
@@ -61,6 +62,7 @@ describe("commerce deployment manifest", () => {
         { id: commerceLegalRuntimePort.id },
         { id: commerceCardPaymentRuntimePort.id, optional: true },
         { id: catalogRuntimeServicesPort.id },
+        { id: catalogPublicationRuntimePort.id },
         { id: financeDistributionPaymentPolicyRuntimePort.id },
         { id: financeAccommodationsPaymentPolicyRuntimePort.id },
         { id: financeCruisesPaymentPolicyRuntimePort.id },

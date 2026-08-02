@@ -36,6 +36,13 @@
       "when": 1785326460000,
       "tag": "20260729120100_persist_notification_suppression",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785600600000,
+      "tag": "20260801161000_booking_origin_storefront_channel",
+      "breakpoints": true
     }
   ]
 }

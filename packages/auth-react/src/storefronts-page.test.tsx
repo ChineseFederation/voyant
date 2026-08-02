@@ -5,6 +5,7 @@ import type {
   StorefrontApiKeyDto,
   StorefrontDto,
 } from "@voyant-travel/auth/storefront-admin-contracts"
+import { ConfirmDialogHost } from "@voyant-travel/ui/components"
 import { act } from "react"
 import { createRoot } from "react-dom/client"
 import { describe, expect, it, vi } from "vitest"
@@ -48,6 +49,15 @@ const API_KEY: StorefrontApiKeyDto = {
   createdAt: "2026-07-15T00:00:00.000Z",
 }
 
+const CHANNEL_BINDING = {
+  storefrontId: "storefront_1",
+  channelId: "channel_1",
+  channelName: "Website",
+  channelStatus: "active",
+  createdAt: "2026-07-15T00:00:00.000Z",
+  updatedAt: "2026-07-15T00:00:00.000Z",
+}
+
 describe("storefront admin surface", () => {
   it("contributes a Storefronts nav section with a reparented Sites sub-view", () => {
     const extension = createSelectedStorefrontAdminExtension()
@@ -69,7 +79,9 @@ describe("storefront admin surface", () => {
     const extension = createSelectedStorefrontAdminExtension()
     const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
       if (url.endsWith("/capabilities")) {
-        return Response.json({ data: { businessAccounts: true, manageProviders: true } })
+        return Response.json({
+          data: { businessAccounts: true, manageProviders: true, channelBinding: true },
+        })
       }
       return Response.json({ data: [STOREFRONT] })
     })
@@ -90,7 +102,11 @@ describe("storefront admin surface", () => {
   })
 
   it("disables business controls when the runtime capability is unavailable", async () => {
-    const queryClient = seededQueryClient({ businessAccounts: false, manageProviders: true })
+    const queryClient = seededQueryClient({
+      businessAccounts: false,
+      manageProviders: true,
+      channelBinding: true,
+    })
     const container = document.createElement("div")
     const root = createRoot(container)
 
@@ -113,7 +129,11 @@ describe("storefront admin surface", () => {
   })
 
   it("reveals a freshly issued key exactly once", async () => {
-    const queryClient = seededQueryClient({ businessAccounts: true, manageProviders: true })
+    const queryClient = seededQueryClient({
+      businessAccounts: true,
+      manageProviders: true,
+      channelBinding: true,
+    })
     const api = pageApi()
     const container = document.createElement("div")
     const root = createRoot(container)
@@ -122,6 +142,7 @@ describe("storefront admin surface", () => {
       root.render(
         <QueryClientProvider client={queryClient}>
           <StorefrontsPage api={api} />
+          <ConfirmDialogHost />
         </QueryClientProvider>,
       )
     })
@@ -137,17 +158,141 @@ describe("storefront admin surface", () => {
 
     await act(async () => root.unmount())
   })
+
+  it("sets a storefront channel binding with default-deny copy", async () => {
+    const queryClient = seededQueryClient({
+      businessAccounts: true,
+      manageProviders: true,
+      channelBinding: true,
+    })
+    const api = pageApi()
+    let currentBinding: typeof CHANNEL_BINDING | null = null
+    api.getChannelBinding = vi.fn(async () => currentBinding)
+    api.setChannelBinding = vi.fn(async () => {
+      currentBinding = CHANNEL_BINDING
+      return CHANNEL_BINDING
+    })
+    api.clearChannelBinding = vi.fn(async () => {
+      currentBinding = null
+    })
+    const container = document.createElement("div")
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <StorefrontsPage api={api} />
+        </QueryClientProvider>,
+      )
+    })
+    await clickButton(container, "Web store")
+
+    expect(container.textContent).toContain("Default-deny is enforced")
+    const select = container.querySelector<HTMLSelectElement>("#storefront-channel-storefront_1")
+    expect(select).not.toBeNull()
+    await vi.waitFor(() => expect(select!.options.length).toBeGreaterThan(1))
+    await act(async () => {
+      setSelectValue(select!, "channel_1")
+    })
+    await vi.waitFor(() => expect(select!.value).toBe("channel_1"))
+    await clickButton(container, "Save channel")
+    await vi.waitFor(() =>
+      expect(api.setChannelBinding).toHaveBeenCalledWith("storefront_1", {
+        channelId: "channel_1",
+      }),
+    )
+    await vi.waitFor(() => expect(container.textContent).toContain("Bound to Website"))
+
+    await act(async () => root.unmount())
+  })
+
+  it("clears a storefront channel binding after confirmation", async () => {
+    const queryClient = seededQueryClient({
+      businessAccounts: true,
+      manageProviders: true,
+      channelBinding: true,
+    })
+    const api = pageApi()
+    const container = document.createElement("div")
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <StorefrontsPage api={api} />
+          <ConfirmDialogHost />
+        </QueryClientProvider>,
+      )
+    })
+    await clickButton(container, "Web store")
+    await vi.waitFor(() => expect(container.textContent).toContain("Bound to Website"))
+
+    const clearButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Clear binding") && !button.disabled,
+    )
+    expect(clearButton).toBeDefined()
+    await act(async () => {
+      clearButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }))
+    })
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain("Customer API access will be denied"),
+    )
+    const clearDialogButton = Array.from(document.body.querySelectorAll("button"))
+      .reverse()
+      .find((button) => button.textContent?.includes("Clear binding"))
+    await act(async () => {
+      clearDialogButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    })
+    await vi.waitFor(() => expect(api.clearChannelBinding).toHaveBeenCalledWith("storefront_1"))
+
+    await act(async () => root.unmount())
+  })
+
+  it("shows channel binding unavailable state", async () => {
+    const queryClient = seededQueryClient({
+      businessAccounts: true,
+      manageProviders: true,
+      channelBinding: false,
+    })
+    const container = document.createElement("div")
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <StorefrontsPage api={pageApi()} />
+          <ConfirmDialogHost />
+        </QueryClientProvider>,
+      )
+    })
+    await clickButton(container, "Web store")
+
+    expect(container.textContent).toContain("Channel binding is not configured")
+    expect(container.querySelector("#storefront-channel-storefront_1")).toBeNull()
+
+    await act(async () => root.unmount())
+  })
 })
 
 function pageApi(): StorefrontsAdminApi {
   return {
-    getCapabilities: vi.fn(async () => ({ businessAccounts: true, manageProviders: true })),
+    getCapabilities: vi.fn(async () => ({
+      businessAccounts: true,
+      manageProviders: true,
+      channelBinding: true,
+    })),
     listStorefronts: vi.fn(async () => [STOREFRONT]),
     getStorefront: vi.fn(async () => STOREFRONT),
     createStorefront: vi.fn(async () => STOREFRONT),
     updateStorefront: vi.fn(async () => STOREFRONT),
     deleteStorefront: vi.fn(async () => undefined),
     setAllowedOrigins: vi.fn(async () => STOREFRONT),
+    listChannels: vi.fn(async () => [
+      { id: "channel_1", name: "Website", status: "active" as const },
+    ]),
+    getChannelBinding: vi.fn(async () => CHANNEL_BINDING),
+    setChannelBinding: vi.fn(async () => CHANNEL_BINDING),
+    clearChannelBinding: vi.fn(async () => undefined),
     listApiKeys: vi.fn(async () => [API_KEY]),
     issueApiKey: vi.fn(async () => ({ ...API_KEY, token: "vpk-test-one-time-secret" })),
     rotateApiKey: vi.fn(async () => ({ ...API_KEY, token: "vpk-test-one-time-secret" })),
@@ -164,7 +309,11 @@ function pageApi(): StorefrontsAdminApi {
   }
 }
 
-function seededQueryClient(capabilities: { businessAccounts: boolean; manageProviders: boolean }) {
+function seededQueryClient(capabilities: {
+  businessAccounts: boolean
+  manageProviders: boolean
+  channelBinding: boolean
+}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   })
@@ -187,4 +336,11 @@ async function clickButton(container: HTMLElement, text: string) {
   await act(async () => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }))
   })
+}
+
+function setSelectValue(select: HTMLSelectElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set
+  setter?.call(select, value)
+  select.dispatchEvent(new Event("input", { bubbles: true }))
+  select.dispatchEvent(new Event("change", { bubbles: true }))
 }

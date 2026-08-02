@@ -472,6 +472,26 @@ export const authUiEn: AuthUiMessages = {
       empty: "No origins have been added yet.",
       localhostHint: "HTTP is allowed only for localhost; every other origin must use HTTPS.",
     },
+    channel: {
+      title: "Active channel",
+      description: "Bind this storefront to exactly one active distribution channel.",
+      unavailable:
+        "Channel binding is not configured for this deployment, so storefront access fails closed.",
+      defaultDeny:
+        "Default-deny is enforced: customer requests are rejected until this storefront is bound to an active channel.",
+      selectLabel: "Channel",
+      selectPlaceholder: "Select an active channel",
+      loading: "Loading channel status",
+      noActiveChannels: "No active channels are available. Activate a channel in Settings first.",
+      boundStatus: "Bound to {channel} ({status})",
+      unboundStatus: "No channel bound",
+      inactiveWarning: "The bound channel is not active; storefront access is denied.",
+      save: "Save channel",
+      saving: "Saving…",
+      clear: "Clear binding",
+      clearConfirm:
+        "Clear this storefront channel binding? Customer API access will be denied until another active channel is saved.",
+    },
     keys: {
       title: "Access keys",
       description: "Publishable keys are browser-safe; secret keys are server-only.",

@@ -1,6 +1,7 @@
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 
 import { customerBusinessAccountOnboardingRuntimePort } from "./customer-business-onboarding-runtime-port.js"
+import { createLinkServiceStorefrontChannelBindingProvider } from "./storefront-channel-binding-provider.js"
 import { createStorefrontAdminRoutes } from "./storefront-routes.js"
 import { storefrontRuntimePort } from "./storefront-runtime-port.js"
 
@@ -15,6 +16,7 @@ export const createStorefrontVoyantRuntime = defineGraphRuntimeFactory(
     module: { name: "storefronts" },
     adminRoutes: createStorefrontAdminRoutes(await getPort(storefrontRuntimePort), {
       businessAccounts: hasPort(customerBusinessAccountOnboardingRuntimePort),
+      channelBinding: createLinkServiceStorefrontChannelBindingProvider(),
     }),
   }),
 )

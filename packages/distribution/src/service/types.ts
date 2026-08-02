@@ -10,6 +10,7 @@ import type {
   channelInventoryReleaseRuleListQuerySchema,
   channelListQuerySchema,
   channelProductMappingListQuerySchema,
+  channelProductPublicationListQuerySchema,
   channelReconciliationItemListQuerySchema,
   channelReconciliationPolicyListQuerySchema,
   channelReconciliationRunListQuerySchema,
@@ -19,7 +20,10 @@ import type {
   channelSettlementItemListQuerySchema,
   channelSettlementPolicyListQuerySchema,
   channelSettlementRunListQuerySchema,
+  channelSupplierPublicationListQuerySchema,
   channelWebhookEventListQuerySchema,
+  effectivePublicationInputSchema,
+  effectivePublicationResultSchema,
   insertChannelBookingLinkSchema,
   insertChannelCommissionRuleSchema,
   insertChannelContractSchema,
@@ -28,6 +32,7 @@ import type {
   insertChannelInventoryReleaseExecutionSchema,
   insertChannelInventoryReleaseRuleSchema,
   insertChannelProductMappingSchema,
+  insertChannelProductPublicationSchema,
   insertChannelReconciliationItemSchema,
   insertChannelReconciliationPolicySchema,
   insertChannelReconciliationRunSchema,
@@ -38,7 +43,9 @@ import type {
   insertChannelSettlementItemSchema,
   insertChannelSettlementPolicySchema,
   insertChannelSettlementRunSchema,
+  insertChannelSupplierPublicationSchema,
   insertChannelWebhookEventSchema,
+  previewChannelSupplierPublicationSchema,
   updateChannelBookingLinkSchema,
   updateChannelCommissionRuleSchema,
   updateChannelContractSchema,
@@ -47,6 +54,7 @@ import type {
   updateChannelInventoryReleaseExecutionSchema,
   updateChannelInventoryReleaseRuleSchema,
   updateChannelProductMappingSchema,
+  updateChannelProductPublicationSchema,
   updateChannelReconciliationItemSchema,
   updateChannelReconciliationPolicySchema,
   updateChannelReconciliationRunSchema,
@@ -57,6 +65,7 @@ import type {
   updateChannelSettlementItemSchema,
   updateChannelSettlementPolicySchema,
   updateChannelSettlementRunSchema,
+  updateChannelSupplierPublicationSchema,
   updateChannelWebhookEventSchema,
 } from "../validation.js"
 
@@ -64,6 +73,12 @@ export type ChannelListQuery = z.infer<typeof channelListQuerySchema>
 export type ChannelContractListQuery = z.infer<typeof channelContractListQuerySchema>
 export type ChannelCommissionRuleListQuery = z.infer<typeof channelCommissionRuleListQuerySchema>
 export type ChannelProductMappingListQuery = z.infer<typeof channelProductMappingListQuerySchema>
+export type ChannelProductPublicationListQuery = z.infer<
+  typeof channelProductPublicationListQuerySchema
+>
+export type ChannelSupplierPublicationListQuery = z.infer<
+  typeof channelSupplierPublicationListQuerySchema
+>
 export type ChannelBookingLinkListQuery = z.infer<typeof channelBookingLinkListQuerySchema>
 export type ChannelWebhookEventListQuery = z.infer<typeof channelWebhookEventListQuerySchema>
 export type ChannelInventoryAllotmentListQuery = z.infer<
@@ -107,6 +122,23 @@ export type CreateChannelCommissionRuleInput = z.infer<typeof insertChannelCommi
 export type UpdateChannelCommissionRuleInput = z.infer<typeof updateChannelCommissionRuleSchema>
 export type CreateChannelProductMappingInput = z.infer<typeof insertChannelProductMappingSchema>
 export type UpdateChannelProductMappingInput = z.infer<typeof updateChannelProductMappingSchema>
+export type CreateChannelProductPublicationInput = z.infer<
+  typeof insertChannelProductPublicationSchema
+>
+export type UpdateChannelProductPublicationInput = z.infer<
+  typeof updateChannelProductPublicationSchema
+>
+export type CreateChannelSupplierPublicationInput = z.infer<
+  typeof insertChannelSupplierPublicationSchema
+>
+export type PreviewChannelSupplierPublicationInput = z.infer<
+  typeof previewChannelSupplierPublicationSchema
+>
+export type UpdateChannelSupplierPublicationInput = z.infer<
+  typeof updateChannelSupplierPublicationSchema
+>
+export type EffectivePublicationInput = z.infer<typeof effectivePublicationInputSchema>
+export type EffectivePublicationResult = z.infer<typeof effectivePublicationResultSchema>
 export type CreateChannelBookingLinkInput = z.infer<typeof insertChannelBookingLinkSchema>
 export type UpdateChannelBookingLinkInput = z.infer<typeof updateChannelBookingLinkSchema>
 export type CreateChannelWebhookEventInput = z.infer<typeof insertChannelWebhookEventSchema>

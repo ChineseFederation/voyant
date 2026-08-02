@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import {
   createInMemoryBookingSessionRepository,
@@ -8,10 +8,23 @@ import {
 import { createBookingSessionRoutes } from "./sessions-routes.js"
 import { createBookingSessionModule } from "./sessions-service.js"
 
+const ACTIVE_STOREFRONT = {
+  storefrontId: "sf_public",
+  channelId: "chan_public",
+  channelStatus: "active",
+} as const
+
 const PUBLIC_CAPABILITY = `bcap_${"a".repeat(43)}`
 const WRONG_CAPABILITY = `bcap_${"b".repeat(43)}`
 
-function createApp() {
+function createApp(
+  storefrontChannel: {
+    storefrontId: string
+    channelId: string
+    channelStatus: string | null
+  } | null = ACTIVE_STOREFRONT,
+) {
+  let currentStorefrontChannel = storefrontChannel
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
   inventory.setCapacity("product:prod_owned_1", 2)
@@ -37,6 +50,12 @@ function createApp() {
     },
   })
   const app = new Hono()
+  app.use("/v1/public/catalog/*", async (c, next) => {
+    if (currentStorefrontChannel) {
+      c.set("storefrontChannel" as never, currentStorefrontChannel as never)
+    }
+    await next()
+  })
   app.route(
     "/v1/public/catalog",
     createBookingSessionRoutes({ actorKind: "anonymous", resolveModule: () => module }),
@@ -53,10 +72,150 @@ function createApp() {
       }),
     }),
   )
-  return { app, inventory }
+  return {
+    app,
+    inventory,
+    module,
+    setStorefrontChannel(
+      next: {
+        storefrontId: string
+        channelId: string
+        channelStatus: string | null
+      } | null,
+    ) {
+      currentStorefrontChannel = next
+    },
+  }
 }
 
 describe("Booking Session v1 routes", () => {
+  it.each([
+    ["missing", null],
+    ["inactive", { ...ACTIVE_STOREFRONT, channelStatus: "inactive" }],
+    ["blank", { storefrontId: "  ", channelId: "  ", channelStatus: "active" }],
+  ])("fails closed for %s public storefront context", async (_label, storefrontChannel) => {
+    const { app } = createApp(storefrontChannel)
+
+    const response = await app.request("/v1/public/catalog/booking-sessions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
+      },
+      body: JSON.stringify({
+        idempotencyKey: "route_create_denied",
+        target: { kind: "product", productId: "prod_owned_1" },
+      }),
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: "Active storefront channel context is required.",
+      code: "active_storefront_channel_required",
+    })
+  })
+
+  it("derives anonymous storefront access from trusted Hono context only", async () => {
+    const { app, module } = createApp()
+    const createSession = vi.spyOn(module, "createSession")
+
+    const response = await app.request("/v1/public/catalog/booking-sessions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
+      },
+      body: JSON.stringify({
+        idempotencyKey: "route_create_trusted_origin",
+        target: { kind: "product", productId: "prod_owned_1" },
+        storefront: { storefrontId: "sf_untrusted", channelId: "chan_untrusted" },
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(createSession).toHaveBeenCalledWith(
+      expect.not.objectContaining({ storefront: expect.anything() }),
+      expect.objectContaining({
+        actorKind: "anonymous",
+        storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+      }),
+    )
+  })
+
+  it.each([
+    ["missing", null],
+    ["inactive", { ...ACTIVE_STOREFRONT, channelStatus: "inactive" }],
+  ])("rejects %s storefront context for public reads and mutations", async (_label, next) => {
+    const { app, setStorefrontChannel } = createApp()
+    const createdResponse = await app.request("/v1/public/catalog/booking-sessions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
+      },
+      body: JSON.stringify({
+        idempotencyKey: `route_context_${_label}`,
+        target: { kind: "product", productId: "prod_owned_1" },
+      }),
+    })
+    const created = (await createdResponse.json()) as { session: { id: string; revision: number } }
+    setStorefrontChannel(next)
+
+    const read = await app.request(`/v1/public/catalog/booking-sessions/${created.session.id}`, {
+      headers: { "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY },
+    })
+    const mutation = await app.request(
+      `/v1/public/catalog/booking-sessions/${created.session.id}`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
+        },
+        body: JSON.stringify({
+          expectedRevision: created.session.revision,
+          idempotencyKey: `route_context_update_${_label}`,
+          selection: {},
+        }),
+      },
+    )
+
+    expect(read.status).toBe(403)
+    expect(mutation.status).toBe(403)
+  })
+
+  it("rejects a capability replayed from another active storefront", async () => {
+    const { app, setStorefrontChannel } = createApp()
+    const createdResponse = await app.request("/v1/public/catalog/booking-sessions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY,
+      },
+      body: JSON.stringify({
+        idempotencyKey: "route_cross_storefront",
+        target: { kind: "product", productId: "prod_owned_1" },
+      }),
+    })
+    const created = (await createdResponse.json()) as { session: { id: string } }
+    setStorefrontChannel({
+      storefrontId: "sf_other",
+      channelId: "chan_other",
+      channelStatus: "active",
+    })
+
+    const response = await app.request(
+      `/v1/public/catalog/booking-sessions/${created.session.id}`,
+      { headers: { "Voyant-Booking-Session-Capability": PUBLIC_CAPABILITY } },
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      kind: "rejected",
+      error: { kind: "not_authorized" },
+    })
+  })
+
   it("mounts retention maintenance only on the admitted staff surface", async () => {
     const { app } = createApp()
     const request = {
@@ -79,7 +238,8 @@ describe("Booking Session v1 routes", () => {
   })
 
   it("adapts public anonymous and admin staff transports to the same module outcomes", async () => {
-    const { app } = createApp()
+    const { app, module } = createApp()
+    const createSession = vi.spyOn(module, "createSession")
     const publicBody = JSON.stringify({
       idempotencyKey: "route_create_public",
       target: { kind: "product", productId: "prod_owned_1" },
@@ -110,6 +270,15 @@ describe("Booking Session v1 routes", () => {
     await expect(adminResponse.json()).resolves.toMatchObject({
       kind: "session_created",
       session: { actorKind: "staff", revision: 1, target: { productId: "prod_owned_1" } },
+    })
+    expect(createSession.mock.calls[0]?.[1]).toMatchObject({
+      actorKind: "anonymous",
+      storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+    })
+    expect(createSession.mock.calls[1]?.[1]).toEqual({
+      actorKind: "staff",
+      principalId: "staff_1",
+      staffAuthority: { admitted: true, reason: "booking_support_case" },
     })
   })
 

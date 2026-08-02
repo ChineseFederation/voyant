@@ -21,6 +21,9 @@ import {
   channelCommissionTypeSchema,
   channelContractStatusSchema,
   channelKindSchema,
+  channelPublicationDecisionSchema,
+  channelPublicationReindexIntentKindSchema,
+  channelPublicationReindexIntentStatusSchema,
   channelReconciliationIssueTypeSchema,
   channelReconciliationPolicyFrequencySchema,
   channelReconciliationResolutionStatusSchema,
@@ -38,6 +41,7 @@ import {
   channelWebhookStatusSchema,
   distributionCancellationOwnerSchema,
   distributionPaymentOwnerSchema,
+  effectivePublicationReasonSchema,
 } from "../validation.js"
 
 // --- shared envelopes -------------------------------------------------------
@@ -189,6 +193,83 @@ export const channelProductMappingSchema = z.object({
   lastPushedContentHash: z.string().nullable(),
   lastPushedContentAt: isoTimestamp.nullable(),
   createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
+// --- publication ------------------------------------------------------------
+
+export const channelProductPublicationSchema = z.object({
+  id: idSchema,
+  channelId: z.string(),
+  productId: z.string(),
+  decision: channelPublicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: jsonRecord.nullable(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
+export const channelSupplierPublicationSchema = z.object({
+  id: idSchema,
+  channelId: z.string(),
+  supplierId: z.string(),
+  decision: channelPublicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: jsonRecord.nullable(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
+export const effectivePublicationSchema = z.object({
+  channelId: z.string(),
+  productId: z.string(),
+  canonicalSupplierId: z.string().nullable(),
+  published: z.boolean(),
+  decision: channelPublicationDecisionSchema.nullable(),
+  reason: effectivePublicationReasonSchema,
+  source: z.enum(["product", "supplier", "channel", "default", "eligibility"]),
+  ruleId: z.string().nullable(),
+  message: z.string(),
+})
+
+export const supplierPublicationMutationResponseSchema = z.object({
+  data: channelSupplierPublicationSchema,
+  affectedProductCount: z.number().int(),
+})
+
+export const supplierPublicationPreviewResponseSchema = z.object({
+  data: z.object({
+    channelId: z.string(),
+    supplierId: z.string(),
+    decision: channelPublicationDecisionSchema,
+    reason: z.string().nullable().optional(),
+    metadata: jsonRecord.nullable().optional(),
+  }),
+  affectedProductCount: z.number().int(),
+})
+
+export const channelPublicationReindexIntentSchema = z.object({
+  id: idSchema,
+  channelId: z.string().nullable(),
+  kind: channelPublicationReindexIntentKindSchema,
+  productId: z.string().nullable(),
+  supplierId: z.string().nullable(),
+  cursor: z.string().nullable(),
+  status: channelPublicationReindexIntentStatusSchema,
+  attempts: z.number().int(),
+  nextAttemptAt: isoTimestamp,
+  leaseOwner: z.string().nullable(),
+  leaseUntil: isoTimestamp.nullable(),
+  requestedBy: z.string().nullable(),
+  lastError: z.string().nullable(),
+  metadata: jsonRecord.nullable(),
+  requestedAt: isoTimestamp,
+  processingStartedAt: isoTimestamp.nullable(),
+  completedAt: isoTimestamp.nullable(),
   updatedAt: isoTimestamp,
 })
 

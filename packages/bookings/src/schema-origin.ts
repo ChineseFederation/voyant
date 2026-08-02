@@ -38,6 +38,8 @@ export const bookingOrigins = pgTable(
     providerSourceConnectionId: text("provider_source_connection_id"),
     providerSourceRef: text("provider_source_ref"),
     providerOrderRef: text("provider_order_ref"),
+    storefrontId: text("storefront_id"),
+    channelId: text("channel_id"),
     legacyTransactionOfferId: text("legacy_transaction_offer_id"),
     legacyTransactionOrderId: text("legacy_transaction_order_id"),
     legacyTransactionIds: jsonb(
@@ -58,6 +60,8 @@ export const bookingOrigins = pgTable(
     index("idx_booking_origins_catalog_price_response").on(table.catalogPriceResponseId),
     index("idx_booking_origins_catalog_snapshot").on(table.catalogSnapshotId),
     index("idx_booking_origins_provider_order").on(table.providerOrderRef),
+    index("idx_booking_origins_storefront").on(table.storefrontId),
+    index("idx_booking_origins_channel").on(table.channelId),
     index("idx_booking_origins_legacy_offer").on(table.legacyTransactionOfferId),
     index("idx_booking_origins_legacy_order").on(table.legacyTransactionOrderId),
   ],

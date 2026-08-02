@@ -477,6 +477,27 @@ export const authUiRo: AuthUiMessages = {
       localhostHint:
         "HTTP este permis doar pentru localhost; orice alta origine trebuie sa foloseasca HTTPS.",
     },
+    channel: {
+      title: "Canal activ",
+      description: "Leaga acest magazin de exact un canal de distributie activ.",
+      unavailable:
+        "Legarea canalelor nu este configurata pentru acest deployment, deci accesul magazinului esueaza inchis.",
+      defaultDeny:
+        "Default-deny este aplicat: cererile clientilor sunt respinse pana cand magazinul este legat de un canal activ.",
+      selectLabel: "Canal",
+      selectPlaceholder: "Selecteaza un canal activ",
+      loading: "Se incarca starea canalului",
+      noActiveChannels:
+        "Nu exista canale active disponibile. Activeaza mai intai un canal in Setari.",
+      boundStatus: "Legat de {channel} ({status})",
+      unboundStatus: "Niciun canal legat",
+      inactiveWarning: "Canalul legat nu este activ; accesul magazinului este respins.",
+      save: "Salveaza canalul",
+      saving: "Se salveaza…",
+      clear: "Sterge legarea",
+      clearConfirm:
+        "Stergi legarea canalului pentru acest magazin? Accesul prin API al clientilor va fi respins pana cand salvezi alt canal activ.",
+    },
     keys: {
       title: "Chei de acces",
       description: "Cheile publicabile sunt sigure in browser; cheile secrete sunt doar pe server.",

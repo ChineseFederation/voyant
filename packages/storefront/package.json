@@ -70,6 +70,7 @@
     "@voyant-travel/auth": "workspace:^",
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/bookings": "workspace:^",
+    "@voyant-travel/catalog": "workspace:^",
     "@voyant-travel/commerce": "workspace:^",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",

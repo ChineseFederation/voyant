@@ -455,7 +455,10 @@ const supplierRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook
   .openapi(deleteSupplierRoute, async (c) => {
     const row = await suppliersService.deleteSupplier(c.get("db"), c.req.valid("param").id)
     if (!row) return c.json({ error: "Supplier not found" }, 404)
-    await c.get("eventBus")?.emit("supplier.deleted", { id: row.id })
+    await c.get("eventBus")?.emit("supplier.deleted", {
+      id: row.id,
+      affectedProductIds: row.affectedProductIds,
+    })
     return c.json({ success: true }, 200)
   })
 

@@ -1,6 +1,8 @@
 import {
+  type CatalogPublicationRuntime,
   type CatalogRuntimeServices,
   catalogCommerceRuntimeExtensionPort,
+  catalogPublicationRuntimePort,
   catalogRuntimeServicesPort,
 } from "@voyant-travel/catalog/runtime-contracts"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
@@ -62,6 +64,7 @@ export function createCommerceRuntimePortContribution(
         host.getRuntimePort<CommerceInventoryRuntime>(commerceInventoryRuntimePort),
         host.getRuntimePort<CommerceLegalRuntime>(commerceLegalRuntimePort),
         host.getRuntimePort<CatalogRuntimeServices>(catalogRuntimeServicesPort),
+        host.getRuntimePort<CatalogPublicationRuntime>(catalogPublicationRuntimePort),
         host.getRuntimePort<FinanceDistributionPaymentPolicyRuntime>(
           financeDistributionPaymentPolicyRuntimePort,
         ),
@@ -84,6 +87,7 @@ export function createCommerceRuntimePortContribution(
         inventory,
         legal,
         catalog,
+        publication,
         distribution,
         accommodations,
         cruises,
@@ -97,6 +101,7 @@ export function createCommerceRuntimePortContribution(
           inventory,
           legal,
           catalog,
+          publication,
           distribution,
           accommodations,
           cruises,

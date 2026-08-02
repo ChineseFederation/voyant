@@ -44,6 +44,16 @@ export const cancellationOwnerSchema = z.enum(["operator", "channel", "mixed"])
 export const commissionScopeSchema = z.enum(["booking", "product", "rate", "category"])
 export const commissionTypeSchema = z.enum(["fixed", "percentage"])
 export const webhookStatusSchema = z.enum(["pending", "processed", "failed", "ignored"])
+export const publicationDecisionSchema = z.enum(["include", "exclude"])
+export const effectivePublicationReasonSchema = z.enum([
+  "channel_missing",
+  "channel_inactive",
+  "product_decision",
+  "supplier_decision",
+  "default_deny",
+  "product_missing_supplier",
+  "product_eligibility",
+])
 
 export const channelRecordSchema = z.object({
   id: z.string(),
@@ -129,6 +139,50 @@ export const channelProductMappingDetailSchema = channelProductMappingRecordSche
 
 export type ChannelProductMappingDetail = z.infer<typeof channelProductMappingDetailSchema>
 
+export const channelProductPublicationRecordSchema = z.object({
+  id: z.string(),
+  channelId: z.string(),
+  productId: z.string(),
+  decision: publicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export type ChannelProductPublicationRow = z.infer<typeof channelProductPublicationRecordSchema>
+
+export const channelSupplierPublicationRecordSchema = z.object({
+  id: z.string(),
+  channelId: z.string(),
+  supplierId: z.string(),
+  decision: publicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export type ChannelSupplierPublicationRow = z.infer<typeof channelSupplierPublicationRecordSchema>
+
+export const effectivePublicationRecordSchema = z.object({
+  channelId: z.string(),
+  productId: z.string(),
+  canonicalSupplierId: z.string().nullable(),
+  published: z.boolean(),
+  decision: publicationDecisionSchema.nullable(),
+  reason: effectivePublicationReasonSchema,
+  source: z.enum(["product", "supplier", "channel", "default", "eligibility"]),
+  ruleId: z.string().nullable(),
+  message: z.string(),
+})
+
+export type EffectivePublication = z.infer<typeof effectivePublicationRecordSchema>
+
 export const channelBookingLinkRecordSchema = z.object({
   id: z.string(),
   channelId: z.string(),
@@ -181,6 +235,12 @@ export const channelCommissionRuleListResponse = paginatedEnvelope(
 export const channelProductMappingListResponse = paginatedEnvelope(
   channelProductMappingRecordSchema,
 )
+export const channelProductPublicationListResponse = paginatedEnvelope(
+  channelProductPublicationRecordSchema,
+)
+export const channelSupplierPublicationListResponse = paginatedEnvelope(
+  channelSupplierPublicationRecordSchema,
+)
 export const channelBookingLinkListResponse = paginatedEnvelope(channelBookingLinkRecordSchema)
 export const channelWebhookEventListResponse = paginatedEnvelope(channelWebhookEventRecordSchema)
 export const supplierSingleResponse = singleEnvelope(supplierOptionSchema)
@@ -190,5 +250,32 @@ export const channelSingleResponse = singleEnvelope(channelDetailSchema)
 export const channelContractSingleResponse = singleEnvelope(channelContractDetailSchema)
 export const channelCommissionRuleSingleResponse = singleEnvelope(channelCommissionRuleDetailSchema)
 export const channelProductMappingSingleResponse = singleEnvelope(channelProductMappingDetailSchema)
+export const channelProductPublicationSingleResponse = singleEnvelope(
+  channelProductPublicationRecordSchema,
+)
+export const channelSupplierPublicationSingleResponse = singleEnvelope(
+  channelSupplierPublicationRecordSchema,
+)
+export const effectivePublicationSingleResponse = singleEnvelope(effectivePublicationRecordSchema)
+export const supplierPublicationMutationResponse = z
+  .object({
+    data: channelSupplierPublicationRecordSchema,
+    affectedProductCount: z.number().int(),
+  })
+  .strict()
+export const supplierPublicationPreviewResponse = z
+  .object({
+    data: z
+      .object({
+        channelId: z.string(),
+        supplierId: z.string(),
+        decision: publicationDecisionSchema,
+        reason: z.string().nullable().optional(),
+        metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+      })
+      .strict(),
+    affectedProductCount: z.number().int(),
+  })
+  .strict()
 export const channelBookingLinkSingleResponse = singleEnvelope(channelBookingLinkDetailSchema)
 export const channelWebhookEventSingleResponse = singleEnvelope(channelWebhookEventDetailSchema)

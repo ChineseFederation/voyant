@@ -1,4 +1,33 @@
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const financeCreate = vi.hoisted(() => ({
+  createFromDraft: vi.fn(),
+  runtimeDeps: undefined as
+    | {
+        resolveSource():
+          | Promise<{
+              consumeBookingSource(
+                tx: unknown,
+                input: { draftId: string; quoteId: string; bookingId: string },
+              ): Promise<void>
+            }>
+          | {
+              consumeBookingSource(
+                tx: unknown,
+                input: { draftId: string; quoteId: string; bookingId: string },
+              ): Promise<void>
+            }
+      }
+    | undefined,
+}))
+
+vi.mock("@voyant-travel/finance", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@voyant-travel/finance")>()),
+  createSelfServiceCreateRuntime: (deps: NonNullable<typeof financeCreate.runtimeDeps>) => {
+    financeCreate.runtimeDeps = deps
+    return { createFromDraft: financeCreate.createFromDraft }
+  },
+}))
 
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
@@ -7,8 +36,12 @@ import {
   createProductionBookingSessionModule,
   normalizeProductSelection,
 } from "./sessions-production.js"
+import type { BookingSessionAccessContext } from "./sessions-service.js"
 
 const PRODUCT_TARGET = { kind: "product", productId: "prod_selection" } as const
+const STOREFRONT_ACCESS = {
+  storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+} as const
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
 
 function createProductionHarness(handler: OwnedBookingHandler) {
@@ -35,10 +68,14 @@ async function createAnonymousSession(
       target: PRODUCT_TARGET,
       selection,
     },
-    { actorKind: "anonymous", capability: TEST_CAPABILITY },
+    { actorKind: "anonymous", capability: TEST_CAPABILITY, ...STOREFRONT_ACCESS },
   )
   if (created.kind !== "session_created") throw new Error("session not created")
-  const access = { actorKind: "anonymous" as const, capability: TEST_CAPABILITY }
+  const access = {
+    actorKind: "anonymous" as const,
+    capability: TEST_CAPABILITY,
+    ...STOREFRONT_ACCESS,
+  }
   return { created, access }
 }
 
@@ -121,6 +158,181 @@ describe("normalizeProductSelection", () => {
 })
 
 describe("production Booking Session ports", () => {
+  beforeEach(() => {
+    financeCreate.createFromDraft.mockReset()
+    financeCreate.createFromDraft.mockImplementation(async (input) => {
+      const source = await financeCreate.runtimeDeps?.resolveSource()
+      await source?.consumeBookingSource(input.db, {
+        draftId: input.draftId,
+        quoteId: input.quoteId,
+        bookingId: "book_committed",
+      })
+      return {
+        status: "ok",
+        bookingId: "book_committed",
+        bookingNumber: "VY-1",
+        bookingStatus: "confirmed",
+      }
+    })
+  })
+
+  it.each([
+    [
+      "anonymous",
+      {
+        actorKind: "anonymous",
+        capability: TEST_CAPABILITY,
+        storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+      } satisfies BookingSessionAccessContext,
+      { storefront: { storefrontId: "sf_public", channelId: "chan_public" } },
+    ],
+    [
+      "staff",
+      {
+        actorKind: "staff",
+        principalId: "usr_staff",
+        staffAuthority: { admitted: true, reason: "staff_booking" },
+      } satisfies BookingSessionAccessContext,
+      {},
+    ],
+  ])("passes only trusted %s storefront origin to Finance", async (_label, access, expected) => {
+    const module = createCommittableProductionModule()
+    const created = await module.createSession(
+      {
+        idempotencyKey: `create_${access.actorKind}`,
+        target: PRODUCT_TARGET,
+        selection: {
+          configure: { pax: { adult: 1 }, departureSlotId: "slot_1" },
+          billing: { contact: { email: "buyer@example.test" } },
+        },
+      },
+      access,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const sessionAccess = access
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: 1, idempotencyKey: `quote_${access.actorKind}` },
+      sessionAccess,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const held = await module.placeHold(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        quantity: 1,
+        idempotencyKey: `hold_${access.actorKind}`,
+      },
+      sessionAccess,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+
+    const committed = await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        holdId: held.hold.id,
+        idempotencyKey: `commit_${access.actorKind}`,
+      },
+      sessionAccess,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "committed", booking: { id: "book_committed" } },
+    })
+    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(expect.objectContaining(expected))
+    if (access.actorKind === "staff") {
+      expect(financeCreate.createFromDraft.mock.calls[0]?.[0]).not.toHaveProperty("storefront")
+    }
+  })
+
+  it("uses retained provenance when an adopted customer commits", async () => {
+    const module = createCommittableProductionModule()
+    const created = await module.createSession(committableCreateInput("create_adopted_customer"), {
+      actorKind: "anonymous",
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    })
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const customerAccess = {
+      actorKind: "customer" as const,
+      principalId: "customer_1",
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const adopted = await module.adoptSession(
+      created.session.id,
+      { expectedRevision: 1, idempotencyKey: "adopt_before_commit" },
+      customerAccess,
+    )
+    if (adopted.kind !== "session_adopted") throw new Error("session not adopted")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      adopted.session.revision,
+      customerAccess,
+      "adopted_customer",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: adopted.session.revision,
+        quoteId: prepared.quoteId,
+        holdId: prepared.holdId,
+        idempotencyKey: "commit_adopted_customer",
+      },
+      customerAccess,
+    )
+
+    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ storefront: STOREFRONT_ACCESS.storefront }),
+    )
+  })
+
+  it("preserves pinned provenance when admitted staff commits a storefront session", async () => {
+    const module = createCommittableProductionModule()
+    const anonymousAccess = {
+      actorKind: "anonymous" as const,
+      capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
+    }
+    const created = await module.createSession(
+      committableCreateInput("create_staff_support"),
+      anonymousAccess,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const prepared = await quoteAndHoldForCommit(
+      module,
+      created.session.id,
+      created.session.revision,
+      anonymousAccess,
+      "staff_support",
+    )
+
+    await module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: created.session.revision,
+        quoteId: prepared.quoteId,
+        holdId: prepared.holdId,
+        idempotencyKey: "commit_staff_support",
+      },
+      {
+        actorKind: "staff",
+        principalId: "staff_1",
+        staffAuthority: { admitted: true, reason: "support_case" },
+      },
+    )
+
+    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ storefront: STOREFRONT_ACCESS.storefront }),
+    )
+  })
+
   it("preserves a valid itemized pricing breakdown from the owned handler", async () => {
     const breakdown = {
       currency: "EUR",
@@ -319,3 +531,84 @@ describe("production Booking Session ports", () => {
     })
   })
 })
+
+function createCommittableProductionModule() {
+  const repository = createInMemoryBookingSessionRepository()
+  const handlers = createOwnedBookingHandlerRegistry()
+  handlers.register({
+    entityModule: "products",
+    async computeQuote() {
+      return {
+        available: true,
+        pricing: {
+          base_amount: 10000,
+          taxes: 0,
+          fees: 0,
+          surcharges: 0,
+          currency: "EUR",
+        },
+      }
+    },
+    async placeHold(_context, request) {
+      return {
+        status: "held",
+        holdToken: request.draftId ?? "",
+        expiresAt: new Date("2026-08-01T13:00:00.000Z"),
+      }
+    },
+    async deriveSelfServiceCommand() {
+      return { status: "ok", command: {} as never }
+    },
+  })
+  const tx = {
+    select: () => ({ from: () => ({ where: async () => [] }) }),
+  }
+  return createProductionBookingSessionModule({
+    db: {
+      transaction: async (operation: (input: unknown) => Promise<unknown>) => operation(tx),
+    } as never,
+    repository,
+    resolveOwnedHandlers: () => handlers,
+    relationships: {
+      upsertPersonFromContact: async () => ({ id: "per_buyer" }),
+    } as never,
+  })
+}
+
+function committableCreateInput(idempotencyKey: string) {
+  return {
+    idempotencyKey,
+    target: PRODUCT_TARGET,
+    selection: {
+      configure: { pax: { adult: 1 }, departureSlotId: "slot_1" },
+      billing: { contact: { email: "buyer@example.test" } },
+    },
+  }
+}
+
+async function quoteAndHoldForCommit(
+  module: ReturnType<typeof createProductionBookingSessionModule>,
+  sessionId: string,
+  revision: number,
+  access: BookingSessionAccessContext,
+  suffix: string,
+) {
+  const quoted = await module.quoteSession(
+    sessionId,
+    { expectedRevision: revision, idempotencyKey: `quote_${suffix}` },
+    access,
+  )
+  if (quoted.kind !== "quote_created") throw new Error("quote not created")
+  const held = await module.placeHold(
+    sessionId,
+    {
+      expectedRevision: revision,
+      quoteId: quoted.quote.id,
+      quantity: 1,
+      idempotencyKey: `hold_${suffix}`,
+    },
+    access,
+  )
+  if (held.kind !== "hold_created") throw new Error("hold not created")
+  return { quoteId: quoted.quote.id, holdId: held.hold.id }
+}

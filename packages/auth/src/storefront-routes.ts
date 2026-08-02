@@ -8,14 +8,17 @@ import {
   issueStorefrontApiKeyInputSchema,
   putStorefrontProviderCredentialInputSchema,
   setStorefrontAllowedOriginsInputSchema,
+  setStorefrontChannelBindingInputSchema,
   updateStorefrontAccountPolicyInputSchema,
   updateStorefrontInputSchema,
   updateStorefrontMethodsInputSchema,
 } from "./storefront-admin-contracts.js"
 import { StorefrontInputError } from "./storefront-origins.js"
 import type {
+  StorefrontChannelBindingProvider,
   StorefrontRequestContext,
   StorefrontRuntimeProvider,
+  StorefrontWithChannelBindingDto,
 } from "./storefront-runtime-port.js"
 
 type StorefrontEnv = {
@@ -25,6 +28,7 @@ type StorefrontEnv = {
     organizationId?: string | null
     scopes?: string[] | null
     db: VoyantDb
+    link?: StorefrontRequestContext["link"]
   }
 }
 type StorefrontRouteContext = Context<StorefrontEnv>
@@ -175,6 +179,27 @@ const deleteProviderCredentialRoute = storefrontRoute({
   request: { params: providerParams },
   statuses: [204, 401, 403, 404],
 })
+const getChannelBindingRoute = storefrontRoute({
+  method: "get",
+  path: "/storefronts/{storefrontId}/channel-binding",
+  operationId: "getStorefrontChannelBinding",
+  request: { params: storefrontIdParams },
+  statuses: [200, 401, 403, 404, 501],
+})
+const setChannelBindingRoute = storefrontRoute({
+  method: "put",
+  path: "/storefronts/{storefrontId}/channel-binding",
+  operationId: "setStorefrontChannelBinding",
+  request: { params: storefrontIdParams, body: jsonBody(setStorefrontChannelBindingInputSchema) },
+  statuses: [200, 400, 401, 403, 404, 501],
+})
+const clearChannelBindingRoute = storefrontRoute({
+  method: "delete",
+  path: "/storefronts/{storefrontId}/channel-binding",
+  operationId: "clearStorefrontChannelBinding",
+  request: { params: storefrontIdParams },
+  statuses: [204, 401, 403, 404, 501],
+})
 
 /**
  * Resolve the operator-scoped request context. The organization is derived from
@@ -186,7 +211,7 @@ function requestContext(c: StorefrontRouteContext): StorefrontRequestContext | R
   if (!userId) return c.json({ error: "Unauthorized" }, 401)
   const organizationId = c.get("organizationId")
   if (!organizationId) return c.json({ error: "No active operator organization." }, 403)
-  return { bindings: c.env, db: c.get("db"), organizationId }
+  return { bindings: c.env, db: c.get("db"), link: c.get("link"), organizationId }
 }
 
 function canManageStorefronts(c: StorefrontRouteContext): boolean {
@@ -220,6 +245,8 @@ function handleError(c: StorefrontRouteContext, error: unknown): Response {
 export interface StorefrontAdminRouteOptions {
   /** Whether the deployment supports business (organization) buyer accounts. */
   businessAccounts: boolean
+  /** Optional deployment/provider composition for Storefront -> Channel binding. */
+  channelBinding?: StorefrontChannelBindingProvider | null
 }
 
 export function createStorefrontAdminRoutes(
@@ -227,6 +254,33 @@ export function createStorefrontAdminRoutes(
   options: StorefrontAdminRouteOptions,
 ) {
   const routes = new OpenAPIHono<StorefrontEnv>({ defaultHook: openApiValidationHook })
+
+  const enrichStorefront = async (
+    context: StorefrontRequestContext,
+    storefront: StorefrontWithChannelBindingDto,
+  ): Promise<StorefrontWithChannelBindingDto> => {
+    if (!options.channelBinding) return storefront
+    const binding = await options.channelBinding.getStorefrontChannelBinding(context, storefront.id)
+    return { ...storefront, channelBinding: binding }
+  }
+
+  const enrichStorefronts = async (
+    context: StorefrontRequestContext,
+    storefronts: StorefrontWithChannelBindingDto[],
+  ): Promise<StorefrontWithChannelBindingDto[]> => {
+    if (!options.channelBinding || storefronts.length === 0) return storefronts
+    const bindings = await options.channelBinding.listStorefrontChannelBindings(
+      context,
+      storefronts.map((storefront) => storefront.id),
+    )
+    return storefronts.map((storefront) => ({
+      ...storefront,
+      channelBinding: bindings[storefront.id] ?? null,
+    }))
+  }
+
+  const requireBindingProvider = (c: StorefrontRouteContext) =>
+    options.channelBinding ?? c.json({ error: "Storefront channel binding is not configured" }, 501)
 
   const run = async <T>(
     c: StorefrontRouteContext,
@@ -251,24 +305,36 @@ export function createStorefrontAdminRoutes(
     if (!c.get("organizationId")) return c.json({ error: "No active operator organization." }, 403)
     const manageProviders = canManageStorefronts(c)
     return c.json({
-      data: { businessAccounts: options.businessAccounts, manageProviders },
+      data: {
+        businessAccounts: options.businessAccounts,
+        manageProviders,
+        channelBinding: !!options.channelBinding,
+      },
     })
   })
 
   routes.openapi(listStorefrontsRoute, async (c) => {
-    const result = await run(c, (context) => runtime.listStorefronts(context))
+    const result = await run(c, async (context) =>
+      enrichStorefronts(context, await runtime.listStorefronts(context)),
+    )
     return result instanceof Response ? result : c.json({ data: result })
   })
 
   routes.openapi(createStorefrontRoute, async (c) => {
     const input = await parseJsonBody(c, createStorefrontInputSchema)
-    const result = await run(c, (context) => runtime.createStorefront(context, input), "write")
+    const result = await run(
+      c,
+      async (context) => enrichStorefront(context, await runtime.createStorefront(context, input)),
+      "write",
+    )
     return result instanceof Response ? result : c.json({ data: result }, 201)
   })
 
   routes.openapi(getStorefrontRoute, async (c) => {
     const { storefrontId } = c.req.param()
-    const result = await run(c, (context) => runtime.getStorefront(context, storefrontId))
+    const result = await run(c, async (context) =>
+      enrichStorefront(context, await runtime.getStorefront(context, storefrontId)),
+    )
     return result instanceof Response ? result : c.json({ data: result })
   })
 
@@ -277,7 +343,8 @@ export function createStorefrontAdminRoutes(
     const input = await parseJsonBody(c, updateStorefrontInputSchema)
     const result = await run(
       c,
-      (context) => runtime.updateStorefront(context, storefrontId, input),
+      async (context) =>
+        enrichStorefront(context, await runtime.updateStorefront(context, storefrontId, input)),
       "write",
     )
     return result instanceof Response ? result : c.json({ data: result })
@@ -385,6 +452,48 @@ export function createStorefrontAdminRoutes(
     const result = await run(
       c,
       (context) => runtime.deleteProviderCredential(context, storefrontId, provider),
+      "write",
+    )
+    return result instanceof Response ? result : c.body(null, 204)
+  })
+
+  routes.openapi(getChannelBindingRoute, async (c) => {
+    const provider = requireBindingProvider(c)
+    if (provider instanceof Response) return provider
+    const { storefrontId } = c.req.param()
+    const result = await run(c, async (context) => {
+      await runtime.getStorefront(context, storefrontId)
+      return provider.getStorefrontChannelBinding(context, storefrontId)
+    })
+    return result instanceof Response ? result : c.json({ data: result })
+  })
+
+  routes.openapi(setChannelBindingRoute, async (c) => {
+    const provider = requireBindingProvider(c)
+    if (provider instanceof Response) return provider
+    const { storefrontId } = c.req.param()
+    const input = await parseJsonBody(c, setStorefrontChannelBindingInputSchema)
+    const result = await run(
+      c,
+      async (context) => {
+        await runtime.getStorefront(context, storefrontId)
+        return provider.setStorefrontChannelBinding(context, storefrontId, input)
+      },
+      "write",
+    )
+    return result instanceof Response ? result : c.json({ data: result })
+  })
+
+  routes.openapi(clearChannelBindingRoute, async (c) => {
+    const provider = requireBindingProvider(c)
+    if (provider instanceof Response) return provider
+    const { storefrontId } = c.req.param()
+    const result = await run(
+      c,
+      async (context) => {
+        await runtime.getStorefront(context, storefrontId)
+        return provider.clearStorefrontChannelBinding(context, storefrontId)
+      },
       "write",
     )
     return result instanceof Response ? result : c.body(null, 204)

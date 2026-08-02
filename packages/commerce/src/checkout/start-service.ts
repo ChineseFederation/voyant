@@ -1,8 +1,13 @@
 // agent-quality: file-size exception -- owner: commerce; the checkout-start
 // service (card / bank-transfer / inquiry / hold intents) is one cohesive
 // entry point; splitting it would scatter a single request lifecycle.
-import { bookingsService, canTransitionBooking, transitionBooking } from "@voyant-travel/bookings"
-import { bookingActivityLog, bookings } from "@voyant-travel/bookings/schema"
+import {
+  bookingsService,
+  canTransitionBooking,
+  getBookingOriginByBookingId,
+  transitionBooking,
+} from "@voyant-travel/bookings"
+import { bookingActivityLog, bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
   type CreateInvoiceFromBookingInput,
@@ -50,6 +55,11 @@ export interface CatalogCheckoutStartContext {
   eventBus?: EventBus
   resolveRuntime?: (key: string) => unknown
   requestMeta?: CheckoutStartRequestMeta
+  storefrontChannel?: {
+    storefrontId: string
+    channelId: string
+    channelStatus?: string | null
+  } | null
   /** Deployment-supplied injected readers (tax settings, owned product name, bank transfer). */
   options: CheckoutStartOptions
 }
@@ -114,10 +124,21 @@ export async function startCatalogCheckout(
   context: CatalogCheckoutStartContext,
   body: CheckoutStartInput,
 ): Promise<CatalogCheckoutStartResult> {
+  const storefrontChannel = requireActiveStorefrontChannel(context)
   const db = context.db
   const booking: typeof bookings.$inferSelect | null =
     (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ?? null
   if (!booking) throw new CatalogCheckoutStartError("booking_not_found", 404)
+
+  const bookingOrigin = await getBookingOriginByBookingId(db, booking.id)
+  if (
+    !bookingOrigin?.storefrontId ||
+    !bookingOrigin.channelId ||
+    bookingOrigin.storefrontId !== storefrontChannel.storefrontId ||
+    bookingOrigin.channelId !== storefrontChannel.channelId
+  ) {
+    throw new CatalogCheckoutStartError("booking_storefront_origin_mismatch", 409)
+  }
   if (
     (body.paymentIntent === "card" || body.paymentIntent === "bank_transfer") &&
     booking.holdExpiresAt &&
@@ -125,6 +146,7 @@ export async function startCatalogCheckout(
   ) {
     throw new CatalogCheckoutStartError("hold_expired", 409)
   }
+  await ensureBookingPublishedForCheckout(context, booking.id, storefrontChannel)
 
   // Pre-create a draft contract carrying the acceptance fingerprint
   // in `metadata.acceptance`. The auto-generate-contract subscriber
@@ -173,6 +195,60 @@ export async function startCatalogCheckout(
         kind: "hold_placed",
         bookingId: booking.id,
       }
+  }
+}
+
+function requireActiveStorefrontChannel(
+  context: CatalogCheckoutStartContext,
+): NonNullable<CatalogCheckoutStartContext["storefrontChannel"]> {
+  const storefrontChannel = context.storefrontChannel
+  if (
+    !storefrontChannel?.storefrontId ||
+    !storefrontChannel.channelId ||
+    storefrontChannel.channelStatus !== "active"
+  ) {
+    throw new CatalogCheckoutStartError("active_storefront_channel_required", 409)
+  }
+  return storefrontChannel
+}
+
+async function ensureBookingPublishedForCheckout(
+  context: CatalogCheckoutStartContext,
+  bookingId: string,
+  storefrontChannel: NonNullable<CatalogCheckoutStartContext["storefrontChannel"]>,
+): Promise<void> {
+  const publication = context.options.publication
+  if (!publication) {
+    throw new CatalogCheckoutStartError("publication_guard_unavailable", 409)
+  }
+
+  const rows = await context.db
+    .select({ productId: bookingItems.productId })
+    .from(bookingItems)
+    .where(eq(bookingItems.bookingId, bookingId))
+    .limit(500)
+  const productIds = [
+    ...new Set(
+      rows
+        .map((row) => row.productId)
+        .filter((productId): productId is string => Boolean(productId)),
+    ),
+  ]
+  if (productIds.length === 0) {
+    throw new CatalogCheckoutStartError("product_not_published", 409)
+  }
+
+  for (const productId of productIds) {
+    const published = await publication.isProductPublished({
+      db: context.db,
+      bookingId,
+      productId,
+      storefrontId: storefrontChannel.storefrontId,
+      channelId: storefrontChannel.channelId,
+    })
+    if (!published) {
+      throw new CatalogCheckoutStartError("product_not_published", 409)
+    }
   }
 }
 

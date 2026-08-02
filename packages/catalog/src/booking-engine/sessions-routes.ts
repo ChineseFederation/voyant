@@ -17,7 +17,13 @@ import type { Context } from "hono"
 import type { BookingSessionAccessContext, BookingSessionModule } from "./sessions-service.js"
 
 type Env = {
-  Variables: Record<string, unknown>
+  Variables: Record<string, unknown> & {
+    storefrontChannel?: {
+      storefrontId: string
+      channelId: string
+      channelStatus?: string | null
+    }
+  }
 }
 
 export interface BookingSessionRoutesOptions {
@@ -44,6 +50,10 @@ const createSessionRoute = createRoute({
       description: "Invalid request",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -63,6 +73,10 @@ const updateSessionRoute = createRoute({
       description: "Invalid request",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -74,6 +88,10 @@ const resumeSessionRoute = createRoute({
     200: {
       description: "Authorized, redacted Booking Session view",
       content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+    },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
   },
 })
@@ -90,6 +108,10 @@ const adoptSessionRoute = createRoute({
       description: "Anonymous Booking Session atomically adopted by the authenticated customer",
       content: { "application/json": { schema: bookingSessionOutcomeV1 } },
     },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -104,6 +126,10 @@ const renewSessionRoute = createRoute({
     200: {
       description: "Policy-limited Booking Session renewal",
       content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+    },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
     },
   },
 })
@@ -122,6 +148,10 @@ const quoteSessionRoute = createRoute({
     },
     400: {
       description: "Invalid request",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -143,6 +173,10 @@ const holdSessionRoute = createRoute({
       description: "Invalid request",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -162,6 +196,10 @@ const commitSessionRoute = createRoute({
       description: "Invalid request",
       content: { "application/json": { schema: errorResponseSchema } },
     },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
   },
 })
 
@@ -179,6 +217,10 @@ const abandonSessionRoute = createRoute({
     },
     400: {
       description: "Invalid request",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "Active storefront channel context is required for public booking sessions",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -224,6 +266,22 @@ const purgeSessionsRoute = createRoute({
 
 export function createBookingSessionRoutes(options: BookingSessionRoutesOptions): OpenAPIHono<Env> {
   const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+  if (options.actorKind === "anonymous") {
+    routes.use("*", async (c, next) => {
+      if (!activeStorefront(c)) {
+        return c.json(
+          {
+            error: "Active storefront channel context is required.",
+            code: "active_storefront_channel_required",
+          },
+          403,
+        )
+      }
+      return next()
+    })
+  }
+
+  routes
     .openapi(createSessionRoute, async (c) =>
       asRouteResponse(
         c.json(
@@ -373,12 +431,30 @@ function resolveAccess(
   options: BookingSessionRoutesOptions,
   c: Context,
 ): BookingSessionAccessContext {
-  return (
-    options.resolveAccess?.(c, options.actorKind) ?? {
-      actorKind: options.actorKind,
-      ...(options.actorKind === "anonymous" ? { capability: readAnonymousCapability(c) } : {}),
-    }
-  )
+  const resolved = options.resolveAccess?.(c, options.actorKind) ?? {
+    actorKind: options.actorKind,
+    ...(options.actorKind === "anonymous" ? { capability: readAnonymousCapability(c) } : {}),
+  }
+  if (options.actorKind !== "anonymous") return resolved
+
+  // The anonymous middleware has already rejected a missing/inactive binding.
+  // Re-read the trusted Hono variable here so no custom access resolver can
+  // substitute body or session-state storefront identifiers.
+  const storefront = activeStorefront(c as Context<Env>)
+  return { ...resolved, ...(storefront ? { storefront } : {}) }
+}
+
+function activeStorefront(c: Context<Env>) {
+  const storefrontChannel = c.get("storefrontChannel")
+  const storefrontId = storefrontChannel?.storefrontId.trim() ?? ""
+  const channelId = storefrontChannel?.channelId.trim() ?? ""
+  if (!storefrontId || !channelId || storefrontChannel?.channelStatus !== "active") {
+    return null
+  }
+  return {
+    storefrontId,
+    channelId,
+  }
 }
 
 function readAnonymousCapability(c: Context): string | undefined {

@@ -22,7 +22,14 @@ const BASE_PRICING = {
 }
 
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
-const ANONYMOUS_ACCESS = { actorKind: "anonymous" as const, capability: TEST_CAPABILITY }
+const STOREFRONT_ACCESS = {
+  storefront: { storefrontId: "sf_public", channelId: "chan_public" },
+} as const
+const ANONYMOUS_ACCESS = {
+  actorKind: "anonymous" as const,
+  capability: TEST_CAPABILITY,
+  ...STOREFRONT_ACCESS,
+}
 let createCounter = 0
 
 function createHarness(
@@ -231,6 +238,117 @@ describe("Booking Session v1 owned tracer", () => {
       error: { kind: "capability_required" },
     })
     expect(harness.repository.quotes.size).toBe(0)
+  })
+
+  it("pins storefront provenance internally without serializing or auditing it", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("storefront_provenance_private"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    expect(harness.repository.sessions.get(created.session.id)?.storefrontOrigin).toEqual(
+      STOREFRONT_ACCESS.storefront,
+    )
+    expect(JSON.stringify(created)).not.toContain("sf_public")
+    expect(JSON.stringify(created)).not.toContain("chan_public")
+
+    const resumed = await harness.module.resumeSession(created.session.id, ANONYMOUS_ACCESS)
+    expect(resumed).toMatchObject({ kind: "session_resumed" })
+    expect(JSON.stringify(resumed)).not.toContain("sf_public")
+    expect(JSON.stringify([...harness.repository.auditEvents.values()])).not.toContain("sf_public")
+    expect(JSON.stringify([...harness.repository.auditEvents.values()])).not.toContain(
+      "chan_public",
+    )
+  })
+
+  it("rejects a valid capability presented from another active storefront", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("cross_storefront_capability"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        ...ANONYMOUS_ACCESS,
+        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+      }),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+  })
+
+  it("authenticates the anonymous capability before checking storefront provenance", async () => {
+    const harness = createHarness()
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("capability_before_storefront"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+
+    await expect(
+      harness.module.resumeSession(created.session.id, {
+        actorKind: "anonymous",
+        capability: `bcap_${"b".repeat(43)}`,
+        storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+      }),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
+
+    await expect(
+      harness.module.adoptSession(
+        created.session.id,
+        { expectedRevision: 1, idempotencyKey: "adopt_wrong_capability_and_storefront" },
+        {
+          actorKind: "customer",
+          principalId: "customer_1",
+          capability: `bcap_${"b".repeat(43)}`,
+          storefront: { storefrontId: "sf_other", channelId: "chan_other" },
+        },
+      ),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "capability_required" } })
+  })
+
+  it("fails closed for legacy public rows without provenance while preserving partner access", async () => {
+    const harness = createHarness()
+    const anonymous = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("legacy_public_origin"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (anonymous.kind !== "session_created") throw new Error("session not created")
+    const legacy = harness.repository.sessions.get(anonymous.session.id)
+    if (!legacy) throw new Error("session not persisted")
+    legacy.storefrontOrigin = undefined
+    await harness.repository.saveSession(legacy)
+
+    await expect(
+      harness.module.resumeSession(anonymous.session.id, ANONYMOUS_ACCESS),
+    ).resolves.toMatchObject({ kind: "rejected", error: { kind: "not_authorized" } })
+
+    const partnerAccess = { actorKind: "partner" as const, principalId: "partner_1" }
+    const partner = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("partner_origin_neutral"),
+        target: { kind: "product", productId: "prod_owned_1" },
+      },
+      partnerAccess,
+    )
+    if (partner.kind !== "session_created") throw new Error("partner session not created")
+    await expect(
+      harness.module.resumeSession(partner.session.id, partnerAccess),
+    ).resolves.toMatchObject({ kind: "session_resumed" })
   })
 
   it("replays or rejects create idempotency before creating duplicate Sessions", async () => {
@@ -842,12 +960,22 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "adopt_customer_one" },
-        { actorKind: "customer", principalId: "customer_1", capability: TEST_CAPABILITY },
+        {
+          actorKind: "customer",
+          principalId: "customer_1",
+          capability: TEST_CAPABILITY,
+          ...STOREFRONT_ACCESS,
+        },
       ),
       harness.module.adoptSession(
         created.session.id,
         { expectedRevision: 1, idempotencyKey: "adopt_customer_two" },
-        { actorKind: "customer", principalId: "customer_2", capability: TEST_CAPABILITY },
+        {
+          actorKind: "customer",
+          principalId: "customer_2",
+          capability: TEST_CAPABILITY,
+          ...STOREFRONT_ACCESS,
+        },
       ),
     ])
 
@@ -856,6 +984,7 @@ describe("Booking Session v1 owned tracer", () => {
     expect(harness.repository.sessions.get(created.session.id)).toMatchObject({
       actorKind: "customer",
       ownerPrincipalId: winningPrincipal,
+      storefrontOrigin: STOREFRONT_ACCESS.storefront,
       capabilityHash: undefined,
       capabilityScopes: [],
       revision: 2,
@@ -867,6 +996,7 @@ describe("Booking Session v1 owned tracer", () => {
       harness.module.resumeSession(created.session.id, {
         actorKind: "customer",
         principalId: winningPrincipal,
+        ...STOREFRONT_ACCESS,
       }),
     ).resolves.toMatchObject({
       kind: "session_resumed",
@@ -926,6 +1056,7 @@ describe("Booking Session v1 owned tracer", () => {
       actorKind: "customer" as const,
       principalId: "customer_purge_1",
       capability: TEST_CAPABILITY,
+      ...STOREFRONT_ACCESS,
     }
     await expect(
       harness.module.adoptSession(
@@ -964,6 +1095,7 @@ describe("Booking Session v1 owned tracer", () => {
       capabilityScopes: [],
       ownerPrincipalId: undefined,
       ownerOrganizationId: undefined,
+      storefrontOrigin: undefined,
       revision: 4,
       purgedAt: expect.any(Date),
     })
@@ -983,6 +1115,10 @@ describe("Booking Session v1 owned tracer", () => {
       "read",
       "purge",
     ])
+    expect(JSON.stringify([...harness.repository.auditEvents.values()])).not.toContain("sf_public")
+    expect(JSON.stringify([...harness.repository.auditEvents.values()])).not.toContain(
+      "chan_public",
+    )
   })
 
   it("purges customer ownership links from the terminal aggregate", async () => {
@@ -991,6 +1127,7 @@ describe("Booking Session v1 owned tracer", () => {
       actorKind: "customer" as const,
       principalId: "customer_1",
       organizationId: "org_1",
+      ...STOREFRONT_ACCESS,
     }
     const created = await harness.module.createSession(
       {
@@ -1022,6 +1159,7 @@ describe("Booking Session v1 owned tracer", () => {
       statePayload: {},
       ownerPrincipalId: undefined,
       ownerOrganizationId: undefined,
+      storefrontOrigin: undefined,
       purgedAt: expect.any(Date),
     })
   })

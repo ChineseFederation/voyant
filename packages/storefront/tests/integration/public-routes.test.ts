@@ -38,12 +38,30 @@ const DB_AVAILABLE = !!TEST_DATABASE_URL
 
 const db = DB_AVAILABLE ? createTestDb() : (null as never)
 
-const app = new Hono()
+const allowPublishedProducts = {
+  publication: { isProductPublished: async () => true },
+} as const
+
+function createActiveStorefrontApp() {
+  return new Hono().use("*", async (c, next) => {
+    c.set(
+      "storefrontChannel" as never,
+      {
+        storefrontId: "sf_bound",
+        channelId: "chan_bound",
+        channelStatus: "active",
+      } as never,
+    )
+    await next()
+  })
+}
+
+const app = createActiveStorefrontApp()
   .use("*", async (c, next) => {
     c.set("db" as never, db)
     await next()
   })
-  .route("/", createStorefrontPublicRoutes())
+  .route("/", createStorefrontPublicRoutes(allowPublishedProducts))
 
 function requireIntakeDb(context: StorefrontRequestContext) {
   if (!context.db) {
@@ -94,7 +112,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
     eventBus.subscribe("customer.signal.created", (event) => {
       events.push(event)
     })
-    const intakeApp = new Hono()
+    const intakeApp = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, db)
         c.set("eventBus" as never, eventBus)
@@ -103,6 +121,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       .route(
         "/",
         createStorefrontPublicRoutes({
+          ...allowPublishedProducts,
           intake: { persistence: relationshipsIntakePersistence },
         }),
       )
@@ -178,7 +197,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
   })
 
   it("deduplicates public lead intake without trusting a client submission id", async () => {
-    const intakeApp = new Hono()
+    const intakeApp = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, db)
         await next()
@@ -186,6 +205,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       .route(
         "/",
         createStorefrontPublicRoutes({
+          ...allowPublishedProducts,
           intake: { persistence: relationshipsIntakePersistence },
         }),
       )
@@ -243,7 +263,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
     eventBus.subscribe("customer.signal.created", (event) => {
       events.push(event)
     })
-    const intakeApp = new Hono()
+    const intakeApp = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, db)
         c.set("eventBus" as never, eventBus)
@@ -252,6 +272,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       .route(
         "/",
         createStorefrontPublicRoutes({
+          ...allowPublishedProducts,
           intake: {
             persistence: relationshipsIntakePersistence,
             requestNewsletterDoubleOptIn,
@@ -692,7 +713,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       active: true,
     })
 
-    const previewApp = new Hono()
+    const previewApp = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, db)
         await next()
@@ -700,6 +721,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       .route(
         "/",
         createStorefrontPublicRoutes({
+          ...allowPublishedProducts,
           offers: {
             listApplicableOffers({ productId, departureId }) {
               expect(productId).toBe(product.id)
@@ -973,7 +995,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       })
       .returning()
 
-    const previewApp = new Hono()
+    const previewApp = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, db)
         await next()
@@ -981,6 +1003,7 @@ describe.skipIf(!DB_AVAILABLE)("Storefront public routes", () => {
       .route(
         "/",
         createStorefrontPublicRoutes({
+          ...allowPublishedProducts,
           offers: {
             listApplicableOffers({ productId, departureId }) {
               expect(productId).toBe(product.id)

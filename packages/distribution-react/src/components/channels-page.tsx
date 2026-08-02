@@ -24,7 +24,7 @@ import {
   SheetTitle,
 } from "@voyant-travel/ui/components"
 import { cn } from "@voyant-travel/ui/lib/utils"
-import { Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Eye, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import type { FormEvent } from "react"
 import { useEffect, useState } from "react"
 import { useDistributionUiI18nOrDefault } from "../i18n/index.js"
@@ -35,6 +35,7 @@ import {
   useChannelMutation,
   useChannels,
 } from "../index.js"
+import { PublicationSheet } from "./publication-sheet.js"
 
 const PAGE_SIZE = 25
 
@@ -66,6 +67,7 @@ export function ChannelsPage({ className, pageSize = PAGE_SIZE }: ChannelsPagePr
   const page = messages.settings.channelsPage
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<ChannelRow | undefined>()
+  const [publicationChannel, setPublicationChannel] = useState<ChannelRow | undefined>()
   const [pageIndex, setPageIndex] = useState(0)
   const { data, isPending, refetch } = useChannels({
     limit: pageSize,
@@ -146,6 +148,14 @@ export function ChannelsPage({ className, pageSize = PAGE_SIZE }: ChannelsPagePr
                         <Pencil className="h-4 w-4" />
                         {page.edit}
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.setTimeout(() => setPublicationChannel(channel), 0)
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                        {page.publication.open}
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
@@ -213,6 +223,13 @@ export function ChannelsPage({ className, pageSize = PAGE_SIZE }: ChannelsPagePr
           setEditing(undefined)
           void refetch()
         }}
+      />
+      <PublicationSheet
+        open={!!publicationChannel}
+        onOpenChange={(open) => {
+          if (!open) setPublicationChannel(undefined)
+        }}
+        channel={publicationChannel}
       />
     </div>
   )

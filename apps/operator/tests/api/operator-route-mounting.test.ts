@@ -23,6 +23,23 @@ import {
 const TEST_ENV = { DATABASE_URL: "postgres://test" } as never
 const TEST_CTX = { waitUntil: () => {}, passThroughOnException: () => {} } as never
 
+function testAuthContext(actor: Actor) {
+  return {
+    userId: "u1",
+    actor,
+    realm: actor === "staff" ? ("admin" as const) : ("customer" as const),
+    ...(actor === "customer"
+      ? {
+          storefrontChannel: {
+            storefrontId: "sf_test",
+            channelId: "chan_test",
+            channelStatus: "active",
+          },
+        }
+      : {}),
+  }
+}
+
 async function build() {
   const composition = await buildGraphComposition()
   return mountApp({
@@ -38,7 +55,7 @@ async function build() {
         const actor: Actor = new URL(request.url).pathname.startsWith("/v1/public/")
           ? "customer"
           : "staff"
-        return { userId: "u1", actor, realm: actor === "staff" ? "admin" : "customer" }
+        return testAuthContext(actor)
       },
     },
   })
@@ -53,11 +70,7 @@ async function buildWithSessionActor(actor: Actor) {
     extensions: composition.extensions,
     ...mountRoutePosture(composition),
     auth: {
-      resolve: () => ({
-        userId: "u1",
-        actor,
-        realm: actor === "staff" ? "admin" : "customer",
-      }),
+      resolve: () => testAuthContext(actor),
     },
   })
 }
@@ -74,11 +87,7 @@ async function buildWithLiveFrontDoor(
     ...mountRoutePosture(composition),
     db,
     auth: {
-      resolve: () => ({
-        userId: "u1",
-        actor,
-        realm: actor === "staff" ? "admin" : "customer",
-      }),
+      resolve: () => testAuthContext(actor),
     },
   })
 }
@@ -274,7 +283,7 @@ describe("operator composed route mounting (smoke)", () => {
       TEST_CTX,
     )
 
-    expect(detail.status).toBe(404)
+    expect(detail.status, await detail.clone().text()).toBe(404)
     expect(apply.status).not.toBe(404)
     expect(redeem.status).not.toBe(404)
   })
@@ -287,7 +296,7 @@ describe("operator composed route mounting (smoke)", () => {
     expect(settings).not.toBe(404)
   })
 
-  it("admits graph-declared anonymous routes without resolving a session", async () => {
+  it("resolves storefront context only for anonymous routes that declare optional customer auth", async () => {
     const composition = await buildGraphComposition()
     const resolve = vi.fn(() => ({
       userId: "u1",
@@ -303,12 +312,27 @@ describe("operator composed route mounting (smoke)", () => {
       auth: { resolve },
     })
 
-    for (const path of ["/v1/public/settings/operator", "/v1/public/payment-link-config"]) {
-      const response = await anonymousApp.request(path, {}, TEST_ENV, TEST_CTX)
-      expect(response.status).not.toBe(401)
-      expect(response.status).not.toBe(403)
-      expect(response.status).not.toBe(404)
-    }
+    const settings = await anonymousApp.request(
+      "/v1/public/settings/operator",
+      {},
+      TEST_ENV,
+      TEST_CTX,
+    )
+    expect(settings.status).not.toBe(401)
+    expect(settings.status).not.toBe(403)
+    expect(settings.status).not.toBe(404)
+    expect(resolve).toHaveBeenCalledTimes(1)
+
+    resolve.mockClear()
+    const paymentLink = await anonymousApp.request(
+      "/v1/public/payment-link-config",
+      {},
+      TEST_ENV,
+      TEST_CTX,
+    )
+    expect(paymentLink.status).not.toBe(401)
+    expect(paymentLink.status).not.toBe(403)
+    expect(paymentLink.status).not.toBe(404)
     expect(resolve).not.toHaveBeenCalled()
   })
 

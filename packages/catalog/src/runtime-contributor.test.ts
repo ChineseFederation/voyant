@@ -164,7 +164,7 @@ describe("createCatalogRuntimePortContribution", () => {
       },
       [catalogDistributionRuntimeExtensionPort.id]: {
         loadActiveChannelIds: vi.fn(async () => []),
-        hasActiveSalesChannelMapping: vi.fn(async () => true),
+        hasEffectiveProductPublication: vi.fn(async () => true),
       },
       [catalogInventoryRuntimeExtensionPort.id]: {
         productFieldPolicy: [],

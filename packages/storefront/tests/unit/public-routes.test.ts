@@ -5,9 +5,68 @@ import { describe, expect, it, vi } from "vitest"
 
 import { createStorefrontPublicRoutes } from "../../src/routes-public.js"
 
+function createActiveStorefrontApp() {
+  return new Hono().use("*", async (c, next) => {
+    c.set(
+      "storefrontChannel" as never,
+      {
+        storefrontId: "sf_bound",
+        channelId: "chan_bound",
+        channelStatus: "active",
+      } as never,
+    )
+    await next()
+  })
+}
+
 describe("createStorefrontPublicRoutes", () => {
+  it("passes server-derived storefront channel context to publication guards", async () => {
+    const isProductPublished = vi.fn(async () => false)
+    const app = createActiveStorefrontApp()
+    app.route(
+      "/",
+      createStorefrontPublicRoutes({
+        publication: { isProductPublished },
+      }),
+    )
+
+    const res = await app.request("/products/prod_1/departures?channelId=chan_public_param")
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: [], total: 0, limit: 100, offset: 0 })
+    expect(isProductPublished).toHaveBeenCalledWith({
+      productId: "prod_1",
+      context: expect.objectContaining({
+        storefrontId: "sf_bound",
+        channelId: "chan_bound",
+        channelStatus: "active",
+      }),
+    })
+  })
+
+  it("fails closed when the publication provider is unavailable", async () => {
+    const app = createActiveStorefrontApp()
+    app.route("/", createStorefrontPublicRoutes())
+
+    const res = await app.request("/products/prod_1/departures")
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ data: [], total: 0, limit: 100, offset: 0 })
+  })
+
+  it("rejects public requests without an active storefront channel context", async () => {
+    const app = new Hono().route("/", createStorefrontPublicRoutes())
+
+    const res = await app.request("/settings")
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: "Active storefront channel context is required.",
+    })
+  })
+
   it("rejects malformed composite price-preview selections with public-route errors", async () => {
-    const app = new Hono()
+    const app = createActiveStorefrontApp()
     app.onError(handleApiError)
     app.route("/", createStorefrontPublicRoutes())
 
@@ -26,7 +85,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("returns normalized storefront settings", async () => {
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         settings: {
@@ -152,7 +211,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("fills missing storefront settings with stable defaults", async () => {
-    const app = new Hono().route("/", createStorefrontPublicRoutes())
+    const app = createActiveStorefrontApp().route("/", createStorefrontPublicRoutes())
 
     const res = await app.request("/settings")
 
@@ -196,7 +255,7 @@ describe("createStorefrontPublicRoutes", () => {
       status: 429 as const,
       error: "Captcha required",
     }))
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         intake: { guard },
@@ -232,7 +291,7 @@ describe("createStorefrontPublicRoutes", () => {
 
   it("resolves storefront settings from request context", async () => {
     const requestDb = { tenant: "tenant_123" }
-    const app = new Hono()
+    const app = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, requestDb)
         await next()
@@ -264,7 +323,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("returns applicable promotional offers from the injected resolver", async () => {
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         offers: {
@@ -328,7 +387,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("returns an offer by slug from the injected resolver", async () => {
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         offers: {
@@ -368,7 +427,7 @@ describe("createStorefrontPublicRoutes", () => {
 
   it("resolves promotional offers from request context", async () => {
     const requestDb = { tenant: "tenant_123" }
-    const app = new Hono()
+    const app = createActiveStorefrontApp()
       .use("*", async (c, next) => {
         c.set("db" as never, requestDb)
         await next()
@@ -418,7 +477,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("applies a storefront offer through the injected resolver", async () => {
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         offers: {
@@ -505,7 +564,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("redeems a code-based storefront offer through the injected resolver", async () => {
-    const app = new Hono().route(
+    const app = createActiveStorefrontApp().route(
       "/",
       createStorefrontPublicRoutes({
         offers: {
@@ -558,7 +617,7 @@ describe("createStorefrontPublicRoutes", () => {
   })
 
   it("returns 501 when offer mutation resolvers are not configured", async () => {
-    const app = new Hono().route("/", createStorefrontPublicRoutes())
+    const app = createActiveStorefrontApp().route("/", createStorefrontPublicRoutes())
 
     const res = await app.request("/offers/redeem", {
       method: "POST",

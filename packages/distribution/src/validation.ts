@@ -2,6 +2,7 @@ import { booleanQueryParam } from "@voyant-travel/db/helpers"
 import { z } from "zod"
 
 export * from "./external-refs/validation.js"
+export * from "./publication-validation.js"
 export * from "./suppliers/validation.js"
 
 const paginationSchema = z.object({

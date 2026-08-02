@@ -27,6 +27,8 @@ export const bookingSessionsTable = pgTable(
     actorKind: text("actor_kind").notNull(),
     ownerPrincipalId: text("owner_principal_id"),
     ownerOrganizationId: text("owner_organization_id"),
+    storefrontId: text("storefront_id"),
+    channelId: text("channel_id"),
     targetKind: text("target_kind").notNull(),
     productId: typeIdRef("product_id"),
     catalogItemId: text("catalog_item_id"),
@@ -49,6 +51,11 @@ export const bookingSessionsTable = pgTable(
     check(
       "booking_sessions_state",
       sql`${table.state} IN ('active', 'consumed', 'expired', 'abandoned')`,
+    ),
+    check(
+      "booking_sessions_storefront_origin",
+      sql`(${table.storefrontId} IS NULL AND ${table.channelId} IS NULL)
+        OR (${table.purgedAt} IS NULL AND ${table.storefrontId} IS NOT NULL AND ${table.channelId} IS NOT NULL)`,
     ),
     check(
       "booking_sessions_target_exactly_one",

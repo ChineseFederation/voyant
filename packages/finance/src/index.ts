@@ -207,6 +207,7 @@ export function createFinanceApiModule(options: FinanceApiModuleOptions = {}): A
     module,
     adminRoutes,
     publicRoutes,
+    optionalCustomerAuth: true,
   }
 }
 

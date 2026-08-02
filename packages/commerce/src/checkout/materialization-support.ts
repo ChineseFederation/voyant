@@ -3,11 +3,17 @@
 // travelers, supplier/date/title resolution) extracted together to preserve
 // behavior; splitting would scatter a single snapshot→booking bridge.
 import { buildBookingRouteRuntime, createBookingPiiService } from "@voyant-travel/bookings"
-import type { bookings } from "@voyant-travel/bookings/schema"
 import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { DraftPayload, MaterializationSnapshot } from "./materialization.js"
 import type { CheckoutModuleOptions } from "./options.js"
+
+interface MaterializedBooking {
+  id: string
+  status: string
+  startDate: string | null
+  endDate: string | null
+}
 
 interface InsertedBookingItem {
   id: string
@@ -18,7 +24,7 @@ interface InsertedBookingItem {
 
 export async function materializeBookingAllocations(
   db: PostgresJsDatabase,
-  booking: typeof bookings.$inferSelect,
+  booking: MaterializedBooking,
   insertedItems: ReadonlyArray<InsertedBookingItem>,
   draftPayload: DraftPayload,
   snapshot: MaterializationSnapshot,
@@ -345,7 +351,7 @@ export function extractBookingDates(
 export function extractItemDates(
   snapshot: MaterializationSnapshot,
   draftPayload: DraftPayload,
-  booking: typeof bookings.$inferSelect,
+  booking: MaterializedBooking,
 ): { serviceDate: string | null; startsAt: Date | null; endsAt: Date | null } {
   // Layer 1: concrete selected departure/sailing.
   const selectedDeparture = findSelectedDeparture(snapshot, draftPayload)

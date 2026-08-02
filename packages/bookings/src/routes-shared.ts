@@ -52,6 +52,11 @@ export type Env = {
     apiKeyId?: string
     scopes?: string[] | null
     isInternalRequest?: boolean
+    storefrontChannel?: {
+      storefrontId: string
+      channelId: string
+      channelStatus?: string | null
+    }
     authorizeBookingPii?: (args: {
       db: PostgresJsDatabase
       userId?: string

@@ -92,9 +92,21 @@
       "types": "./src/storefront-admin-contracts.ts",
       "default": "./src/storefront-admin-contracts.ts"
     },
+    "./linkables": {
+      "types": "./src/linkables.ts",
+      "default": "./src/linkables.ts"
+    },
+    "./standard-links": {
+      "types": "./src/standard-links.ts",
+      "default": "./src/standard-links.ts"
+    },
     "./storefront-graph-runtime": {
       "types": "./src/storefront-graph-runtime.ts",
       "default": "./src/storefront-graph-runtime.ts"
+    },
+    "./storefront-channel-binding-provider": {
+      "types": "./src/storefront-channel-binding-provider.ts",
+      "default": "./src/storefront-channel-binding-provider.ts"
     },
     "./storefront-local-adapter": {
       "types": "./src/storefront-local-adapter.ts",
@@ -226,10 +238,25 @@
         "import": "./dist/storefront-admin-contracts.js",
         "default": "./dist/storefront-admin-contracts.js"
       },
+      "./linkables": {
+        "types": "./dist/linkables.d.ts",
+        "import": "./dist/linkables.js",
+        "default": "./dist/linkables.js"
+      },
+      "./standard-links": {
+        "types": "./dist/standard-links.d.ts",
+        "import": "./dist/standard-links.js",
+        "default": "./dist/standard-links.js"
+      },
       "./storefront-graph-runtime": {
         "types": "./dist/storefront-graph-runtime.d.ts",
         "import": "./dist/storefront-graph-runtime.js",
         "default": "./dist/storefront-graph-runtime.js"
+      },
+      "./storefront-channel-binding-provider": {
+        "types": "./dist/storefront-channel-binding-provider.d.ts",
+        "import": "./dist/storefront-channel-binding-provider.js",
+        "default": "./dist/storefront-channel-binding-provider.js"
       },
       "./storefront-local-adapter": {
         "types": "./dist/storefront-local-adapter.d.ts",
@@ -291,6 +318,7 @@
     "@hono/zod-openapi": "catalog:",
     "@voyant-travel/core": "workspace:^",
     "@voyant-travel/db": "workspace:^",
+    "@voyant-travel/distribution": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "@voyant-travel/types": "workspace:^",

@@ -32,6 +32,12 @@ export interface VoyantAuthContext {
   relationshipOrganizationId?: string | null
   /** Canonical Relationships Person id for the customer identity, including B2B-only users. */
   relationshipPersonId?: string | null
+  /** Server-derived Storefront sales-channel context for public storefront requests. */
+  storefrontChannel?: {
+    storefrontId: string
+    channelId: string
+    channelStatus?: string | null
+  }
   buyerMembershipId?: string | null
   buyerMembershipRole?: string | null
   callerType?: VoyantCallerType

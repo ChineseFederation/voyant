@@ -9,6 +9,7 @@ import { and, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { channelContactProjections, channels } from "../schema.js"
+import { publicationServiceOperations } from "./publications.js"
 import type { ChannelListQuery, CreateChannelInput, UpdateChannelInput } from "./types.js"
 
 const channelEntityType = "channel"
@@ -296,12 +297,18 @@ export const channelServiceOperations = {
   },
 
   async deleteChannel(db: PostgresJsDatabase, id: string) {
-    await deleteChannelIdentity(db, id)
-    const [row] = await db
-      .delete(channels)
-      .where(eq(channels.id, id))
-      .returning({ id: channels.id })
-    return row ?? null
+    return db.transaction(async (tx) => {
+      const affectedProductIds = await publicationServiceOperations.captureChannelDeletionReindex(
+        tx,
+        { channelId: id },
+      )
+      await deleteChannelIdentity(tx, id)
+      const [row] = await tx
+        .delete(channels)
+        .where(eq(channels.id, id))
+        .returning({ id: channels.id })
+      return row ? { ...row, affectedProductIds } : null
+    })
   },
 
   async listChannelContactPoints(db: PostgresJsDatabase, channelId: string) {

@@ -59,11 +59,17 @@ import {
   channelContractSchema,
   channelNamedContactSchema,
   channelProductMappingSchema,
+  channelProductPublicationSchema,
+  channelPublicationReindexIntentSchema,
   channelSchema,
+  channelSupplierPublicationSchema,
   channelWebhookEventSchema,
+  effectivePublicationSchema,
   errorResponseSchema,
   idParamSchema,
   successResponseSchema,
+  supplierPublicationMutationResponseSchema,
+  supplierPublicationPreviewResponseSchema,
 } from "./routes/openapi-schemas.js"
 import { settlementRoutes } from "./routes/settlements.js"
 import { distributionService } from "./service.js"
@@ -73,18 +79,26 @@ import {
   channelContractListQuerySchema,
   channelListQuerySchema,
   channelProductMappingListQuerySchema,
+  channelProductPublicationListQuerySchema,
+  channelSupplierPublicationListQuerySchema,
   channelWebhookEventListQuerySchema,
+  effectivePublicationInputSchema,
   insertChannelBookingLinkSchema,
   insertChannelCommissionRuleSchema,
   insertChannelContractSchema,
   insertChannelProductMappingSchema,
+  insertChannelProductPublicationSchema,
   insertChannelSchema,
+  insertChannelSupplierPublicationSchema,
   insertChannelWebhookEventSchema,
+  previewChannelSupplierPublicationSchema,
   updateChannelBookingLinkSchema,
   updateChannelCommissionRuleSchema,
   updateChannelContractSchema,
   updateChannelProductMappingSchema,
+  updateChannelProductPublicationSchema,
   updateChannelSchema,
+  updateChannelSupplierPublicationSchema,
   updateChannelWebhookEventSchema,
 } from "./validation.js"
 
@@ -177,27 +191,42 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
   )
   .openapi(createChannelRoute, async (c) => {
     const row = await distributionService.createChannel(c.get("db"), c.req.valid("json"))
+    if (row) await c.get("eventBus")?.emit("channel.created", { id: row.id })
     return c.json({ data: row! }, 201)
   })
   .openapi(batchUpdateChannelsRoute, async (c) => {
     const body = c.req.valid("json")
+    const eventBus = c.get("eventBus")
     return c.json(
       await handleBatchUpdate({
         db: c.get("db"),
         ids: body.ids,
         patch: body.patch,
-        update: distributionService.updateChannel.bind(distributionService),
+        update: async (db, id, patch) => {
+          const row = await distributionService.updateChannel(db, id, patch)
+          if (row) await eventBus?.emit("channel.updated", { id: row.id })
+          return row
+        },
       }),
       200,
     )
   })
   .openapi(batchDeleteChannelsRoute, async (c) => {
     const body = c.req.valid("json")
+    const eventBus = c.get("eventBus")
     return c.json(
       await handleBatchDelete({
         db: c.get("db"),
         ids: body.ids,
-        remove: distributionService.deleteChannel,
+        remove: async (db, id) => {
+          const row = await distributionService.deleteChannel(db, id)
+          if (row)
+            await eventBus?.emit("channel.deleted", {
+              id: row.id,
+              affectedProductIds: row.affectedProductIds,
+            })
+          return row
+        },
       }),
       200,
     )
@@ -212,10 +241,16 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
       c.req.valid("param").id,
       c.req.valid("json"),
     )
+    if (row) await c.get("eventBus")?.emit("channel.updated", { id: row.id })
     return row ? c.json({ data: row }, 200) : c.json({ error: "Channel not found" }, 404)
   })
   .openapi(deleteChannelRoute, async (c) => {
     const row = await distributionService.deleteChannel(c.get("db"), c.req.valid("param").id)
+    if (row)
+      await c.get("eventBus")?.emit("channel.deleted", {
+        id: row.id,
+        affectedProductIds: row.affectedProductIds,
+      })
     return row
       ? c.json({ success: true } as const, 200)
       : c.json({ error: "Channel not found" }, 404)
@@ -841,6 +876,285 @@ const productMappingRoutes = new OpenAPIHono<DistributionRouteEnv>({
       : c.json({ error: "Channel product mapping not found" }, 404)
   })
 
+// --- publications -----------------------------------------------------------
+
+const listProductPublicationsRoute = createRoute({
+  method: "get",
+  path: "/product-publications",
+  request: { query: channelProductPublicationListQuerySchema },
+  responses: {
+    200: {
+      description: "Paginated product publication rules",
+      ...jsonContent(listResponseSchema(channelProductPublicationSchema)),
+    },
+  },
+})
+
+const upsertProductPublicationRoute = createRoute({
+  method: "put",
+  path: "/product-publications",
+  request: requiredJsonBody(insertChannelProductPublicationSchema),
+  responses: {
+    200: {
+      description: "The authored product publication rule",
+      ...jsonContent(z.object({ data: channelProductPublicationSchema })),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const getProductPublicationRoute = createRoute({
+  method: "get",
+  path: "/product-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      description: "A product publication rule by id",
+      ...jsonContent(z.object({ data: channelProductPublicationSchema })),
+    },
+    404: { description: "Product publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const updateProductPublicationRoute = createRoute({
+  method: "patch",
+  path: "/product-publications/{id}",
+  request: { params: idParamSchema, ...requiredJsonBody(updateChannelProductPublicationSchema) },
+  responses: {
+    200: {
+      description: "The updated product publication rule",
+      ...jsonContent(z.object({ data: channelProductPublicationSchema })),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+    404: { description: "Product publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const deleteProductPublicationRoute = createRoute({
+  method: "delete",
+  path: "/product-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: { description: "Product publication deleted", ...jsonContent(successResponseSchema) },
+    404: { description: "Product publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const listSupplierPublicationsRoute = createRoute({
+  method: "get",
+  path: "/supplier-publications",
+  request: { query: channelSupplierPublicationListQuerySchema },
+  responses: {
+    200: {
+      description: "Paginated supplier publication rules",
+      ...jsonContent(listResponseSchema(channelSupplierPublicationSchema)),
+    },
+  },
+})
+
+const upsertSupplierPublicationRoute = createRoute({
+  method: "put",
+  path: "/supplier-publications",
+  request: requiredJsonBody(insertChannelSupplierPublicationSchema),
+  responses: {
+    200: {
+      description: "The authored supplier publication rule with affected count",
+      ...jsonContent(supplierPublicationMutationResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const previewSupplierPublicationRoute = createRoute({
+  method: "post",
+  path: "/supplier-publications/preview",
+  request: requiredJsonBody(previewChannelSupplierPublicationSchema),
+  responses: {
+    200: {
+      description: "Dry-run supplier publication affected-product count",
+      ...jsonContent(supplierPublicationPreviewResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const getSupplierPublicationRoute = createRoute({
+  method: "get",
+  path: "/supplier-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      description: "A supplier publication rule by id",
+      ...jsonContent(z.object({ data: channelSupplierPublicationSchema })),
+    },
+    404: { description: "Supplier publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const updateSupplierPublicationRoute = createRoute({
+  method: "patch",
+  path: "/supplier-publications/{id}",
+  request: { params: idParamSchema, ...requiredJsonBody(updateChannelSupplierPublicationSchema) },
+  responses: {
+    200: {
+      description: "The updated supplier publication rule with affected count",
+      ...jsonContent(supplierPublicationMutationResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+    404: { description: "Supplier publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const deleteSupplierPublicationRoute = createRoute({
+  method: "delete",
+  path: "/supplier-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: { description: "Supplier publication deleted", ...jsonContent(successResponseSchema) },
+    404: { description: "Supplier publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const previewEffectivePublicationRoute = createRoute({
+  method: "post",
+  path: "/publications/effective",
+  request: requiredJsonBody(effectivePublicationInputSchema),
+  responses: {
+    200: {
+      description: "Effective publication decision for a channel and product",
+      ...jsonContent(z.object({ data: effectivePublicationSchema })),
+    },
+  },
+})
+
+const listPublicationReindexIntentsRoute = createRoute({
+  method: "get",
+  path: "/publication-reindex-intents",
+  responses: {
+    200: {
+      description: "Recent publication reindex intents",
+      ...jsonContent(z.object({ data: z.array(channelPublicationReindexIntentSchema) })),
+    },
+  },
+})
+
+const publicationRoutes = new OpenAPIHono<DistributionRouteEnv>({
+  defaultHook: openApiValidationHook,
+})
+  .openapi(listProductPublicationsRoute, async (c) =>
+    c.json(
+      await distributionService.listProductPublications(c.get("db"), c.req.valid("query")),
+      200,
+    ),
+  )
+  .openapi(upsertProductPublicationRoute, async (c) => {
+    const row = await distributionService.upsertProductPublication(
+      c.get("db"),
+      c.req.valid("json"),
+      {
+        actorId: c.get("userId") ?? null,
+        eventBus: c.get("eventBus"),
+      },
+    )
+    return c.json({ data: row }, 200)
+  })
+  .openapi(getProductPublicationRoute, async (c) => {
+    const row = await distributionService.getProductPublicationById(
+      c.get("db"),
+      c.req.valid("param").id,
+    )
+    return row
+      ? c.json({ data: row }, 200)
+      : c.json({ error: "Product publication not found" }, 404)
+  })
+  .openapi(updateProductPublicationRoute, async (c) => {
+    const row = await distributionService.updateProductPublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      c.req.valid("json"),
+      { actorId: c.get("userId") ?? null, eventBus: c.get("eventBus") },
+    )
+    return row
+      ? c.json({ data: row }, 200)
+      : c.json({ error: "Product publication not found" }, 404)
+  })
+  .openapi(deleteProductPublicationRoute, async (c) => {
+    const row = await distributionService.deleteProductPublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      { actorId: c.get("userId") ?? null, eventBus: c.get("eventBus") },
+    )
+    return row
+      ? c.json({ success: true } as const, 200)
+      : c.json({ error: "Product publication not found" }, 404)
+  })
+  .openapi(listSupplierPublicationsRoute, async (c) =>
+    c.json(
+      await distributionService.listSupplierPublications(c.get("db"), c.req.valid("query")),
+      200,
+    ),
+  )
+  .openapi(upsertSupplierPublicationRoute, async (c) => {
+    const result = await distributionService.upsertSupplierPublication(
+      c.get("db"),
+      c.req.valid("json"),
+      {
+        actorId: c.get("userId") ?? null,
+      },
+    )
+    return c.json(
+      { data: result.publication, affectedProductCount: result.affectedProductCount },
+      200,
+    )
+  })
+  .openapi(previewSupplierPublicationRoute, async (c) => {
+    const result = await distributionService.previewSupplierPublication(
+      c.get("db"),
+      c.req.valid("json"),
+    )
+    return c.json({ data: result.input, affectedProductCount: result.affectedProductCount }, 200)
+  })
+  .openapi(getSupplierPublicationRoute, async (c) => {
+    const row = await distributionService.getSupplierPublicationById(
+      c.get("db"),
+      c.req.valid("param").id,
+    )
+    return row
+      ? c.json({ data: row }, 200)
+      : c.json({ error: "Supplier publication not found" }, 404)
+  })
+  .openapi(updateSupplierPublicationRoute, async (c) => {
+    const result = await distributionService.updateSupplierPublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      c.req.valid("json"),
+      { actorId: c.get("userId") ?? null },
+    )
+    return result
+      ? c.json({ data: result.publication, affectedProductCount: result.affectedProductCount }, 200)
+      : c.json({ error: "Supplier publication not found" }, 404)
+  })
+  .openapi(deleteSupplierPublicationRoute, async (c) => {
+    const row = await distributionService.deleteSupplierPublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      { actorId: c.get("userId") ?? null },
+    )
+    return row
+      ? c.json({ success: true } as const, 200)
+      : c.json({ error: "Supplier publication not found" }, 404)
+  })
+  .openapi(previewEffectivePublicationRoute, async (c) => {
+    const result = await distributionService.getEffectivePublication(
+      c.get("db"),
+      c.req.valid("json"),
+    )
+    return c.json({ data: result }, 200)
+  })
+  .openapi(listPublicationReindexIntentsRoute, async (c) =>
+    c.json({ data: await distributionService.listPublicationReindexIntents(c.get("db")) }, 200),
+  )
+
 // --- booking links ----------------------------------------------------------
 
 const listBookingLinksRoute = createRoute({
@@ -1135,6 +1449,7 @@ export const distributionRoutes = stampOpenApiRegistryApiId(
     .route("/", contractRoutes)
     .route("/", commissionRuleRoutes)
     .route("/", productMappingRoutes)
+    .route("/", publicationRoutes)
     .route("/", bookingLinkRoutes)
     .route("/", webhookEventRoutes)
     .route("/", inventoryRoutes)

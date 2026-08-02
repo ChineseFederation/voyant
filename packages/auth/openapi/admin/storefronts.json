@@ -55,6 +55,26 @@
         "responses": { "200": { "description": "Updated storefront allowed origins." } }
       }
     },
+    "/v1/admin/storefronts/storefronts/{storefrontId}/channel-binding": {
+      "get": {
+        "operationId": "getStorefrontChannelBinding",
+        "tags": ["Storefronts"],
+        "x-voyant-api-id": "@voyant-travel/auth#storefront.api.admin",
+        "responses": { "200": { "description": "Storefront channel binding." } }
+      },
+      "put": {
+        "operationId": "setStorefrontChannelBinding",
+        "tags": ["Storefronts"],
+        "x-voyant-api-id": "@voyant-travel/auth#storefront.api.admin",
+        "responses": { "200": { "description": "Updated storefront channel binding." } }
+      },
+      "delete": {
+        "operationId": "clearStorefrontChannelBinding",
+        "tags": ["Storefronts"],
+        "x-voyant-api-id": "@voyant-travel/auth#storefront.api.admin",
+        "responses": { "204": { "description": "Storefront channel binding cleared." } }
+      }
+    },
     "/v1/admin/storefronts/storefronts/{storefrontId}/keys": {
       "get": {
         "operationId": "listStorefrontApiKeys",

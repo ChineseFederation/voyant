@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- package i18n catalog contract is intentionally centralized.
 import type { ReactNode } from "react"
 
 export interface AcceptInvitationPageMessages {
@@ -453,6 +454,23 @@ export interface StorefrontsPageMessages {
     remove: string
     empty: string
     localhostHint: string
+  }
+  channel: {
+    title: string
+    description: string
+    unavailable: string
+    defaultDeny: string
+    selectLabel: string
+    selectPlaceholder: string
+    loading: string
+    noActiveChannels: string
+    boundStatus: string
+    unboundStatus: string
+    inactiveWarning: string
+    save: string
+    saving: string
+    clear: string
+    clearConfirm: string
   }
   keys: {
     title: string

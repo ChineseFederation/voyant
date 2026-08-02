@@ -1,3 +1,4 @@
+// agent-quality: file-size exception -- auth middleware is a shared policy surface spanning sessions, API keys, and anonymous public contexts.
 import type { Actor, VoyantAuthContext } from "@voyant-travel/core"
 import { apikeyTable, cloudAuthUserLinks, type SelectApikey } from "@voyant-travel/db/schema/iam"
 import { API_KEY_AUDIENCES, permissionsToStrings } from "@voyant-travel/types/api-keys"
@@ -159,6 +160,9 @@ function applyAuthContext(
   }
   if (auth.relationshipPersonId !== undefined) {
     c.set("relationshipPersonId", auth.relationshipPersonId ?? undefined)
+  }
+  if (auth.storefrontChannel !== undefined) {
+    c.set("storefrontChannel", auth.storefrontChannel)
   }
   if (auth.buyerMembershipId !== undefined) {
     c.set("buyerMembershipId", auth.buyerMembershipId ?? undefined)
@@ -473,7 +477,10 @@ export function requireAuth<TBindings extends VoyantBindings>(
           ctx: tryGetExecutionCtx(c),
         })
 
-        if (resolved?.userId && matchesRequestRealm(p, resolved)) {
+        if (
+          (resolved?.userId || resolved?.isAnonymousRequest) &&
+          matchesRequestRealm(p, resolved)
+        ) {
           applyAuthContext(c, resolved)
           // `await` is load-bearing — see strategy 2: a bare
           // `return next()` would let the `finally` release the shared

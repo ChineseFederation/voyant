@@ -1,59 +1,56 @@
 /**
  * catalog-listability — owned-product storefront listability predicate.
  *
- * Regression cover for issue #2617: an active + public + activated owned
- * product that is directly bookable must be listable in the *customer*
- * (direct storefront) search slice without an explicit channel mapping.
- * Channel mappings gate distribution to external audiences and channel-aware
- * customer slices, but not legacy unchannelled customer slices.
+ * Publication is Distribution-owned and channel-scoped. The catalog indexer may
+ * still materialize unchannelled customer slices for compatibility, but they no
+ * longer authorize product visibility.
  */
 
 import { describe, expect, it, vi } from "vitest"
 import { isOwnedProductStorefrontListable } from "./catalog-listability.js"
 
 describe("isOwnedProductStorefrontListable", () => {
-  it("lists an owned product in the customer slice without a channel mapping", async () => {
-    // Legacy customer slices carry no channel. They remain listable for
-    // backwards compatibility; channel-aware storefront slices below are gated
-    // by the requested sales channel.
-    const hasActiveChannelMapping = vi.fn(async () => false)
+  it("default-denies unchannelled customer slices", async () => {
+    const isEffectivelyPublished = vi.fn(async () => true)
 
     const listable = await isOwnedProductStorefrontListable({
       audience: "customer",
-      hasActiveChannelMapping,
+      isEffectivelyPublished,
     })
 
-    expect(listable).toBe(true)
-    expect(hasActiveChannelMapping).not.toHaveBeenCalled()
+    expect(listable).toBe(false)
+    expect(isEffectivelyPublished).not.toHaveBeenCalled()
   })
 
-  it("requires an active channel mapping for channel-scoped customer slices", async () => {
-    const withMapping = await isOwnedProductStorefrontListable({
+  it("requires effective publication for channel-scoped customer slices", async () => {
+    const published = await isOwnedProductStorefrontListable({
       audience: "customer",
       channel: "chan_website",
-      hasActiveChannelMapping: async () => true,
+      isEffectivelyPublished: async () => true,
     })
-    const withoutMapping = await isOwnedProductStorefrontListable({
+    const denied = await isOwnedProductStorefrontListable({
       audience: "customer",
       channel: "chan_b2b",
-      hasActiveChannelMapping: async () => false,
+      isEffectivelyPublished: async () => false,
     })
 
-    expect(withMapping).toBe(true)
-    expect(withoutMapping).toBe(false)
+    expect(published).toBe(true)
+    expect(denied).toBe(false)
   })
 
-  it("requires an active channel mapping for external (partner) slices", async () => {
-    const withMapping = await isOwnedProductStorefrontListable({
+  it("requires effective publication for external (partner) slices", async () => {
+    const published = await isOwnedProductStorefrontListable({
       audience: "partner",
-      hasActiveChannelMapping: async () => true,
+      channel: "chan_partner",
+      isEffectivelyPublished: async () => true,
     })
-    const withoutMapping = await isOwnedProductStorefrontListable({
+    const denied = await isOwnedProductStorefrontListable({
       audience: "partner",
-      hasActiveChannelMapping: async () => false,
+      channel: "chan_partner",
+      isEffectivelyPublished: async () => false,
     })
 
-    expect(withMapping).toBe(true)
-    expect(withoutMapping).toBe(false)
+    expect(published).toBe(true)
+    expect(denied).toBe(false)
   })
 })

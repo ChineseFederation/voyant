@@ -24,6 +24,11 @@ import type { EntityOverlayChangedPayload } from "./events/taxonomy.js"
 import type { OwnedAvailabilitySearchHandlerRegistry } from "./search/owned-search-handler.js"
 import type { DocumentBuilder } from "./services/indexer-service.js"
 
+export {
+  type CatalogProjectionRuntimeProvider,
+  catalogProjectionRuntimePort,
+} from "./subscriber-runtime-ports.js"
+
 export interface CatalogProjectionExtension {
   readonly name: string
   project(
@@ -71,7 +76,7 @@ export interface CatalogCommerceRuntimeExtension {
 
 export interface CatalogDistributionRuntimeExtension {
   loadActiveChannelIds(db: AnyDrizzleDb): Promise<readonly string[]>
-  hasActiveSalesChannelMapping(
+  hasEffectiveProductPublication(
     db: AnyDrizzleDb,
     productId: string,
     channelId?: string,
@@ -81,6 +86,20 @@ export interface CatalogDistributionRuntimeExtension {
     supplierId: string,
   ): Promise<{ reservationTimeoutMinutes: number | null } | null>
   loadSupplierPaymentPolicy(db: AnyDrizzleDb, supplierId: string): Promise<PaymentPolicy | null>
+}
+
+/**
+ * Provider-neutral request-time publication decision used by public catalog
+ * and checkout consumers. The selected Distribution implementation owns the
+ * policy and persistence; consumers only supply their resolved database and
+ * channel identity.
+ */
+export interface CatalogPublicationRuntime {
+  isProductPublished(input: {
+    db: AnyDrizzleDb
+    productId: string
+    channelId: string
+  }): Promise<boolean>
 }
 
 export interface CatalogCruisesRuntimeExtension extends CatalogPolicyRuntimeExtension {
@@ -211,6 +230,9 @@ export const catalogCommerceRuntimeExtensionPort = extensionPort<CatalogCommerce
 )
 export const catalogDistributionRuntimeExtensionPort =
   extensionPort<CatalogDistributionRuntimeExtension>("catalog.extension.distribution")
+export const catalogPublicationRuntimePort = extensionPort<CatalogPublicationRuntime>(
+  "catalog.publication.runtime",
+)
 export const catalogCruisesRuntimeExtensionPort = extensionPort<CatalogCruisesRuntimeExtension>(
   "catalog.extension.cruises",
 )

@@ -6,6 +6,7 @@ import { createStorefrontAdminRoutes } from "../../src/storefront-routes.js"
 import type {
   IssuedStorefrontApiKeyDto,
   StorefrontApiKeyDto,
+  StorefrontChannelBindingProvider,
   StorefrontDto,
   StorefrontRuntimeProvider,
 } from "../../src/storefront-runtime-port.js"
@@ -42,6 +43,15 @@ const API_KEY: StorefrontApiKeyDto = {
 
 const ISSUED_KEY: IssuedStorefrontApiKeyDto = { ...API_KEY, token: "vpk-test-one-time-secret" }
 
+const CHANNEL_BINDING = {
+  storefrontId: STOREFRONT.id,
+  channelId: "channels_1",
+  channelName: "Retail",
+  channelStatus: "active",
+  createdAt: "2026-07-16T00:00:00.000Z",
+  updatedAt: "2026-07-16T00:00:00.000Z",
+}
+
 function runtime(): StorefrontRuntimeProvider {
   return {
     listStorefronts: vi.fn(async () => [STOREFRONT]),
@@ -70,6 +80,17 @@ function runtime(): StorefrontRuntimeProvider {
   }
 }
 
+function channelBindingProvider(): StorefrontChannelBindingProvider {
+  return {
+    listStorefrontChannelBindings: vi.fn(async () => ({
+      [STOREFRONT.id]: CHANNEL_BINDING,
+    })),
+    getStorefrontChannelBinding: vi.fn(async () => CHANNEL_BINDING),
+    setStorefrontChannelBinding: vi.fn(async () => CHANNEL_BINDING),
+    clearStorefrontChannelBinding: vi.fn(async () => undefined),
+  }
+}
+
 function app(
   provider: StorefrontRuntimeProvider,
   options: {
@@ -77,6 +98,7 @@ function app(
     organizationId?: string | null
     scopes?: string[]
     businessAccounts?: boolean
+    channelBinding?: StorefrontChannelBindingProvider | null
   } = {},
 ) {
   const {
@@ -84,6 +106,7 @@ function app(
     organizationId = "org_actor",
     scopes = ["storefronts:read", "storefronts:write"],
     businessAccounts = true,
+    channelBinding = null,
   } = options
   const hono = new Hono<{
     Bindings: Record<string, unknown>
@@ -101,7 +124,10 @@ function app(
     c.set("db", {} as never)
     await next()
   })
-  hono.route("/v1/admin/storefronts", createStorefrontAdminRoutes(provider, { businessAccounts }))
+  hono.route(
+    "/v1/admin/storefronts",
+    createStorefrontAdminRoutes(provider, { businessAccounts, channelBinding }),
+  )
   return hono
 }
 
@@ -195,7 +221,54 @@ describe("storefront admin routes", () => {
 
     expect(readOnly.status).toBe(200)
     expect(await readOnly.json()).toEqual({
-      data: { businessAccounts: false, manageProviders: false },
+      data: { businessAccounts: false, manageProviders: false, channelBinding: false },
+    })
+  })
+
+  it("composes channel bindings onto storefront reads when configured", async () => {
+    const binding = channelBindingProvider()
+    const response = await app(runtime(), { channelBinding: binding }).request(
+      "/v1/admin/storefronts/storefronts",
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      data: [expect.objectContaining({ channelBinding: CHANNEL_BINDING })],
+    })
+    expect(binding.listStorefrontChannelBindings).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: "org_actor" }),
+      [STOREFRONT.id],
+    )
+  })
+
+  it("sets the channel binding through the configured composition provider", async () => {
+    const binding = channelBindingProvider()
+    const response = await app(runtime(), { channelBinding: binding }).request(
+      "/v1/admin/storefronts/storefronts/storefront_1/channel-binding",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: "channels_1" }),
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ data: CHANNEL_BINDING })
+    expect(binding.setStorefrontChannelBinding).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: "org_actor" }),
+      "storefront_1",
+      { channelId: "channels_1" },
+    )
+  })
+
+  it("returns 501 for channel binding routes when composition is not configured", async () => {
+    const response = await app(runtime()).request(
+      "/v1/admin/storefronts/storefronts/storefront_1/channel-binding",
+    )
+
+    expect(response.status).toBe(501)
+    expect(await response.json()).toEqual({
+      error: "Storefront channel binding is not configured",
     })
   })
 

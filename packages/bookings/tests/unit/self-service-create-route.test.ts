@@ -9,6 +9,11 @@ const CAPABILITY_ENV = {
 }
 
 const BOOKING = { status: "ok" as const, bookingId: "book_1", bookingNumber: "VY-1" }
+const ACTIVE_STOREFRONT_CHANNEL = {
+  storefrontId: "sf_web",
+  channelId: "chan_web",
+  channelStatus: "active",
+}
 
 /**
  * The route was unreachable in every deployment once already — no provider was
@@ -34,6 +39,19 @@ describe("POST /v1/public/bookings", () => {
     const response = await call({ body: { draftId: "bdrf_1", quoteId: "cquo_1" } })
 
     expect(response.status).toBe(401)
+    expect(createFromDraft).not.toHaveBeenCalled()
+  })
+
+  it("refuses creation without an active storefront channel context", async () => {
+    const response = await call({
+      storefrontChannel: null,
+      options: { resolveAuthenticatedPersonId: () => "per_1" },
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({
+      error: "active_storefront_channel_required",
+    })
     expect(createFromDraft).not.toHaveBeenCalled()
   })
 
@@ -65,6 +83,10 @@ describe("POST /v1/public/bookings", () => {
     expect(createFromDraft).toHaveBeenCalledWith(
       expect.objectContaining({
         caller: expect.objectContaining({ personId: "per_1" }),
+        storefront: {
+          storefrontId: "sf_web",
+          channelId: "chan_web",
+        },
         userId: "usr_1",
       }),
     )
@@ -90,6 +112,10 @@ describe("POST /v1/public/bookings", () => {
       expect.objectContaining({
         caller: { verifiedPhone: "+40712345678" },
         guestChallengeId: "svch_1",
+        storefront: {
+          storefrontId: "sf_web",
+          channelId: "chan_web",
+        },
       }),
     )
   })
@@ -118,6 +144,7 @@ describe("POST /v1/public/bookings", () => {
     body?: Record<string, unknown>
     /** Whether the deployment selected a create provider. */
     withProvider?: boolean
+    storefrontChannel?: typeof ACTIVE_STOREFRONT_CHANNEL | null
   }) {
     const app = new Hono()
     app.onError(handleApiError)
@@ -125,6 +152,12 @@ describe("POST /v1/public/bookings", () => {
     // double implements exactly the select/insert it performs.
     app.use("*", async (c, next) => {
       c.set("db" as never, idempotencyDb() as never)
+      if (input.storefrontChannel !== null) {
+        c.set(
+          "storefrontChannel" as never,
+          (input.storefrontChannel ?? ACTIVE_STOREFRONT_CHANNEL) as never,
+        )
+      }
       await next()
     })
     const options = {

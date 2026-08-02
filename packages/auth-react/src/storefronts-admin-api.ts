@@ -25,6 +25,34 @@ import { authQueryKeys } from "./query-keys.js"
 const capabilitiesResponseSchema = z.object({ data: storefrontAdminCapabilitiesSchema }).strict()
 const storefrontsResponseSchema = z.object({ data: z.array(storefrontSchema) }).strict()
 const storefrontResponseSchema = z.object({ data: storefrontSchema }).strict()
+const storefrontChannelBindingSchema = z
+  .object({
+    storefrontId: z.string(),
+    channelId: z.string(),
+    channelName: z.string().nullable(),
+    channelStatus: z.string(),
+    createdAt: z.string().nullable(),
+    updatedAt: z.string().nullable(),
+  })
+  .strict()
+const storefrontChannelBindingResponseSchema = z
+  .object({ data: storefrontChannelBindingSchema.nullable() })
+  .strict()
+const distributionChannelOptionSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(["active", "inactive", "pending", "archived"]),
+  })
+  .passthrough()
+const distributionChannelsResponseSchema = z
+  .object({
+    data: z.array(distributionChannelOptionSchema),
+    total: z.number().optional(),
+    limit: z.number().optional(),
+    offset: z.number().optional(),
+  })
+  .strict()
 const apiKeysResponseSchema = z.object({ data: z.array(storefrontApiKeySchema) }).strict()
 const issuedKeyResponseSchema = z.object({ data: issuedStorefrontApiKeySchema }).strict()
 const providerCredentialsResponseSchema = z
@@ -34,6 +62,9 @@ const providerCredentialsResponseSchema = z
 const BASE = "/v1/admin/storefronts"
 const storefrontPath = (id: string) => `${BASE}/storefronts/${encodeURIComponent(id)}`
 
+export type StorefrontChannelBindingDto = NonNullable<StorefrontDto["channelBinding"]>
+export type StorefrontChannelOption = z.infer<typeof distributionChannelOptionSchema>
+
 export interface StorefrontsAdminApi {
   getCapabilities: () => Promise<StorefrontAdminCapabilitiesDto>
   listStorefronts: () => Promise<StorefrontDto[]>
@@ -42,6 +73,13 @@ export interface StorefrontsAdminApi {
   updateStorefront: (storefrontId: string, input: { name: string }) => Promise<StorefrontDto>
   deleteStorefront: (storefrontId: string) => Promise<void>
   setAllowedOrigins: (storefrontId: string, origins: string[]) => Promise<StorefrontDto>
+  listChannels: () => Promise<StorefrontChannelOption[]>
+  getChannelBinding: (storefrontId: string) => Promise<StorefrontChannelBindingDto | null>
+  setChannelBinding: (
+    storefrontId: string,
+    input: { channelId: string },
+  ) => Promise<StorefrontChannelBindingDto>
+  clearChannelBinding: (storefrontId: string) => Promise<void>
   listApiKeys: (storefrontId: string) => Promise<StorefrontApiKeyDto[]>
   issueApiKey: (
     storefrontId: string,
@@ -151,6 +189,44 @@ export function createStorefrontsAdminApi(
         )
       ).data
     },
+    async listChannels() {
+      return (
+        await fetchWithValidation(
+          "/v1/admin/distribution/channels?limit=200",
+          distributionChannelsResponseSchema,
+          options,
+          json("GET"),
+        )
+      ).data
+    },
+    async getChannelBinding(storefrontId) {
+      return (
+        await fetchWithValidation(
+          `${storefrontPath(storefrontId)}/channel-binding`,
+          storefrontChannelBindingResponseSchema,
+          options,
+          json("GET"),
+        )
+      ).data
+    },
+    async setChannelBinding(storefrontId, input) {
+      return (
+        await fetchWithValidation(
+          `${storefrontPath(storefrontId)}/channel-binding`,
+          z.object({ data: storefrontChannelBindingSchema }).strict(),
+          options,
+          json("PUT", input),
+        )
+      ).data
+    },
+    async clearChannelBinding(storefrontId) {
+      await fetchWithValidation(
+        `${storefrontPath(storefrontId)}/channel-binding`,
+        z.undefined(),
+        options,
+        json("DELETE"),
+      )
+    },
     async listApiKeys(storefrontId) {
       return (
         await fetchWithValidation(
@@ -248,6 +324,21 @@ export const storefrontListQueryOptions = (api: StorefrontsAdminApi) =>
   queryOptions({
     queryKey: authQueryKeys.storefrontList(),
     queryFn: () => api.listStorefronts(),
+  })
+
+export const storefrontChannelsQueryOptions = (api: StorefrontsAdminApi) =>
+  queryOptions({
+    queryKey: authQueryKeys.storefrontChannels(),
+    queryFn: () => api.listChannels(),
+  })
+
+export const storefrontChannelBindingQueryOptions = (
+  api: StorefrontsAdminApi,
+  storefrontId: string,
+) =>
+  queryOptions({
+    queryKey: authQueryKeys.storefrontChannelBinding(storefrontId),
+    queryFn: () => api.getChannelBinding(storefrontId),
   })
 
 export const storefrontApiKeysQueryOptions = (api: StorefrontsAdminApi, storefrontId: string) =>
