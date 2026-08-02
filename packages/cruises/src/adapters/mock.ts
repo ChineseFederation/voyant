@@ -58,6 +58,8 @@ export class MockCruiseAdapter implements CruiseAdapter {
   private readonly cruisesByRef = new Map<string, SeededCruise>()
   private readonly shipsByRef = new Map<string, ExternalShip>()
   private readonly bookingResults = new Map<string, ExternalBookingResult>()
+  private readonly bookingsByIdempotencyKey = new Map<string, ExternalBookingResult>()
+  private readonly bookingsByRef = new Map<string, ExternalBookingResult>()
 
   // Telemetry — useful for assertions in tests.
   callCount = 0
@@ -237,14 +239,30 @@ export class MockCruiseAdapter implements CruiseAdapter {
 
   async createBooking(input: CreateExternalBookingInput): Promise<ExternalBookingResult> {
     this.tickAndCheck()
+    if (input.idempotencyKey) {
+      const replay = this.bookingsByIdempotencyKey.get(input.idempotencyKey)
+      if (replay) return replay
+    }
     this.bookingCount++
     const programmed = this.bookingResults.get(
       `${refKey(input.sailingRef)}::${refKey(input.cabinCategoryRef)}`,
     )
-    if (programmed) return programmed
-    return {
+    const result = programmed ?? {
       connectorBookingRef: `MOCK-${this.bookingCount.toString().padStart(6, "0")}`,
       connectorStatus: "confirmed",
     }
+    if (input.idempotencyKey) this.bookingsByIdempotencyKey.set(input.idempotencyKey, result)
+    this.bookingsByRef.set(result.connectorBookingRef, result)
+    return result
+  }
+
+  async getBooking(connectorBookingRef: string): Promise<ExternalBookingResult | null> {
+    this.tickAndCheck()
+    return this.bookingsByRef.get(connectorBookingRef) ?? null
+  }
+
+  async getBookingByIdempotencyKey(idempotencyKey: string): Promise<ExternalBookingResult | null> {
+    this.tickAndCheck()
+    return this.bookingsByIdempotencyKey.get(idempotencyKey) ?? null
   }
 }

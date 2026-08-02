@@ -380,6 +380,9 @@
       "@voyant-travel/bookings/runtime-contributor": ["../bookings/dist/runtime-contributor.d.ts"],
       "@voyant-travel/bookings/runtime-port": ["../bookings/dist/runtime-port.d.ts"],
       "@voyant-travel/bookings/schema": ["../bookings/dist/schema.d.ts"],
+      "@voyant-travel/bookings/service-sourced-commitment": [
+        "../bookings/dist/service-sourced-commitment.d.ts"
+      ],
       "@voyant-travel/bookings/stale-holds-job": ["../bookings/dist/stale-holds-job.d.ts"],
       "@voyant-travel/bookings/status": ["../bookings/dist/status.d.ts"],
       "@voyant-travel/bookings/status-dispatch": ["../bookings/dist/status-dispatch.d.ts"],
@@ -423,6 +426,9 @@
       ],
       "@voyant-travel/catalog-contracts/booking-engine/session-contracts": [
         "../catalog-contracts/dist/booking-engine/session-contracts.d.ts"
+      ],
+      "@voyant-travel/catalog-contracts/booking-engine/supplier-operations": [
+        "../catalog-contracts/dist/booking-engine/supplier-operations.d.ts"
       ],
       "@voyant-travel/catalog-contracts/content": ["../catalog-contracts/dist/content.d.ts"],
       "@voyant-travel/catalog-contracts/contract": ["../catalog-contracts/dist/contract.d.ts"],
@@ -481,6 +487,9 @@
       ],
       "@voyant-travel/catalog/booking-engine/sessions-schema": [
         "../catalog/dist/booking-engine/sessions-schema.d.ts"
+      ],
+      "@voyant-travel/catalog/booking-engine/supplier-operations": [
+        "../catalog/dist/booking-engine/supplier-operations.d.ts"
       ],
       "@voyant-travel/catalog/booking-session-maintenance-job": [
         "../catalog/dist/booking-session-maintenance-job.d.ts"

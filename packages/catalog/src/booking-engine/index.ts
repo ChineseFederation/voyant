@@ -272,9 +272,34 @@ export {
   type BookingSessionModulePorts,
   type BookingSessionRepository,
   type CommitOwnedBookingInput,
+  type CommitSourcedBookingInput,
+  type CommitSourcedBookingResult,
   type ComposeBookingQuoteInput,
   createBookingSessionModule,
 } from "./sessions-service.js"
+export {
+  createSupplierOperationWorkflow,
+  type DispatchSupplierReservationInput,
+  type SupplierOperationWorkflow,
+  type SupplierOperationWorkflowOutcome,
+} from "./supplier-operation-workflow.js"
+export {
+  type CreateSupplierOperationResult,
+  createDrizzleSupplierOperationRepository,
+  createSupplierOperationRecord,
+  type SupplierOperationInternalRecord,
+  type SupplierOperationRepository,
+  serializeSupplierOperation,
+} from "./supplier-operations.js"
+export {
+  createSupplierOperationOperatorService,
+  type SupplierOperationOperatorService,
+} from "./supplier-operations-operator.js"
+export {
+  type InsertSupplierOperation,
+  type SelectSupplierOperation,
+  supplierOperationsTable,
+} from "./supplier-operations-schema.js"
 export {
   type SyncAdapterSummary,
   type SyncProgressEvent,

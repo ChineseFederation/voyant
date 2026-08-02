@@ -75,7 +75,7 @@ function warmBookingEngineConnectSources(env: BookingEngineEnv): Promise<void> {
     warn: (message) => console.warn(`[booking-engine] ${message}`),
   })
     .then((sources) => {
-      registerVoyantConnectSources(registry, sources)
+      registerConnectSources(registry, sources)
       // Per-connection Connect cruise shims just landed — back-fill the vertical
       // registry so admin/public external cruise reads resolve them too.
       catalogRuntimeExtensions().cruises.syncRegistry(registry)
@@ -149,6 +149,22 @@ export interface BookingEngineEnv {
 const CONNECT_CRUISE_MEMOIZE = { memoize: { ttlMs: 60_000 } } as const
 
 /**
+ * Connect is released independently and its registration helper is compiled
+ * against the previous Catalog contract. Its adapters return a strict subset
+ * of the current reserve outcomes, so the registry mutation remains compatible;
+ * keep that version bridge isolated here until the next Connect release.
+ */
+function registerConnectSources(
+  registry: SourceAdapterRegistry,
+  sources: Parameters<typeof registerVoyantConnectSources>[1],
+): void {
+  registerVoyantConnectSources(
+    registry as unknown as Parameters<typeof registerVoyantConnectSources>[0],
+    sources,
+  )
+}
+
+/**
  * Register the un-scoped Voyant Connect default adapter pair synchronously — the
  * cold-window fallback used until `warmBookingEngineConnectSources` registers the
  * per-connection adapters. Connect env resolution (key fallback, operator id,
@@ -163,7 +179,7 @@ function registerVoyantConnectFallback(
     warn: (message) => console.warn(`[booking-engine] ${message}`),
   })
   if (!config) return
-  registerVoyantConnectSources(
+  registerConnectSources(
     registry,
     createVoyantConnectSources({ ...config, cruise: CONNECT_CRUISE_MEMOIZE }),
   )

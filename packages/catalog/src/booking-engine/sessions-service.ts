@@ -114,6 +114,8 @@ export interface BookingSessionAuditRecord {
     | "abandon"
     | "expire"
     | "purge"
+    | "supplier_reconcile"
+    | "supplier_manual_resolve"
   actorKind: BookingSessionActorKindV1 | "system"
   principalId?: string
   organizationId?: string
@@ -164,7 +166,7 @@ export interface BookingSessionRepository {
   consumeCommit(input: {
     sessionId: string
     quoteId: string
-    holdId: string
+    holdId?: string
     idempotencyKey: string
     requestFingerprint: string
     outcome: BookingCommitInternalRecord["outcome"]
@@ -218,11 +220,35 @@ export interface CommitOwnedBookingInput {
   consumeSources(tx: unknown, bookingId: string, allocationIds: string[]): Promise<void>
 }
 
+export interface CommitSourcedBookingInput {
+  session: BookingSessionInternalRecord
+  quote: BookingQuoteInternalRecord
+  hold?: BookingHoldInternalRecord
+  idempotencyKey: string
+  requestFingerprint: string
+  access: BookingSessionAccessContext
+  now: Date
+  paymentSessionId?: string
+  consumeSources(
+    tx: unknown,
+    bookingId: string,
+    allocationIds: string[],
+    supplierOperationId: string,
+  ): Promise<void>
+}
+
+export type CommitSourcedBookingResult =
+  | { kind: "committed"; bookingId: string; allocationIds: string[]; supplierOperationId: string }
+  | Extract<
+      BookingLifecycleCommitOutcomeV1,
+      { kind: "supplier_pending" | "supplier_in_doubt" | "supplier_failed" }
+    >
+
 export interface BookingSessionPaymentPorts {
   prepare(input: {
     session: BookingSessionInternalRecord
     quote: BookingQuoteInternalRecord
-    hold: BookingHoldInternalRecord
+    hold?: BookingHoldInternalRecord
     commit: CommitBookingSessionV1
     access: BookingSessionAccessContext
     now: Date
@@ -303,6 +329,8 @@ export interface BookingSessionModulePorts {
     bookingId: string
     allocationIds: string[]
   }>
+  commitSourcedBooking?(input: CommitSourcedBookingInput): Promise<CommitSourcedBookingResult>
+  hasActiveSupplierOperation?(input: { sessionId: string; tx: unknown }): Promise<boolean>
   payments?: BookingSessionPaymentPorts
 }
 
@@ -839,6 +867,20 @@ export function createBookingSessionModule(
         if (!session) return { kind: "rejected", error: { kind: "session_expired" } }
         const authorized = await authorizeSessionAccess(session, access, "abandon")
         if (authorized) return authorized
+        if (
+          await options.ports.hasActiveSupplierOperation?.({
+            sessionId: session.id,
+            tx,
+          })
+        ) {
+          return {
+            kind: "rejected" as const,
+            error: {
+              kind: "supplier_operation_active" as const,
+              nextAction: "reconcile_supplier_operation" as const,
+            },
+          }
+        }
         const at = now()
         if (session.state === "active" && session.expiresAt <= at) {
           await expireSession(repository, options.ports, session, access, at, tx)
@@ -904,10 +946,12 @@ export function createBookingSessionModule(
           return { status: "outcome" as const, outcome: lockedAuthorization }
         }
         const at = now()
-        if (session.state === "active" && session.expiresAt <= at) {
+        const sourcedContinuation =
+          session.target.kind === "catalog_item" && session.state === "supplier_pending"
+        if (!sourcedContinuation && session.state === "active" && session.expiresAt <= at) {
           await expireSession(repository, options.ports, session, access, at, tx)
         }
-        if (session.state !== "active") {
+        if (session.state !== "active" && !sourcedContinuation) {
           return {
             status: "outcome" as const,
             outcome:
@@ -925,7 +969,9 @@ export function createBookingSessionModule(
         const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return { status: "outcome" as const, outcome: revisionRejected }
 
-        const quote = await loadUsableQuote(repository, input.quoteId, session, at)
+        const quote = sourcedContinuation
+          ? await loadPersistedSourcedQuote(repository, input.quoteId, session)
+          : await loadUsableQuote(repository, input.quoteId, session, at)
         if (quote === "expired" || quote === "superseded") {
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
@@ -968,8 +1014,12 @@ export function createBookingSessionModule(
           }
         }
 
-        const hold = await loadUsableHold(repository, input.holdId, session, quote, at)
-        if (hold === "expired" || !hold) {
+        const hold = input.holdId
+          ? sourcedContinuation
+            ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
+            : await loadUsableHold(repository, input.holdId, session, quote, at)
+          : null
+        if (hold === "expired" || (!hold && session.target.kind === "product")) {
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
@@ -982,6 +1032,10 @@ export function createBookingSessionModule(
               },
             } as const,
           }
+        }
+
+        if (sourcedContinuation) {
+          return { status: "ready" as const, session, quote, hold, at }
         }
 
         const freshQuote = await options.ports.composeQuote({ session, now: at, tx })
@@ -1019,7 +1073,7 @@ export function createBookingSessionModule(
           ? await options.ports.payments.prepare({
               session,
               quote,
-              hold,
+              ...(hold ? { hold } : {}),
               commit: input,
               access,
               now: at,
@@ -1045,123 +1099,79 @@ export function createBookingSessionModule(
         preparedPayment.kind === "established" ? preparedPayment.paymentSessionId : undefined
 
       const requestFingerprint = await commitRequestFingerprint(input)
-      let committed: { bookingId: string; allocationIds: string[] }
+      let committed: {
+        bookingId: string
+        allocationIds: string[]
+        supplierOperationId?: string
+      }
       try {
-        committed = await options.ports.commitOwnedBooking({
-          session,
-          quote,
-          hold,
-          idempotencyKey: input.idempotencyKey,
-          requestFingerprint,
-          access,
-          now: at,
-          paymentSessionId,
-          async consumeSources(tx, bookingId, allocationIds) {
-            const outcome: BookingLifecycleCommitOutcomeV1 = {
-              kind: "committed",
-              nextAction: "none",
-              booking: { id: bookingId, status: "confirmed" },
-              allocationIds,
-              consumedSessionId: session.id,
-              consumedQuoteId: quote.id,
-              convertedHoldId: hold.id,
-            }
-            await repository.withTransactionContext(tx, async () => {
-              const currentAt = now()
-              const currentSession = await loadSession(sessionId)
-              if (currentSession?.state !== "active") {
-                throw new CommitSessionStateError(
-                  currentSession?.state === "consumed" ? "consumed" : "expired",
-                )
-              }
-              if (currentSession.expiresAt <= currentAt) {
-                throw new CommitSessionStateError("expired")
-              }
-              const currentQuote = await loadUsableQuote(
+        if (session.target.kind === "catalog_item") {
+          const sourcedResult = await options.ports.commitSourcedBooking?.({
+            session,
+            quote,
+            ...(hold ? { hold } : {}),
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint,
+            access,
+            now: at,
+            paymentSessionId,
+            async consumeSources(tx, bookingId, allocationIds, supplierOperationId) {
+              await consumeCommittedSources({
                 repository,
-                quote.id,
-                currentSession,
-                currentAt,
-              )
-              if (currentQuote === "expired") {
-                throw new CommitOutcomeError({
-                  kind: "quote_failure",
-                  nextAction: "request_fresh_quote",
-                  reason: "expired",
-                })
-              }
-              if (currentQuote === "superseded" || !currentQuote) {
-                throw new CommitOutcomeError({
-                  kind: "quote_failure",
-                  nextAction: "request_fresh_quote",
-                  reason: currentQuote === "superseded" ? "superseded" : "mismatched_session",
-                })
-              }
-              const currentHold = await loadUsableHold(
-                repository,
-                hold.id,
-                currentSession,
-                currentQuote,
-                currentAt,
-              )
-              if (currentHold === "expired") {
-                throw new CommitOutcomeError({
-                  kind: "hold_failure",
-                  nextAction: "request_new_hold",
-                  reason: "expired",
-                })
-              }
-              if (!currentHold) {
-                throw new CommitOutcomeError({
-                  kind: "hold_failure",
-                  nextAction: "request_new_hold",
-                  reason: "missing",
-                })
-              }
-              const currentQuoteResult = await options.ports.composeQuote({
-                session: currentSession,
-                now: currentAt,
-                tx,
-              })
-              if (
-                currentQuoteResult.status === "unavailable" ||
-                (await stableFingerprint(currentQuoteResult.pricing)) !==
-                  currentQuote.priceFingerprint
-              ) {
-                currentQuote.state = "superseded"
-                await repository.saveQuote(currentQuote)
-                throw new CommitOutcomeError({
-                  kind: "quote_failure",
-                  nextAction: "request_fresh_quote",
-                  reason: "superseded",
-                })
-              }
-              await repository.consumeCommit({
-                sessionId,
-                quoteId: currentQuote.id,
-                holdId: currentHold.id,
-                idempotencyKey: input.idempotencyKey,
+                ports: options.ports,
+                session,
+                quote,
+                hold,
+                access,
+                paymentSessionId,
+                input,
                 requestFingerprint,
-                outcome,
                 bookingId,
-                now: currentAt,
+                allocationIds,
+                supplierOperationId,
+                recomposeQuote: false,
+                tx,
+                now,
               })
-              if (paymentSessionId && options.ports.payments) {
-                await options.ports.payments.transferToBooking({
-                  tx,
-                  paymentSessionId,
-                  bookingSessionId: session.id,
-                  bookingId,
-                })
-              }
-              await appendSessionAudit(repository, currentSession, "commit", access, currentAt, {
+            },
+          })
+          if (!sourcedResult) {
+            throw new BookingSessionCommitRejectedError("entity_not_bookable")
+          }
+          if (sourcedResult.kind !== "committed") {
+            return { kind: "commit_result", outcome: sourcedResult }
+          }
+          committed = sourcedResult
+        } else {
+          committed = await options.ports.commitOwnedBooking({
+            session,
+            quote,
+            hold: hold as BookingHoldInternalRecord,
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint,
+            access,
+            now: at,
+            paymentSessionId,
+            async consumeSources(tx, bookingId, allocationIds) {
+              await consumeCommittedSources({
+                repository,
+                ports: options.ports,
+                session,
+                quote,
+                hold,
+                access,
+                paymentSessionId,
+                input,
+                requestFingerprint,
                 bookingId,
-                quoteId: currentQuote.id,
-                holdId: currentHold.id,
+                allocationIds,
+                recomposeQuote: true,
+                tx,
+                now,
               })
-            })
-          },
-        })
+            },
+          })
+        }
       } catch (error) {
         if (isIdempotencyConflictError(error)) return idempotencyConflict()
         if (error instanceof BookingSessionCommitRejectedError) {
@@ -1253,7 +1263,10 @@ export function createBookingSessionModule(
         allocationIds: committed.allocationIds,
         consumedSessionId: session.id,
         consumedQuoteId: quote.id,
-        convertedHoldId: hold.id,
+        ...(hold ? { convertedHoldId: hold.id } : {}),
+        ...(committed.supplierOperationId
+          ? { supplierOperationId: committed.supplierOperationId }
+          : {}),
       }
       return { kind: "commit_result", outcome }
     },
@@ -1323,6 +1336,141 @@ export function createBookingSessionModule(
       return { purged }
     },
   }
+}
+
+async function consumeCommittedSources(input: {
+  repository: BookingSessionRepository
+  ports: BookingSessionModulePorts
+  session: BookingSessionInternalRecord
+  quote: BookingQuoteInternalRecord
+  hold: BookingHoldInternalRecord | null
+  access: BookingSessionAccessContext
+  paymentSessionId?: string
+  input: CommitBookingSessionV1
+  requestFingerprint: string
+  bookingId: string
+  allocationIds: string[]
+  supplierOperationId?: string
+  recomposeQuote: boolean
+  tx: unknown
+  now: () => Date
+}): Promise<void> {
+  const outcome: BookingLifecycleCommitOutcomeV1 = {
+    kind: "committed",
+    nextAction: "none",
+    booking: { id: input.bookingId, status: "confirmed" },
+    allocationIds: input.allocationIds,
+    consumedSessionId: input.session.id,
+    consumedQuoteId: input.quote.id,
+    ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
+    ...(input.supplierOperationId ? { supplierOperationId: input.supplierOperationId } : {}),
+  }
+  await input.repository.withTransactionContext(input.tx, async () => {
+    const currentAt = input.now()
+    const currentSession = await input.repository.getSession(input.session.id)
+    const persistedSourcedCommit =
+      !input.recomposeQuote && currentSession?.state === "supplier_pending"
+    if (currentSession?.state !== "active" && !persistedSourcedCommit) {
+      throw new CommitSessionStateError(
+        currentSession?.state === "consumed" ? "consumed" : "expired",
+      )
+    }
+    if (!persistedSourcedCommit && currentSession.expiresAt <= currentAt) {
+      throw new CommitSessionStateError("expired")
+    }
+    const currentQuote = persistedSourcedCommit
+      ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
+      : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
+    if (currentQuote === "expired") {
+      throw new CommitOutcomeError({
+        kind: "quote_failure",
+        nextAction: "request_fresh_quote",
+        reason: "expired",
+      })
+    }
+    if (currentQuote === "superseded" || !currentQuote) {
+      throw new CommitOutcomeError({
+        kind: "quote_failure",
+        nextAction: "request_fresh_quote",
+        reason: currentQuote === "superseded" ? "superseded" : "mismatched_session",
+      })
+    }
+    let currentHold: BookingHoldInternalRecord | null = null
+    if (input.hold) {
+      const loaded = persistedSourcedCommit
+        ? await loadPersistedSourcedHold(
+            input.repository,
+            input.hold.id,
+            currentSession,
+            currentQuote,
+          )
+        : await loadUsableHold(
+            input.repository,
+            input.hold.id,
+            currentSession,
+            currentQuote,
+            currentAt,
+          )
+      if (loaded === "expired") {
+        throw new CommitOutcomeError({
+          kind: "hold_failure",
+          nextAction: "request_new_hold",
+          reason: "expired",
+        })
+      }
+      if (!loaded) {
+        throw new CommitOutcomeError({
+          kind: "hold_failure",
+          nextAction: "request_new_hold",
+          reason: "missing",
+        })
+      }
+      currentHold = loaded
+    }
+    if (input.recomposeQuote) {
+      const currentQuoteResult = await input.ports.composeQuote({
+        session: currentSession,
+        now: currentAt,
+        tx: input.tx,
+      })
+      if (
+        currentQuoteResult.status === "unavailable" ||
+        (await stableFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint
+      ) {
+        currentQuote.state = "superseded"
+        await input.repository.saveQuote(currentQuote)
+        throw new CommitOutcomeError({
+          kind: "quote_failure",
+          nextAction: "request_fresh_quote",
+          reason: "superseded",
+        })
+      }
+    }
+    await input.repository.consumeCommit({
+      sessionId: currentSession.id,
+      quoteId: currentQuote.id,
+      ...(currentHold ? { holdId: currentHold.id } : {}),
+      idempotencyKey: input.input.idempotencyKey,
+      requestFingerprint: input.requestFingerprint,
+      outcome,
+      bookingId: input.bookingId,
+      now: currentAt,
+    })
+    if (input.paymentSessionId && input.ports.payments) {
+      await input.ports.payments.transferToBooking({
+        tx: input.tx,
+        paymentSessionId: input.paymentSessionId,
+        bookingSessionId: currentSession.id,
+        bookingId: input.bookingId,
+      })
+    }
+    await appendSessionAudit(input.repository, currentSession, "commit", input.access, currentAt, {
+      bookingId: input.bookingId,
+      quoteId: currentQuote.id,
+      ...(currentHold ? { holdId: currentHold.id } : {}),
+      ...(input.supplierOperationId ? { supplierOperationId: input.supplierOperationId } : {}),
+    })
+  })
 }
 
 type FailedCommitOutcome = Exclude<
@@ -1563,6 +1711,20 @@ async function loadUsableQuote(
   return quote
 }
 
+async function loadPersistedSourcedQuote(
+  repository: BookingSessionRepository,
+  quoteId: string,
+  session: BookingSessionInternalRecord,
+): Promise<BookingQuoteInternalRecord | "expired" | "superseded" | null> {
+  const quote = await repository.getQuote(quoteId)
+  if (!quote || quote.sessionId !== session.id || quote.sessionRevision !== session.revision) {
+    return null
+  }
+  if (quote.state === "expired") return "expired"
+  if (quote.state !== "active") return "superseded"
+  return quote
+}
+
 async function loadUsableHold(
   repository: BookingSessionRepository,
   holdId: string,
@@ -1577,6 +1739,18 @@ async function loadUsableHold(
     return "expired"
   }
   return hold
+}
+
+async function loadPersistedSourcedHold(
+  repository: BookingSessionRepository,
+  holdId: string,
+  session: BookingSessionInternalRecord,
+  quote: BookingQuoteInternalRecord,
+): Promise<BookingHoldInternalRecord | "expired" | null> {
+  const hold = await repository.getHold(holdId)
+  if (!hold || hold.sessionId !== session.id || hold.quoteId !== quote.id) return null
+  if (hold.state === "expired") return "expired"
+  return hold.state === "active" ? hold : null
 }
 
 function capacityKeyForTarget(target: BookingSessionTargetV1): string {

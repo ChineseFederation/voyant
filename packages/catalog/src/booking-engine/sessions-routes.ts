@@ -11,10 +11,17 @@ import {
   renewBookingSessionV1,
   updateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import {
+  listSupplierOperationsQueryV1,
+  reconcileSupplierOperationV1,
+  resolveSupplierOperationV1,
+  supplierOperationRecordV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/supplier-operations"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import type { Context } from "hono"
 import type { BookingSessionAccessContext, BookingSessionModule } from "./sessions-service.js"
+import type { SupplierOperationOperatorService } from "./supplier-operations-operator.js"
 
 type Env = {
   Variables: Record<string, unknown> & {
@@ -30,6 +37,7 @@ export interface BookingSessionRoutesOptions {
   resolveModule(c: Context): BookingSessionModule
   actorKind: BookingSessionActorKindV1
   resolveAccess?(c: Context, actorKind: BookingSessionActorKindV1): BookingSessionAccessContext
+  resolveSupplierOperations?(c: Context): SupplierOperationOperatorService
 }
 
 const sessionParamSchema = z.object({ sessionId: z.string().min(1) })
@@ -264,6 +272,76 @@ const purgeSessionsRoute = createRoute({
   },
 })
 
+const supplierOperationParamSchema = z.object({ operationId: z.string().min(1) })
+
+const listSupplierOperationsRoute = createRoute({
+  method: "get",
+  path: "/supplier-operations",
+  request: { query: listSupplierOperationsQueryV1 },
+  responses: {
+    200: {
+      description: "Supplier Operations",
+      content: {
+        "application/json": {
+          schema: z.object({ operations: z.array(supplierOperationRecordV1) }),
+        },
+      },
+    },
+  },
+})
+
+const getSupplierOperationRoute = createRoute({
+  method: "get",
+  path: "/supplier-operations/{operationId}",
+  request: { params: supplierOperationParamSchema },
+  responses: {
+    200: {
+      description: "Supplier Operation",
+      content: { "application/json": { schema: supplierOperationRecordV1 } },
+    },
+    404: {
+      description: "Not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
+const reconcileSupplierOperationRoute = createRoute({
+  method: "post",
+  path: "/supplier-operations/{operationId}/reconcile",
+  request: {
+    params: supplierOperationParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: reconcileSupplierOperationV1 } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Reconciled Supplier Operation",
+      content: { "application/json": { schema: supplierOperationRecordV1 } },
+    },
+  },
+})
+
+const resolveSupplierOperationRoute = createRoute({
+  method: "post",
+  path: "/supplier-operations/{operationId}/resolve",
+  request: {
+    params: supplierOperationParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: resolveSupplierOperationV1 } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Manually resolved Supplier Operation",
+      content: { "application/json": { schema: supplierOperationRecordV1 } },
+    },
+  },
+})
+
 export function createBookingSessionRoutes(options: BookingSessionRoutesOptions): OpenAPIHono<Env> {
   const routes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   if (options.actorKind === "anonymous") {
@@ -397,7 +475,7 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
 
   if (options.actorKind !== "staff") return routes
 
-  return routes
+  const staffRoutes = routes
     .openapi(expireDueSessionsRoute, async (c) =>
       asRouteResponse(
         c.json(
@@ -420,6 +498,53 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
         ),
       )
     })
+
+  if (!options.resolveSupplierOperations) return staffRoutes
+  const resolveSupplierOperations = options.resolveSupplierOperations
+  return staffRoutes
+    .openapi(listSupplierOperationsRoute, async (c) =>
+      asRouteResponse(
+        c.json({
+          operations: await resolveSupplierOperations(c).list(
+            c.req.valid("query"),
+            resolveAccess(options, c),
+          ),
+        }),
+      ),
+    )
+    .openapi(getSupplierOperationRoute, async (c) => {
+      const operation = await resolveSupplierOperations(c).get(
+        c.req.valid("param").operationId,
+        resolveAccess(options, c),
+      )
+      return asRouteResponse(
+        operation
+          ? c.json(operation)
+          : c.json({ error: "Supplier Operation not found", code: "not_found" }, 404),
+      )
+    })
+    .openapi(reconcileSupplierOperationRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await resolveSupplierOperations(c).reconcile(
+            c.req.valid("param").operationId,
+            c.req.valid("json"),
+            resolveAccess(options, c),
+          ),
+        ),
+      ),
+    )
+    .openapi(resolveSupplierOperationRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await resolveSupplierOperations(c).resolve(
+            c.req.valid("param").operationId,
+            c.req.valid("json"),
+            resolveAccess(options, c),
+          ),
+        ),
+      ),
+    )
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: bridges plain Hono responses to zod-openapi's inferred route union.

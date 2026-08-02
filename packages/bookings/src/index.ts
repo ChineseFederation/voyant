@@ -111,6 +111,12 @@ export {
   upsertBookingOrigin,
 } from "./service-origin.js"
 export {
+  type CreateSourcedBookingCommitmentInput,
+  type CreateSourcedBookingCommitmentResult,
+  createSourcedBookingCommitment,
+  type SourcedBookingTravelerInput,
+} from "./service-sourced-commitment.js"
+export {
   BOOKING_TRANSITIONS,
   type BookingStatus,
   type BookingStatusPatch,

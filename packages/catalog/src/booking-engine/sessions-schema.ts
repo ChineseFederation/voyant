@@ -50,7 +50,7 @@ export const bookingSessionsTable = pgTable(
     ),
     check(
       "booking_sessions_state",
-      sql`${table.state} IN ('active', 'consumed', 'expired', 'abandoned')`,
+      sql`${table.state} IN ('active', 'supplier_pending', 'consumed', 'expired', 'abandoned')`,
     ),
     check(
       "booking_sessions_storefront_origin",
@@ -208,7 +208,7 @@ export const bookingSessionAuditEventsTable = pgTable(
     check("booking_session_audit_events_id_typeid", sql`${table.id} LIKE 'bsae_%'`),
     check(
       "booking_session_audit_events_action",
-      sql`${table.action} IN ('read', 'update', 'quote', 'hold', 'commit', 'adopt', 'renew', 'abandon', 'expire', 'purge')`,
+      sql`${table.action} IN ('read', 'update', 'quote', 'hold', 'commit', 'adopt', 'renew', 'abandon', 'expire', 'purge', 'supplier_reconcile', 'supplier_manual_resolve')`,
     ),
     index("idx_booking_session_audit_events_session").on(table.sessionId, table.createdAt),
   ],

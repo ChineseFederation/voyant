@@ -46,6 +46,11 @@ export {
   type SelectBookingSessionQuote,
 } from "./booking-engine/sessions-schema.js"
 export {
+  type InsertSupplierOperation,
+  type SelectSupplierOperation,
+  supplierOperationsTable,
+} from "./booking-engine/supplier-operations-schema.js"
+export {
   catalogOverlayHistoryTable,
   catalogOverlayTable,
   type InsertCatalogOverlay,

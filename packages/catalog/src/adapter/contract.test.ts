@@ -338,6 +338,9 @@ describe("SourceAdapter — reservation retrieval capability gating", () => {
       scope: { locale: "en-GB", audience: "operator", market: "GB", currency: "GBP" },
     }
     expect(getReservationRequestSchema.parse(request)).toEqual(request)
+    expect(
+      getReservationRequestSchema.parse({ idempotency_key: "bses_1:commit_1:reserve" }),
+    ).toEqual({ idempotency_key: "bses_1:commit_1:reserve" })
     await expect(adapter.getReservation!({ connection_id: "conn_1" }, request)).resolves.toBeNull()
     await expect(
       adapter.getReservation!({ connection_id: "conn_1" }, { upstream_ref: "booking_abc" }),

@@ -1165,6 +1165,93 @@ describe("Booking Session v1 owned tracer", () => {
   })
 })
 
+describe("Booking Session v1 sourced continuation", () => {
+  it("retains an admitted supplier-first Commit beyond Session and Quote expiry", async () => {
+    let currentNow = new Date("2026-08-02T10:00:00.000Z")
+    let commitCalls = 0
+    let supplierIntentActive = false
+    const repository = createInMemoryBookingSessionRepository()
+    const module = createBookingSessionModule({
+      now: () => currentNow,
+      sessionTtlMs: 1_000,
+      quoteTtlMs: 1_000,
+      ports: {
+        repository,
+        normalizeSelection: async ({ selection }) => selection,
+        composeQuote: async () => ({ status: "quoted", pricing: BASE_PRICING }),
+        placeCapacityHold: async () => "unavailable",
+        releaseCapacityHold: async () => {},
+        commitOwnedBooking: async () => {
+          throw new Error("owned commit must not run")
+        },
+        hasActiveSupplierOperation: async () => supplierIntentActive,
+        commitSourcedBooking: async (input) => {
+          commitCalls += 1
+          if (commitCalls === 1) {
+            supplierIntentActive = true
+            const persisted = await repository.getSession(input.session.id)
+            if (!persisted) throw new Error("session missing")
+            persisted.state = "supplier_pending"
+            persisted.updatedAt = input.now
+            await repository.saveSession(persisted)
+            return {
+              kind: "supplier_pending",
+              nextAction: "await_supplier_operation",
+              supplierOperationId: "suop_pending",
+              operatorBackedRiskAccepted: false,
+            }
+          }
+          await input.consumeSources({}, "book_sourced", [], "suop_pending")
+          return {
+            kind: "committed",
+            bookingId: "book_sourced",
+            allocationIds: [],
+            supplierOperationId: "suop_pending",
+          }
+        },
+      },
+    })
+    const created = await module.createSession(
+      {
+        idempotencyKey: nextCreateKey("create_sourced"),
+        target: { kind: "catalog_item", catalogItemId: "crus_sourced" },
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_sourced" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const commit = {
+      expectedRevision: created.session.revision,
+      quoteId: quoted.quote.id,
+      idempotencyKey: "commit_sourced",
+    }
+
+    await expect(
+      module.commitSession(created.session.id, commit, ANONYMOUS_ACCESS),
+    ).resolves.toMatchObject({
+      kind: "commit_result",
+      outcome: { kind: "supplier_pending", supplierOperationId: "suop_pending" },
+    })
+    currentNow = new Date("2026-08-02T10:10:00.000Z")
+    await expect(
+      module.commitSession(created.session.id, commit, ANONYMOUS_ACCESS),
+    ).resolves.toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "committed",
+        booking: { id: "book_sourced" },
+        supplierOperationId: "suop_pending",
+      },
+    })
+    expect(commitCalls).toBe(2)
+  })
+})
+
 function createPaymentHarness() {
   const transfers: Array<{
     tx: unknown

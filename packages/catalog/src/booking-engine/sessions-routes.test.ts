@@ -16,6 +16,38 @@ const ACTIVE_STOREFRONT = {
 
 const PUBLIC_CAPABILITY = `bcap_${"a".repeat(43)}`
 const WRONG_CAPABILITY = `bcap_${"b".repeat(43)}`
+const SUPPLIER_OPERATION = {
+  id: "suop_route_1",
+  sessionId: "bses_route_1",
+  quoteId: "bsqu_route_1",
+  holdId: null,
+  operationKind: "reserve" as const,
+  state: "manual_review" as const,
+  commitmentPolicy: "supplier_first" as const,
+  entityModule: "cruises",
+  entityId: "crus_route_1",
+  sourceKind: "cruise:test",
+  sourceConnectionId: "conn_route_1",
+  sourceRef: "source-route-1",
+  adapterKind: "cruise:test",
+  requestFingerprint: "request-fingerprint-route-1",
+  adapterIdempotencyKey: "bses_route_1:commit-route-1:reserve",
+  attemptCount: 1,
+  upstreamRef: null,
+  upstreamStatus: null,
+  bookingId: null,
+  lastErrorClass: "supplier_timeout",
+  safeEvidence: {},
+  submittedAt: "2026-08-01T12:00:00.000Z",
+  lastCheckedAt: null,
+  sourceUpdatedAt: null,
+  nextReconcileAt: null,
+  resolvedAt: null,
+  resolvedBy: null,
+  resolutionReason: null,
+  createdAt: "2026-08-01T12:00:00.000Z",
+  updatedAt: "2026-08-01T12:00:00.000Z",
+}
 
 function createApp(
   storefrontChannel: {
@@ -49,6 +81,12 @@ function createApp(
       commitOwnedBooking: inventory.commitOwnedBooking,
     },
   })
+  const supplierOperations = {
+    list: vi.fn(async () => [SUPPLIER_OPERATION]),
+    get: vi.fn(async () => SUPPLIER_OPERATION),
+    reconcile: vi.fn(async () => SUPPLIER_OPERATION),
+    resolve: vi.fn(async () => SUPPLIER_OPERATION),
+  }
   const app = new Hono()
   app.use("/v1/public/catalog/*", async (c, next) => {
     if (currentStorefrontChannel) {
@@ -70,12 +108,14 @@ function createApp(
         principalId: "staff_1",
         staffAuthority: { admitted: true, reason: "booking_support_case" },
       }),
+      resolveSupplierOperations: () => supplierOperations,
     }),
   )
   return {
     app,
     inventory,
     module,
+    supplierOperations,
     setStorefrontChannel(
       next: {
         storefrontId: string
@@ -235,6 +275,42 @@ describe("Booking Session v1 routes", () => {
     expect(publicResponse.status).toBe(404)
     expect(adminResponse.status).toBe(200)
     await expect(adminResponse.json()).resolves.toEqual({ expired: 0 })
+  })
+
+  it("mounts Supplier Operation inspection and resolution only on the staff surface", async () => {
+    const { app, supplierOperations } = createApp()
+    const publicResponse = await app.request("/v1/public/catalog/supplier-operations")
+    const adminResponse = await app.request("/v1/admin/catalog/supplier-operations")
+    const resolveResponse = await app.request(
+      `/v1/admin/catalog/supplier-operations/${SUPPLIER_OPERATION.id}/resolve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idempotencyKey: "route-resolution-key",
+          resolution: "refused",
+          reason: "Supplier confirmed no reservation exists",
+        }),
+      },
+    )
+
+    expect(publicResponse.status).toBe(404)
+    expect(adminResponse.status).toBe(200)
+    await expect(adminResponse.json()).resolves.toEqual({ operations: [SUPPLIER_OPERATION] })
+    expect(resolveResponse.status).toBe(200)
+    expect(supplierOperations.resolve).toHaveBeenCalledWith(
+      SUPPLIER_OPERATION.id,
+      {
+        idempotencyKey: "route-resolution-key",
+        resolution: "refused",
+        reason: "Supplier confirmed no reservation exists",
+      },
+      {
+        actorKind: "staff",
+        principalId: "staff_1",
+        staffAuthority: { admitted: true, reason: "booking_support_case" },
+      },
+    )
   })
 
   it("adapts public anonymous and admin staff transports to the same module outcomes", async () => {

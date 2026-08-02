@@ -94,13 +94,17 @@ export function createProductionBookingSessionPaymentPorts(
           payerName: [contact.firstName, contact.lastName].filter(Boolean).join(" ") || null,
           returnUrl: commit.payment?.returnUrl,
           cancelUrl: commit.payment?.cancelUrl,
-          expiresAt: earliestDate(session.expiresAt, quote.expiresAt, hold.expiresAt),
+          expiresAt: earliestDate(
+            session.expiresAt,
+            quote.expiresAt,
+            hold?.expiresAt ?? quote.expiresAt,
+          ),
           metadata: {
             paymentPolicySource: resolved.source,
             paymentScheduleType: dueNow.scheduleType,
             sessionActorKind: session.actorKind,
             quoteId: quote.id,
-            holdId: hold.id,
+            ...(hold ? { holdId: hold.id } : {}),
           },
         },
         deps.financeRuntime,
@@ -128,7 +132,11 @@ export function createProductionBookingSessionPaymentPorts(
             description: `Booking Session ${session.id}`,
             returnUrl: commit.payment?.returnUrl,
             cancelUrl: commit.payment?.cancelUrl,
-            metadata: { bookingSessionId: session.id, quoteId: quote.id, holdId: hold.id },
+            metadata: {
+              bookingSessionId: session.id,
+              quoteId: quote.id,
+              ...(hold ? { holdId: hold.id } : {}),
+            },
           },
           {
             context: deps.paymentAdapterContext ?? { env: {} },

@@ -20,7 +20,13 @@ export const bookingSessionTargetV1 = z.discriminatedUnion("kind", [
 ])
 export type BookingSessionTargetV1 = z.infer<typeof bookingSessionTargetV1>
 
-export const bookingSessionStateV1 = z.enum(["active", "consumed", "expired", "abandoned"])
+export const bookingSessionStateV1 = z.enum([
+  "active",
+  "supplier_pending",
+  "consumed",
+  "expired",
+  "abandoned",
+])
 export type BookingSessionStateV1 = z.infer<typeof bookingSessionStateV1>
 
 export const bookingSessionCapabilityActionV1 = z.enum([
@@ -121,7 +127,8 @@ export type BookingHoldRecordV1 = z.infer<typeof bookingHoldRecordV1>
 export const commitBookingSessionV1 = z.object({
   expectedRevision: z.number().int().positive(),
   quoteId: z.string().min(1),
-  holdId: z.string().min(1),
+  /** Required for owned inventory; sourced targets may commit without a Hold. */
+  holdId: z.string().min(1).optional(),
   idempotencyKey: z.string().min(8).max(128),
   payment: z
     .object({
@@ -167,6 +174,10 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("not_authorized") }),
   z.object({ kind: z.literal("idempotency_conflict") }),
+  z.object({
+    kind: z.literal("supplier_operation_active"),
+    nextAction: z.literal("reconcile_supplier_operation"),
+  }),
   z.object({
     kind: z.literal("quote_unavailable"),
     reason: z.enum([

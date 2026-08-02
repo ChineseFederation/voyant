@@ -925,6 +925,17 @@ export function engineParametersFromDraft(
     const value = stringValue(configure?.[key])
     if (value && next[key] == null) next[key] = value
   }
+  for (const key of [
+    "sailingId",
+    "cabinCategoryId",
+    "cabinCategoryRef",
+    "occupancy",
+    "passengerComposition",
+    "fareCode",
+    "fareVariant",
+  ] as const) {
+    if (configure?.[key] != null && next[key] == null) next[key] = configure[key]
+  }
   // Lift `draft.promotionCode` to the top-level so `quoteEntity`'s
   // promotion hook can read it without descending into the nested
   // draft. Same lifting pattern as `paxCount` above. Per

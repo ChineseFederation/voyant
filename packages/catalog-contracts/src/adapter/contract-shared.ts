@@ -15,6 +15,7 @@ export type {
   ReserveResult,
   SourceAdapterRequestScope,
 } from "./booking-forwarding.js"
+export { ReservationDispatchError } from "./booking-forwarding.js"
 export type {
   PushAvailabilityRequest,
   PushAvailabilityResult,
@@ -50,10 +51,17 @@ export type {
 // Reservation retrieval
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface GetReservationRequest {
-  upstream_ref: string
-  scope?: SourceAdapterRequestScope
-}
+export type GetReservationRequest =
+  | {
+      upstream_ref: string
+      idempotency_key?: never
+      scope?: SourceAdapterRequestScope
+    }
+  | {
+      upstream_ref?: never
+      idempotency_key: string
+      scope?: SourceAdapterRequestScope
+    }
 
 export type ReservationStatus = ReserveResult["status"] | CancelResult["status"] | "cancelling"
 
@@ -121,6 +129,8 @@ export interface AdapterCapabilities {
    * Gates `getReservation` and `listReservations`.
    */
   supportsReservationRetrieval?: boolean
+  /** Whether `getReservation` accepts the original stable write key. */
+  supportsReservationLookupByIdempotencyKey?: boolean
   /**
    * Whether `cancel` returns a terminal upstream status synchronously.
    * When false, the adapter may return `status: "pending"` and drive the
@@ -264,6 +274,8 @@ export interface DiscoveryPage {
  */
 export interface LiveResolveRequest {
   ids: string[]
+  /** Server-resolved durable upstream identity keyed by local entity id. */
+  source_refs?: Record<string, string>
   /** Variant scope for the request (mirrors the resolver's scope). */
   scope: SourceAdapterRequestScope
   /**

@@ -71,6 +71,7 @@ export {
   type PushBookingResult,
   type PushContentRequest,
   type PushContentResult,
+  ReservationDispatchError,
   type ReservationStatus,
   type ReserveRequest,
   type ReserveResult,
@@ -106,6 +107,25 @@ export {
   createCatalogBookingApiModule,
   createCatalogBookingRoutes,
 } from "./booking-engine/routes.js"
+export {
+  createSupplierOperationWorkflow,
+  type DispatchSupplierReservationInput,
+  type SupplierOperationWorkflow,
+  type SupplierOperationWorkflowOutcome,
+} from "./booking-engine/supplier-operation-workflow.js"
+export {
+  type CreateSupplierOperationResult,
+  createDrizzleSupplierOperationRepository,
+  createSupplierOperationRecord,
+  type SupplierOperationInternalRecord,
+  type SupplierOperationRepository,
+  serializeSupplierOperation,
+} from "./booking-engine/supplier-operations.js"
+export {
+  type InsertSupplierOperation,
+  type SelectSupplierOperation,
+  supplierOperationsTable,
+} from "./booking-engine/supplier-operations-schema.js"
 export * from "./contract.js"
 // Drift events.
 export {

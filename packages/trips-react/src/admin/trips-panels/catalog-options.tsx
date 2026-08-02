@@ -2,7 +2,7 @@
 
 import { useOperatorAdminMessages as useAdminMessages } from "@voyant-travel/admin"
 import { type Draft, setAccommodation, setAddons } from "@voyant-travel/bookings-react/journey"
-import type { BookingDraftShape } from "@voyant-travel/catalog/booking-engine"
+import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
 import { Badge } from "@voyant-travel/ui/components/badge"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Minus, Plus } from "lucide-react"

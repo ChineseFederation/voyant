@@ -231,6 +231,8 @@ export function createCatalogRuntimePortContribution(
           db,
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => services.getOwnedHandlers(host.primitives.env(undefined)),
+          resolveSourceRegistry: () =>
+            services.ensureSourceRegistry(host.primitives.env(undefined)),
           payments: {
             inventory,
             distribution,

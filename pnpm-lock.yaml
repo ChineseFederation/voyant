@@ -5341,6 +5341,9 @@ importers:
 
   packages/trips-react:
     dependencies:
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
       '@voyant-travel/i18n':
         specifier: workspace:^
         version: link:../i18n

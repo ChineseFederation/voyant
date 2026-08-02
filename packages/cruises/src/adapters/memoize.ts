@@ -156,5 +156,12 @@ export function memoizeCruiseAdapter(
 
     // Bookings never cached.
     createBooking: (input) => adapter.createBooking(input),
+    getBooking: adapter.getBooking
+      ? (connectorBookingRef) => adapter.getBooking?.(connectorBookingRef) ?? Promise.resolve(null)
+      : undefined,
+    getBookingByIdempotencyKey: adapter.getBookingByIdempotencyKey
+      ? (idempotencyKey) =>
+          adapter.getBookingByIdempotencyKey?.(idempotencyKey) ?? Promise.resolve(null)
+      : undefined,
   }
 }

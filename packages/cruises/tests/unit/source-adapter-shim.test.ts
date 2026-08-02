@@ -408,15 +408,19 @@ describe("cruiseAdapterToSourceAdapter.getContent", () => {
   })
 })
 
-describe("cruiseAdapterToSourceAdapter.reserve / cancel — capability stubs", () => {
-  it("reserve throws to keep cruise booking on the vertical's commit path in v1", async () => {
+describe("cruiseAdapterToSourceAdapter.reserve / cancel", () => {
+  it("reserve rejects an incomplete sourced booking selection", async () => {
     const shim = cruiseAdapterToSourceAdapter(makeStubAdapter())
     await expect(
       shim.reserve!(
         { connection_id: "conn-x" },
         { entity_module: "cruises", entity_id: "crus_x", parameters: {} },
       ),
-    ).rejects.toThrow(/not supported/i)
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/requires sailingId/i),
+      certainty: "not_sent",
+      errorClass: "cruise_reservation_preflight_failed",
+    })
   })
 
   it("cancel throws to keep cruise cancellation on the vertical's commit path in v1", async () => {

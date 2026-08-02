@@ -189,6 +189,7 @@ export const adapterCapabilitiesSchema = z.object({
   supportsDriftDetection: z.boolean(),
   supportsBookingForwarding: z.boolean(),
   supportsReservationRetrieval: z.boolean().optional(),
+  supportsReservationLookupByIdempotencyKey: z.boolean().optional(),
   supportsSyncCancellation: z.boolean().optional(),
   postBookOperations: z.array(postBookOperationSchema).readonly(),
   cacheTtlSeconds: z.number().int().min(0).nullable().optional(),
@@ -300,7 +301,7 @@ export const reserveRequestSchema = z.object({
   idempotency_key: z.string().optional(),
 })
 
-export const reserveStatusSchema = z.enum(["held", "confirmed", "ticketed", "failed"])
+export const reserveStatusSchema = z.enum(["pending", "held", "confirmed", "ticketed", "failed"])
 
 export const reserveResultSchema = z.object({
   upstream_ref: z.string(),
@@ -335,10 +336,18 @@ export const reservationStatusSchema = z.enum([
   "cancelling",
 ])
 
-export const getReservationRequestSchema = z.object({
-  upstream_ref: z.string(),
-  scope: sourceAdapterRequestScopeSchema.optional(),
-})
+export const getReservationRequestSchema = z.union([
+  z.object({
+    upstream_ref: z.string(),
+    idempotency_key: z.never().optional(),
+    scope: sourceAdapterRequestScopeSchema.optional(),
+  }),
+  z.object({
+    upstream_ref: z.never().optional(),
+    idempotency_key: z.string(),
+    scope: sourceAdapterRequestScopeSchema.optional(),
+  }),
+])
 
 export const getReservationResultSchema = z.object({
   upstream_ref: z.string(),

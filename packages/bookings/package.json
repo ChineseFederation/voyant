@@ -8,6 +8,7 @@
     "./linkables": "./src/linkables.ts",
     "./pii": "./src/pii.ts",
     "./schema": "./src/schema.ts",
+    "./service-sourced-commitment": "./src/service-sourced-commitment.ts",
     "./requirements": "./src/requirements/index.ts",
     "./requirements/schema": "./src/requirements/schema.ts",
     "./requirements/validation": "./src/requirements/validation.ts",
@@ -100,6 +101,11 @@
         "types": "./dist/schema.d.ts",
         "import": "./dist/schema.js",
         "default": "./dist/schema.js"
+      },
+      "./service-sourced-commitment": {
+        "types": "./dist/service-sourced-commitment.d.ts",
+        "import": "./dist/service-sourced-commitment.js",
+        "default": "./dist/service-sourced-commitment.js"
       },
       "./requirements": {
         "types": "./dist/requirements/index.d.ts",

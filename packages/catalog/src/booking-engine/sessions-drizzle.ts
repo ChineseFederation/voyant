@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks"
 import { newId } from "@voyant-travel/db/lib/typeid"
-import { and, eq, inArray, isNull, lte, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, lte, notExists, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { PricingBreakdownV1 } from "./contracts.js"
@@ -23,6 +23,7 @@ import type {
   BookingSessionInternalRecord,
   BookingSessionRepository,
 } from "./sessions-service.js"
+import { supplierOperationsTable } from "./supplier-operations-schema.js"
 
 export function createDrizzleBookingSessionRepository(
   db: PostgresJsDatabase,
@@ -129,6 +130,25 @@ export function createDrizzleBookingSessionRepository(
           and(
             eq(bookingSessionsTable.state, "active"),
             lte(bookingSessionsTable.expiresAt, input.at),
+            notExists(
+              resolveDb()
+                .select({ id: supplierOperationsTable.id })
+                .from(supplierOperationsTable)
+                .where(
+                  and(
+                    eq(supplierOperationsTable.sessionId, bookingSessionsTable.id),
+                    inArray(supplierOperationsTable.state, [
+                      "queued",
+                      "submitted",
+                      "pending",
+                      "in_doubt",
+                      "manual_review",
+                      "succeeded",
+                      "manually_resolved",
+                    ]),
+                  ),
+                ),
+            ),
           ),
         )
         .limit(input.limit)
@@ -323,7 +343,7 @@ export function createDrizzleBookingSessionRepository(
         .where(
           and(
             eq(bookingSessionsTable.id, input.sessionId),
-            eq(bookingSessionsTable.state, "active"),
+            inArray(bookingSessionsTable.state, ["active", "supplier_pending"]),
           ),
         )
         .returning()
@@ -340,18 +360,20 @@ export function createDrizzleBookingSessionRepository(
         )
         .returning()
       if (!quote) throw new Error("booking_session_commit_quote_consumed")
-      const [hold] = await resolveDb()
-        .update(bookingSessionHoldsTable)
-        .set({ state: "converted", convertedAt: at })
-        .where(
-          and(
-            eq(bookingSessionHoldsTable.id, input.holdId),
-            eq(bookingSessionHoldsTable.sessionId, input.sessionId),
-            eq(bookingSessionHoldsTable.state, "active"),
-          ),
-        )
-        .returning()
-      if (!hold) throw new Error("booking_session_commit_hold_consumed")
+      if (input.holdId) {
+        const [hold] = await resolveDb()
+          .update(bookingSessionHoldsTable)
+          .set({ state: "converted", convertedAt: at })
+          .where(
+            and(
+              eq(bookingSessionHoldsTable.id, input.holdId),
+              eq(bookingSessionHoldsTable.sessionId, input.sessionId),
+              eq(bookingSessionHoldsTable.state, "active"),
+            ),
+          )
+          .returning()
+        if (!hold) throw new Error("booking_session_commit_hold_consumed")
+      }
       await resolveDb()
         .insert(bookingSessionCommitsTable)
         .values({

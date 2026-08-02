@@ -1,6 +1,11 @@
 import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
+import {
+  createSourcedBookingCommitment,
+  type SourcedBookingTravelerInput,
+} from "@voyant-travel/bookings/service-sourced-commitment"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
+  allocateBookingNumber,
   applyBookingSessionStaffSelectionV1,
   createSelfServiceCreateRuntime,
   FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION,
@@ -8,12 +13,15 @@ import {
   normalizeBookingSessionStaffSelectionV1,
 } from "@voyant-travel/finance"
 import { createRouteActionRegistry } from "@voyant-travel/tools"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { catalogSourcedEntriesTable } from "../schema-sourced-entries.js"
+import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import { pricingBreakdownV1 } from "./contracts.js"
 import type { OwnedBookingHandlerRegistry, SelfServiceBillingParty } from "./owned-handler.js"
+import type { SourceAdapterRegistry } from "./registry.js"
 import { engineParametersFromDraft } from "./routes.js"
 import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
@@ -22,14 +30,24 @@ import {
   type BookingSessionModule,
   type BookingSessionRepository,
   type CommitOwnedBookingInput,
+  type CommitSourcedBookingInput,
   createBookingSessionModule,
   InvalidBookingSessionSelectionError,
 } from "./sessions-service.js"
+import {
+  createSupplierOperationWorkflow,
+  safeSupplierRequestPayload,
+} from "./supplier-operation-workflow.js"
+import {
+  createDrizzleSupplierOperationRepository,
+  createSupplierOperationRecord,
+} from "./supplier-operations.js"
 
 export interface ProductionBookingSessionModuleDeps {
   db: PostgresJsDatabase
   repository: BookingSessionRepository
   resolveOwnedHandlers(): OwnedBookingHandlerRegistry | Promise<OwnedBookingHandlerRegistry>
+  resolveSourceRegistry(): SourceAdapterRegistry | Promise<SourceAdapterRegistry>
   relationships?: BookingsRelationshipsRuntime
   financeRuntime?: FinanceServiceRuntime
   payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
@@ -49,8 +67,11 @@ export function createProductionBookingSessionModule(
     ports: {
       repository: deps.repository,
       normalizeSelection: async ({ selection, target, access }) =>
-        normalizeProductSelection(target, selection, access),
+        normalizeBookingSelection(target, selection, access),
       composeQuote: async ({ session, tx }) => {
+        if (session.target.kind === "catalog_item") {
+          return composeSourcedQuote(deps, session, tx as PostgresJsDatabase)
+        }
         const handlers = await deps.resolveOwnedHandlers()
         const handler = handlers.resolve(entityModuleForSession(session.target))
         if (!handler) {
@@ -115,9 +136,285 @@ export function createProductionBookingSessionModule(
         )
       },
       commitOwnedBooking: (input) => commitOwnedBooking(deps, input),
+      commitSourcedBooking: (input) => commitSourcedBooking(deps, input),
+      hasActiveSupplierOperation: async ({ sessionId, tx }) => {
+        const operation = await createDrizzleSupplierOperationRepository(
+          tx as PostgresJsDatabase,
+        ).getBlockingBySession(sessionId)
+        return Boolean(operation)
+      },
       payments,
     },
   })
+}
+
+async function composeSourcedQuote(
+  deps: ProductionBookingSessionModuleDeps,
+  session: CommitSourcedBookingInput["session"],
+  tx: PostgresJsDatabase,
+) {
+  const sourced = await resolveSourcedTarget(tx, session)
+  if (!sourced) return unavailableQuoteResult("product_not_found")
+  const registry = await deps.resolveSourceRegistry()
+  const adapter = registry.resolveByConnection(sourced.sourceConnectionId)
+  if (!adapter?.capabilities.supportsLiveResolution || !adapter.liveResolve) {
+    return unavailableQuoteResult("no_sell_amount_configured")
+  }
+  const result = await adapter.liveResolve(
+    { connection_id: sourced.sourceConnectionId },
+    {
+      ids: [sourced.entityId],
+      source_refs: { [sourced.entityId]: sourced.sourceRef },
+      scope: { locale: "en", audience: "customer", market: "default" },
+      parameters: sourcedParameters(session.statePayload, sourced),
+    },
+  )
+  const liveValues = result.values[sourced.entityId]
+  if (result.failed?.[sourced.entityId] || !liveValues) {
+    return unavailableQuoteResult("selection_unavailable")
+  }
+  const pricing = pricingBreakdownFromLiveValues(liveValues)
+  return pricing
+    ? { status: "quoted" as const, pricing }
+    : unavailableQuoteResult("no_sell_amount_configured")
+}
+
+async function commitSourcedBooking(
+  deps: ProductionBookingSessionModuleDeps,
+  input: CommitSourcedBookingInput,
+) {
+  const sourced = await resolveSourcedTarget(deps.db, input.session)
+  if (!sourced) throw new BookingSessionCommitRejectedError("entity_not_bookable")
+  const registry = await deps.resolveSourceRegistry()
+  const workflow = createSupplierOperationWorkflow({
+    repository: createDrizzleSupplierOperationRepository(deps.db),
+    registry,
+  })
+  const parameters = sourcedParameters(input.session.statePayload, sourced)
+  const request = {
+    entity_module: sourced.entityModule,
+    entity_id: sourced.entityId,
+    source_ref: sourced.sourceRef,
+    parameters,
+    party: supplierParty(input.session.statePayload),
+    scope: { locale: "en", audience: "customer", market: "default" },
+  }
+  const adapter = registry.resolveByConnection(sourced.sourceConnectionId)
+  await deps.repository.withSessionTransaction(input.session.id, async (rawTx) => {
+    const currentSession = await deps.repository.getSession(input.session.id)
+    if (currentSession?.state !== "active" && currentSession?.state !== "supplier_pending") {
+      throw new BookingSessionCommitRejectedError("entity_not_bookable")
+    }
+    const claim = await createDrizzleSupplierOperationRepository(
+      rawTx as PostgresJsDatabase,
+    ).createOrReplay(
+      createSupplierOperationRecord({
+        sessionId: input.session.id,
+        quoteId: input.quote.id,
+        ...(input.hold ? { holdId: input.hold.id } : {}),
+        commitIdempotencyKey: input.idempotencyKey,
+        entityModule: sourced.entityModule,
+        entityId: sourced.entityId,
+        sourceKind: sourced.sourceKind,
+        sourceConnectionId: sourced.sourceConnectionId,
+        sourceRef: sourced.sourceRef,
+        adapterKind: adapter?.kind ?? sourced.sourceKind,
+        requestFingerprint: input.requestFingerprint,
+        adapterIdempotencyKey: `${input.session.id}:${input.idempotencyKey}:reserve`,
+        requestPayload: safeSupplierRequestPayload(request),
+        now: input.now,
+      }),
+    )
+    if (claim.status === "conflict") {
+      throw new Error("supplier_operation_idempotency_conflict")
+    }
+    if (currentSession.state === "active") {
+      currentSession.state = "supplier_pending"
+      currentSession.updatedAt = input.now
+      await deps.repository.saveSession(currentSession)
+    }
+  })
+  const result = await workflow.dispatch({
+    sessionId: input.session.id,
+    quoteId: input.quote.id,
+    ...(input.hold ? { holdId: input.hold.id } : {}),
+    commitIdempotencyKey: input.idempotencyKey,
+    requestFingerprint: input.requestFingerprint,
+    entityModule: sourced.entityModule,
+    entityId: sourced.entityId,
+    sourceKind: sourced.sourceKind,
+    sourceConnectionId: sourced.sourceConnectionId,
+    sourceRef: sourced.sourceRef,
+    request,
+    adapterContext: { connection_id: sourced.sourceConnectionId },
+    now: input.now,
+  })
+  if (result.kind === "idempotency_conflict") {
+    throw new BookingSessionCommitRejectedError("entity_not_bookable")
+  }
+  if (result.kind === "pending") {
+    return {
+      kind: "supplier_pending" as const,
+      nextAction: "await_supplier_operation" as const,
+      supplierOperationId: result.operation.id,
+      operatorBackedRiskAccepted: false,
+    }
+  }
+  if (result.kind === "in_doubt") {
+    return {
+      kind: "supplier_in_doubt" as const,
+      nextAction: "reconcile_supplier_operation" as const,
+      supplierOperationId: result.operation.id,
+      operatorBackedRiskAccepted: false,
+    }
+  }
+  if (result.kind === "failed") {
+    await reopenSessionAfterSupplierFailure(deps, result.operation.sessionId, input.now)
+    return {
+      kind: "supplier_failed" as const,
+      nextAction:
+        result.operation.state === "manual_review"
+          ? ("manual_review" as const)
+          : ("select_alternative_inventory" as const),
+      supplierOperationId: result.operation.id,
+      operatorBackedRiskAccepted: false,
+    }
+  }
+
+  return deps.db.transaction(async (tx) => {
+    const transaction = tx as PostgresJsDatabase
+    const operationRepository = createDrizzleSupplierOperationRepository(transaction)
+    const operation = await operationRepository.getForUpdate(result.operation.id)
+    if (
+      !operation ||
+      (operation.state !== "succeeded" &&
+        !(operation.state === "manually_resolved" && operation.upstreamStatus === "succeeded"))
+    ) {
+      throw new Error("supplier_operation_not_secured")
+    }
+    if (operation.bookingId) {
+      const allocations = await transaction
+        .select({ id: bookingAllocationsRef.id })
+        .from(bookingAllocationsRef)
+        .where(eq(bookingAllocationsRef.bookingId, operation.bookingId))
+      return {
+        kind: "committed" as const,
+        bookingId: operation.bookingId,
+        allocationIds: allocations.map((row) => row.id),
+        supplierOperationId: operation.id,
+      }
+    }
+    const billing = await resolveBilling(deps, input, transaction)
+    if (!billing) throw new BookingSessionCommitRejectedError("incomplete_draft")
+    const bookingNumber = await allocateBookingNumber(transaction, { now: input.now })
+    const materialized = await createSourcedBookingCommitment(transaction, {
+      bookingNumber,
+      personId: billing.personId,
+      organizationId: billing.organizationId,
+      contactFirstName: billing.contactFirstName,
+      contactLastName: billing.contactLastName,
+      contactEmail: billing.contactEmail,
+      contactPhone: billing.contactPhone,
+      sellCurrency: input.quote.pricing.currency,
+      sellAmountCents: input.quote.pricing.total,
+      title: sourced.title,
+      quantity: supplierQuantity(input.session.statePayload),
+      serviceDate: supplierServiceDate(result.result.upstream_payload),
+      endDate: supplierEndDate(result.result.upstream_payload),
+      travelers: sourcedTravelers(input.session.statePayload),
+      entityModule: sourced.entityModule,
+      entityId: sourced.entityId,
+      sourceKind: sourced.sourceKind,
+      sourceProvider: sourced.sourceProvider,
+      sourceConnectionId: sourced.sourceConnectionId,
+      sourceRef: sourced.sourceRef,
+      upstreamRef: result.result.upstream_ref,
+      storefrontId: input.session.storefrontOrigin?.storefrontId,
+      channelId: input.session.storefrontOrigin?.channelId,
+      supplierOperationId: operation.id,
+      now: input.now,
+    })
+    await captureSnapshot(transaction, {
+      bookingId: materialized.bookingId,
+      entityModule: sourced.entityModule,
+      entityId: sourced.entityId,
+      sourceKind: sourced.sourceKind,
+      sourceProvider: sourced.sourceProvider ?? undefined,
+      sourceConnectionId: sourced.sourceConnectionId,
+      sourceRef: result.result.upstream_ref,
+      frozenPayload: {
+        projection: sourced.projection,
+        selection: safeSourcedSelection(input.session.statePayload),
+        supplierEvidence: operation.safeEvidence,
+        pricing: input.quote.pricing,
+      },
+      pricingBasis: pricingBasisFromBreakdown(input.quote.pricing),
+      idempotencyKey: operation.adapterIdempotencyKey,
+    })
+    operation.bookingId = materialized.bookingId
+    operation.updatedAt = input.now
+    await operationRepository.save(operation)
+    await input.consumeSources(
+      transaction,
+      materialized.bookingId,
+      materialized.allocationIds,
+      operation.id,
+    )
+    return {
+      kind: "committed" as const,
+      bookingId: materialized.bookingId,
+      allocationIds: materialized.allocationIds,
+      supplierOperationId: operation.id,
+    }
+  })
+}
+
+async function reopenSessionAfterSupplierFailure(
+  deps: ProductionBookingSessionModuleDeps,
+  sessionId: string,
+  at: Date,
+): Promise<void> {
+  await deps.repository.withSessionTransaction(sessionId, async () => {
+    const session = await deps.repository.getSession(sessionId)
+    if (session?.state !== "supplier_pending") return
+    session.state = "active"
+    session.updatedAt = at
+    await deps.repository.saveSession(session)
+  })
+}
+
+async function resolveSourcedTarget(
+  db: PostgresJsDatabase,
+  session: CommitSourcedBookingInput["session"],
+) {
+  if (session.target.kind !== "catalog_item") return null
+  const rows = await db
+    .select()
+    .from(catalogSourcedEntriesTable)
+    .where(
+      and(
+        eq(catalogSourcedEntriesTable.entity_id, session.target.catalogItemId),
+        eq(catalogSourcedEntriesTable.status, "active"),
+      ),
+    )
+    .limit(2)
+  if (rows.length !== 1) return null
+  const row = rows[0]
+  if (!row?.source_connection_id || !row.source_ref || row.source_kind === "owned") return null
+  const title =
+    stringValue(row.projection.name) ??
+    stringValue(row.projection.title) ??
+    `Sourced ${row.entity_module}`
+  return {
+    entityModule: row.entity_module,
+    entityId: row.entity_id,
+    sourceKind: row.source_kind,
+    sourceProvider: row.source_provider,
+    sourceConnectionId: row.source_connection_id,
+    sourceRef: row.source_ref,
+    projection: row.projection,
+    title,
+  }
 }
 
 async function commitOwnedBooking(
@@ -222,7 +519,7 @@ async function commitOwnedBookingInTransaction(
 
 async function resolveBilling(
   deps: ProductionBookingSessionModuleDeps,
-  input: CommitOwnedBookingInput,
+  input: Pick<CommitOwnedBookingInput, "session" | "access">,
   tx: PostgresJsDatabase,
 ): Promise<SelfServiceBillingParty | null> {
   const contact = billingContact(input.session.statePayload)
@@ -290,6 +587,55 @@ function pricingBreakdownFromBasis(pricing: PricingBasis) {
   }
 }
 
+function pricingBreakdownFromLiveValues(values: Record<string, unknown>) {
+  const priceCents = numberValue(values.priceCents) ?? numberValue(values.price)
+  const currency = stringValue(values.currency)
+  if (priceCents == null || !currency) return null
+  const taxes = numberValue(values.taxesCents) ?? 0
+  const fees = numberValue(values.feesCents) ?? 0
+  const surcharges = numberValue(values.surchargesCents) ?? 0
+  const total = priceCents + taxes + fees + surcharges
+  return {
+    currency,
+    lines: [
+      {
+        kind: "base" as const,
+        label: "Base",
+        quantity: 1,
+        unitAmount: priceCents,
+        totalAmount: priceCents,
+      },
+      ...(fees > 0
+        ? [
+            {
+              kind: "fee" as const,
+              label: "Fees",
+              quantity: 1,
+              unitAmount: fees,
+              totalAmount: fees,
+            },
+          ]
+        : []),
+      ...(surcharges > 0
+        ? [
+            {
+              kind: "fee" as const,
+              label: "Surcharges",
+              quantity: 1,
+              unitAmount: surcharges,
+              totalAmount: surcharges,
+            },
+          ]
+        : []),
+    ],
+    taxes:
+      taxes > 0 ? [{ code: "TAX", label: "Taxes", rate: 0, amount: taxes, base: priceCents }] : [],
+    subtotal: priceCents + fees + surcharges,
+    taxTotal: taxes,
+    total,
+  }
+}
+
 function unavailableQuoteResult(invalidReason: string | undefined) {
   if (invalidReason === "product_not_found") {
     return {
@@ -332,14 +678,11 @@ function pricingBasisFromBreakdown(
   }
 }
 
-export function normalizeProductSelection(
-  target: CommitOwnedBookingInput["session"]["target"],
+export function normalizeBookingSelection(
+  _target: CommitOwnedBookingInput["session"]["target"],
   selection: Record<string, unknown>,
   access?: CommitOwnedBookingInput["access"],
 ): Record<string, unknown> {
-  if (target.kind !== "product") {
-    throw new InvalidBookingSessionSelectionError("unsupported_target")
-  }
   const source = asRecord(selection) ?? {}
   const { staffBooking: rawStaffBooking, ...customerSelection } = source
   rejectForbiddenSelection(customerSelection)
@@ -364,6 +707,16 @@ export function normalizeProductSelection(
       optionSelections: arrayValue(configure?.optionSelections)
         ?.map(normalizeOptionSelection)
         .filter((value): value is Record<string, unknown> => value != null),
+      sailingId: stringValue(configure?.sailingId),
+      cabinCategoryId: stringValue(configure?.cabinCategoryId),
+      cabinCategoryRef: normalizeSourceRef(configure?.cabinCategoryRef),
+      occupancy: positiveInteger(configure?.occupancy),
+      passengerComposition: normalizeStringNumberMap(asRecord(configure?.passengerComposition)),
+      fareCode: stringValue(configure?.fareCode),
+      fareVariant:
+        configure?.fareVariant === "cruise_only" || configure?.fareVariant === "air_inclusive"
+          ? configure.fareVariant
+          : undefined,
     }),
     billing: pruneEmpty({
       buyerType:
@@ -391,6 +744,108 @@ export function normalizeProductSelection(
       ? { staffBooking: normalizeBookingSessionStaffSelectionV1(rawStaffBooking) }
       : {}),
   })
+}
+
+export const normalizeProductSelection = normalizeBookingSelection
+
+function sourcedParameters(
+  payload: Record<string, unknown>,
+  source: { entityModule: string; sourceKind: string; sourceProvider: string | null },
+): Record<string, unknown> {
+  const parameters = engineParametersFromDraft(undefined, payload, {
+    entityModule: source.entityModule,
+    sourceKind: source.sourceKind,
+    sourceProvider: source.sourceProvider ?? undefined,
+  })
+  delete parameters.draft
+  delete parameters.contact
+  delete parameters.passengers
+  return parameters
+}
+
+function safeSourcedSelection(payload: Record<string, unknown>): Record<string, unknown> {
+  return pruneEmpty({
+    configure: asRecord(payload.configure),
+    accommodation: asRecord(payload.accommodation),
+    addons: arrayValue(payload.addons),
+  })
+}
+
+function supplierParty(payload: Record<string, unknown>) {
+  const billing = asRecord(payload.billing)
+  const contact = asRecord(billing?.contact)
+  return {
+    contact: pruneEmpty({
+      firstName: stringValue(contact?.firstName),
+      lastName: stringValue(contact?.lastName),
+      email: stringValue(contact?.email),
+      phone: stringValue(contact?.phone),
+    }),
+    passengers: sourcedTravelers(payload).map((traveler) => ({
+      firstName: traveler.firstName,
+      lastName: traveler.lastName,
+      email: traveler.email,
+      phone: traveler.phone,
+      travelerCategory: traveler.category,
+      isPrimary: traveler.isPrimary,
+    })),
+  }
+}
+
+function sourcedTravelers(payload: Record<string, unknown>): SourcedBookingTravelerInput[] {
+  const travelers = arrayValue(payload.travelers) ?? []
+  return travelers.flatMap((value, index) => {
+    const traveler = asRecord(value)
+    const firstName = stringValue(traveler?.firstName)
+    const lastName = stringValue(traveler?.lastName)
+    if (!firstName || !lastName) return []
+    const rawCategory = stringValue(traveler?.travelerCategory) ?? stringValue(traveler?.band)
+    const category =
+      rawCategory === "adult" ||
+      rawCategory === "child" ||
+      rawCategory === "infant" ||
+      rawCategory === "senior" ||
+      rawCategory === "other"
+        ? rawCategory
+        : null
+    return [
+      {
+        firstName,
+        lastName,
+        email: stringValue(traveler?.email) ?? null,
+        phone: stringValue(traveler?.phone) ?? null,
+        category,
+        isPrimary: traveler?.isPrimary === true || index === 0,
+      },
+    ]
+  })
+}
+
+function supplierQuantity(payload: Record<string, unknown>): number {
+  const configure = asRecord(payload.configure)
+  return positiveInteger(configure?.occupancy) ?? (sourcedTravelers(payload).length || 1)
+}
+
+function supplierServiceDate(payload: Record<string, unknown> | undefined): string | null {
+  const evidence = asRecord(payload?.upstreamPayload) ?? payload
+  const sailing = asRecord(evidence?.sailing)
+  const value = stringValue(sailing?.departureDate)
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+}
+
+function supplierEndDate(payload: Record<string, unknown> | undefined): string | null {
+  const evidence = asRecord(payload?.upstreamPayload) ?? payload
+  const sailing = asRecord(evidence?.sailing)
+  const value = stringValue(sailing?.returnDate)
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
+}
+
+function normalizeSourceRef(value: unknown): Record<string, unknown> | undefined {
+  const sourceRef = asRecord(value)
+  if (!sourceRef) return undefined
+  const externalId = stringValue(sourceRef.externalId)
+  if (!externalId) return undefined
+  return pruneEmpty({ externalId, connectionId: stringValue(sourceRef.connectionId) })
 }
 
 function applyStaffSelection(
@@ -454,6 +909,8 @@ function normalizeTraveler(value: unknown): Record<string, unknown> | null {
     email: stringValue(record.email),
     phone: stringValue(record.phone),
     band: stringValue(record.band),
+    travelerCategory: stringValue(record.travelerCategory),
+    isPrimary: record.isPrimary === true ? true : undefined,
   })
   return normalized.firstName || normalized.lastName ? normalized : null
 }
@@ -515,4 +972,11 @@ function stringValue(value: unknown): string | undefined {
 
 function positiveInteger(value: unknown): number | undefined {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value !== "string" || !value.trim()) return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }

@@ -308,6 +308,8 @@ export type ExternalContactInput = {
 }
 
 export type CreateExternalBookingInput = {
+  /** Stable across retries of the same Voyant Supplier Operation. */
+  idempotencyKey?: string
   sailingRef: SourceRef
   cabinCategoryRef: SourceRef
   occupancy: number
@@ -373,6 +375,12 @@ export interface CruiseAdapter {
    * Throws on upstream errors so the caller's transaction rolls back.
    */
   createBooking(input: CreateExternalBookingInput): Promise<ExternalBookingResult>
+
+  /** Optional point read used to reconcile pending or ambiguous reservations. */
+  getBooking?(connectorBookingRef: string): Promise<ExternalBookingResult | null>
+
+  /** Lookup for the timeout-after-send case where no confirmation ref was returned. */
+  getBookingByIdempotencyKey?(idempotencyKey: string): Promise<ExternalBookingResult | null>
 }
 
 export type AdapterCallContext = { adapterName: string; method: string }

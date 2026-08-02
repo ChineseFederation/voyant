@@ -165,9 +165,37 @@ scope. The established `bookings:write` plus `finance:write` authority also
 admits the staff write route and is required for `staffBooking`; the Catalog
 scope alone cannot submit Finance-owned operator details.
 
-Until a sourced target implements the Supplier Operation side of this same v1
-protocol, the admin form rejects sourced Commit rather than bypassing the
-commitment point through the legacy direct-create path.
+#### Sourced supplier-first v1 tracer
+
+Catalog Item Sessions resolve adapter identity exclusively from the durable
+`catalog_sourced_entries` row. A caller supplies the local Catalog Item and its
+bookable selection, but never an adapter kind, connection id, or upstream
+identity. Commit persists one active Supplier Operation per Session before
+dispatch, including the exact Quote, request fingerprint, safe request payload,
+stable adapter idempotency key, attempts, and reconciliation evidence. A
+definitive refusal may be followed by a new operation for an updated selection;
+pending, ambiguous, secured, and manually secured operations continue to block
+competing dispatches.
+
+The default `supplier_first` policy creates no Booking while the operation is
+queued, submitted, pending, in doubt, or awaiting manual review. Generic
+transport failures are treated as possibly dispatched and are never blindly
+retried. Only an adapter error that proves `not_sent` may return the operation
+to the dispatch queue. When a possibly dispatched call returns no upstream
+reference, capable adapters reconcile by the original stable idempotency key.
+A not-found observation remains in doubt until the supplier explicitly returns
+a terminal refusal, preventing eventual-consistency windows from authorizing a
+duplicate reservation. Optimistic Supplier Operation versions prevent stale or
+concurrent reconciliation from overwriting newer evidence or an operator's
+manual resolution. A secured result materializes one confirmed Booking,
+Booking Item, confirmed Allocation, provider-source Booking Origin, and
+immutable Catalog snapshot in a transaction that also consumes the Session and
+Quote. The sourced cruise adapter is the first complete vertical tracer.
+
+Authenticated operators can inspect Supplier Operations, request a supported
+point-read reconciliation, or record an admitted manual terminal resolution.
+Those actions retain supplier state separately from Booking state and append to
+the Booking Session audit log.
 The form likewise rejects promotion-code Commit until promotion evaluation is
 part of the immutable Booking Session Quote; a legacy preview cannot authorize
 the final Booking price.

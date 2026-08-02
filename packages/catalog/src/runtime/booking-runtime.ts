@@ -4,6 +4,7 @@ import {
   type CatalogBookingRoutesOptions,
   catalogQuotesTable,
   createProductionBookingSessionModule,
+  createSupplierOperationOperatorService,
   OWNED_SOURCE_KIND,
   type QuoteEntityResult,
 } from "@voyant-travel/catalog/booking-engine"
@@ -89,6 +90,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
           db,
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
+          resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),
           relationships: {
             async loadPersonTravelSnapshot(...args) {
               const runtime = await requireRelationshipsRuntime(options)
@@ -115,6 +117,12 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
             resolvePaymentAdapter: options.resolvePaymentAdapter,
             paymentAdapterContext: { env: c.env as Readonly<Record<string, unknown>> },
           },
+        })
+      },
+      resolveSupplierOperations(c) {
+        return createSupplierOperationOperatorService({
+          db: getCatalogBookingDb(c) as PostgresJsDatabase,
+          resolveRegistry: () => getBookingEngineRegistryFromContext(c),
         })
       },
       resolveAccess(c, actorKind) {

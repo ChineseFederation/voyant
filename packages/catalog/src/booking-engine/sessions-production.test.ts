@@ -40,6 +40,7 @@ vi.mock("@voyant-travel/finance", async (importOriginal) => ({
 
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
+import { createSourceAdapterRegistry } from "./registry.js"
 import { createInMemoryBookingSessionRepository } from "./sessions-memory.js"
 import {
   createProductionBookingSessionModule,
@@ -63,6 +64,7 @@ function createProductionHarness(handler: OwnedBookingHandler) {
     } as never,
     repository,
     resolveOwnedHandlers: () => handlers,
+    resolveSourceRegistry: () => createSourceAdapterRegistry(),
   })
   return { module, repository }
 }
@@ -705,6 +707,7 @@ function createCommittableProductionModule(command: Record<string, unknown> = {}
     } as never,
     repository,
     resolveOwnedHandlers: () => handlers,
+    resolveSourceRegistry: () => createSourceAdapterRegistry(),
     relationships: {
       upsertPersonFromContact: async () => ({ id: "per_buyer" }),
     } as never,

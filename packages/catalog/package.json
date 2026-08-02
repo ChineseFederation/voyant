@@ -45,6 +45,7 @@
     "./booking-engine/sessions-drizzle": "./src/booking-engine/sessions-drizzle.ts",
     "./booking-engine/sessions-routes": "./src/booking-engine/sessions-routes.ts",
     "./booking-engine/sessions-schema": "./src/booking-engine/sessions-schema.ts",
+    "./booking-engine/supplier-operations": "./src/booking-engine/supplier-operations.ts",
     "./booking-engine/draft-shape": "./src/booking-engine/draft-shape.ts",
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
     "./booking-engine/drafts-schema": "./src/booking-engine/drafts-schema.ts",
@@ -318,6 +319,11 @@
         "types": "./dist/booking-engine/sessions-schema.d.ts",
         "import": "./dist/booking-engine/sessions-schema.js",
         "default": "./dist/booking-engine/sessions-schema.js"
+      },
+      "./booking-engine/supplier-operations": {
+        "types": "./dist/booking-engine/supplier-operations.d.ts",
+        "import": "./dist/booking-engine/supplier-operations.js",
+        "default": "./dist/booking-engine/supplier-operations.js"
       },
       "./booking-engine/draft-shape": {
         "types": "./dist/booking-engine/draft-shape.d.ts",

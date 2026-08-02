@@ -417,7 +417,7 @@ const invalidCases = [
     { ...getContentResult, content_schema_version: undefined },
   ],
   ["reserveRequestSchema", reserveRequestSchema, { ...reserveRequest, parameters: undefined }],
-  ["reserveResultSchema", reserveResultSchema, { ...reserveResult, status: "pending" }],
+  ["reserveResultSchema", reserveResultSchema, { ...reserveResult, status: "unknown" }],
   ["cancelRequestSchema", cancelRequestSchema, { reason: "customer_request" }],
   ["cancelResultSchema", cancelResultSchema, { ...cancelResult, refund_currency: "GB" }],
   ["reservationStatusSchema", reservationStatusSchema, "expired"],

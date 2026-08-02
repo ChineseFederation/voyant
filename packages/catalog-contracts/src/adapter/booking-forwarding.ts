@@ -8,6 +8,8 @@ export interface SourceAdapterRequestScope {
 export interface ReserveRequest {
   entity_module: string
   entity_id: string
+  /** Durable upstream identity resolved from Catalog provenance by the server. */
+  source_ref?: string
   /**
    * Vertical-specific selection. Free-form, but adapters recognize well-known
    * keys such as departure/date/pax fields and, for sourced stays/packages,
@@ -29,9 +31,25 @@ export interface ReserveResult {
   /** Upstream order / booking identifier — used as `source_ref` in snapshots. */
   upstream_ref: string
   /** Status returned by the upstream system. */
-  status: "held" | "confirmed" | "ticketed" | "failed"
+  status: "pending" | "held" | "confirmed" | "ticketed" | "failed"
   /** Opaque per-vertical payload echoed back to the snapshot graph. */
   upstream_payload?: Record<string, unknown>
+}
+
+/**
+ * Adapter-declared dispatch certainty. Generic transport errors are always
+ * treated as possibly sent; adapters may use this error only when they can
+ * prove no upstream request left the process.
+ */
+export class ReservationDispatchError extends Error {
+  constructor(
+    message: string,
+    readonly certainty: "not_sent" | "possibly_sent",
+    readonly errorClass: string,
+  ) {
+    super(message)
+    this.name = "ReservationDispatchError"
+  }
 }
 
 export interface CancelRequest {

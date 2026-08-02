@@ -39,7 +39,10 @@
  *     are populated only when `entitySummary` carries enough context.
  */
 
-import type { BookingDraftV1, PricingBreakdownV1 } from "@voyant-travel/catalog/booking-engine"
+import type {
+  BookingDraftV1,
+  PricingBreakdownV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import type {
   ComputedScheduleEntry,
   PaymentPolicySource,

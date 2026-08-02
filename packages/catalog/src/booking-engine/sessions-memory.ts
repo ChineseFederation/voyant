@@ -148,10 +148,14 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
     async consumeCommit(input) {
       const session = repository.sessions.get(input.sessionId)
       const quote = repository.quotes.get(input.quoteId)
-      const hold = repository.holds.get(input.holdId)
-      if (session?.state !== "active") throw new Error("booking_session_commit_session_consumed")
+      const hold = input.holdId ? repository.holds.get(input.holdId) : undefined
+      if (session?.state !== "active" && session?.state !== "supplier_pending") {
+        throw new Error("booking_session_commit_session_consumed")
+      }
       if (quote?.state !== "active") throw new Error("booking_session_commit_quote_consumed")
-      if (hold?.state !== "active") throw new Error("booking_session_commit_hold_consumed")
+      if (input.holdId && hold?.state !== "active") {
+        throw new Error("booking_session_commit_hold_consumed")
+      }
       repository.sessions.set(input.sessionId, {
         ...cloneSession(session),
         state: "consumed",
@@ -159,7 +163,9 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
         updatedAt: new Date(input.now),
       })
       repository.quotes.set(input.quoteId, { ...cloneQuote(quote), state: "consumed" })
-      repository.holds.set(input.holdId, { ...cloneHold(hold), state: "converted" })
+      if (input.holdId && hold) {
+        repository.holds.set(input.holdId, { ...cloneHold(hold), state: "converted" })
+      }
       const commitId = newId("booking_session_commits")
       repository.commits.set(commitId, {
         id: commitId,

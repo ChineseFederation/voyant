@@ -39,6 +39,12 @@ import {
 
 export { FINANCE_BOOKING_CREATE_SELF_SERVICE_ROUTE_ACTION } from "./booking-create-policy.js"
 export {
+  type AllocateBookingNumberOptions,
+  allocateBookingNumber,
+  BOOKING_NUMBER_PATTERN,
+  formatBookingNumber,
+} from "./booking-number.js"
+export {
   BookingSessionPaymentIdempotencyConflictError,
   type BookingSessionPaymentState,
   bookingSessionPaymentIdempotencyKey,
