@@ -6,6 +6,7 @@ import {
   executeAdmittedCreatedTargetCommand,
   mapActionLedgerRequestContext,
 } from "@voyant-travel/action-ledger"
+import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   defineToolContextContribution,
@@ -26,10 +27,11 @@ export const voyantToolContextContribution = defineToolContextContribution({
   context: ["distribution"],
   contribute: ({ request, context }) => {
     const c = request as Context<{
-      Variables: ActionLedgerRequestContextValues
+      Variables: ActionLedgerRequestContextValues & { eventBus?: EventBus }
     }>
     const db = context.db as Parameters<typeof suppliersService.listSuppliers>[0]
     const requestContext = distributionActionLedgerContext(c)
+    const eventBus = c.get("eventBus")
     return {
       distribution: {
         listSuppliers: (query: Parameters<typeof suppliersService.listSuppliers>[1]) =>
@@ -97,7 +99,7 @@ export const voyantToolContextContribution = defineToolContextContribution({
           id,
           ...input
         }: Parameters<import("./tools.js").DistributionToolServices["updateChannel"]>[0]) =>
-          distributionService.updateChannel(db, id, input),
+          distributionService.updateChannel(db, id, input, eventBus),
         listExternalRefs: (query: Parameters<typeof externalRefsService.listExternalRefs>[1]) =>
           externalRefsService.listExternalRefs(db, query),
         getExternalRefById: (id: string) => externalRefsService.getExternalRefById(db, id),

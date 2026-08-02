@@ -42,7 +42,11 @@ export interface ProductTypesPageProps {
 function getFormSchema(messages: ProductTypesPageMessages) {
   return z.object({
     name: z.string().min(1, messages.validation.nameRequired).max(255),
-    code: z.string().min(1, messages.validation.codeRequired).max(100),
+    code: z
+      .string()
+      .min(1, messages.validation.codeRequired)
+      .max(100)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, messages.validation.codeRequired),
     description: z.string().optional().nullable(),
     sortOrder: z.coerce.number().int().default(0),
     active: z.boolean().default(true),
@@ -254,18 +258,17 @@ function ProductTypeSheet({
   const isSubmitting = create.isPending || update.isPending
 
   const onSubmit = async (values: FormOutput) => {
-    const payload = {
+    const editableFields = {
       name: values.name,
-      code: values.code,
       description: values.description || null,
       sortOrder: values.sortOrder,
       active: values.active,
     }
 
     if (item) {
-      await update.mutateAsync({ id: item.id, input: payload })
+      await update.mutateAsync({ id: item.id, input: editableFields })
     } else {
-      await create.mutateAsync(payload)
+      await create.mutateAsync({ ...editableFields, code: values.code })
     }
     onSuccess()
   }
@@ -295,7 +298,11 @@ function ProductTypeSheet({
               </div>
               <div className="flex flex-col gap-2">
                 <Label>{messages.codeLabel}</Label>
-                <Input {...form.register("code")} placeholder={messages.codePlaceholder} />
+                <Input
+                  {...form.register("code")}
+                  placeholder={messages.codePlaceholder}
+                  disabled={Boolean(item)}
+                />
                 {form.formState.errors.code ? (
                   <p className="text-xs text-destructive">{form.formState.errors.code.message}</p>
                 ) : null}

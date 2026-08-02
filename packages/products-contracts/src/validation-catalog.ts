@@ -24,8 +24,22 @@ export const catalogSearchDocumentSchema = z.object({
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
+  // Product family (recast product type). `familyCode` / `familyName` are the
+  // canonical merchandising-classification fields; `productTypeCode` /
+  // `productTypeName` remain as their compatibility aliases.
   productTypeCode: z.string().nullable(),
   productTypeName: z.string().nullable(),
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  // Resolved duration (explicit-first, itinerary-derived fallback, else null)
+  // plus its provenance. `durationDays` is the calculated compatibility value.
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  // Actionable review state for unresolved legacy classification/duration.
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
   categoryIds: z.array(z.string()),
   categoryNames: z.array(z.string()),
   categorySlugs: z.array(z.string()),

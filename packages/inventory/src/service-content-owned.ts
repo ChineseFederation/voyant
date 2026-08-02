@@ -31,7 +31,7 @@ import type { ContentLocaleMatchKind } from "@voyant-travel/catalog"
 import { pickBestCachedLocale } from "@voyant-travel/catalog"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
-
+import { resolveProductDuration } from "./classification.js"
 import {
   type ProductContent,
   productContentSchema,
@@ -221,7 +221,10 @@ export async function buildOwnedProductContent(
       contract_template_id: productRow.contractTemplateId ?? null,
       contractTemplateId: productRow.contractTemplateId ?? null,
       hero_image_url: cover?.url ?? null,
-      duration_days: estimateDurationDays(days, productRow),
+      duration_days: resolveProductDuration({
+        durationMinutes: productRow.durationMinutes,
+        itineraryDurationDays: itineraryDurationDays(days),
+      }).days,
       start_date: dateToIso(productRow.startDate),
       end_date: dateToIso(productRow.endDate),
       sell_currency: productRow.sellCurrency,
@@ -551,24 +554,10 @@ function sourceLocaleFor(_productRow: { id: string }): string {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function estimateDurationDays(
-  days: Array<{ dayNumber: number }>,
-  productRow: { startDate: string | null; endDate: string | null },
-): number | null {
-  if (days.length > 0) {
-    const max = Math.max(...days.map((d) => d.dayNumber))
-    return Number.isFinite(max) && max > 0 ? max : null
-  }
-  if (productRow.startDate && productRow.endDate) {
-    const start = new Date(productRow.startDate)
-    const end = new Date(productRow.endDate)
-    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
-      const diffMs = end.getTime() - start.getTime()
-      const days = Math.round(diffMs / (24 * 60 * 60 * 1000))
-      return days > 0 ? days : null
-    }
-  }
-  return null
+function itineraryDurationDays(days: Array<{ dayNumber: number }>): number | null {
+  if (days.length === 0) return null
+  const max = Math.max(...days.map((day) => day.dayNumber))
+  return Number.isFinite(max) && max > 0 ? max : null
 }
 
 function dateToIso(value: string | Date | null | undefined): string | null {

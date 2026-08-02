@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { AllocationResource } from "@voyant-travel/operations-react/availability"
 import type * as ReactTypes from "react"
 import { act } from "react"
 import { createRoot, type Root } from "react-dom/client"
@@ -8,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { SlotAllocationPage } from "./slot-allocation-page.js"
 
 const testState = vi.hoisted(() => ({
+  removeResource: vi.fn(),
   manifest: {
     slot: {
       id: "slot_1",
@@ -44,9 +46,6 @@ const testState = vi.hoisted(() => ({
             isLeadTraveler: true,
             isPrimary: true,
             sharingGroupId: null,
-            optionId: null,
-            optionUnitId: null,
-            optionUnitCode: null,
             roomTypeId: null,
             bedPreference: null,
             allocations: {},
@@ -58,7 +57,7 @@ const testState = vi.hoisted(() => ({
         ],
       },
     ],
-    resources: [],
+    resources: [] as AllocationResource[],
     sharingGroupLabels: {},
     summary: {
       bookingCount: 1,
@@ -95,7 +94,7 @@ vi.mock("@voyant-travel/operations-react/availability", () => ({
   useAllocationResourceMutation: () => ({
     create: { isPending: false, mutateAsync: vi.fn() },
     update: { isPending: false, mutateAsync: vi.fn() },
-    remove: { isPending: false, mutateAsync: vi.fn() },
+    remove: { isPending: false, mutateAsync: testState.removeResource },
   }),
   useAssignTravelerAllocationMutation: () => ({
     mutateAsync: vi.fn(),
@@ -117,6 +116,10 @@ vi.mock("@voyant-travel/ui/components", () => {
     Button: ({ children, ...props }: ReactTypes.ButtonHTMLAttributes<HTMLButtonElement>) => (
       <button {...props}>{children}</button>
     ),
+    Card: ({ children }: { children?: ReactTypes.ReactNode }) => <section>{children}</section>,
+    CardContent: Passthrough,
+    CardHeader: Passthrough,
+    CardTitle: ({ children }: { children?: ReactTypes.ReactNode }) => <h2>{children}</h2>,
     cn: (...classes: Array<string | null | false | undefined>) => classes.filter(Boolean).join(" "),
     Dialog: Passthrough,
     DialogBody: Passthrough,
@@ -160,9 +163,12 @@ describe("SlotAllocationPage", () => {
     container?.remove()
     root = null
     container = null
+    testState.manifest.resources = []
+    testState.manifest.bookings[0]!.travelers[0]!.allocations = {}
+    testState.removeResource.mockReset()
   })
 
-  it("shows passengers when a slot has bookings but no allocation kinds", () => {
+  it("shows booked travelers and standard logistics kinds without templates", () => {
     container = document.createElement("div")
     document.body.appendChild(container)
     root = createRoot(container)
@@ -171,9 +177,50 @@ describe("SlotAllocationPage", () => {
       root?.render(<SlotAllocationPage slotId="slot_1" />)
     })
 
-    expect(container.textContent).toContain("Passengers")
+    expect(container.textContent).toContain("Rooms")
+    expect(container.textContent).toContain("Vehicles")
+    expect(container.textContent).toContain("Seats")
+    expect(container.textContent).toContain("Add resource")
     expect(container.textContent).toContain("BK-001")
     expect(container.textContent).toContain("Ioana Iordache")
     expect(container.textContent).not.toContain("This slot has no allocations to manage.")
+  })
+
+  it("surfaces resource removal failures in the workspace", async () => {
+    testState.manifest.resources = [
+      {
+        id: "room_1",
+        slotId: "slot_1",
+        kind: "room",
+        refType: null,
+        refId: null,
+        label: "Room 101",
+        capacity: 1,
+        flags: {},
+        parentId: null,
+        sortOrder: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]
+    testState.manifest.bookings[0]!.travelers[0]!.allocations = { room: "room_1" }
+    testState.removeResource.mockRejectedValueOnce(
+      new Error("Remove child resources before deleting their parent"),
+    )
+    container = document.createElement("div")
+    document.body.appendChild(container)
+    root = createRoot(container)
+
+    await act(async () => {
+      root?.render(<SlotAllocationPage slotId="slot_1" />)
+    })
+    const removeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Remove"]')
+    expect(removeButton).not.toBeNull()
+
+    await act(async () => {
+      removeButton?.click()
+    })
+
+    expect(container.textContent).toContain("Remove child resources before deleting their parent")
   })
 })

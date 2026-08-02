@@ -35,6 +35,11 @@ describe("createCatalogAdminExtension", () => {
         catalogProducts: "Pachete",
         catalogExcursions: "Excursii",
         catalogTours: "Tururi",
+        catalogBoatTours: "Tururi cu barca",
+        catalogActivities: "Activitati",
+        catalogAttractions: "Atractii",
+        catalogEvents: "Evenimente",
+        catalogTransportation: "Transport",
         catalogCruises: "Croaziere",
         catalogAccommodations: "Cazari",
       },
@@ -51,8 +56,20 @@ describe("createCatalogAdminExtension", () => {
           url: "/catalog/products",
           items: [
             { id: "catalog-products", title: "Pachete", url: "/catalog/products" },
-            { id: "catalog-excursions", title: "Excursii", url: "/catalog/excursions" },
             { id: "catalog-tours", title: "Tururi", url: "/catalog/tours" },
+            {
+              id: "catalog-boat-tours",
+              title: "Tururi cu barca",
+              url: "/catalog/boat-tours",
+            },
+            { id: "catalog-activities", title: "Activitati", url: "/catalog/activities" },
+            { id: "catalog-attractions", title: "Atractii", url: "/catalog/attractions" },
+            { id: "catalog-events", title: "Evenimente", url: "/catalog/events" },
+            {
+              id: "catalog-transportation",
+              title: "Transport",
+              url: "/catalog/transportation",
+            },
             { id: "catalog-cruises", title: "Croaziere", url: "/catalog/cruises" },
             { id: "catalog-accommodations", title: "Cazari", url: "/catalog/accommodations" },
           ],
@@ -68,8 +85,12 @@ describe("createCatalogAdminExtension", () => {
       title: "Catalog",
       items: [
         { title: "Products" },
-        { title: "Excursions" },
         { title: "Tours" },
+        { title: "Boat Tours" },
+        { title: "Activities" },
+        { title: "Attractions" },
+        { title: "Events" },
+        { title: "Transportation" },
         { title: "Cruises" },
         { title: "Accommodations" },
       ],
@@ -85,10 +106,21 @@ describe("createCatalogAdminExtension", () => {
   it("describes the index redirect plus one route per catalog surface page", () => {
     const extension = createCatalogAdminExtension()
     const routes = extension.routes ?? []
-    expect(routes).toHaveLength(11)
-    expect(new Set(routes.map((route) => route.id)).size).toBe(11)
-    expect(new Set(routes.map((route) => route.path)).size).toBe(11)
-    for (const surface of ["products", "excursions", "tours", "cruises", "accommodations"]) {
+    expect(routes).toHaveLength(21)
+    expect(new Set(routes.map((route) => route.id)).size).toBe(21)
+    expect(new Set(routes.map((route) => route.path)).size).toBe(21)
+    for (const surface of [
+      "products",
+      "excursions",
+      "tours",
+      "boat-tours",
+      "activities",
+      "attractions",
+      "events",
+      "transportation",
+      "cruises",
+      "accommodations",
+    ]) {
       expect(routes.some((route) => route.path === `/catalog/${surface}`)).toBe(true)
     }
   })

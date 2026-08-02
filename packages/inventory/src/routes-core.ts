@@ -77,6 +77,17 @@ const productCapacityModeValues = ["free_sale", "limited", "on_request"] as cons
 const productVisibilityValues = ["public", "private", "hidden"] as const
 
 // --- Response row schema (authored from the Drizzle `products` $inferSelect) --
+const classificationSchema = z.object({
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
+})
+
 const productSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -87,6 +98,7 @@ const productSchema = z.object({
   termsHtml: z.string().nullable(),
   termsShowOnContract: z.boolean(),
   bookingMode: z.enum(productBookingModeValues),
+  supplyModel: z.enum(["dynamic", "scheduled"]).optional(),
   capacityMode: z.enum(productCapacityModeValues),
   timezone: z.string().nullable(),
   defaultLanguageTag: z.string().nullable(),
@@ -103,9 +115,17 @@ const productSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   productTypeId: z.string().nullable(),
+  // Product family / subtype / explicit duration — merchandising classification
+  // independent of bookingMode.
+  productSubtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
   // List view only — detail/create/update responses omit these.
   productTypeName: z.string().nullable().optional(),
+  familyCode: z.string().nullable().optional(),
+  itineraryDurationDays: z.number().int().nullable().optional(),
   nextDeparture: isoTimestamp.nullable().optional(),
+  // Resolved classification, attached by the list + detail read paths.
+  classification: classificationSchema.optional(),
   contractTemplateId: z.string().nullable(),
   taxClassId: z.string().nullable(),
   customerPaymentPolicy: z.unknown().nullable(),

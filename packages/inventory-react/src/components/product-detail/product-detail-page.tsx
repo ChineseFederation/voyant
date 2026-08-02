@@ -254,6 +254,11 @@ export function ProductDetailPage({ id }: { id: string }) {
         open={dialogs.departure.open}
         onOpenChange={dialogs.departure.setOpen}
         productId={id}
+        durationMinutes={
+          product.classification?.durationProvenance === "explicit"
+            ? product.classification.durationMinutes
+            : null
+        }
         slot={dialogs.departure.editing}
         onSuccess={() => {
           dialogs.departure.close()

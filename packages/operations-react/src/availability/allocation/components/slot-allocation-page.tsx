@@ -13,21 +13,26 @@ import {
   useVoyantAvailabilityContext,
 } from "@voyant-travel/operations-react/availability"
 import { Button, cn, Tabs, TabsList, TabsTrigger } from "@voyant-travel/ui/components"
-import { Armchair, ArrowLeft, Bed, Plus, Sparkles, Users, Wand2 } from "lucide-react"
+import { Armchair, ArrowLeft, Bed, Bus, Plus, Sparkles, Users, Wand2 } from "lucide-react"
 import { type FormEvent, type ReactNode, useMemo, useState } from "react"
 
 import { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
 import { AddResourceDialog } from "./slot-allocation-add-resource-dialog.js"
 import {
   collectOccupants,
+  collectVehicleOccupants,
   defaultCapacityFor,
   deriveAllocationKinds,
+  isTravelerAllocatableKind,
+  kindDescription,
   kindLabel,
   parentKindFor,
   type ResourceCapacitySummary,
   ROOM_KIND,
   summarizeResourceCapacity,
+  VEHICLE_KIND,
   VEHICLE_SEAT_KIND,
+  validateVehicleSeatDesignation,
 } from "./slot-allocation-model.js"
 import { CapacitySummaryBadges, PassengerListPanel } from "./slot-allocation-page-panels.js"
 import { ResourceColumnsView } from "./slot-allocation-resource-view.js"
@@ -102,6 +107,7 @@ export function SlotAllocationPage({
   const [resourceLabel, setResourceLabel] = useState("")
   const [resourceCapacity, setResourceCapacity] = useState(2)
   const [resourceOptionId, setResourceOptionId] = useState<string | null>(null)
+  const [resourceParentId, setResourceParentId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const data = allocation.data?.data
@@ -158,9 +164,20 @@ export function SlotAllocationPage({
     () => (data?.resources ?? []).filter((resource) => resource.kind === parentKindFor(activeKind)),
     [data?.resources, activeKind],
   )
+  const vehicleResources = useMemo(
+    () => (data?.resources ?? []).filter((resource) => resource.kind === VEHICLE_KIND),
+    [data?.resources],
+  )
+  const vehicleSeatResources = useMemo(
+    () => (data?.resources ?? []).filter((resource) => resource.kind === VEHICLE_SEAT_KIND),
+    [data?.resources],
+  )
   const occupants = useMemo(
-    () => collectOccupants(travelers, resources, activeKind),
-    [travelers, resources, activeKind],
+    () =>
+      activeKind === VEHICLE_KIND
+        ? collectVehicleOccupants(travelers, resources, vehicleSeatResources)
+        : collectOccupants(travelers, resources, activeKind),
+    [travelers, resources, vehicleSeatResources, activeKind],
   )
   const capacitySummary = useMemo<ResourceCapacitySummary>(
     () =>
@@ -220,6 +237,21 @@ export function SlotAllocationPage({
   async function createResource(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    if (activeKind === VEHICLE_SEAT_KIND) {
+      const issue = validateVehicleSeatDesignation({
+        label: resourceLabel,
+        parentId: resourceParentId,
+        seats: vehicleSeatResources,
+      })
+      if (issue) {
+        setError(
+          issue === "duplicate"
+            ? messages.seatDesignationDuplicate
+            : messages.seatDesignationRequired,
+        )
+        return
+      }
+    }
     try {
       await resourceMutation.create.mutateAsync({
         kind: activeKind,
@@ -227,10 +259,12 @@ export function SlotAllocationPage({
         capacity: resourceCapacity,
         refType: resourceOptionId ? "option" : null,
         refId: resourceOptionId,
+        parentId: activeKind === VEHICLE_SEAT_KIND ? resourceParentId : null,
       })
       setResourceLabel("")
       setResourceCapacity(defaultCapacityFor(activeKind))
       setResourceOptionId(null)
+      setResourceParentId(null)
       setAddingResource(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.createResourceFailed)
@@ -247,6 +281,15 @@ export function SlotAllocationPage({
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.updateResourceFailed)
       throw err
+    }
+  }
+
+  async function removeResource(resourceId: string) {
+    setError(null)
+    try {
+      await resourceMutation.remove.mutateAsync(resourceId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : messages.removeResourceFailed)
     }
   }
 
@@ -294,7 +337,8 @@ export function SlotAllocationPage({
   }
 
   const isSeatMap = activeKind === VEHICLE_SEAT_KIND
-  const canManuallyAddResource = !isSeatMap
+  const isTravelerAssignable = isTravelerAllocatableKind(activeKind)
+  const canManuallyAddResource = true
   const context: SlotAllocationPageRenderContext = {
     slotId,
     tabId: activeTabId,
@@ -318,17 +362,22 @@ export function SlotAllocationPage({
       {selectedExtraTab || !hasAllocationView
         ? null
         : renderExtraActions?.({ slotId, kind: activeKind })}
-      {selectedExtraTab || !hasAllocationView ? null : resources.length === 0 ? (
-        <Button
-          variant="outline"
-          onClick={() => void generateResources()}
-          disabled={automationMutation.materializeTemplates.isPending}
-        >
-          <Sparkles data-icon="inline-start" aria-hidden="true" />
-          {automationMutation.materializeTemplates.isPending
-            ? messages.generatingResources
-            : messages.generateResources}
-        </Button>
+      {selectedExtraTab || !hasAllocationView || !isTravelerAssignable ? null : resources.length ===
+        0 ? (
+        (templates.data?.data ?? []).some((option) =>
+          option.templates.some((template) => template.kind === activeKind),
+        ) ? (
+          <Button
+            variant="outline"
+            onClick={() => void generateResources()}
+            disabled={automationMutation.materializeTemplates.isPending}
+          >
+            <Sparkles data-icon="inline-start" aria-hidden="true" />
+            {automationMutation.materializeTemplates.isPending
+              ? messages.generatingResources
+              : messages.generateResources}
+          </Button>
+        ) : null
       ) : (
         <Button
           variant="outline"
@@ -348,6 +397,7 @@ export function SlotAllocationPage({
             setResourceLabel("")
             setResourceCapacity(defaultCapacityFor(activeKind))
             setResourceOptionId(null)
+            setResourceParentId(null)
             setError(null)
             setAddingResource(true)
           }}
@@ -395,6 +445,8 @@ export function SlotAllocationPage({
               <TabsTrigger key={kind} value={kind} className="gap-2">
                 {kind === VEHICLE_SEAT_KIND ? (
                   <Armchair className="size-4" aria-hidden="true" />
+                ) : kind === VEHICLE_KIND ? (
+                  <Bus className="size-4" aria-hidden="true" />
                 ) : (
                   <Bed className="size-4" aria-hidden="true" />
                 )}
@@ -409,6 +461,10 @@ export function SlotAllocationPage({
             ))}
           </TabsList>
         </Tabs>
+      ) : null}
+
+      {hasAllocationView && kindDescription(activeKind, messages) ? (
+        <p className="text-sm text-muted-foreground">{kindDescription(activeKind, messages)}</p>
       ) : null}
 
       {selectedExtraTab ? (
@@ -446,6 +502,9 @@ export function SlotAllocationPage({
               onResourceCapacityChange={setResourceCapacity}
               resourceOptionId={resourceOptionId}
               onResourceOptionIdChange={setResourceOptionId}
+              resourceParentId={resourceParentId}
+              onResourceParentIdChange={setResourceParentId}
+              parentResources={vehicleResources}
               resourceOptions={templates.data?.data ?? []}
               projectedSummary={projectedSummary}
               createPending={resourceMutation.create.isPending}
@@ -463,12 +522,14 @@ export function SlotAllocationPage({
                 void assignTraveler(travelerId, resourceId)
               }
               onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
+              onRemoveResource={(resourceId) => void removeResource(resourceId)}
               onBookingOpen={onBookingOpen}
               renderTravelerActions={renderTravelerActions}
             />
           ) : (
             <ResourceColumnsView
               kind={activeKind}
+              assignable={isTravelerAssignable}
               resources={resources}
               travelers={travelers}
               occupants={occupants}
@@ -478,9 +539,7 @@ export function SlotAllocationPage({
                 void assignTraveler(travelerId, resourceId)
               }
               onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
-              onRemoveResource={(resourceId) =>
-                void resourceMutation.remove.mutateAsync(resourceId)
-              }
+              onRemoveResource={(resourceId) => void removeResource(resourceId)}
               onEditResource={editResource}
               onBookingOpen={onBookingOpen}
               renderTravelerActions={renderTravelerActions}

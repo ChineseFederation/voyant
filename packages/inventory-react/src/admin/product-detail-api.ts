@@ -70,7 +70,19 @@ async function safeJson(response: Response): Promise<unknown> {
 }
 
 function errorMessage(response: Response, body: unknown): string {
-  if (typeof body === "object" && body !== null && "error" in body) {
+  if (typeof body === "object" && body !== null) {
+    const issueMessages =
+      "issues" in body && Array.isArray(body.issues)
+        ? body.issues.flatMap((issue) => {
+            if (typeof issue !== "object" || issue === null || !("message" in issue)) return []
+            const message = String(issue.message)
+            const fix = "fix" in issue && typeof issue.fix === "string" ? issue.fix : null
+            return [fix ? `${message} ${fix}` : message]
+          })
+        : []
+    if (issueMessages.length > 0) return issueMessages.join("\n")
+
+    if (!("error" in body)) return `Request failed: ${response.status} ${response.statusText}`
     const error = (body as { error: unknown }).error
     if (typeof error === "string") return error
     if (typeof error === "object" && error !== null && "message" in error) {

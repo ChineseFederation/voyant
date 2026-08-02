@@ -18,11 +18,29 @@ import { z } from "zod"
 import { defineOperation } from "./core/operation.js"
 import { paginated } from "./core/pagination.js"
 
+const productClassificationSummarySchema = z.object({
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
+})
+
 export const productSummarySchema = z.object({
   id: z.string(),
   name: z.string().nullable().optional(),
   status: z.string().nullable().optional(),
   productTypeId: z.string().nullable().optional(),
+  productTypeName: z.string().nullable().optional(),
+  // Product family / subtype / duration — the merchandising classification,
+  // independent of booking mode and supply model.
+  productSubtypeCode: z.string().nullable().optional(),
+  durationMinutes: z.number().int().nullable().optional(),
+  bookingMode: z.string().nullable().optional(),
+  classification: productClassificationSummarySchema.optional(),
   reference: z.string().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),

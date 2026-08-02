@@ -13,7 +13,8 @@ export default function CatalogExcursionsIndexPage({
   updateSearch,
   scopeOptions,
 }: CatalogAdminRoutePageProps) {
-  // Excursions = single-day scheduled trips (durationDays ≤ 1).
+  // Excursions = contextual scheduled browse. "Excursion" is contextual
+  // vocabulary, not a `≤ 1-day` family, so no duration lock is applied.
   return (
     <ScheduledCatalogHost
       scope="excursions"

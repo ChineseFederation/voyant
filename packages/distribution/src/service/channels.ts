@@ -1,3 +1,4 @@
+import type { EventBus } from "@voyant-travel/core"
 import { identityService } from "@voyant-travel/identity/service"
 import type {
   InsertContactPointForEntity,
@@ -276,12 +277,16 @@ export const channelServiceOperations = {
     return channelServiceOperations.getChannelById(db, row.id)
   },
 
-  async updateChannel(db: PostgresJsDatabase, id: string, data: UpdateChannelInput) {
+  async updateChannel(
+    db: PostgresJsDatabase,
+    id: string,
+    data: UpdateChannelInput,
+    eventBus?: EventBus,
+  ) {
     const existing = await channelServiceOperations.getChannelById(db, id)
     if (!existing) {
       return null
     }
-
     await db
       .update(channels)
       .set({ ...toUpdateChannelBaseValues(data), updatedAt: new Date() })
@@ -293,11 +298,13 @@ export const channelServiceOperations = {
       contactEmail: data.contactEmail === undefined ? existing.contactEmail : data.contactEmail,
     })
 
-    return channelServiceOperations.getChannelById(db, id)
+    const row = await channelServiceOperations.getChannelById(db, id)
+    if (row) await eventBus?.emit("channel.updated", { id: row.id })
+    return row
   },
 
-  async deleteChannel(db: PostgresJsDatabase, id: string) {
-    return db.transaction(async (tx) => {
+  async deleteChannel(db: PostgresJsDatabase, id: string, eventBus?: EventBus) {
+    const row = await db.transaction(async (tx) => {
       const affectedProductIds = await publicationServiceOperations.captureChannelDeletionReindex(
         tx,
         { channelId: id },
@@ -309,6 +316,13 @@ export const channelServiceOperations = {
         .returning({ id: channels.id })
       return row ? { ...row, affectedProductIds } : null
     })
+    if (row) {
+      await eventBus?.emit("channel.deleted", {
+        id: row.id,
+        affectedProductIds: row.affectedProductIds,
+      })
+    }
+    return row
   },
 
   async listChannelContactPoints(db: PostgresJsDatabase, channelId: string) {

@@ -12,118 +12,7 @@
     }
   ],
   "components": {
-    "schemas": {
-      "CatalogSearchFilter": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["eq"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "value": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "boolean"
-                  }
-                ]
-              }
-            },
-            "required": ["kind", "field", "value"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["in"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "values": {
-                "type": "array",
-                "items": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    }
-                  ]
-                }
-              }
-            },
-            "required": ["kind", "field", "values"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["range"]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "gte": {
-                "type": "number"
-              },
-              "lte": {
-                "type": "number"
-              }
-            },
-            "required": ["kind", "field"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["and"]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": ["kind", "clauses"]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": ["or"]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": ["kind", "clauses"]
-          }
-        ]
-      }
-    },
+    "schemas": {},
     "parameters": {}
   },
   "paths": {
@@ -968,7 +857,8 @@
                   "ticketMessage": {
                     "type": ["string", "null"]
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }
@@ -1188,7 +1078,8 @@
                   "ticketMessage": {
                     "type": ["string", "null"]
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }
@@ -10178,7 +10069,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Paginated list of product types",
+            "description": "Paginated list of product families",
             "content": {
               "application/json": {
                 "schema": {
@@ -10269,7 +10160,8 @@
                   "code": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 100
+                    "maxLength": 100,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
                   },
                   "description": {
                     "type": ["string", "null"]
@@ -10294,7 +10186,7 @@
         },
         "responses": {
           "201": {
-            "description": "The created product type",
+            "description": "The created product family",
             "content": {
               "application/json": {
                 "schema": {
@@ -10388,7 +10280,7 @@
         ],
         "responses": {
           "200": {
-            "description": "A product type by id",
+            "description": "A product family by id",
             "content": {
               "application/json": {
                 "schema": {
@@ -10445,7 +10337,7 @@
             }
           },
           "404": {
-            "description": "Product type not found",
+            "description": "Product family not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -10490,11 +10382,6 @@
                     "minLength": 1,
                     "maxLength": 255
                   },
-                  "code": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
                   "description": {
                     "type": ["string", "null"]
                   },
@@ -10510,14 +10397,15 @@
                     "type": ["object", "null"],
                     "additionalProperties": {}
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The updated product type",
+            "description": "The updated product family",
             "content": {
               "application/json": {
                 "schema": {
@@ -10590,7 +10478,7 @@
             }
           },
           "404": {
-            "description": "Product type not found",
+            "description": "Product family not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -10625,7 +10513,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Product type deleted",
+            "description": "Product family deleted",
             "content": {
               "application/json": {
                 "schema": {
@@ -10641,7 +10529,23 @@
             }
           },
           "404": {
-            "description": "Product type not found",
+            "description": "Product family not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Product family is standard or still assigned to products",
             "content": {
               "application/json": {
                 "schema": {
@@ -11740,13 +11644,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -11775,9 +11691,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -11858,9 +11778,21 @@
                     "type": ["integer", "null"],
                     "minimum": 0
                   },
+                  "width": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
+                  "height": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "altText": {
                     "type": ["string", "null"],
                     "maxLength": 1000
+                  },
+                  "assetId": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
                   },
                   "sortOrder": {
                     "type": "integer",
@@ -11926,13 +11858,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -11961,9 +11905,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12066,13 +12014,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12101,9 +12061,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12192,13 +12156,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12227,9 +12203,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12352,13 +12332,25 @@
                           "fileSize": {
                             "type": ["number", "null"]
                           },
+                          "width": {
+                            "type": ["number", "null"]
+                          },
+                          "height": {
+                            "type": ["number", "null"]
+                          },
                           "altText": {
+                            "type": ["string", "null"]
+                          },
+                          "assetId": {
                             "type": ["string", "null"]
                           },
                           "sortOrder": {
                             "type": "number"
                           },
                           "isCover": {
+                            "type": "boolean"
+                          },
+                          "isOpenGraph": {
                             "type": "boolean"
                           },
                           "isBrochure": {
@@ -12387,9 +12379,13 @@
                           "storageKey",
                           "mimeType",
                           "fileSize",
+                          "width",
+                          "height",
                           "altText",
+                          "assetId",
                           "sortOrder",
                           "isCover",
+                          "isOpenGraph",
                           "isBrochure",
                           "isBrochureCurrent",
                           "brochureVersion",
@@ -12471,13 +12467,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12506,9 +12514,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12605,13 +12617,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12640,9 +12664,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12731,13 +12759,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12766,9 +12806,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -12846,9 +12890,21 @@
                     "type": ["integer", "null"],
                     "minimum": 0
                   },
+                  "width": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
+                  "height": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "altText": {
                     "type": ["string", "null"],
                     "maxLength": 1000
+                  },
+                  "assetId": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
                   },
                   "sortOrder": {
                     "type": "integer",
@@ -12899,13 +12955,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -12934,9 +13002,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -13039,13 +13111,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -13074,9 +13158,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -13109,6 +13197,180 @@
         },
         "operationId": "deleteAdminProductsByIdBrochure",
         "summary": "DELETE /v1/admin/products/{id}/brochure",
+        "tags": ["products"],
+        "x-voyant-module": "products",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/products/{id}/open-graph-image": {
+      "patch": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mediaId": {
+                    "type": ["string", "null"]
+                  }
+                },
+                "required": ["mediaId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resolved explicit Open Graph media item, or null after clearing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "productId": {
+                          "type": "string"
+                        },
+                        "dayId": {
+                          "type": ["string", "null"]
+                        },
+                        "mediaType": {
+                          "type": "string",
+                          "enum": ["image", "video", "document"]
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        },
+                        "storageKey": {
+                          "type": ["string", "null"]
+                        },
+                        "mimeType": {
+                          "type": ["string", "null"]
+                        },
+                        "fileSize": {
+                          "type": ["number", "null"]
+                        },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
+                        "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
+                          "type": ["string", "null"]
+                        },
+                        "sortOrder": {
+                          "type": "number"
+                        },
+                        "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
+                          "type": "boolean"
+                        },
+                        "isBrochure": {
+                          "type": "boolean"
+                        },
+                        "isBrochureCurrent": {
+                          "type": "boolean"
+                        },
+                        "brochureVersion": {
+                          "type": ["number", "null"]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "productId",
+                        "dayId",
+                        "mediaType",
+                        "name",
+                        "url",
+                        "storageKey",
+                        "mimeType",
+                        "fileSize",
+                        "width",
+                        "height",
+                        "altText",
+                        "assetId",
+                        "sortOrder",
+                        "isCover",
+                        "isOpenGraph",
+                        "isBrochure",
+                        "isBrochureCurrent",
+                        "brochureVersion",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": ["data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The media item is not a product-level image owned by this product",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminProductsByIdOpenGraphImage",
+        "summary": "PATCH /v1/admin/products/{id}/open-graph-image",
         "tags": ["products"],
         "x-voyant-module": "products",
         "x-voyant-surface": "admin"
@@ -13313,13 +13575,25 @@
                           "fileSize": {
                             "type": ["number", "null"]
                           },
+                          "width": {
+                            "type": ["number", "null"]
+                          },
+                          "height": {
+                            "type": ["number", "null"]
+                          },
                           "altText": {
+                            "type": ["string", "null"]
+                          },
+                          "assetId": {
                             "type": ["string", "null"]
                           },
                           "sortOrder": {
                             "type": "number"
                           },
                           "isCover": {
+                            "type": "boolean"
+                          },
+                          "isOpenGraph": {
                             "type": "boolean"
                           },
                           "isBrochure": {
@@ -13348,9 +13622,13 @@
                           "storageKey",
                           "mimeType",
                           "fileSize",
+                          "width",
+                          "height",
                           "altText",
+                          "assetId",
                           "sortOrder",
                           "isCover",
+                          "isOpenGraph",
                           "isBrochure",
                           "isBrochureCurrent",
                           "brochureVersion",
@@ -13425,9 +13703,21 @@
                     "type": ["integer", "null"],
                     "minimum": 0
                   },
+                  "width": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
+                  "height": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "altText": {
                     "type": ["string", "null"],
                     "maxLength": 1000
+                  },
+                  "assetId": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
                   },
                   "sortOrder": {
                     "type": "integer",
@@ -13497,13 +13787,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -13532,9 +13834,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -13705,13 +14011,25 @@
                           "fileSize": {
                             "type": ["number", "null"]
                           },
+                          "width": {
+                            "type": ["number", "null"]
+                          },
+                          "height": {
+                            "type": ["number", "null"]
+                          },
                           "altText": {
+                            "type": ["string", "null"]
+                          },
+                          "assetId": {
                             "type": ["string", "null"]
                           },
                           "sortOrder": {
                             "type": "number"
                           },
                           "isCover": {
+                            "type": "boolean"
+                          },
+                          "isOpenGraph": {
                             "type": "boolean"
                           },
                           "isBrochure": {
@@ -13740,9 +14058,13 @@
                           "storageKey",
                           "mimeType",
                           "fileSize",
+                          "width",
+                          "height",
                           "altText",
+                          "assetId",
                           "sortOrder",
                           "isCover",
+                          "isOpenGraph",
                           "isBrochure",
                           "isBrochureCurrent",
                           "brochureVersion",
@@ -13825,9 +14147,21 @@
                     "type": ["integer", "null"],
                     "minimum": 0
                   },
+                  "width": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
+                  "height": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "altText": {
                     "type": ["string", "null"],
                     "maxLength": 1000
+                  },
+                  "assetId": {
+                    "type": ["string", "null"],
+                    "maxLength": 255
                   },
                   "sortOrder": {
                     "type": "integer",
@@ -13897,13 +14231,25 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
+                          "type": ["string", "null"]
+                        },
+                        "assetId": {
                           "type": ["string", "null"]
                         },
                         "sortOrder": {
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -13932,9 +14278,13 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
+                        "assetId",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -17995,6 +18345,22 @@
           },
           {
             "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "familyCode",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "productSubtypeCode",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "pattern": "^ctpl_[0-9a-hjkmnp-tv-z]{26}$"
             },
@@ -18194,6 +18560,10 @@
                               "other"
                             ]
                           },
+                          "supplyModel": {
+                            "type": "string",
+                            "enum": ["dynamic", "scheduled"]
+                          },
                           "capacityMode": {
                             "type": "string",
                             "enum": ["free_sale", "limited", "on_request"]
@@ -18244,11 +18614,67 @@
                           "productTypeId": {
                             "type": ["string", "null"]
                           },
+                          "productSubtypeCode": {
+                            "type": ["string", "null"]
+                          },
+                          "durationMinutes": {
+                            "type": ["integer", "null"]
+                          },
                           "productTypeName": {
                             "type": ["string", "null"]
                           },
+                          "familyCode": {
+                            "type": ["string", "null"]
+                          },
+                          "itineraryDurationDays": {
+                            "type": ["integer", "null"]
+                          },
                           "nextDeparture": {
                             "type": ["string", "null"]
+                          },
+                          "classification": {
+                            "type": "object",
+                            "properties": {
+                              "familyCode": {
+                                "type": ["string", "null"]
+                              },
+                              "familyName": {
+                                "type": ["string", "null"]
+                              },
+                              "subtypeCode": {
+                                "type": ["string", "null"]
+                              },
+                              "durationMinutes": {
+                                "type": ["integer", "null"]
+                              },
+                              "durationDays": {
+                                "type": ["integer", "null"]
+                              },
+                              "durationProvenance": {
+                                "type": "string",
+                                "enum": ["explicit", "itinerary-derived", "unresolved"]
+                              },
+                              "reviewRequired": {
+                                "type": "boolean"
+                              },
+                              "reviewReasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": ["missing_family", "unresolved_duration"]
+                                }
+                              }
+                            },
+                            "required": [
+                              "familyCode",
+                              "familyName",
+                              "subtypeCode",
+                              "durationMinutes",
+                              "durationDays",
+                              "durationProvenance",
+                              "reviewRequired",
+                              "reviewReasons"
+                            ]
                           },
                           "contractTemplateId": {
                             "type": ["string", "null"]
@@ -18296,6 +18722,8 @@
                           "endDate",
                           "pax",
                           "productTypeId",
+                          "productSubtypeCode",
+                          "durationMinutes",
                           "contractTemplateId",
                           "taxClassId",
                           "tags",
@@ -18424,6 +18852,16 @@
                     "type": ["integer", "null"],
                     "exclusiveMinimum": 0
                   },
+                  "productSubtypeCode": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "durationMinutes": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "customerPaymentPolicy": {
                     "type": ["object", "null"],
                     "properties": {
@@ -18538,6 +18976,10 @@
                             "other"
                           ]
                         },
+                        "supplyModel": {
+                          "type": "string",
+                          "enum": ["dynamic", "scheduled"]
+                        },
                         "capacityMode": {
                           "type": "string",
                           "enum": ["free_sale", "limited", "on_request"]
@@ -18588,11 +19030,67 @@
                         "productTypeId": {
                           "type": ["string", "null"]
                         },
+                        "productSubtypeCode": {
+                          "type": ["string", "null"]
+                        },
+                        "durationMinutes": {
+                          "type": ["integer", "null"]
+                        },
                         "productTypeName": {
                           "type": ["string", "null"]
                         },
+                        "familyCode": {
+                          "type": ["string", "null"]
+                        },
+                        "itineraryDurationDays": {
+                          "type": ["integer", "null"]
+                        },
                         "nextDeparture": {
                           "type": ["string", "null"]
+                        },
+                        "classification": {
+                          "type": "object",
+                          "properties": {
+                            "familyCode": {
+                              "type": ["string", "null"]
+                            },
+                            "familyName": {
+                              "type": ["string", "null"]
+                            },
+                            "subtypeCode": {
+                              "type": ["string", "null"]
+                            },
+                            "durationMinutes": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationDays": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationProvenance": {
+                              "type": "string",
+                              "enum": ["explicit", "itinerary-derived", "unresolved"]
+                            },
+                            "reviewRequired": {
+                              "type": "boolean"
+                            },
+                            "reviewReasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["missing_family", "unresolved_duration"]
+                              }
+                            }
+                          },
+                          "required": [
+                            "familyCode",
+                            "familyName",
+                            "subtypeCode",
+                            "durationMinutes",
+                            "durationDays",
+                            "durationProvenance",
+                            "reviewRequired",
+                            "reviewReasons"
+                          ]
                         },
                         "contractTemplateId": {
                           "type": ["string", "null"]
@@ -18640,6 +19138,8 @@
                         "endDate",
                         "pax",
                         "productTypeId",
+                        "productSubtypeCode",
+                        "durationMinutes",
                         "contractTemplateId",
                         "taxClassId",
                         "tags",
@@ -18775,6 +19275,10 @@
                             "other"
                           ]
                         },
+                        "supplyModel": {
+                          "type": "string",
+                          "enum": ["dynamic", "scheduled"]
+                        },
                         "capacityMode": {
                           "type": "string",
                           "enum": ["free_sale", "limited", "on_request"]
@@ -18825,11 +19329,67 @@
                         "productTypeId": {
                           "type": ["string", "null"]
                         },
+                        "productSubtypeCode": {
+                          "type": ["string", "null"]
+                        },
+                        "durationMinutes": {
+                          "type": ["integer", "null"]
+                        },
                         "productTypeName": {
                           "type": ["string", "null"]
                         },
+                        "familyCode": {
+                          "type": ["string", "null"]
+                        },
+                        "itineraryDurationDays": {
+                          "type": ["integer", "null"]
+                        },
                         "nextDeparture": {
                           "type": ["string", "null"]
+                        },
+                        "classification": {
+                          "type": "object",
+                          "properties": {
+                            "familyCode": {
+                              "type": ["string", "null"]
+                            },
+                            "familyName": {
+                              "type": ["string", "null"]
+                            },
+                            "subtypeCode": {
+                              "type": ["string", "null"]
+                            },
+                            "durationMinutes": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationDays": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationProvenance": {
+                              "type": "string",
+                              "enum": ["explicit", "itinerary-derived", "unresolved"]
+                            },
+                            "reviewRequired": {
+                              "type": "boolean"
+                            },
+                            "reviewReasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["missing_family", "unresolved_duration"]
+                              }
+                            }
+                          },
+                          "required": [
+                            "familyCode",
+                            "familyName",
+                            "subtypeCode",
+                            "durationMinutes",
+                            "durationDays",
+                            "durationProvenance",
+                            "reviewRequired",
+                            "reviewReasons"
+                          ]
                         },
                         "contractTemplateId": {
                           "type": ["string", "null"]
@@ -18892,6 +19452,8 @@
                         "endDate",
                         "pax",
                         "productTypeId",
+                        "productSubtypeCode",
+                        "durationMinutes",
                         "contractTemplateId",
                         "taxClassId",
                         "tags",
@@ -19031,6 +19593,16 @@
                     "type": ["integer", "null"],
                     "exclusiveMinimum": 0
                   },
+                  "productSubtypeCode": {
+                    "type": ["string", "null"],
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                  },
+                  "durationMinutes": {
+                    "type": ["integer", "null"],
+                    "exclusiveMinimum": 0
+                  },
                   "customerPaymentPolicy": {
                     "type": ["object", "null"],
                     "properties": {
@@ -19143,6 +19715,10 @@
                             "other"
                           ]
                         },
+                        "supplyModel": {
+                          "type": "string",
+                          "enum": ["dynamic", "scheduled"]
+                        },
                         "capacityMode": {
                           "type": "string",
                           "enum": ["free_sale", "limited", "on_request"]
@@ -19193,11 +19769,67 @@
                         "productTypeId": {
                           "type": ["string", "null"]
                         },
+                        "productSubtypeCode": {
+                          "type": ["string", "null"]
+                        },
+                        "durationMinutes": {
+                          "type": ["integer", "null"]
+                        },
                         "productTypeName": {
                           "type": ["string", "null"]
                         },
+                        "familyCode": {
+                          "type": ["string", "null"]
+                        },
+                        "itineraryDurationDays": {
+                          "type": ["integer", "null"]
+                        },
                         "nextDeparture": {
                           "type": ["string", "null"]
+                        },
+                        "classification": {
+                          "type": "object",
+                          "properties": {
+                            "familyCode": {
+                              "type": ["string", "null"]
+                            },
+                            "familyName": {
+                              "type": ["string", "null"]
+                            },
+                            "subtypeCode": {
+                              "type": ["string", "null"]
+                            },
+                            "durationMinutes": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationDays": {
+                              "type": ["integer", "null"]
+                            },
+                            "durationProvenance": {
+                              "type": "string",
+                              "enum": ["explicit", "itinerary-derived", "unresolved"]
+                            },
+                            "reviewRequired": {
+                              "type": "boolean"
+                            },
+                            "reviewReasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": ["missing_family", "unresolved_duration"]
+                              }
+                            }
+                          },
+                          "required": [
+                            "familyCode",
+                            "familyName",
+                            "subtypeCode",
+                            "durationMinutes",
+                            "durationDays",
+                            "durationProvenance",
+                            "reviewRequired",
+                            "reviewReasons"
+                          ]
                         },
                         "contractTemplateId": {
                           "type": ["string", "null"]
@@ -19245,6 +19877,8 @@
                         "endDate",
                         "pax",
                         "productTypeId",
+                        "productSubtypeCode",
+                        "durationMinutes",
                         "contractTemplateId",
                         "taxClassId",
                         "tags",
@@ -19541,6 +20175,12 @@
                         "fileSize": {
                           "type": ["number", "null"]
                         },
+                        "width": {
+                          "type": ["number", "null"]
+                        },
+                        "height": {
+                          "type": ["number", "null"]
+                        },
                         "altText": {
                           "type": ["string", "null"]
                         },
@@ -19548,6 +20188,9 @@
                           "type": "number"
                         },
                         "isCover": {
+                          "type": "boolean"
+                        },
+                        "isOpenGraph": {
                           "type": "boolean"
                         },
                         "isBrochure": {
@@ -19576,9 +20219,12 @@
                         "storageKey",
                         "mimeType",
                         "fileSize",
+                        "width",
+                        "height",
                         "altText",
                         "sortOrder",
                         "isCover",
+                        "isOpenGraph",
                         "isBrochure",
                         "isBrochureCurrent",
                         "brochureVersion",
@@ -19707,6 +20353,29 @@
                                 "description": {
                                   "type": ["string", "null"]
                                 },
+                                "seo_title": {
+                                  "type": ["string", "null"]
+                                },
+                                "seo_description": {
+                                  "type": ["string", "null"]
+                                },
+                                "open_graph_image_url": {
+                                  "type": ["string", "null"]
+                                },
+                                "open_graph_image_width": {
+                                  "type": ["integer", "null"],
+                                  "exclusiveMinimum": 0
+                                },
+                                "open_graph_image_height": {
+                                  "type": ["integer", "null"],
+                                  "exclusiveMinimum": 0
+                                },
+                                "open_graph_image_type": {
+                                  "type": ["string", "null"]
+                                },
+                                "open_graph_image_alt": {
+                                  "type": ["string", "null"]
+                                },
                                 "inclusions_html": {
                                   "type": ["string", "null"]
                                 },
@@ -19829,6 +20498,9 @@
                               "items": {
                                 "type": "object",
                                 "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
                                   "day_number": {
                                     "type": "integer",
                                     "exclusiveMinimum": 0
@@ -19988,7 +20660,6 @@
                       },
                       "required": [
                         "content",
-                        "provenance",
                         "served_locale",
                         "match_kind",
                         "source",

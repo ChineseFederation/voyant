@@ -155,8 +155,6 @@ describe.skipIf(!DB_AVAILABLE)("Inventory publish readiness", () => {
     await expect(
       productsService.updateProduct(db, product.id, {
         status: "active",
-        visibility: "public",
-        activated: true,
       }),
     ).rejects.toBeInstanceOf(ProductPublishReadinessError)
 
@@ -170,15 +168,13 @@ describe.skipIf(!DB_AVAILABLE)("Inventory publish readiness", () => {
 
     const published = await productsService.updateProduct(db, product.id, {
       status: "active",
-      visibility: "public",
-      activated: true,
     })
 
     expect(published).toMatchObject({
       id: product.id,
       status: "active",
-      visibility: "public",
-      activated: true,
+      visibility: "private",
+      activated: false,
     })
   })
 })

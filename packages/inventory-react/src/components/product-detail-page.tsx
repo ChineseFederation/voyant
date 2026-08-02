@@ -291,7 +291,6 @@ export function ProductOverviewCard({ product, className }: ProductOverviewCardP
           {product.description || pageMessages.states.noDescription}
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <ProductField label={pageMessages.fields.visibility} value={product.visibility} />
           <ProductField label={pageMessages.fields.capacityMode} value={product.capacityMode} />
           <ProductField label={pageMessages.fields.timezone} value={product.timezone} />
           <ProductField label={pageMessages.fields.productType} value={product.productTypeId} />
@@ -453,7 +452,6 @@ export function ProductDetailSidebar({ product, className }: ProductDetailSideba
           <Badge variant="outline">
             {messages.common.productBookingModeLabels[product.bookingMode]}
           </Badge>
-          {product.activated ? <Badge variant="secondary">{messages.common.active}</Badge> : null}
         </div>
         <ProductField label={pageMessages.fields.tags} value={product.tags.join(", ")} />
         <ProductField

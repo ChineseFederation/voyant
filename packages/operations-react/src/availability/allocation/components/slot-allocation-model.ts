@@ -10,7 +10,15 @@ import type { AllocationUiMessages } from "../i18n/index.js"
 export const ROOM_KIND = "room"
 export const VEHICLE_KIND = "vehicle"
 export const VEHICLE_SEAT_KIND = "vehicle_seat"
-export const PARENT_ONLY_KINDS = new Set([VEHICLE_KIND])
+
+/**
+ * The operated-departure workspace always exposes these common logistics
+ * dimensions. Resources remain open-ended (cabins, flight seats, equipment,
+ * etc. can still arrive from templates), but an operator should not need to
+ * configure a product template before they can start a rooming, vehicle,
+ * or seating plan for a specific departure.
+ */
+export const STANDARD_OPERATIONAL_KINDS = [ROOM_KIND, VEHICLE_KIND, VEHICLE_SEAT_KIND] as const
 
 export type AllocationOccupants = {
   byResource: Map<string, AllocationManifestTraveler[]>
@@ -27,9 +35,9 @@ export function deriveAllocationKinds({
     templates: ReadonlyArray<{ kind: string | null | undefined }>
   }>
 }) {
-  const kinds: string[] = []
+  const kinds: string[] = [...STANDARD_OPERATIONAL_KINDS]
   const addKind = (kind: string | null | undefined) => {
-    if (!kind || PARENT_ONLY_KINDS.has(kind) || kinds.includes(kind)) return
+    if (!kind || kinds.includes(kind)) return
     kinds.push(kind)
   }
 
@@ -66,6 +74,42 @@ export function collectOccupants(
     const list = byResource.get(resourceId) ?? []
     list.push(traveler)
     byResource.set(resourceId, list)
+  }
+
+  return { byResource, byTravelerId, unallocated }
+}
+
+/**
+ * Roll exact seat assignments up to their parent vehicle. Vehicles are not
+ * directly assignable, but their management rows still need to show the real
+ * passenger load carried by their child seats.
+ */
+export function collectVehicleOccupants(
+  travelers: AllocationManifestTraveler[],
+  vehicles: AllocationResource[],
+  seats: AllocationResource[],
+): AllocationOccupants {
+  const vehicleIds = new Set(vehicles.map((vehicle) => vehicle.id))
+  const vehicleBySeatId = new Map(
+    seats.flatMap((seat) =>
+      seat.parentId && vehicleIds.has(seat.parentId) ? [[seat.id, seat.parentId] as const] : [],
+    ),
+  )
+  const byResource = new Map<string, AllocationManifestTraveler[]>()
+  const byTravelerId = new Map<string, AllocationManifestTraveler>()
+  const unallocated: AllocationManifestTraveler[] = []
+
+  for (const traveler of travelers) {
+    byTravelerId.set(traveler.id, traveler)
+    const seatId = traveler.allocations[VEHICLE_SEAT_KIND]
+    const vehicleId = seatId ? vehicleBySeatId.get(seatId) : undefined
+    if (!vehicleId) {
+      unallocated.push(traveler)
+      continue
+    }
+    const occupants = byResource.get(vehicleId) ?? []
+    occupants.push(traveler)
+    byResource.set(vehicleId, occupants)
   }
 
   return { byResource, byTravelerId, unallocated }
@@ -202,10 +246,35 @@ export function seatRows(seats: AllocationResource[]) {
 }
 
 export function seatName(seat: AllocationResource, messages: AllocationUiMessages) {
+  return seatDesignation(seat) ?? messages.seat
+}
+
+/** Stable, human-readable seat designation used for display and uniqueness. */
+export function seatDesignation(seat: Pick<AllocationResource, "label" | "flags">): string | null {
   const row = flagNumber(seat.flags.row)
   const column = flagString(seat.flags.column)
   if (row && column) return `${row}${column}`
-  return seat.label ?? messages.seat
+  return seat.label?.trim() || null
+}
+
+export type VehicleSeatDesignationIssue = "required" | "duplicate" | null
+
+/** Validate a manually-authored seat name within its parent vehicle. */
+export function validateVehicleSeatDesignation({
+  label,
+  parentId,
+  seats,
+}: {
+  label: string
+  parentId: string | null
+  seats: AllocationResource[]
+}): VehicleSeatDesignationIssue {
+  const normalized = label.trim().toLowerCase()
+  if (!normalized) return "required"
+  const duplicate = seats.some(
+    (seat) => seat.parentId === parentId && seatDesignation(seat)?.toLowerCase() === normalized,
+  )
+  return duplicate ? "duplicate" : null
 }
 
 export function parentKindFor(kind: string) {
@@ -213,15 +282,27 @@ export function parentKindFor(kind: string) {
 }
 
 export function defaultCapacityFor(kind: string) {
-  return kind === VEHICLE_SEAT_KIND ? 1 : kind === ROOM_KIND ? 2 : 1
+  return kind === VEHICLE_SEAT_KIND ? 1 : kind === ROOM_KIND ? 2 : kind === VEHICLE_KIND ? 50 : 1
+}
+
+export function isTravelerAllocatableKind(kind: string) {
+  return kind !== VEHICLE_KIND
 }
 
 export function kindLabel(kind: string, messages: AllocationUiMessages) {
   if (kind === ROOM_KIND) return messages.rooms
+  if (kind === VEHICLE_KIND) return messages.vehicles
   if (kind === VEHICLE_SEAT_KIND) return messages.vehicleSeats
   if (kind === "cabin") return messages.cabins
   if (kind === "flight_seat") return messages.flightSeats
   return titleCaseKind(kind)
+}
+
+export function kindDescription(kind: string, messages: AllocationUiMessages) {
+  if (kind === ROOM_KIND) return messages.operationalKindDescriptions.room
+  if (kind === VEHICLE_KIND) return messages.operationalKindDescriptions.vehicle
+  if (kind === VEHICLE_SEAT_KIND) return messages.operationalKindDescriptions.vehicle_seat
+  return null
 }
 
 /**

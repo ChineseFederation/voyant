@@ -47,6 +47,8 @@ const pairSharingGroupResponse = singleEnvelope(
 const productAvailabilityPath = (productId: string) =>
   `/v1/admin/operations/availability/products/${productId}`
 
+const slotAvailabilityPath = (slotId: string) => `/v1/admin/operations/availability/slots/${slotId}`
+
 export interface UseSlotAllocationOptions {
   slotId: string | null | undefined
   enabled?: boolean
@@ -95,7 +97,7 @@ export function useAllocationResourceMutation(slotId: string) {
   const create = useMutation({
     mutationFn: async (input: CreateAllocationResourceInput) => {
       const { data } = await fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/operations`,
+        `${slotAvailabilityPath(slotId)}/allocation/resources`,
         singleEnvelope(allocationResourceSchema),
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify(input) },
@@ -114,7 +116,7 @@ export function useAllocationResourceMutation(slotId: string) {
       input: UpdateAllocationResourceInput
     }) => {
       const { data } = await fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/operations/${resourceId}`,
+        `${slotAvailabilityPath(slotId)}/allocation/resources/${resourceId}`,
         singleEnvelope(allocationResourceSchema),
         { baseUrl, fetcher },
         { method: "PATCH", body: JSON.stringify(input) },
@@ -127,7 +129,7 @@ export function useAllocationResourceMutation(slotId: string) {
   const remove = useMutation({
     mutationFn: async (resourceId: string) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/operations/${resourceId}`,
+        `${slotAvailabilityPath(slotId)}/allocation/resources/${resourceId}`,
         singleEnvelope(allocationResourceSchema.pick({ id: true })),
         { baseUrl, fetcher },
         { method: "DELETE" },
@@ -233,7 +235,7 @@ export function useAllocationAutomationMutation(slotId: string) {
   const autoMaterialize = useMutation({
     mutationFn: async (input: { kind?: string }) => {
       const result = await fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/auto-materialize`,
+        `${slotAvailabilityPath(slotId)}/allocation/auto-materialize`,
         allocationAutomationResponse,
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify(input) },
@@ -246,7 +248,7 @@ export function useAllocationAutomationMutation(slotId: string) {
   const autoAllocate = useMutation({
     mutationFn: async (input: { kind?: string }) => {
       const result = await fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/auto-allocate`,
+        `${slotAvailabilityPath(slotId)}/allocation/auto-allocate`,
         allocationAutomationResponse,
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify(input) },
@@ -261,7 +263,7 @@ export function useAllocationAutomationMutation(slotId: string) {
   const materializeTemplates = useMutation({
     mutationFn: async () => {
       const result = await fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/materialize-templates`,
+        `${slotAvailabilityPath(slotId)}/allocation/materialize-templates`,
         singleEnvelope(z.object({ created: z.number() })),
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify({}) },
@@ -281,7 +283,7 @@ export function useAssignTravelerAllocationMutation(slotId: string) {
   return useMutation({
     mutationFn: (input: { travelerId: string; kind: string; resourceId: string | null }) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/travelers/${input.travelerId}`,
+        `${slotAvailabilityPath(slotId)}/allocation/travelers/${input.travelerId}`,
         assignTravelerAllocationResponse,
         { baseUrl, fetcher },
         {
@@ -313,7 +315,7 @@ export function useSharingGroupLabelMutation(slotId: string) {
   const update = useMutation({
     mutationFn: (input: { groupId: string; label: string }) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/sharing-groups/${input.groupId}/label`,
+        `${slotAvailabilityPath(slotId)}/allocation/sharing-groups/${input.groupId}/label`,
         singleEnvelope(sharingGroupLabelSchema),
         { baseUrl, fetcher },
         { method: "PUT", body: JSON.stringify({ label: input.label }) },
@@ -324,7 +326,7 @@ export function useSharingGroupLabelMutation(slotId: string) {
   const remove = useMutation({
     mutationFn: (groupId: string) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/sharing-groups/${groupId}/label`,
+        `${slotAvailabilityPath(slotId)}/allocation/sharing-groups/${groupId}/label`,
         singleEnvelope(sharingGroupLabelSchema),
         { baseUrl, fetcher },
         { method: "DELETE" },
@@ -341,7 +343,7 @@ export function useTravelerSharingGroupMutation(slotId: string) {
   const update = useMutation({
     mutationFn: (input: { travelerId: string; sharingGroupId: string | null }) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/travelers/${input.travelerId}/sharing-group`,
+        `${slotAvailabilityPath(slotId)}/allocation/travelers/${input.travelerId}/sharing-group`,
         updateTravelerSharingGroupResponse,
         { baseUrl, fetcher },
         { method: "PATCH", body: JSON.stringify({ sharingGroupId: input.sharingGroupId }) },
@@ -359,7 +361,7 @@ export function useTravelerSharingGroupMutation(slotId: string) {
   const pair = useMutation({
     mutationFn: (input: { travelerIds: string[]; sharingGroupId?: string }) =>
       fetchWithValidation(
-        `/v1/admin/operations/${slotId}/allocation/sharing-groups/pair`,
+        `${slotAvailabilityPath(slotId)}/allocation/sharing-groups/pair`,
         pairSharingGroupResponse,
         { baseUrl, fetcher },
         { method: "POST", body: JSON.stringify(input) },

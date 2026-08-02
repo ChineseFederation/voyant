@@ -27,16 +27,17 @@ export interface AdminRootHeadOptions {
 }
 
 /**
- * Inline theme + language detection, run before hydration so the first paint
- * doesn't flash the wrong theme or language. Load-bearing: keep in sync with
- * the ThemeProvider storage key (`theme`) and locale storage key
- * (`admin-locale`).
+ * Inline browser bootstrap, run before module scripts and hydration. It opts
+ * Zod out of its optional `new Function` optimization so admin apps can use a
+ * strict CSP, then applies theme and language without a first-paint flash.
+ * Load-bearing: keep in sync with the ThemeProvider storage key (`theme`) and
+ * locale storage key (`admin-locale`).
  */
-const ADMIN_BOOTSTRAP_SCRIPT = `(function(){var t=localStorage.getItem("theme");if(t==="dark"||(!t||t==="system")&&matchMedia("(prefers-color-scheme:dark)").matches){document.documentElement.classList.add("dark")}var l=localStorage.getItem("admin-locale")||(navigator.language||"en");l=l.toLowerCase().split("-")[0];document.documentElement.lang=l==="ro"?"ro":"en"})()`
+const ADMIN_BOOTSTRAP_SCRIPT = `(function(){globalThis.__zod_globalConfig=Object.assign({},globalThis.__zod_globalConfig,{jitless:true});var t=localStorage.getItem("theme");if(t==="dark"||(!t||t==="system")&&matchMedia("(prefers-color-scheme:dark)").matches){document.documentElement.classList.add("dark")}var l=localStorage.getItem("admin-locale")||(navigator.language||"en");l=l.toLowerCase().split("-")[0];document.documentElement.lang=l==="ro"?"ro":"en"})()`
 
 /**
  * The root route `head()` payload for a Voyant admin app: charset/viewport,
- * robots noindex, OG basics, favicon, and the pre-hydration theme/locale
+ * robots noindex, OG basics, favicon, and the pre-hydration browser
  * bootstrap script.
  */
 export function adminRootHead(options: AdminRootHeadOptions) {

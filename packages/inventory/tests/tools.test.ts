@@ -133,6 +133,7 @@ describe("inventory tools", () => {
       "list_products",
       "preview_product_unit_configuration",
       "publish_product",
+      "set_product_open_graph_image",
       "unpublish_product",
       "update_product",
       "update_product_day",
@@ -159,6 +160,38 @@ describe("inventory tools", () => {
     expect(
       manifest.find(({ name }) => name === "apply_product_unit_configuration")?.riskPolicy,
     ).toMatchObject({ confirmationRequired: true, reversible: true })
+  })
+
+  it("sets or clears the explicit product Open Graph image", async () => {
+    const calls: Array<{ productId: string; mediaId: string | null }> = []
+    const context = ctxWith(
+      {
+        async setProductOpenGraphImage(productId, mediaId) {
+          calls.push({ productId, mediaId })
+          return mediaId ? { id: mediaId, productId, isOpenGraph: true } : null
+        },
+      },
+      { actor: "staff", audience: "staff" },
+    )
+
+    await expect(
+      makeRegistry().dispatch(
+        "set_product_open_graph_image",
+        { productId: "prod_1", mediaId: "pmed_1" },
+        context,
+      ),
+    ).resolves.toMatchObject({ id: "pmed_1", productId: "prod_1", isOpenGraph: true })
+    await expect(
+      makeRegistry().dispatch(
+        "set_product_open_graph_image",
+        { productId: "prod_1", mediaId: null },
+        context,
+      ),
+    ).resolves.toBeNull()
+    expect(calls).toEqual([
+      { productId: "prod_1", mediaId: "pmed_1" },
+      { productId: "prod_1", mediaId: null },
+    ])
   })
 
   it("passes an exhaustive unit configuration plan unchanged from preview to confirmed apply", async () => {
@@ -517,7 +550,7 @@ describe("inventory tools", () => {
         { actor: "staff", audience: "staff" },
       ),
     )
-    expect(forwarded).toEqual({ status: "active", visibility: "public", activated: true })
+    expect(forwarded).toEqual({ status: "active" })
   })
 
   it("defaults composed content resolution to the grant locale and market", async () => {

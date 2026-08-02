@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@voyant-travel/ui/components/select"
-import { Switch } from "@voyant-travel/ui/components/switch"
 import { Textarea } from "@voyant-travel/ui/components/textarea"
 import { Loader2, X } from "lucide-react"
 import * as React from "react"
@@ -42,11 +41,11 @@ interface FormState {
   status: "draft" | "active" | "archived"
   bookingMode: "date" | "date_time" | "open" | "stay" | "transfer" | "itinerary" | "other"
   capacityMode: ProductRecord["capacityMode"]
-  visibility: ProductRecord["visibility"]
-  activated: boolean
   timezone: string
   facilityId: string
   productTypeId: string
+  productSubtypeCode: string
+  durationMinutes: string
   contractTemplateId: string
   taxClassId: string
   sellCurrency: string
@@ -69,11 +68,11 @@ function initialState(mode: ProductFormMode): FormState {
       status: product.status,
       bookingMode: product.bookingMode,
       capacityMode: product.capacityMode,
-      visibility: product.visibility,
-      activated: product.activated,
       timezone: product.timezone ?? "",
       facilityId: product.facilityId ?? "__none__",
       productTypeId: product.productTypeId ?? "__none__",
+      productSubtypeCode: product.productSubtypeCode ?? "",
+      durationMinutes: product.durationMinutes != null ? String(product.durationMinutes) : "",
       contractTemplateId: product.contractTemplateId ?? "__none__",
       taxClassId: product.taxClassId ?? "__none__",
       sellCurrency: product.sellCurrency,
@@ -95,11 +94,11 @@ function initialState(mode: ProductFormMode): FormState {
     status: "draft",
     bookingMode: "itinerary",
     capacityMode: "limited",
-    visibility: "private",
-    activated: false,
     timezone: "",
     facilityId: "__none__",
     productTypeId: "__none__",
+    productSubtypeCode: "",
+    durationMinutes: "",
     contractTemplateId: "__none__",
     taxClassId: "__none__",
     sellCurrency: "EUR", // i18n-literal-ok ISO default currency
@@ -142,11 +141,11 @@ function toPayload(state: FormState): CreateProductInput {
     status: state.status,
     bookingMode: state.bookingMode,
     capacityMode: state.capacityMode,
-    visibility: state.visibility,
-    activated: state.activated,
     timezone: state.timezone.trim() || null,
     facilityId: state.facilityId === "__none__" ? null : state.facilityId,
     productTypeId: state.productTypeId === "__none__" ? null : state.productTypeId,
+    productSubtypeCode: state.productSubtypeCode.trim() || null,
+    durationMinutes: toPositiveIntegerOrNull(state.durationMinutes),
     contractTemplateId: state.contractTemplateId === "__none__" ? null : state.contractTemplateId,
     taxClassId: state.taxClassId === "__none__" ? null : state.taxClassId,
     sellCurrency: state.sellCurrency.trim().toUpperCase(),
@@ -198,16 +197,6 @@ export function ProductForm({ mode, onSuccess, onCancel }: ProductFormProps) {
       ] as const,
     [messages],
   )
-  const visibilityOptions = React.useMemo(
-    () =>
-      [
-        { value: "public", label: messages.common.productVisibilityLabels.public },
-        { value: "private", label: messages.common.productVisibilityLabels.private },
-        { value: "hidden", label: messages.common.productVisibilityLabels.hidden },
-      ] as const,
-    [messages],
-  )
-
   const field =
     <K extends keyof FormState>(key: K) =>
     (value: FormState[K]) => {
@@ -238,6 +227,19 @@ export function ProductForm({ mode, onSuccess, onCancel }: ProductFormProps) {
       toIntegerOrNull(state.reservationTimeoutMinutes) == null
     ) {
       setError(productMessages.validation.reservationTimeoutInvalid)
+      return
+    }
+
+    if (
+      state.productSubtypeCode.trim() &&
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(state.productSubtypeCode.trim())
+    ) {
+      setError(productMessages.validation.subtypeInvalid)
+      return
+    }
+
+    if (state.durationMinutes.trim() && toPositiveIntegerOrNull(state.durationMinutes) == null) {
+      setError(productMessages.validation.durationInvalid)
       return
     }
 
@@ -406,6 +408,31 @@ export function ProductForm({ mode, onSuccess, onCancel }: ProductFormProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="product-subtype-code">{productMessages.fields.productSubtype}</Label>
+            <Input
+              id="product-subtype-code"
+              value={state.productSubtypeCode}
+              onChange={(event) => field("productSubtypeCode")(event.target.value)}
+              placeholder={productMessages.placeholders.productSubtype}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="product-duration-minutes">
+              {productMessages.fields.durationMinutes}
+            </Label>
+            <Input
+              id="product-duration-minutes"
+              type="number"
+              min="1"
+              step="1"
+              value={state.durationMinutes}
+              onChange={(event) => field("durationMinutes")(event.target.value)}
+              placeholder={productMessages.placeholders.durationMinutes}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <Label>{productMessages.fields.facility}</Label>
             <ProductFacilityCombobox
               value={state.facilityId === "__none__" ? null : state.facilityId}
@@ -430,39 +457,6 @@ export function ProductForm({ mode, onSuccess, onCancel }: ProductFormProps) {
               onChange={(value) => field("contractTemplateId")(value ?? "__none__")}
               placeholder={productMessages.placeholders.contractTemplateSearch}
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>{productMessages.fields.visibility}</Label>
-            <Select
-              items={visibilityOptions}
-              value={state.visibility}
-              onValueChange={(value) =>
-                value && field("visibility")(value as FormState["visibility"])
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {visibilityOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 rounded-md border p-3">
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="product-activated">{productMessages.fields.activated}</Label>
-              <Switch
-                id="product-activated"
-                checked={state.activated}
-                onCheckedChange={(checked) => field("activated")(checked)}
-              />
-            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">

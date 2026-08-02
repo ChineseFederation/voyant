@@ -41,6 +41,7 @@ import {
 import { productOptions, products, productTranslations } from "./schema.js"
 import { productsService } from "./service.js"
 import { getProductContent } from "./service-content.js"
+import { mediaProductsService, ProductOpenGraphMediaError } from "./service-media.js"
 import { optionProductsService } from "./service-options.js"
 import type {
   InventoryAuthoringToolServices,
@@ -164,6 +165,23 @@ export const voyantToolContextContribution = defineToolContextContribution({
           return { ...row, slug }
         }
         return row
+      },
+      async setProductOpenGraphImage(productId, mediaId) {
+        try {
+          const row = await mediaProductsService.setOpenGraphMedia(db, productId, mediaId)
+          await emitProductContentChanged(eventBus, { id: productId, axis: "media" })
+          return row
+        } catch (error) {
+          if (error instanceof ProductOpenGraphMediaError) {
+            throw new ToolError(
+              error.message,
+              error.code === "product_not_found" ? "NOT_FOUND" : "INVALID_INPUT",
+              { productId, mediaId, reason: error.code },
+              { cause: error },
+            )
+          }
+          throw error
+        }
       },
       listProductDays: (productId) => productsService.listDays(db, productId),
       async resolveProductIdForDay(dayId) {

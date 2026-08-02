@@ -90,6 +90,8 @@ export async function buildProductGraph(
       endDate: spec.product.endDate,
       pax: spec.product.pax,
       productTypeId: spec.product.productTypeId,
+      productSubtypeCode: spec.product.productSubtypeCode,
+      durationMinutes: spec.product.durationMinutes,
       contractTemplateId: spec.product.contractTemplateId,
       taxClassId: spec.product.taxClassId,
       customerPaymentPolicy: spec.product.customerPaymentPolicy,

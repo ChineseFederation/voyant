@@ -289,6 +289,12 @@ export async function assignTravelerAllocation(
   input: AssignTravelerAllocationInput,
   options: AllocationMutationOptions = {},
 ) {
+  if (input.kind === "vehicle" && input.resourceId !== null) {
+    throw new AllocationServiceError(
+      "Vehicles are parent resources; assign travelers to vehicle seats instead",
+      400,
+    )
+  }
   let beforeResourceId: string | null = null
   await db.transaction(async (tx) => {
     await assertTravelerBelongsToSlot(tx, slotId, travelerId)

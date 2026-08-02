@@ -120,6 +120,9 @@ export function createProductsDocumentBuilder(
       inventory.createStorefrontCardProjectionExtension(),
       inventory.createDestinationsProjectionExtension(),
       inventory.createTaxonomyProjectionExtension(),
+      // After storefront-card so the resolved classification duration (explicit
+      // minutes first, itinerary fallback) is authoritative for `durationDays`.
+      inventory.createClassificationProjectionExtension(),
       operations.createDeparturesProjectionExtension(),
       commerce.createPricingProjectionExtension(),
       commerce.createPromotionsProjectionExtension(),

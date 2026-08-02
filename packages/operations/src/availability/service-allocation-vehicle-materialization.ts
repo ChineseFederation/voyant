@@ -1,5 +1,6 @@
 import { type AllocationResource, allocationResources } from "@voyant-travel/availability/schema"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { assertVehicleChildCapacity } from "./service-allocation-resource-invariants.js"
 import type { SeatLayoutCell, SeatLayoutSpec } from "./validation.js"
 import { seatLayoutSpecSchema } from "./validation.js"
 
@@ -16,7 +17,13 @@ export interface AutoMaterializeRow {
   sort_order: number | null
 }
 
-export async function materializeVehicleSeatGroup(
+/**
+ * Writes each vehicle and its child seats through the transaction supplied by
+ * `autoMaterializeAllocationResources`. Do not call with an unscoped database
+ * handle: the caller must hold the availability-slot row lock for the full
+ * read/check/write operation.
+ */
+export async function materializeVehicleSeatGroupInTransaction(
   db: PostgresJsDatabase,
   slotId: string,
   group: AutoMaterializeRow,
@@ -54,6 +61,16 @@ export async function materializeVehicleSeatGroup(
       .returning()
     if (!parent) continue
     resources.push(parent)
+
+    // The parent and all child seats are written inside the caller's slot-
+    // locked transaction. Use the same capacity invariant as manual seat
+    // creation before writing any children, so a template cannot create a
+    // layout the manual API would reject.
+    assertVehicleChildCapacity({
+      capacity: parent.capacity,
+      existingSeatCount: 0,
+      seatsToAdd: group.capacity,
+    })
 
     const seatsPerRowTotal = seatsPerRow.reduce((sum, seats) => sum + seats, 0)
     const totalRows = Math.ceil(group.capacity / seatsPerRowTotal)
@@ -138,6 +155,12 @@ async function materializeVehicleSeatGroupFromSpec(
       .returning()
     if (!parent) continue
     resources.push(parent)
+
+    assertVehicleChildCapacity({
+      capacity: parent.capacity,
+      existingSeatCount: 0,
+      seatsToAdd: seatsPerVehicle,
+    })
 
     let seatIndex = 0
     for (let rowIndex = 0; rowIndex < layoutSpec.rows.length; rowIndex++) {

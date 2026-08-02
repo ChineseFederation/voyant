@@ -227,6 +227,27 @@ borderline case for the catalog contract:
 
 Adoption strategy: extras participate in the snapshot and provenance shapes; full editorial-overlay and indexer adoption is deferred until a concrete case demands it. This is consistent with the design law "do not introduce shared abstractions until they pay for themselves" (cf. [`cross-module-indexing-and-projection-policy.md`](./cross-module-indexing-and-projection-policy.md)).
 
+#### 3.3.2. Product family recast (`product_types`)
+
+`packages/products`' existing `product_types` table is recast as the
+merchandising **Product family** — no physical table rename, no new table.
+Standard first-party deployments idempotently seed five families (`tour`,
+`activity`, `attraction`, `event`, `transportation`). Operators may add custom
+families and rename display labels or deactivate choices; codes are immutable,
+and standard or referenced families cannot be deleted. Family (`products.productTypeId`), the
+optional **Product subtype** (`products.productSubtypeCode`), the resolved
+duration, and the review state (flagged when a product has no family or an
+unresolved duration) are computed by one shared resolver and emitted
+identically by the product list/detail read paths, the catalog-plane
+projection, and the legacy Catalog search document builder — there is no
+per-surface reimplementation. Family, subtype, and duration are orthogonal to
+`bookingMode`, `capacityMode`, `supplyModel`, and schedule; see
+[`catalog-supply-models.md`](./catalog-supply-models.md#21-product-family-and-subtype-are-a-third-independent-axis)
+for how this interacts with the supply-mechanic axis. "Excursion" (as used
+elsewhere in this document, e.g. §3.3, §8.2) is contextual vocabulary, not a
+`<= 1-day` family — a product casually called an "excursion" still carries
+whichever family and subtype actually apply, most often Tour.
+
 ## 4. The field-policy contract
 
 The field-policy registry is the load-bearing schema decision of this architecture. Every field on every CatalogEntry, in every vertical, is declared with a row in a per-vertical policy file. The contract has 12 attributes (one path identifier plus 11 governance attributes).

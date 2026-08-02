@@ -18,7 +18,7 @@ const productTypeInputSchema = z.object({
 })
 
 export type CreateProductTypeInput = z.input<typeof productTypeInputSchema>
-export type UpdateProductTypeInput = Partial<CreateProductTypeInput>
+export type UpdateProductTypeInput = Partial<Omit<CreateProductTypeInput, "code">>
 
 export function useProductTypeMutation() {
   const { baseUrl, fetcher } = useVoyantProductsContext()

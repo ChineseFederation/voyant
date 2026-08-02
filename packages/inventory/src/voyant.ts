@@ -245,6 +245,17 @@ export const inventoryVoyantModule = defineModule({
       risk: "medium",
     },
     {
+      id: "@voyant-travel/inventory#tool.set-product-open-graph-image",
+      name: "set_product_open_graph_image",
+      runtime: {
+        entry: "@voyant-travel/inventory/tools",
+        export: "setProductOpenGraphImageTool",
+      },
+      requiredScopes: ["products:write"],
+      context: ["inventory"],
+      risk: "medium",
+    },
+    {
       id: "@voyant-travel/inventory#tool.preview-product-unit-configuration",
       name: "preview_product_unit_configuration",
       runtime: {
@@ -438,6 +449,23 @@ export const inventoryVoyantModule = defineModule({
       effectBoundary: "local",
       targetLifecycle: "existing",
       from: { tools: ["@voyant-travel/inventory#tool.update-product"] },
+    },
+    {
+      id: "@voyant-travel/inventory#action.set-product-open-graph-image",
+      version: "v1",
+      kind: "execute",
+      targetType: "product",
+      commandTargetField: "productId",
+      requiredScopes: ["products:write"],
+      risk: "medium",
+      ledger: "required",
+      approval: "never",
+      reversible: true,
+      allowedActorTypes: ["staff"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/inventory#tool.set-product-open-graph-image"] },
     },
     {
       id: "@voyant-travel/inventory#action.preview-product-unit-configuration",

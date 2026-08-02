@@ -20,6 +20,7 @@ export interface EditResourceInput {
 
 export function ResourceColumnsView({
   kind,
+  assignable = true,
   resources,
   travelers,
   occupants,
@@ -33,6 +34,8 @@ export function ResourceColumnsView({
   renderTravelerActions,
 }: {
   kind: string
+  /** Parent resources such as vehicles are managed here but never receive travelers directly. */
+  assignable?: boolean
   resources: AllocationResource[]
   travelers: AllocationManifestTraveler[]
   occupants: AllocationOccupants
@@ -59,26 +62,30 @@ export function ResourceColumnsView({
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(16rem,20rem)_1fr]">
-      <AllocationColumn
-        id="unallocated"
-        icon={<Users className="size-4" aria-hidden="true" />}
-        title={messages.unallocated}
-        description={messages.unallocatedDescription}
-        count={occupants.unallocated.length}
-        capacity={travelers.length}
-      >
-        {occupants.unallocated.length === 0 ? (
-          <p className="text-xs text-muted-foreground">{messages.unallocatedEmpty}</p>
-        ) : (
-          <UnallocatedTravelersTable
-            travelers={occupants.unallocated}
-            sharingGroupLabels={sharingGroupLabels}
-            onBookingOpen={onBookingOpen}
-            renderActions={renderTravelerActions}
-          />
-        )}
-      </AllocationColumn>
+    <div
+      className={assignable ? "grid gap-4 lg:grid-cols-[minmax(16rem,20rem)_1fr]" : "grid gap-4"}
+    >
+      {assignable ? (
+        <AllocationColumn
+          id="unallocated"
+          icon={<Users className="size-4" aria-hidden="true" />}
+          title={messages.unallocated}
+          description={messages.unallocatedDescription}
+          count={occupants.unallocated.length}
+          capacity={travelers.length}
+        >
+          {occupants.unallocated.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{messages.unallocatedEmpty}</p>
+          ) : (
+            <UnallocatedTravelersTable
+              travelers={occupants.unallocated}
+              sharingGroupLabels={sharingGroupLabels}
+              onBookingOpen={onBookingOpen}
+              renderActions={renderTravelerActions}
+            />
+          )}
+        </AllocationColumn>
+      ) : null}
 
       <div className="flex min-w-0 flex-col gap-6">
         {resources.length === 0 ? (
@@ -96,12 +103,13 @@ export function ResourceColumnsView({
             return (
               <section key={group.key} aria-label={groupLabel} className="flex flex-col gap-2">
                 <header className="flex items-baseline gap-2 border-b pb-1">
-                  <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+                  <h2 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
                     {groupLabel}
-                  </h3>
+                  </h2>
                 </header>
                 <ResourceGroupTable
                   kind={kind}
+                  assignable={assignable}
                   resources={group.resources}
                   occupants={occupants}
                   unallocated={occupants.unallocated}
@@ -124,6 +132,7 @@ export function ResourceColumnsView({
 
 function ResourceGroupTable({
   kind,
+  assignable,
   resources,
   occupants,
   unallocated,
@@ -136,6 +145,7 @@ function ResourceGroupTable({
   onBookingOpen,
 }: {
   kind: string
+  assignable: boolean
   resources: AllocationResource[]
   occupants: AllocationOccupants
   unallocated: AllocationManifestTraveler[]
@@ -157,7 +167,7 @@ function ResourceGroupTable({
           <TableRow className="bg-muted/40">
             <TableHead className="w-48">{messages.resourceLabel}</TableHead>
             <TableHead className="w-20 text-center">{messages.capacity}</TableHead>
-            <TableHead>{messages.travelers}</TableHead>
+            {assignable ? <TableHead>{messages.travelers}</TableHead> : null}
             <TableHead className="w-40 text-right">&nbsp;</TableHead>
           </TableRow>
         </TableHeader>
@@ -170,6 +180,7 @@ function ResourceGroupTable({
               <ResourceRow
                 key={resource.id}
                 kind={kind}
+                assignable={assignable}
                 resource={resource}
                 seated={seated}
                 unallocated={unallocated}

@@ -52,6 +52,12 @@ describe("productCatalogPolicy", () => {
     expect(margin?.visibility).toEqual(["staff"])
   })
 
+  it("does not register deprecated product distribution flags", () => {
+    const registry = createFieldPolicyRegistry(productCatalogPolicy)
+    expect(registry.byPath.has("visibility")).toBe(false)
+    expect(registry.byPath.has("activated")).toBe(false)
+  })
+
   it("declares pricing fields with on-quote-and-book snapshot mode", () => {
     const registry = createFieldPolicyRegistry(productCatalogPolicy)
     const sellAmount = registry.byPath.get("sellAmountCents")

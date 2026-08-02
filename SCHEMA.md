@@ -1188,6 +1188,8 @@ Constraints:
 | `end_date` (`endDate`) | date • nullable |
 | `pax` | integer • nullable |
 | `product_type_id` (`productTypeId`) | text • nullable |
+| `product_subtype_code` (`productSubtypeCode`) | text • nullable |
+| `duration_minutes` (`durationMinutes`) | integer • nullable |
 | `contract_template_id` (`contractTemplateId`) | text • nullable |
 | `tax_class_id` (`taxClassId`) | text • nullable |
 | `customer_payment_policy` (`customerPaymentPolicy`) | jsonb • nullable |

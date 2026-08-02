@@ -2,6 +2,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
+import { resolveProductClassification } from "./classification.js"
 import {
   destinations,
   destinationTranslations,
@@ -459,7 +460,9 @@ async function loadCatalogHydrationData(
             description: productTypes.description,
           })
           .from(productTypes)
-          .where(and(inArray(productTypes.id, productTypeIds), eq(productTypes.active, true)))
+          // Inactive controls whether a family can be selected for new edits;
+          // it must not erase the meaning of products already assigned to it.
+          .where(inArray(productTypes.id, productTypeIds))
       : Promise.resolve([]),
     db
       .select({
@@ -955,45 +958,116 @@ export const catalogProductsService = {
 
     const rowById = new Map(rows.map((row) => [row.id, row] as const))
 
+    // Legacy itinerary-derived duration (max day number of the default
+    // itinerary, falling back to the first itinerary), fetched in bulk so the
+    // resolver's fallback matches list/detail and catalog-plane exactly.
+    const itineraryDurationByProduct = new Map<string, number>()
+    if (rows.length > 0) {
+      const itineraryRows = await db
+        .select({
+          id: productItineraries.id,
+          productId: productItineraries.productId,
+          isDefault: productItineraries.isDefault,
+          sortOrder: productItineraries.sortOrder,
+        })
+        .from(productItineraries)
+        .where(
+          inArray(
+            productItineraries.productId,
+            rows.map((row) => row.id),
+          ),
+        )
+        .orderBy(
+          asc(productItineraries.productId),
+          desc(productItineraries.isDefault),
+          asc(productItineraries.sortOrder),
+        )
+      const selectedItineraryByProduct = new Map<string, string>()
+      for (const itinerary of itineraryRows) {
+        if (!selectedItineraryByProduct.has(itinerary.productId)) {
+          selectedItineraryByProduct.set(itinerary.productId, itinerary.id)
+        }
+      }
+      const productByItinerary = new Map(
+        [...selectedItineraryByProduct].map(([productId, itineraryId]) => [itineraryId, productId]),
+      )
+      const selectedItineraryIds = [...productByItinerary.keys()]
+      if (selectedItineraryIds.length > 0) {
+        const durationRows = await db
+          .select({
+            itineraryId: productDays.itineraryId,
+            maxDay: sql<number | null>`max(${productDays.dayNumber})`,
+          })
+          .from(productDays)
+          .where(inArray(productDays.itineraryId, selectedItineraryIds))
+          .groupBy(productDays.itineraryId)
+        for (const durationRow of durationRows) {
+          const productId = productByItinerary.get(durationRow.itineraryId)
+          if (productId && durationRow.maxDay != null && durationRow.maxDay > 0) {
+            itineraryDurationByProduct.set(productId, durationRow.maxDay)
+          }
+        }
+      }
+    }
+
     return {
-      data: localizedProducts.map<CatalogSearchDocument>((product) => ({
-        id: `${product.id}:${product.contentLanguageTag ?? "default"}`,
-        productId: product.id,
-        languageTag: product.contentLanguageTag,
-        name: product.name,
-        slug: product.slug,
-        shortDescription: product.shortDescription,
-        description: product.description,
-        seoTitle: product.seoTitle,
-        seoDescription: product.seoDescription,
-        sellCurrency: product.sellCurrency,
-        sellAmountCents: product.sellAmountCents,
-        startDate: product.startDate,
-        endDate: product.endDate,
-        pax: product.pax,
-        productTypeCode: product.productType?.code ?? null,
-        productTypeName: product.productType?.name ?? null,
-        categoryIds: product.categories.map((category) => category.id),
-        categoryNames: product.categories.map((category) => category.name),
-        categorySlugs: product.categories.map((category) => category.slug),
-        tagIds: product.tags.map((tag) => tag.id),
-        tagNames: product.tags.map((tag) => tag.name),
-        capabilities: product.capabilities,
-        destinationIds: product.destinations.map((destination) => destination.id),
-        destinationNames: product.destinations.map((destination) => destination.name),
-        destinationSlugs: product.destinations.map((destination) => destination.slug),
-        locationTitles: product.locations.map((location) => location.title),
-        locationCities: product.locations
-          .map((location) => location.city)
-          .filter((value): value is string => Boolean(value)),
-        locationCountryCodes: product.locations
-          .map((location) => location.countryCode)
-          .filter((value): value is string => Boolean(value)),
-        coverMediaUrl: product.coverMedia?.url ?? null,
-        isFeatured: product.isFeatured,
-        createdAt: normalizeDateTime(rowById.get(product.id)?.createdAt),
-        updatedAt: normalizeDateTime(rowById.get(product.id)?.updatedAt),
-      })),
+      data: localizedProducts.map<CatalogSearchDocument>((product) => {
+        const sourceRow = rowById.get(product.id)
+        const classification = resolveProductClassification({
+          family: product.productType?.code
+            ? { code: product.productType.code, name: product.productType.name ?? "" }
+            : null,
+          subtypeCode: sourceRow?.productSubtypeCode ?? null,
+          durationMinutes: sourceRow?.durationMinutes ?? null,
+          itineraryDurationDays: itineraryDurationByProduct.get(product.id) ?? null,
+        })
+        return {
+          id: `${product.id}:${product.contentLanguageTag ?? "default"}`,
+          productId: product.id,
+          languageTag: product.contentLanguageTag,
+          name: product.name,
+          slug: product.slug,
+          shortDescription: product.shortDescription,
+          description: product.description,
+          seoTitle: product.seoTitle,
+          seoDescription: product.seoDescription,
+          sellCurrency: product.sellCurrency,
+          sellAmountCents: product.sellAmountCents,
+          startDate: product.startDate,
+          endDate: product.endDate,
+          pax: product.pax,
+          productTypeCode: product.productType?.code ?? null,
+          productTypeName: product.productType?.name ?? null,
+          familyCode: classification.familyCode,
+          familyName: classification.familyName,
+          subtypeCode: classification.subtypeCode,
+          durationMinutes: classification.durationMinutes,
+          durationDays: classification.durationDays,
+          durationProvenance: classification.durationProvenance,
+          reviewRequired: classification.reviewRequired,
+          reviewReasons: classification.reviewReasons,
+          categoryIds: product.categories.map((category) => category.id),
+          categoryNames: product.categories.map((category) => category.name),
+          categorySlugs: product.categories.map((category) => category.slug),
+          tagIds: product.tags.map((tag) => tag.id),
+          tagNames: product.tags.map((tag) => tag.name),
+          capabilities: product.capabilities,
+          destinationIds: product.destinations.map((destination) => destination.id),
+          destinationNames: product.destinations.map((destination) => destination.name),
+          destinationSlugs: product.destinations.map((destination) => destination.slug),
+          locationTitles: product.locations.map((location) => location.title),
+          locationCities: product.locations
+            .map((location) => location.city)
+            .filter((value): value is string => Boolean(value)),
+          locationCountryCodes: product.locations
+            .map((location) => location.countryCode)
+            .filter((value): value is string => Boolean(value)),
+          coverMediaUrl: product.coverMedia?.url ?? null,
+          isFeatured: product.isFeatured,
+          createdAt: normalizeDateTime(rowById.get(product.id)?.createdAt),
+          updatedAt: normalizeDateTime(rowById.get(product.id)?.updatedAt),
+        }
+      }),
       total: countResult[0]?.count ?? 0,
       limit: query.limit,
       offset: query.offset,

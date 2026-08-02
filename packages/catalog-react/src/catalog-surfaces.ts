@@ -9,6 +9,11 @@ export const catalogDetailSurfaces = [
   "accommodations",
   "excursions",
   "tours",
+  "boat-tours",
+  "activities",
+  "attractions",
+  "events",
+  "transportation",
 ] as const
 export type CatalogDetailSurface = (typeof catalogDetailSurfaces)[number]
 

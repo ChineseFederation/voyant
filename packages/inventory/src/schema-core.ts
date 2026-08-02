@@ -1,6 +1,8 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
+import { sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -40,7 +42,16 @@ export const products = pgTable(
      * falls back to these base columns for this locale. Null until set.
      */
     defaultLanguageTag: text("default_language_tag"),
+    /**
+     * @deprecated Compatibility-only distribution flag. Product status and
+     * Distribution-owned Publication are authoritative; new operator UI must
+     * not author or interpret this column.
+     */
     visibility: productVisibilityEnum("visibility").notNull().default("private"),
+    /**
+     * @deprecated Compatibility-only site flag. A direct Storefront resolves
+     * a Channel whose effective Publication controls assortment.
+     */
     activated: boolean("activated").notNull().default(false),
     reservationTimeoutMinutes: integer("reservation_timeout_minutes"),
     sellCurrency: text("sell_currency").notNull(),
@@ -52,7 +63,31 @@ export const products = pgTable(
     startDate: date("start_date"),
     endDate: date("end_date"),
     pax: integer("pax"),
+    /**
+     * Product family reference — a soft id into `product_types` (recast as the
+     * merchandising **Product family**: tour, activity, attraction, event,
+     * transportation). Independent of `bookingMode`, `capacityMode`,
+     * `durationMinutes`, and schedule. Null until classified; a null family is
+     * surfaced as an actionable review warning rather than inferred.
+     */
     productTypeId: text("product_type_id"),
+    /**
+     * Optional Product **subtype** stable code (e.g. `boat-tour`, `day-tour`).
+     * A free-form stable code, independent from the family, booking mode, and
+     * duration. Null when the product has no subtype. Never inferred from
+     * duration (a 60-minute Boat Tour is a `tour`/`boat-tour`, not an Activity).
+     */
+    productSubtypeCode: text("product_subtype_code"),
+    /**
+     * Explicit product **duration in minutes** (positive). This is the
+     * authored source of truth for duration; the resolver
+     * (`resolveProductDuration`) prefers it over the legacy itinerary-day
+     * derivation. Null when the operator has not authored an explicit
+     * duration — the resolver then falls back to the itinerary or reports the
+     * duration as unresolved (with a review warning). Enforced positive by
+     * a CHECK constraint in the migration and by the contract schema.
+     */
+    durationMinutes: integer("duration_minutes"),
     /**
      * Soft reference to legal.contract_templates. This intentionally stays a
      * plain text column because legal lives in a separate package.
@@ -104,6 +139,12 @@ export const products = pgTable(
     // (enabled in the operator starter's migrations).
     index("idx_products_name_trgm").using("gin", table.name.op("gin_trgm_ops")),
     index("idx_products_description_trgm").using("gin", table.description.op("gin_trgm_ops")),
+    // Subtype is a facet in the catalog plane (e.g. Boat Tour view) — index it
+    // so `productSubtypeCode` filters don't scan.
+    index("idx_products_subtype_code").on(table.productSubtypeCode),
+    // Explicit duration is positive when present; enforced at the DB so no
+    // path (agent authoring, imports, backfills) can persist a nonsensical value.
+    check("chk_products_duration_minutes_positive", sql`${table.durationMinutes} > 0`),
   ],
 )
 

@@ -20,6 +20,7 @@ import {
   insertPickupLocationSchema,
   insertProductMeetingConfigSchema,
   meetingModeSchema,
+  operatedDepartureResourceKindSchema,
   pairSharingGroupSchema,
   pickupGroupKindSchema,
   pickupTimingModeSchema,
@@ -63,6 +64,15 @@ describe("Enum schemas", () => {
       expect(allocationResourceKindSchema.parse(kind)).toBe(kind)
     }
   })
+
+  it("defines the standard operated-departure resource kinds", () => {
+    for (const kind of ["room", "vehicle", "vehicle_seat"]) {
+      expect(operatedDepartureResourceKindSchema.parse(kind)).toBe(kind)
+    }
+    for (const unsupported of ["crew", "equipment"]) {
+      expect(() => operatedDepartureResourceKindSchema.parse(unsupported)).toThrow()
+    }
+  })
 })
 
 describe("Allocation schema", () => {
@@ -91,6 +101,34 @@ describe("Allocation schema", () => {
     ).toThrow()
   })
 
+  it("requires vehicle seats to have one occupant and a vehicle parent", () => {
+    expect(
+      insertAllocationResourceSchema.parse({
+        kind: "vehicle_seat",
+        label: "12A",
+        capacity: 1,
+        parentId: "vehicle_abc",
+      }),
+    ).toMatchObject({ kind: "vehicle_seat", capacity: 1, parentId: "vehicle_abc" })
+
+    expect(() =>
+      insertAllocationResourceSchema.parse({
+        kind: "vehicle_seat",
+        label: "12A",
+        capacity: 2,
+      }),
+    ).toThrow()
+
+    expect(() =>
+      insertAllocationResourceSchema.parse({
+        kind: "vehicle_seat",
+        label: "   ",
+        capacity: 1,
+        parentId: "vehicle_abc",
+      }),
+    ).toThrow()
+  })
+
   it("does not allow changing a resource kind through patch input", () => {
     expect(() =>
       updateAllocationResourceSchema.parse({
@@ -109,6 +147,19 @@ describe("Allocation schema", () => {
 
     expect(assignTravelerAllocationSchema.parse({ kind: "room", resourceId: null })).toEqual({
       kind: "room",
+      resourceId: null,
+    })
+  })
+
+  it("keeps vehicles as parent resources rather than traveler positions", () => {
+    expect(() =>
+      assignTravelerAllocationSchema.parse({
+        kind: "vehicle",
+        resourceId: "vehicle_abc",
+      }),
+    ).toThrow()
+    expect(assignTravelerAllocationSchema.parse({ kind: "vehicle", resourceId: null })).toEqual({
+      kind: "vehicle",
       resourceId: null,
     })
   })

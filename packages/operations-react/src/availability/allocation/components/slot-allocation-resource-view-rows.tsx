@@ -47,6 +47,7 @@ import { paymentStatusChipClass, paymentStatusTooltip } from "./slot-allocation-
 
 export function ResourceRow({
   kind,
+  assignable,
   resource,
   seated,
   unallocated,
@@ -64,6 +65,7 @@ export function ResourceRow({
   onBookingOpen,
 }: {
   kind: string
+  assignable: boolean
   resource: AllocationResource
   seated: AllocationManifestTraveler[]
   unallocated: AllocationManifestTraveler[]
@@ -86,7 +88,7 @@ export function ResourceRow({
   if (isEditing && canEdit) {
     return (
       <TableRow className="bg-muted/30">
-        <TableCell colSpan={4} className="whitespace-normal">
+        <TableCell colSpan={assignable ? 4 : 3} className="whitespace-normal">
           <ResourceEditForm
             kind={kind}
             resource={resource}
@@ -117,30 +119,32 @@ export function ResourceRow({
           {seated.length}/{resource.capacity}
         </Badge>
       </TableCell>
-      <TableCell className="whitespace-normal py-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {seated.map((traveler) => (
-            <TravelerChip
-              key={traveler.id}
-              traveler={traveler}
-              sharingGroupLabel={
-                traveler.sharingGroupId
-                  ? (sharingGroupLabels[traveler.sharingGroupId] ?? null)
-                  : null
-              }
-              onUnassign={() => onUnassignTraveler(traveler.id)}
-              onBookingOpen={onBookingOpen}
-            />
-          ))}
-          {!isFull ? (
-            <AssignTravelerPopover
-              unallocated={unallocated}
-              seatedBookingIds={new Set(seated.map((t) => t.bookingId))}
-              onSelect={(travelerId) => onAssignTraveler(travelerId)}
-            />
-          ) : null}
-        </div>
-      </TableCell>
+      {assignable ? (
+        <TableCell className="whitespace-normal py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {seated.map((traveler) => (
+              <TravelerChip
+                key={traveler.id}
+                traveler={traveler}
+                sharingGroupLabel={
+                  traveler.sharingGroupId
+                    ? (sharingGroupLabels[traveler.sharingGroupId] ?? null)
+                    : null
+                }
+                onUnassign={() => onUnassignTraveler(traveler.id)}
+                onBookingOpen={onBookingOpen}
+              />
+            ))}
+            {!isFull ? (
+              <AssignTravelerPopover
+                unallocated={unallocated}
+                seatedBookingIds={new Set(seated.map((t) => t.bookingId))}
+                onSelect={(travelerId) => onAssignTraveler(travelerId)}
+              />
+            ) : null}
+          </div>
+        </TableCell>
+      ) : null}
       <TableCell className="text-right">
         <div className="inline-flex items-center justify-end gap-1">
           {canEdit ? (

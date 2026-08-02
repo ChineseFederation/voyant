@@ -66,17 +66,18 @@ describe("createProductDocumentEmitter", () => {
     expect(doc.fields).toHaveProperty("endDate")
   })
 
-  it("excludes staff-only operational fields from customer documents (status, visibility, activated)", () => {
+  it("excludes staff-only lifecycle status from customer documents", () => {
     const doc = emitter.emit(sampleRow, customerSlice)
-    // status, visibility, activated are visibility:[staff] only per the policy
     expect(doc.fields).not.toHaveProperty("status")
+    expect(doc.fields).not.toHaveProperty("visibility")
     expect(doc.fields).not.toHaveProperty("activated")
   })
 
-  it("includes staff-only operational fields in admin documents", () => {
+  it("includes status but omits deprecated distribution flags from admin documents", () => {
     const doc = emitter.emit(sampleRow, adminSlice)
     expect(doc.fields).toHaveProperty("status")
-    expect(doc.fields).toHaveProperty("activated")
+    expect(doc.fields).not.toHaveProperty("visibility")
+    expect(doc.fields).not.toHaveProperty("activated")
   })
 
   it("excludes costAmountCents and marginPercent from every slice (blob-only — stored on row, not indexed)", () => {

@@ -157,9 +157,10 @@ enforcement point.
 
 Identifier-based access to unpublished Products uses the ordinary public
 not-found or unavailable response so the API does not disclose inaccessible
-Products. Publication is necessary but not sufficient: lifecycle, activation,
-visibility, availability, pricing, allotment, policy, and sellability gates still
-apply independently.
+Products. Publication is necessary but not sufficient: lifecycle, availability,
+pricing, allotment, policy, and sellability gates still apply independently. The
+deprecated Product-level `visibility` and `activated` compatibility fields are
+not sale or exposure authorities.
 
 Rule:
 

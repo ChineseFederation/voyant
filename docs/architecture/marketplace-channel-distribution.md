@@ -168,9 +168,10 @@ Publication is default-deny. The effective decision is resolved in this order:
 4. Otherwise the Product is unpublished.
 
 A Product without a canonical Supplier can only be published explicitly. Product
-eligibility stays outside this resolver: inactive lifecycle, private visibility,
-availability, pricing, allotment, policy, and sellability gates may still deny a
-published Product.
+eligibility stays outside this resolver: inactive lifecycle, availability,
+pricing, allotment, policy, and sellability gates may still deny a published
+Product. The deprecated Product-level `visibility` and `activated` compatibility
+fields are not eligibility authorities.
 
 Supplier publication changes can affect many Products, so they hand off durable,
 bounded, resumable reindex work. Product publication changes enqueue targeted

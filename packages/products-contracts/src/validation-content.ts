@@ -363,14 +363,21 @@ export type SetProductOpenGraphMedia = z.infer<typeof setProductOpenGraphMediaSc
 
 const productTypeCoreSchema = z.object({
   name: z.string().min(1).max(255),
-  code: z.string().min(1).max(100),
+  code: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Code must be lowercase kebab-case"),
   description: z.string().optional().nullable(),
   sortOrder: z.number().int().default(0),
   active: z.boolean().default(true),
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 export const insertProductTypeSchema = productTypeCoreSchema
-export const updateProductTypeSchema = productTypeCoreSchema.partial()
+// Codes are durable identifiers used by catalog views, integrations, and saved
+// filters. Operators can rename the display label, but changing a code after
+// creation would silently reinterpret existing products.
+export const updateProductTypeSchema = productTypeCoreSchema.omit({ code: true }).partial().strict()
 export const productTypeListQuerySchema = z.object({
   active: booleanQueryParam.optional(),
   search: z.string().optional(),

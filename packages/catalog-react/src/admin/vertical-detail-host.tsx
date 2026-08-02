@@ -68,6 +68,16 @@ function surfaceTitle(
       return nav.catalogExcursions
     case "tours":
       return nav.catalogTours
+    case "boat-tours":
+      return nav.catalogBoatTours
+    case "activities":
+      return nav.catalogActivities
+    case "attractions":
+      return nav.catalogAttractions
+    case "events":
+      return nav.catalogEvents
+    case "transportation":
+      return nav.catalogTransportation
     default:
       return nav.catalogProducts
   }

@@ -202,11 +202,7 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
         db: c.get("db"),
         ids: body.ids,
         patch: body.patch,
-        update: async (db, id, patch) => {
-          const row = await distributionService.updateChannel(db, id, patch)
-          if (row) await eventBus?.emit("channel.updated", { id: row.id })
-          return row
-        },
+        update: (db, id, patch) => distributionService.updateChannel(db, id, patch, eventBus),
       }),
       200,
     )
@@ -218,15 +214,7 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
       await handleBatchDelete({
         db: c.get("db"),
         ids: body.ids,
-        remove: async (db, id) => {
-          const row = await distributionService.deleteChannel(db, id)
-          if (row)
-            await eventBus?.emit("channel.deleted", {
-              id: row.id,
-              affectedProductIds: row.affectedProductIds,
-            })
-          return row
-        },
+        remove: (db, id) => distributionService.deleteChannel(db, id, eventBus),
       }),
       200,
     )
@@ -240,17 +228,16 @@ const channelRoutes = new OpenAPIHono<DistributionRouteEnv>({ defaultHook: openA
       c.get("db"),
       c.req.valid("param").id,
       c.req.valid("json"),
+      c.get("eventBus"),
     )
-    if (row) await c.get("eventBus")?.emit("channel.updated", { id: row.id })
     return row ? c.json({ data: row }, 200) : c.json({ error: "Channel not found" }, 404)
   })
   .openapi(deleteChannelRoute, async (c) => {
-    const row = await distributionService.deleteChannel(c.get("db"), c.req.valid("param").id)
-    if (row)
-      await c.get("eventBus")?.emit("channel.deleted", {
-        id: row.id,
-        affectedProductIds: row.affectedProductIds,
-      })
+    const row = await distributionService.deleteChannel(
+      c.get("db"),
+      c.req.valid("param").id,
+      c.get("eventBus"),
+    )
     return row
       ? c.json({ success: true } as const, 200)
       : c.json({ error: "Channel not found" }, 404)
@@ -826,7 +813,7 @@ const productMappingRoutes = new OpenAPIHono<DistributionRouteEnv>({
         db: c.get("db"),
         ids: body.ids,
         patch: body.patch,
-        // Bind the bus so each per-id write emits `product.publication.changed`.
+        // Bind the bus so each per-id write emits `channel.product_mapping.changed`.
         update: (db, id, patch) =>
           distributionService.updateProductMapping(db, id, patch, eventBus),
       }),

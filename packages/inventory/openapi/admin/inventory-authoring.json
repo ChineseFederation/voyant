@@ -1,8 +1,19 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Inventory Authoring API",
-    "version": "1.0.0"
+    "title": "Voyant Operator API",
+    "version": "0.0.0",
+    "description": "Generated from the composed operator app. Do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This deployment (same origin)"
+    }
+  ],
+  "components": {
+    "schemas": {},
+    "parameters": {}
   },
   "paths": {
     "/v1/admin/products/compose": {
@@ -11,9 +22,13 @@
         "x-voyant-api-id": "@voyant-travel/inventory#authoring.extension.api",
         "parameters": [
           {
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "required": false,
             "name": "Idempotency-Key",
-            "in": "header",
-            "schema": { "type": "string", "maxLength": 255 }
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -22,23 +37,651 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["spec"],
                 "properties": {
                   "spec": {
                     "type": "object",
-                    "description": "Product graph authoring specification"
+                    "properties": {
+                      "product": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 255
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": ["draft", "active", "archived"],
+                            "default": "draft"
+                          },
+                          "description": {
+                            "type": ["string", "null"]
+                          },
+                          "inclusionsHtml": {
+                            "type": ["string", "null"]
+                          },
+                          "exclusionsHtml": {
+                            "type": ["string", "null"]
+                          },
+                          "termsHtml": {
+                            "type": ["string", "null"]
+                          },
+                          "termsShowOnContract": {
+                            "type": "boolean",
+                            "default": false
+                          },
+                          "bookingMode": {
+                            "type": "string",
+                            "enum": [
+                              "date",
+                              "date_time",
+                              "open",
+                              "stay",
+                              "transfer",
+                              "itinerary",
+                              "other"
+                            ],
+                            "default": "date"
+                          },
+                          "capacityMode": {
+                            "type": "string",
+                            "enum": ["free_sale", "limited", "on_request"],
+                            "default": "limited"
+                          },
+                          "timezone": {
+                            "type": ["string", "null"]
+                          },
+                          "defaultLanguageTag": {
+                            "type": ["string", "null"]
+                          },
+                          "visibility": {
+                            "type": "string",
+                            "enum": ["public", "private", "hidden"],
+                            "default": "private"
+                          },
+                          "sellCurrency": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 3
+                          },
+                          "sellAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "costAmountCents": {
+                            "type": ["integer", "null"]
+                          },
+                          "marginPercent": {
+                            "type": ["integer", "null"]
+                          },
+                          "reservationTimeoutMinutes": {
+                            "type": ["integer", "null"]
+                          },
+                          "facilityId": {
+                            "type": ["string", "null"]
+                          },
+                          "supplierId": {
+                            "type": ["string", "null"]
+                          },
+                          "startDate": {
+                            "type": ["string", "null"]
+                          },
+                          "endDate": {
+                            "type": ["string", "null"]
+                          },
+                          "pax": {
+                            "type": ["integer", "null"]
+                          },
+                          "productTypeId": {
+                            "type": ["string", "null"]
+                          },
+                          "productSubtypeCode": {
+                            "type": ["string", "null"],
+                            "maxLength": 64,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "durationMinutes": {
+                            "type": ["integer", "null"],
+                            "exclusiveMinimum": 0
+                          },
+                          "contractTemplateId": {
+                            "type": ["string", "null"]
+                          },
+                          "taxClassId": {
+                            "type": ["string", "null"]
+                          },
+                          "customerPaymentPolicy": {},
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "default": []
+                          }
+                        },
+                        "required": ["name", "sellCurrency"]
+                      },
+                      "options": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "ref": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "code": {
+                              "type": ["string", "null"],
+                              "maxLength": 255
+                            },
+                            "description": {
+                              "type": ["string", "null"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": ["draft", "active", "archived"],
+                              "default": "draft"
+                            },
+                            "isDefault": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sortOrder": {
+                              "type": "integer",
+                              "default": 0
+                            },
+                            "availableFrom": {
+                              "type": ["string", "null"]
+                            },
+                            "availableTo": {
+                              "type": ["string", "null"]
+                            },
+                            "units": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "ref": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "code": {
+                                    "type": ["string", "null"],
+                                    "maxLength": 255
+                                  },
+                                  "description": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "unitType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "person",
+                                      "group",
+                                      "room",
+                                      "vehicle",
+                                      "service",
+                                      "other"
+                                    ],
+                                    "default": "person"
+                                  },
+                                  "minQuantity": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "maxQuantity": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "minAge": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "maxAge": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "occupancyMin": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "occupancyMax": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "isRequired": {
+                                    "type": "boolean",
+                                    "default": false
+                                  },
+                                  "isHidden": {
+                                    "type": "boolean",
+                                    "default": false
+                                  },
+                                  "sortOrder": {
+                                    "type": "integer",
+                                    "default": 0
+                                  }
+                                },
+                                "required": ["ref", "name"]
+                              },
+                              "default": []
+                            },
+                            "priceRules": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "priceCatalogId": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "priceScheduleId": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "cancellationPolicyId": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "code": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "name": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  },
+                                  "description": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "pricingMode": {
+                                    "type": "string",
+                                    "enum": [
+                                      "per_person",
+                                      "per_booking",
+                                      "starting_from",
+                                      "free",
+                                      "on_request"
+                                    ],
+                                    "default": "per_person"
+                                  },
+                                  "baseSellAmountCents": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "baseCostAmountCents": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "minPerBooking": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "maxPerBooking": {
+                                    "type": ["integer", "null"]
+                                  },
+                                  "allPricingCategories": {
+                                    "type": "boolean",
+                                    "default": true
+                                  },
+                                  "isDefault": {
+                                    "type": "boolean",
+                                    "default": false
+                                  },
+                                  "active": {
+                                    "type": "boolean",
+                                    "default": true
+                                  },
+                                  "notes": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "metadata": {
+                                    "type": ["object", "null"],
+                                    "additionalProperties": {}
+                                  },
+                                  "unitPriceRules": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "unitRef": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "pricingCategoryId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "pricingMode": {
+                                          "type": "string",
+                                          "enum": [
+                                            "per_unit",
+                                            "per_person",
+                                            "per_booking",
+                                            "included",
+                                            "free",
+                                            "on_request"
+                                          ],
+                                          "default": "per_unit"
+                                        },
+                                        "sellAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "costAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "minQuantity": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "maxQuantity": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "active": {
+                                          "type": "boolean",
+                                          "default": true
+                                        },
+                                        "sortOrder": {
+                                          "type": "integer",
+                                          "default": 0
+                                        },
+                                        "notes": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "metadata": {
+                                          "type": ["object", "null"],
+                                          "additionalProperties": {}
+                                        },
+                                        "tiers": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "minQuantity": {
+                                                "type": "integer"
+                                              },
+                                              "maxQuantity": {
+                                                "type": ["integer", "null"]
+                                              },
+                                              "sellAmountCents": {
+                                                "type": ["integer", "null"]
+                                              },
+                                              "costAmountCents": {
+                                                "type": ["integer", "null"]
+                                              },
+                                              "active": {
+                                                "type": "boolean",
+                                                "default": true
+                                              },
+                                              "sortOrder": {
+                                                "type": "integer",
+                                                "default": 0
+                                              }
+                                            },
+                                            "required": ["minQuantity"]
+                                          },
+                                          "default": []
+                                        }
+                                      },
+                                      "required": ["unitRef"]
+                                    },
+                                    "default": []
+                                  },
+                                  "pickupPriceRules": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "pickupPointId": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "pricingMode": {
+                                          "type": "string",
+                                          "enum": [
+                                            "included",
+                                            "per_person",
+                                            "per_booking",
+                                            "on_request",
+                                            "unavailable"
+                                          ],
+                                          "default": "included"
+                                        },
+                                        "sellAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "costAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "active": {
+                                          "type": "boolean",
+                                          "default": true
+                                        },
+                                        "sortOrder": {
+                                          "type": "integer",
+                                          "default": 0
+                                        },
+                                        "notes": {
+                                          "type": ["string", "null"]
+                                        }
+                                      },
+                                      "required": ["pickupPointId"]
+                                    },
+                                    "default": []
+                                  },
+                                  "dropoffPriceRules": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "facilityId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "dropoffCode": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "dropoffName": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 255
+                                        },
+                                        "pricingMode": {
+                                          "type": "string",
+                                          "enum": [
+                                            "included",
+                                            "per_person",
+                                            "per_booking",
+                                            "on_request",
+                                            "unavailable"
+                                          ],
+                                          "default": "included"
+                                        },
+                                        "sellAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "costAmountCents": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "active": {
+                                          "type": "boolean",
+                                          "default": true
+                                        },
+                                        "sortOrder": {
+                                          "type": "integer",
+                                          "default": 0
+                                        },
+                                        "notes": {
+                                          "type": ["string", "null"]
+                                        }
+                                      },
+                                      "required": ["dropoffName"]
+                                    },
+                                    "default": []
+                                  }
+                                },
+                                "required": ["name"]
+                              },
+                              "default": []
+                            }
+                          },
+                          "required": ["ref", "name"]
+                        },
+                        "default": []
+                      },
+                      "paxPricingTiers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "unitRef": {
+                              "type": ["string", "null"]
+                            },
+                            "tierPax": {
+                              "type": "integer"
+                            },
+                            "pricePerPaxCents": {
+                              "type": "integer"
+                            },
+                            "promoPricePerPaxCents": {
+                              "type": ["integer", "null"]
+                            },
+                            "effectiveFrom": {
+                              "type": ["string", "null"]
+                            },
+                            "effectiveTo": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": ["tierPax", "pricePerPaxCents"]
+                        },
+                        "default": []
+                      },
+                      "itineraries": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "isDefault": {
+                              "type": "boolean",
+                              "default": false
+                            },
+                            "sortOrder": {
+                              "type": "integer",
+                              "default": 0
+                            },
+                            "days": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "dayNumber": {
+                                    "type": "integer"
+                                  },
+                                  "title": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "description": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "location": {
+                                    "type": ["string", "null"]
+                                  },
+                                  "services": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "supplierServiceId": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "serviceType": {
+                                          "type": "string",
+                                          "enum": [
+                                            "accommodation",
+                                            "transfer",
+                                            "experience",
+                                            "guide",
+                                            "meal",
+                                            "other"
+                                          ]
+                                        },
+                                        "name": {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 255
+                                        },
+                                        "description": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "countryCode": {
+                                          "type": ["string", "null"]
+                                        },
+                                        "costCurrency": {
+                                          "type": "string",
+                                          "minLength": 3,
+                                          "maxLength": 3
+                                        },
+                                        "costAmountCents": {
+                                          "type": "integer"
+                                        },
+                                        "quantity": {
+                                          "type": "integer",
+                                          "default": 1
+                                        },
+                                        "sortOrder": {
+                                          "type": ["integer", "null"]
+                                        },
+                                        "notes": {
+                                          "type": ["string", "null"]
+                                        }
+                                      },
+                                      "required": [
+                                        "serviceType",
+                                        "name",
+                                        "costCurrency",
+                                        "costAmountCents"
+                                      ]
+                                    },
+                                    "default": []
+                                  }
+                                },
+                                "required": ["dayNumber"]
+                              },
+                              "default": []
+                            }
+                          },
+                          "required": ["name"]
+                        },
+                        "default": []
+                      }
+                    },
+                    "required": ["product"]
                   },
-                  "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 255 }
-                }
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": ["spec"]
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "An idempotent request reused an existing product graph" },
-          "201": { "description": "The product graph was created" },
-          "422": { "description": "The product graph specification is invalid" }
-        }
+          "200": {
+            "description": "An idempotent request reused an existing product graph"
+          },
+          "201": {
+            "description": "The product graph was created"
+          },
+          "422": {
+            "description": "The product graph specification is invalid"
+          }
+        },
+        "operationId": "postAdminProductsCompose",
+        "tags": ["products"],
+        "x-voyant-module": "products",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/products/{id}/duplicate": {
@@ -46,11 +689,22 @@
         "summary": "Duplicate a product graph",
         "x-voyant-api-id": "@voyant-travel/inventory#authoring.extension.api",
         "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
           {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "required": false,
             "name": "Idempotency-Key",
-            "in": "header",
-            "schema": { "type": "string", "maxLength": 255 }
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -60,23 +714,52 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": { "type": "string", "minLength": 1, "maxLength": 255 },
-                  "status": { "type": "string" },
-                  "visibility": { "type": "string" },
-                  "copyDepartures": { "type": "boolean" },
-                  "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 255 }
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["draft", "active", "archived"]
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": ["public", "private", "hidden"]
+                  },
+                  "copyDepartures": {
+                    "type": "boolean"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "An idempotent request reused an existing duplicate" },
-          "201": { "description": "The product graph was duplicated" },
-          "400": { "description": "The request body is invalid" },
-          "404": { "description": "The source product does not exist" }
-        }
+          "200": {
+            "description": "An idempotent request reused an existing duplicate"
+          },
+          "201": {
+            "description": "The product graph was duplicated"
+          },
+          "400": {
+            "description": "The request body is invalid"
+          },
+          "404": {
+            "description": "The source product does not exist"
+          }
+        },
+        "operationId": "postAdminProductsByIdDuplicate",
+        "tags": ["products"],
+        "x-voyant-module": "products",
+        "x-voyant-surface": "admin"
       }
     }
-  }
+  },
+  "webhooks": {}
 }

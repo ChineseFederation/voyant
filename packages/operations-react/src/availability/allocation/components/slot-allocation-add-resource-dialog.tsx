@@ -20,7 +20,12 @@ import { AlertTriangle } from "lucide-react"
 import type { FormEvent } from "react"
 
 import type { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
-import { kindLabel, type ResourceCapacitySummary, ROOM_KIND } from "./slot-allocation-model.js"
+import {
+  kindLabel,
+  type ResourceCapacitySummary,
+  ROOM_KIND,
+  VEHICLE_SEAT_KIND,
+} from "./slot-allocation-model.js"
 
 type ResourceTemplateOption = {
   id: string
@@ -39,6 +44,9 @@ export function AddResourceDialog({
   onResourceCapacityChange,
   resourceOptionId,
   onResourceOptionIdChange,
+  resourceParentId,
+  onResourceParentIdChange,
+  parentResources,
   resourceOptions,
   projectedSummary,
   createPending,
@@ -54,11 +62,16 @@ export function AddResourceDialog({
   onResourceCapacityChange: (value: number) => void
   resourceOptionId: string | null
   onResourceOptionIdChange: (value: string | null) => void
+  resourceParentId: string | null
+  onResourceParentIdChange: (value: string | null) => void
+  parentResources: ReadonlyArray<{ id: string; label: string | null }>
   resourceOptions: ReadonlyArray<ResourceTemplateOption>
   projectedSummary: ResourceCapacitySummary | null
   createPending: boolean
   messages: ReturnType<typeof useAllocationUiMessagesOrDefault>
 }) {
+  const parentRequired = activeKind === VEHICLE_SEAT_KIND
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -102,6 +115,34 @@ export function AddResourceDialog({
                 </Select>
               </div>
             ) : null}
+            {parentRequired ? (
+              <div className="grid gap-1.5">
+                <Label htmlFor="allocation-resource-parent">{messages.resourceParent}</Label>
+                {parentResources.length > 0 ? (
+                  <Select
+                    value={resourceParentId ?? ""}
+                    onValueChange={(value) => onResourceParentIdChange(value || null)}
+                  >
+                    <SelectTrigger id="allocation-resource-parent" className="w-full">
+                      <SelectValue placeholder={messages.resourceParentPlaceholder}>
+                        {(value) =>
+                          parentResources.find((resource) => resource.id === value)?.label ?? value
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {parentResources.map((resource) => (
+                        <SelectItem key={resource.id} value={resource.id}>
+                          {resource.label ?? messages.vehicle}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{messages.resourceParentRequired}</p>
+                )}
+              </div>
+            ) : null}
             <div className="grid gap-1.5">
               <Label htmlFor="allocation-resource-label">{messages.resourceLabel}</Label>
               <Input
@@ -109,6 +150,7 @@ export function AddResourceDialog({
                 value={resourceLabel}
                 onChange={(event) => onResourceLabelChange(event.target.value)}
                 placeholder={activeKind === ROOM_KIND ? "102" : kindLabel(activeKind, messages)}
+                required={parentRequired}
                 autoFocus
               />
             </div>
@@ -118,7 +160,9 @@ export function AddResourceDialog({
                 id="allocation-resource-capacity"
                 type="number"
                 min={1}
+                max={activeKind === VEHICLE_SEAT_KIND ? 1 : undefined}
                 value={resourceCapacity}
+                disabled={activeKind === VEHICLE_SEAT_KIND}
                 onChange={(event) => onResourceCapacityChange(Number(event.target.value) || 1)}
               />
             </div>
@@ -141,7 +185,13 @@ export function AddResourceDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {messages.cancel}
             </Button>
-            <Button type="submit" disabled={createPending}>
+            <Button
+              type="submit"
+              disabled={
+                createPending ||
+                (parentRequired && (!resourceParentId || resourceLabel.trim().length === 0))
+              }
+            >
               {messages.createResource}
             </Button>
           </DialogFooter>

@@ -22,6 +22,7 @@ import {
   type SignInSocialProvider,
 } from "./components/sign-in-page.js"
 import {
+  type SignUpEmailSubmitInput,
   SignUpPage,
   type SignUpPageMessages,
   type SignUpSocialProvider,
@@ -43,9 +44,34 @@ export interface LocalAuthPresentationRuntime<TUser> {
     email: string
     password: string
   }) => Promise<{ error?: { message?: string | null } | null }>
+  signUpWithEmail: (input: {
+    name: string
+    email: string
+    password: string
+    callbackURL?: string
+  }) => Promise<{
+    data?: unknown
+    error?: { message?: string | null } | null
+  }>
   signInWithSocial: (provider: "google", callbackURL: string) => Promise<unknown>
   sendVerificationOtp: (email: string) => Promise<unknown>
   refreshAuthStatus: () => Promise<unknown>
+}
+
+export async function submitLocalAuthEmailSignUp<TUser>(
+  runtime: Pick<LocalAuthPresentationRuntime<TUser>, "signUpWithEmail">,
+  input: SignUpEmailSubmitInput,
+): Promise<unknown> {
+  const result = await runtime.signUpWithEmail({
+    name: input.name,
+    email: input.email,
+    password: input.password,
+    ...(input.redirectTo ? { callbackURL: input.redirectTo } : {}),
+  })
+  if (result.error) {
+    throw new Error(result.error.message ?? "Could not create account.")
+  }
+  return result.data
 }
 
 export interface LocalAuthRouteContribution {
@@ -276,6 +302,7 @@ export function createLocalAuthRouteContribution<TUser>(
       <SignUpPage
         messages={messages}
         socialProviders={socialProviders}
+        onEmailSignUp={(input) => submitLocalAuthEmailSignUp(runtime, input)}
         onSignedUp={({ email }) => void navigate({ to: "/verify-email", search: { email } })}
       />
     )

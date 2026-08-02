@@ -145,12 +145,13 @@ export interface AdminUiRouteContribution {
   /**
    * The semantic destination key this route SATISFIES (packaged-admin RFC
    * §4.7 endgame). Declare it only when the destination's semantics map 1:1
-   * onto this route's path with pure param interpolation — the binding lets
+   * onto this route's path with pure param interpolation and, when explicitly
+   * declared below, a fixed set of search params — the binding lets
    * `voyant admin generate --destinations` emit the host's resolver for the
-   * key instead of the host hand-writing it. Destinations that need search
-   * params, multiple candidate routes, or any construction beyond path
-   * interpolation must NOT be bound here; their resolvers stay hand-written
-   * in the host map. The key must be declared on {@link AdminDestinations}
+   * key instead of the host hand-writing it. Destinations that need computed
+   * search params, multiple candidate routes, or any construction beyond this
+   * declarative projection must NOT be bound here; their resolvers stay
+   * hand-written in the host map. The key must be declared on {@link AdminDestinations}
    * (by this package or one whose augmentation is in scope), which keeps the
    * annotation typo-proof.
    */
@@ -163,6 +164,13 @@ export interface AdminUiRouteContribution {
    * to {@link AdminUiRouteContribution.destination}.
    */
   destinationParams?: Record<string, string>
+  /**
+   * Destination-param names copied verbatim into the route query string.
+   * Empty, null, and undefined values are omitted. Use only for a fixed search
+   * contract such as `/bookings/new?productId=...`; computed projections stay
+   * host-owned.
+   */
+  destinationSearchParams?: readonly string[]
   /**
    * Redirect target: the route navigates here instead of rendering
    * (host binders emit a `beforeLoad`-style redirect, which also covers

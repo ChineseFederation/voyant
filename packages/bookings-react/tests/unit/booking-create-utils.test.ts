@@ -11,9 +11,30 @@ import {
   productMatchesPickerSearch,
   validateBillingPersonContact,
 } from "../../src/components/booking-create-utils.js"
+import { toManualBookingPriceOverride } from "../../src/components/manual-booking-create-form.js"
 import { clearSharedRoomValue } from "../../src/components/shared-room-section.js"
 
 describe("booking create helpers", () => {
+  it("maps an operator total to the audited tool price override contract", () => {
+    expect(
+      toManualBookingPriceOverride({
+        catalogAmountCents: null,
+        confirmedAmountCents: 10_000,
+        priceOverrideReason: "Agreed group rate",
+        currency: "EUR",
+      }),
+    ).toEqual({ amountCents: 10_000, reason: "Agreed group rate" })
+
+    expect(
+      toManualBookingPriceOverride({
+        catalogAmountCents: 10_000,
+        confirmedAmountCents: 10_000,
+        priceOverrideReason: null,
+        currency: "EUR",
+      }),
+    ).toBeUndefined()
+  })
+
   it("requires a payment date when an installment is marked already paid", () => {
     expect(
       findAlreadyPaidInstallmentMissingPaymentDate({

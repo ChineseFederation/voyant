@@ -357,6 +357,7 @@ export function createBookingsAdminExtension(
         path: `${basePath}/new`,
         title: bookings,
         destination: "booking.create",
+        destinationSearchParams: ["productId", "slotId"],
         validateSearch: (search) => bookingNewSearchSchema.parse(search),
         page: async () => {
           const module = await import("./pages/booking-new-page.js")

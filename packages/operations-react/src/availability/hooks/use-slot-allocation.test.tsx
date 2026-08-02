@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import { VoyantAvailabilityProvider } from "../provider.js"
 import {
+  useAllocationResourceMutation,
   useMaterializeOpenSlotsMutation,
   useResourceTemplateMutation,
 } from "./use-slot-allocation.js"
@@ -59,8 +60,26 @@ function mountHook<T>(useValue: () => T, calls: FetchCall[]) {
   })
   const fetcher = async (url: string, init?: RequestInit) => {
     calls.push({ url, init })
-    const body =
-      init?.method === "DELETE"
+    const body = url.includes("/allocation/resources")
+      ? init?.method === "DELETE"
+        ? { data: { id: "resource_1" } }
+        : {
+            data: {
+              id: "resource_1",
+              slotId: "slot_1",
+              kind: "room",
+              refType: null,
+              refId: null,
+              label: "Room 1",
+              capacity: 2,
+              flags: {},
+              parentId: null,
+              sortOrder: 0,
+              createdAt: "2026-06-30T00:00:00.000Z",
+              updatedAt: "2026-06-30T00:00:00.000Z",
+            },
+          }
+      : init?.method === "DELETE"
         ? { data: { productOptionId: "popt_1", kind: "room" } }
         : init?.method === "POST"
           ? { data: { slots: 2, created: 4 } }
@@ -99,6 +118,26 @@ function mountHook<T>(useValue: () => T, calls: FetchCall[]) {
 }
 
 describe("slot allocation hooks", () => {
+  it("uses the availability slot route for resource mutations", async () => {
+    const calls: FetchCall[] = []
+    const read = mountHook(() => useAllocationResourceMutation("slot_1"), calls)
+
+    await act(async () => {
+      await read().create.mutateAsync({ kind: "room", label: "Room 1", capacity: 2 })
+      await read().update.mutateAsync({
+        resourceId: "resource_1",
+        input: { label: "Room 2" },
+      })
+      await read().remove.mutateAsync("resource_1")
+    })
+
+    expect(calls.map((call) => `${call.init?.method} ${call.url}`)).toEqual([
+      "POST https://operator.example/api/v1/admin/operations/availability/slots/slot_1/allocation/resources",
+      "PATCH https://operator.example/api/v1/admin/operations/availability/slots/slot_1/allocation/resources/resource_1",
+      "DELETE https://operator.example/api/v1/admin/operations/availability/slots/slot_1/allocation/resources/resource_1",
+    ])
+  })
+
   it("uses the availability products route for resource template mutations", async () => {
     const calls: FetchCall[] = []
     const read = mountHook(() => useResourceTemplateMutation("prod_1"), calls)

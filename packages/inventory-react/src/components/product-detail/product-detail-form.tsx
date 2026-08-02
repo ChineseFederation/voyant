@@ -10,7 +10,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
 } from "@voyant-travel/ui/components"
 import {
   Combobox,
@@ -51,6 +50,8 @@ export type ProductData = {
   visibility: "public" | "private" | "hidden"
   activated: boolean
   productTypeId: string | null
+  productSubtypeCode?: string | null
+  durationMinutes?: number | null
   taxClassId: string | null
   sellCurrency: string
   tags: string[]
@@ -87,9 +88,9 @@ function initialValues(product: ProductData | undefined) {
       exclusionsHtml: product.exclusionsHtml ?? "",
       termsHtml: product.termsHtml ?? "",
       bookingMode: product.bookingMode,
-      visibility: product.visibility,
-      activated: product.activated,
       productTypeId: product.productTypeId ?? "",
+      productSubtypeCode: product.productSubtypeCode ?? "",
+      durationMinutes: product.durationMinutes ?? null,
       taxClassId: product.taxClassId ?? "",
       sellCurrency: product.sellCurrency,
       tags: product.tags ?? [],
@@ -104,9 +105,9 @@ function initialValues(product: ProductData | undefined) {
     exclusionsHtml: "",
     termsHtml: "",
     bookingMode: "itinerary" as const,
-    visibility: "private" as const,
-    activated: false,
     productTypeId: "",
+    productSubtypeCode: "",
+    durationMinutes: null,
     taxClassId: "",
     sellCurrency: "EUR",
     tags: [] as string[],
@@ -127,9 +128,14 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
     exclusionsHtml: z.string().optional().nullable(),
     termsHtml: z.string().optional().nullable(),
     bookingMode: z.enum(["date", "date_time", "open", "stay", "transfer", "itinerary", "other"]),
-    visibility: z.enum(["public", "private", "hidden"]),
-    activated: z.boolean(),
     productTypeId: z.string().optional().nullable(),
+    productSubtypeCode: z
+      .string()
+      .max(64)
+      .refine((value) => !value || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value), {
+        message: productMessages.validationSubtypeCode,
+      }),
+    durationMinutes: z.number().int().positive().nullable(),
     taxClassId: z.string().optional().nullable(),
     sellCurrency: z
       .string()
@@ -185,12 +191,6 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
       basis: productMessages.bookingModeOtherBasis,
     },
   ] as const
-  const visibilityOptions = [
-    { value: "public", label: productMessages.visibilityPublic },
-    { value: "private", label: productMessages.visibilityPrivate },
-    { value: "hidden", label: productMessages.visibilityHidden },
-  ] as const
-
   const form = useForm<ProductFormValues, unknown, ProductFormOutput>({
     resolver: zodResolver(productFormSchema),
     defaultValues: initialValues(product),
@@ -209,6 +209,7 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
   }, [defaultLanguageTag])
 
   const [tagInput, setTagInput] = useState("")
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const { data: typesData } = useQuery({
     queryKey: ["product-types"],
@@ -233,6 +234,7 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
   }, [product, form])
 
   const onSubmit = async (values: ProductFormOutput) => {
+    setSubmitError(null)
     const resolvedDefaultLanguage = values.defaultLanguageTag?.trim() || adminBaseLocale
     const payload = {
       name: values.name,
@@ -242,9 +244,9 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
       exclusionsHtml: values.exclusionsHtml || null,
       termsHtml: values.termsHtml || null,
       bookingMode: values.bookingMode,
-      visibility: values.visibility,
-      activated: values.activated,
       productTypeId: values.productTypeId || null,
+      productSubtypeCode: values.productSubtypeCode || null,
+      durationMinutes: values.durationMinutes,
       taxClassId: values.taxClassId || null,
       sellCurrency: values.sellCurrency,
       tags: values.tags,
@@ -259,14 +261,18 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
       baseTermsHtml: values.termsHtml ?? "",
     }
 
-    if (isEditing) {
-      await api.patch(`/v1/admin/products/${product.id}`, payload)
-      await translations.persist(product.id, persistOptions)
-      onSuccess()
-    } else {
-      const result = await api.post<{ id: string }>("/v1/admin/products", payload)
-      await translations.persist(result.id, persistOptions)
-      onSuccess(result.id)
+    try {
+      if (isEditing) {
+        await api.patch(`/v1/admin/products/${product.id}`, payload)
+        await translations.persist(product.id, persistOptions)
+        onSuccess()
+      } else {
+        const result = await api.post<{ id: string }>("/v1/admin/products", payload)
+        await translations.persist(result.id, persistOptions)
+        onSuccess(result.id)
+      }
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : productMessages.saveFailed)
     }
   }
 
@@ -447,7 +453,7 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="flex flex-col gap-2">
             <Label id="product-detail-booking-mode-label" htmlFor="product-detail-booking-mode">
               {productMessages.bookingModeLabel}
@@ -480,41 +486,12 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label id="product-detail-visibility-label" htmlFor="product-detail-visibility">
-              {productMessages.visibilityLabel}
-            </Label>
-            <Select
-              value={form.watch("visibility")}
-              onValueChange={(v) =>
-                form.setValue("visibility", v as ProductFormValues["visibility"], {
-                  shouldDirty: true,
-                })
-              }
-              items={visibilityOptions}
-            >
-              <SelectTrigger
-                id="product-detail-visibility"
-                aria-labelledby="product-detail-visibility-label"
-                className="w-full"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {visibilityOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 rounded-md border p-3 sm:grid-cols-3">
           <div className="flex flex-col gap-2">
             <Label id="product-detail-product-type-label" htmlFor="product-detail-product-type">
-              {productMessages.productTypeLabel}
+              {productMessages.familyLabel}
             </Label>
             <Select
               value={form.watch("productTypeId") ?? ""}
@@ -545,18 +522,48 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-2 rounded-md border p-3">
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="product-detail-activated">{productMessages.activatedLabel}</Label>
-              <Switch
-                id="product-detail-activated"
-                checked={form.watch("activated")}
-                onCheckedChange={(checked) =>
-                  form.setValue("activated", checked, { shouldDirty: true })
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-detail-subtype">{productMessages.subtypeLabel}</Label>
+            <Input
+              id="product-detail-subtype"
+              value={form.watch("productSubtypeCode") ?? ""}
+              onChange={(event) =>
+                form.setValue("productSubtypeCode", event.target.value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              placeholder={productMessages.subtypePlaceholder}
+              aria-invalid={!!form.formState.errors.productSubtypeCode}
+            />
+            {form.formState.errors.productSubtypeCode?.message ? (
+              <p className="text-destructive text-xs">
+                {form.formState.errors.productSubtypeCode.message}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="product-detail-duration">{productMessages.durationLabel}</Label>
+            <div className="relative">
+              <Input
+                id="product-detail-duration"
+                type="number"
+                min={1}
+                step={1}
+                value={form.watch("durationMinutes") ?? ""}
+                onChange={(event) =>
+                  form.setValue(
+                    "durationMinutes",
+                    event.target.value === "" ? null : Number(event.target.value),
+                    { shouldDirty: true, shouldValidate: true },
+                  )
                 }
+                className="pr-12"
               />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground text-xs">
+                {productMessages.durationMinutesSuffix}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">{productMessages.activatedHint}</p>
           </div>
         </div>
 
@@ -648,6 +655,15 @@ export function ProductDetailForm({ product, onSuccess, onCancel }: ProductDetai
           </div>
         )}
       </div>
+
+      {submitError ? (
+        <p
+          role="alert"
+          className="whitespace-pre-line rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive text-sm"
+        >
+          {submitError}
+        </p>
+      ) : null}
 
       <div className="flex items-center justify-end gap-2">
         {onCancel ? (

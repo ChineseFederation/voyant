@@ -1,10 +1,13 @@
+import { ApiHttpError } from "@voyant-travel/hono"
 import { and, asc, eq, ilike, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
+import { STANDARD_PRODUCT_FAMILY_CODES } from "./classification.js"
 import { duplicateInventoryValueError } from "./duplicate-errors.js"
 import {
   productCategories,
   productCategoryProducts,
+  products,
   productTagProducts,
   productTags,
   productTypes,
@@ -84,7 +87,7 @@ export const taxonomyProductsService = {
     if (!row) {
       throw duplicateInventoryValueError({
         code: "duplicate_product_type_code",
-        message: "Product type code already exists",
+        message: "Product family code already exists",
         resource: "product_type",
         fields: [["code"]],
       })
@@ -104,6 +107,32 @@ export const taxonomyProductsService = {
   },
 
   async deleteProductType(db: PostgresJsDatabase, id: string) {
+    const [type] = await db
+      .select({ code: productTypes.code })
+      .from(productTypes)
+      .where(eq(productTypes.id, id))
+      .limit(1)
+
+    if (!type) return null
+
+    if (STANDARD_PRODUCT_FAMILY_CODES.includes(type.code)) {
+      throw productFamilyInUseError(
+        "Standard product families cannot be deleted. Deactivate or rename the display label instead.",
+      )
+    }
+
+    const [reference] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.productTypeId, id))
+      .limit(1)
+
+    if (reference) {
+      throw productFamilyInUseError(
+        "This product family is assigned to products. Reclassify them before deleting it.",
+      )
+    }
+
     const [row] = await db
       .delete(productTypes)
       .where(eq(productTypes.id, id))
@@ -357,4 +386,12 @@ export const taxonomyProductsService = {
 
     return rows.map((r) => r.tag)
   },
+}
+
+function productFamilyInUseError(message: string): ApiHttpError {
+  return new ApiHttpError(message, {
+    status: 409,
+    code: "product_family_in_use",
+    details: { resource: "product_family" },
+  })
 }

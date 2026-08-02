@@ -5,6 +5,7 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { describe, expect, it } from "vitest"
 
 import { productCatalogPolicy } from "../../src/catalog-policy.js"
+import { resolveProductClassification } from "../../src/classification.js"
 import type { Product } from "../../src/schema-core.js"
 import {
   createProductStorefrontCardProjectionExtension,
@@ -43,6 +44,8 @@ const sampleRow: Product = {
   endDate: "2026-12-31",
   pax: 12,
   productTypeId: "ptyp_wellness",
+  productSubtypeCode: null,
+  durationMinutes: null,
   supplierId: null,
   contractTemplateId: null,
   taxClassId: null,
@@ -99,6 +102,12 @@ describe("productRowToProjection", () => {
     const projection = productRowToProjection(sampleRow, { sellerOperatorId: "op_xyz" })
     expect(projection.get("costAmountCents")).toBe(180000)
     expect(projection.get("marginPercent")).toBe(28)
+  })
+
+  it("does not project deprecated product distribution flags", () => {
+    const projection = productRowToProjection(sampleRow, { sellerOperatorId: "op_xyz" })
+    expect(projection.has("visibility")).toBe(false)
+    expect(projection.has("activated")).toBe(false)
   })
 })
 
@@ -233,11 +242,31 @@ describe("listResolvedProducts (batched overlay fetch)", () => {
    * (1 call per entity) paths.
    */
   function overlaySelectDb(responses: ReadonlyArray<ReadonlyArray<Record<string, unknown>>>) {
-    let selectCalls = 0
+    let overlaySelectCalls = 0
     const db = {
-      select: () => {
-        const rows = responses[selectCalls] ?? []
-        selectCalls++
+      select: (selection?: Record<string, unknown>) => {
+        const fields = new Set(Object.keys(selection ?? {}))
+
+        // Classification enrichment runs alongside the overlay query. Model
+        // its Product-family and itinerary lookups explicitly so this helper
+        // counts only the overlay queries the batching contract is about.
+        if (fields.has("code") && fields.has("name")) {
+          return {
+            from: () => ({
+              where: () => ({ limit: async () => [{ code: "wellness", name: "Wellness" }] }),
+            }),
+          }
+        }
+        if (fields.has("isDefault")) {
+          return {
+            from: () => ({
+              where: () => ({ orderBy: async () => [] }),
+            }),
+          }
+        }
+
+        const rows = responses[overlaySelectCalls] ?? []
+        overlaySelectCalls++
         return {
           from: () => ({
             where: async () => rows,
@@ -245,7 +274,28 @@ describe("listResolvedProducts (batched overlay fetch)", () => {
         }
       },
     }
-    return { db: drizzleDb(db), selectCount: () => selectCalls }
+    return { db: drizzleDb(db), selectCount: () => overlaySelectCalls }
+  }
+
+  function projectionWithClassification(row: Product) {
+    const projection = new Map(
+      productRowToProjection(row, { sellerOperatorId: context.sellerOperatorId }),
+    )
+    const classification = resolveProductClassification({
+      family: { code: "wellness", name: "Wellness" },
+      subtypeCode: row.productSubtypeCode,
+      durationMinutes: row.durationMinutes,
+      itineraryDurationDays: null,
+    })
+    projection.set("familyCode", classification.familyCode)
+    projection.set("familyName", classification.familyName)
+    projection.set("subtypeCode", classification.subtypeCode)
+    projection.set("durationMinutes", classification.durationMinutes)
+    projection.set("durationDays", classification.durationDays)
+    projection.set("durationProvenance", classification.durationProvenance)
+    projection.set("classificationReviewRequired", classification.reviewRequired)
+    projection.set("classificationReviewReasons", classification.reviewReasons)
+    return projection
   }
 
   it("issues ONE overlay query for N products", async () => {
@@ -274,7 +324,7 @@ describe("listResolvedProducts (batched overlay fetch)", () => {
           registry,
           "products",
           row.id,
-          productRowToProjection(row, { sellerOperatorId: context.sellerOperatorId }),
+          projectionWithClassification(row),
           context.scope,
         ),
       )

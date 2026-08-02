@@ -13,6 +13,7 @@ export const meetingModeSchema = z.enum(["meeting_only", "pickup_only", "meet_or
 export const pickupGroupKindSchema = z.enum(["pickup", "dropoff", "meeting"])
 export const pickupTimingModeSchema = z.enum(["fixed_time", "offset_from_start"])
 export const allocationResourceKindSchema = z.string().trim().min(1).max(80)
+export const operatedDepartureResourceKindSchema = z.enum(["room", "vehicle", "vehicle_seat"])
 export const allocationResourceFlagsSchema = z.record(z.string(), z.unknown())
 export const travelerAllocationMapSchema = z.record(z.string(), z.string())
 
@@ -256,7 +257,32 @@ export const allocationResourceCoreSchema = z.object({
   sortOrder: z.number().int().default(0),
 })
 
-export const insertAllocationResourceSchema = allocationResourceCoreSchema
+export const insertAllocationResourceSchema = allocationResourceCoreSchema.superRefine(
+  (value, ctx) => {
+    if (value.kind !== "vehicle_seat") return
+    if (value.capacity !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["capacity"],
+        message: "A vehicle seat must have capacity 1",
+      })
+    }
+    if (!value.parentId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["parentId"],
+        message: "A vehicle seat must belong to a vehicle",
+      })
+    }
+    if (!value.label?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["label"],
+        message: "A vehicle seat must have a designation",
+      })
+    }
+  },
+)
 export const updateAllocationResourceSchema = allocationResourceCoreSchema
   .omit({ kind: true })
   .strict()
@@ -265,10 +291,15 @@ export const updateAllocationResourceSchema = allocationResourceCoreSchema
     message: "Patch payload is required",
   })
 
-export const assignTravelerAllocationSchema = z.object({
-  kind: allocationResourceKindSchema,
-  resourceId: z.string().nullable(),
-})
+export const assignTravelerAllocationSchema = z
+  .object({
+    kind: allocationResourceKindSchema,
+    resourceId: z.string().nullable(),
+  })
+  .refine((value) => value.kind !== "vehicle" || value.resourceId === null, {
+    path: ["kind"],
+    message: "Vehicles are parent resources; assign travelers to vehicle seats instead",
+  })
 
 export const updateTravelerSharingGroupSchema = z.object({
   sharingGroupId: z.string().trim().min(1).nullable(),

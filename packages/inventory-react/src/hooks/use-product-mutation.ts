@@ -28,6 +28,8 @@ export interface CreateProductInput {
   marginPercent?: number | null
   facilityId?: string | null
   productTypeId?: string | null
+  productSubtypeCode?: string | null
+  durationMinutes?: number | null
   contractTemplateId?: string | null
   taxClassId?: string | null
   startDate?: string | null

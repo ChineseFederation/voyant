@@ -30,6 +30,17 @@ const productBookingModeValues = [
 const productCapacityModeValues = ["free_sale", "limited", "on_request"] as const
 const productVisibilityValues = ["public", "private", "hidden"] as const
 
+const classificationSchema = z.object({
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
+})
+
 const productSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -40,6 +51,7 @@ const productSchema = z.object({
   termsHtml: z.string().nullable(),
   termsShowOnContract: z.boolean(),
   bookingMode: z.enum(productBookingModeValues),
+  supplyModel: z.enum(["dynamic", "scheduled"]).optional(),
   capacityMode: z.enum(productCapacityModeValues),
   timezone: z.string().nullable(),
   defaultLanguageTag: z.string().nullable(),
@@ -56,6 +68,13 @@ const productSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   productTypeId: z.string().nullable(),
+  productSubtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  productTypeName: z.string().nullable().optional(),
+  familyCode: z.string().nullable().optional(),
+  itineraryDurationDays: z.number().int().nullable().optional(),
+  nextDeparture: isoTimestamp.nullable().optional(),
+  classification: classificationSchema.optional(),
   contractTemplateId: z.string().nullable(),
   taxClassId: z.string().nullable(),
   customerPaymentPolicy: z.unknown().nullable(),
@@ -118,12 +137,33 @@ const productRow: InferSelectModel<typeof products> = {
   endDate: "2026-06-08",
   pax: 8,
   productTypeId: "product_types_0000000000000000000000",
+  productSubtypeCode: "boat-tour",
+  durationMinutes: 60,
   contractTemplateId: null,
   taxClassId: null,
   customerPaymentPolicy: null,
   tags: ["sailing", "greece"],
   createdAt,
   updatedAt,
+}
+
+const resolvedProductRow = {
+  ...productRow,
+  supplyModel: "scheduled" as const,
+  productTypeName: "Tour",
+  familyCode: "tour",
+  itineraryDurationDays: null,
+  nextDeparture: null,
+  classification: {
+    familyCode: "tour",
+    familyName: "Tour",
+    subtypeCode: "boat-tour",
+    durationMinutes: 60,
+    durationDays: 1,
+    durationProvenance: "explicit" as const,
+    reviewRequired: false,
+    reviewReasons: [],
+  },
 }
 
 const productCategoryRow: InferSelectModel<typeof productCategories> = {
@@ -150,7 +190,7 @@ const productTagRow: InferSelectModel<typeof productTags> = {
 describe("inventory core list response contracts", () => {
   it("the serialized product list satisfies the declared OpenAPI schema", () => {
     const wire = JSON.parse(
-      JSON.stringify(listResponse([productRow], { total: 1, limit: 50, offset: 0 })),
+      JSON.stringify(listResponse([resolvedProductRow], { total: 1, limit: 50, offset: 0 })),
     )
     const parsed = listResponseSchema(productSchema).safeParse(wire)
     expect(parsed.success ? null : parsed.error.toString()).toBeNull()
@@ -159,7 +199,7 @@ describe("inventory core list response contracts", () => {
 
 describe("inventory core single-entity response contracts", () => {
   it("the serialized product { data } envelope satisfies the declared OpenAPI schema", () => {
-    const wire = JSON.parse(JSON.stringify({ data: productRow }))
+    const wire = JSON.parse(JSON.stringify({ data: resolvedProductRow }))
     const parsed = z.object({ data: productSchema }).safeParse(wire)
     expect(parsed.success ? null : parsed.error.toString()).toBeNull()
   })
@@ -168,7 +208,7 @@ describe("inventory core single-entity response contracts", () => {
     const wire = JSON.parse(
       JSON.stringify({
         data: {
-          ...productRow,
+          ...resolvedProductRow,
           productType: { id: productRow.productTypeId, name: "Tour", code: "tour" },
         },
       }),
@@ -178,7 +218,7 @@ describe("inventory core single-entity response contracts", () => {
   })
 
   it("the product-with-type { data } envelope allows a null product type", () => {
-    const wire = JSON.parse(JSON.stringify({ data: { ...productRow, productType: null } }))
+    const wire = JSON.parse(JSON.stringify({ data: { ...resolvedProductRow, productType: null } }))
     const parsed = z.object({ data: productWithTypeSchema }).safeParse(wire)
     expect(parsed.success ? null : parsed.error.toString()).toBeNull()
   })

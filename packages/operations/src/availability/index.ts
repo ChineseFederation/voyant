@@ -132,6 +132,7 @@ export {
   insertPickupLocationSchema,
   insertProductMeetingConfigSchema,
   locationPickupTimeListQuerySchema,
+  operatedDepartureResourceKindSchema,
   pairSharingGroupSchema,
   pickupGroupListQuerySchema,
   pickupLocationListQuerySchema,

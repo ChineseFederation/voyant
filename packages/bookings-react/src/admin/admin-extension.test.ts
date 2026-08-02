@@ -1,3 +1,4 @@
+import { buildAdminExtensionDestinations } from "@voyant-travel/admin/app/extension-routes"
 import { describe, expect, it } from "vitest"
 
 import { BOOKING_STATUS_ALL } from "../booking-list-constants.js"
@@ -52,8 +53,19 @@ describe("createBookingsAdminExtension", () => {
     const create = extension.routes?.find((route) => route.id === "bookings-new")
     expect(create?.path).toBe("/reservations/new")
     expect(create?.destination).toBe("booking.create")
+    expect(create?.destinationSearchParams).toEqual(["productId", "slotId"])
     const compose = extension.routes?.find((route) => route.id === "bookings-compose")
     expect(compose?.path).toBe("/reservations/compose")
+  })
+
+  it("carries product and departure preselection into the create route", () => {
+    const destinations = buildAdminExtensionDestinations([createBookingsAdminExtension()])
+    expect(destinations["booking.create"]?.({ productId: "prod_1", slotId: "slot_1" })).toBe(
+      "/bookings/new?productId=prod_1&slotId=slot_1",
+    )
+    expect(destinations["booking.create"]?.({ productId: "prod_1" })).toBe(
+      "/bookings/new?productId=prod_1",
+    )
   })
 
   it("carries the packaged search contracts", () => {

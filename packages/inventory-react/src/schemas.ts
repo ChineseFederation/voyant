@@ -44,6 +44,19 @@ export const productPaymentPolicySchema = z.object({
 
 export type ProductPaymentPolicy = z.infer<typeof productPaymentPolicySchema>
 
+export const productClassificationSchema = z.object({
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
+})
+
+export type ProductClassification = z.infer<typeof productClassificationSchema>
+
 export const productRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -54,6 +67,7 @@ export const productRecordSchema = z.object({
   termsHtml: z.string().nullable(),
   termsShowOnContract: z.boolean(),
   bookingMode: z.enum(["date", "date_time", "open", "stay", "transfer", "itinerary", "other"]),
+  supplyModel: z.enum(["dynamic", "scheduled"]).optional(),
   capacityMode: z.enum(["free_sale", "limited", "on_request"]),
   timezone: z.string().nullable(),
   defaultLanguageTag: z.string().nullable().optional(),
@@ -69,11 +83,19 @@ export const productRecordSchema = z.object({
   endDate: z.string().nullable(),
   pax: z.number().int().nullable(),
   productTypeId: z.string().nullable(),
+  // Product family (`productTypeId` → family) plus the independent subtype and
+  // explicit duration. Merchandising classification, distinct from bookingMode.
+  productSubtypeCode: z.string().nullable().optional(),
+  durationMinutes: z.number().int().nullable().optional(),
   // List view only — the detail/create/update responses omit these, so keep
   // them optional. `productTypeName` resolves the type id to a label and
   // `nextDeparture` is the earliest upcoming open departure (ISO string).
   productTypeName: z.string().nullable().optional(),
   nextDeparture: z.string().nullable().optional(),
+  // Resolved classification (family / subtype / duration / review), attached by
+  // the product list + detail read paths. Optional because create/update
+  // responses omit it.
+  classification: productClassificationSchema.optional(),
   contractTemplateId: z.string().nullable().optional(),
   taxClassId: z.string().nullable(),
   customerPaymentPolicy: productPaymentPolicySchema.nullable().optional(),

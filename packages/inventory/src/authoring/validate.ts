@@ -2,21 +2,27 @@ import type { AuthoringIssue } from "./errors.js"
 import type { ProductGraphSpec } from "./spec.js"
 
 /**
- * Category-aware shape validation. Runs before the builder (compose path) so a
- * wrong-shape spec is rejected with descriptive, agent-recoverable issues
+ * Booking-mechanic shape validation. Runs before the builder (compose path) so a
+ * structurally wrong spec is rejected with descriptive, agent-recoverable issues
  * instead of producing a malformed-but-bookable product.
  *
- * Keyed on `bookingMode` (the structural classifier in the schema). `supplyModel`
- * is a read-time projection derived from `bookingMode` (see
- * `deriveProductSupplyModel`), not a stored or authored field; the scheduled/dynamic
- * supply rules are enforced at the publish path (`no_future_open_departure`) and the
- * availability path (`dynamic_product_static_availability`), not here. Whether to
- * promote `supplyModel` to a first-class field is tracked in voyant-travel/voyant#2644.
- * See the voyant-travel/platform authoring spec for the canonical per-category rules.
+ * Keyed on `bookingMode` — the **booking mechanic**, not a merchandising label.
+ * These checks are deliberately independent of the Product family, subtype, and
+ * duration: family (`productTypeId`), subtype (`productSubtypeCode`), and the
+ * resolved duration are orthogonal classification, and this validator never
+ * equates a booking mode with a family. In particular it does NOT treat
+ * `date`/`date_time` as "excursion", `itinerary` as "multi-day Tour", or infer a
+ * family from duration — a 60-minute `date_time` product with no itinerary days
+ * is a perfectly valid Tour (or anything else). `supplyModel` stays derived from
+ * `bookingMode` (see `deriveProductSupplyModel`, ADR-0010) and its scheduled/
+ * dynamic rules are enforced at the publish and availability paths, not here.
  *
- * Scope: the generic products graph — excursion (`date`/`date_time`), multi-day
- * tour/package (`itinerary`), transfer (`transfer`). Other modes (`stay`,
- * `open`, `other`) pass through leniently in v1.
+ * What the checks assert is purely mechanical consistency of the booking shape:
+ *   - a single-slot mode (`date`/`date_time`) carries at most one itinerary day
+ *     and prices per person/seat, not per room;
+ *   - the `itinerary` mode actually has an itinerary (≥ 2 days);
+ *   - a `transfer` is point-to-point with an endpoint price rule.
+ * Other modes (`stay`, `open`, `other`) pass through leniently in v1.
  */
 export function validateProductGraph(spec: ProductGraphSpec): AuthoringIssue[] {
   const issues: AuthoringIssue[] = []
@@ -44,18 +50,18 @@ export function validateProductGraph(spec: ProductGraphSpec): AuthoringIssue[] {
   if (mode === "date" || mode === "date_time") {
     if (totalDays > 1) {
       issues.push({
-        code: "excursion_multi_day",
+        code: "single_slot_mode_multi_day_itinerary",
         field: "itineraries",
-        message: `A '${mode}' (excursion) product is single-day, but the spec has ${totalDays} itinerary days.`,
-        fix: "Use bookingMode 'itinerary' for a multi-day product, or reduce the itinerary to a single day.",
+        message: `A '${mode}' product books a single slot, but the spec has ${totalDays} itinerary days.`,
+        fix: "Use bookingMode 'itinerary' for a day-by-day product, or reduce the itinerary to a single day. This is about the booking mechanic, not the Product family — a short single-slot product can still be any family.",
       })
     }
     const roomUnit = allUnits.find((u) => u.unitType === "room")
     if (roomUnit) {
       issues.push({
-        code: "excursion_room_unit",
+        code: "single_slot_mode_room_unit",
         field: "options[].units[].unitType",
-        message: `Excursions price per person, but unit '${roomUnit.name}' has unitType 'room'.`,
+        message: `A '${mode}' product prices per person/seat, but unit '${roomUnit.name}' has unitType 'room'.`,
         fix: "Set the unit's unitType to 'person', or switch bookingMode to 'stay'/'itinerary' for room-based products.",
       })
     }
@@ -63,10 +69,10 @@ export function validateProductGraph(spec: ProductGraphSpec): AuthoringIssue[] {
 
   if (mode === "itinerary" && totalDays < 2) {
     issues.push({
-      code: "tour_needs_days",
+      code: "itinerary_mode_needs_days",
       field: "itineraries",
-      message: `A multi-day ('itinerary') product needs at least 2 itinerary days; found ${totalDays}.`,
-      fix: "Add itinerary days, or use bookingMode 'date' for a single-day excursion.",
+      message: `The 'itinerary' booking mode books a day-by-day plan and needs at least 2 itinerary days; found ${totalDays}.`,
+      fix: "Add itinerary days, or use bookingMode 'date'/'date_time' for a single-slot product. Duration and Product family are set separately — you don't need an itinerary to author a Tour.",
     })
   }
 

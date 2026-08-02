@@ -120,6 +120,6 @@ describeIfDb("catalog-authoring compose route", () => {
     expect(res.status).toBe(422)
     const body = (await res.json()) as { error: string; issues: Array<{ code: string }> }
     expect(body.error).toBe("invalid_product_graph")
-    expect(body.issues.some((i) => i.code === "excursion_multi_day")).toBe(true)
+    expect(body.issues.some((i) => i.code === "single_slot_mode_multi_day_itinerary")).toBe(true)
   })
 })

@@ -66,29 +66,29 @@ function spec(partial: {
 }
 
 describe("validateProductGraph", () => {
-  it("accepts a single-day excursion", () => {
+  it("accepts a single-slot product with one itinerary day", () => {
     expect(validateProductGraph(spec({ bookingMode: "date", days: 1 }))).toEqual([])
   })
 
-  it("rejects an excursion with multiple days, with a recoverable message", () => {
+  it("rejects a single-slot product with multiple itinerary days, with a recoverable message", () => {
     const issues = validateProductGraph(spec({ bookingMode: "date", days: 3 }))
-    const issue = issues.find((i) => i.code === "excursion_multi_day")
+    const issue = issues.find((i) => i.code === "single_slot_mode_multi_day_itinerary")
     expect(issue).toBeDefined()
     expect(issue?.message).toContain("3 itinerary days")
     expect(issue?.fix).toContain("itinerary")
   })
 
-  it("rejects an excursion priced per room", () => {
+  it("rejects a single-slot product priced per room", () => {
     const issues = validateProductGraph(spec({ bookingMode: "date", unitType: "room", days: 1 }))
-    expect(issues.some((i) => i.code === "excursion_room_unit")).toBe(true)
+    expect(issues.some((i) => i.code === "single_slot_mode_room_unit")).toBe(true)
   })
 
-  it("rejects a multi-day tour with fewer than 2 days", () => {
+  it("rejects the itinerary booking mode with fewer than 2 days", () => {
     const issues = validateProductGraph(spec({ bookingMode: "itinerary", days: 1 }))
-    expect(issues.some((i) => i.code === "tour_needs_days")).toBe(true)
+    expect(issues.some((i) => i.code === "itinerary_mode_needs_days")).toBe(true)
   })
 
-  it("accepts a multi-day tour with 2+ days", () => {
+  it("accepts the itinerary booking mode with 2+ days", () => {
     expect(validateProductGraph(spec({ bookingMode: "itinerary", days: 2 }))).toEqual([])
   })
 

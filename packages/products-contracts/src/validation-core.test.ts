@@ -40,6 +40,14 @@ describe("core update validation", () => {
     })
   })
 
+  it("requires an authored Product duration to be positive", () => {
+    const base = { name: "Whale Watching", sellCurrency: "EUR" }
+
+    expect(insertProductSchema.safeParse({ ...base, durationMinutes: 0 }).success).toBe(false)
+    expect(updateProductSchema.safeParse({ durationMinutes: 0 }).success).toBe(false)
+    expect(insertProductSchema.parse({ ...base, durationMinutes: 60 }).durationMinutes).toBe(60)
+  })
+
   it("rejects option unit age ranges where minAge is greater than maxAge", () => {
     const result = insertOptionUnitSchema.safeParse({ name: "Senior", minAge: 70, maxAge: 12 })
 

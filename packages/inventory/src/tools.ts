@@ -194,6 +194,22 @@ const updateProductToolSchema = z.object({
   id: z.string().min(1),
   ...updateProductSchema.shape,
 })
+const setProductOpenGraphImageToolSchema = z.object({
+  productId: z.string().min(1).describe("The product id."),
+  mediaId: z
+    .string()
+    .min(1)
+    .nullable()
+    .describe("A product-level image media id, or null to clear the explicit Open Graph image."),
+})
+const productOpenGraphMediaToolSchema = z
+  .object({
+    id: z.string(),
+    productId: z.string(),
+    isOpenGraph: z.literal(true),
+  })
+  .passthrough()
+  .nullable()
 const productIdArgs = z.object({ id: z.string().min(1).describe("The product id.") })
 
 export type ProductContentToolInput = z.output<typeof getProductContentArgs>
@@ -217,6 +233,7 @@ export interface InventoryToolServices {
     admitted: ToolHandlerActionPolicyContext,
   ): Promise<unknown>
   updateProduct(id: string, input: z.output<typeof updateProductSchema>): Promise<unknown | null>
+  setProductOpenGraphImage(productId: string, mediaId: string | null): Promise<unknown | null>
   listProductDays(productId: string): Promise<unknown[]>
   updateProductDay(input: UpdateProductDayInput): Promise<unknown | null>
   resolveProductIdForDay(dayId: string): Promise<string | null>
@@ -398,7 +415,7 @@ export const createProductTool = defineTool({
   capabilityVersion: VERSION,
   name: "create_product",
   description:
-    "Create a private draft product through Inventory's real authoring service. Publication is a separate confirmed lifecycle operation.",
+    "Create a draft product through Inventory's real authoring service. Channel publication is a separate operation.",
   inputSchema: createProductToolSchema,
   outputSchema: createProductResultSchema,
   requiredScopes: ["products:write"],
@@ -438,13 +455,34 @@ export const updateProductTool = defineTool({
   },
 })
 
+export const setProductOpenGraphImageTool = defineTool({
+  capabilityId: `${OWNER}#tool.set-product-open-graph-image`,
+  capabilityVersion: VERSION,
+  name: "set_product_open_graph_image",
+  description:
+    "Set a product-level image as the product's explicit Open Graph image, or clear the explicit selection with a null mediaId.",
+  inputSchema: setProductOpenGraphImageToolSchema,
+  outputSchema: productOpenGraphMediaToolSchema,
+  requiredScopes: ["products:write"],
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: PRODUCT_WRITE_RISK,
+  annotations: { idempotentHint: true },
+  async handler({ productId, mediaId }, ctx: InventoryToolContext) {
+    return parseJsonResult(
+      productOpenGraphMediaToolSchema,
+      await inventory(ctx).setProductOpenGraphImage(productId, mediaId),
+    )
+  },
+})
+
 export const publishProductTool = defineTool(
   productLifecycleToolDefinition({
     capabilityId: `${OWNER}#tool.publish-product`,
     name: "publish_product",
     description:
-      "Publish a product to the public catalog. Inventory enforces scheduled-product departure readiness before committing.",
-    patch: { status: "active", visibility: "public", activated: true },
+      "Make a product active. Inventory enforces scheduled-product departure readiness; effective channel publication controls where it is distributed.",
+    patch: { status: "active" },
   }),
 )
 
@@ -453,8 +491,8 @@ export const unpublishProductTool = defineTool(
     capabilityId: `${OWNER}#tool.unpublish-product`,
     name: "unpublish_product",
     description:
-      "Remove a product from the public catalog without deleting authored product history.",
-    patch: { activated: false },
+      "Return a product to draft without deleting authored history or its channel publication rules.",
+    patch: { status: "draft" },
   }),
 )
 
@@ -462,8 +500,8 @@ export const archiveProductTool = defineTool(
   productLifecycleToolDefinition({
     capabilityId: `${OWNER}#tool.archive-product`,
     name: "archive_product",
-    description: "Archive and deactivate a product while preserving its history and owned records.",
-    patch: { status: "archived", activated: false },
+    description: "Archive a product while preserving its history and owned records.",
+    patch: { status: "archived" },
   }),
 )
 
@@ -578,6 +616,7 @@ export const inventoryTools = [
   listProductDaysTool,
   createProductTool,
   updateProductTool,
+  setProductOpenGraphImageTool,
   updateProductDayTool,
   publishProductTool,
   unpublishProductTool,

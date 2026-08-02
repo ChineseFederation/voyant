@@ -24,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@voyant-travel/ui/components"
-import { Armchair, Crown, DoorOpen, Users, X } from "lucide-react"
+import { Armchair, Crown, DoorOpen, Trash2, Users, X } from "lucide-react"
 import { type ReactNode, useState } from "react"
 
 import { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
@@ -49,6 +49,7 @@ export function VehicleSeatsView({
   sharingGroupLabels,
   onAssignTraveler,
   onUnassignTraveler,
+  onRemoveResource,
   onBookingOpen,
   renderTravelerActions,
 }: {
@@ -60,6 +61,8 @@ export function VehicleSeatsView({
   onAssignTraveler: (travelerId: string, resourceId: string) => void
   /** Remove a traveler from their current seat (no resource id required). */
   onUnassignTraveler: (travelerId: string) => void
+  /** Delete an empty manually-created seat. Occupied seats must be unassigned first. */
+  onRemoveResource: (resourceId: string) => void
   /** Fired when the operator clicks a booking number on a seat / tile. */
   onBookingOpen?: (bookingId: string) => void
   renderTravelerActions?: (traveler: AllocationManifestTraveler) => ReactNode
@@ -124,6 +127,7 @@ export function VehicleSeatsView({
                     sharingGroupLabels={sharingGroupLabels}
                     onAssignTraveler={onAssignTraveler}
                     onUnassignTraveler={onUnassignTraveler}
+                    onRemoveResource={onRemoveResource}
                     onBookingOpen={onBookingOpen}
                   />
                 ) : (
@@ -154,6 +158,7 @@ export function VehicleSeatsView({
                                 onAssignTraveler(travelerId, seat.id)
                               }
                               onUnassignTraveler={onUnassignTraveler}
+                              onRemoveResource={onRemoveResource}
                               onBookingOpen={onBookingOpen}
                             />
                           )
@@ -179,6 +184,7 @@ function VehicleSeatCell({
   sharingGroupLabel,
   onAssignTraveler,
   onUnassignTraveler,
+  onRemoveResource,
   onBookingOpen,
 }: {
   seat: AllocationResource
@@ -188,6 +194,7 @@ function VehicleSeatCell({
   sharingGroupLabel?: string | null
   onAssignTraveler: (travelerId: string) => void
   onUnassignTraveler: (travelerId: string) => void
+  onRemoveResource: (resourceId: string) => void
   onBookingOpen?: (bookingId: string) => void
 }) {
   const messages = useAllocationUiMessagesOrDefault()
@@ -260,7 +267,19 @@ function VehicleSeatCell({
     <div id={`seat:${seat.id}`} className={cellClasses}>
       <div className="flex items-start justify-between gap-2">
         <span className="font-medium">{seat.label ?? seatName(seat, messages)}</span>
-        <SeatPositionBadge seat={seat} />
+        <div className="flex items-center gap-1">
+          <SeatPositionBadge seat={seat} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            onClick={() => onRemoveResource(seat.id)}
+            aria-label={`${messages.remove}: ${seat.label ?? seatName(seat, messages)}`}
+          >
+            <Trash2 className="size-3" aria-hidden="true" />
+          </Button>
+        </div>
       </div>
       <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
         <PopoverTrigger
@@ -322,6 +341,7 @@ function SpecGrid({
   sharingGroupLabels,
   onAssignTraveler,
   onUnassignTraveler,
+  onRemoveResource,
   onBookingOpen,
 }: {
   spec: SeatLayoutSpec
@@ -330,6 +350,7 @@ function SpecGrid({
   sharingGroupLabels: Record<string, string>
   onAssignTraveler: (travelerId: string, resourceId: string) => void
   onUnassignTraveler: (travelerId: string) => void
+  onRemoveResource: (resourceId: string) => void
   onBookingOpen?: (bookingId: string) => void
 }) {
   const seatsByRowColumn = indexSeats(seats)
@@ -374,6 +395,7 @@ function SpecGrid({
                     }
                     onAssignTraveler={(travelerId) => onAssignTraveler(travelerId, seat.id)}
                     onUnassignTraveler={onUnassignTraveler}
+                    onRemoveResource={onRemoveResource}
                     onBookingOpen={onBookingOpen}
                   />
                 )

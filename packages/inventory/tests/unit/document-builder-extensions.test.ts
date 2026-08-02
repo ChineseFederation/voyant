@@ -124,21 +124,21 @@ describe("createProductDocumentBuilder — projection extensions", () => {
     expect(doc).toBeNull()
   })
 
-  it("returns null for customer slices when the product is not publicly visible", async () => {
+  it("does not gate customer documents on the deprecated visibility field", async () => {
     const db = stubDb([{ ...sampleRow, visibility: "private" }])
     // biome-ignore lint/suspicious/noExplicitAny: drizzle stub -- owner: products; existing suppression is intentional pending typed cleanup.
     const build = createProductDocumentBuilder(db as any, { sellerOperatorId: "op_xyz" })
     const doc = await build("prod_private", customerSlice)
-    expect(doc).toBeNull()
+    expect(doc).not.toBeNull()
   })
 
-  it("returns null for public audience slices when the product is deactivated", async () => {
+  it("does not gate public audience documents on the deprecated activated field", async () => {
     const db = stubDb([{ ...sampleRow, activated: false }])
     // biome-ignore lint/suspicious/noExplicitAny: drizzle stub -- owner: products; existing suppression is intentional pending typed cleanup.
     const build = createProductDocumentBuilder(db as any, { sellerOperatorId: "op_xyz" })
 
-    await expect(build("prod_inactive", customerSlice)).resolves.toBeNull()
-    await expect(build("prod_inactive", partnerSlice)).resolves.toBeNull()
+    await expect(build("prod_inactive", customerSlice)).resolves.not.toBeNull()
+    await expect(build("prod_inactive", partnerSlice)).resolves.not.toBeNull()
   })
 
   it("returns null before running extensions when a public audience predicate rejects the product", async () => {
@@ -176,13 +176,14 @@ describe("createProductDocumentBuilder — projection extensions", () => {
     expect(gate).not.toHaveBeenCalled()
   })
 
-  it("keeps non-public products in staff-admin slices", async () => {
+  it("omits deprecated distribution flags from staff-admin slices", async () => {
     const db = stubDb([{ ...sampleRow, visibility: "private" }])
     // biome-ignore lint/suspicious/noExplicitAny: drizzle stub -- owner: products; existing suppression is intentional pending typed cleanup.
     const build = createProductDocumentBuilder(db as any, { sellerOperatorId: "op_xyz" })
     const doc = await build("prod_private", staffAdminSlice)
     expect(doc).not.toBeNull()
-    expect(doc?.fields).toHaveProperty("visibility", "private")
+    expect(doc?.fields).not.toHaveProperty("visibility")
+    expect(doc?.fields).not.toHaveProperty("activated")
   })
 
   it("merges extension projection entries into the document when registry includes them", async () => {

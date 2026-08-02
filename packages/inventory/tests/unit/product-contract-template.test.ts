@@ -46,6 +46,8 @@ describe("product contract templates", () => {
         activated: true,
         termsShowOnContract: false,
         contractTemplateId: CUSTOMER_TEMPLATE_ID,
+        productSubtypeCode: null,
+        durationMinutes: null,
         sellAmountCents: null,
         costAmountCents: null,
         marginPercent: null,

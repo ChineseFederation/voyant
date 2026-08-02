@@ -15,6 +15,7 @@ type DepartureDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   productId: string
+  durationMinutes?: number | null
   slot?: DepartureSlot
   onSuccess: () => void
 }
@@ -23,6 +24,7 @@ export function DepartureDialog({
   open,
   onOpenChange,
   productId,
+  durationMinutes,
   slot,
   onSuccess,
 }: DepartureDialogProps) {
@@ -41,6 +43,7 @@ export function DepartureDialog({
         <SheetBody>
           <DepartureForm
             productId={productId}
+            durationMinutes={durationMinutes}
             slot={slot}
             onSuccess={onSuccess}
             onCancel={() => onOpenChange(false)}

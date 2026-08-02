@@ -338,6 +338,7 @@ export function buildAdminExtensionDestinations(
       resolvers[contribution.destination] = destinationResolver(
         contribution.path,
         contribution.destinationParams ?? {},
+        contribution.destinationSearchParams ?? [],
       )
     }
     for (const child of contribution.children ?? []) collect(child)
@@ -353,12 +354,22 @@ export function buildAdminExtensionDestinations(
 function destinationResolver(
   path: string,
   destinationParams: Record<string, string>,
+  destinationSearchParams: readonly string[],
 ): (params: Record<string, unknown>) => string {
-  return (params) =>
-    path.replace(/\$([A-Za-z0-9_]+)/g, (_match, routeParam: string) => {
+  return (params) => {
+    const resolvedPath = path.replace(/\$([A-Za-z0-9_]+)/g, (_match, routeParam: string) => {
       const destParam = destinationParams[routeParam] ?? routeParam
       return encodeURIComponent(String(params[destParam]))
     })
+    const search = new URLSearchParams()
+    for (const param of destinationSearchParams) {
+      const value = params[param]
+      if (value === undefined || value === null || value === "") continue
+      search.set(param, String(value))
+    }
+    const query = search.toString()
+    return query ? `${resolvedPath}?${query}` : resolvedPath
+  }
 }
 
 /**

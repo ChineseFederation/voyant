@@ -9,6 +9,16 @@ export type OperatorAdminNavMessages = {
   catalogExcursionsTagline: string
   catalogTours: string
   catalogToursTagline: string
+  catalogBoatTours: string
+  catalogBoatToursTagline: string
+  catalogActivities: string
+  catalogActivitiesTagline: string
+  catalogAttractions: string
+  catalogAttractionsTagline: string
+  catalogEvents: string
+  catalogEventsTagline: string
+  catalogTransportation: string
+  catalogTransportationTagline: string
   catalogCruises: string
   catalogCharters: string
   catalogAccommodations: string
@@ -67,9 +77,19 @@ export const operatorAdminNavMessages = {
       catalogProducts: "Packages",
       catalogProductsTagline: "Search flight + hotel packages and book live offers.",
       catalogExcursions: "Excursions",
-      catalogExcursionsTagline: "Single-day trips with fixed departures.",
+      catalogExcursionsTagline: "Scheduled products shown in an excursion context.",
       catalogTours: "Tours",
-      catalogToursTagline: "Multi-day circuits with fixed departures.",
+      catalogToursTagline: "Products in the Tour family.",
+      catalogBoatTours: "Boat Tours",
+      catalogBoatToursTagline: "Tour products with the Boat Tour subtype.",
+      catalogActivities: "Activities",
+      catalogActivitiesTagline: "Products in the Activity family.",
+      catalogAttractions: "Attractions",
+      catalogAttractionsTagline: "Products in the Attraction family.",
+      catalogEvents: "Events",
+      catalogEventsTagline: "Products in the Event family.",
+      catalogTransportation: "Transportation",
+      catalogTransportationTagline: "Products in the Transportation family.",
       catalogCruises: "Cruises",
       catalogCharters: "Charters",
       catalogAccommodations: "Accommodations",
@@ -127,9 +147,19 @@ export const operatorAdminNavMessages = {
       catalogProducts: "Pachete",
       catalogProductsTagline: "Caută pachete zbor + cazare și rezervă oferte live.",
       catalogExcursions: "Excursii",
-      catalogExcursionsTagline: "Excursii de o zi cu plecări fixe.",
-      catalogTours: "Circuite",
-      catalogToursTagline: "Circuite de mai multe zile cu plecări fixe.",
+      catalogExcursionsTagline: "Produse programate prezentate in context de excursie.",
+      catalogTours: "Tururi",
+      catalogToursTagline: "Produse din familia Tur.",
+      catalogBoatTours: "Tururi cu barca",
+      catalogBoatToursTagline: "Produse din familia Tur cu subtipul Tur cu barca.",
+      catalogActivities: "Activitati",
+      catalogActivitiesTagline: "Produse din familia Activitate.",
+      catalogAttractions: "Atractii",
+      catalogAttractionsTagline: "Produse din familia Atractie.",
+      catalogEvents: "Evenimente",
+      catalogEventsTagline: "Produse din familia Eveniment.",
+      catalogTransportation: "Transport",
+      catalogTransportationTagline: "Produse din familia Transport.",
       catalogCruises: "Croaziere",
       catalogCharters: "Chartere",
       catalogAccommodations: "Cazari",

@@ -326,8 +326,8 @@ export function ProductSeoSharingSection({
 
         <div className="grid gap-4 border-t pt-5 xl:grid-cols-2">
           <Preview title={t.searchPreview}>
-            <p className="truncate text-blue-700 text-lg">{effectiveTitle}</p>
-            <p className="text-green-700 text-xs">
+            <p className="truncate text-blue-700 text-lg dark:text-blue-300">{effectiveTitle}</p>
+            <p className="text-green-700 text-xs dark:text-green-300">
               {formatMessage(t.previewUrl, { productId: product.id })}
             </p>
             <p className="line-clamp-2 text-sm text-muted-foreground">{effectiveDescription}</p>

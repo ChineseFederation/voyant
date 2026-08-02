@@ -1,10 +1,17 @@
-import type { AllocationResource } from "@voyant-travel/operations-react/availability"
+import type {
+  AllocationManifestTraveler,
+  AllocationResource,
+} from "@voyant-travel/operations-react/availability"
 import { describe, expect, it } from "vitest"
 
 import {
+  collectVehicleOccupants,
+  defaultCapacityFor,
   deriveAllocationKinds,
   groupResourcesBySubType,
+  isTravelerAllocatableKind,
   summarizeResourceCapacity,
+  validateVehicleSeatDesignation,
 } from "./slot-allocation-model.js"
 
 function resource(overrides: Partial<AllocationResource> & { id: string }): AllocationResource {
@@ -24,18 +31,46 @@ function resource(overrides: Partial<AllocationResource> & { id: string }): Allo
   }
 }
 
+function traveler(id: string, seatId?: string): AllocationManifestTraveler {
+  return {
+    id,
+    bookingId: `booking_${id}`,
+    bookingNumber: `BK-${id}`,
+    bookingStatus: "confirmed",
+    bookingSequence: 1,
+    paymentStatus: "paid",
+    firstName: id,
+    lastName: "Traveler",
+    fullName: `${id} Traveler`,
+    email: null,
+    phone: null,
+    isLeadTraveler: true,
+    isPrimary: true,
+    sharingGroupId: null,
+    roomTypeId: null,
+    bedPreference: null,
+    allocations: seatId ? { vehicle_seat: seatId } : {},
+    travelerCategory: null,
+    participantType: "traveler",
+    hasAccessibilityNeeds: false,
+    hasDietaryRequirements: false,
+  }
+}
+
 describe("deriveAllocationKinds", () => {
-  it("does not seed rooms when the slot has no resources or templates", () => {
-    expect(deriveAllocationKinds({ resources: [], templateOptions: [] })).toEqual([])
+  const standardKinds = ["room", "vehicle", "vehicle_seat"]
+
+  it("exposes the standard operated-departure logistics kinds without templates", () => {
+    expect(deriveAllocationKinds({ resources: [], templateOptions: [] })).toEqual(standardKinds)
   })
 
-  it("includes room only when a room resource or template exists", () => {
+  it("keeps standard kinds stable when resources or templates repeat them", () => {
     expect(
       deriveAllocationKinds({
         resources: [resource({ id: "room_1", kind: "room" })],
         templateOptions: [],
       }),
-    ).toEqual(["room"])
+    ).toEqual(standardKinds)
 
     expect(
       deriveAllocationKinds({
@@ -46,10 +81,10 @@ describe("deriveAllocationKinds", () => {
           },
         ],
       }),
-    ).toEqual(["room"])
+    ).toEqual(standardKinds)
   })
 
-  it("deduplicates resource and template kinds while skipping parent-only kinds", () => {
+  it("deduplicates standard kinds and appends extension kinds", () => {
     expect(
       deriveAllocationKinds({
         resources: [
@@ -62,7 +97,75 @@ describe("deriveAllocationKinds", () => {
           },
         ],
       }),
-    ).toEqual(["vehicle_seat", "cabin"])
+    ).toEqual([...standardKinds, "cabin"])
+  })
+})
+
+describe("standard operated-departure kinds", () => {
+  it("treats vehicles as parent resources rather than traveler positions", () => {
+    expect(isTravelerAllocatableKind("vehicle")).toBe(false)
+    expect(isTravelerAllocatableKind("room")).toBe(true)
+    expect(isTravelerAllocatableKind("vehicle_seat")).toBe(true)
+  })
+
+  it("starts a manually-created vehicle with editable coach-scale capacity", () => {
+    expect(defaultCapacityFor("vehicle")).toBe(50)
+  })
+})
+
+describe("vehicle occupancy", () => {
+  it("rolls child-seat traveler assignments up to their parent vehicle", () => {
+    const vehicles = [
+      resource({ id: "vehicle_1", kind: "vehicle", capacity: 50 }),
+      resource({ id: "vehicle_2", kind: "vehicle", capacity: 20 }),
+    ]
+    const seats = [
+      resource({ id: "seat_1", kind: "vehicle_seat", parentId: "vehicle_1" }),
+      resource({ id: "seat_2", kind: "vehicle_seat", parentId: "vehicle_2" }),
+    ]
+
+    const occupants = collectVehicleOccupants(
+      [traveler("one", "seat_1"), traveler("two", "seat_2"), traveler("three")],
+      vehicles,
+      seats,
+    )
+
+    expect(occupants.byResource.get("vehicle_1")?.map((entry) => entry.id)).toEqual(["one"])
+    expect(occupants.byResource.get("vehicle_2")?.map((entry) => entry.id)).toEqual(["two"])
+    expect(occupants.unallocated.map((entry) => entry.id)).toEqual(["three"])
+  })
+})
+
+describe("manual vehicle-seat designations", () => {
+  const seats = [
+    resource({ id: "seat_1", kind: "vehicle_seat", parentId: "vehicle_1", label: "12A" }),
+    resource({
+      id: "seat_2",
+      kind: "vehicle_seat",
+      parentId: "vehicle_2",
+      flags: { row: 12, column: "A" },
+    }),
+  ]
+
+  it("requires a nonblank designation", () => {
+    expect(validateVehicleSeatDesignation({ label: "  ", parentId: "vehicle_1", seats })).toBe(
+      "required",
+    )
+  })
+
+  it("rejects duplicates within the same vehicle, case-insensitively", () => {
+    expect(validateVehicleSeatDesignation({ label: "12a", parentId: "vehicle_1", seats })).toBe(
+      "duplicate",
+    )
+    expect(validateVehicleSeatDesignation({ label: "12a", parentId: "vehicle_2", seats })).toBe(
+      "duplicate",
+    )
+  })
+
+  it("allows the same designation in a different vehicle", () => {
+    expect(
+      validateVehicleSeatDesignation({ label: "12A", parentId: "vehicle_3", seats }),
+    ).toBeNull()
   })
 })
 

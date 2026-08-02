@@ -165,6 +165,7 @@ export interface CatalogInventoryRuntimeExtension {
   createStorefrontCardProjectionExtension(): CatalogProjectionExtension
   createDestinationsProjectionExtension(): CatalogProjectionExtension
   createTaxonomyProjectionExtension(): CatalogProjectionExtension
+  createClassificationProjectionExtension(): CatalogProjectionExtension
   listProductsReferencingAccommodationProperty(
     db: AnyDrizzleDb,
     propertyId: string,

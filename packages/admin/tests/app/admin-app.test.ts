@@ -50,6 +50,8 @@ describe("adminRootHead", () => {
     expect(head.meta).toContainEqual({ name: "robots", content: "noindex,nofollow" })
     expect(head.links).toContainEqual({ rel: "icon", type: "image/png", href: "/fav128.png" })
     const script = head.scripts[0]?.children ?? ""
+    expect(script).toContain("__zod_globalConfig")
+    expect(script).toContain("jitless:true")
     expect(script).toContain('localStorage.getItem("theme")')
     expect(script).toContain('localStorage.getItem("admin-locale")')
   })

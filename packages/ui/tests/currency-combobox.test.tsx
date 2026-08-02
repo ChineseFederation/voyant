@@ -62,4 +62,10 @@ describe("CurrencyCombobox", () => {
 
     expect(screen.getByRole("combobox").id).toBe("catalog-currency")
   })
+
+  it("names its icon-only controls", () => {
+    render(<CurrencyCombobox value="EUR" onChange={() => {}} />)
+
+    expect(screen.getByRole("button", { name: "Clear selection" })).toBeInstanceOf(HTMLElement)
+  })
 })

@@ -1,7 +1,12 @@
 "use client"
 
 import { useCatalogSearch } from "@voyant-travel/catalog-react"
-import { type ProductRecord, useProduct, useProductOptions } from "@voyant-travel/inventory-react"
+import {
+  type ProductRecord,
+  useProduct,
+  useProductOptions,
+  useProducts,
+} from "@voyant-travel/inventory-react"
 import {
   Badge,
   Label,
@@ -98,6 +103,15 @@ export function ProductPickerSection({
     surface: "admin",
     enabled: enabled && !lockProduct,
   })
+  // The catalog index is an optional deployment provider. Manual booking must
+  // still be able to select products owned by Inventory when search is absent
+  // or rebuilding, so keep a direct, bounded Inventory query in the picker.
+  const ownedProductsQuery = useProducts({
+    search: debouncedProductSearch || undefined,
+    status: "active",
+    limit: 30,
+    enabled: enabled && !lockProduct,
+  })
   const selectedProductQuery = useProduct(value.productId || undefined, {
     enabled:
       enabled && Boolean(value.productId) && (!value.sourceKind || value.sourceKind === "owned"),
@@ -105,8 +119,9 @@ export function ProductPickerSection({
 
   const products = React.useMemo(() => {
     const map = new Map(cachedProductsRef.current)
-    for (const hit of productsQuery.data?.hits ?? []) {
-      const product = catalogProductPickerRecordFromHit(hit)
+    const catalogProducts = (productsQuery.data?.hits ?? []).map(catalogProductPickerRecordFromHit)
+    const ownedProducts = (ownedProductsQuery.data?.data ?? []).map(ownedProductToPickerRecord)
+    for (const product of mergeProductPickerRecords(catalogProducts, ownedProducts)) {
       map.set(product.id, product)
     }
     if (selectedProductQuery.data) {
@@ -126,7 +141,7 @@ export function ProductPickerSection({
     }
     cachedProductsRef.current = map
     return Array.from(map.values())
-  }, [productsQuery.data?.hits, selectedProductQuery.data, value])
+  }, [productsQuery.data?.hits, ownedProductsQuery.data?.data, selectedProductQuery.data, value])
 
   const productMap = React.useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -277,6 +292,16 @@ export function ProductPickerSection({
       )}
     </>
   )
+}
+
+export function mergeProductPickerRecords(
+  ...sources: ReadonlyArray<ReadonlyArray<ProductPickerSearchRecord & { id: string }>>
+): Array<ProductPickerSearchRecord & { id: string }> {
+  const records = new Map<string, ProductPickerSearchRecord & { id: string }>()
+  for (const source of sources) {
+    for (const product of source) records.set(product.id, product)
+  }
+  return Array.from(records.values())
 }
 
 function ownedProductToPickerRecord(

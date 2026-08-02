@@ -412,6 +412,18 @@ export function resolveManualBookingPricing(input: {
   }
 }
 
+export function toManualBookingPriceOverride(
+  pricing: ManualBookingResolvedPricing,
+): { amountCents: number; reason: string } | undefined {
+  if (pricing.confirmedAmountCents === pricing.catalogAmountCents || !pricing.priceOverrideReason) {
+    return undefined
+  }
+  return {
+    amountCents: pricing.confirmedAmountCents,
+    reason: pricing.priceOverrideReason,
+  }
+}
+
 export function buildManualBookingContactInput(input: {
   billTo: "person" | "organization"
   contact: {
@@ -1508,14 +1520,7 @@ export function ManualBookingCreateForm({
       personId: billTo === "person" ? billing.personId : null,
       organizationId: billTo === "organization" ? billing.organizationId : null,
       internalNotes: notes.trim() || null,
-      catalogSellAmountCents: resolvedPricing.catalogAmountCents,
-      confirmedSellAmountCents: resolvedPricing.confirmedAmountCents,
-      sellAmountCentsOverride:
-        pricing?.isManualOverride &&
-        resolvedPricing.confirmedAmountCents !== resolvedPricing.catalogAmountCents
-          ? resolvedPricing.confirmedAmountCents
-          : null,
-      priceOverrideReason: resolvedPricing.priceOverrideReason,
+      manualPriceOverride: toManualBookingPriceOverride(resolvedPricing),
       itemLines: itemLines.length > 0 ? itemLines : undefined,
       extraLines: resolvedExtraLines.length > 0 ? resolvedExtraLines : undefined,
       travelers: travelerRows.length > 0 ? travelerRows : undefined,

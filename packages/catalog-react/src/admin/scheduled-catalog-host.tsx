@@ -33,8 +33,7 @@ export function ScheduledCatalogHost({
 }: ScheduledCatalogHostProps) {
   const resolveHref = useAdminHref()
   const nav = useOperatorAdminMessages().nav
-  const title = scope === "excursions" ? nav.catalogExcursions : nav.catalogTours
-  const subtitle = scope === "excursions" ? nav.catalogExcursionsTagline : nav.catalogToursTagline
+  const [title, subtitle] = scheduledScopeCopy(scope, nav)
 
   return (
     <ScheduledCatalogPageUi
@@ -57,4 +56,26 @@ export function ScheduledCatalogHost({
       )}
     />
   )
+}
+
+function scheduledScopeCopy(
+  scope: ScheduledScope,
+  nav: ReturnType<typeof useOperatorAdminMessages>["nav"],
+): readonly [string, string] {
+  switch (scope) {
+    case "excursions":
+      return [nav.catalogExcursions, nav.catalogExcursionsTagline]
+    case "tours":
+      return [nav.catalogTours, nav.catalogToursTagline]
+    case "boat-tours":
+      return [nav.catalogBoatTours, nav.catalogBoatToursTagline]
+    case "activities":
+      return [nav.catalogActivities, nav.catalogActivitiesTagline]
+    case "attractions":
+      return [nav.catalogAttractions, nav.catalogAttractionsTagline]
+    case "events":
+      return [nav.catalogEvents, nav.catalogEventsTagline]
+    case "transportation":
+      return [nav.catalogTransportation, nav.catalogTransportationTagline]
+  }
 }

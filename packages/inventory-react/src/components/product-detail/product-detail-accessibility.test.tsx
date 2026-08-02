@@ -138,7 +138,31 @@ async function renderWithHost(children: ReactNode, hostApi: ProductDetailApi = a
 }
 
 describe("product detail accessibility", () => {
-  it("associates labels with all fourteen product controls and validation messages", async () => {
+  it("surfaces save failures in the form instead of leaving an unhandled rejection", async () => {
+    const patch = vi.fn().mockRejectedValue(new Error("Create a future open departure first."))
+    await renderWithHost(
+      <ProductDetailForm
+        product={{ ...product, name: "Whale watching", sellCurrency: "EUR" }}
+        onSuccess={() => undefined}
+      />,
+      { ...api, patch },
+    )
+
+    await act(async () => {
+      document
+        .querySelector("form")
+        ?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(patch).toHaveBeenCalledOnce()
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      "Create a future open departure first.",
+    )
+  })
+
+  it("associates labels with all fifteen product controls and validation messages", async () => {
     await renderWithHost(<ProductDetailForm product={product} onSuccess={() => undefined} />)
 
     const controlIds = [
@@ -151,14 +175,15 @@ describe("product detail accessibility", () => {
       "product-detail-default-language",
       "product-detail-tags",
       "product-detail-booking-mode",
-      "product-detail-visibility",
       "product-detail-product-type",
+      "product-detail-subtype",
+      "product-detail-duration",
       "product-detail-status",
       "product-detail-tax-class",
       "product-detail-sell-currency",
     ]
 
-    expect(controlIds).toHaveLength(14)
+    expect(controlIds).toHaveLength(15)
     for (const id of controlIds) {
       expect(document.querySelector(`label[for="${id}"]`)).not.toBeNull()
       expect(document.getElementById(id)).not.toBeNull()

@@ -312,6 +312,7 @@ function createPresentationRuntime(
       })
     },
     signInWithEmail: (input) => authClient.signIn.email(input),
+    signUpWithEmail: (input) => authClient.signUp.email(input),
     signInWithSocial: (provider, callbackURL) =>
       authClient.signIn.social({ provider, callbackURL }),
     sendVerificationOtp: (email) =>

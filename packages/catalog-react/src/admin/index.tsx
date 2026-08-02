@@ -15,6 +15,7 @@ import { z } from "zod"
 // this factory.
 import { catalogSearchSchema } from "../catalog-search-params.js"
 import type { CatalogDetailSurface } from "../catalog-surfaces.js"
+import type { ScheduledScope } from "../components/scheduled-catalog-page.js"
 
 /**
  * Semantic destinations the catalog admin surfaces navigate to (packaged-admin
@@ -129,6 +130,11 @@ export interface CreateCatalogAdminExtensionOptions {
     products?: string
     excursions?: string
     tours?: string
+    boatTours?: string
+    activities?: string
+    attractions?: string
+    events?: string
+    transportation?: string
     cruises?: string
     accommodations?: string
   }
@@ -155,6 +161,42 @@ function catalogAdminPage(
 
     CatalogAdminRoutePage.displayName = `CatalogAdminRoutePage(${Page.displayName ?? Page.name ?? "anonymous"})`
     return { default: CatalogAdminRoutePage }
+  }
+}
+
+function scheduledCatalogAdminPage(
+  scope: ScheduledScope,
+  scopeOptions: CatalogAdminRoutePageProps["scopeOptions"],
+): () => Promise<AdminRoutePageModule> {
+  return async () => {
+    const module = await import("./pages/catalog-scheduled-index-page.js")
+    const Page = module.default as React.ComponentType<
+      CatalogAdminRoutePageProps & { scope: ScheduledScope }
+    >
+
+    return {
+      default: (props: AdminRoutePageProps) => (
+        <Page {...props} scope={scope} scopeOptions={scopeOptions} />
+      ),
+    }
+  }
+}
+
+function scheduledCatalogDetailPage(
+  surface: CatalogDetailSurface,
+  scopeOptions: CatalogAdminRoutePageProps["scopeOptions"],
+): () => Promise<AdminRoutePageModule> {
+  return async () => {
+    const module = await import("./pages/catalog-scheduled-detail-page.js")
+    const Page = module.default as React.ComponentType<
+      CatalogAdminRoutePageProps & { surface: CatalogDetailSurface }
+    >
+
+    return {
+      default: (props: AdminRoutePageProps) => (
+        <Page {...props} surface={surface} scopeOptions={scopeOptions} />
+      ),
+    }
   }
 }
 
@@ -202,6 +244,11 @@ export function createCatalogAdminExtension(
     products = "Packages",
     excursions = "Excursions",
     tours = "Tours",
+    boatTours = "Boat Tours",
+    activities = "Activities",
+    attractions = "Attractions",
+    events = "Events",
+    transportation = "Transportation",
     cruises = "Cruises",
     accommodations = "Accommodations",
   } = labels
@@ -273,6 +320,29 @@ export function createCatalogAdminExtension(
         title: tours,
         page: catalogAdminPage(() => import("./pages/catalog-tours-detail-page.js"), scopeOptions),
       },
+      ...(
+        [
+          ["boat-tours", boatTours],
+          ["activities", activities],
+          ["attractions", attractions],
+          ["events", events],
+          ["transportation", transportation],
+        ] as const
+      ).flatMap(([scope, title]) => [
+        {
+          id: `catalog-${scope}-index`,
+          path: `${basePath}/${scope}`,
+          title,
+          validateSearch: browseSearch,
+          page: scheduledCatalogAdminPage(scope, scopeOptions),
+        },
+        {
+          id: `catalog-${scope}-detail`,
+          path: `${basePath}/${scope}/$id`,
+          title,
+          page: scheduledCatalogDetailPage(scope, scopeOptions),
+        },
+      ]),
       {
         id: "catalog-cruises-index",
         path: `${basePath}/cruises`,
@@ -327,6 +397,11 @@ export function createSelectedCatalogAdminExtension({
     products: navMessages.catalogProducts ?? "Products",
     excursions: navMessages.catalogExcursions ?? "Excursions",
     tours: navMessages.catalogTours ?? "Tours",
+    boatTours: navMessages.catalogBoatTours ?? "Boat Tours",
+    activities: navMessages.catalogActivities ?? "Activities",
+    attractions: navMessages.catalogAttractions ?? "Attractions",
+    events: navMessages.catalogEvents ?? "Events",
+    transportation: navMessages.catalogTransportation ?? "Transportation",
     cruises: navMessages.catalogCruises ?? "Cruises",
     accommodations: navMessages.catalogAccommodations ?? "Accommodations",
   }
@@ -356,12 +431,28 @@ export function createSelectedCatalogAdminExtension({
                 title: labels.products,
                 url: "/catalog/products",
               },
-              {
-                id: "catalog-excursions",
-                title: labels.excursions,
-                url: "/catalog/excursions",
-              },
               { id: "catalog-tours", title: labels.tours, url: "/catalog/tours" },
+              {
+                id: "catalog-boat-tours",
+                title: labels.boatTours,
+                url: "/catalog/boat-tours",
+              },
+              {
+                id: "catalog-activities",
+                title: labels.activities,
+                url: "/catalog/activities",
+              },
+              {
+                id: "catalog-attractions",
+                title: labels.attractions,
+                url: "/catalog/attractions",
+              },
+              { id: "catalog-events", title: labels.events, url: "/catalog/events" },
+              {
+                id: "catalog-transportation",
+                title: labels.transportation,
+                url: "/catalog/transportation",
+              },
               { id: "catalog-cruises", title: labels.cruises, url: "/catalog/cruises" },
               {
                 id: "catalog-accommodations",

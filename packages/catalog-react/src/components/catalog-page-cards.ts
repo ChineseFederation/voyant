@@ -22,6 +22,8 @@ export function makeProductCard(
     // Transport + board basis lead the chips, then categories/themes.
     chips: (fields) =>
       [
+        asString(fields.familyName) ?? asString(fields.familyCode),
+        humanizeCode(asString(fields.subtypeCode)),
         formatTransport(asString(fields.transport), messages),
         formatBoard(asString(fields.board), messages),
         ...asStringArray(fields.categories),
@@ -54,6 +56,15 @@ export function formatTransport(
 ): string | null {
   if (!value) return null
   return value === "flight" ? messages.card.flightIncluded : value
+}
+
+function humanizeCode(value: string | null): string | null {
+  if (!value) return null
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
 }
 
 /** Format a (possibly fractional) star rating as e.g. "4.5★". */
@@ -145,10 +156,14 @@ export function formatCountry(value: string | number, locale: string): string {
   }
 }
 
-function durationMeta(
+export function durationMeta(
   fields: Record<string, unknown>,
   messages: CatalogPageMessages,
 ): string | null {
+  const minutes = asNumber(fields.durationMinutes)
+  if (minutes != null) {
+    return messages.card.minutes.replace("{minutes}", String(minutes))
+  }
   const days = asNumber(fields.durationDays)
   if (days == null || days < 1) return null
   const nights = Math.max(0, days - 1)

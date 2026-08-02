@@ -185,6 +185,8 @@ export type ProductsUiCoreMessages = {
       status: string
       bookingMode: string
       productType: string
+      productSubtype: string
+      durationMinutes: string
       facility: string
       taxClass: string
       contractTemplate: string
@@ -206,6 +208,8 @@ export type ProductsUiCoreMessages = {
       terms: string
       tagInput: string
       productTypeSearch: string
+      productSubtype: string
+      durationMinutes: string
       facilitySearch: string
       taxClassSearch: string
       contractTemplateSearch: string
@@ -220,6 +224,8 @@ export type ProductsUiCoreMessages = {
       sellCurrencyInvalid: string
       paxInvalid: string
       reservationTimeoutInvalid: string
+      subtypeInvalid: string
+      durationInvalid: string
       saveFailed: string
     }
     actions: {
@@ -282,6 +288,7 @@ export type ProductsUiCoreMessages = {
     searchPlaceholder: string
     newProduct: string
     createFailed: string
+    familyUnavailable: string
     filters: {
       button: string
       statusLabel: string
@@ -309,8 +316,32 @@ export type ProductsUiCoreMessages = {
       status: string
       sellAmount: string
       type: string
+      family: string
+      subtype: string
+      duration: string
       bookingMode: string
       nextDeparture: string
+    }
+    reviewBadge: string
+    reviewMissingFamily: string
+    reviewMissingDuration: string
+    durationUnset: string
+    quickStart: {
+      title: string
+      description: string
+      familyHeading: string
+      presetHeading: string
+      continueFamily: string
+      startBlank: string
+      creating: string
+      presets: {
+        boatTour: { label: string; description: string }
+        dayTour: { label: string; description: string }
+        multiDayTour: { label: string; description: string }
+        timedActivity: { label: string; description: string }
+        attractionAdmission: { label: string; description: string }
+        transfer: { label: string; description: string }
+      }
     }
     loadFailed: string
     empty: string

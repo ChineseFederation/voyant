@@ -13,7 +13,8 @@ export default function CatalogToursIndexPage({
   updateSearch,
   scopeOptions,
 }: CatalogAdminRoutePageProps) {
-  // Tours / circuits = multi-day scheduled trips (durationDays ≥ 2).
+  // Tours = products in the Tour family (family code `tour`).
+  // Duration is display/range only — not the scope identity.
   return (
     <ScheduledCatalogHost
       scope="tours"

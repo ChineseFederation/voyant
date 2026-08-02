@@ -1,4 +1,5 @@
 import {
+  allocationResources,
   availabilityRules,
   availabilitySlots,
   productOptionResourceTemplates,
@@ -7,9 +8,13 @@ import { newId } from "@voyant-travel/db/lib/typeid"
 import { cleanupTestDb, createTestDb } from "@voyant-travel/db/test-utils"
 import { eq, sql } from "drizzle-orm"
 import { beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { bookingAllocations, bookingItems, bookings } from "../../../../bookings/src/schema.js"
 import { productOptions, products } from "../../../../inventory/src/schema.js"
 import { generateAvailabilitySlots } from "../../../src/availability/generate-slots.js"
-import { materializeSlotResourcesFromTemplateDefaults } from "../../../src/availability/service-allocation-automation.js"
+import {
+  autoMaterializeAllocationResources,
+  materializeSlotResourcesFromTemplateDefaults,
+} from "../../../src/availability/service-allocation-automation.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
 
@@ -114,6 +119,79 @@ describe.skipIf(!DB_AVAILABLE)("materialize template defaults (integration)", ()
 
     const result = await materializeSlotResourcesFromTemplateDefaults(db, slotId)
     expect(result.created).toBe(0)
+  })
+
+  it("atomically and idempotently materializes a vehicle with its seats", async () => {
+    await db.insert(productOptionResourceTemplates).values({
+      productOptionId: optionId,
+      kind: "vehicle_seat",
+      capacity: 2,
+      namePattern: "Coach {sequence}",
+      layout: "1-1",
+    })
+
+    const slotId = newId("availability_slots")
+    await db.insert(availabilitySlots).values({
+      id: slotId,
+      productId,
+      optionId,
+      dateLocal: "2026-06-01",
+      startsAt: new Date("2026-06-01T08:00:00Z"),
+      timezone: "UTC",
+      status: "open",
+      unlimited: false,
+      initialPax: 2,
+      remainingPax: 0,
+    })
+
+    const bookingId = newId("bookings")
+    const bookingItemId = newId("booking_items")
+    await db.insert(bookings).values({
+      id: bookingId,
+      bookingNumber: "MAT-VEHICLE-001",
+      status: "confirmed",
+      sellCurrency: "EUR",
+      pax: 2,
+    })
+    await db.insert(bookingItems).values({
+      id: bookingItemId,
+      bookingId,
+      title: "Coach seats",
+      status: "confirmed",
+      quantity: 2,
+      sellCurrency: "EUR",
+      productId,
+      optionId,
+      availabilitySlotId: slotId,
+    })
+    await db.insert(bookingAllocations).values({
+      bookingId,
+      bookingItemId,
+      productId,
+      optionId,
+      availabilitySlotId: slotId,
+      quantity: 2,
+      status: "confirmed",
+    })
+
+    const outcomes = await Promise.allSettled([
+      autoMaterializeAllocationResources(db, slotId, { kind: "vehicle_seat" }),
+      autoMaterializeAllocationResources(db, slotId, { kind: "vehicle_seat" }),
+    ])
+    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1)
+    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1)
+
+    const rows = await db
+      .select()
+      .from(allocationResources)
+      .where(eq(allocationResources.slotId, slotId))
+    const vehicles = rows.filter((row) => row.kind === "vehicle")
+    const seats = rows.filter((row) => row.kind === "vehicle_seat")
+    expect(vehicles).toHaveLength(1)
+    expect(seats).toHaveLength(2)
+    expect(seats.every((seat) => seat.capacity === 1 && seat.parentId === vehicles[0]?.id)).toBe(
+      true,
+    )
   })
 
   it("auto-materializes during generateAvailabilitySlots", async () => {

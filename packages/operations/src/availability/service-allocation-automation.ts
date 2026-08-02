@@ -24,7 +24,7 @@ import { AllocationServiceError } from "./service-allocation-errors.js"
 import { executeRows, sqlTextArray } from "./service-allocation-sql.js"
 import {
   type AutoMaterializeRow,
-  materializeVehicleSeatGroup,
+  materializeVehicleSeatGroupInTransaction,
   renderNamePattern,
 } from "./service-allocation-vehicle-materialization.js"
 import type { allocationAutomationSchema } from "./validation.js"
@@ -59,11 +59,33 @@ export async function autoMaterializeAllocationResources(
   input: AllocationAutomationInput,
   options: AllocationMutationOptions = {},
 ): Promise<AllocationAutomationResult> {
+  const result = await db.transaction(async (tx) =>
+    autoMaterializeAllocationResourcesLocked(tx as PostgresJsDatabase, slotId, input),
+  )
+
+  if ((result.created ?? 0) > 0) {
+    await recordAllocationAudit(db, {
+      slotId,
+      action: "resources.materialize",
+      actorId: options.actorId ?? null,
+      after: { kind: result.kind, created: result.created ?? 0 },
+    })
+  }
+
+  return result
+}
+
+async function autoMaterializeAllocationResourcesLocked(
+  db: PostgresJsDatabase,
+  slotId: string,
+  input: AllocationAutomationInput,
+): Promise<AllocationAutomationResult> {
   const kind = input.kind ?? "room"
   const [slot] = await db
     .select({ id: availabilitySlots.id })
     .from(availabilitySlots)
     .where(eq(availabilitySlots.id, slotId))
+    .for("update")
     .limit(1)
   if (!slot) throw new AllocationServiceError("Availability slot not found", 404)
 
@@ -129,7 +151,12 @@ export async function autoMaterializeAllocationResources(
   let sequence = 0
   for (const group of groups) {
     if (kind === "vehicle_seat") {
-      const vehicleResources = await materializeVehicleSeatGroup(db, slotId, group, sequence)
+      const vehicleResources = await materializeVehicleSeatGroupInTransaction(
+        db,
+        slotId,
+        group,
+        sequence,
+      )
       sequence += vehicleResources.vehicleCount
       created.push(...vehicleResources.resources)
       continue
@@ -163,15 +190,6 @@ export async function autoMaterializeAllocationResources(
         .returning()
       if (row) created.push(row)
     }
-  }
-
-  if (created.length > 0) {
-    await recordAllocationAudit(db, {
-      slotId,
-      action: "resources.materialize",
-      actorId: options.actorId ?? null,
-      after: { kind, created: created.length },
-    })
   }
 
   return { kind, created: created.length, resources: created }

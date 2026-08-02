@@ -330,14 +330,10 @@ const createResourceRoute = createRoute({
       description: "The created allocation resource",
       content: { "application/json": { schema: z.object({ data: allocationResourceSchema }) } },
     },
-    400: {
-      description: "invalid_request: request body failed validation",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
-    404: {
-      description: "Availability slot not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
+    400: allocationErrorResponses[400],
+    404: allocationErrorResponses[404],
+    409: allocationErrorResponses[409],
+    500: allocationErrorResponses[500],
   },
 })
 
@@ -374,10 +370,10 @@ const deleteResourceRoute = createRoute({
         "application/json": { schema: z.object({ data: deletedAllocationResourceSchema }) },
       },
     },
-    404: {
-      description: "Allocation resource not found",
-      content: { "application/json": { schema: errorResponseSchema } },
-    },
+    400: allocationErrorResponses[400],
+    404: allocationErrorResponses[404],
+    409: allocationErrorResponses[409],
+    500: allocationErrorResponses[500],
   },
 })
 
@@ -389,13 +385,19 @@ const slotResourceRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
       : c.json({ error: "Availability slot not found" }, 404)
   })
   .openapi(createResourceRoute, async (c) => {
-    const row = await createAllocationResource(
-      c.get("db"),
-      c.req.valid("param").id,
-      c.req.valid("json"),
-      { actorId: c.get("userId") ?? null },
-    )
-    return row ? c.json({ data: row }, 201) : c.json({ error: "Availability slot not found" }, 404)
+    try {
+      const row = await createAllocationResource(
+        c.get("db"),
+        c.req.valid("param").id,
+        c.req.valid("json"),
+        { actorId: c.get("userId") ?? null },
+      )
+      return row
+        ? c.json({ data: row }, 201)
+        : c.json({ error: "Availability slot not found" }, 404)
+    } catch (error) {
+      return handleAllocationRouteError(c, error)
+    }
   })
   .openapi(updateResourceRoute, async (c) => {
     try {
@@ -415,13 +417,17 @@ const slotResourceRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
     }
   })
   .openapi(deleteResourceRoute, async (c) => {
-    const params = c.req.valid("param")
-    const row = await deleteAllocationResource(c.get("db"), params.id, params.resourceId, {
-      actorId: c.get("userId") ?? null,
-    })
-    return row
-      ? c.json({ data: row }, 200)
-      : c.json({ error: "Allocation resource not found" }, 404)
+    try {
+      const params = c.req.valid("param")
+      const row = await deleteAllocationResource(c.get("db"), params.id, params.resourceId, {
+        actorId: c.get("userId") ?? null,
+      })
+      return row
+        ? c.json({ data: row }, 200)
+        : c.json({ error: "Allocation resource not found" }, 404)
+    } catch (error) {
+      return handleAllocationRouteError(c, error)
+    }
   })
 
 // --- traveler assignment + sharing groups -----------------------------------

@@ -34,7 +34,7 @@ describe("AsyncCombobox", () => {
     )
 
     const input = screen.getByRole("combobox")
-    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(screen.getByRole("button", { name: "Open options" }))
     fireEvent.focus(input)
     fireEvent.keyDown(input, { key: "ArrowDown" })
 
@@ -75,7 +75,7 @@ describe("AsyncCombobox", () => {
     )
 
     const input = screen.getByRole("combobox")
-    fireEvent.click(screen.getByRole("button"))
+    fireEvent.click(screen.getByRole("button", { name: "Open options" }))
     fireEvent.change(input, { target: { value: "ada@example.com" } })
     fireEvent.keyDown(input, { key: "ArrowDown" })
 

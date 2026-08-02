@@ -34,6 +34,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod/v4"
 import { useProductItineraries, useProductOptions } from "../../index.js"
 import { useProductResourceTemplates } from "./commerce-client.js"
+import { deriveDepartureEndIso } from "./departure-duration.js"
 import { useProductDetailApi, useProductDetailMessages } from "./host.js"
 import { getTimezoneLabel, TIMEZONE_IDS, TIMEZONE_OPTIONS } from "./timezone-options.js"
 import { zodResolver } from "./zod-resolver.js"
@@ -105,6 +106,8 @@ export type DepartureSlot = {
 
 export interface DepartureFormProps {
   productId: string
+  /** Explicit product duration used when a new departure has no manual end. */
+  durationMinutes?: number | null
   slot?: DepartureSlot
   onSuccess: () => void
   onCancel?: () => void
@@ -172,7 +175,13 @@ function initialValues(slot: DepartureSlot | undefined, defaultTz: string): Depa
   }
 }
 
-export function DepartureForm({ productId, slot, onSuccess, onCancel }: DepartureFormProps) {
+export function DepartureForm({
+  productId,
+  durationMinutes,
+  slot,
+  onSuccess,
+  onCancel,
+}: DepartureFormProps) {
   const messages = useProductDetailMessages()
   const api = useProductDetailApi()
   const productMessages = messages.products.core
@@ -302,6 +311,8 @@ export function DepartureForm({ productId, slot, onSuccess, onCancel }: Departur
         })
         return
       }
+    } else if (!isEditing) {
+      endsAt = deriveDepartureEndIso(startsAt, durationMinutes)
     }
 
     const initialPax =

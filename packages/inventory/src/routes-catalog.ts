@@ -80,7 +80,7 @@ const listProductTypesRoute = createRoute({
   request: { query: validation.productTypeListQuerySchema },
   responses: {
     200: {
-      description: "Paginated list of product types",
+      description: "Paginated list of product families",
       content: { "application/json": { schema: listResponseSchema(productTypeSchema) } },
     },
   },
@@ -92,11 +92,11 @@ const getProductTypeRoute = createRoute({
   request: { params: typeIdParamSchema },
   responses: {
     200: {
-      description: "A product type by id",
+      description: "A product family by id",
       content: { "application/json": { schema: z.object({ data: productTypeSchema }) } },
     },
     404: {
-      description: "Product type not found",
+      description: "Product family not found",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -113,7 +113,7 @@ const createProductTypeRoute = createRoute({
   },
   responses: {
     201: {
-      description: "The created product type",
+      description: "The created product family",
       content: { "application/json": { schema: z.object({ data: productTypeSchema }) } },
     },
     400: {
@@ -135,7 +135,7 @@ const updateProductTypeRoute = createRoute({
   },
   responses: {
     200: {
-      description: "The updated product type",
+      description: "The updated product family",
       content: { "application/json": { schema: z.object({ data: productTypeSchema }) } },
     },
     400: {
@@ -143,7 +143,7 @@ const updateProductTypeRoute = createRoute({
       content: { "application/json": { schema: errorResponseSchema } },
     },
     404: {
-      description: "Product type not found",
+      description: "Product family not found",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -155,11 +155,15 @@ const deleteProductTypeRoute = createRoute({
   request: { params: typeIdParamSchema },
   responses: {
     200: {
-      description: "Product type deleted",
+      description: "Product family deleted",
       content: { "application/json": { schema: successSchema } },
     },
     404: {
-      description: "Product type not found",
+      description: "Product family not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    409: {
+      description: "Product family is standard or still assigned to products",
       content: { "application/json": { schema: errorResponseSchema } },
     },
   },
@@ -172,7 +176,7 @@ const productTypeRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationH
   .openapi(getProductTypeRoute, async (c) => {
     const row = await productsService.getProductTypeById(c.get("db"), c.req.valid("param").typeId)
     if (!row) {
-      return c.json({ error: "Product type not found" }, 404)
+      return c.json({ error: "Product family not found" }, 404)
     }
     return c.json({ data: row }, 200)
   })
@@ -181,7 +185,7 @@ const productTypeRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationH
     if (!row) {
       // Defensive: the insert always returns the new row. Narrow the
       // service's `[row]` (`Row | undefined`) without polluting the contract.
-      throw new Error("Failed to create product type")
+      throw new Error("Failed to create product family")
     }
     return c.json({ data: row }, 201)
   })
@@ -192,14 +196,14 @@ const productTypeRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationH
       c.req.valid("json"),
     )
     if (!row) {
-      return c.json({ error: "Product type not found" }, 404)
+      return c.json({ error: "Product family not found" }, 404)
     }
     return c.json({ data: row }, 200)
   })
   .openapi(deleteProductTypeRoute, async (c) => {
     const row = await productsService.deleteProductType(c.get("db"), c.req.valid("param").typeId)
     if (!row) {
-      return c.json({ error: "Product type not found" }, 404)
+      return c.json({ error: "Product family not found" }, 404)
     }
     return c.json({ success: true }, 200)
   })

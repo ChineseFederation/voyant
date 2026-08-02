@@ -174,6 +174,7 @@ describe("createCatalogRuntimePortContribution", () => {
         createStorefrontCardProjectionExtension: () => emptyProjection,
         createDestinationsProjectionExtension: () => emptyProjection,
         createTaxonomyProjectionExtension: () => emptyProjection,
+        createClassificationProjectionExtension: () => emptyProjection,
         getProductContent: vi.fn(),
         getOwnedProductById: vi.fn(),
         enrichProductQuoteShape: vi.fn(),

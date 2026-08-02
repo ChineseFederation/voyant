@@ -11,6 +11,18 @@ import {
   z,
 } from "./validation-shared.js"
 
+/**
+ * A stable, lowercase kebab-case code — used for Product subtype values so they
+ * are durable facet keys (never a display label). Max 64 chars.
+ */
+export const productSubtypeCodeSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: "must be a lowercase kebab-case stable code (e.g. boat-tour)",
+  })
+
 const productDepositRuleSchema = z.object({
   kind: z.enum(["none", "percent", "fixed_cents"]),
   percent: z.number().min(0).max(100).optional(),
@@ -36,7 +48,9 @@ const productCoreSchema = z.object({
   capacityMode: productCapacityModeSchema.default("limited"),
   timezone: z.string().max(100).optional().nullable(),
   defaultLanguageTag: languageTagSchema.optional().nullable(),
+  /** @deprecated Compatibility only; channel assignments control distribution. */
   visibility: productVisibilitySchema.default("private"),
+  /** @deprecated Compatibility only; a direct storefront is modeled as a Channel. */
   activated: z.boolean().default(false),
   reservationTimeoutMinutes: z.number().int().min(0).optional().nullable(),
   sellCurrency: z.string().min(3).max(3),
@@ -48,6 +62,18 @@ const productCoreSchema = z.object({
   startDate: z.string().optional().nullable(),
   endDate: z.string().optional().nullable(),
   pax: z.number().int().positive().optional().nullable(),
+  /**
+   * Optional Product subtype stable code (e.g. `boat-tour`). Independent from
+   * the family (`productTypeId`), booking mode, and duration. Lowercase stable
+   * code so it is safe as a catalog facet value.
+   */
+  productSubtypeCode: productSubtypeCodeSchema.optional().nullable(),
+  /**
+   * Explicit product duration in minutes (positive). Authored source of
+   * truth for duration; the resolver prefers it over the legacy itinerary-day
+   * derivation. Null when not authored.
+   */
+  durationMinutes: z.number().int().positive().optional().nullable(),
   customerPaymentPolicy: productCustomerPaymentPolicySchema.optional().nullable(),
   tags: z.array(z.string()).default([]),
 })
@@ -127,7 +153,9 @@ export const updateProductSchema = productCoreSchema
     status: productStatusSchema,
     bookingMode: productBookingModeSchema,
     capacityMode: productCapacityModeSchema,
+    /** @deprecated Compatibility only; channel assignments control distribution. */
     visibility: productVisibilitySchema,
+    /** @deprecated Compatibility only; a direct storefront is modeled as a Channel. */
     activated: z.boolean(),
     termsShowOnContract: z.boolean(),
     tags: z.array(z.string()),
@@ -142,9 +170,28 @@ export const selectProductSchema = productCoreSchema.extend({
   sellAmountCents: z.number().int().nullable(),
   costAmountCents: z.number().int().nullable(),
   marginPercent: z.number().int().nullable(),
+  productSubtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 })
+/**
+ * Resolved product classification — the family / subtype / duration triple plus
+ * derived review state. Emitted identically by the product list/detail read
+ * paths, the catalog-plane projection, and the legacy Catalog search document.
+ */
+export const productClassificationSchema = z.object({
+  familyCode: z.string().nullable(),
+  familyName: z.string().nullable(),
+  subtypeCode: z.string().nullable(),
+  durationMinutes: z.number().int().nullable(),
+  durationDays: z.number().int().nullable(),
+  durationProvenance: z.enum(["explicit", "itinerary-derived", "unresolved"]),
+  reviewRequired: z.boolean(),
+  reviewReasons: z.array(z.enum(["missing_family", "unresolved_duration"])),
+})
+export type ProductClassification = z.infer<typeof productClassificationSchema>
+
 export const productListSortFieldSchema = z.enum([
   "name",
   "status",
@@ -160,11 +207,17 @@ export const productListSortDirSchema = z.enum(["asc", "desc"])
 export const productListQuerySchema = z.object({
   status: productStatusSchema.optional(),
   bookingMode: productBookingModeSchema.optional(),
+  /** @deprecated Compatibility query retained while older API clients migrate. */
   visibility: productVisibilitySchema.optional(),
+  /** @deprecated Compatibility query retained while older API clients migrate. */
   activated: booleanQueryParam.optional(),
   facilityId: z.string().optional(),
   supplierId: z.string().optional(),
   productTypeId: z.string().optional(),
+  /** Facet on the resolved family stable code (e.g. `tour`). */
+  familyCode: z.string().optional(),
+  /** Facet on the Product subtype stable code (e.g. `boat-tour`). */
+  productSubtypeCode: z.string().optional(),
   contractTemplateId: typeIdSchema("contract_templates").optional(),
   taxClassId: z.string().optional(),
   categoryId: z.string().optional(),

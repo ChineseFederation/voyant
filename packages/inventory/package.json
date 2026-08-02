@@ -61,7 +61,8 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build",
-    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=inventory_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations"
+    "db:generate": "drizzle-kit generate --config=drizzle.migrations.config.ts --name=inventory_baseline && node ../../scripts/migrations/guard-create-type.mjs ./migrations && node ../../scripts/migrations/ensure-extensions.mjs ./migrations",
+    "generate:openapi": "tsx scripts/generate-openapi.ts && biome format --write openapi/admin/products.json openapi/admin/inventory-authoring.json openapi/storefront/products.json"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",

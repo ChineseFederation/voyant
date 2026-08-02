@@ -3,7 +3,7 @@
  *
  * This is the deployment-owned rule the inventory document builder injects via
  * its `isPublicAudienceListable` hook. It decides whether an owned product
- * (already gated as active + public + activated upstream) should be emitted
+ * (already gated as active upstream) should be emitted
  * into a public-audience search slice.
  *
  * Kept in its own module so the audience decision can be unit-tested without
@@ -23,10 +23,10 @@ export type OwnedProductStorefrontListabilityInput = {
 /**
  * Storefront/distribution listability predicate for owned products.
  *
- * The upstream inventory gate (`isPublicStorefrontProduct`) already requires
- * `status = active`, `activated = true`, and `visibility = public` before this
- * runs, so the caller only reaches here for an owned product that is otherwise
- * publicly sellable.
+ * The upstream inventory gate already requires `status = active` before this
+ * runs. Effective Publication is the distribution authority; the deprecated
+ * product-level `visibility` and `activated` compatibility fields do not
+ * participate in this decision.
  *
  * Public and external slices require an explicit server-derived channel.
  * Unchannelled customer slices remain buildable for compatibility with existing
