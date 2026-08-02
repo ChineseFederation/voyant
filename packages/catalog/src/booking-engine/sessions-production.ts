@@ -27,6 +27,8 @@ import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-pro
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
 import {
   BookingSessionCommitRejectedError,
+  type BookingSessionCompositeHandler,
+  type BookingSessionCompositeLeafRuntime,
   type BookingSessionModule,
   type BookingSessionRepository,
   type CommitOwnedBookingInput,
@@ -48,6 +50,10 @@ export interface ProductionBookingSessionModuleDeps {
   repository: BookingSessionRepository
   resolveOwnedHandlers(): OwnedBookingHandlerRegistry | Promise<OwnedBookingHandlerRegistry>
   resolveSourceRegistry(): SourceAdapterRegistry | Promise<SourceAdapterRegistry>
+  resolveCompositeHandler?():
+    | BookingSessionCompositeHandler
+    | undefined
+    | Promise<BookingSessionCompositeHandler | undefined>
   relationships?: BookingsRelationshipsRuntime
   financeRuntime?: FinanceServiceRuntime
   payments?: Omit<ProductionBookingSessionPaymentDeps, "db" | "financeRuntime">
@@ -63,80 +69,51 @@ export function createProductionBookingSessionModule(
         ...deps.payments,
       })
     : undefined
+  const leaf = createProductionCompositeLeafRuntime(deps)
   return createBookingSessionModule({
     ports: {
       repository: deps.repository,
       normalizeSelection: async ({ selection, target, access }) =>
         normalizeBookingSelection(target, selection, access),
-      composeQuote: async ({ session, tx }) => {
-        if (session.target.kind === "catalog_item") {
-          return composeSourcedQuote(deps, session, tx as PostgresJsDatabase)
+      composeQuote: async (input) => {
+        const { session } = input
+        if (session.target.kind === "trip_snapshot") {
+          const handler = await deps.resolveCompositeHandler?.()
+          return (
+            (handler ? await handler.composeQuote({ ...input, leaf }) : undefined) ?? {
+              status: "unavailable",
+              reason: "target_not_bookable",
+              nextAction: "contact_operator",
+            }
+          )
         }
-        const handlers = await deps.resolveOwnedHandlers()
-        const handler = handlers.resolve(entityModuleForSession(session.target))
-        if (!handler) {
-          return {
-            status: "unavailable",
-            reason: "target_not_bookable",
-            nextAction: "select_alternative_inventory",
-          }
-        }
-        const result = await handler.computeQuote(
-          { db: tx as PostgresJsDatabase, adapterContext: {} as never },
-          {
-            entityModule: handler.entityModule,
-            entityId: entityIdForSession(session.target),
-            draft: session.statePayload,
-            parameters: engineParametersFromDraft(undefined, session.statePayload, {
-              entityModule: handler.entityModule,
-              sourceKind: "owned",
-            }),
-            scope: { locale: "en", audience: "customer", market: "default" },
-          },
-        )
-        if (!result.available || !result.pricing) {
-          return unavailableQuoteResult(result.invalidReason)
-        }
-        return { status: "quoted", pricing: pricingBreakdownFromBasis(result.pricing) }
+        return leaf.composeQuote(input)
       },
-      placeCapacityHold: async ({ session, holdId, quantity, expiresAt, tx }) => {
-        const handlers = await deps.resolveOwnedHandlers()
-        const handler = handlers.resolve(entityModuleForSession(session.target))
-        if (!handler) return "unavailable"
-        if (!handler.placeHold) return "unavailable"
-        const parameters = engineParametersFromDraft(undefined, session.statePayload, {
-          entityModule: handler.entityModule,
-          sourceKind: "owned",
-        })
-        const expectedQuantity = positiveInteger(parameters.paxCount) ?? 1
-        if (expectedQuantity !== quantity) {
-          return { status: "quantity_mismatch", expectedQuantity }
+      placeCapacityHold: async (input) => {
+        const { session } = input
+        if (session.target.kind === "trip_snapshot") {
+          const handler = await deps.resolveCompositeHandler?.()
+          if (!handler) return "unavailable"
+          return handler.placeCapacityHold({ ...input, leaf })
         }
-        const result = await handler.placeHold(
-          { db: tx as PostgresJsDatabase, adapterContext: {} as never },
-          {
-            entityModule: handler.entityModule,
-            entityId: entityIdForSession(session.target),
-            draftId: holdId,
-            ttlMs: Math.max(1, expiresAt.getTime() - Date.now()),
-            parameters,
-          },
-        )
-        return result.status !== "unavailable" && result.holdToken === holdId
-          ? "held"
-          : "unavailable"
+        return leaf.placeCapacityHold(input)
       },
-      releaseCapacityHold: async ({ session, hold, tx }) => {
-        const handlers = await deps.resolveOwnedHandlers()
-        const handler = handlers.resolve(entityModuleForSession(session.target))
-        if (!handler?.releaseHold) return
-        await handler.releaseHold(
-          { db: tx as PostgresJsDatabase, adapterContext: {} as never },
-          hold.id,
-        )
+      releaseCapacityHold: async (input) => {
+        const { session } = input
+        if (session.target.kind === "trip_snapshot") {
+          const handler = await deps.resolveCompositeHandler?.()
+          await handler?.releaseCapacityHold({ ...input, leaf })
+          return
+        }
+        await leaf.releaseCapacityHold(input)
       },
       commitOwnedBooking: (input) => commitOwnedBooking(deps, input),
       commitSourcedBooking: (input) => commitSourcedBooking(deps, input),
+      commitCompositeBooking: async (input) => {
+        const handler = await deps.resolveCompositeHandler?.()
+        if (!handler) throw new BookingSessionCommitRejectedError("entity_not_bookable")
+        return handler.commit({ ...input, leaf, db: deps.db })
+      },
       hasActiveSupplierOperation: async ({ sessionId, tx }) => {
         const operation = await createDrizzleSupplierOperationRepository(
           tx as PostgresJsDatabase,
@@ -146,6 +123,89 @@ export function createProductionBookingSessionModule(
       payments,
     },
   })
+}
+
+function createProductionCompositeLeafRuntime(
+  deps: ProductionBookingSessionModuleDeps,
+): BookingSessionCompositeLeafRuntime {
+  return {
+    async composeQuote({ session, tx }) {
+      if (session.target.kind === "catalog_item") {
+        return composeSourcedQuote(deps, session, tx as PostgresJsDatabase)
+      }
+      if (session.target.kind === "trip_snapshot") {
+        return unavailableQuoteResult("unsupported_target")
+      }
+      const handlers = await deps.resolveOwnedHandlers()
+      const handler = handlers.resolve(entityModuleForSession(session.target))
+      if (!handler) {
+        return {
+          status: "unavailable",
+          reason: "target_not_bookable",
+          nextAction: "select_alternative_inventory",
+        }
+      }
+      const result = await handler.computeQuote(
+        { db: tx as PostgresJsDatabase, adapterContext: {} as never },
+        {
+          entityModule: handler.entityModule,
+          entityId: entityIdForSession(session.target),
+          draft: session.statePayload,
+          parameters: engineParametersFromDraft(undefined, session.statePayload, {
+            entityModule: handler.entityModule,
+            sourceKind: "owned",
+          }),
+          scope: { locale: "en", audience: "customer", market: "default" },
+        },
+      )
+      if (!result.available || !result.pricing) {
+        return unavailableQuoteResult(result.invalidReason)
+      }
+      return {
+        status: "quoted",
+        pricing: pricingBreakdownFromBasis(result.pricing, result.upstreamPayload),
+      }
+    },
+    async placeCapacityHold(input) {
+      const { session, holdId, quantity, expiresAt, tx } = input
+      if (session.target.kind === "catalog_item") return "held"
+      if (session.target.kind === "trip_snapshot") return "unavailable"
+      const handlers = await deps.resolveOwnedHandlers()
+      const handler = handlers.resolve(entityModuleForSession(session.target))
+      if (!handler?.placeHold) return "unavailable"
+      const parameters = engineParametersFromDraft(undefined, session.statePayload, {
+        entityModule: handler.entityModule,
+        sourceKind: "owned",
+      })
+      const expectedQuantity = positiveInteger(parameters.paxCount) ?? 1
+      if (expectedQuantity !== quantity) {
+        return { status: "quantity_mismatch", expectedQuantity }
+      }
+      const result = await handler.placeHold(
+        { db: tx as PostgresJsDatabase, adapterContext: {} as never },
+        {
+          entityModule: handler.entityModule,
+          entityId: entityIdForSession(session.target),
+          draftId: holdId,
+          ttlMs: Math.max(1, expiresAt.getTime() - input.now.getTime()),
+          parameters,
+        },
+      )
+      return result.status !== "unavailable" && result.holdToken === holdId ? "held" : "unavailable"
+    },
+    async releaseCapacityHold({ session, hold, tx }) {
+      if (session.target.kind !== "product" && session.target.kind !== "owned_entity") return
+      const handlers = await deps.resolveOwnedHandlers()
+      const handler = handlers.resolve(entityModuleForSession(session.target))
+      if (!handler?.releaseHold) return
+      await handler.releaseHold(
+        { db: tx as PostgresJsDatabase, adapterContext: {} as never },
+        hold.id,
+      )
+    },
+    commitOwned: (input) => commitOwnedBooking(deps, input),
+    commitSourced: (input) => commitSourcedBooking(deps, input),
+  }
 }
 
 async function composeSourcedQuote(
@@ -210,6 +270,7 @@ async function commitSourcedBooking(
     ).createOrReplay(
       createSupplierOperationRecord({
         sessionId: input.session.id,
+        scopeKey: input.supplierOperationScope,
         quoteId: input.quote.id,
         ...(input.hold ? { holdId: input.hold.id } : {}),
         commitIdempotencyKey: input.idempotencyKey,
@@ -220,7 +281,9 @@ async function commitSourcedBooking(
         sourceRef: sourced.sourceRef,
         adapterKind: adapter?.kind ?? sourced.sourceKind,
         requestFingerprint: input.requestFingerprint,
-        adapterIdempotencyKey: `${input.session.id}:${input.idempotencyKey}:reserve`,
+        adapterIdempotencyKey: input.supplierOperationScope
+          ? `${input.session.id}:${input.supplierOperationScope}:${input.idempotencyKey}:reserve`
+          : `${input.session.id}:${input.idempotencyKey}:reserve`,
         requestPayload: safeSupplierRequestPayload(request),
         now: input.now,
       }),
@@ -236,6 +299,7 @@ async function commitSourcedBooking(
   })
   const result = await workflow.dispatch({
     sessionId: input.session.id,
+    scopeKey: input.supplierOperationScope,
     quoteId: input.quote.id,
     ...(input.hold ? { holdId: input.hold.id } : {}),
     commitIdempotencyKey: input.idempotencyKey,
@@ -560,16 +624,24 @@ function billingContact(payload: Record<string, unknown>) {
 
 function entityModuleForSession(target: CommitOwnedBookingInput["session"]["target"]) {
   if (target.kind === "product") return "products"
+  if (target.kind === "owned_entity") return target.entityModule
+  if (target.kind === "trip_snapshot") return "trips"
   return "catalog"
 }
 
 function entityIdForSession(target: CommitOwnedBookingInput["session"]["target"]) {
-  return target.kind === "product" ? target.productId : target.catalogItemId
+  if (target.kind === "product") return target.productId
+  if (target.kind === "owned_entity") return target.entityId
+  if (target.kind === "trip_snapshot") return target.tripSnapshotId
+  return target.catalogItemId
 }
 
-function pricingBreakdownFromBasis(pricing: PricingBasis) {
+function pricingBreakdownFromBasis(pricing: PricingBasis, policySource?: Record<string, unknown>) {
+  const policyEvidence = policyEvidenceFromValues(policySource)
   const supplied = pricingBreakdownV1.safeParse(pricing.breakdown)
-  if (supplied.success) return supplied.data
+  if (supplied.success) {
+    return policyEvidence ? { ...supplied.data, policyEvidence } : supplied.data
+  }
   const base = Number(pricing.base_amount ?? 0)
   const taxes = Number(pricing.taxes ?? 0)
   const fees = Number(pricing.fees ?? 0)
@@ -584,6 +656,7 @@ function pricingBreakdownFromBasis(pricing: PricingBasis) {
     subtotal: base,
     taxTotal: taxes,
     total,
+    ...(policyEvidence ? { policyEvidence } : {}),
   }
 }
 
@@ -595,6 +668,7 @@ function pricingBreakdownFromLiveValues(values: Record<string, unknown>) {
   const fees = numberValue(values.feesCents) ?? 0
   const surcharges = numberValue(values.surchargesCents) ?? 0
   const total = priceCents + taxes + fees + surcharges
+  const policyEvidence = policyEvidenceFromValues(values)
   return {
     currency,
     lines: [
@@ -633,6 +707,22 @@ function pricingBreakdownFromLiveValues(values: Record<string, unknown>) {
     subtotal: priceCents + fees + surcharges,
     taxTotal: taxes,
     total,
+    ...(policyEvidence ? { policyEvidence } : {}),
+  }
+}
+
+function policyEvidenceFromValues(values?: Record<string, unknown>) {
+  if (!values) return undefined
+  const cancellation =
+    values.cancellationSnapshot ??
+    values.cancellation_snapshot ??
+    values.cancellationPolicy ??
+    values.cancellation_policy
+  const bookingTerms = values.bookingTerms ?? values.booking_terms ?? values.terms
+  if (cancellation === undefined && bookingTerms === undefined) return undefined
+  return {
+    ...(cancellation !== undefined ? { cancellation } : {}),
+    ...(bookingTerms !== undefined ? { bookingTerms } : {}),
   }
 }
 

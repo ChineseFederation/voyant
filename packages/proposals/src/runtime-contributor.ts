@@ -1,4 +1,5 @@
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
+import type { VoyantPort } from "@voyant-travel/core/project"
 import {
   type CustomFieldValueLifecycleRuntime,
   type CustomFieldValueOperationsRuntime,
@@ -21,6 +22,7 @@ import {
 
 export interface ProposalsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
+  getRuntimePort<T>(port: Pick<VoyantPort<T>, "id">): T | Promise<T>
 }
 
 const proposalCustomFieldValues: CustomFieldValueLifecycleRuntime = {

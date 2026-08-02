@@ -19,6 +19,7 @@ export type SupplierCommitmentPolicyV1 = z.infer<typeof supplierCommitmentPolicy
 export const supplierOperationRecordV1 = z.object({
   id: z.string().min(1),
   sessionId: z.string().min(1),
+  scopeKey: z.string().min(1),
   quoteId: z.string().min(1),
   holdId: z.string().min(1).nullable(),
   operationKind: z.literal("reserve"),

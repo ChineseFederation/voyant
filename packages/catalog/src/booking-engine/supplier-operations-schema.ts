@@ -28,6 +28,7 @@ export const supplierOperationsTable = pgTable(
     sessionId: typeIdRef("session_id")
       .notNull()
       .references(() => bookingSessionsTable.id, { onDelete: "restrict" }),
+    scopeKey: text("scope_key").notNull().default("session"),
     quoteId: typeIdRef("quote_id")
       .notNull()
       .references(() => bookingSessionQuotesTable.id, { onDelete: "restrict" }),
@@ -79,10 +80,11 @@ export const supplierOperationsTable = pgTable(
     check("supplier_operations_version", sql`${table.version} >= 0`),
     uniqueIndex("uidx_supplier_operations_session_commit").on(
       table.sessionId,
+      table.scopeKey,
       table.commitIdempotencyKey,
     ),
     uniqueIndex("uidx_supplier_operations_session_reserve_guard")
-      .on(table.sessionId, table.operationKind)
+      .on(table.sessionId, table.scopeKey, table.operationKind)
       .where(
         sql`${table.state} IN ('queued','submitted','pending','succeeded','in_doubt','manual_review') OR (${table.state} = 'manually_resolved' AND ${table.upstreamStatus} = 'succeeded')`,
       ),

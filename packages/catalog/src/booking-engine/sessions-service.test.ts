@@ -8,7 +8,12 @@ import {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,
 } from "./sessions-memory.js"
-import { type BookingSessionPaymentPorts, createBookingSessionModule } from "./sessions-service.js"
+import {
+  type BookingSessionPaymentPorts,
+  type CommitCompositeBookingInput,
+  type CommitCompositeBookingResult,
+  createBookingSessionModule,
+} from "./sessions-service.js"
 
 const BASE_PRICING = {
   currency: "EUR",
@@ -41,12 +46,16 @@ function createHarness(
     maxSessionLifetimeMs?: number
   } = {},
   payments?: BookingSessionPaymentPorts,
+  commitCompositeBooking?: (
+    input: CommitCompositeBookingInput,
+  ) => Promise<CommitCompositeBookingResult>,
 ) {
   let currentNow = new Date("2026-08-01T12:00:00.000Z")
   let price = BASE_PRICING
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
   inventory.setCapacity("product:prod_owned_1", 1)
+  inventory.setCapacity("trip_snapshot:trsn_frozen", 1)
   const module = createBookingSessionModule({
     now: () => currentNow,
     ...(ttl.sessionTtlMs == null ? {} : { sessionTtlMs: ttl.sessionTtlMs }),
@@ -63,6 +72,7 @@ function createHarness(
       placeCapacityHold: inventory.placeCapacityHold,
       releaseCapacityHold: inventory.releaseCapacityHold,
       commitOwnedBooking: inventory.commitOwnedBooking,
+      commitCompositeBooking,
       payments,
     },
   })
@@ -381,6 +391,225 @@ describe("Booking Session v1 owned tracer", () => {
       error: { kind: "idempotency_conflict" },
     })
     expect(harness.repository.sessions.size).toBe(1)
+  })
+
+  it("seeds exactly one Trip Snapshot Session with accepted Proposal Version provenance", async () => {
+    const harness = createHarness()
+    const input = {
+      idempotencyKey: "proposal_session_seed",
+      proposalId: "prps_accepted",
+      proposalVersionId: "prvr_accepted",
+      tripSnapshotId: "trsn_frozen",
+      tripEnvelopeId: "trip_composed",
+      selection: { billing: { contact: { email: "guest@example.com" } } },
+    }
+
+    const first = await harness.module.createAcceptedProposalSession(input, ANONYMOUS_ACCESS)
+    const replay = await harness.module.createAcceptedProposalSession(input, ANONYMOUS_ACCESS)
+
+    expect(first).toMatchObject({
+      kind: "session_created",
+      session: {
+        target: {
+          kind: "trip_snapshot",
+          tripSnapshotId: "trsn_frozen",
+          tripEnvelopeId: "trip_composed",
+        },
+        origin: {
+          kind: "accepted_proposal_version",
+          proposalId: "prps_accepted",
+          proposalVersionId: "prvr_accepted",
+          tripSnapshotId: "trsn_frozen",
+        },
+      },
+    })
+    expect(replay).toEqual(first)
+    expect(harness.repository.sessions.size).toBe(1)
+  })
+
+  it("consumes one aggregate Session into independently accountable Component Bookings", async () => {
+    const harness = createHarness({}, undefined, async (input) => {
+      const bookings = [
+        {
+          componentId: "trcp_owned",
+          bookingId: "book_owned",
+          allocationIds: ["ball_owned"],
+        },
+        {
+          componentId: "trcp_sourced",
+          bookingId: "book_sourced",
+          allocationIds: ["ball_sourced"],
+          supplierOperationId: "suop_sourced",
+        },
+      ]
+      await input.consumeSources({}, bookings)
+      return { kind: "committed", bookings }
+    })
+    const created = await harness.module.createAcceptedProposalSession(
+      {
+        idempotencyKey: "proposal_component_commit",
+        proposalId: "prps_accepted",
+        proposalVersionId: "prvr_accepted",
+        tripSnapshotId: "trsn_frozen",
+        tripEnvelopeId: "trip_composed",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: 1, idempotencyKey: "quote_components" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const held = await harness.module.placeHold(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "hold_components",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+
+    const committed = await harness.module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        holdId: held.hold.id,
+        idempotencyKey: "commit_components",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    const replay = await harness.module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        holdId: held.hold.id,
+        idempotencyKey: "commit_components",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "component_bookings_committed",
+        bookings: [
+          { componentId: "trcp_owned", bookingId: "book_owned" },
+          {
+            componentId: "trcp_sourced",
+            bookingId: "book_sourced",
+            supplierOperationId: "suop_sourced",
+          },
+        ],
+        consumedSessionId: created.session.id,
+        consumedQuoteId: quoted.quote.id,
+      },
+    })
+    expect(replay).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "idempotent_replay",
+        originalOutcome: { kind: "component_bookings_committed" },
+      },
+    })
+    expect(harness.repository.sessions.get(created.session.id)?.state).toBe("consumed")
+  })
+
+  it("keeps the aggregate Session open for manual and supplier continuation", async () => {
+    const harness = createHarness({}, undefined, async () => ({
+      kind: "component_commit_pending",
+      nextAction: "continue_component_commit",
+      components: [
+        {
+          componentId: "trcp_live",
+          state: "supplier_pending",
+          supplierOperationId: "suop_live",
+        },
+        { componentId: "trcp_manual", state: "manual_confirmation_required" },
+      ],
+    }))
+    const created = await harness.module.createAcceptedProposalSession(
+      {
+        idempotencyKey: "proposal_pending_commit",
+        proposalId: "prps_pending",
+        proposalVersionId: "prvr_pending",
+        tripSnapshotId: "trsn_frozen",
+        tripEnvelopeId: "trip_composed",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: 1, idempotencyKey: "quote_pending_components" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+
+    const result = await harness.module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "commit_pending_components",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(result).toMatchObject({
+      kind: "commit_result",
+      outcome: {
+        kind: "component_commit_pending",
+        components: [
+          { componentId: "trcp_live", state: "supplier_pending" },
+          { componentId: "trcp_manual", state: "manual_confirmation_required" },
+        ],
+      },
+    })
+    expect(harness.repository.sessions.get(created.session.id)?.state).toBe("supplier_pending")
+    expect(harness.repository.commits.size).toBe(0)
+  })
+
+  it("distinguishes manual component work from a pending supplier operation", async () => {
+    const harness = createHarness({}, undefined, async () => ({
+      kind: "component_commit_pending",
+      nextAction: "continue_component_commit",
+      components: [{ componentId: "trcp_manual", state: "manual_confirmation_required" }],
+    }))
+    const created = await harness.module.createAcceptedProposalSession(
+      {
+        idempotencyKey: "proposal_manual_pending",
+        proposalId: "prps_manual_pending",
+        proposalVersionId: "prvr_manual_pending",
+        tripSnapshotId: "trsn_manual_pending",
+        tripEnvelopeId: "trip_manual_pending",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    const quoted = await harness.module.quoteSession(
+      created.session.id,
+      { expectedRevision: 1, idempotencyKey: "quote_manual_pending" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+
+    await harness.module.commitSession(
+      created.session.id,
+      {
+        expectedRevision: 1,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "commit_manual_pending",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(harness.repository.sessions.get(created.session.id)?.state).toBe("component_pending")
   })
 
   it("creates no Booking or Allocation residue before Commit, then commits exactly once", async () => {

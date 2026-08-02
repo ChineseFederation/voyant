@@ -168,6 +168,7 @@ function runtimePortStub(id: string): unknown {
     startCheckoutDeps: () => runtimeServiceStub(id),
     cancelTripComponentsDeps: () => runtimeServiceStub(id),
     resolveOperatorProfile: unavailableAsync,
+    seedAcceptedProposalBookingSession: unavailableAsync,
     resolveOperatorDefaultPaymentPolicy: unavailableAsync,
     resolveBankTransferInstructions: unavailableAsync,
     resolveBookingTaxSettings: unavailableAsync,

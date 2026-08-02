@@ -34,7 +34,7 @@ type Env = {
 }
 
 export interface BookingSessionRoutesOptions {
-  resolveModule(c: Context): BookingSessionModule
+  resolveModule(c: Context, dbOverride?: unknown): BookingSessionModule
   actorKind: BookingSessionActorKindV1
   resolveAccess?(c: Context, actorKind: BookingSessionActorKindV1): BookingSessionAccessContext
   resolveSupplierOperations?(c: Context): SupplierOperationOperatorService

@@ -233,6 +233,7 @@ describe("proposals deployment manifests", () => {
       requires: { capabilities: ["notifications.delivery"] },
       runtimePorts: [
         { id: "proposals.presentation-runtime" },
+        { id: "catalog.booking-runtime" },
         { id: "proposals.notifications.runtime", optional: true },
         {
           id: "notifications.durable-provider",

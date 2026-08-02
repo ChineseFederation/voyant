@@ -418,6 +418,34 @@ function outcomeForScenario(
         convertedHoldId: scenario.input.hold.id,
         supplierOperationId: scenario.input.supplier.operationId,
       }
+    case "component_bookings_committed":
+      return {
+        kind: "component_bookings_committed",
+        nextAction: "none",
+        bookings: [
+          {
+            componentId: "tcmp_conformance",
+            bookingId: "book_conformance",
+            status: "confirmed",
+            allocationIds: ["alloc_1"],
+          },
+        ],
+        consumedSessionId: scenario.input.session.id,
+        consumedQuoteId: scenario.input.quote.id,
+        convertedHoldId: scenario.input.hold.id,
+      }
+    case "component_commit_pending":
+      return {
+        kind: "component_commit_pending",
+        nextAction: "continue_component_commit",
+        components: [
+          {
+            componentId: "tcmp_conformance",
+            state: "supplier_pending",
+            supplierOperationId: scenario.input.supplier.operationId ?? "sop_conformance",
+          },
+        ],
+      }
     case "payment_required":
       return {
         kind: "payment_required",

@@ -122,11 +122,15 @@ export function useRecoverExpiredBookingSessionV1() {
       if (request.expiredSession.state !== "expired") {
         throw new Error("booking_session_recovery_requires_expired_session")
       }
+      const target = request.expiredSession.target
+      if (target.kind !== "product" && target.kind !== "catalog_item") {
+        throw new Error("booking_session_recovery_requires_public_target")
+      }
       const capability = request.capability ?? createBookingSessionCapabilityV1()
       const outcome = await client.bookingSessionsV1.create(
         {
           idempotencyKey: request.idempotencyKey,
-          target: request.expiredSession.target,
+          target,
           selection: request.expiredSession.selection,
         },
         { ...request.requestOptions, capability },

@@ -20,6 +20,7 @@ export type SupplierOperationWorkflowOutcome =
 
 export interface DispatchSupplierReservationInput {
   sessionId: string
+  scopeKey?: string
   quoteId: string
   holdId?: string
   commitIdempotencyKey: string
@@ -59,10 +60,16 @@ export function createSupplierOperationWorkflow(deps: {
           "booking_forwarding_unsupported",
         )
       }
-      const adapterIdempotencyKey = `${input.sessionId}:${input.commitIdempotencyKey}:reserve`
+      const scopeKey = input.scopeKey ?? "session"
+      const adapterIdempotencyKey = supplierAdapterIdempotencyKey(
+        input.sessionId,
+        input.commitIdempotencyKey,
+        input.scopeKey,
+      )
       const claim = await deps.repository.createOrReplay(
         createSupplierOperationRecord({
           sessionId: input.sessionId,
+          scopeKey,
           quoteId: input.quoteId,
           ...(input.holdId ? { holdId: input.holdId } : {}),
           commitIdempotencyKey: input.commitIdempotencyKey,
@@ -258,6 +265,7 @@ async function operationFailedWithoutDispatch(
 ): Promise<SupplierOperationWorkflowOutcome> {
   const operation = createSupplierOperationRecord({
     sessionId: input.sessionId,
+    scopeKey: input.scopeKey,
     quoteId: input.quoteId,
     ...(input.holdId ? { holdId: input.holdId } : {}),
     commitIdempotencyKey: input.commitIdempotencyKey,
@@ -268,7 +276,11 @@ async function operationFailedWithoutDispatch(
     sourceRef: input.sourceRef,
     adapterKind: input.sourceKind,
     requestFingerprint: input.requestFingerprint,
-    adapterIdempotencyKey: `${input.sessionId}:${input.commitIdempotencyKey}:reserve`,
+    adapterIdempotencyKey: supplierAdapterIdempotencyKey(
+      input.sessionId,
+      input.commitIdempotencyKey,
+      input.scopeKey,
+    ),
     requestPayload: safeSupplierRequestPayload(input.request),
     now: input.now,
   })
@@ -285,6 +297,16 @@ async function operationFailedWithoutDispatch(
   claim.operation.updatedAt = input.now
   await repository.save(claim.operation)
   return { kind: "failed", operation: claim.operation }
+}
+
+function supplierAdapterIdempotencyKey(
+  sessionId: string,
+  commitIdempotencyKey: string,
+  scopeKey?: string,
+): string {
+  return scopeKey && scopeKey !== "session"
+    ? `${sessionId}:${scopeKey}:${commitIdempotencyKey}:reserve`
+    : `${sessionId}:${commitIdempotencyKey}:reserve`
 }
 
 function outcomeForStoredOperation(

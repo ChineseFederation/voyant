@@ -124,6 +124,47 @@ describe("Supplier Operation workflow", () => {
     expect(reserve).toHaveBeenCalledTimes(1)
   })
 
+  it("allows independent supplier reservations for separate aggregate component scopes", async () => {
+    const repository = memoryRepository()
+    const reserve = vi.fn(async (_context, request) => ({
+      upstream_ref: request.entity_id,
+      status: "confirmed" as const,
+    }))
+    const workflow = workflowWith(repository, { reserve })
+
+    await expect(workflow.dispatch({ ...input(), scopeKey: "tcmp_cruise" })).resolves.toMatchObject(
+      {
+        kind: "secured",
+        operation: {
+          scopeKey: "tcmp_cruise",
+          adapterIdempotencyKey: "bses_1:tcmp_cruise:commit-key:reserve",
+        },
+      },
+    )
+    await expect(
+      workflow.dispatch({
+        ...input(),
+        scopeKey: "tcmp_hotel",
+        entityId: "acco_1",
+        sourceRef: "HOTEL-1",
+        request: {
+          entity_module: "accommodations",
+          entity_id: "acco_1",
+          source_ref: "HOTEL-1",
+          parameters: {},
+        },
+      }),
+    ).resolves.toMatchObject({
+      kind: "secured",
+      operation: {
+        scopeKey: "tcmp_hotel",
+        adapterIdempotencyKey: "bses_1:tcmp_hotel:commit-key:reserve",
+      },
+    })
+    expect(repository.rows).toHaveLength(2)
+    expect(reserve).toHaveBeenCalledTimes(2)
+  })
+
   it("allows a new reservation intent after a definitive refusal", async () => {
     const repository = memoryRepository()
     const reserve = vi
@@ -320,6 +361,7 @@ function memoryRepository(): SupplierOperationRepository & {
       const replay = rows.find(
         (row) =>
           row.sessionId === record.sessionId &&
+          row.scopeKey === record.scopeKey &&
           row.commitIdempotencyKey === record.commitIdempotencyKey,
       )
       if (replay) {
@@ -328,7 +370,10 @@ function memoryRepository(): SupplierOperationRepository & {
           : { status: "conflict" }
       }
       const blocking = rows.find(
-        (row) => row.sessionId === record.sessionId && blocksReplacement(row),
+        (row) =>
+          row.sessionId === record.sessionId &&
+          row.scopeKey === record.scopeKey &&
+          blocksReplacement(row),
       )
       if (blocking) {
         return { status: "conflict" }
@@ -339,10 +384,13 @@ function memoryRepository(): SupplierOperationRepository & {
     async get(operationId) {
       return rows.find((row) => row.id === operationId) ?? null
     },
-    async getByCommit(sessionId, commitIdempotencyKey) {
+    async getByCommit(sessionId, commitIdempotencyKey, scopeKey) {
       return (
         rows.find(
-          (row) => row.sessionId === sessionId && row.commitIdempotencyKey === commitIdempotencyKey,
+          (row) =>
+            row.sessionId === sessionId &&
+            (!scopeKey || row.scopeKey === scopeKey) &&
+            row.commitIdempotencyKey === commitIdempotencyKey,
         ) ?? null
       )
     },
@@ -353,8 +401,15 @@ function memoryRepository(): SupplierOperationRepository & {
       }
       return null
     },
-    async getBlockingBySession(sessionId) {
-      return rows.find((row) => row.sessionId === sessionId && blocksReplacement(row)) ?? null
+    async getBlockingBySession(sessionId, scopeKey) {
+      return (
+        rows.find(
+          (row) =>
+            row.sessionId === sessionId &&
+            (!scopeKey || row.scopeKey === scopeKey) &&
+            blocksReplacement(row),
+        ) ?? null
+      )
     },
     async getForUpdate(operationId) {
       return rows.find((row) => row.id === operationId) ?? null

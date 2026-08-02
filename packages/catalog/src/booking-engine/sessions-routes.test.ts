@@ -19,6 +19,7 @@ const WRONG_CAPABILITY = `bcap_${"b".repeat(43)}`
 const SUPPLIER_OPERATION = {
   id: "suop_route_1",
   sessionId: "bses_route_1",
+  scopeKey: "session",
   quoteId: "bsqu_route_1",
   holdId: null,
   operationKind: "reserve" as const,

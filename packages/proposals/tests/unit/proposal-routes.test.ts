@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
     markProposalVersionViewed: vi.fn(),
     recordPublicProposalFeedback: vi.fn(),
     sendProposalVersion: vi.fn(),
+    seedAcceptedProposalBookingSession: vi.fn(),
   }
 })
 
@@ -68,6 +69,7 @@ const options = {
   resolvePublicProposalBaseUrl: () => null,
   resolveOperatorProfile: vi.fn(async () => operatorProfile as unknown),
   recordPublicProposalFeedback: mocks.recordPublicProposalFeedback,
+  seedAcceptedProposalBookingSession: mocks.seedAcceptedProposalBookingSession,
 }
 const proposalVersion = {
   id: "prvr_123",
@@ -188,6 +190,15 @@ describe("proposal routes", () => {
     vi.clearAllMocks()
     mocks.expireProposalVersionIfPastValidUntil.mockResolvedValue(null)
     mocks.listProposalMedia.mockResolvedValue([])
+    mocks.seedAcceptedProposalBookingSession.mockResolvedValue({
+      kind: "created",
+      session: {
+        id: "bses_proposal",
+        state: "active",
+        revision: 1,
+        expiresAt: "2099-01-02T00:00:00.000Z",
+      },
+    })
   })
 
   it("describes package-owned proposal and snapshot extensions", () => {
@@ -305,28 +316,65 @@ describe("proposal routes", () => {
     expect(fakeTx.execute).toHaveBeenCalledTimes(1)
     expect(mocks.getTripSnapshotById).toHaveBeenCalledWith(fakeTx, "trsn_123")
     expect(mocks.acceptProposalVersion).toHaveBeenCalledWith(fakeTx, "prvr_123", {})
+    expect(mocks.seedAcceptedProposalBookingSession).toHaveBeenCalledWith(
+      fakeTx,
+      {
+        proposalId: "prps_123",
+        proposalVersionId: "prvr_123",
+        tripSnapshotId: "trsn_123",
+        tripEnvelopeId: "trip_123",
+      },
+      expect.anything(),
+    )
     await expect(response.json()).resolves.toEqual({
-      data: { status: "accepted", currency: "EUR", totalAmountCents: 10900 },
+      data: {
+        status: "accepted",
+        currency: "EUR",
+        totalAmountCents: 10900,
+        bookingSession: {
+          id: "bses_proposal",
+          state: "active",
+          revision: 1,
+          expiresAt: "2099-01-02T00:00:00.000Z",
+        },
+      },
     })
   })
 
-  it("accepts a product-only proposal without acquiring Trips mutation authority", async () => {
+  it("rejects a Proposal Version without a frozen Trip snapshot", async () => {
     const productOnly = {
       ...proposal,
       proposalVersion: { ...proposalVersion, tripSnapshotId: null },
     }
     mocks.getProposalVersionProposal.mockResolvedValue(productOnly)
-    mocks.acceptProposalVersion.mockResolvedValue({
-      proposal: { ...proposal.proposal, acceptedVersionId: "prvr_123" },
-      proposalVersion: { ...proposalVersion, tripSnapshotId: null, status: "accepted" },
-      closedProposalVersions: [],
-    })
     const response = await makeApp().request("/v1/public/proposals/prvr_123/accept", {
       method: "POST",
     })
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(409)
     expect(mocks.getTripSnapshotById).not.toHaveBeenCalled()
-    expect(mocks.acceptProposalVersion).toHaveBeenCalledWith(fakeTx, "prvr_123", {})
+    expect(mocks.acceptProposalVersion).not.toHaveBeenCalled()
+    expect(mocks.seedAcceptedProposalBookingSession).not.toHaveBeenCalled()
+  })
+
+  it("rolls back acceptance when a Booking Session cannot be seeded", async () => {
+    mocks.getProposalVersionProposal.mockResolvedValue(proposal)
+    mocks.getTripSnapshotById.mockResolvedValue(tripSnapshot)
+    mocks.acceptProposalVersion.mockResolvedValue({
+      proposal: { ...proposal.proposal, acceptedVersionId: "prvr_123" },
+      proposalVersion: { ...proposalVersion, status: "accepted" },
+      closedProposalVersions: [],
+    })
+    mocks.seedAcceptedProposalBookingSession.mockResolvedValue({
+      kind: "rejected",
+      code: "capability_required",
+    })
+
+    const response = await makeApp().request("/v1/public/proposals/prvr_123/accept", {
+      method: "POST",
+    })
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: "capability_required" })
   })
 
   it("serializes a losing concurrent accept before changing proposal state", async () => {

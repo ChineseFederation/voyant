@@ -1,3 +1,5 @@
+import { catalogBookingRuntimePort } from "@voyant-travel/catalog/api-runtime-ports"
+import type { CatalogBookingRouteModuleOptions } from "@voyant-travel/catalog/booking-engine/operator-routes"
 import type { EventBus } from "@voyant-travel/core"
 import { getOperatorSettings, toPublicOperatorSettings } from "@voyant-travel/operator-settings"
 import { relationshipsService } from "@voyant-travel/relationships"
@@ -12,6 +14,8 @@ import type { ProposalsPresentationRuntime } from "./runtime-port.js"
 export async function createProposalsRuntime(
   host: ProposalsRuntimeContributorHost,
 ): Promise<ProposalsRuntimeContribution> {
+  const catalogBooking =
+    await host.getRuntimePort<CatalogBookingRouteModuleOptions>(catalogBookingRuntimePort)
   const resolveDb: ProposalsPresentationRuntime["resolveDb"] = (context) =>
     host.primitives.database.fromContext<ReturnType<ProposalsPresentationRuntime["resolveDb"]>>(
       context,
@@ -24,6 +28,35 @@ export async function createProposalsRuntime(
     snapshot: { resolveDb },
     proposal: {
       resolveDb,
+      async seedAcceptedProposalBookingSession(db, input, context) {
+        const bookingSessions = catalogBooking.bookingSessions
+        if (!bookingSessions) {
+          return { kind: "rejected", code: "booking_session_runtime_unavailable" }
+        }
+        const module = bookingSessions.resolveModule(context, db)
+        const access = bookingSessions.resolveAccess?.(context, "anonymous") ?? {
+          actorKind: "anonymous" as const,
+          capability: context.req.header("Voyant-Booking-Session-Capability")?.trim(),
+        }
+        const outcome = await module.createAcceptedProposalSession(
+          {
+            idempotencyKey: `proposal-version:${input.proposalVersionId}:booking-session`,
+            proposalId: input.proposalId,
+            proposalVersionId: input.proposalVersionId,
+            tripSnapshotId: input.tripSnapshotId,
+            tripEnvelopeId: input.tripEnvelopeId,
+            ...(input.selection ? { selection: input.selection } : {}),
+          },
+          access,
+        )
+        if (outcome.kind === "session_created") {
+          return { kind: "created", session: outcome.session }
+        }
+        if (outcome.kind === "rejected") {
+          return { kind: "rejected", code: outcome.error.kind }
+        }
+        return { kind: "rejected", code: "booking_session_create_unexpected_outcome" }
+      },
       resolvePublicProposalBaseUrl: (context) =>
         resolvePublicBaseUrl(host.primitives.env(context.env)),
       resolveOperatorProfile: async (db) => {

@@ -64,6 +64,7 @@ describe("proposals deployment authority", () => {
       requires: { capabilities: ["notifications.delivery"] },
       runtimePorts: [
         { id: "proposals.presentation-runtime" },
+        { id: "catalog.booking-runtime" },
         { id: "proposals.notifications.runtime", optional: true },
         { id: "notifications.durable-provider", optional: true },
       ],
@@ -106,6 +107,7 @@ describe("proposals deployment authority", () => {
       resolveDb: vi.fn(),
       resolvePublicProposalBaseUrl: vi.fn(() => null),
       resolveOperatorProfile: vi.fn(async () => null),
+      seedAcceptedProposalBookingSession: vi.fn(),
     }
     const snapshotProvider = { resolveDb: vi.fn() }
 

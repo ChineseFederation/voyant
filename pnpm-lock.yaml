@@ -4227,6 +4227,9 @@ importers:
       '@voyant-travel/action-ledger':
         specifier: workspace:^
         version: link:../action-ledger
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../catalog
       '@voyant-travel/core':
         specifier: workspace:^
         version: link:../core

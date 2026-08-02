@@ -84,13 +84,15 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
   return {
     booking: createOperatorCatalogBookingRoutesOptions(),
     bookingSessions: {
-      resolveModule(c) {
-        const db = getCatalogBookingDb(c) as PostgresJsDatabase
+      resolveModule(c, dbOverride) {
+        const db = (dbOverride ?? getCatalogBookingDb(c)) as PostgresJsDatabase
         return createProductionBookingSessionModule({
           db,
           repository: createDrizzleBookingSessionRepository(db),
           resolveOwnedHandlers: () => getOwnedBookingHandlerRegistryFromContext(c),
           resolveSourceRegistry: () => getBookingEngineRegistryFromContext(c),
+          resolveCompositeHandler: () =>
+            requireCatalogRuntimeServices().getCompositeBookingSessionHandler?.(),
           relationships: {
             async loadPersonTravelSnapshot(...args) {
               const runtime = await requireRelationshipsRuntime(options)

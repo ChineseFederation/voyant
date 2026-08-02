@@ -8,6 +8,7 @@ import type { PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { SourceAdapterContext } from "./adapter/contract.js"
 import type {
+  BookingSessionCompositeHandler,
   OwnedBookingHandlerRegistry,
   QuoteEntityResult,
   SourceAdapterRegistry,
@@ -24,6 +25,7 @@ import type { EntityOverlayChangedPayload } from "./events/taxonomy.js"
 import type { OwnedAvailabilitySearchHandlerRegistry } from "./search/owned-search-handler.js"
 import type { DocumentBuilder } from "./services/indexer-service.js"
 
+export { catalogBookingRuntimePort } from "./booking-runtime-port.js"
 export {
   type CatalogProjectionRuntimeProvider,
   catalogProjectionRuntimePort,
@@ -252,6 +254,8 @@ export interface CatalogRuntimeServices {
   getOwnedHandlers(env: Readonly<Record<string, unknown>>): OwnedBookingHandlerRegistry
   getOwnedHandlersFromContext(context: unknown): OwnedBookingHandlerRegistry
   getOwnedAvailabilitySearchHandlers(): OwnedAvailabilitySearchHandlerRegistry
+  registerCompositeBookingSessionHandler?(handler: BookingSessionCompositeHandler): void
+  getCompositeBookingSessionHandler?(): BookingSessionCompositeHandler | undefined
   buildEmbeddingProvider(env: Readonly<Record<string, unknown>>): EmbeddingProvider | undefined
   buildIndexer(
     env: Readonly<Record<string, unknown>>,

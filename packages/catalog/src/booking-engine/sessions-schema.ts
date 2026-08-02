@@ -32,6 +32,12 @@ export const bookingSessionsTable = pgTable(
     targetKind: text("target_kind").notNull(),
     productId: typeIdRef("product_id"),
     catalogItemId: text("catalog_item_id"),
+    targetEntityModule: text("target_entity_module"),
+    targetEntityId: text("target_entity_id"),
+    tripSnapshotId: text("trip_snapshot_id"),
+    tripEnvelopeId: text("trip_envelope_id"),
+    proposalId: text("proposal_id"),
+    proposalVersionId: text("proposal_version_id"),
     state: text("state").notNull(),
     revision: integer("revision").notNull(),
     statePayload: jsonb("state_payload").$type<Record<string, unknown>>().notNull().default({}),
@@ -50,7 +56,7 @@ export const bookingSessionsTable = pgTable(
     ),
     check(
       "booking_sessions_state",
-      sql`${table.state} IN ('active', 'supplier_pending', 'consumed', 'expired', 'abandoned')`,
+      sql`${table.state} IN ('active', 'supplier_pending', 'component_pending', 'consumed', 'expired', 'abandoned')`,
     ),
     check(
       "booking_sessions_storefront_origin",
@@ -59,8 +65,41 @@ export const bookingSessionsTable = pgTable(
     ),
     check(
       "booking_sessions_target_exactly_one",
-      sql`(${table.targetKind} = 'product' AND ${table.productId} IS NOT NULL AND ${table.catalogItemId} IS NULL)
-        OR (${table.targetKind} = 'catalog_item' AND ${table.catalogItemId} IS NOT NULL AND ${table.productId} IS NULL)`,
+      sql`(${table.targetKind} = 'product'
+            AND ${table.productId} IS NOT NULL
+            AND ${table.catalogItemId} IS NULL
+            AND ${table.targetEntityModule} IS NULL
+            AND ${table.targetEntityId} IS NULL
+            AND ${table.tripSnapshotId} IS NULL
+            AND ${table.tripEnvelopeId} IS NULL)
+        OR (${table.targetKind} = 'catalog_item'
+            AND ${table.catalogItemId} IS NOT NULL
+            AND ${table.productId} IS NULL
+            AND ${table.targetEntityModule} IS NULL
+            AND ${table.targetEntityId} IS NULL
+            AND ${table.tripSnapshotId} IS NULL
+            AND ${table.tripEnvelopeId} IS NULL)
+        OR (${table.targetKind} = 'owned_entity'
+            AND ${table.targetEntityModule} IS NOT NULL
+            AND ${table.targetEntityId} IS NOT NULL
+            AND ${table.productId} IS NULL
+            AND ${table.catalogItemId} IS NULL
+            AND ${table.tripSnapshotId} IS NULL
+            AND ${table.tripEnvelopeId} IS NULL)
+        OR (${table.targetKind} = 'trip_snapshot'
+            AND ${table.tripSnapshotId} IS NOT NULL
+            AND ${table.tripEnvelopeId} IS NOT NULL
+            AND ${table.productId} IS NULL
+            AND ${table.catalogItemId} IS NULL
+            AND ${table.targetEntityModule} IS NULL
+            AND ${table.targetEntityId} IS NULL)`,
+    ),
+    check(
+      "booking_sessions_proposal_origin",
+      sql`(${table.proposalId} IS NULL AND ${table.proposalVersionId} IS NULL)
+        OR (${table.targetKind} = 'trip_snapshot'
+            AND ${table.proposalId} IS NOT NULL
+            AND ${table.proposalVersionId} IS NOT NULL)`,
     ),
     check(
       "booking_sessions_anonymous_capability",
@@ -77,6 +116,12 @@ export const bookingSessionsTable = pgTable(
     index("idx_booking_sessions_state_expires").on(table.state, table.expiresAt),
     index("idx_booking_sessions_product").on(table.productId),
     index("idx_booking_sessions_catalog_item").on(table.catalogItemId),
+    index("idx_booking_sessions_owned_entity").on(table.targetEntityModule, table.targetEntityId),
+    index("idx_booking_sessions_trip_snapshot").on(table.tripSnapshotId),
+    index("idx_booking_sessions_trip_envelope").on(table.tripEnvelopeId),
+    uniqueIndex("uidx_booking_sessions_proposal_version")
+      .on(table.proposalVersionId)
+      .where(sql`${table.proposalVersionId} IS NOT NULL`),
     uniqueIndex("uidx_booking_sessions_create_idem").on(table.createIdempotencyKey),
   ],
 )

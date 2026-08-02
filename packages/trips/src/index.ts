@@ -14,6 +14,7 @@ import {
 } from "./routes.js"
 import { tripsDatabaseRuntimePort, tripsRoutesRuntimePort } from "./runtime-port.js"
 
+export { createTripBookingSessionCompositeHandler } from "./booking-session-composite-handler.js"
 export {
   type CatalogAdapterContext,
   type CatalogComponentAdapter,

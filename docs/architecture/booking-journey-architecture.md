@@ -17,7 +17,7 @@ bedbanks, the demo upstream). It supersedes the one-click `Book this` action
 shipped in the booking-engine tracer and is the long-term replacement for
 vertical-specific booking dialogs.
 
-Current implementation state, May 2026:
+Current implementation state, August 2026:
 
 - The reusable engine contracts, quote/book routes, draft CRUD routes, hold routes, `catalog_quotes`, and `booking_drafts` are in `@voyant-travel/catalog/booking-engine`.
 - The shareable React hooks are in `@voyant-travel/catalog-react/booking-engine`.
@@ -31,6 +31,9 @@ Current implementation state, May 2026:
   above this journey. It owns Trip Envelopes, Trip Components, aggregate
   pricing/reserve/finance/checkout/cancellation operations, and calls this journey's
   single-line catalog booking-engine primitives per component.
+- Accepted Proposal Versions seed the same v1 Booking Session lifecycle from a
+  frozen Trip Snapshot. Trips coordinates the aggregate while Catalog continues
+  to own the per-component Quote, Hold, supplier-operation, and Commit seams.
 
 Five load-bearing rules, in order of importance:
 
@@ -145,6 +148,29 @@ record. Its identifier is only a locator and never an access credential.
 These invariants run on the transaction-capable Node/PostgreSQL authority
 described in `deployment-targets.md`. Only contracts, SDK helpers, and React
 hooks are browser/edge-portable.
+
+### 0.9. Bespoke Proposal entry into the canonical journey
+
+Proposal and Proposal Version remain bespoke sales concepts. Once a customer
+accepts a version backed by a frozen Trip Snapshot, acceptance and Booking
+Session creation occur in the same PostgreSQL transaction. Replaying acceptance
+identifies the same Session. The Session records Proposal provenance, but the
+accepted Proposal amount is not silently promoted into a Booking Quote.
+
+The first Quote after acceptance refreshes every Catalog-backed component using
+the same leaf engine used by public single-item and staff booking journeys.
+Manual lines keep the accepted amount only as an explicitly labeled manual
+pricing authority. Material commercial drift requires renewed acceptance;
+availability failure requires a new selection. When commercial terms are
+unchanged, the existing acceptance remains sufficient.
+
+Commit may produce several Component Bookings under the one Trip Envelope. It
+can also stop at an explicit partial state when a supplier is pending, in doubt,
+or needs manual confirmation. Continuation uses the same Session and Commit key,
+does not recreate confirmed components, and consumes the aggregate Session only
+when every component commitment is complete. Public Proposal acceptance,
+authenticated staff continuation, and reference-client status reads are route
+adapters over this one workflow rather than separate booking implementations.
 
 ## 1. What's already in place
 

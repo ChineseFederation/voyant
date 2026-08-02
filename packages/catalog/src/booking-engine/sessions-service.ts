@@ -5,12 +5,14 @@ import type {
   BookingQuoteRecordV1,
   BookingSessionActorKindV1,
   BookingSessionCapabilityActionV1,
+  BookingSessionOriginV1,
   BookingSessionOutcomeV1,
   BookingSessionRecordV1,
   BookingSessionStateV1,
   BookingSessionTargetV1,
   BookingSessionViewV1,
   CommitBookingSessionV1,
+  CreateAcceptedProposalBookingSessionV1,
   CreateBookingSessionV1,
   PlaceBookingHoldV1,
   QuoteBookingSessionV1,
@@ -43,6 +45,7 @@ export interface BookingSessionInternalRecord {
   capabilityHash?: string
   capabilityScopes: BookingSessionCapabilityActionV1[]
   target: BookingSessionTargetV1
+  origin?: BookingSessionOriginV1
   actorKind: BookingSessionActorKindV1
   ownerPrincipalId?: string
   ownerOrganizationId?: string
@@ -187,6 +190,7 @@ export type BookingSessionQuoteUnavailableReason =
   | "target_not_found"
   | "target_not_bookable"
   | "price_unavailable"
+  | "policy_unavailable"
   | "selection_unavailable"
 
 export type ComposeBookingQuoteResult =
@@ -222,6 +226,7 @@ export interface CommitOwnedBookingInput {
 
 export interface CommitSourcedBookingInput {
   session: BookingSessionInternalRecord
+  supplierOperationScope?: string
   quote: BookingQuoteInternalRecord
   hold?: BookingHoldInternalRecord
   idempotencyKey: string
@@ -243,6 +248,90 @@ export type CommitSourcedBookingResult =
       BookingLifecycleCommitOutcomeV1,
       { kind: "supplier_pending" | "supplier_in_doubt" | "supplier_failed" }
     >
+
+export interface CompositeBookingCommitment {
+  componentId: string
+  bookingId: string
+  allocationIds: string[]
+  supplierOperationId?: string
+}
+
+export interface CommitCompositeBookingInput {
+  session: BookingSessionInternalRecord
+  quote: BookingQuoteInternalRecord
+  hold?: BookingHoldInternalRecord
+  idempotencyKey: string
+  requestFingerprint: string
+  access: BookingSessionAccessContext
+  now: Date
+  consumeSources(tx: unknown, bookings: CompositeBookingCommitment[]): Promise<void>
+}
+
+export type CommitCompositeBookingResult =
+  | { kind: "committed"; bookings: CompositeBookingCommitment[] }
+  | Extract<
+      BookingLifecycleCommitOutcomeV1,
+      { kind: "component_commit_pending" | "proposal_acceptance_required" | "hold_failure" }
+    >
+
+export interface BookingSessionCompositeLeafRuntime {
+  composeQuote(input: ComposeBookingQuoteInput): Promise<ComposeBookingQuoteResult>
+  placeCapacityHold(input: {
+    session: BookingSessionInternalRecord
+    quote: BookingQuoteInternalRecord
+    holdId: string
+    capacityKey: string
+    quantity: number
+    expiresAt: Date
+    access: BookingSessionAccessContext
+    now: Date
+    tx: unknown
+  }): Promise<PlaceBookingCapacityHoldResult>
+  releaseCapacityHold(input: {
+    session: BookingSessionInternalRecord
+    hold: BookingHoldInternalRecord
+    access: BookingSessionAccessContext
+    now: Date
+    tx: unknown
+  }): Promise<void>
+  commitOwned(input: CommitOwnedBookingInput): Promise<{
+    bookingId: string
+    allocationIds: string[]
+  }>
+  commitSourced(input: CommitSourcedBookingInput): Promise<CommitSourcedBookingResult>
+}
+
+export interface BookingSessionCompositeHandler {
+  composeQuote(
+    input: ComposeBookingQuoteInput & { leaf: BookingSessionCompositeLeafRuntime },
+  ): Promise<ComposeBookingQuoteResult>
+  placeCapacityHold(input: {
+    session: BookingSessionInternalRecord
+    quote: BookingQuoteInternalRecord
+    holdId: string
+    capacityKey: string
+    quantity: number
+    expiresAt: Date
+    access: BookingSessionAccessContext
+    now: Date
+    tx: unknown
+    leaf: BookingSessionCompositeLeafRuntime
+  }): Promise<PlaceBookingCapacityHoldResult>
+  releaseCapacityHold(input: {
+    session: BookingSessionInternalRecord
+    hold: BookingHoldInternalRecord
+    access: BookingSessionAccessContext
+    now: Date
+    tx: unknown
+    leaf: BookingSessionCompositeLeafRuntime
+  }): Promise<void>
+  commit(
+    input: CommitCompositeBookingInput & {
+      leaf: BookingSessionCompositeLeafRuntime
+      db: unknown
+    },
+  ): Promise<CommitCompositeBookingResult>
+}
 
 export interface BookingSessionPaymentPorts {
   prepare(input: {
@@ -330,6 +419,7 @@ export interface BookingSessionModulePorts {
     allocationIds: string[]
   }>
   commitSourcedBooking?(input: CommitSourcedBookingInput): Promise<CommitSourcedBookingResult>
+  commitCompositeBooking?(input: CommitCompositeBookingInput): Promise<CommitCompositeBookingResult>
   hasActiveSupplierOperation?(input: { sessionId: string; tx: unknown }): Promise<boolean>
   payments?: BookingSessionPaymentPorts
 }
@@ -360,6 +450,10 @@ export class BookingSessionCommitRejectedError extends Error {
 }
 
 export interface BookingSessionModule {
+  createAcceptedProposalSession(
+    input: CreateAcceptedProposalBookingSessionV1,
+    access: BookingSessionAccessContext,
+  ): Promise<BookingSessionOutcomeV1>
   createSession(
     input: CreateBookingSessionV1,
     access: BookingSessionAccessContext,
@@ -443,82 +537,117 @@ export function createBookingSessionModule(
         }
   }
 
-  return {
-    async createSession(input, access) {
-      const at = now()
-      if (access.actorKind !== "anonymous" && !access.principalId?.trim()) {
-        return { kind: "rejected", error: { kind: "not_authorized" } }
+  async function createSessionRecord(
+    input: {
+      idempotencyKey: string
+      target: BookingSessionTargetV1
+      selection?: Record<string, unknown>
+      capabilityScopes?: BookingSessionCapabilityActionV1[]
+    },
+    access: BookingSessionAccessContext,
+    origin?: BookingSessionOriginV1,
+  ): Promise<BookingSessionOutcomeV1> {
+    const at = now()
+    if (access.actorKind !== "anonymous" && !access.principalId?.trim()) {
+      return { kind: "rejected", error: { kind: "not_authorized" } }
+    }
+    if (access.actorKind === "staff" && !access.staffAuthority?.admitted) {
+      return { kind: "rejected", error: { kind: "not_authorized" } }
+    }
+    const capability = access.actorKind === "anonymous" ? access.capability?.trim() : undefined
+    if (access.actorKind === "anonymous" && !isValidCapabilityShape(capability)) {
+      return { kind: "rejected", error: { kind: "capability_required" } }
+    }
+    const capabilityScopes =
+      access.actorKind === "anonymous" ? normalizeCapabilityScopes(input.capabilityScopes) : []
+    const capabilityHash = capability ? await hashCapability(capability) : undefined
+    const createIdempotencyKey = origin
+      ? `accepted-proposal-version:${origin.proposalVersionId}`
+      : await scopedCreateIdempotencyKey(input.idempotencyKey, access, capabilityHash)
+    const createRequestFingerprint = await stableFingerprint({
+      actorKind: access.actorKind,
+      principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
+      organizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
+      storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      capabilityHash,
+      capabilityScopes,
+      target: input.target,
+      ...(origin ? { origin } : {}),
+      selection: input.selection ?? {},
+    })
+    const existing = await repository.getSessionByCreateIdempotency(createIdempotencyKey)
+    if (existing) {
+      if (existing.createRequestFingerprint !== createRequestFingerprint) {
+        return idempotencyConflict()
       }
-      if (access.actorKind === "staff" && !access.staffAuthority?.admitted) {
-        return { kind: "rejected", error: { kind: "not_authorized" } }
-      }
-      const capability = access.actorKind === "anonymous" ? access.capability?.trim() : undefined
-      if (access.actorKind === "anonymous" && !isValidCapabilityShape(capability)) {
-        return { kind: "rejected", error: { kind: "capability_required" } }
-      }
-      const capabilityScopes =
-        access.actorKind === "anonymous" ? normalizeCapabilityScopes(input.capabilityScopes) : []
-      const capabilityHash = capability ? await hashCapability(capability) : undefined
-      const createIdempotencyKey = await scopedCreateIdempotencyKey(
-        input.idempotencyKey,
-        access,
-        capabilityHash,
-      )
-      const createRequestFingerprint = await stableFingerprint({
-        actorKind: access.actorKind,
-        principalId: access.actorKind === "anonymous" ? undefined : access.principalId,
-        organizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-        storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
-        capabilityScopes,
+      return { kind: "session_created", session: serializeSession(existing) }
+    }
+    let statePayload: Record<string, unknown>
+    try {
+      statePayload = await options.ports.normalizeSelection({
         target: input.target,
         selection: input.selection ?? {},
+        access,
+        now: at,
       })
-      const existing = await repository.getSessionByCreateIdempotency(createIdempotencyKey)
-      if (existing) {
-        if (existing.createRequestFingerprint !== createRequestFingerprint) {
-          return idempotencyConflict()
-        }
-        return { kind: "session_created", session: serializeSession(existing) }
+    } catch (error) {
+      const rejection = invalidSelectionOutcome(error)
+      if (rejection) return rejection
+      throw error
+    }
+    const session: BookingSessionInternalRecord = {
+      id: newId("booking_sessions"),
+      createIdempotencyKey,
+      createRequestFingerprint,
+      capabilityHash,
+      capabilityScopes,
+      target: input.target,
+      origin,
+      actorKind: access.actorKind,
+      ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
+      ownerOrganizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
+      storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      state: "active",
+      revision: 1,
+      statePayload,
+      expiresAt: new Date(at.getTime() + (access.sessionTtlMs ?? sessionTtlMs)),
+      createdAt: at,
+      updatedAt: at,
+    }
+    const created = await repository.createSession(session)
+    if (created.id !== session.id) {
+      if (created.createRequestFingerprint !== createRequestFingerprint) {
+        return idempotencyConflict()
       }
-      let statePayload: Record<string, unknown>
-      try {
-        statePayload = await options.ports.normalizeSelection({
-          target: input.target,
-          selection: input.selection ?? {},
-          access,
-          now: at,
-        })
-      } catch (error) {
-        const rejection = invalidSelectionOutcome(error)
-        if (rejection) return rejection
-        throw error
-      }
-      const session: BookingSessionInternalRecord = {
-        id: newId("booking_sessions"),
-        createIdempotencyKey,
-        createRequestFingerprint,
-        capabilityHash,
-        capabilityScopes,
-        target: input.target,
-        actorKind: access.actorKind,
-        ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
-        ownerOrganizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
-        storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
-        state: "active",
-        revision: 1,
-        statePayload,
-        expiresAt: new Date(at.getTime() + (access.sessionTtlMs ?? sessionTtlMs)),
-        createdAt: at,
-        updatedAt: at,
-      }
-      const created = await repository.createSession(session)
-      if (created.id !== session.id) {
-        if (created.createRequestFingerprint !== createRequestFingerprint) {
-          return idempotencyConflict()
-        }
-        return { kind: "session_created", session: serializeSession(created) }
-      }
-      return { kind: "session_created", session: serializeSession(session) }
+      return { kind: "session_created", session: serializeSession(created) }
+    }
+    return { kind: "session_created", session: serializeSession(session) }
+  }
+
+  return {
+    createSession(input, access) {
+      return createSessionRecord(input, access)
+    },
+
+    createAcceptedProposalSession(input, access) {
+      return createSessionRecord(
+        {
+          idempotencyKey: input.idempotencyKey,
+          target: {
+            kind: "trip_snapshot",
+            tripSnapshotId: input.tripSnapshotId,
+            tripEnvelopeId: input.tripEnvelopeId,
+          },
+          selection: input.selection,
+        },
+        access,
+        {
+          kind: "accepted_proposal_version",
+          proposalId: input.proposalId,
+          proposalVersionId: input.proposalVersionId,
+          tripSnapshotId: input.tripSnapshotId,
+        },
+      )
     },
 
     async resumeSession(sessionId, access) {
@@ -946,12 +1075,14 @@ export function createBookingSessionModule(
           return { status: "outcome" as const, outcome: lockedAuthorization }
         }
         const at = now()
-        const sourcedContinuation =
-          session.target.kind === "catalog_item" && session.state === "supplier_pending"
-        if (!sourcedContinuation && session.state === "active" && session.expiresAt <= at) {
+        const durableContinuation =
+          (session.target.kind === "catalog_item" && session.state === "supplier_pending") ||
+          (session.target.kind === "trip_snapshot" &&
+            (session.state === "supplier_pending" || session.state === "component_pending"))
+        if (!durableContinuation && session.state === "active" && session.expiresAt <= at) {
           await expireSession(repository, options.ports, session, access, at, tx)
         }
-        if (session.state !== "active" && !sourcedContinuation) {
+        if (session.state !== "active" && !durableContinuation) {
           return {
             status: "outcome" as const,
             outcome:
@@ -969,7 +1100,7 @@ export function createBookingSessionModule(
         const revisionRejected = rejectRevision(input.expectedRevision, session)
         if (revisionRejected) return { status: "outcome" as const, outcome: revisionRejected }
 
-        const quote = sourcedContinuation
+        const quote = durableContinuation
           ? await loadPersistedSourcedQuote(repository, input.quoteId, session)
           : await loadUsableQuote(repository, input.quoteId, session, at)
         if (quote === "expired" || quote === "superseded") {
@@ -1015,11 +1146,14 @@ export function createBookingSessionModule(
         }
 
         const hold = input.holdId
-          ? sourcedContinuation
+          ? durableContinuation
             ? await loadPersistedSourcedHold(repository, input.holdId, session, quote)
             : await loadUsableHold(repository, input.holdId, session, quote, at)
           : null
-        if (hold === "expired" || (!hold && session.target.kind === "product")) {
+        if (
+          hold === "expired" ||
+          (!hold && (session.target.kind === "product" || session.target.kind === "owned_entity"))
+        ) {
           await releaseLiveHolds(repository, options.ports, session, access, at, tx)
           return {
             status: "outcome" as const,
@@ -1034,7 +1168,7 @@ export function createBookingSessionModule(
           }
         }
 
-        if (sourcedContinuation) {
+        if (durableContinuation) {
           return { status: "ready" as const, session, quote, hold, at }
         }
 
@@ -1105,7 +1239,69 @@ export function createBookingSessionModule(
         supplierOperationId?: string
       }
       try {
-        if (session.target.kind === "catalog_item") {
+        if (session.target.kind === "trip_snapshot") {
+          const compositeResult = await options.ports.commitCompositeBooking?.({
+            session,
+            quote,
+            ...(hold ? { hold } : {}),
+            idempotencyKey: input.idempotencyKey,
+            requestFingerprint,
+            access,
+            now: at,
+            async consumeSources(tx, bookings) {
+              await consumeCompositeCommittedSources({
+                repository,
+                ports: options.ports,
+                session,
+                quote,
+                hold,
+                access,
+                paymentSessionId,
+                input,
+                requestFingerprint,
+                bookings,
+                tx,
+                now,
+              })
+            },
+          })
+          if (!compositeResult) {
+            throw new BookingSessionCommitRejectedError("entity_not_bookable")
+          }
+          if (compositeResult.kind !== "committed") {
+            if (compositeResult.kind === "component_commit_pending") {
+              await markCompositeSessionPending(
+                repository,
+                session.id,
+                compositeResult.components,
+                at,
+              )
+            }
+            return { kind: "commit_result", outcome: compositeResult }
+          }
+          if (compositeResult.bookings.length === 0) {
+            throw new BookingSessionCommitRejectedError("entity_not_bookable")
+          }
+          return {
+            kind: "commit_result",
+            outcome: {
+              kind: "component_bookings_committed",
+              nextAction: "none",
+              bookings: compositeResult.bookings.map((booking) => ({
+                componentId: booking.componentId,
+                bookingId: booking.bookingId,
+                status: "confirmed" as const,
+                allocationIds: booking.allocationIds,
+                ...(booking.supplierOperationId
+                  ? { supplierOperationId: booking.supplierOperationId }
+                  : {}),
+              })),
+              consumedSessionId: session.id,
+              consumedQuoteId: quote.id,
+              ...(hold ? { convertedHoldId: hold.id } : {}),
+            },
+          }
+        } else if (session.target.kind === "catalog_item") {
           const sourcedResult = await options.ports.commitSourcedBooking?.({
             session,
             quote,
@@ -1473,9 +1669,140 @@ async function consumeCommittedSources(input: {
   })
 }
 
+async function markCompositeSessionPending(
+  repository: BookingSessionRepository,
+  sessionId: string,
+  components: Extract<
+    BookingLifecycleCommitOutcomeV1,
+    { kind: "component_commit_pending" }
+  >["components"],
+  at: Date,
+): Promise<void> {
+  await repository.withSessionTransaction(sessionId, async () => {
+    const current = await repository.getSession(sessionId)
+    if (!current || current.state === "consumed") return
+    current.state = components.some(
+      (component) =>
+        component.state === "supplier_pending" || component.state === "supplier_in_doubt",
+    )
+      ? "supplier_pending"
+      : "component_pending"
+    current.updatedAt = at
+    await repository.saveSession(current)
+  })
+}
+
+async function consumeCompositeCommittedSources(input: {
+  repository: BookingSessionRepository
+  ports: BookingSessionModulePorts
+  session: BookingSessionInternalRecord
+  quote: BookingQuoteInternalRecord
+  hold: BookingHoldInternalRecord | null
+  access: BookingSessionAccessContext
+  paymentSessionId?: string
+  input: CommitBookingSessionV1
+  requestFingerprint: string
+  bookings: CompositeBookingCommitment[]
+  tx: unknown
+  now: () => Date
+}): Promise<void> {
+  const primary = input.bookings[0]
+  if (!primary) throw new BookingSessionCommitRejectedError("entity_not_bookable")
+  const outcome: BookingLifecycleCommitOutcomeV1 = {
+    kind: "component_bookings_committed",
+    nextAction: "none",
+    bookings: input.bookings.map((booking) => ({
+      componentId: booking.componentId,
+      bookingId: booking.bookingId,
+      status: "confirmed",
+      allocationIds: booking.allocationIds,
+      ...(booking.supplierOperationId ? { supplierOperationId: booking.supplierOperationId } : {}),
+    })),
+    consumedSessionId: input.session.id,
+    consumedQuoteId: input.quote.id,
+    ...(input.hold ? { convertedHoldId: input.hold.id } : {}),
+  }
+  await input.repository.withTransactionContext(input.tx, async () => {
+    const currentAt = input.now()
+    const currentSession = await input.repository.getSession(input.session.id)
+    const continuing =
+      currentSession?.state === "supplier_pending" || currentSession?.state === "component_pending"
+    if (currentSession?.state !== "active" && !continuing) {
+      throw new CommitSessionStateError(
+        currentSession?.state === "consumed" ? "consumed" : "expired",
+      )
+    }
+    if (!continuing && currentSession.expiresAt <= currentAt) {
+      throw new CommitSessionStateError("expired")
+    }
+    const currentQuote = continuing
+      ? await loadPersistedSourcedQuote(input.repository, input.quote.id, currentSession)
+      : await loadUsableQuote(input.repository, input.quote.id, currentSession, currentAt)
+    if (!currentQuote || currentQuote === "expired" || currentQuote === "superseded") {
+      throw new CommitOutcomeError({
+        kind: "quote_failure",
+        nextAction: "request_fresh_quote",
+        reason:
+          currentQuote === "expired"
+            ? "expired"
+            : currentQuote === "superseded"
+              ? "superseded"
+              : "mismatched_session",
+      })
+    }
+    const currentHold = input.hold
+      ? continuing
+        ? await loadPersistedSourcedHold(
+            input.repository,
+            input.hold.id,
+            currentSession,
+            currentQuote,
+          )
+        : await loadUsableHold(
+            input.repository,
+            input.hold.id,
+            currentSession,
+            currentQuote,
+            currentAt,
+          )
+      : null
+    if (currentHold === "expired" || (input.hold && !currentHold)) {
+      throw new CommitOutcomeError({
+        kind: "hold_failure",
+        nextAction: "request_new_hold",
+        reason: currentHold === "expired" ? "expired" : "missing",
+      })
+    }
+    await input.repository.consumeCommit({
+      sessionId: currentSession.id,
+      quoteId: currentQuote.id,
+      ...(currentHold ? { holdId: currentHold.id } : {}),
+      idempotencyKey: input.input.idempotencyKey,
+      requestFingerprint: input.requestFingerprint,
+      outcome,
+      bookingId: primary.bookingId,
+      now: currentAt,
+    })
+    if (input.paymentSessionId && input.ports.payments) {
+      await input.ports.payments.transferToBooking({
+        tx: input.tx,
+        paymentSessionId: input.paymentSessionId,
+        bookingSessionId: currentSession.id,
+        bookingId: primary.bookingId,
+      })
+    }
+    await appendSessionAudit(input.repository, currentSession, "commit", input.access, currentAt, {
+      bookingIds: input.bookings.map((booking) => booking.bookingId),
+      componentIds: input.bookings.map((booking) => booking.componentId),
+      quoteId: currentQuote.id,
+      ...(currentHold ? { holdId: currentHold.id } : {}),
+    })
+  })
+}
+
 type FailedCommitOutcome = Exclude<
   BookingLifecycleCommitOutcomeV1,
-  { kind: "committed" | "idempotent_replay" }
+  { kind: "committed" | "component_bookings_committed" | "idempotent_replay" }
 >
 
 class CommitOutcomeError extends Error {
@@ -1755,8 +2082,13 @@ async function loadPersistedSourcedHold(
 
 function capacityKeyForTarget(target: BookingSessionTargetV1): string {
   if (target.kind === "product" && target.productId) return `product:${target.productId}`
+  if (target.kind === "owned_entity" && target.entityModule && target.entityId) {
+    return `owned_entity:${target.entityModule}:${target.entityId}`
+  }
   if (target.kind === "catalog_item" && target.catalogItemId)
     return `catalog_item:${target.catalogItemId}`
+  if (target.kind === "trip_snapshot" && target.tripSnapshotId)
+    return `trip_snapshot:${target.tripSnapshotId}`
   throw new Error("Booking Session target does not identify capacity")
 }
 
@@ -1764,6 +2096,7 @@ function serializeSession(session: BookingSessionInternalRecord): BookingSession
   return {
     id: session.id,
     target: session.target,
+    ...(session.origin ? { origin: session.origin } : {}),
     actorKind: session.actorKind,
     state: session.state,
     revision: session.revision,

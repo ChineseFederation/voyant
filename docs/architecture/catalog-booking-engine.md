@@ -200,6 +200,54 @@ The form likewise rejects promotion-code Commit until promotion evaluation is
 part of the immutable Booking Session Quote; a legacy preview cannot authorize
 the final Booking price.
 
+#### Accepted Proposal Version v1 tracer
+
+An accepted Proposal Version is a customer decision about one frozen Trip
+Envelope, not a price authority for Booking Commit. Proposal acceptance creates
+or replays exactly one server-owned Booking Session whose target is that Trip
+Snapshot and whose origin identifies the Proposal and accepted Proposal Version.
+Public clients cannot create this aggregate target directly.
+
+Trips owns aggregate coordination and Catalog remains the leaf booking engine:
+
+```text
+accepted Proposal Version
+  -> Trip Snapshot Booking Session
+  -> fresh aggregate Quote
+  -> real Holds for capable owned components
+  -> component-scoped Commit
+  -> independently accountable Component Bookings
+```
+
+The aggregate Quote is immutable and carries a component identifier and live
+pricing provenance on each line. Catalog-backed components are freshly quoted;
+manual placeholders retain their accepted proposed amount under the explicit
+`accepted_proposal_manual` authority. If the aggregate currency, subtotal, tax,
+or total differs from the accepted snapshot, Commit returns
+`proposal_acceptance_required` and creates no additional Booking. An unavailable
+live component prevents Quote. Unchanged terms do not require the customer to
+accept the same decision again.
+
+Aggregate Commit is durable per component. Owned components use the normal
+Quote/Hold/Commit path. Sourced components persist supplier operations scoped by
+`(session, Trip Component)`, allowing several independent suppliers under one
+Session without weakening replay protection. Manual placeholders become
+explicit `manual_supplier_confirmation_required` work and never masquerade as
+confirmed inventory. A partial result returns `component_commit_pending`; the
+same Commit key resumes remaining components and reuses already-created
+Bookings. A supplier wait uses `supplier_pending`; manual-only fulfillment work
+uses the distinct `component_pending` Session state. The parent Session is
+consumed only after every component is durably confirmed.
+
+Each created Booking retains its own Allocations, provider origin, supplier
+reference, fulfillment, tax, payment, and cancellation lifecycle. Its accepted
+Proposal origin additionally records the Proposal Version, Trip Envelope,
+Trip Snapshot, Trip Component, aggregate Booking Session Quote, and relevant
+supplier operation. The aggregate Quote's component-tagged lines are the
+consumed pricing evidence; a Proposal-era Catalog quote is never misreported as
+the fresh Commit authority. The Trip Envelope remains the customer-facing
+composition rather than becoming a second booking authority.
+
 The dependency-light Storefront contract is exported from
 `@voyant-travel/catalog-contracts/booking-engine/session-contracts`. The
 reference SDK and React hook are exported from `@voyant-travel/storefront-sdk`

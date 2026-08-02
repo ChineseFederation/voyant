@@ -3,7 +3,6 @@ import {
   type AdoptBookingSessionV1,
   type BookingSessionOutcomeV1,
   type BookingSessionRecordV1,
-  type BookingSessionTargetV1,
   bookingSessionOutcomeV1,
   type CommitBookingSessionV1,
   type CreateBookingSessionV1,
@@ -48,7 +47,7 @@ export interface CreateBookingSessionRequestOptions extends BookingSessionReques
 }
 
 export interface OwnedProductBookingTracerInput {
-  target: BookingSessionTargetV1
+  target: CreateBookingSessionV1["target"]
   journeyKey: string
   state?: Record<string, unknown>
   quantity?: number

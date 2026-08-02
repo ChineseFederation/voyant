@@ -17,12 +17,38 @@ export const bookingSessionTargetV1 = z.discriminatedUnion("kind", [
     catalogItemId: z.string().min(1),
     productId: z.never().optional(),
   }),
+  z.object({
+    kind: z.literal("owned_entity"),
+    entityModule: z.string().min(1),
+    entityId: z.string().min(1),
+    productId: z.never().optional(),
+    catalogItemId: z.never().optional(),
+  }),
+  z.object({
+    kind: z.literal("trip_snapshot"),
+    tripSnapshotId: z.string().min(1),
+    tripEnvelopeId: z.string().min(1),
+    productId: z.never().optional(),
+    catalogItemId: z.never().optional(),
+  }),
 ])
 export type BookingSessionTargetV1 = z.infer<typeof bookingSessionTargetV1>
+
+/** Server-owned provenance. Public Session-create callers cannot supply this. */
+export const bookingSessionOriginV1 = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("accepted_proposal_version"),
+    proposalId: z.string().min(1),
+    proposalVersionId: z.string().min(1),
+    tripSnapshotId: z.string().min(1),
+  }),
+])
+export type BookingSessionOriginV1 = z.infer<typeof bookingSessionOriginV1>
 
 export const bookingSessionStateV1 = z.enum([
   "active",
   "supplier_pending",
+  "component_pending",
   "consumed",
   "expired",
   "abandoned",
@@ -44,6 +70,7 @@ export type BookingSessionCapabilityActionV1 = z.infer<typeof bookingSessionCapa
 export const bookingSessionRecordV1 = z.object({
   id: z.string().min(1),
   target: bookingSessionTargetV1,
+  origin: bookingSessionOriginV1.optional(),
   actorKind: bookingSessionActorKindV1,
   state: bookingSessionStateV1,
   revision: z.number().int().positive(),
@@ -59,13 +86,38 @@ export const bookingSessionViewV1 = bookingSessionRecordV1.extend({
 })
 export type BookingSessionViewV1 = z.infer<typeof bookingSessionViewV1>
 
+export const createBookingSessionTargetV1 = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("product"),
+    productId: z.string().min(1),
+    catalogItemId: z.never().optional(),
+  }),
+  z.object({
+    kind: z.literal("catalog_item"),
+    catalogItemId: z.string().min(1),
+    productId: z.never().optional(),
+  }),
+])
+
 export const createBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
-  target: bookingSessionTargetV1,
+  target: createBookingSessionTargetV1,
   selection: z.record(z.string(), z.unknown()).optional(),
   capabilityScopes: z.array(bookingSessionCapabilityActionV1).min(1).optional(),
 })
 export type CreateBookingSessionV1 = z.input<typeof createBookingSessionV1>
+
+export const createAcceptedProposalBookingSessionV1 = z.object({
+  idempotencyKey: z.string().min(8).max(128),
+  proposalId: z.string().min(1),
+  proposalVersionId: z.string().min(1),
+  tripSnapshotId: z.string().min(1),
+  tripEnvelopeId: z.string().min(1),
+  selection: z.record(z.string(), z.unknown()).optional(),
+})
+export type CreateAcceptedProposalBookingSessionV1 = z.input<
+  typeof createAcceptedProposalBookingSessionV1
+>
 
 export const updateBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
@@ -184,6 +236,7 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
       "target_not_found",
       "target_not_bookable",
       "price_unavailable",
+      "policy_unavailable",
       "selection_unavailable",
     ]),
     nextAction: z.enum(["select_alternative_inventory", "contact_operator", "update_selection"]),

@@ -65,6 +65,11 @@ export interface ProposalPresentationRoutesOptions {
    * proposal payload. Returns `null` when no profile is configured.
    */
   resolveOperatorProfile(db: PostgresJsDatabase): Promise<unknown | null>
+  seedAcceptedProposalBookingSession(
+    db: PostgresJsDatabase,
+    input: AcceptedProposalBookingSessionSeed,
+    c: Context,
+  ): Promise<AcceptedProposalBookingSessionSeedResult>
   /**
    * Optional deployment hook for public customer feedback. Deployments can use
    * this to write CRM activity rows, trigger notifications/workflows, or both.
@@ -170,7 +175,27 @@ export interface AcceptPublicProposalResult {
   status: Extract<ProposalVersion["status"], "accepted">
   currency: string
   totalAmountCents: number
+  bookingSession: AcceptedProposalBookingSession
 }
+
+export interface AcceptedProposalBookingSessionSeed {
+  proposalId: string
+  proposalVersionId: string
+  tripSnapshotId: string
+  tripEnvelopeId: string
+  selection?: Record<string, unknown>
+}
+
+export interface AcceptedProposalBookingSession {
+  id: string
+  state: string
+  revision: number
+  expiresAt: string
+}
+
+export type AcceptedProposalBookingSessionSeedResult =
+  | { kind: "created"; session: AcceptedProposalBookingSession }
+  | { kind: "rejected"; code: string }
 
 export type ApplyTripSnapshotToProposalVersionResult = {
   snapshot: TripSnapshot
@@ -539,19 +564,26 @@ async function handleAcceptPublicProposal(
         }
       }
 
-      if (proposal.proposalVersion.tripSnapshotId) {
-        const snapshot = await tripsService.getTripSnapshotById(
-          transactionalDb,
-          proposal.proposalVersion.tripSnapshotId,
-        )
-        if (!snapshot) {
-          return {
-            kind: "response" as const,
-            response: c.json({ error: "Proposal Trip snapshot not found" }, 409),
-          }
+      if (!proposal.proposalVersion.tripSnapshotId) {
+        return {
+          kind: "response" as const,
+          response: c.json(
+            { error: "A frozen Trip snapshot is required before Proposal acceptance" },
+            409,
+          ),
         }
-        assertProposalMatchesTripSnapshot(proposal, snapshot)
       }
+      const snapshot = await tripsService.getTripSnapshotById(
+        transactionalDb,
+        proposal.proposalVersion.tripSnapshotId,
+      )
+      if (!snapshot) {
+        return {
+          kind: "response" as const,
+          response: c.json({ error: "Proposal Trip snapshot not found" }, 409),
+        }
+      }
+      assertProposalMatchesTripSnapshot(proposal, snapshot)
 
       const result = await proposalsService.acceptProposalVersion(
         transactionalDb,
@@ -561,7 +593,20 @@ async function handleAcceptPublicProposal(
       if (!result) {
         return { kind: "response" as const, response: c.json({ error: "Proposal not found" }, 404) }
       }
-      return { kind: "accepted" as const, result }
+      const session = await options.seedAcceptedProposalBookingSession(
+        transactionalDb,
+        {
+          proposalId: result.proposal.id,
+          proposalVersionId: result.proposalVersion.id,
+          tripSnapshotId: snapshot.id,
+          tripEnvelopeId: snapshot.envelopeId,
+        },
+        c,
+      )
+      if (session.kind === "rejected") {
+        throw new ProposalBookingSessionSeedError(session.code)
+      }
+      return { kind: "accepted" as const, result, session: session.session }
     })
     if (accepted.kind === "response") return accepted.response
 
@@ -570,6 +615,7 @@ async function handleAcceptPublicProposal(
         status: "accepted",
         currency: accepted.result.proposalVersion.currency,
         totalAmountCents: accepted.result.proposalVersion.totalAmountCents,
+        bookingSession: accepted.session,
       } satisfies AcceptPublicProposalResult,
     })
   } catch (error) {
@@ -579,7 +625,19 @@ async function handleAcceptPublicProposal(
     if (error instanceof TripsInvariantError) {
       return c.json({ error: error.message }, error.message.includes("was not found") ? 404 : 409)
     }
+    if (error instanceof ProposalBookingSessionSeedError) {
+      return c.json(
+        { error: "Proposal acceptance could not seed a Booking Session", code: error.code },
+        error.code === "capability_required" ? 400 : 409,
+      )
+    }
     throw error
+  }
+}
+
+class ProposalBookingSessionSeedError extends Error {
+  constructor(readonly code: string) {
+    super(`proposal_booking_session_seed_${code}`)
   }
 }
 

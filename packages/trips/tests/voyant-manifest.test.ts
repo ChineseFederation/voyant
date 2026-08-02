@@ -120,7 +120,7 @@ describe("trips deployment manifest", () => {
     const withoutAdapter = createTripsRuntimePortContribution({
       primitives,
       hasRuntimePort: () => false,
-      getRuntimePort: vi.fn(),
+      getRuntimePort: stubRequiredRuntimePortResolver(),
     })
     expect(withoutAdapter).not.toHaveProperty(commerceCardPaymentRuntimePort.id)
 
@@ -128,21 +128,22 @@ describe("trips deployment manifest", () => {
       primitives,
       hasRuntimePort: (port) =>
         port.id === commerceCardPaymentRuntimePort.id || port.id === paymentAdapterRuntimePort.id,
-      getRuntimePort: vi.fn(async () => adapter) as never,
+      getRuntimePort: stubRequiredRuntimePortResolver(adapter),
     })
     expect(withHostCommerce).not.toHaveProperty(commerceCardPaymentRuntimePort.id)
 
     const withAdapter = createTripsRuntimePortContribution({
       primitives,
       hasRuntimePort: (port) => port.id === paymentAdapterRuntimePort.id,
-      getRuntimePort: vi.fn(async () => adapter) as never,
+      getRuntimePort: stubRequiredRuntimePortResolver(adapter),
     })
     expect(withAdapter).toHaveProperty(commerceCardPaymentRuntimePort.id)
   })
 
   it("does not resolve the optional flights runtime when flights are not selected", async () => {
+    const registerCompositeBookingSessionHandler = vi.fn()
     const getRuntimePort = vi.fn((port: { id: string }) => {
-      if (port.id === "catalog.runtime-services") return {}
+      if (port.id === "catalog.runtime-services") return { registerCompositeBookingSessionHandler }
       if (port.id === "commerce.checkout-api-options") return () => ({})
       throw new Error(`unexpected runtime port ${port.id}`)
     })
@@ -155,6 +156,7 @@ describe("trips deployment manifest", () => {
     await contribution[tripsRoutesRuntimePort.id]
 
     expect(getRuntimePort.mock.calls.map(([port]) => port.id)).not.toContain("flights.runtime")
+    expect(registerCompositeBookingSessionHandler).toHaveBeenCalledOnce()
   })
 
   it("scopes selected Trips navigation, routes, and contributions", () => {
@@ -427,6 +429,15 @@ function publicOperationApiIds(document: unknown): unknown[] {
       (operation) => (operation as Record<string, unknown>)["x-voyant-api-id"],
     ),
   )
+}
+
+function stubRequiredRuntimePortResolver(paymentAdapter?: PaymentAdapter) {
+  return vi.fn((port: { id: string }) => {
+    if (port.id === "catalog.runtime-services") return {}
+    if (port.id === "commerce.checkout-api-options") return () => ({})
+    if (port.id === paymentAdapterRuntimePort.id && paymentAdapter) return paymentAdapter
+    throw new Error(`unexpected runtime port ${port.id}`)
+  }) as never
 }
 
 function stubPaymentAdapter(): PaymentAdapter {

@@ -7,6 +7,7 @@ import { createReferencedSubjectReindexFanout } from "@voyant-travel/catalog/ser
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
+import type { BookingSessionCompositeHandler } from "./booking-engine/index.js"
 import {
   ensureBookingEngineRegistry,
   getBookingEngineRegistryFromContext,
@@ -83,6 +84,7 @@ export function createCatalogRuntime(
     | Promise<ReturnType<typeof createOperatorCatalogProjectionRuntime>>
   >()
   const ownedAvailabilitySearchHandlers = createOwnedAvailabilitySearchHandlerRegistry()
+  let compositeBookingSessionHandler: BookingSessionCompositeHandler | undefined
   extensions.accommodations.registerOwnedAvailabilitySearchHandler(ownedAvailabilitySearchHandlers)
   const services: CatalogRuntimeServices = {
     defaultSlices: DEFAULT_SLICES,
@@ -93,6 +95,13 @@ export function createCatalogRuntime(
     getOwnedHandlersFromContext: (context) =>
       getOwnedBookingHandlerRegistryFromContext(context as never),
     getOwnedAvailabilitySearchHandlers: () => ownedAvailabilitySearchHandlers,
+    registerCompositeBookingSessionHandler(handler) {
+      if (compositeBookingSessionHandler && compositeBookingSessionHandler !== handler) {
+        throw new Error("A composite Booking Session handler is already registered")
+      }
+      compositeBookingSessionHandler = handler
+    },
+    getCompositeBookingSessionHandler: () => compositeBookingSessionHandler,
     buildEmbeddingProvider: (env) => buildEmbeddingProvider(env as never),
     buildIndexer: (_env, embeddings) => resolveIndexer(embeddings),
     loadSlices: loadCatalogSlices,

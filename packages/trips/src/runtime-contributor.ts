@@ -19,6 +19,7 @@ import {
   storefrontPaymentReconciliationJobRuntimePort,
 } from "@voyant-travel/storefront"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { createTripBookingSessionCompositeHandler } from "./booking-session-composite-handler.js"
 import type { TripsRoutesOptionsProvider } from "./routes.js"
 import { createTripsRoutesRuntime } from "./runtime.js"
 import {
@@ -61,7 +62,13 @@ export function createTripsRuntimePortContribution(
     host.hasRuntimePort?.(flightsRuntimePort) === false
       ? undefined
       : host.getRuntimePort<FlightsRuntime>(flightsRuntimePort)
-  const catalog = host.getRuntimePort<CatalogRuntimeServices>(catalogRuntimeServicesPort)
+  const compositeBookingSessionHandler = createTripBookingSessionCompositeHandler()
+  const catalog = Promise.resolve(
+    host.getRuntimePort<CatalogRuntimeServices>(catalogRuntimeServicesPort),
+  ).then((services) => {
+    services.registerCompositeBookingSessionHandler?.(compositeBookingSessionHandler)
+    return services
+  })
   const tripsRoutes = Promise.resolve()
     .then(() =>
       Promise.all([

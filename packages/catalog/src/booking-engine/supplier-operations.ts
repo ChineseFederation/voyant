@@ -15,6 +15,7 @@ import {
 export interface SupplierOperationInternalRecord {
   id: string
   sessionId: string
+  scopeKey: string
   quoteId: string
   holdId?: string
   commitIdempotencyKey: string
@@ -59,9 +60,13 @@ export interface SupplierOperationRepository {
   getByCommit(
     sessionId: string,
     commitIdempotencyKey: string,
+    scopeKey?: string,
   ): Promise<SupplierOperationInternalRecord | null>
   getBySession(sessionId: string): Promise<SupplierOperationInternalRecord | null>
-  getBlockingBySession(sessionId: string): Promise<SupplierOperationInternalRecord | null>
+  getBlockingBySession(
+    sessionId: string,
+    scopeKey?: string,
+  ): Promise<SupplierOperationInternalRecord | null>
   getForUpdate(operationId: string): Promise<SupplierOperationInternalRecord | null>
   list(input: {
     state?: SupplierOperationStateV1
@@ -87,6 +92,7 @@ export function createDrizzleSupplierOperationRepository(
 
   async function getBlockingBySession(
     sessionId: string,
+    scopeKey?: string,
   ): Promise<SupplierOperationInternalRecord | null> {
     const [row] = await db
       .select()
@@ -94,6 +100,7 @@ export function createDrizzleSupplierOperationRepository(
       .where(
         and(
           eq(supplierOperationsTable.sessionId, sessionId),
+          ...(scopeKey ? [eq(supplierOperationsTable.scopeKey, scopeKey)] : []),
           or(
             inArray(supplierOperationsTable.state, [
               "queued",
@@ -118,6 +125,7 @@ export function createDrizzleSupplierOperationRepository(
   async function getByCommit(
     sessionId: string,
     commitIdempotencyKey: string,
+    scopeKey?: string,
   ): Promise<SupplierOperationInternalRecord | null> {
     const [row] = await db
       .select()
@@ -125,6 +133,7 @@ export function createDrizzleSupplierOperationRepository(
       .where(
         and(
           eq(supplierOperationsTable.sessionId, sessionId),
+          ...(scopeKey ? [eq(supplierOperationsTable.scopeKey, scopeKey)] : []),
           eq(supplierOperationsTable.commitIdempotencyKey, commitIdempotencyKey),
         ),
       )
@@ -134,13 +143,17 @@ export function createDrizzleSupplierOperationRepository(
 
   return {
     async createOrReplay(record) {
-      const replay = await getByCommit(record.sessionId, record.commitIdempotencyKey)
+      const replay = await getByCommit(
+        record.sessionId,
+        record.commitIdempotencyKey,
+        record.scopeKey,
+      )
       if (replay) {
         return replay.requestFingerprint === record.requestFingerprint
           ? { status: "replay", operation: replay }
           : { status: "conflict" }
       }
-      if (await getBlockingBySession(record.sessionId)) {
+      if (await getBlockingBySession(record.sessionId, record.scopeKey)) {
         return { status: "conflict" }
       }
       const [created] = await db
@@ -149,7 +162,11 @@ export function createDrizzleSupplierOperationRepository(
         .onConflictDoNothing()
         .returning()
       if (created) return { status: "created", operation: mapSupplierOperation(created) }
-      const existing = await getByCommit(record.sessionId, record.commitIdempotencyKey)
+      const existing = await getByCommit(
+        record.sessionId,
+        record.commitIdempotencyKey,
+        record.scopeKey,
+      )
       if (
         !existing ||
         existing.commitIdempotencyKey !== record.commitIdempotencyKey ||
@@ -169,16 +186,16 @@ export function createDrizzleSupplierOperationRepository(
       return row ? mapSupplierOperation(row) : null
     },
 
-    async getByCommit(sessionId, commitIdempotencyKey) {
-      return getByCommit(sessionId, commitIdempotencyKey)
+    async getByCommit(sessionId, commitIdempotencyKey, scopeKey) {
+      return getByCommit(sessionId, commitIdempotencyKey, scopeKey)
     },
 
     async getBySession(sessionId) {
       return getBySession(sessionId)
     },
 
-    async getBlockingBySession(sessionId) {
-      return getBlockingBySession(sessionId)
+    async getBlockingBySession(sessionId, scopeKey) {
+      return getBlockingBySession(sessionId, scopeKey)
     },
 
     async getForUpdate(operationId) {
@@ -261,6 +278,7 @@ export function createDrizzleSupplierOperationRepository(
 
 export function createSupplierOperationRecord(input: {
   sessionId: string
+  scopeKey?: string
   quoteId: string
   holdId?: string
   commitIdempotencyKey: string
@@ -279,6 +297,7 @@ export function createSupplierOperationRecord(input: {
   return {
     id: newId("supplier_operations"),
     sessionId: input.sessionId,
+    scopeKey: input.scopeKey ?? "session",
     quoteId: input.quoteId,
     ...(input.holdId ? { holdId: input.holdId } : {}),
     commitIdempotencyKey: input.commitIdempotencyKey,
@@ -308,6 +327,7 @@ export function serializeSupplierOperation(
   return {
     id: operation.id,
     sessionId: operation.sessionId,
+    scopeKey: operation.scopeKey,
     quoteId: operation.quoteId,
     holdId: operation.holdId ?? null,
     operationKind: operation.operationKind,
@@ -343,6 +363,7 @@ function toInsert(record: SupplierOperationInternalRecord) {
   return {
     id: record.id,
     sessionId: record.sessionId,
+    scopeKey: record.scopeKey,
     quoteId: record.quoteId,
     holdId: record.holdId,
     commitIdempotencyKey: record.commitIdempotencyKey,
@@ -370,6 +391,7 @@ function mapSupplierOperation(row: SelectSupplierOperation): SupplierOperationIn
   return {
     id: row.id,
     sessionId: row.sessionId,
+    scopeKey: row.scopeKey,
     quoteId: row.quoteId,
     ...(row.holdId ? { holdId: row.holdId } : {}),
     commitIdempotencyKey: row.commitIdempotencyKey,

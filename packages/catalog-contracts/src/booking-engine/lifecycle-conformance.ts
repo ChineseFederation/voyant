@@ -227,6 +227,7 @@ export const bookingLifecycleNextActionV1 = z.enum([
   "select_alternative_inventory",
   "manual_review",
   "renew_proposal_version_acceptance",
+  "continue_component_commit",
   "return_idempotent_result",
 ])
 export type BookingLifecycleNextActionV1 = z.infer<typeof bookingLifecycleNextActionV1>
@@ -244,6 +245,41 @@ const bookingLifecycleOriginalCommitOutcomeV1 = z.discriminatedUnion("kind", [
     convertedHoldId: z.string().min(1).optional(),
     supplierOperationId: z.string().min(1).optional(),
     operatorBackedRiskAccepted: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("component_bookings_committed"),
+    nextAction: z.literal("none"),
+    bookings: z
+      .array(
+        z.object({
+          componentId: z.string().min(1),
+          bookingId: z.string().min(1),
+          status: bookingStatusAfterCommitV1,
+          allocationIds: z.array(z.string().min(1)),
+          supplierOperationId: z.string().min(1).optional(),
+        }),
+      )
+      .min(1),
+    consumedSessionId: z.string().min(1),
+    consumedQuoteId: z.string().min(1),
+    convertedHoldId: z.string().min(1).optional(),
+  }),
+  z.object({
+    kind: z.literal("component_commit_pending"),
+    nextAction: z.literal("continue_component_commit"),
+    components: z.array(
+      z.object({
+        componentId: z.string().min(1),
+        state: z.enum([
+          "booking_confirmed",
+          "supplier_pending",
+          "supplier_in_doubt",
+          "manual_confirmation_required",
+        ]),
+        bookingId: z.string().min(1).optional(),
+        supplierOperationId: z.string().min(1).optional(),
+      }),
+    ),
   }),
   z.object({
     kind: z.literal("payment_required"),
@@ -325,6 +361,8 @@ export type BookingLifecycleCommitOutcomeV1 = z.infer<typeof bookingLifecycleCom
 
 export const bookingLifecycleCommitOutcomeKindV1 = z.enum([
   "committed",
+  "component_bookings_committed",
+  "component_commit_pending",
   "payment_required",
   "supplier_pending",
   "supplier_in_doubt",
@@ -615,6 +653,7 @@ function assertScenarioObservation(
 
 function outcomeBookingId(outcome: BookingLifecycleCommitOutcomeV1): string | undefined {
   if (outcome.kind === "committed") return outcome.booking.id
+  if (outcome.kind === "component_bookings_committed") return outcome.bookings[0]?.bookingId
   if (
     outcome.kind === "supplier_pending" ||
     outcome.kind === "supplier_in_doubt" ||

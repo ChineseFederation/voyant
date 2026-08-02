@@ -149,7 +149,11 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
       const session = repository.sessions.get(input.sessionId)
       const quote = repository.quotes.get(input.quoteId)
       const hold = input.holdId ? repository.holds.get(input.holdId) : undefined
-      if (session?.state !== "active" && session?.state !== "supplier_pending") {
+      if (
+        session?.state !== "active" &&
+        session?.state !== "supplier_pending" &&
+        session?.state !== "component_pending"
+      ) {
         throw new Error("booking_session_commit_session_consumed")
       }
       if (quote?.state !== "active") throw new Error("booking_session_commit_quote_consumed")

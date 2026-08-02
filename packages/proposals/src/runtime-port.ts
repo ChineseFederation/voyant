@@ -81,6 +81,7 @@ export const proposalsPresentationRuntimePort = definePort<ProposalsPresentation
       "resolveDb",
       "resolvePublicProposalBaseUrl",
       "resolveOperatorProfile",
+      "seedAcceptedProposalBookingSession",
     ])
     const feedback = Reflect.get(provider, "recordPublicProposalFeedback")
     if (feedback !== undefined && typeof feedback !== "function") {
