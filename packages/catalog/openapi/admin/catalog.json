@@ -385,6 +385,15 @@
                               "nextDepartureDate": {
                                 "type": ["string", "null"]
                               },
+                              "nextDepartureEndsAt": {
+                                "type": ["string", "null"]
+                              },
+                              "nextDepartureEndDate": {
+                                "type": ["string", "null"]
+                              },
+                              "timezone": {
+                                "type": ["string", "null"]
+                              },
                               "months": {
                                 "type": "array",
                                 "items": {
@@ -402,6 +411,9 @@
                               "upcomingCount",
                               "nextDepartureAt",
                               "nextDepartureDate",
+                              "nextDepartureEndsAt",
+                              "nextDepartureEndDate",
+                              "timezone",
                               "months",
                               "dates"
                             ]

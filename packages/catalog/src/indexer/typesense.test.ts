@@ -75,6 +75,36 @@ const registry = createFieldPolicyRegistry(
       visibility: ["customer"],
     },
     {
+      path: "nextDepartureEndsAt",
+      class: "structural",
+      merge: "source-only",
+      editRole: "none",
+      overrideFriction: "none",
+      snapshot: "on-book",
+      query: "indexed-column",
+      visibility: ["customer"],
+    },
+    {
+      path: "nextDepartureEndDate",
+      class: "structural",
+      merge: "source-only",
+      editRole: "none",
+      overrideFriction: "none",
+      snapshot: "on-book",
+      query: "indexed-column",
+      visibility: ["customer"],
+    },
+    {
+      path: "departureTimezone",
+      class: "structural",
+      merge: "source-only",
+      editRole: "none",
+      overrideFriction: "none",
+      snapshot: "on-book",
+      query: "indexed-column",
+      visibility: ["customer"],
+    },
+    {
       path: "createdAt",
       class: "managed",
       merge: "source-only",
@@ -270,6 +300,13 @@ describe("Typesense catalog indexer", () => {
     expect(schema.fields.find((field) => field.name === "hasOffer")?.type).toBe("bool")
     expect(schema.fields.find((field) => field.name === "nextDepartureAt")?.sort).toBe(true)
     expect(schema.fields.find((field) => field.name === "nextDepartureDate")?.sort).toBe(true)
+    expect(schema.fields.find((field) => field.name === "nextDepartureEndsAt")?.sort).toBe(true)
+    expect(schema.fields.find((field) => field.name === "nextDepartureEndDate")?.sort).toBe(true)
+    // The zone is a frame declaration, not prose: indexed and filterable,
+    // but never swept into keyword search — otherwise "Europe" matches every
+    // product in Europe/Bucharest (#4116).
+    expect(schema.fields.find((field) => field.name === "departureTimezone")?.type).toBe("string")
+    expect(buildDefaultTypesenseSearchFields(registry, slice)).not.toContain("departureTimezone")
     expect(schema.metadata).toEqual({
       voyant: {
         defaultQueryBy: "name,categorySlugs",

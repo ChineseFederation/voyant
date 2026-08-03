@@ -155,8 +155,16 @@ const storefrontCatalogCardSchema = z.object({
   offerBadges: z.array(storefrontCardOfferSchema),
   departures: z.object({
     upcomingCount: z.number().nullable(),
+    /** ISO 8601 instant. */
     nextDepartureAt: z.string().nullable(),
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
     nextDepartureDate: z.string().nullable(),
+    /** ISO 8601 instant; null when the departure declares no end. */
+    nextDepartureEndsAt: z.string().nullable(),
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
+    nextDepartureEndDate: z.string().nullable(),
+    /** IANA zone the bare-date fields above (and `months`/`dates`) are in. */
+    timezone: z.string().nullable(),
     months: z.array(z.string()),
     dates: z.array(z.string()),
   }),
@@ -237,8 +245,16 @@ export interface StorefrontCatalogCard {
   offerBadges: StorefrontCatalogCardOffer[]
   departures: {
     upcomingCount: number | null
+    /** ISO 8601 instant. */
     nextDepartureAt: string | null
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
     nextDepartureDate: string | null
+    /** ISO 8601 instant; null when the departure declares no end. */
+    nextDepartureEndsAt: string | null
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
+    nextDepartureEndDate: string | null
+    /** IANA zone the bare-date fields above (and `months`/`dates`) are in. */
+    timezone: string | null
     months: string[]
     dates: string[]
   }
@@ -581,6 +597,9 @@ function projectStorefrontCatalogCard(
       ),
       nextDepartureAt: stringField(fields, "nextDepartureAt"),
       nextDepartureDate: stringField(fields, "nextDepartureDate"),
+      nextDepartureEndsAt: stringField(fields, "nextDepartureEndsAt"),
+      nextDepartureEndDate: stringField(fields, "nextDepartureEndDate"),
+      timezone: stringField(fields, "departureTimezone"),
       months: stringArrayField(fields, "departureMonths"),
       dates: stringArrayField(fields, "departureDates"),
     },

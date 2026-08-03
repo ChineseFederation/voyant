@@ -46,9 +46,11 @@ import { defineFieldPolicy, type FieldPolicyInput } from "@voyant-travel/catalog
 
 const PRODUCT_DEPARTURES_FIELD_POLICY: FieldPolicyInput[] = [
   // ── Earliest open future departure ──────────────────────────────────────
-  // `nextDepartureAt` is the timestamptz for storefront display metadata.
-  // `nextDepartureDate` is the slot's local calendar date and backs catalog
-  // sort by soonest available.
+  // Two frames, each named by its suffix so a consumer never has to guess
+  // which one a field is in (#4116):
+  //   - `…At`   — an instant (ISO 8601, UTC-normalized).
+  //   - `…Date` — a bare local calendar date in `departureTimezone`.
+  // `nextDepartureDate` also backs catalog sort by soonest available.
   {
     path: "nextDepartureAt",
     class: "structural",
@@ -65,6 +67,64 @@ const PRODUCT_DEPARTURES_FIELD_POLICY: FieldPolicyInput[] = [
   },
   {
     path: "nextDepartureDate",
+    class: "structural",
+    merge: "source-only",
+    drift: "low",
+    reindex: "facet-affecting",
+    snapshot: "on-book",
+    query: "indexed-column",
+    localized: false,
+    visibility: ["staff", "customer", "partner"],
+    editRole: "none",
+    overrideFriction: "none",
+    sourceFreshness: "sync",
+  },
+
+  // ── End of that departure ───────────────────────────────────────────────
+  // The last `departureDates[]` entry is the last departure *start*, so a
+  // multi-day departure's end can't be derived from the facets. Project it
+  // in both frames rather than leaving consumers to infer it from
+  // `durationDays`. Null when the slot declares no `ends_at`.
+  {
+    path: "nextDepartureEndsAt",
+    class: "structural",
+    merge: "source-only",
+    drift: "low",
+    reindex: "facet-affecting",
+    snapshot: "on-book",
+    query: "indexed-column",
+    localized: false,
+    visibility: ["staff", "customer", "partner"],
+    editRole: "none",
+    overrideFriction: "none",
+    sourceFreshness: "sync",
+  },
+  {
+    path: "nextDepartureEndDate",
+    class: "structural",
+    merge: "source-only",
+    drift: "low",
+    reindex: "facet-affecting",
+    snapshot: "on-book",
+    query: "indexed-column",
+    localized: false,
+    visibility: ["staff", "customer", "partner"],
+    editRole: "none",
+    overrideFriction: "none",
+    sourceFreshness: "sync",
+  },
+
+  // ── Frame declaration ───────────────────────────────────────────────────
+  // The IANA zone every `…Date` field above (and `departureDates[]` /
+  // `departureMonths[]`) is expressed in — the next departure's own zone.
+  // Without it a consumer holding both an instant and a bare local date has
+  // nothing to reconcile them with and renders one of the two a day out.
+  //
+  // Distinct from the product-level `timezone` in `productCatalogPolicy`,
+  // which is `blob-only` (not indexed) and describes the product's operating
+  // zone rather than the zone a given departure was materialized in.
+  {
+    path: "departureTimezone",
     class: "structural",
     merge: "source-only",
     drift: "low",

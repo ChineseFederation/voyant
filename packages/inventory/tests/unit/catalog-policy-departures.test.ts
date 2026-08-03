@@ -14,11 +14,26 @@ describe("productDeparturesCatalogPolicy", () => {
     const paths = PRODUCT_DEPARTURES_FIELD_POLICY.map((p) => p.path)
     expect(paths).toContain("nextDepartureAt")
     expect(paths).toContain("nextDepartureDate")
+    expect(paths).toContain("nextDepartureEndsAt")
+    expect(paths).toContain("nextDepartureEndDate")
+    expect(paths).toContain("departureTimezone")
     expect(paths).toContain("hasUpcomingDeparture")
     expect(paths).toContain("upcomingDepartureCount")
     expect(paths).toContain("departureDates[]")
     expect(paths).toContain("departureMonths[]")
     expect(paths).toContain("availableUnitsTotal")
+  })
+
+  it("declares a timezone alongside every bare local-date field it projects", () => {
+    const paths = PRODUCT_DEPARTURES_FIELD_POLICY.map((p) => p.path)
+    // A document that mixes instants and bare local dates must name the zone
+    // that reconciles them, or a consumer renders one of the two a day out
+    // (#4116).
+    const localDateFields = paths.filter(
+      (path) => path.endsWith("Date") || path === "departureDates[]",
+    )
+    expect(localDateFields.length).toBeGreaterThan(0)
+    expect(paths).toContain("departureTimezone")
   })
 
   it("does not declare any locale-keyed fields (departures are TZ-keyed, not locale-keyed)", () => {

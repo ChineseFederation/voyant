@@ -186,10 +186,16 @@ function departureNote(
 ): string | null {
   const next = asString(fields[opts.dateField ?? "nextDepartureDate"])
   const count = asNumber(fields[opts.countField ?? "availableDeparturesCount"])
+  // The frame the document declares its local dates in; only consulted when
+  // the resolved field is an instant rather than a bare calendar date.
+  const timeZone = asString(fields.departureTimezone)
   const parts: string[] = []
   if (next)
     parts.push(
-      messages.card.nextDeparture.replace("{date}", formatShortDate(next, locale, opts.withYear)),
+      messages.card.nextDeparture.replace(
+        "{date}",
+        formatShortDate(next, locale, opts.withYear, timeZone),
+      ),
     )
   if (count != null && count > 0) {
     parts.push(
@@ -214,14 +220,39 @@ function supplierBadge(
   return [{ label: formatSupplier(id), variant: "secondary" }]
 }
 
-function formatShortDate(iso: string, locale: string, withYear = false): string {
+/**
+ * Format a departure date without moving it to another calendar day.
+ *
+ * Catalog documents carry two frames (#4116): bare `YYYY-MM-DD` calendar
+ * dates in the departure's own zone, and ISO instants. `new Date(...)`
+ * reads a bare date as UTC midnight, so formatting it in the *viewer's*
+ * zone renders a 26 September departure as the 25th for anyone west of
+ * UTC. Bare dates are therefore formatted in UTC — round-tripping the
+ * same calendar day — and instants in the departure's zone when the
+ * document declares one.
+ */
+function formatShortDate(
+  iso: string,
+  locale: string,
+  withYear = false,
+  timeZone?: string | null,
+): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return new Intl.DateTimeFormat(locale, {
+  const isBareDate = /^\d{4}-\d{2}-\d{2}$/.test(iso)
+  const resolvedZone = isBareDate ? "UTC" : (timeZone ?? "UTC")
+  const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),
-  }).format(date)
+  }
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: resolvedZone }).format(date)
+  } catch {
+    // A document carrying an unparseable zone still renders — in UTC, the
+    // frame every other field in the document already agrees on.
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(date)
+  }
 }
 
 /**

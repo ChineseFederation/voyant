@@ -48,6 +48,53 @@ describe.skipIf(!DB_AVAILABLE)("createProductDeparturesProjectionExtension (inte
     expect(out.get("availableUnitsTotal")).toBe(0)
     expect(out.get("nextDepartureAt")).toBeNull()
     expect(out.get("nextDepartureDate")).toBeNull()
+    expect(out.get("nextDepartureEndsAt")).toBeNull()
+    expect(out.get("nextDepartureEndDate")).toBeNull()
+    expect(out.get("departureTimezone")).toBeNull()
+  })
+
+  it("projects both frames plus the zone that reconciles them", async () => {
+    // The exact shape from #4116: a Bucharest departure whose UTC instant
+    // falls on the previous calendar day.
+    await db.insert(availabilitySlots).values({
+      id: newId("availability_slots"),
+      productId,
+      dateLocal: "2026-09-26",
+      startsAt: new Date("2026-09-25T21:00:00Z"),
+      endsAt: new Date("2026-09-26T21:00:00Z"),
+      timezone: "Europe/Bucharest",
+      status: "open",
+      unlimited: false,
+      remainingPax: 10,
+    })
+
+    const ext = createProductDeparturesProjectionExtension({ now: () => NOW })
+    const out = await ext.project(db, productId, enSlice)
+    expect(out.get("nextDepartureAt")).toBe("2026-09-25T21:00:00.000Z")
+    expect(out.get("nextDepartureDate")).toBe("2026-09-26")
+    expect(out.get("nextDepartureEndsAt")).toBe("2026-09-26T21:00:00.000Z")
+    expect(out.get("nextDepartureEndDate")).toBe("2026-09-27")
+    expect(out.get("departureTimezone")).toBe("Europe/Bucharest")
+    expect(out.get("departureDates[]")).toEqual(["2026-09-26"])
+  })
+
+  it("leaves the departure end null when the slot declares no ends_at", async () => {
+    await db.insert(availabilitySlots).values({
+      id: newId("availability_slots"),
+      productId,
+      dateLocal: "2026-05-10",
+      startsAt: new Date("2026-05-10T08:00:00Z"),
+      timezone: "Europe/Bucharest",
+      status: "open",
+      unlimited: false,
+      remainingPax: 4,
+    })
+
+    const ext = createProductDeparturesProjectionExtension({ now: () => NOW })
+    const out = await ext.project(db, productId, enSlice)
+    expect(out.get("nextDepartureEndsAt")).toBeNull()
+    expect(out.get("nextDepartureEndDate")).toBeNull()
+    expect(out.get("departureTimezone")).toBe("Europe/Bucharest")
   })
 
   it("aggregates open future slots, picks earliest as next", async () => {

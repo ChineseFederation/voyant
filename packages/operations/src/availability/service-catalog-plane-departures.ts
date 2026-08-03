@@ -34,12 +34,30 @@
  * Without this gate the projection would issue a slot scan that always
  * returns zero rows for these products. Cheaper to short-circuit on the
  * already-fetched product row.
+ *
+ * Time frames, stated (#4116): the document carries fields in two frames
+ * and names which is which rather than leaving a consumer to guess.
+ *   - Instants, suffixed `At`: `nextDepartureAt`, `nextDepartureEndsAt`.
+ *   - Local calendar dates in the departure's own zone, suffixed `Date`
+ *     (plus the `departureDates[]` / `departureMonths[]` facets):
+ *     `nextDepartureDate`, `nextDepartureEndDate`.
+ *   - `departureTimezone` is the IANA zone those local fields are in, so
+ *     a consumer can render either frame correctly without out-of-band
+ *     knowledge. It is the *next* departure's zone; a product whose slots
+ *     span zones gets the zone of the departure the card is about.
+ *
+ * The end of the next departure (`nextDepartureEndsAt` /
+ * `nextDepartureEndDate`) is projected because the last `departureDates[]`
+ * entry is a departure *start* — a multi-day departure's end could
+ * otherwise only be guessed at from `durationDays`.
  */
 
 import { availabilitySlots } from "@voyant-travel/availability/schema"
 import type { IndexerSlice } from "@voyant-travel/catalog"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, asc, eq, gt, lt } from "drizzle-orm"
+
+import { instantToSlotLocal } from "./slot-timezone.js"
 
 export interface ProductProjectionExtension {
   readonly name: string
@@ -86,14 +104,19 @@ const SCHEDULED_BOOKING_MODES = new Set(["date", "date_time", "stay", "itinerary
 
 interface SlotAggregateRow {
   startsAt: Date
+  endsAt: Date | null
   dateLocal: string // YYYY-MM-DD in slot's local timezone
+  timezone: string // IANA zone `dateLocal` is expressed in
   remainingPax: number | null
   unlimited: boolean
 }
 
 interface DepartureAggregate {
-  nextDepartureAt: string | null // ISO 8601
+  nextDepartureAt: string | null // ISO 8601 instant
   nextDepartureDate: string | null // YYYY-MM-DD (slot's local)
+  nextDepartureEndsAt: string | null // ISO 8601 instant
+  nextDepartureEndDate: string | null // YYYY-MM-DD (slot's local)
+  departureTimezone: string | null // IANA zone of the local fields
   hasUpcomingDeparture: boolean
   upcomingDepartureCount: number
   departureDates: string[]
@@ -104,6 +127,9 @@ interface DepartureAggregate {
 const EMPTY_AGGREGATE: DepartureAggregate = {
   nextDepartureAt: null,
   nextDepartureDate: null,
+  nextDepartureEndsAt: null,
+  nextDepartureEndDate: null,
+  departureTimezone: null,
   hasUpcomingDeparture: false,
   upcomingDepartureCount: 0,
   departureDates: [],
@@ -163,6 +189,9 @@ function aggregateDepartures(
   return {
     nextDepartureAt: earliest.startsAt.toISOString(),
     nextDepartureDate: earliest.dateLocal,
+    nextDepartureEndsAt: earliest.endsAt?.toISOString() ?? null,
+    nextDepartureEndDate: localDateOf(earliest.endsAt, earliest.timezone),
+    departureTimezone: earliest.timezone,
     hasUpcomingDeparture: true,
     upcomingDepartureCount: ordered.length,
     departureDates,
@@ -171,6 +200,24 @@ function aggregateDepartures(
     // would mislead the storefront ("3 seats left" when one slot is
     // actually unlimited).
     availableUnitsTotal: anyUnlimited ? null : paxSum,
+  }
+}
+
+/**
+ * Local calendar date of an instant in the slot's own zone, matching how
+ * `date_local` was derived from `starts_at` at materialization time.
+ *
+ * Returns `null` rather than throwing on a zone Intl rejects: a single
+ * unparseable row must not fail the whole product's projection, and a
+ * missing end date degrades a card to "start only" instead of removing
+ * the product from the index.
+ */
+function localDateOf(instant: Date | null, timezone: string): string | null {
+  if (!instant) return null
+  try {
+    return instantToSlotLocal(instant, timezone).date
+  } catch {
+    return null
   }
 }
 
@@ -210,7 +257,9 @@ export function createProductDeparturesProjectionExtension(
       const rows = await db
         .select({
           startsAt: availabilitySlots.startsAt,
+          endsAt: availabilitySlots.endsAt,
           dateLocal: availabilitySlots.dateLocal,
+          timezone: availabilitySlots.timezone,
           remainingPax: availabilitySlots.remainingPax,
           unlimited: availabilitySlots.unlimited,
         })
@@ -239,6 +288,9 @@ function toProjectionMap(a: DepartureAggregate): ReadonlyMap<string, unknown> {
   return new Map<string, unknown>([
     ["nextDepartureAt", a.nextDepartureAt],
     ["nextDepartureDate", a.nextDepartureDate],
+    ["nextDepartureEndsAt", a.nextDepartureEndsAt],
+    ["nextDepartureEndDate", a.nextDepartureEndDate],
+    ["departureTimezone", a.departureTimezone],
     ["hasUpcomingDeparture", a.hasUpcomingDeparture],
     ["upcomingDepartureCount", a.upcomingDepartureCount],
     ["departureDates[]", a.departureDates],

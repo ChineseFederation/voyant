@@ -11,7 +11,9 @@ const { aggregateDepartures, EMPTY_AGGREGATE, SCHEDULED_BOOKING_MODES } = __test
 
 interface Slot {
   startsAt: Date
+  endsAt: Date | null
   dateLocal: string
+  timezone: string
   remainingPax: number | null
   unlimited: boolean
 }
@@ -21,8 +23,16 @@ function slot(
   dateLocal: string,
   remainingPax: number | null = 5,
   unlimited = false,
+  extra: { endsAt?: string | null; timezone?: string } = {},
 ): Slot {
-  return { startsAt: new Date(isoStarts), dateLocal, remainingPax, unlimited }
+  return {
+    startsAt: new Date(isoStarts),
+    endsAt: extra.endsAt ? new Date(extra.endsAt) : null,
+    dateLocal,
+    timezone: extra.timezone ?? "UTC",
+    remainingPax,
+    unlimited,
+  }
 }
 
 const NOW = new Date("2026-05-08T12:00:00Z")
@@ -103,6 +113,77 @@ describe("aggregateDepartures (kernel)", () => {
     expect(out.departureMonths).toEqual(["2026-05"])
   })
 
+  it("declares the timezone its local dates are expressed in", () => {
+    const out = aggregateDepartures(
+      [
+        slot("2026-09-25T21:00:00Z", "2026-09-26", 10, false, {
+          endsAt: "2026-09-26T21:00:00Z",
+          timezone: "Europe/Bucharest",
+        }),
+      ],
+      NOW,
+      180,
+      24,
+    )
+    // The instant is 25 September in UTC; the local day is the 26th. Both
+    // frames ride in the document, and `departureTimezone` says which zone
+    // reconciles them (#4116).
+    expect(out.nextDepartureAt).toBe("2026-09-25T21:00:00.000Z")
+    expect(out.nextDepartureDate).toBe("2026-09-26")
+    expect(out.departureTimezone).toBe("Europe/Bucharest")
+  })
+
+  it("projects the end of the next departure in both frames", () => {
+    const out = aggregateDepartures(
+      [
+        slot("2026-09-25T21:00:00Z", "2026-09-26", 10, false, {
+          endsAt: "2026-09-27T21:00:00Z",
+          timezone: "Europe/Bucharest",
+        }),
+        slot("2026-10-02T21:00:00Z", "2026-10-03", 4, false, {
+          endsAt: "2026-10-04T21:00:00Z",
+          timezone: "Europe/Bucharest",
+        }),
+      ],
+      NOW,
+      180,
+      24,
+    )
+    expect(out.nextDepartureEndsAt).toBe("2026-09-27T21:00:00.000Z")
+    // 27 Sep 21:00Z is 28 Sep 00:00 in Bucharest — the local end day, which
+    // a consumer could not have derived from `departureDates[]` alone.
+    expect(out.nextDepartureEndDate).toBe("2026-09-28")
+  })
+
+  it("leaves the end null when the departure declares no ends_at", () => {
+    const out = aggregateDepartures(
+      [slot("2026-05-09T10:00:00Z", "2026-05-09", 5, false, { timezone: "Europe/Bucharest" })],
+      NOW,
+      180,
+      24,
+    )
+    expect(out.nextDepartureEndsAt).toBeNull()
+    expect(out.nextDepartureEndDate).toBeNull()
+    expect(out.departureTimezone).toBe("Europe/Bucharest")
+  })
+
+  it("degrades to a null end date rather than failing on an unusable timezone", () => {
+    const out = aggregateDepartures(
+      [
+        slot("2026-05-09T10:00:00Z", "2026-05-09", 5, false, {
+          endsAt: "2026-05-10T10:00:00Z",
+          timezone: "Not/AZone",
+        }),
+      ],
+      NOW,
+      180,
+      24,
+    )
+    expect(out.nextDepartureEndsAt).toBe("2026-05-10T10:00:00.000Z")
+    expect(out.nextDepartureEndDate).toBeNull()
+    expect(out.hasUpcomingDeparture).toBe(true)
+  })
+
   it("orders defensively even when caller passes slots out of order", () => {
     const out = aggregateDepartures(
       [slot("2026-09-01T10:00:00Z", "2026-09-01"), slot("2026-05-09T10:00:00Z", "2026-05-09")],
@@ -134,6 +215,9 @@ describe("createProductDeparturesProjectionExtension", () => {
     })
     const out = await ext.project(dbStub as AnyDrizzleDb, "prod_anytime", customerSlice)
     expect(out.get("nextDepartureAt")).toBeNull()
+    expect(out.get("nextDepartureEndsAt")).toBeNull()
+    expect(out.get("nextDepartureEndDate")).toBeNull()
+    expect(out.get("departureTimezone")).toBeNull()
     expect(out.get("hasUpcomingDeparture")).toBe(false)
     expect(out.get("upcomingDepartureCount")).toBe(0)
     expect(out.get("departureDates[]")).toEqual([])
@@ -186,8 +270,13 @@ describe("createProductDeparturesProjectionExtension", () => {
               where() {
                 return {
                   orderBy: async () => [
-                    slot("2026-05-09T10:00:00Z", "2026-05-09", 5),
-                    slot("2026-06-01T10:00:00Z", "2026-06-01", 8),
+                    slot("2026-05-09T10:00:00Z", "2026-05-09", 5, false, {
+                      endsAt: "2026-05-11T14:00:00Z",
+                      timezone: "Europe/Bucharest",
+                    }),
+                    slot("2026-06-01T10:00:00Z", "2026-06-01", 8, false, {
+                      timezone: "Europe/Bucharest",
+                    }),
                   ],
                 }
               },
@@ -204,6 +293,9 @@ describe("createProductDeparturesProjectionExtension", () => {
     expect(out.get("hasUpcomingDeparture")).toBe(true)
     expect(out.get("upcomingDepartureCount")).toBe(2)
     expect(out.get("nextDepartureDate")).toBe("2026-05-09")
+    expect(out.get("nextDepartureEndsAt")).toBe("2026-05-11T14:00:00.000Z")
+    expect(out.get("nextDepartureEndDate")).toBe("2026-05-11")
+    expect(out.get("departureTimezone")).toBe("Europe/Bucharest")
     expect(out.get("availableUnitsTotal")).toBe(13)
     expect(out.get("departureMonths[]")).toEqual(["2026-05", "2026-06"])
   })

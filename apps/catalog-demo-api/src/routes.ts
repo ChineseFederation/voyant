@@ -134,6 +134,13 @@ function buildDemoProjectionFields(
     coverMediaUrl: mediaUrl,
     nextDepartureAt: nextDeparture?.starts_at ?? null,
     nextDepartureDate: nextDeparture ? datePart(nextDeparture.starts_at) : null,
+    nextDepartureEndsAt: nextDeparture?.ends_at ?? null,
+    nextDepartureEndDate: nextDeparture?.ends_at ? datePart(nextDeparture.ends_at) : null,
+    // The demo upstream publishes departures as UTC instants and derives its
+    // calendar dates from them, so UTC is the frame its bare dates are in.
+    // Stating it keeps the demo document readable the same way a real one is
+    // (#4116) rather than leaving consumers to assume.
+    departureTimezone: "UTC",
     hasUpcomingDeparture: departures.length > 0,
     upcomingDepartureCount: departures.length,
     availableDeparturesCount: departures.length,

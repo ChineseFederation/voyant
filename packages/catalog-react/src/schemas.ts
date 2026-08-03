@@ -53,8 +53,16 @@ const storefrontCatalogCardSchema = z.object({
   offerBadges: z.array(storefrontCatalogCardOfferSchema),
   departures: z.object({
     upcomingCount: z.number().nullable(),
+    /** ISO 8601 instant. */
     nextDepartureAt: z.string().nullable(),
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
     nextDepartureDate: z.string().nullable(),
+    /** ISO 8601 instant; null when the departure declares no end. */
+    nextDepartureEndsAt: z.string().nullable().default(null),
+    /** Bare calendar date (YYYY-MM-DD) in `timezone`. */
+    nextDepartureEndDate: z.string().nullable().default(null),
+    /** IANA zone the bare-date fields above (and `months`/`dates`) are in. */
+    timezone: z.string().nullable().default(null),
     months: z.array(z.string()),
     dates: z.array(z.string()),
   }),

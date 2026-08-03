@@ -233,8 +233,14 @@ const SORTABLE_STRING_FIELD_NAMES = new Set([
   "endDate",
   "nextDepartureAt",
   "nextDepartureDate",
+  "nextDepartureEndsAt",
+  "nextDepartureEndDate",
   "publishedAt",
   "startDate",
 ])
 
-const NON_SEARCH_TEXT_FIELD_RE = /(?:^|\.)(?:.*Url|.*Uri|.*Href|.*Html|.*Markdown)$/i
+// Machine-readable identifiers and markup that would otherwise be swept into
+// the default `query_by` set because they happen to be typed `string`. A
+// timezone is a frame declaration ("Europe/Bucharest"), not prose — keyword
+// searches for "Europe" must not match every product in that zone.
+const NON_SEARCH_TEXT_FIELD_RE = /(?:^|\.)(?:.*Url|.*Uri|.*Href|.*Html|.*Markdown|.*Timezone)$/i
