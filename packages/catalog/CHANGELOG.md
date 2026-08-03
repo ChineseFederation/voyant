@@ -1,5 +1,52 @@
 # @voyant-travel/catalog
 
+## 0.232.0
+
+### Minor Changes
+
+- 051e6e3: Resolve the catalog's inventory channel through a runtime port instead of
+  importing Voyant Connect.
+
+  `CatalogSourcesRuntimeExtension` is the channel contract — `registerFallback`
+  for the synchronous cold window, `warm` for per-connection enumeration, and
+  `resolveDestinationNames`. It is optional: a deployment may bind no channel.
+
+  Voyant Connect now provides that port rather than being imported by the catalog
+  spine, so it is one channel implementation and a self-hosted integration can
+  provide its own. This also removes the
+  `catalog -> plugin-voyant-connect -> cruises -> catalog` dependency cycle, which
+  had been hiding as a build-ordering race.
+
+- 536ebfc: Remove the last vendor references from the catalog spine.
+
+  `offers-runtime` resolved its offers client by importing
+  `@voyant-travel/connect-sdk` directly, contradicting the design already stated
+  in `offers/operator-routes.ts` — _"the package never imports
+  `@voyant-travel/connect-sdk`"_. The channel now supplies that client through
+  `CatalogSourcesRuntimeExtension.createOffersClient`, and catalog no longer
+  depends on the SDK.
+
+  `BookingEngineEnv` named seven `VOYANT_*`/`VOYANT_CONNECT_*` variables that
+  nothing in catalog read; they were passed straight to the channel. It is now an
+  opaque environment record.
+
+- 9f412dd: Add the Booking Platform v1 action projection: authoritative Catalog, Finance,
+  and Legal obligation readers, an Operations work queue with deterministic
+  incremental and rebuild jobs, a redacted storefront next-action API, explicit
+  Payment Schedule timezones, and reminder scheduling from projected deadlines.
+
+### Patch Changes
+
+- Updated dependencies [46005bf]
+- Updated dependencies [c986bd5]
+- Updated dependencies [9f412dd]
+- Updated dependencies [2ed62d3]
+  - @voyant-travel/bookings@0.234.0
+  - @voyant-travel/core@0.137.1
+  - @voyant-travel/bookings-contracts@0.113.0
+  - @voyant-travel/finance@0.234.0
+  - @voyant-travel/db@0.119.4
+
 ## 0.231.0
 
 ### Minor Changes

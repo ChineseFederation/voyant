@@ -1,5 +1,33 @@
 # @voyant-travel/storefront
 
+## 0.236.0
+
+### Minor Changes
+
+- 2ed62d3: Remove the beta Booking-backed session and low-level public Booking creation
+  surfaces. Custom storefronts now construct reservations exclusively through
+  Catalog Booking Session v1, while Bookings exposes only committed-reservation
+  overview and guest-access routes.
+
+### Patch Changes
+
+- Updated dependencies [051e6e3]
+- Updated dependencies [536ebfc]
+- Updated dependencies [46005bf]
+- Updated dependencies [c986bd5]
+- Updated dependencies [9f412dd]
+- Updated dependencies [2ed62d3]
+  - @voyant-travel/catalog@0.232.0
+  - @voyant-travel/bookings@0.234.0
+  - @voyant-travel/core@0.137.1
+  - @voyant-travel/finance@0.234.0
+  - @voyant-travel/legal@0.234.0
+  - @voyant-travel/commerce@0.46.8
+  - @voyant-travel/db@0.119.4
+  - @voyant-travel/relationships-contracts@0.110.2
+  - @voyant-travel/identity@0.234.0
+  - @voyant-travel/auth@0.150.7
+
 ## 0.235.0
 
 ### Patch Changes

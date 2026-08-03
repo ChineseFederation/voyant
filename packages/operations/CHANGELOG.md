@@ -1,5 +1,29 @@
 # @voyant-travel/operations
 
+## 0.13.0
+
+### Minor Changes
+
+- 9f412dd: Add the Booking Platform v1 action projection: authoritative Catalog, Finance,
+  and Legal obligation readers, an Operations work queue with deterministic
+  incremental and rebuild jobs, a redacted storefront next-action API, explicit
+  Payment Schedule timezones, and reminder scheduling from projected deadlines.
+
+### Patch Changes
+
+- Updated dependencies [051e6e3]
+- Updated dependencies [536ebfc]
+- Updated dependencies [46005bf]
+- Updated dependencies [c986bd5]
+- Updated dependencies [9f412dd]
+- Updated dependencies [2ed62d3]
+  - @voyant-travel/catalog@0.232.0
+  - @voyant-travel/bookings@0.234.0
+  - @voyant-travel/core@0.137.1
+  - @voyant-travel/bookings-contracts@0.113.0
+  - @voyant-travel/db@0.119.4
+  - @voyant-travel/identity@0.234.0
+
 ## 0.12.2
 
 ### Patch Changes

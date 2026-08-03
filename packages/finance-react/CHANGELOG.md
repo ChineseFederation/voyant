@@ -1,5 +1,24 @@
 # @voyant-travel/finance-react
 
+## 0.234.0
+
+### Minor Changes
+
+- 2ed62d3: Remove the beta Booking-backed session and low-level public Booking creation
+  surfaces. Custom storefronts now construct reservations exclusively through
+  Catalog Booking Session v1, while Bookings exposes only committed-reservation
+  overview and guest-access routes.
+
+### Patch Changes
+
+- Updated dependencies [9f412dd]
+- Updated dependencies [2ed62d3]
+  - @voyant-travel/finance@0.234.0
+  - @voyant-travel/bookings-react@0.234.0
+  - @voyant-travel/inventory-react@0.116.0
+  - @voyant-travel/operations-react@0.115.0
+  - @voyant-travel/distribution-react@0.224.0
+
 ## 0.233.0
 
 ### Patch Changes

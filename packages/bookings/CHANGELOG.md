@@ -1,5 +1,35 @@
 # @voyant-travel/bookings
 
+## 0.234.0
+
+### Minor Changes
+
+- 9f412dd: Add the Booking Platform v1 action projection: authoritative Catalog, Finance,
+  and Legal obligation readers, an Operations work queue with deterministic
+  incremental and rebuild jobs, a redacted storefront next-action API, explicit
+  Payment Schedule timezones, and reminder scheduling from projected deadlines.
+- 2ed62d3: Remove the beta Booking-backed session and low-level public Booking creation
+  surfaces. Custom storefronts now construct reservations exclusively through
+  Catalog Booking Session v1, while Bookings exposes only committed-reservation
+  overview and guest-access routes.
+
+### Patch Changes
+
+- 46005bf: Register the roster-change preview and reconcile amendment actions in the
+  booking action-ledger capability registry.
+
+  `BOOKING_VOYANT_ACTIONS` derives from every amendment declaration, but
+  `BOOKING_AMENDMENT_CAPABILITIES` is hand-listed and had not been extended when
+  those two actions were added. The graph therefore lowered two capabilities the
+  canonical registry did not define.
+
+- Updated dependencies [c986bd5]
+- Updated dependencies [9f412dd]
+- Updated dependencies [2ed62d3]
+  - @voyant-travel/core@0.137.1
+  - @voyant-travel/bookings-contracts@0.113.0
+  - @voyant-travel/db@0.119.4
+
 ## 0.233.0
 
 ### Minor Changes

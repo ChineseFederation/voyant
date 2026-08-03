@@ -1,5 +1,45 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.5.0
+
+### Minor Changes
+
+- 051e6e3: Resolve the catalog's inventory channel through a runtime port instead of
+  importing Voyant Connect.
+
+  `CatalogSourcesRuntimeExtension` is the channel contract — `registerFallback`
+  for the synchronous cold window, `warm` for per-connection enumeration, and
+  `resolveDestinationNames`. It is optional: a deployment may bind no channel.
+
+  Voyant Connect now provides that port rather than being imported by the catalog
+  spine, so it is one channel implementation and a self-hosted integration can
+  provide its own. This also removes the
+  `catalog -> plugin-voyant-connect -> cruises -> catalog` dependency cycle, which
+  had been hiding as a build-ordering race.
+
+- 536ebfc: Remove the last vendor references from the catalog spine.
+
+  `offers-runtime` resolved its offers client by importing
+  `@voyant-travel/connect-sdk` directly, contradicting the design already stated
+  in `offers/operator-routes.ts` — _"the package never imports
+  `@voyant-travel/connect-sdk`"_. The channel now supplies that client through
+  `CatalogSourcesRuntimeExtension.createOffersClient`, and catalog no longer
+  depends on the SDK.
+
+  `BookingEngineEnv` named seven `VOYANT_*`/`VOYANT_CONNECT_*` variables that
+  nothing in catalog read; they were passed straight to the channel. It is now an
+  opaque environment record.
+
+### Patch Changes
+
+- Updated dependencies [051e6e3]
+- Updated dependencies [536ebfc]
+- Updated dependencies [c986bd5]
+- Updated dependencies [9f412dd]
+  - @voyant-travel/catalog@0.232.0
+  - @voyant-travel/graph-contracts@0.1.0
+  - @voyant-travel/cruises@0.233.0
+
 ## 0.4.0
 
 ### Patch Changes
