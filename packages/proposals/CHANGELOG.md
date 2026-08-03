@@ -1,5 +1,21 @@
 # @voyant-travel/proposals
 
+## 0.137.10
+
+### Patch Changes
+
+- Updated dependencies [2bc1570]
+- Updated dependencies [2bc1570]
+- Updated dependencies [14033fb]
+  - @voyant-travel/db@0.120.0
+  - @voyant-travel/hono@0.139.0
+  - @voyant-travel/relationships@0.133.11
+  - @voyant-travel/action-ledger@0.115.10
+  - @voyant-travel/catalog@0.234.2
+  - @voyant-travel/operator-settings@0.17.12
+  - @voyant-travel/trips@0.229.2
+  - @voyant-travel/types@0.109.12
+
 ## 0.137.9
 
 ### Patch Changes

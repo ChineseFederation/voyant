@@ -1,5 +1,85 @@
 # @voyant-travel/hono
 
+## 0.139.0
+
+### Minor Changes
+
+- 2bc1570: Honour `stale-while-revalidate`, make the declared TTL authoritative, and stop
+  letting one lapse hand the origin latency to every arrival at once.
+
+  `publicResponseCache` parsed only `public` and `s-maxage`. Every route that
+  declared a `stale-while-revalidate` — inventory, commerce, storefront, legal,
+  cruises, charters — was declaring it to nothing: the entry hard-expired and the
+  next arrival paid the full uncached cost. With a slow query behind it, that is
+  an outage rather than a slow request, which is what happened in production.
+
+  **Freshness now lives on the entry.** `freshUntil`/`staleUntil` are stored with
+  the response, and the backend's own expiry is only a storage lifetime. So the
+  declared `s-maxage` is what is in force regardless of Cloudflare KV's 60-second
+  floor or the in-process L1's 60-second promotion cap — neither can shorten or
+  lengthen a route's policy any more.
+
+  **An entry inside its stale window is served immediately.** One arrival is
+  elected to refresh it and every other arrival is served the stored copy without
+  waiting. If the elected one abandons its request, the lease expires and the next
+  arrival retries, so the entry is never left unrepopulated while everyone waits
+  on it. Election goes through `KVStore.putIfAbsent` where the backend supports
+  it, and falls back to per-isolate exclusion where it does not.
+
+  The refresh runs in the requesting handler rather than behind the response,
+  because Hono discards a route response once the context is finalized — a refresh
+  scheduled after the middleware returns would re-store the stale body under a new
+  freshness stamp and produce an entry that looks refreshed and never changes.
+
+  **Concurrent cold misses on one key collapse onto one origin computation**
+  within the isolate.
+
+  Also fixes two defects in `@voyant-travel/db`'s Postgres runtime stores, both
+  found by running their integration tests for the first time:
+
+  - `expires_at` was bound as a `Date`, which the postgres.js adapter cannot
+    serialize through a raw `sql` template. Every TTL'd write threw, and the
+    response cache's best-effort catch swallowed it — so a deployment selecting
+    `cache: "postgres"` had a shared response cache that silently stored nothing.
+  - `createPostgresFixedWindowRateLimitStore` used the reserved word `window`
+    unquoted in an INSERT column list and conflict target, which Postgres rejects
+    outright. Its integration test never ran because the test fixture's DDL had
+    the same defect.
+
+  See ADR 0021 §4-5.
+
+- 14033fb: Scope shared public cache entries to the storefront that produced them.
+
+  `publicResponseCache` keyed entries on the request URL alone, while public
+  storefront responses are scoped to a sales channel resolved from the `x-api-key`
+  storefront key. Two storefronts bound to different channels and served from one
+  origin could be served each other's cached responses — `/products/*`,
+  `/departures/*`, and `/offers/*` are all channel-gated and shared-cached, and
+  their publication gate reads `channelId`.
+
+  The key now carries a digest of the variant-selecting request headers, named by
+  the new `keyHeaders` option and defaulting to `["x-api-key"]`. Values are hashed
+  rather than embedded, so a storefront key never lands in a KV key or a
+  `kv_store` row, and the variant is never resolved through the database — a hit
+  still costs no connection, no session lookup, and no module-graph instantiation.
+
+  Two related gaps close with it: a response declaring a `Vary` the key does not
+  model is no longer stored, and a request carrying `Authorization` is neither
+  served from nor stored into the shared cache.
+
+  The key prefix moves to `respcache:v2:`, which strands existing URL-keyed
+  entries rather than reusing them under the new scoping rules.
+
+  See ADR 0021 §3.
+
+### Patch Changes
+
+- Updated dependencies [2bc1570]
+- Updated dependencies [2bc1570]
+  - @voyant-travel/utils@0.111.0
+  - @voyant-travel/db@0.120.0
+  - @voyant-travel/types@0.109.12
+
 ## 0.138.1
 
 ### Patch Changes

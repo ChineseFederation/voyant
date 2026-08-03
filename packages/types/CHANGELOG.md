@@ -1,5 +1,13 @@
 # @voyant-travel/types
 
+## 0.109.12
+
+### Patch Changes
+
+- Updated dependencies [2bc1570]
+- Updated dependencies [2bc1570]
+  - @voyant-travel/db@0.120.0
+
 ## 0.109.11
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @voyant-travel/trips-react
 
+## 0.231.0
+
+### Patch Changes
+
+- @voyant-travel/relationships-react@0.238.0
+- @voyant-travel/bookings-react@0.238.0
+- @voyant-travel/catalog-react@0.236.0
+- @voyant-travel/flights-react@0.238.0
+
 ## 0.230.0
 
 ### Minor Changes

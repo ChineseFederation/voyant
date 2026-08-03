@@ -1,5 +1,93 @@
 # @voyant-travel/db
 
+## 0.120.0
+
+### Minor Changes
+
+- 2bc1570: Add an optional conditional-write `putIfAbsent` to the shared KV contract.
+
+  Coalescing concurrent misses onto one origin computation needs a way to elect a
+  single revalidator across processes: exactly one caller gets `true` and performs
+  the origin work, every other caller gets `false` and serves what it already has.
+  `KVStore` gains `putIfAbsent(key, value, options?)` for that, and it never
+  blocks — a loser is told it lost rather than made to wait.
+
+  The member is optional because it is only worth having when the backend decides
+  it atomically. Each store that implements it does so in one round trip:
+
+  - `createMemoryKvNamespace` reads and writes without awaiting in between, which
+    a single-threaded isolate cannot interleave.
+  - `createRedisKvStore` issues `SET key value NX [EX ttl]` and reports the write
+    only on the `OK` reply, never on a nil one.
+  - `createPostgresKvStore` issues one `INSERT … ON CONFLICT (key) DO UPDATE …
+WHERE kv_store.expires_at IS NOT NULL AND kv_store.expires_at <= now()
+RETURNING`, so the conflicting caller re-reads the committed expiry under the
+    row lock and `RETURNING` yields a row only to the caller that wrote.
+
+  All three treat an entry that exists but has expired as absent, matching how
+  `get` already treats it, so a lapsed slot can be won again rather than
+  deadlocking behind a holder that is gone.
+
+  `createTieredKvStore` exposes `putIfAbsent` only when its L2 does, and delegates
+  the decision there. L1 is per-process and would hand every process its own
+  winner, so it cannot arbitrate; it only mirrors the winner's value, still capped
+  by `l2PromotionTtlSeconds`. A tier over an L2 that cannot elect omits the member
+  entirely, degrading callers to no coalescing rather than to a false election.
+
+  The node-redis TCP adapter in `@voyant-travel/framework` now forwards `nx` as
+  the SET `NX` condition. It previously dropped unrecognised options, which would
+  have turned a conditional write into an unconditional one that always reported
+  success — every caller a winner, which is the failure this contract exists to
+  prevent.
+
+  See ADR 0021 §5.
+
+### Patch Changes
+
+- 2bc1570: Honour `stale-while-revalidate`, make the declared TTL authoritative, and stop
+  letting one lapse hand the origin latency to every arrival at once.
+
+  `publicResponseCache` parsed only `public` and `s-maxage`. Every route that
+  declared a `stale-while-revalidate` — inventory, commerce, storefront, legal,
+  cruises, charters — was declaring it to nothing: the entry hard-expired and the
+  next arrival paid the full uncached cost. With a slow query behind it, that is
+  an outage rather than a slow request, which is what happened in production.
+
+  **Freshness now lives on the entry.** `freshUntil`/`staleUntil` are stored with
+  the response, and the backend's own expiry is only a storage lifetime. So the
+  declared `s-maxage` is what is in force regardless of Cloudflare KV's 60-second
+  floor or the in-process L1's 60-second promotion cap — neither can shorten or
+  lengthen a route's policy any more.
+
+  **An entry inside its stale window is served immediately.** One arrival is
+  elected to refresh it and every other arrival is served the stored copy without
+  waiting. If the elected one abandons its request, the lease expires and the next
+  arrival retries, so the entry is never left unrepopulated while everyone waits
+  on it. Election goes through `KVStore.putIfAbsent` where the backend supports
+  it, and falls back to per-isolate exclusion where it does not.
+
+  The refresh runs in the requesting handler rather than behind the response,
+  because Hono discards a route response once the context is finalized — a refresh
+  scheduled after the middleware returns would re-store the stale body under a new
+  freshness stamp and produce an entry that looks refreshed and never changes.
+
+  **Concurrent cold misses on one key collapse onto one origin computation**
+  within the isolate.
+
+  Also fixes two defects in `@voyant-travel/db`'s Postgres runtime stores, both
+  found by running their integration tests for the first time:
+
+  - `expires_at` was bound as a `Date`, which the postgres.js adapter cannot
+    serialize through a raw `sql` template. Every TTL'd write threw, and the
+    response cache's best-effort catch swallowed it — so a deployment selecting
+    `cache: "postgres"` had a shared response cache that silently stored nothing.
+  - `createPostgresFixedWindowRateLimitStore` used the reserved word `window`
+    unquoted in an INSERT column list and conflict target, which Postgres rejects
+    outright. Its integration test never ran because the test fixture's DDL had
+    the same defect.
+
+  See ADR 0021 §4-5.
+
 ## 0.119.4
 
 ### Patch Changes
