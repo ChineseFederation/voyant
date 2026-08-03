@@ -214,9 +214,16 @@ export type BookingsUiCreateListMessages = {
       paymentModeAdvance: string
       paymentModeSplit: string
       paymentDueDate: string
+      /** Placeholder for the due-date picker while no date is chosen. */
+      paymentDueDatePlaceholder: string
       paymentAmount: string
       paymentFirstInstallment: string
       paymentSecondInstallment: string
+      /**
+       * Row heading for the third and later installments. `{index}` is the
+       * 1-based row number. The first two rows use their own ordinal entries.
+       */
+      paymentInstallmentN: string
       paymentPreset5050: string
       paymentUnpaidHint: string
       paymentTotalDue: string
@@ -224,6 +231,8 @@ export type BookingsUiCreateListMessages = {
       paymentRemaining: string
       paymentAlreadyPaid: string
       paymentDate: string
+      /** Placeholder for the payment-date picker while no date is chosen. */
+      paymentDatePlaceholder: string
       paymentMethod: string
       paymentReference: string
       documentGenerationHeading: string

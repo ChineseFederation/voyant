@@ -232,9 +232,17 @@ export type BookingsUiSectionsMessages = {
       modeAdvance: string
       modeSplit: string
       dueDate: string
+      /** Placeholder for the due-date picker while no date is chosen. */
+      dueDatePlaceholder: string
       amount: string
       firstInstallment: string
       secondInstallment: string
+      /**
+       * Row heading for the third and later installments. `{index}` is the
+       * 1-based row number. The first two rows use `firstInstallment` /
+       * `secondInstallment` so each locale can spell its own ordinal.
+       */
+      installmentN: string
       preset5050: string
       unpaidHint: string
       totalDue: string
@@ -242,6 +250,8 @@ export type BookingsUiSectionsMessages = {
       remaining: string
       alreadyPaid: string
       paymentDate: string
+      /** Placeholder for the payment-date picker while no date is chosen. */
+      paymentDatePlaceholder: string
       paymentMethod: string
       paymentReference: string
       /** Label for the "+" button below the split installments. */

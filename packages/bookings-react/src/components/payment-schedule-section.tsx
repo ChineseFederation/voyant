@@ -122,9 +122,12 @@ export interface PaymentScheduleSectionProps {
     modeAdvance?: string
     modeSplit?: string
     dueDate?: string
+    dueDatePlaceholder?: string
     amount?: string
     firstInstallment?: string
     secondInstallment?: string
+    /** Third and later rows. `{index}` is replaced with the 1-based row number. */
+    installmentN?: string
     preset5050?: string
     unpaidHint?: string
     totalDue?: string
@@ -132,6 +135,7 @@ export interface PaymentScheduleSectionProps {
     remaining?: string
     alreadyPaid?: string
     paymentDate?: string
+    paymentDatePlaceholder?: string
     paymentMethod?: string
     paymentReference?: string
     addInstallment?: string
@@ -182,6 +186,25 @@ function defaultDueDateForIndex(
   }
   const offset = Math.round((index * span) / (count - 1))
   return plusDaysIso(today, offset)
+}
+
+/**
+ * Heading for installment row `index` (0-based).
+ *
+ * Row labels come out of the message catalogue, never out of string
+ * surgery on another label: the first two rows have their own entries so
+ * each locale spells its own ordinal, and rows beyond that interpolate the
+ * number into a parameterised message. Substituting a digit into the
+ * first-installment string — the previous approach — left every Romanian
+ * row reading "Prima rata" and rendered English row 2 as "2 installment".
+ */
+function installmentLabel(
+  index: number,
+  labels: { firstInstallment: string; secondInstallment: string; installmentN: string },
+): string {
+  if (index === 0) return labels.firstInstallment
+  if (index === 1) return labels.secondInstallment
+  return labels.installmentN.replace("{index}", String(index + 1))
 }
 
 /**
@@ -324,6 +347,7 @@ export function PaymentScheduleSection({
               <Label className="text-xs">{merged.paymentDate}</Label>
               <DatePicker
                 value={installment.paymentDate ?? ""}
+                placeholder={merged.paymentDatePlaceholder}
                 onChange={(nextValue) => updateInstallment(idx, { paymentDate: nextValue })}
               />
             </div>
@@ -405,6 +429,7 @@ export function PaymentScheduleSection({
             <Label className="text-xs">{merged.dueDate}</Label>
             <DatePicker
               value={fullInstallment.dueDate ?? ""}
+              placeholder={merged.dueDatePlaceholder}
               onChange={(nextValue) => updateInstallment(0, { dueDate: nextValue })}
             />
           </div>
@@ -417,9 +442,7 @@ export function PaymentScheduleSection({
           {value.installments.map((installment, idx) => (
             <div key={installment.id} className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium">
-                  {merged.firstInstallment.replace(/\b1\b|first|primul|1st/i, String(idx + 1))}
-                </span>
+                <span className="text-xs font-medium">{installmentLabel(idx, merged)}</span>
                 {value.installments.length > 2 ? (
                   <Button
                     type="button"
@@ -441,6 +464,7 @@ export function PaymentScheduleSection({
                 />
                 <DatePicker
                   value={installment.dueDate ?? ""}
+                  placeholder={merged.dueDatePlaceholder}
                   onChange={(nextValue) => updateInstallment(idx, { dueDate: nextValue })}
                 />
               </div>
