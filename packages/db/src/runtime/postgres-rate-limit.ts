@@ -51,10 +51,16 @@ export function createPostgresFixedWindowRateLimitStore(
       const nowSeconds = Math.floor(now() / 1000)
       const window = Math.floor(nowSeconds / windowSeconds)
       const expiresAt = new Date((window + 1) * windowSeconds * 1000)
+      // Bound as ISO text: postgres.js cannot serialize a `Date` through a raw
+      // `sql` template, so binding the object threw on every call.
+      const expiresAtIso = expiresAt.toISOString()
+      // `window` is a reserved word: Postgres rejects it unquoted in a column
+      // list or a conflict target, so every statement here must quote it. The
+      // drizzle schema quotes identifiers for us; this raw SQL does not.
       const result = await db.execute<CounterRow>(sql`
-        INSERT INTO fixed_window_rate_limits (key, window, count, expires_at, updated_at)
-        VALUES (${key}, ${window}, 1, ${expiresAt}, now())
-        ON CONFLICT (key, window) DO UPDATE SET
+        INSERT INTO fixed_window_rate_limits (key, "window", count, expires_at, updated_at)
+        VALUES (${key}, ${window}, 1, ${expiresAtIso}, now())
+        ON CONFLICT (key, "window") DO UPDATE SET
           count = fixed_window_rate_limits.count + 1,
           expires_at = GREATEST(fixed_window_rate_limits.expires_at, excluded.expires_at),
           updated_at = now()

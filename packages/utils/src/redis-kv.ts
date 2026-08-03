@@ -30,6 +30,15 @@ function physicalKey(keyPrefix: string, key: string): string {
   return `${keyPrefix}${key}`
 }
 
+function expirySeconds(expirationTtl: number): number {
+  return Math.max(1, Math.ceil(expirationTtl))
+}
+
+/** Redis answers `OK` when a `SET` applied and a nil reply when `NX` rejected it. */
+function setApplied(reply: unknown): boolean {
+  return typeof reply === "string" && reply.toUpperCase() === "OK"
+}
+
 function logicalKey(keyPrefix: string, key: string): string | undefined {
   if (!keyPrefix) return key
   return key.startsWith(keyPrefix) ? key.slice(keyPrefix.length) : undefined
@@ -64,10 +73,29 @@ export function createRedisKvStore(redisUrl: string, options: RedisKvStoreOption
       const client = await lazyClient.get()
       const storedKey = physicalKey(keyPrefix, key)
       if (options?.expirationTtl !== undefined) {
-        await client.set(storedKey, value, { ex: Math.max(1, Math.ceil(options.expirationTtl)) })
+        await client.set(storedKey, value, { ex: expirySeconds(options.expirationTtl) })
         return
       }
       await client.set(storedKey, value)
+    },
+    async putIfAbsent(
+      key: string,
+      value: string,
+      options?: { expirationTtl?: number },
+    ): Promise<boolean> {
+      const client = await lazyClient.get()
+      const storedKey = physicalKey(keyPrefix, key)
+      // `SET key value NX [EX ttl]` decides presence and takes the slot in one
+      // command, so concurrent callers are excluded by Redis itself. An expired
+      // key no longer exists, so it is `NX`-absent and the next caller wins it.
+      const reply =
+        options?.expirationTtl === undefined
+          ? await client.set(storedKey, value, { nx: true })
+          : await client.set(storedKey, value, {
+              nx: true,
+              ex: expirySeconds(options.expirationTtl),
+            })
+      return setApplied(reply)
     },
     async delete(key: string): Promise<void> {
       const client = await lazyClient.get()

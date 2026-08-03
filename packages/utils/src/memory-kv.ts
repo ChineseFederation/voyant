@@ -53,6 +53,20 @@ export function createMemoryKvNamespace(options: MemoryKvOptions = {}): KvNamesp
     return entry.value
   }
 
+  function writeEntry(key: string, value: string, expirationTtl: number | undefined): void {
+    if (map.has(key)) map.delete(key)
+    const expiresAt =
+      expirationTtl === undefined ? Number.POSITIVE_INFINITY : now() + expirationTtl * 1000
+    map.set(key, { value, expiresAt })
+    if (maxEntries > 0) {
+      while (map.size > maxEntries) {
+        const oldest = map.keys().next().value
+        if (oldest === undefined) break
+        map.delete(oldest)
+      }
+    }
+  }
+
   async function get(
     key: string,
     typeOrOptions?: "json" | KvGetOptions,
@@ -66,19 +80,14 @@ export function createMemoryKvNamespace(options: MemoryKvOptions = {}): KvNamesp
   return {
     get: get as KvNamespaceShim["get"],
     async put(key: string, value: string, putOptions?: KvPutOptions): Promise<void> {
-      if (map.has(key)) map.delete(key)
-      const expiresAt =
-        putOptions?.expirationTtl === undefined
-          ? Number.POSITIVE_INFINITY
-          : now() + putOptions.expirationTtl * 1000
-      map.set(key, { value, expiresAt })
-      if (maxEntries > 0) {
-        while (map.size > maxEntries) {
-          const oldest = map.keys().next().value
-          if (oldest === undefined) break
-          map.delete(oldest)
-        }
-      }
+      writeEntry(key, value, putOptions?.expirationTtl)
+    },
+    async putIfAbsent(key: string, value: string, putOptions?: KvPutOptions): Promise<boolean> {
+      // Atomic by construction: a single-threaded isolate cannot interleave
+      // another caller between this read and the write, because neither awaits.
+      if (readFresh(key) !== null) return false
+      writeEntry(key, value, putOptions?.expirationTtl)
+      return true
     },
     async delete(key: string): Promise<void> {
       map.delete(key)

@@ -24,7 +24,7 @@ export function createTieredKvStore(
     expirationTtl: Math.min(putOptions?.expirationTtl ?? promotionTtl, promotionTtl),
   })
 
-  return {
+  const store: KVStore = {
     async get<T = string>(
       key: string,
       getOptions?: "json" | { type?: "json" | "text" },
@@ -51,4 +51,23 @@ export function createTieredKvStore(
       return l1.list ? l1.list(options) : { keys: [] }
     },
   }
+
+  // Election is only meaningful across processes, so it is L2's answer or none:
+  // L1 is per-process and would hand every process its own winner. When L2
+  // cannot decide it atomically the member stays absent, which degrades callers
+  // to no coalescing rather than to a false election.
+  const electInL2 = l2.putIfAbsent?.bind(l2)
+  if (electInL2) {
+    store.putIfAbsent = async (
+      key: string,
+      value: string,
+      putOptions?: { expirationTtl?: number },
+    ): Promise<boolean> => {
+      const won = await electInL2(key, value, putOptions)
+      if (won) await l1.put(key, value, l1PutOptions(putOptions)).catch(() => {})
+      return won
+    }
+  }
+
+  return store
 }

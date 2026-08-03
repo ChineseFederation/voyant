@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import {
   publicResponseCache,
@@ -45,8 +45,17 @@ function buildApp(kv: ReturnType<typeof fakeKv> | undefined, handler: () => Resp
   }
 }
 
+/** Cache writes are scheduled, not awaited — let them settle before asserting. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 afterEach(() => {
   resetPublicCacheStateForTests()
+  vi.useRealTimers()
+})
+
+beforeEach(() => {
+  // Freshness is evaluated against the wall clock, so the suite drives it.
+  vi.useFakeTimers({ shouldAdvanceTime: true })
 })
 
 describe("publicResponseCache (KV fallback — no Cache API in the test runtime)", () => {
@@ -84,6 +93,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     await app.request("/v1/public/products")
 
     expect(handler).toHaveBeenCalledTimes(2)
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -99,6 +109,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -117,6 +128,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -132,6 +144,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/admin/products")
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -150,6 +163,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const env = { DATABASE_URL: "x", CACHE: kv }
 
     await app.request("/v1/public/search", { method: "POST" }, testEnv(env))
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -183,6 +197,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
 
     await app.request("/v1/public/products")
 
+    await flush()
     expect(kv.put).toHaveBeenCalledOnce()
     const options = kv.put.mock.calls[0]?.[2]
     expect(options?.expirationTtl).toBe(60)
@@ -245,6 +260,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     expect(await b2b.json()).toEqual({ channel: "pk_b2b" })
     expect(handler).toHaveBeenCalledTimes(2)
     expect(b2b.headers.get("x-voyant-cache")).toBeNull()
+    await flush()
     expect(kv.store.size).toBe(2)
 
     // ...and each key still serves its own entry on a repeat request.
@@ -271,6 +287,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
 
     await app.request("/v1/public/products", { headers: { "x-api-key": "pk_secret_value" } })
 
+    await flush()
     expect(kv.put).toHaveBeenCalledOnce()
     expect(kv.put.mock.calls[0]?.[0]).not.toContain("pk_secret_value")
   })
@@ -290,6 +307,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -308,6 +326,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).toHaveBeenCalledOnce()
   })
 
@@ -323,6 +342,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     const app = buildApp(kv, handler)
 
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).not.toHaveBeenCalled()
   })
 
@@ -339,6 +359,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
 
     // Populate from an anonymous request first, so a read would have hit.
     await app.request("/v1/public/products")
+    await flush()
     expect(kv.put).toHaveBeenCalledOnce()
 
     const authed = await app.request("/v1/public/products", {
@@ -347,6 +368,7 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
 
     expect(handler).toHaveBeenCalledTimes(2)
     expect(authed.headers.get("x-voyant-cache")).toBeNull()
+    await flush()
     expect(kv.put).toHaveBeenCalledOnce()
   })
 
@@ -367,6 +389,211 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
 
     // One lookup, no second round trip to resolve the variant.
     expect(kv.get).toHaveBeenCalledOnce()
+  })
+
+  it("serves a stale entry immediately and refreshes it in the background", async () => {
+    const kv = fakeKv()
+    let version = 1
+    const handler = vi.fn(
+      () =>
+        new Response(JSON.stringify({ version: version++ }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    await flush()
+    expect(handler).toHaveBeenCalledTimes(1)
+
+    // Past s-maxage, inside the stale-while-revalidate window.
+    vi.setSystemTime(Date.now() + 61_000)
+
+    // Two arrivals inside the stale window. One is elected to refresh; the
+    // other is served the stored copy without waiting for it.
+    let releaseRefresh: (() => void) | undefined
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve
+    })
+    const slowHandler = vi.fn(async () => {
+      await refreshGate
+      return new Response(JSON.stringify({ version: version++ }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      })
+    })
+    const refreshingApp = buildApp(kv, slowHandler)
+
+    const refresher = refreshingApp.request("/v1/public/products")
+    const served = await refreshingApp.request("/v1/public/products")
+
+    // Served while the refresh is still blocked on the gate.
+    expect(served.headers.get("x-voyant-cache")).toBe("stale")
+    expect(await served.json()).toEqual({ version: 1 })
+    expect(slowHandler).toHaveBeenCalledTimes(1)
+
+    releaseRefresh?.()
+    const refreshed = await refresher
+    expect(await refreshed.json()).toEqual({ version: 2 })
+
+    await flush()
+    const afterRefresh = await refreshingApp.request("/v1/public/products")
+    expect(afterRefresh.headers.get("x-voyant-cache")).toBe("hit")
+    expect(await afterRefresh.json()).toEqual({ version: 2 })
+    expect(slowHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it("treats an entry past s-maxage + stale-while-revalidate as a miss", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=30" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    await flush()
+
+    vi.setSystemTime(Date.now() + 91_000)
+
+    const miss = await app.request("/v1/public/products")
+    expect(miss.headers.get("x-voyant-cache")).toBeNull()
+    expect(handler).toHaveBeenCalledTimes(2)
+  })
+
+  it("honours the declared s-maxage even though the backend TTL is floored at 60s", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=30" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    await flush()
+    // The row lives 60s because the KV floor says so...
+    expect(kv.put.mock.calls[0]?.[2]?.expirationTtl).toBe(60)
+
+    // ...but the entry stops being fresh at the declared 30s, and with no
+    // stale-while-revalidate declared it is not servable at all after that.
+    vi.setSystemTime(Date.now() + 31_000)
+    const after = await app.request("/v1/public/products")
+    expect(after.headers.get("x-voyant-cache")).toBeNull()
+    expect(handler).toHaveBeenCalledTimes(2)
+  })
+
+  it("collapses concurrent misses on one key onto a single origin computation", async () => {
+    const kv = fakeKv()
+    let release: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const handler = vi.fn(async () => {
+      await gate
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "public, s-maxage=60",
+        },
+      })
+    })
+    const app = buildApp(kv, handler)
+
+    const all = Promise.all([
+      app.request("/v1/public/products"),
+      app.request("/v1/public/products"),
+      app.request("/v1/public/products"),
+    ])
+    release?.()
+    const responses = await all
+
+    expect(handler).toHaveBeenCalledTimes(1)
+    for (const response of responses) {
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({ ok: true })
+    }
+  })
+
+  it("elects a single revalidator through the backend when it can exclude", async () => {
+    const kv = fakeKv()
+    const putIfAbsent = vi.fn(async (key: string, value: string) => {
+      if (kv.store.has(key)) return false
+      kv.store.set(key, { value })
+      return true
+    })
+    const kvWithElection = Object.assign(kv, { putIfAbsent })
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" },
+        }),
+    )
+    const app = buildApp(kvWithElection, handler)
+
+    await app.request("/v1/public/products")
+    await flush()
+    vi.setSystemTime(Date.now() + 61_000)
+
+    // Another process already holds the revalidation lease. This arrival must
+    // lose the election, serve stale, and not touch the origin.
+    const leaseKey = [...kv.store.keys()].find((name) => name.startsWith("respcache:"))
+    kv.store.set(`${leaseKey}:revalidating`, { value: "1" })
+
+    const served = await app.request("/v1/public/products")
+    await flush()
+
+    expect(served.headers.get("x-voyant-cache")).toBe("stale")
+    expect(putIfAbsent).toHaveBeenCalledOnce()
+    expect(putIfAbsent.mock.results[0]?.value).resolves.toBe(false)
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it("refreshes the entry when it wins the revalidation lease", async () => {
+    const kv = fakeKv()
+    const putIfAbsent = vi.fn(async (key: string, value: string) => {
+      if (kv.store.has(key)) return false
+      kv.store.set(key, { value })
+      return true
+    })
+    const kvWithElection = Object.assign(kv, { putIfAbsent })
+    let version = 1
+    const handler = vi.fn(
+      () =>
+        new Response(JSON.stringify({ version: version++ }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+          },
+        }),
+    )
+    const app = buildApp(kvWithElection, handler)
+
+    await app.request("/v1/public/products")
+    await flush()
+    vi.setSystemTime(Date.now() + 61_000)
+
+    const refreshed = await app.request("/v1/public/products")
+    await flush()
+
+    expect(putIfAbsent).toHaveBeenCalledOnce()
+    expect(await refreshed.json()).toEqual({ version: 2 })
+    expect(handler).toHaveBeenCalledTimes(2)
   })
 
   it("is a transparent no-op when neither Cache API nor KV is available", async () => {

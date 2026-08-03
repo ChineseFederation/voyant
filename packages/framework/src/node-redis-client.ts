@@ -41,11 +41,22 @@ function adaptNodeRedisClient(client: NodeRedisClient): RedisClient {
     async get<T = unknown>(key: string): Promise<T | null> {
       return (await client.get(key)) as T | null
     },
-    async set(key: string, value: string, options?: { ex?: number }): Promise<unknown> {
-      if (options?.ex !== undefined) {
-        return client.set(key, value, { expiration: { type: "EX", value: options.ex } })
+    async set(
+      key: string,
+      value: string,
+      options?: { ex?: number; nx?: boolean },
+    ): Promise<unknown> {
+      // `nx` must reach the server as the SET NX condition. Dropping it would
+      // turn a conditional write into an unconditional one that always reports
+      // success, which silently breaks `putIfAbsent` callers.
+      const setOptions = {
+        ...(options?.ex !== undefined
+          ? { expiration: { type: "EX" as const, value: options.ex } }
+          : {}),
+        ...(options?.nx === true ? { condition: "NX" as const } : {}),
       }
-      return client.set(key, value)
+      if (Object.keys(setOptions).length === 0) return client.set(key, value)
+      return client.set(key, value, setOptions)
     },
     async del(key: string): Promise<unknown> {
       return client.del(key)

@@ -8,7 +8,11 @@ interface RedisModule {
 
 export interface RedisClient {
   get<T = unknown>(key: string): Promise<T | null>
-  set(key: string, value: string, options?: { ex?: number }): Promise<unknown>
+  /**
+   * `SET key value [EX ex] [NX]`. With `nx`, resolves to the `OK` reply only
+   * when the write happened, and to a nil reply when the key already existed.
+   */
+  set(key: string, value: string, options?: { ex?: number; nx?: boolean }): Promise<unknown>
   del(key: string): Promise<unknown>
   scan?(
     cursor: number,

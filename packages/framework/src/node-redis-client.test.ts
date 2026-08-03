@@ -95,6 +95,30 @@ describe("createLazyNodeRedisTcpClient", () => {
     expect(redisClients[0]!.expire).toHaveBeenCalledWith("counter", 60)
   })
 
+  it("sends nx as the SET NX condition so putIfAbsent can exclude", async () => {
+    const lazyClient = await createTcpClient()
+    const client = await lazyClient.get()
+
+    await client.set("lock", "value", { nx: true, ex: 30 })
+    await client.set("lock", "value", { nx: true })
+
+    expect(redisClients[0]!.set).toHaveBeenNthCalledWith(1, "lock", "value", {
+      expiration: { type: "EX", value: 30 },
+      condition: "NX",
+    })
+    expect(redisClients[0]!.set).toHaveBeenNthCalledWith(2, "lock", "value", {
+      condition: "NX",
+    })
+  })
+
+  it("relays the nil SET NX reply that means another holder won", async () => {
+    const lazyClient = await createTcpClient()
+    const client = await lazyClient.get()
+    redisClients[0]!.set.mockResolvedValueOnce(null)
+
+    await expect(client.set("lock", "value", { nx: true })).resolves.toBeNull()
+  })
+
   it("normalizes tuple SCAN replies from compatible clients", async () => {
     const lazyClient = await createTcpClient()
     const client = await lazyClient.get()

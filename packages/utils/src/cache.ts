@@ -22,6 +22,14 @@ export interface KVStore {
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>
   delete(key: string): Promise<void>
   list?(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }>
+  /**
+   * Store `value` only if `key` is absent (or expired). Returns true when this
+   * caller performed the write, false when another holder already had it.
+   *
+   * Optional: a store that cannot do this atomically must omit it entirely
+   * rather than emulating it with get-then-put, which does not exclude.
+   */
+  putIfAbsent?(key: string, value: string, options?: { expirationTtl?: number }): Promise<boolean>
 }
 
 /**
