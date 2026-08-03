@@ -4426,7 +4426,7 @@ function validatePaymentProviderSelection(
         facet: "deployment.providers.payments",
         message:
           "Payment-capable graphs must explicitly select one active deployment.providers.payments adapter.",
-        hint: 'Set deployment.providers.payments to "voyant-pay", "netopia", or "custom"; environment variables never select a payment processor.',
+        hint: 'Set deployment.providers.payments to "managed", "voyant-pay", or "custom"; environment variables never select a payment processor. A specific processor is chosen as catalog data, not here.',
       }),
     ]
   }

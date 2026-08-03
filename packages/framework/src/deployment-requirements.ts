@@ -304,14 +304,6 @@ function envForProvider(
         variable("VOYANT_PAYMENTS_API_URL", "Optional Voyant Pay API base URL.", false, "http-url"),
       ]
     }
-    if (provider === "netopia") {
-      return [
-        variable("NETOPIA_MERCHANT_ID", "Netopia merchant id."),
-        secret("NETOPIA_PRIVATE_KEY", "Netopia private key used to initiate payments."),
-        secret("NETOPIA_PUBLIC_KEY", "Netopia public key used to verify signed callbacks."),
-        variable("NETOPIA_SANDBOX", "Set to true for Netopia sandbox mode.", false),
-      ]
-    }
   }
   return []
 }

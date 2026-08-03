@@ -53,6 +53,12 @@ export interface VoyantDeploymentProviders {
     | "voyant-pay"
     /** @deprecated Legacy deployment value; normalized to `voyant-pay`. */
     | "voyant-payments"
+    /**
+     * @deprecated A processor is chosen as catalog data, not as a deployment
+     * provider. Managed deployments bind one generic remote adapter and the
+     * control plane resolves the connected processor; self-hosted deployments
+     * use `custom`. Retained only while a live deployment still selects it.
+     */
     | "netopia"
     | "custom"
     | "none"
