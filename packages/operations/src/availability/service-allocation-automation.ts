@@ -202,32 +202,43 @@ export async function autoAllocateSlotResources(
   options: AllocationMutationOptions = {},
 ): Promise<AllocationAutomationResult> {
   const kind = input.kind ?? "room"
-  const manifest = await getSlotAllocationManifest(db, slotId)
-  if (!manifest) throw new AllocationServiceError("Availability slot not found", 404)
 
-  const resources = manifest.resources.filter((resource) => resource.kind === kind)
-  if (resources.length === 0) {
-    throw new AllocationServiceError("No resources for this allocation kind", 400, { kind })
-  }
+  // The capacity invariant lives in the *decision*, not in the write, so the
+  // manifest read, the plan and the upsert all sit inside one transaction
+  // behind the same `FOR UPDATE` over the slot's resources of this kind.
+  // Planning from a snapshot taken before the lock let a manual assignment
+  // (or a second auto-allocate) land in between; the plan was then applied
+  // verbatim and could push a resource past its capacity with no conflict
+  // raised. Serialising the writes alone never serialised the decision.
+  const plan = await db.transaction(async (tx) => {
+    const scoped = tx as PostgresJsDatabase
 
-  const travelers = toAllocatorTravelers(manifest, kind)
-  const allocatorResources = resources.map(toAllocatorResource)
-  const plan =
-    kind === "vehicle_seat"
-      ? planVehicleSeatAllocation(travelers, allocatorResources)
-      : planRoomAllocation(travelers, allocatorResources)
+    await scoped.execute(sql`
+      SELECT id
+      FROM allocation_resources
+      WHERE slot_id = ${slotId} AND kind = ${kind}
+      FOR UPDATE
+    `)
 
-  if (plan.assignments.length > 0) {
-    const travelerIds = plan.assignments.map((assignment) => assignment.travelerId)
-    const resourceIds = plan.assignments.map((assignment) => assignment.resourceId)
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`
-        SELECT id
-        FROM allocation_resources
-        WHERE slot_id = ${slotId} AND kind = ${kind}
-        FOR UPDATE
-      `)
-      await tx.execute(sql`
+    const manifest = await getSlotAllocationManifest(scoped, slotId)
+    if (!manifest) throw new AllocationServiceError("Availability slot not found", 404)
+
+    const resources = manifest.resources.filter((resource) => resource.kind === kind)
+    if (resources.length === 0) {
+      throw new AllocationServiceError("No resources for this allocation kind", 400, { kind })
+    }
+
+    const travelers = toAllocatorTravelers(manifest, kind)
+    const allocatorResources = resources.map(toAllocatorResource)
+    const planned =
+      kind === "vehicle_seat"
+        ? planVehicleSeatAllocation(travelers, allocatorResources)
+        : planRoomAllocation(travelers, allocatorResources)
+
+    if (planned.assignments.length > 0) {
+      const travelerIds = planned.assignments.map((assignment) => assignment.travelerId)
+      const resourceIds = planned.assignments.map((assignment) => assignment.resourceId)
+      await scoped.execute(sql`
         INSERT INTO booking_traveler_travel_details (traveler_id, allocations)
         SELECT
           row.traveler_id,
@@ -239,8 +250,11 @@ export async function autoAllocateSlotResources(
             || EXCLUDED.allocations,
           updated_at = now()
       `)
-    })
-  }
+      await assertPlannedResourcesWithinCapacity(scoped, slotId, kind, resourceIds)
+    }
+
+    return planned
+  })
 
   await recordAllocationAudit(db, {
     slotId,
@@ -250,6 +264,62 @@ export async function autoAllocateSlotResources(
   })
 
   return { kind, assigned: plan.assignments.length, skipped: plan.skipped }
+}
+
+/**
+ * Post-write invariant check for the resources an auto-allocate plan
+ * touched. Re-planning under the lock already keeps the plan inside
+ * capacity, so this is a backstop against an allocator regression rather
+ * than the primary guard -- it runs inside the writing transaction, so a
+ * violation rolls the whole plan back instead of shipping an oversold slot.
+ * One aggregate query over the planned resources only: an unrelated
+ * resource that was already over capacity must not block the operator.
+ */
+async function assertPlannedResourcesWithinCapacity(
+  db: PostgresJsDatabase,
+  slotId: string,
+  kind: string,
+  resourceIds: string[],
+): Promise<void> {
+  const overflowing = await executeRows<{
+    id: string
+    label: string | null
+    capacity: number
+    assigned: number
+  }>(
+    db,
+    sql`
+      SELECT ar.id, ar.label, ar.capacity, usage.assigned
+      FROM allocation_resources ar
+      JOIN LATERAL (
+        SELECT COUNT(DISTINCT btd.traveler_id)::int AS assigned
+        FROM booking_traveler_travel_details btd
+        JOIN booking_travelers bt ON bt.id = btd.traveler_id
+        JOIN booking_allocations ba ON ba.booking_id = bt.booking_id
+        JOIN bookings b ON b.id = bt.booking_id
+        WHERE btd.allocations ->> ar.kind = ar.id
+          AND ba.availability_slot_id = ar.slot_id
+          AND b.status IN (${activeBookingStatusesForSlotSql()})
+          AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      ) usage ON true
+      WHERE ar.slot_id = ${slotId}
+        AND ar.kind = ${kind}
+        AND ar.id = ANY(${sqlTextArray([...new Set(resourceIds)])})
+        AND usage.assigned > ar.capacity
+    `,
+  )
+
+  if (overflowing.length === 0) return
+
+  throw new AllocationServiceError("Resource over capacity", 409, {
+    kind,
+    resources: overflowing.map((resource) => ({
+      id: resource.id,
+      label: resource.label,
+      capacity: resource.capacity,
+      assigned: resource.assigned,
+    })),
+  })
 }
 
 export interface MaterializeSlotResourcesFromTemplatesOptions {

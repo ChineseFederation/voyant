@@ -11,7 +11,6 @@ function bookingRow(overrides: Partial<BookingRow> = {}): BookingRow {
     booking_number: "B-001",
     status: "confirmed",
     created_at: "2026-05-22T08:00:00.000Z",
-    paid_at: null,
     contact_first_name: null,
     contact_last_name: null,
     contact_email: null,
@@ -32,22 +31,10 @@ describe("derivePaymentStatus", () => {
     expect(derivePaymentStatus(bookingRow({ sell_amount_cents: null }))).toBe("paid")
   })
 
-  it("prefers bookings.paid_at over invoice math (issue #1079, scenario 1)", () => {
-    // Operator confirmed and marked the booking paid via schedules; never
-    // issued an invoice — paid_at is set, invoice_total stays 0.
-    const row = bookingRow({
-      paid_at: "2026-05-22T09:00:00.000Z",
-      invoice_total_cents: 0,
-      invoice_paid_cents: 0,
-      schedules_paid_cents: 0,
-    })
-    expect(derivePaymentStatus(row)).toBe("paid")
-  })
-
   it("falls back to paid schedules when invoices are missing (issue #1079, scenario 2)", () => {
-    // Same flow but paid_at wasn't set; the schedule sum equals sell amount.
+    // Operator billed via schedules and never issued an invoice; the
+    // schedule sum equals the sell amount.
     const row = bookingRow({
-      paid_at: null,
       sell_amount_cents: 10_000,
       schedules_paid_cents: 10_000,
       invoice_total_cents: 0,
@@ -90,7 +77,6 @@ describe("derivePaymentStatus", () => {
       invoice_total_cents: 0,
       invoice_paid_cents: 0,
       schedules_paid_cents: 0,
-      paid_at: null,
     })
     expect(derivePaymentStatus(row)).toBe("unpaid")
   })
@@ -103,15 +89,15 @@ describe("derivePaymentStatus", () => {
     expect(derivePaymentStatus(row)).toBe("paid")
   })
 
-  it("returns paid when paid_at is set even with no invoice/schedule data", () => {
-    // Confirmation flow where the operator marks paid manually without
-    // issuing an invoice or recording the schedule rollup.
+  // `bookings.paid_at` used to short-circuit this to "paid" as an operator
+  // override. The v1 commitment lifecycle (#4100) dropped the column, so a
+  // booking with no invoice and no schedule rollup now reads as unpaid.
+  it("reads unpaid when no invoice or schedule settlement is recorded", () => {
     const row = bookingRow({
-      paid_at: "2026-05-22T10:00:00.000Z",
       invoice_total_cents: 0,
       invoice_paid_cents: 0,
       schedules_paid_cents: 0,
     })
-    expect(derivePaymentStatus(row)).toBe("paid")
+    expect(derivePaymentStatus(row)).toBe("unpaid")
   })
 })

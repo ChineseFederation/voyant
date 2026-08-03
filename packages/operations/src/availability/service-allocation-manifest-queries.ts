@@ -9,7 +9,6 @@ export interface BookingRow {
   booking_number: string
   status: string
   created_at: string | Date | null
-  paid_at: string | Date | null
   contact_first_name: string | null
   contact_last_name: string | null
   contact_email: string | null
@@ -29,26 +28,26 @@ export type AllocationPaymentStatus = "paid" | "partial" | "unpaid"
  * status for the allocation chip's color coding. Signals checked in order:
  *
  *   1. Free booking (`sell_amount_cents <= 0`) -> `paid` (nothing owed).
- *   2. `bookings.paid_at` is set -> `paid` (operator marked the booking
- *      settled; this is authoritative regardless of invoice plumbing).
- *   3. Sum of `booking_payment_schedules.amount_cents WHERE status='paid'`
+ *   2. Sum of `booking_payment_schedules.amount_cents WHERE status='paid'`
  *      covers `sell_amount_cents` -> `paid` (deposit-milestone flows that
  *      never run a final invoice).
- *   4. That schedule sum is positive -> `partial`.
- *   5. No invoices issued (`invoice_total_cents = 0`) -> `unpaid`.
- *   6. `invoice_paid_cents <= 0` -> `unpaid`.
- *   7. `invoice_paid_cents >= invoice_total_cents` -> `paid`.
- *   8. Otherwise -> `partial`.
+ *   3. That schedule sum is positive -> `partial`.
+ *   4. No invoices issued (`invoice_total_cents = 0`) -> `unpaid`.
+ *   5. `invoice_paid_cents <= 0` -> `unpaid`.
+ *   6. `invoice_paid_cents >= invoice_total_cents` -> `paid`.
+ *   7. Otherwise -> `partial`.
  *
- * The schedule and `paid_at` checks were added because the invoice-only
- * rule mis-colored booked-and-settled trips as red whenever the operator
- * billed via schedules without issuing an invoice, or recorded settlement
- * on the schedule rather than a `payments` row (issue #1079).
+ * The schedule check was added because the invoice-only rule mis-colored
+ * booked-and-settled trips as red whenever the operator billed via
+ * schedules without issuing an invoice (issue #1079). That rule also
+ * consulted `bookings.paid_at` as an operator override; the v1 commitment
+ * lifecycle (#4100) dropped the column outright -- it was folded into
+ * `accepted_at`/`confirmed_at`, not into a settlement signal -- so
+ * settlement is now read from schedules and invoices only.
  */
 export function derivePaymentStatus(row: BookingRow): AllocationPaymentStatus {
   const sellAmount = row.sell_amount_cents ?? 0
   if (sellAmount <= 0) return "paid"
-  if (row.paid_at != null) return "paid"
 
   const schedulesPaid = row.schedules_paid_cents ?? 0
   if (schedulesPaid >= sellAmount) return "paid"
@@ -64,19 +63,16 @@ export function derivePaymentStatus(row: BookingRow): AllocationPaymentStatus {
 /**
  * Settled-amount counterpart to `derivePaymentStatus`. Returns the best
  * available signal of how much has actually been collected for the
- * booking -- the larger of schedule and invoice settlement, plus the full
- * sell amount when the operator has flagged `paid_at` (since that's an
- * explicit override). Capped at `sell_amount_cents` so partial-overpay
- * scenarios don't distort slot totals.
+ * booking -- the larger of schedule and invoice settlement. Capped at
+ * `sell_amount_cents` so partial-overpay scenarios don't distort slot
+ * totals.
  */
 export function derivePaidAmountCents(row: BookingRow): number {
   const sellAmount = row.sell_amount_cents ?? 0
   if (sellAmount <= 0) return 0
-  const explicit = row.paid_at != null ? sellAmount : 0
   const schedulesPaid = row.schedules_paid_cents ?? 0
   const invoicePaid = row.invoice_paid_cents ?? 0
-  const observed = Math.max(explicit, schedulesPaid, invoicePaid)
-  return Math.min(observed, sellAmount)
+  return Math.min(Math.max(schedulesPaid, invoicePaid), sellAmount)
 }
 
 interface TravelerRow {
@@ -152,7 +148,6 @@ async function loadSlotBookingRowsBothJoins(
       b.booking_number,
       b.status,
       b.created_at,
-      b.paid_at,
       b.contact_first_name,
       b.contact_last_name,
       b.contact_email,
@@ -202,7 +197,6 @@ async function loadSlotBookingRowsInvoicesOnly(
       b.booking_number,
       b.status,
       b.created_at,
-      b.paid_at,
       b.contact_first_name,
       b.contact_last_name,
       b.contact_email,
@@ -244,7 +238,6 @@ async function loadSlotBookingRowsSchedulesOnly(
       b.booking_number,
       b.status,
       b.created_at,
-      b.paid_at,
       b.contact_first_name,
       b.contact_last_name,
       b.contact_email,
@@ -287,7 +280,6 @@ async function loadSlotBookingRowsBare(
       b.booking_number,
       b.status,
       b.created_at,
-      b.paid_at,
       b.contact_first_name,
       b.contact_last_name,
       b.contact_email,
