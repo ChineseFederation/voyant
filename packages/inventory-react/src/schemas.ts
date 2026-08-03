@@ -310,6 +310,32 @@ export const productVersionRecordSchema = z.object({
 
 export type ProductVersionRecord = z.infer<typeof productVersionRecordSchema>
 
+/**
+ * Publish readiness as returned by `GET /products/{id}/readiness`. `code` is a
+ * stable identifier the UI translates; `message`/`fix` are English fallbacks
+ * for consumers with no message catalogue and are not rendered by this package.
+ */
+export const productReadinessIssueSchema = z.object({
+  code: z.string(),
+  severity: z.enum(["blocking", "warning"]),
+  field: z.string(),
+  message: z.string(),
+  fix: z.string(),
+})
+
+export type ProductReadinessIssueRecord = z.infer<typeof productReadinessIssueSchema>
+
+export const productReadinessSchema = z.object({
+  ready: z.boolean(),
+  blocking: z.array(productReadinessIssueSchema),
+  warnings: z.array(productReadinessIssueSchema),
+  issues: z.array(productReadinessIssueSchema),
+})
+
+export type ProductReadinessRecord = z.infer<typeof productReadinessSchema>
+
+export const productReadinessResponse = singleEnvelope(productReadinessSchema)
+
 export const productMediaRecordSchema = z.object({
   id: z.string(),
   productId: z.string(),

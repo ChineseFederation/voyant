@@ -48,6 +48,80 @@ async function recalculateProductCost(db: PostgresJsDatabase, productId: string)
   return { costAmountCents, marginPercent }
 }
 
+/**
+ * The frozen shape a Product Version stores: the product row plus the options,
+ * units, itineraries, days and day-services needed to reproduce what was sold.
+ * Building it is separate from persisting it so the publish path can compare a
+ * candidate against the previous version before deciding to write one.
+ */
+async function buildProductVersionSnapshot(db: PostgresJsDatabase, productId: string) {
+  const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
+
+  if (!product) {
+    return null
+  }
+
+  const itineraries = await db
+    .select()
+    .from(productItineraries)
+    .where(eq(productItineraries.productId, productId))
+    .orderBy(desc(productItineraries.isDefault), asc(productItineraries.sortOrder))
+
+  const defaultItinerary = itineraries.find((itinerary) => itinerary.isDefault) ?? null
+
+  const options = await db
+    .select()
+    .from(productOptions)
+    .where(eq(productOptions.productId, productId))
+    .orderBy(asc(productOptions.sortOrder), asc(productOptions.createdAt))
+
+  const optionsWithUnits = await Promise.all(
+    options.map(async (option) => {
+      const units = await db
+        .select()
+        .from(optionUnits)
+        .where(eq(optionUnits.optionId, option.id))
+        .orderBy(asc(optionUnits.sortOrder), asc(optionUnits.createdAt))
+
+      return { ...option, units }
+    }),
+  )
+
+  const itinerariesWithDays = await Promise.all(
+    itineraries.map(async (itinerary) => {
+      const days = await db
+        .select()
+        .from(productDays)
+        .where(eq(productDays.itineraryId, itinerary.id))
+        .orderBy(asc(productDays.dayNumber))
+
+      const daysWithServices = await Promise.all(
+        days.map(async (day) => {
+          const services = await db
+            .select()
+            .from(productDayServices)
+            .where(eq(productDayServices.dayId, day.id))
+            .orderBy(asc(productDayServices.sortOrder))
+
+          return { ...day, services }
+        }),
+      )
+
+      return { ...itinerary, days: daysWithServices }
+    }),
+  )
+
+  const defaultDays =
+    itinerariesWithDays.find((itinerary) => itinerary.id === defaultItinerary?.id)?.days ?? []
+
+  return {
+    ...product,
+    options: optionsWithUnits,
+    itineraries: itinerariesWithDays,
+    days: defaultDays,
+  }
+}
+
 export const itineraryHistoryProductsService = {
   listVersions(db: PostgresJsDatabase, productId: string) {
     return db
@@ -57,70 +131,27 @@ export const itineraryHistoryProductsService = {
       .orderBy(desc(productVersions.versionNumber))
   },
 
+  /**
+   * Build the version snapshot for a product without persisting it. Split out
+   * of `createVersion` so the publish path (#4030) can compare a candidate
+   * snapshot against the previous one and decline to mint a duplicate version,
+   * instead of writing one and deleting it again.
+   *
+   * Returns `null` when the product does not exist.
+   */
+  buildSnapshot: buildProductVersionSnapshot,
+
   async createVersion(
     db: PostgresJsDatabase,
     productId: string,
     userId: string,
     data: CreateVersionInput,
   ) {
-    const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1)
+    const snapshot = await buildProductVersionSnapshot(db, productId)
 
-    if (!product) {
+    if (!snapshot) {
       return null
     }
-
-    const itineraries = await db
-      .select()
-      .from(productItineraries)
-      .where(eq(productItineraries.productId, productId))
-      .orderBy(desc(productItineraries.isDefault), asc(productItineraries.sortOrder))
-
-    const defaultItinerary = itineraries.find((itinerary) => itinerary.isDefault) ?? null
-
-    const options = await db
-      .select()
-      .from(productOptions)
-      .where(eq(productOptions.productId, productId))
-      .orderBy(asc(productOptions.sortOrder), asc(productOptions.createdAt))
-
-    const optionsWithUnits = await Promise.all(
-      options.map(async (option) => {
-        const units = await db
-          .select()
-          .from(optionUnits)
-          .where(eq(optionUnits.optionId, option.id))
-          .orderBy(asc(optionUnits.sortOrder), asc(optionUnits.createdAt))
-
-        return { ...option, units }
-      }),
-    )
-
-    const itinerariesWithDays = await Promise.all(
-      itineraries.map(async (itinerary) => {
-        const days = await db
-          .select()
-          .from(productDays)
-          .where(eq(productDays.itineraryId, itinerary.id))
-          .orderBy(asc(productDays.dayNumber))
-
-        const daysWithServices = await Promise.all(
-          days.map(async (day) => {
-            const services = await db
-              .select()
-              .from(productDayServices)
-              .where(eq(productDayServices.dayId, day.id))
-              .orderBy(asc(productDayServices.sortOrder))
-
-            return { ...day, services }
-          }),
-        )
-
-        return { ...itinerary, days: daysWithServices }
-      }),
-    )
-
-    const defaultDays =
-      itinerariesWithDays.find((itinerary) => itinerary.id === defaultItinerary?.id)?.days ?? []
 
     const [maxVersion] = await db
       .select({ max: sql<number>`coalesce(max(${productVersions.versionNumber}), 0)` })
@@ -132,12 +163,7 @@ export const itineraryHistoryProductsService = {
       .values({
         productId,
         versionNumber: (maxVersion?.max ?? 0) + 1,
-        snapshot: {
-          ...product,
-          options: optionsWithUnits,
-          itineraries: itinerariesWithDays,
-          days: defaultDays,
-        },
+        snapshot,
         authorId: userId,
         notes: data.notes,
       })

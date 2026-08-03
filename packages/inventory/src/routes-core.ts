@@ -19,7 +19,7 @@ import {
   aggregateSnapshotKey,
   readThroughAggregateSnapshot,
 } from "@voyant-travel/db/aggregate-snapshots"
-import { openApiValidationHook } from "@voyant-travel/hono"
+import { openApiValidationHook, requireUserId } from "@voyant-travel/hono"
 import { listResponseSchema } from "@voyant-travel/types"
 
 import {
@@ -32,6 +32,8 @@ import { emitProductContentChanged } from "./events.js"
 import type { Env } from "./route-env.js"
 import { productsService } from "./service.js"
 import { ProductPublishReadinessError } from "./service-core.js"
+import { getProductReadiness } from "./service-readiness.js"
+import { ensureProductVersionOnPublish } from "./service-versioning.js"
 import * as validation from "./validation.js"
 
 const DASHBOARD_AGGREGATES_CACHE_CONTROL = "private, max-age=30"
@@ -50,12 +52,24 @@ function cacheDashboardAggregates(c: {
 const errorResponseSchema = z.object({ error: z.string() })
 const readinessIssueSchema = z.object({
   code: z.string(),
+  /**
+   * Added additively in #4030. Consumers that predate it keep working because
+   * they only read `code`/`field`/`message`/`fix`; the publish error only ever
+   * carries `blocking` issues.
+   */
+  severity: z.enum(["blocking", "warning"]),
   field: z.string(),
   message: z.string(),
   fix: z.string(),
 })
 const readinessErrorResponseSchema = z.object({
   error: z.literal("product_not_ready_to_publish"),
+  issues: z.array(readinessIssueSchema),
+})
+const readinessSchema = z.object({
+  ready: z.boolean(),
+  blocking: z.array(readinessIssueSchema),
+  warnings: z.array(readinessIssueSchema),
   issues: z.array(readinessIssueSchema),
 })
 const idParamSchema = z.object({ id: z.string() })
@@ -223,6 +237,27 @@ const getProductRoute = createRoute({
   },
 })
 
+/**
+ * GET /{id}/readiness — the same evaluation the publish path runs, exposed as
+ * a read so the Product Overview can show readiness continuously instead of
+ * only after a refused publish.
+ */
+const getProductReadinessRoute = createRoute({
+  method: "get",
+  path: "/{id}/readiness",
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      description: "The product's current publish readiness",
+      content: { "application/json": { schema: z.object({ data: readinessSchema }) } },
+    },
+    404: {
+      description: "Product not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
 const getProductActionLedgerRoute = createRoute({
   method: "get",
   path: "/{id}/action-ledger",
@@ -333,6 +368,16 @@ export const productCoreRoutes = new OpenAPIHono<Env>({ defaultHook: openApiVali
     }
     return c.json({ data: row }, 200)
   })
+  // GET /{id}/readiness — continuous publish readiness for the Product
+  // Overview. Same evaluator as the publish gate, so the panel and the 422
+  // can never disagree.
+  .openapi(getProductReadinessRoute, async (c) => {
+    const readiness = await getProductReadiness(c.get("db"), c.req.valid("param").id)
+    if (!readiness) {
+      return c.json({ error: "Product not found" }, 404)
+    }
+    return c.json({ data: readiness }, 200)
+  })
   // GET /{id}/action-ledger — Product-scoped action timeline. The shared
   // `listProductActionLedger` serializes via the package-wide `c.json(page)`
   // helper (no explicit status literal), so the typed-response contract is
@@ -361,6 +406,15 @@ export const productCoreRoutes = new OpenAPIHono<Env>({ defaultHook: openApiVali
     if (!row) {
       return c.json({ error: "Product not found" }, 404)
     }
+
+    // Publishing an operationally changed product freezes an immutable
+    // Product Version, so a departure materialized later can name exactly what
+    // it was sold from (#4030). Re-publishing an unchanged product is a no-op.
+    await ensureProductVersionOnPublish(c.get("db"), {
+      productId: row.id,
+      authorId: requireUserId(c),
+      status: row.status,
+    })
 
     await appendProductMutationLedgerEntry(c, {
       action: "update",

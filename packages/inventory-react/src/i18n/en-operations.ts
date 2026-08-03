@@ -158,6 +158,98 @@ export const productsUiOperationsEn = {
       createUnit: "Create unit",
     },
   },
+  productReadinessPanel: {
+    title: "Ready to sell",
+    descriptions: {
+      ready: "This product can be published.",
+      blocked: "Fix these before this product can be published.",
+    },
+    badges: {
+      ready: "Ready",
+      blocking: "Must fix",
+      warning: "Worth checking",
+    },
+    empty: "Nothing to fix.",
+    loadingError: "Could not check whether this product is ready to sell.",
+    issues: {
+      noFutureOpenDeparture: {
+        title: "No upcoming departure",
+        fix: "Add a departure in the future and open it for sale.",
+      },
+      missingDefaultOption: {
+        title: "No default option",
+        fix: "Create an option and mark it as the default.",
+      },
+      defaultOptionNotActive: {
+        title: "The default option is not active",
+        fix: "Set the default option to active.",
+      },
+      noOptionUnits: {
+        title: "The default option has no units",
+        fix: "Add at least one unit, such as an adult ticket.",
+      },
+      noPrice: {
+        title: "No price",
+        fix: "Set a price on the product, or add a price for its units.",
+      },
+      missingItinerary: {
+        title: "No itinerary",
+        fix: "Create an itinerary and mark it as the default.",
+      },
+      emptyItinerary: {
+        title: "The itinerary has no days",
+        fix: "Add the days this product runs.",
+      },
+      nonConsecutiveItineraryDays: {
+        title: "The itinerary days are not in order",
+        fix: "Renumber the days so they run 1, 2, 3 with no gaps.",
+      },
+      unresolvedDuration: {
+        title: "No duration",
+        fix: "Enter how long this product lasts.",
+      },
+      missingFamily: {
+        title: "No product family",
+        fix: "Choose a family: tour, activity, attraction, event, or transport.",
+      },
+      missingCapacitySource: {
+        title: "No number of places",
+        fix: "Set how many places this product has, on the product or its departures.",
+      },
+      missingMeetingPoint: {
+        title: "No meeting point",
+        fix: "Add a meeting point, or the pickup points travellers can use.",
+      },
+      missingAllocationTemplate: {
+        title: "No rooms or seats set up",
+        fix: "Add a room or seat layout, or set resources up per departure.",
+      },
+      missingDefaultLanguage: {
+        title: "No default language",
+        fix: "Choose the language this product is written in.",
+      },
+      missingDescription: {
+        title: "No description",
+        fix: "Write the description travellers will read.",
+      },
+      missingContractTemplate: {
+        title: "No contract template",
+        fix: "Choose a contract template if this product needs its own terms.",
+      },
+      incompleteCostBasis: {
+        title: "Some services have no cost",
+        fix: "Enter what each service on the itinerary costs you.",
+      },
+      noActiveChannel: {
+        title: "Not on sale anywhere",
+        fix: "Add this product to an active sales channel.",
+      },
+      unknown: {
+        title: "Something needs attention",
+        fix: "Open the product and check its setup.",
+      },
+    },
+  },
   productVersionDialog: {
     title: "Create version snapshot",
     description: "Save a snapshot of this product, including its itinerary and options.",

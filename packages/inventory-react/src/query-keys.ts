@@ -190,6 +190,8 @@ export const productsQueryKeys = {
   ) => [...productsQueryKeys.productDayTranslationsRoot(productId, dayId), filters] as const,
   productVersions: (productId: string) =>
     [...productsQueryKeys.product(productId), "versions"] as const,
+  productReadiness: (productId: string) =>
+    [...productsQueryKeys.product(productId), "readiness"] as const,
   productMedia: (productId: string) => [...productsQueryKeys.product(productId), "media"] as const,
   productMediaList: (productId: string, filters: ProductMediaListFilters) =>
     [...productsQueryKeys.productMedia(productId), "list", filters] as const,

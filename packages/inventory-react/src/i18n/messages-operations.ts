@@ -1,3 +1,9 @@
+/** One readiness issue: what is wrong, and what the operator should do. */
+export type ProductReadinessIssueMessage = {
+  title: string
+  fix: string
+}
+
 export type ProductsUiOperationsMessages = {
   productDayDialog: {
     titles: {
@@ -154,6 +160,46 @@ export type ProductsUiOperationsMessages = {
     }
     actions: {
       createUnit: string
+    }
+  }
+  productReadinessPanel: {
+    title: string
+    descriptions: {
+      ready: string
+      blocked: string
+    }
+    badges: {
+      ready: string
+      blocking: string
+      warning: string
+    }
+    empty: string
+    loadingError: string
+    /**
+     * Keyed by the stable readiness issue `code` returned by the API. Each
+     * entry names what is wrong and the remedy; the API's English
+     * `message`/`fix` are fallbacks that this package never renders.
+     */
+    issues: {
+      noFutureOpenDeparture: ProductReadinessIssueMessage
+      missingDefaultOption: ProductReadinessIssueMessage
+      defaultOptionNotActive: ProductReadinessIssueMessage
+      noOptionUnits: ProductReadinessIssueMessage
+      noPrice: ProductReadinessIssueMessage
+      missingItinerary: ProductReadinessIssueMessage
+      emptyItinerary: ProductReadinessIssueMessage
+      nonConsecutiveItineraryDays: ProductReadinessIssueMessage
+      unresolvedDuration: ProductReadinessIssueMessage
+      missingFamily: ProductReadinessIssueMessage
+      missingCapacitySource: ProductReadinessIssueMessage
+      missingMeetingPoint: ProductReadinessIssueMessage
+      missingAllocationTemplate: ProductReadinessIssueMessage
+      missingDefaultLanguage: ProductReadinessIssueMessage
+      missingDescription: ProductReadinessIssueMessage
+      missingContractTemplate: ProductReadinessIssueMessage
+      incompleteCostBasis: ProductReadinessIssueMessage
+      noActiveChannel: ProductReadinessIssueMessage
+      unknown: ProductReadinessIssueMessage
     }
   }
   productVersionDialog: {

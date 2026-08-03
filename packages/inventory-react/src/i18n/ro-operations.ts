@@ -159,6 +159,98 @@ export const productsUiOperationsRo = {
       createUnit: "Creeaza unitatea",
     },
   },
+  productReadinessPanel: {
+    title: "Gata de vanzare",
+    descriptions: {
+      ready: "Acest produs poate fi publicat.",
+      blocked: "Rezolva acestea inainte ca produsul sa poata fi publicat.",
+    },
+    badges: {
+      ready: "Gata",
+      blocking: "De rezolvat",
+      warning: "De verificat",
+    },
+    empty: "Nimic de rezolvat.",
+    loadingError: "Nu am putut verifica daca produsul este gata de vanzare.",
+    issues: {
+      noFutureOpenDeparture: {
+        title: "Nicio plecare viitoare",
+        fix: "Adauga o plecare in viitor si deschide-o pentru vanzare.",
+      },
+      missingDefaultOption: {
+        title: "Nicio optiune implicita",
+        fix: "Creeaza o optiune si marcheaz-o ca implicita.",
+      },
+      defaultOptionNotActive: {
+        title: "Optiunea implicita nu este activa",
+        fix: "Seteaza optiunea implicita pe activa.",
+      },
+      noOptionUnits: {
+        title: "Optiunea implicita nu are unitati",
+        fix: "Adauga cel putin o unitate, de exemplu bilet adult.",
+      },
+      noPrice: {
+        title: "Niciun pret",
+        fix: "Seteaza un pret pe produs sau adauga un pret pentru unitatile sale.",
+      },
+      missingItinerary: {
+        title: "Niciun itinerar",
+        fix: "Creeaza un itinerar si marcheaza-l ca implicit.",
+      },
+      emptyItinerary: {
+        title: "Itinerarul nu are zile",
+        fix: "Adauga zilele in care se desfasoara produsul.",
+      },
+      nonConsecutiveItineraryDays: {
+        title: "Zilele itinerarului nu sunt in ordine",
+        fix: "Renumeroteaza zilele ca sa fie 1, 2, 3 fara goluri.",
+      },
+      unresolvedDuration: {
+        title: "Nicio durata",
+        fix: "Introdu cat dureaza acest produs.",
+      },
+      missingFamily: {
+        title: "Nicio familie de produs",
+        fix: "Alege o familie: tur, activitate, atractie, eveniment sau transport.",
+      },
+      missingCapacitySource: {
+        title: "Niciun numar de locuri",
+        fix: "Seteaza cate locuri are produsul, pe produs sau pe plecarile sale.",
+      },
+      missingMeetingPoint: {
+        title: "Niciun punct de intalnire",
+        fix: "Adauga un punct de intalnire sau punctele de preluare disponibile.",
+      },
+      missingAllocationTemplate: {
+        title: "Camerele sau locurile nu sunt configurate",
+        fix: "Adauga un sablon de camere sau locuri, ori configureaza resurse pe plecare.",
+      },
+      missingDefaultLanguage: {
+        title: "Nicio limba implicita",
+        fix: "Alege limba in care este scris acest produs.",
+      },
+      missingDescription: {
+        title: "Nicio descriere",
+        fix: "Scrie descrierea pe care o vor citi calatorii.",
+      },
+      missingContractTemplate: {
+        title: "Niciun sablon de contract",
+        fix: "Alege un sablon de contract daca produsul are termeni proprii.",
+      },
+      incompleteCostBasis: {
+        title: "Unele servicii nu au cost",
+        fix: "Introdu cat te costa fiecare serviciu din itinerar.",
+      },
+      noActiveChannel: {
+        title: "Nu este la vanzare nicaieri",
+        fix: "Adauga produsul intr-un canal de vanzare activ.",
+      },
+      unknown: {
+        title: "Ceva necesita atentie",
+        fix: "Deschide produsul si verifica-i configurarea.",
+      },
+    },
+  },
   productVersionDialog: {
     title: "Creeaza snapshot de versiune",
     description: "Salveaza un snapshot al acestui produs, inclusiv itinerarul si optiunile sale.",

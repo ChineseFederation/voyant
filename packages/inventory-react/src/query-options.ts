@@ -30,6 +30,7 @@ import {
   productMediaListResponse,
   productOptionListResponse,
   productOptionSingleResponse,
+  productReadinessResponse,
   productSingleResponse,
   productTagListResponse,
   productTypeListResponse,
@@ -398,6 +399,28 @@ export function getProductVersionsQueryOptions(
       return fetchWithValidation(
         `/v1/admin/products/${productId}/versions`,
         productVersionsResponse,
+        client,
+      )
+    },
+  })
+}
+
+/**
+ * Continuous publish readiness for the Product Overview. Same evaluation the
+ * publish gate runs, so the panel and a refused publish can never disagree.
+ */
+export function getProductReadinessQueryOptions(
+  client: FetchWithValidationOptions,
+  productId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: productsQueryKeys.productReadiness(productId ?? ""),
+    queryFn: async () => {
+      if (!productId) throw new Error("getProductReadinessQueryOptions requires a productId")
+
+      return fetchWithValidation(
+        `/v1/admin/products/${productId}/readiness`,
+        productReadinessResponse,
         client,
       )
     },

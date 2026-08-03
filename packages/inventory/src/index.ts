@@ -33,6 +33,14 @@ export {
   type WarmProductReadModelResult,
   warmProductReadModel,
 } from "./read-model.js"
+export {
+  evaluateProductReadiness,
+  type ProductReadinessCode,
+  type ProductReadinessInput,
+  type ProductReadinessIssue,
+  type ProductReadinessResult,
+  type ProductReadinessSeverity,
+} from "./readiness.js"
 export type { ProductRoutes } from "./routes.js"
 export type { PublicProductRoutes } from "./routes-public.js"
 export { publicProductRoutes } from "./routes-public.js"
@@ -40,6 +48,14 @@ export { productsService } from "./service.js"
 export { catalogProductsService } from "./service-catalog.js"
 export { listProductsReferencingAccommodationProperty } from "./service-presentation-references.js"
 export { publicProductsService } from "./service-public.js"
+export {
+  type ActiveChannelCountResolver,
+  evaluateProductReadinessFor,
+  getProductReadiness,
+  hasOperationalChange,
+  type ProductReadinessOptions,
+  type ProductReadinessSubject,
+} from "./service-readiness.js"
 export const productsModule: Module = {
   name: "products",
   linkable: productsCompatibilityLinkable,

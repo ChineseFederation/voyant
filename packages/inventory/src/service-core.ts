@@ -1,9 +1,10 @@
 import { RequestValidationError } from "@voyant-travel/hono"
-import { availabilitySlots } from "@voyant-travel/operations"
 import { and, asc, desc, eq, getTableColumns, gte, ilike, lte, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
+import { nextDepartureAt, upcomingDepartureExists } from "./availability-slot-access.js"
 import { resolveProductClassification } from "./classification.js"
+import type { ProductReadinessIssue } from "./readiness.js"
 import {
   productCategoryProducts,
   productItineraries,
@@ -12,6 +13,7 @@ import {
   productTypes,
 } from "./schema.js"
 import { deriveProductSupplyModel, resolveItineraryDurationDays } from "./service-catalog-plane.js"
+import { evaluateProductReadinessFor, type ProductReadinessSubject } from "./service-readiness.js"
 import type {
   insertProductSchema,
   productListQuerySchema,
@@ -27,12 +29,12 @@ type ProductDateRangeShape = {
   endDate?: string | null
 }
 
-export interface ProductReadinessIssue {
-  code: string
-  field: string
-  message: string
-  fix: string
-}
+/**
+ * Wire shape of a readiness issue. Re-exported from `readiness.ts` so the
+ * 422 contract has one definition; `severity` was added additively and older
+ * consumers that only read `code`/`field`/`message`/`fix` keep working.
+ */
+export type { ProductReadinessIssue } from "./readiness.js"
 
 export class ProductPublishReadinessError extends Error {
   readonly code = "product_not_ready_to_publish"
@@ -46,19 +48,7 @@ export class ProductPublishReadinessError extends Error {
   }
 }
 
-const DYNAMIC_BOOKING_MODES = new Set(["open", "stay"])
-
-type PublishableProductState = {
-  id?: string
-  bookingMode: string
-  status: string
-}
-
-function isScheduledBookingMode(bookingMode: string) {
-  return !DYNAMIC_BOOKING_MODES.has(bookingMode)
-}
-
-function isActiveLifecycleState(product: PublishableProductState) {
+function isActiveLifecycleState(product: { status: string }) {
   return product.status === "active"
 }
 
@@ -70,35 +60,32 @@ function assertProductDateRange(product: ProductDateRangeShape) {
   }
 }
 
-async function hasFutureOpenDeparture(db: PostgresJsDatabase, productId: string) {
-  const [row] = await db
-    .select({ id: availabilitySlots.id })
-    .from(availabilitySlots)
-    .where(
-      and(
-        eq(availabilitySlots.productId, productId),
-        eq(availabilitySlots.status, "open"),
-        gte(availabilitySlots.startsAt, new Date()),
-      ),
-    )
-    .limit(1)
+/**
+ * Publication gate — asserted when a product *becomes* active, not on every
+ * later edit of an already-active one.
+ *
+ * The distinction matters. Readiness gained real blocking checks in #4030
+ * (default option, units, price, itinerary shape). Asserting them on every
+ * update would strand any already-active product that does not satisfy a new
+ * rule: the operator could not even edit it to fix the problem, because the
+ * edit itself would be refused. Gating the transition keeps publication
+ * honest while leaving published products editable, and an active product that
+ * drifts is surfaced by the readiness panel's warnings instead.
+ *
+ * Warnings never block in either case.
+ */
+async function assertReadyToPublish(
+  db: PostgresJsDatabase,
+  product: ProductReadinessSubject,
+  previousStatus?: string,
+) {
+  if (!isActiveLifecycleState(product)) return
+  // Already published and staying published: not a publication.
+  if (previousStatus !== undefined && isActiveLifecycleState({ status: previousStatus })) return
 
-  return !!row
-}
-
-async function assertReadyToPublish(db: PostgresJsDatabase, product: PublishableProductState) {
-  if (!isActiveLifecycleState(product) || !isScheduledBookingMode(product.bookingMode)) return
-
-  if (!product.id || !(await hasFutureOpenDeparture(db, product.id))) {
-    throw new ProductPublishReadinessError([
-      {
-        code: "no_future_open_departure",
-        field: "availabilitySlots",
-        message:
-          "Scheduled products need at least one future open departure before they can be published.",
-        fix: "Create a future availability slot with status 'open', then publish the product again.",
-      },
-    ])
+  const readiness = await evaluateProductReadinessFor(db, product)
+  if (!readiness.ready) {
+    throw new ProductPublishReadinessError(readiness.blocking)
   }
 }
 
@@ -254,20 +241,7 @@ export const coreProductsService = {
     if (query.departureFrom || query.departureTo) {
       // Match products with at least one upcoming open departure whose date
       // falls in the requested window. Mirrors the `nextDeparture` subquery.
-      const fromBound = query.departureFrom
-        ? sql`and ${availabilitySlots.startsAt}::date >= ${query.departureFrom}::date`
-        : sql``
-      const toBound = query.departureTo
-        ? sql`and ${availabilitySlots.startsAt}::date <= ${query.departureTo}::date`
-        : sql``
-      conditions.push(
-        // agent-quality: raw-sql reviewed -- owner: inventory; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        sql`exists (select 1 from ${availabilitySlots}
-          where ${availabilitySlots.productId} = ${products.id}
-            and ${availabilitySlots.status} = 'open'
-            and ${availabilitySlots.startsAt} >= now()
-            ${fromBound} ${toBound})`,
-      )
+      conditions.push(upcomingDepartureExists(query.departureFrom, query.departureTo))
     }
 
     if (query.paxMin !== undefined) {
@@ -331,13 +305,7 @@ export const coreProductsService = {
             )
           )`,
           // Earliest upcoming open departure (null when none is scheduled).
-          nextDeparture: sql<Date | null>`(
-            select min(${availabilitySlots.startsAt})
-            from ${availabilitySlots}
-            where ${availabilitySlots.productId} = ${products.id}
-              and ${availabilitySlots.status} = 'open'
-              and ${availabilitySlots.startsAt} >= now()
-          )`,
+          nextDeparture: nextDepartureAt(),
         })
         .from(products)
         .leftJoin(productTypes, eq(productTypes.id, products.productTypeId))
@@ -430,7 +398,7 @@ export const coreProductsService = {
 
     const merged = { ...current, ...data }
     assertProductDateRange(merged)
-    await assertReadyToPublish(db, merged)
+    await assertReadyToPublish(db, merged, current.status)
 
     const [row] = await db
       .update(products)
