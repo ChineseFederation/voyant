@@ -9,7 +9,9 @@ import {
   type PaymentEmbeddedOnboardingClientProps,
   paymentActivationControlState,
   paymentConnectionStatusLabel,
+  paymentProviderSetupMode,
   requestPaymentOnboardingSession,
+  resumablePaymentProviderConnection,
 } from "./payments-settings-page.js"
 
 describe("PaymentEmbeddedOnboardingBoundary", () => {
@@ -231,6 +233,47 @@ describe("payments settings contract", () => {
         { providerId: "voyant-pay", mode: "live" },
       ]),
     ).toBeNull()
+  })
+
+  it("resumes an unfinished connection instead of opening a free mode", () => {
+    const provider = { id: "voyant-pay", modes: ["sandbox", "live"] as const }
+
+    // The reported bug: Live exists but is not ready, so a second click on the
+    // setup action must reopen Live rather than mint a Sandbox account.
+    expect(
+      paymentProviderSetupMode(provider, [
+        { providerId: "voyant-pay", mode: "live", readiness: "not_ready" },
+      ]),
+    ).toBe("live")
+    expect(
+      resumablePaymentProviderConnection(provider, [
+        { providerId: "voyant-pay", mode: "live", readiness: "not_ready" },
+      ]),
+    ).toMatchObject({ mode: "live" })
+  })
+
+  it("opens the real-money mode first and the free mode only once it is taken", () => {
+    const provider = { id: "voyant-pay", modes: ["sandbox", "live"] as const }
+
+    expect(paymentProviderSetupMode(provider, undefined)).toBe("live")
+    expect(paymentProviderSetupMode(provider, [])).toBe("live")
+    expect(
+      paymentProviderSetupMode(provider, [
+        { providerId: "voyant-pay", mode: "live", readiness: "ready" },
+      ]),
+    ).toBe("sandbox")
+    // Another provider's connections never steer this provider's mode.
+    expect(
+      paymentProviderSetupMode(provider, [
+        { providerId: "netopia", mode: "live", readiness: "ready" },
+      ]),
+    ).toBe("live")
+  })
+
+  it("keeps a sandbox-only provider on its advertised mode", () => {
+    expect(
+      paymentProviderSetupMode({ id: "voyant-pay", modes: ["sandbox"] as const }, undefined),
+    ).toBe("sandbox")
   })
 
   it("only enables activation for ready, inactive, writable connections", () => {

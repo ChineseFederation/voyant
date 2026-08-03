@@ -295,6 +295,49 @@ export function firstUnconfiguredPaymentProviderMode(
 }
 
 /**
+ * The connection whose setup this provider's action should resume, if any.
+ *
+ * A hosted provider mints a real processor account the first time a mode is set
+ * up, so an unfinished connection has to be resumed rather than replaced by a
+ * second one in whichever mode happens to be free.
+ */
+export function resumablePaymentProviderConnection(
+  provider: { id: ProviderDescriptor["id"] },
+  connections: readonly Pick<ConnectionSummary, "providerId" | "mode" | "readiness">[] | undefined,
+): Pick<ConnectionSummary, "providerId" | "mode" | "readiness"> | null {
+  return (
+    connections?.find(
+      (connection) =>
+        connection.providerId === provider.id &&
+        connection.readiness !== "ready" &&
+        connection.mode !== null,
+    ) ?? null
+  )
+}
+
+/**
+ * The mode the setup action should open in.
+ *
+ * Resuming an unfinished connection wins, then the provider's real-money mode,
+ * and only then whichever mode is still unconfigured. Picking the unconfigured
+ * mode first is what let a second click on "Set up" open Sandbox behind a
+ * finished Live connection and create a throwaway processor account.
+ */
+export function paymentProviderSetupMode(
+  provider: { id: ProviderDescriptor["id"]; modes: readonly ProviderMode[] },
+  connections: readonly Pick<ConnectionSummary, "providerId" | "mode" | "readiness">[] | undefined,
+): ProviderMode {
+  const resumable = resumablePaymentProviderConnection(provider, connections)
+  if (resumable?.mode && provider.modes.includes(resumable.mode)) return resumable.mode
+  const preferred = provider.modes.includes("live") ? "live" : (provider.modes[0] ?? "live")
+  const preferredTaken = connections?.some(
+    (connection) => connection.providerId === provider.id && connection.mode === preferred,
+  )
+  if (!preferredTaken) return preferred
+  return firstUnconfiguredPaymentProviderMode(provider, connections) ?? preferred
+}
+
+/**
  * A connection can be made the active default only when it is ready (its
  * lifecycle reached `connected`) and it is not already the active one. This
  * gates the "Make active" control so a not-ready or already-active connection
@@ -346,6 +389,48 @@ function modeLabel(
   if (mode === "live") return labels.live
   if (mode === "test") return labels.test
   return labels.sandbox
+}
+
+/**
+ * What the processor still needs before this connection can go live.
+ *
+ * Without it a not-ready connection shows a badge and no explanation, which
+ * reads as the platform being wrong rather than as work that is outstanding.
+ */
+function RequirementsAlert({
+  requirements,
+  title,
+  deadlineTemplate,
+}: {
+  requirements: ConnectionRequirement[] | undefined
+  title: string
+  deadlineTemplate: string
+}) {
+  if (!requirements?.length) return null
+  return (
+    <Alert>
+      <TriangleAlert aria-hidden="true" />
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription>
+        <ul className="flex list-disc flex-col gap-2 pl-5">
+          {requirements.map((requirement) => (
+            <li key={`${requirement.code}:${requirement.deadlineAt ?? ""}`}>
+              <span>{requirement.message}</span>
+              {requirement.deadlineAt ? (
+                <span className="text-muted-foreground">
+                  {" "}
+                  {deadlineTemplate.replace(
+                    "{date}",
+                    new Date(requirement.deadlineAt).toLocaleDateString(),
+                  )}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  )
 }
 
 function ModeField({
@@ -591,10 +676,7 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
     setDialogProvider(provider)
     setCredentials({})
     setOnboardingSession(null)
-    setMode(
-      firstUnconfiguredPaymentProviderMode(provider, connection?.connections) ??
-        (provider.modes.includes("sandbox") ? "sandbox" : (provider.modes[0] ?? "live")),
-    )
+    setMode(paymentProviderSetupMode(provider, connection?.connections))
   }
 
   const modeLabels = {
@@ -652,30 +734,11 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                   ) : null}
                 </div>
 
-                {connection.requirements?.length ? (
-                  <Alert>
-                    <TriangleAlert aria-hidden="true" />
-                    <AlertTitle>{t.requirementsTitle}</AlertTitle>
-                    <AlertDescription>
-                      <ul className="flex list-disc flex-col gap-2 pl-5">
-                        {connection.requirements.map((requirement) => (
-                          <li key={`${requirement.code}:${requirement.deadlineAt ?? ""}`}>
-                            <span>{requirement.message}</span>
-                            {requirement.deadlineAt ? (
-                              <span className="text-muted-foreground">
-                                {" "}
-                                {t.requirementDeadline.replace(
-                                  "{date}",
-                                  new Date(requirement.deadlineAt).toLocaleDateString(),
-                                )}
-                              </span>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
+                <RequirementsAlert
+                  requirements={connection.requirements}
+                  title={t.requirementsTitle}
+                  deadlineTemplate={t.requirementDeadline}
+                />
               </CardContent>
               <CardFooter>
                 {canDisconnectPaymentProvider(activeProvider) ? (
@@ -735,6 +798,15 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                             ) : null}
                           </div>
                         </CardHeader>
+                        {summary.requirements?.length ? (
+                          <CardContent>
+                            <RequirementsAlert
+                              requirements={summary.requirements}
+                              title={t.requirementsTitle}
+                              deadlineTemplate={t.requirementDeadline}
+                            />
+                          </CardContent>
+                        ) : null}
                         <CardFooter className="flex flex-wrap items-center gap-3">
                           {control === "active" ? (
                             <span className="text-sm font-medium text-muted-foreground">
@@ -800,8 +872,12 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                 {providers.map((provider) => {
                   const isActive = provider.id === activeId
                   const unavailable = !canConfigurePaymentProvider(provider)
+                  const hosted = provider.connectionMethod === "embedded_onboarding"
+                  const resumable =
+                    hosted &&
+                    resumablePaymentProviderConnection(provider, connection?.connections) !== null
                   const hasAdditionalHostedMode =
-                    provider.connectionMethod === "embedded_onboarding" &&
+                    hosted &&
                     firstUnconfiguredPaymentProviderMode(provider, connection?.connections) !== null
                   return (
                     <Card key={provider.id}>
@@ -820,11 +896,15 @@ export function PaymentsSettingsPage({ embeddedOnboardingClient }: PaymentsSetti
                         <Button
                           size="sm"
                           variant={isActive ? "outline" : "default"}
-                          disabled={unavailable || (isActive && !hasAdditionalHostedMode)}
+                          disabled={
+                            unavailable || (isActive && !hasAdditionalHostedMode && !resumable)
+                          }
                           onClick={() => openConnect(provider)}
                         >
-                          {provider.connectionMethod === "embedded_onboarding"
-                            ? t.startOnboarding
+                          {hosted
+                            ? resumable
+                              ? t.continueOnboarding
+                              : t.startOnboarding
                             : t.connect}
                         </Button>
                       </CardFooter>
