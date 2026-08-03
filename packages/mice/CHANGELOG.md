@@ -1,5 +1,13 @@
 # @voyant-travel/mice
 
+## 0.95.2
+
+### Patch Changes
+
+- Updated dependencies [e1c5e39]
+  - @voyant-travel/operations@0.15.0
+  - @voyant-travel/accommodations@0.199.2
+
 ## 0.95.1
 
 ### Patch Changes
