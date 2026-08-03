@@ -30,7 +30,9 @@ const financeManifest = readRequired(join(root, "packages/finance/src/voyant.ts"
 const financeRuntime = readRequired(join(root, "packages/finance/src/runtime.ts"))
 const financeRuntimePort = readRequired(join(root, "packages/finance/src/runtime-port.ts"))
 const financeIndex = readRequired(join(root, "packages/finance/src/index.ts"))
-const coreProject = readRequired(join(root, "packages/core/src/project.ts"))
+// The graph declaration surface moved to @voyant-travel/graph-contracts;
+// packages/core/src/project.ts is now a re-export shim.
+const coreProject = readRequired(join(root, "packages/graph-contracts/src/index.ts"))
 const graphGenerator = readRequired(join(root, "packages/framework/src/deployment-artifacts.ts"))
 
 if (operatorPackage.dependencies?.["@voyant-travel/plugin-smartbill"]) {

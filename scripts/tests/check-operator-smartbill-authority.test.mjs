@@ -26,7 +26,7 @@ async function createFixture(overrides = {}) {
     "packages/finance/src/runtime.ts":
       "aggregateFinanceInvoiceSettlementPollers(providers)\nObject.hasOwn(pollers, provider.provider)\n",
     "packages/finance/src/index.ts": "await getPorts(financeInvoiceSettlementPollerRuntimePort)\n",
-    "packages/core/src/project.ts": "getPorts<TProvider>(port: VoyantPort<TProvider>)\n",
+    "packages/graph-contracts/src/index.ts": "getPorts<TProvider>(port: VoyantPort<TProvider>)\n",
     "packages/framework/src/deployment-artifacts.ts":
       "GENERATED_GRAPH_RUNTIME_MANY_PORT_IDS\nvalues.push(value)\nhas multiple static contributors\n",
     ...overrides,

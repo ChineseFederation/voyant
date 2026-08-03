@@ -1,0 +1,49 @@
+{
+  "name": "@voyant-travel/graph-contracts",
+  "version": "0.0.0",
+  "description": "Declare a module, adapter, extension, or provider into a Voyant deployment graph, without the runtime kernel.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./facets": "./src/facets.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome check src/",
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepack": "pnpm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./facets": {
+        "types": "./dist/facets.d.ts",
+        "import": "./dist/facets.js",
+        "default": "./dist/facets.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "devDependencies": {
+    "@voyant-travel/voyant-typescript-config": "workspace:^",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/voyant-travel/voyant.git",
+    "directory": "packages/graph-contracts"
+  }
+}

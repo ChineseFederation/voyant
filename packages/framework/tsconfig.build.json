@@ -1200,6 +1200,8 @@
       "@voyant-travel/framework/selected-graph-openapi": ["./dist/selected-graph-openapi.d.ts"],
       "@voyant-travel/framework/self-host-export": ["./dist/self-host-export.d.ts"],
       "@voyant-travel/framework/worker-job-host": ["./dist/worker-job-host.d.ts"],
+      "@voyant-travel/graph-contracts": ["../graph-contracts/dist/index.d.ts"],
+      "@voyant-travel/graph-contracts/facets": ["../graph-contracts/dist/facets.d.ts"],
       "@voyant-travel/hono": ["../hono/dist/index.d.ts"],
       "@voyant-travel/hono/app": ["../hono/dist/app.d.ts"],
       "@voyant-travel/hono/auth": ["../hono/dist/auth/index.d.ts"],

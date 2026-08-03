@@ -29,7 +29,9 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "prepack": "pnpm run build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@voyant-travel/graph-contracts": "workspace:^"
+  },
   "devDependencies": {
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:"
