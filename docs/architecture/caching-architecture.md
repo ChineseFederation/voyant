@@ -4,6 +4,12 @@ This guide defines how Node-hosted Voyant deployments should select and use
 cache providers. Edge applications outside the unified deployment graph own
 their caching independently.
 
+Scope: this guide covers cache-aside *data* caching — what a service keeps in a
+key/value store and which backend the deployment selects for it. HTTP response
+caching is a separate concern with a separate contract; its tier model,
+semantics, and deployment posture are decided in
+[ADR 0021](../adr/0021-http-response-cache-tiers.md).
+
 The goal is simple:
 
 - keep caching useful and cheap

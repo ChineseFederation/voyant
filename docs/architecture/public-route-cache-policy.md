@@ -5,6 +5,11 @@ This policy classifies public API routes by cache behavior. It complements
 contract explains what cache can safely do, while this document says which
 public route groups should opt in.
 
+The tier model behind these headers — which cache honours what, and what a
+deployment must declare to serve a public storefront — is decided in
+[ADR 0021](../adr/0021-http-response-cache-tiers.md). The classes below say what
+a route declares; the ADR says what the declaration obligates.
+
 The Node deployment marks `GET /v1/public/*` responses cacheable only when the
 route explicitly emits `Cache-Control: public, s-maxage=...` and the response
 has no `Set-Cookie`. Shared response caching is performed by an external CDN or
