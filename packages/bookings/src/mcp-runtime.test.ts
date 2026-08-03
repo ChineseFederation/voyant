@@ -11,7 +11,6 @@ vi.mock("@voyant-travel/action-ledger", async (importOriginal) => ({
 
 import {
   loadBookingStatusConsequencePreview,
-  lockBookingStatusConsequenceState,
   voyantToolContextContribution,
 } from "./mcp-runtime.js"
 import { bookingsService } from "./service.js"
@@ -22,10 +21,7 @@ afterEach(() => {
 })
 
 describe("bookings MCP runtime lifecycle detail", () => {
-  it.each([
-    "confirmBooking",
-    "cancelBooking",
-  ] as const)("normalizes Date-shaped %s detail to the booking Tool wire format", async (method) => {
+  it("normalizes Date-shaped cancellation detail to the booking Tool wire format", async () => {
     const detail = bookingDetailWithDates("booking_1")
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
     vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
@@ -33,9 +29,6 @@ describe("bookings MCP runtime lifecycle detail", () => {
     vi.spyOn(bookingsService, "listTravelers").mockResolvedValue([detail.traveler] as never)
     vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
     vi.spyOn(bookingsService, "listFulfillments").mockResolvedValue([] as never)
-    vi.spyOn(bookingsService, "listProductTicketSettings").mockResolvedValue([
-      ticketSetting("per_item"),
-    ] as never)
     executeAdmittedExistingTargetCommand.mockImplementation(async (_input, handlers) => ({
       replayed: false,
       value: await handlers.execute(),
@@ -47,22 +40,18 @@ describe("bookings MCP runtime lifecycle detail", () => {
       resources: {},
     })
     const runtime = contribution.bookings as {
-      confirmBooking: (
-        input: { id: string; idempotencyKey: string },
-        admitted: ToolHandlerActionPolicyContext,
-      ) => Promise<unknown>
       cancelBooking: (
         input: { id: string; idempotencyKey: string },
         admitted: ToolHandlerActionPolicyContext,
       ) => Promise<unknown>
     }
 
-    const result = await runtime[method]({ id: "booking_1", idempotencyKey: `${method}-1` }, {
+    const result = await runtime.cancelBooking({ id: "booking_1", idempotencyKey: "cancel-1" }, {
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
     expect(result).toMatchObject({
-      status: method === "confirmBooking" ? "confirmed" : "cancelled",
+      status: "cancelled",
       replayed: false,
       booking: {
         id: "booking_1",
@@ -86,19 +75,15 @@ describe("bookings MCP runtime lifecycle detail", () => {
     })
   })
 
-  it.each([
-    ["confirmBooking", "confirmBooking"],
-    ["cancelBooking", "cancelBooking"],
-  ] as const)("links an approved %s lifecycle mutation to the claim action", async (method, serviceMethod) => {
+  it("links an approved cancellation to the claim action", async () => {
     const detail = bookingDetailWithDates("booking_1")
     const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
     vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
     vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
     vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
     vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
-    mockConfirmationProjection(detail)
     const statusMutation = vi
-      .spyOn(bookingsService, serviceMethod)
+      .spyOn(bookingsService, "cancelBooking")
       .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
     executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
       await handlers.prepare(
@@ -114,16 +99,15 @@ describe("bookings MCP runtime lifecycle detail", () => {
       context: toolContext(db),
       resources: {},
     })
-    const runtime = contribution.bookings as Record<
-      typeof method,
-      (
+    const runtime = contribution.bookings as {
+      cancelBooking: (
         input: { id: string; idempotencyKey: string },
         admitted: ToolHandlerActionPolicyContext,
       ) => Promise<unknown>
-    >
+    }
 
-    await runtime[method]({ id: "booking_1", idempotencyKey: `${method}-claim` }, {
-      capabilityId: `booking.status.${method === "confirmBooking" ? "confirm" : "cancel"}`,
+    await runtime.cancelBooking({ id: "booking_1", idempotencyKey: "cancel-claim" }, {
+      capabilityId: "booking.status.cancel",
       invocation: {},
     } as ToolHandlerActionPolicyContext)
 
@@ -215,215 +199,6 @@ describe("bookings MCP runtime lifecycle detail", () => {
     ])
   })
 
-  it("keeps approval consequences stable when tied allocations arrive in a different order", async () => {
-    const detail = bookingDetailWithDates("booking_1")
-    const execute = vi.fn().mockResolvedValue(financeTablesUnavailable())
-    const db = { execute }
-    const createdAt = new Date("2026-07-28T10:03:00.000Z")
-    const allocationA = {
-      id: "allocation_a",
-      bookingId: "booking_1",
-      status: "held",
-      availabilitySlotId: "slot_1",
-      quantity: 1,
-      createdAt,
-    }
-    const allocationB = {
-      id: "allocation_b",
-      bookingId: "booking_1",
-      status: "held",
-      availabilitySlotId: "slot_2",
-      quantity: 1,
-      createdAt,
-    }
-    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
-    vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
-    vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
-    vi.spyOn(bookingsService, "listAllocations")
-      .mockImplementationOnce((() => {
-        expect(execute).not.toHaveBeenCalled()
-        return [allocationB, allocationA] as never
-      }) as never)
-      .mockImplementationOnce((() => {
-        // All fulfillment inputs, the booking, and allocations are locked
-        // before the approved preview is reloaded in the command transaction.
-        expect(execute).toHaveBeenCalledTimes(8)
-        return [allocationA, allocationB] as never
-      }) as never)
-    mockConfirmationProjection(detail)
-    vi.spyOn(bookingsService, "confirmBooking").mockResolvedValue({
-      status: "ok",
-      booking: detail.booking,
-    } as never)
-    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
-      await handlers.prepare(
-        input.db,
-        { causation: { claimActionId: "action_claim_stable_allocations" } },
-        input.commandInput,
-      )
-      return { replayed: false, value: detail.booking }
-    })
-
-    const contribution = await voyantToolContextContribution.contribute({
-      request: request(),
-      context: toolContext(db),
-      resources: {},
-    })
-    const runtime = contribution.bookings as {
-      confirmBooking: (
-        input: { id: string; idempotencyKey: string },
-        admitted: ToolHandlerActionPolicyContext,
-      ) => Promise<unknown>
-    }
-
-    await expect(
-      runtime.confirmBooking({ id: "booking_1", idempotencyKey: "stable-allocations" }, {
-        capabilityId: "booking.status.confirm",
-        invocation: {},
-      } as ToolHandlerActionPolicyContext),
-    ).resolves.toMatchObject({ status: "confirmed", replayed: false })
-    expect(bookingsService.confirmBooking).toHaveBeenCalledOnce()
-  })
-
-  it("rejects an approved confirmation when a fulfillment-relevant item changes", async () => {
-    const detail = bookingDetailWithDates("booking_1")
-    const execute = vi.fn().mockResolvedValue(financeTablesUnavailable())
-    const db = { execute }
-    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
-    vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
-    vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
-    mockConfirmationProjection(detail)
-    vi.spyOn(bookingsService, "listItems")
-      .mockResolvedValueOnce([detail.item] as never)
-      .mockResolvedValueOnce([{ ...detail.item, productId: "product_changed" }] as never)
-    const confirmBooking = vi
-      .spyOn(bookingsService, "confirmBooking")
-      .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
-    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
-      await handlers.prepare(
-        input.db,
-        { causation: { claimActionId: "action_claim_item_drift" } },
-        input.commandInput,
-      )
-      return { replayed: false, value: detail.booking }
-    })
-
-    const contribution = await voyantToolContextContribution.contribute({
-      request: request(),
-      context: toolContext(db),
-      resources: {},
-    })
-    const runtime = contribution.bookings as {
-      confirmBooking: (
-        input: { id: string; idempotencyKey: string },
-        admitted: ToolHandlerActionPolicyContext,
-      ) => Promise<unknown>
-    }
-
-    await expect(
-      runtime.confirmBooking({ id: "booking_1", idempotencyKey: "item-drift" }, {
-        capabilityId: "booking.status.confirm",
-        invocation: {},
-      } as ToolHandlerActionPolicyContext),
-    ).rejects.toMatchObject({
-      code: "INVALID_INPUT",
-      meta: { bookingId: "booking_1", reason: "consequence_drift" },
-    })
-    expect(execute).toHaveBeenCalledTimes(8)
-    expect(confirmBooking).not.toHaveBeenCalled()
-  })
-
-  it.each([
-    {
-      name: "ticket settings",
-      arrange(detail: ReturnType<typeof bookingDetailWithDates>) {
-        mockConfirmationProjection(detail)
-        vi.mocked(bookingsService.listProductTicketSettings)
-          .mockResolvedValueOnce([ticketSetting("per_item")] as never)
-          .mockResolvedValueOnce([ticketSetting("per_traveler")] as never)
-      },
-    },
-    {
-      name: "existing fulfillments",
-      arrange(detail: ReturnType<typeof bookingDetailWithDates>) {
-        mockConfirmationProjection(detail)
-        vi.mocked(bookingsService.listFulfillments)
-          .mockResolvedValueOnce([] as never)
-          .mockResolvedValueOnce([existingFulfillment()] as never)
-      },
-    },
-    {
-      name: "travelers",
-      arrange(detail: ReturnType<typeof bookingDetailWithDates>) {
-        mockConfirmationProjection(detail)
-        vi.mocked(bookingsService.listTravelers)
-          .mockResolvedValueOnce([detail.traveler] as never)
-          .mockResolvedValueOnce([{ ...detail.traveler, isPrimary: false }] as never)
-      },
-    },
-  ])("rejects an approved confirmation when $name drift", async ({ arrange }) => {
-    const detail = bookingDetailWithDates("booking_1")
-    const db = { execute: vi.fn().mockResolvedValue(financeTablesUnavailable()) }
-    vi.spyOn(bookingsService, "getBookingById").mockResolvedValue(detail.booking as never)
-    vi.spyOn(bookingsService, "listAllocations").mockResolvedValue([] as never)
-    vi.spyOn(bookingsService, "listItems").mockResolvedValue([detail.item] as never)
-    vi.spyOn(bookingsService, "listItemParticipants").mockResolvedValue([] as never)
-    arrange(detail)
-    const confirmBooking = vi
-      .spyOn(bookingsService, "confirmBooking")
-      .mockResolvedValue({ status: "ok", booking: detail.booking } as never)
-    executeAdmittedExistingTargetCommand.mockImplementation(async (input, handlers) => {
-      await handlers.prepare(
-        input.db,
-        { causation: { claimActionId: "action_claim_projection_drift" } },
-        input.commandInput,
-      )
-      return { replayed: false, value: detail.booking }
-    })
-
-    const contribution = await voyantToolContextContribution.contribute({
-      request: request(),
-      context: toolContext(db),
-      resources: {},
-    })
-    const runtime = contribution.bookings as {
-      confirmBooking: (
-        input: { id: string; idempotencyKey: string },
-        admitted: ToolHandlerActionPolicyContext,
-      ) => Promise<unknown>
-    }
-
-    await expect(
-      runtime.confirmBooking({ id: "booking_1", idempotencyKey: "projection-drift" }, {
-        capabilityId: "booking.status.confirm",
-        invocation: {},
-      } as ToolHandlerActionPolicyContext),
-    ).rejects.toMatchObject({
-      code: "INVALID_INPUT",
-      meta: { bookingId: "booking_1", reason: "consequence_drift" },
-    })
-    expect(confirmBooking).not.toHaveBeenCalled()
-  })
-
-  it("locks confirmation children before the booking parent to match item writers", async () => {
-    const execute = vi.fn().mockResolvedValue({ rows: [] })
-
-    await lockBookingStatusConsequenceState({ execute } as never, "booking_1", "confirm")
-
-    const dialect = new PgDialect()
-    const statements = execute.mock.calls.map(([query]) => dialect.sqlToQuery(query).sql)
-    expect(statements).toHaveLength(8)
-    expect(statements[0]).toContain("FROM booking_items")
-    expect(statements[1]).toContain("FROM booking_travelers")
-    expect(statements[1]).not.toContain("participant_type")
-    expect(statements[2]).toContain("FROM booking_item_travelers")
-    expect(statements[3]).toContain("FROM booking_fulfillments")
-    expect(statements[4]).toContain("LOCK TABLE product_ticket_settings")
-    expect(statements[5]).toContain("FROM product_ticket_settings")
-    expect(statements[6]).toContain("FROM bookings")
-    expect(statements[7]).toContain("FROM booking_allocations")
-  })
-
   it("locks an item before the primary-participant mutation in one transaction", async () => {
     const dialect = new PgDialect()
     const events: string[] = []
@@ -473,42 +248,6 @@ describe("bookings MCP runtime lifecycle detail", () => {
   })
 })
 
-function mockConfirmationProjection(detail: ReturnType<typeof bookingDetailWithDates>) {
-  vi.spyOn(bookingsService, "listTravelers").mockResolvedValue([detail.traveler] as never)
-  vi.spyOn(bookingsService, "listFulfillments").mockResolvedValue([] as never)
-  vi.spyOn(bookingsService, "listProductTicketSettings").mockResolvedValue([
-    ticketSetting("per_item"),
-  ] as never)
-}
-
-function ticketSetting(fulfillmentMode: string) {
-  return {
-    id: "ticket_setting_1",
-    productId: "product_1",
-    fulfillmentMode,
-    defaultDeliveryFormat: "digital_ticket",
-    ticketPerUnit: false,
-  }
-}
-
-function existingFulfillment() {
-  return {
-    id: "fulfillment_1",
-    bookingId: "booking_1",
-    bookingItemId: "item_1",
-    travelerId: null,
-    fulfillmentType: "ticket",
-    deliveryChannel: "download",
-    status: "issued",
-    artifactUrl: null,
-    payload: null,
-    issuedAt: new Date("2026-07-28T10:05:00.000Z"),
-    revokedAt: null,
-    createdAt: new Date("2026-07-28T10:05:00.000Z"),
-    updatedAt: new Date("2026-07-28T10:05:00.000Z"),
-  }
-}
-
 function financeTablesUnavailable() {
   return { rows: [{ invoicesTable: null, paymentSchedulesTable: null }] }
 }
@@ -517,7 +256,7 @@ function bookingDetailWithDates(id: string) {
   const booking = {
     id,
     bookingNumber: "BK-1",
-    status: "on_hold",
+    status: "confirmed",
     personId: "person_1",
     organizationId: null,
     sourceType: "manual",
@@ -552,13 +291,10 @@ function bookingDetailWithDates(id: string) {
     customerPaymentPolicy: null,
     priceOverride: null,
     customFields: {},
-    holdExpiresAt: null,
+    acceptedAt: new Date("2026-07-28T10:00:00.000Z"),
     confirmedAt: null,
-    expiredAt: null,
     cancelledAt: null,
     completedAt: null,
-    awaitingPaymentAt: null,
-    paidAt: null,
     redeemedAt: null,
     createdAt: new Date("2026-07-28T10:00:00.000Z"),
     updatedAt: new Date("2026-07-28T10:30:00.000Z"),
@@ -569,7 +305,7 @@ function bookingDetailWithDates(id: string) {
     title: "Cabin",
     description: null,
     itemType: "unit",
-    status: "on_hold",
+    status: "confirmed",
     serviceDate: null,
     startsAt: null,
     endsAt: null,

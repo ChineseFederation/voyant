@@ -49,7 +49,6 @@ if (existsSync(join(root, workflowAdapterPath))) {
 for (const path of [
   "packages/trips/src/route-runtime.ts",
   "packages/trips/src/checkout/voyant-fx.ts",
-  "packages/finance/src/stale-booking-holds-runtime.ts",
   "packages/distribution/src/channel-push/jobs.ts",
   "packages/inventory/src/brochure-runtime.ts",
   "packages/inventory/src/booking-payment-policy-runtime.ts",

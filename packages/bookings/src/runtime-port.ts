@@ -14,7 +14,6 @@ import { definePort } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import type { BookingsApiModuleOptions } from "./index.js"
-import type { BookingsExpireStaleHoldsJobRuntime } from "./job-runtime.js"
 import type { BookingRequirementsApiModuleOptions } from "./requirements/index.js"
 import type { ResolveBookingRequirementsProductSnapshot } from "./requirements/service-public.js"
 import type {
@@ -32,10 +31,6 @@ export interface BookingsAccommodationRuntime {
 }
 
 export interface BookingsFinanceRuntime {
-  createStaleBookingHoldsJobRuntime(options: {
-    resolveDb: () => PostgresJsDatabase | Promise<PostgresJsDatabase>
-    userId?: string
-  }): BookingsExpireStaleHoldsJobRuntime
   quoteBookingAmendment(
     db: PostgresJsDatabase,
     input: {
@@ -214,7 +209,7 @@ export const bookingsAccommodationRuntimePort = objectPort<BookingsAccommodation
 )
 export const bookingsFinanceRuntimePort = objectPort<BookingsFinanceRuntime>(
   "bookings.finance.runtime",
-  ["createStaleBookingHoldsJobRuntime", "quoteBookingAmendment", "recordBookingAmendment"],
+  ["quoteBookingAmendment", "recordBookingAmendment"],
 )
 export const bookingsSupplierAmendmentRuntimePort = objectPort<BookingsSupplierAmendmentRuntime>(
   "bookings.supplier-amendment.runtime",

@@ -35,10 +35,6 @@ function startCatalogCheckout(
 
 function stubOptions(overrides: Partial<CheckoutStartOptions> = {}): CheckoutStartOptions {
   return {
-    checkoutInquiry: {
-      resolvePipeline: vi.fn().mockResolvedValue(null),
-      createInquiry: vi.fn().mockResolvedValue(null),
-    },
     resolveBookingTaxSettings: vi.fn().mockResolvedValue({
       taxPriceMode: "inclusive",
       taxPolicyProfileId: null,
@@ -125,12 +121,12 @@ describe("startCatalogCheckout", () => {
 
     const err = await startCatalogCheckout(
       {
-        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        db: stubDb([{ id: "bk_1", status: "confirmed" }]),
         env: {},
         storefrontChannel: null,
         options: stubOptions({ publication, persistAcceptanceDraftContract }),
       },
-      { bookingId: "bk_1", paymentIntent: "hold" },
+      { bookingId: "bk_1", paymentIntent: "card" },
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
@@ -152,11 +148,11 @@ describe("startCatalogCheckout", () => {
 
     const err = await startCatalogCheckout(
       {
-        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        db: stubDb([{ id: "bk_1", status: "confirmed" }]),
         env: {},
         options: stubOptions({ publication, persistAcceptanceDraftContract }),
       },
-      { bookingId: "bk_1", paymentIntent: "hold" },
+      { bookingId: "bk_1", paymentIntent: "card" },
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
@@ -165,23 +161,10 @@ describe("startCatalogCheckout", () => {
     expect(persistAcceptanceDraftContract).not.toHaveBeenCalled()
   })
 
-  it("places a hold for an existing booking", async () => {
-    const booking = { id: "bk_1", status: "on_hold", holdExpiresAt: null }
-    const result = await startCatalogCheckout(
-      {
-        db: stubDb([booking]),
-        env: {},
-        options: stubOptions(),
-      },
-      { bookingId: "bk_1", paymentIntent: "hold" },
-    )
-    expect(result).toEqual({ kind: "hold_placed", bookingId: "bk_1" })
-  })
-
   it("denies bound-storefront checkout when a booking product is unpublished", async () => {
     const publication = { isProductPublished: vi.fn().mockResolvedValue(false) }
     const { db } = queuedDb([
-      [{ id: "bk_1", status: "on_hold", holdExpiresAt: null }],
+      [{ id: "bk_1", status: "confirmed" }],
       [{ productId: "prod_unpublished" }],
     ])
 
@@ -196,7 +179,7 @@ describe("startCatalogCheckout", () => {
         },
         options: stubOptions({ publication }),
       },
-      { bookingId: "bk_1", paymentIntent: "hold" },
+      { bookingId: "bk_1", paymentIntent: "card" },
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
@@ -215,7 +198,7 @@ describe("startCatalogCheckout", () => {
 
     const err = await startCatalogCheckout(
       {
-        db: stubDb([{ id: "bk_1", status: "on_hold", holdExpiresAt: null }]),
+        db: stubDb([{ id: "bk_1", status: "confirmed" }]),
         env: {},
         storefrontChannel: {
           storefrontId: "sf_1",
@@ -224,7 +207,7 @@ describe("startCatalogCheckout", () => {
         },
         options: stubOptions({ publication }),
       },
-      { bookingId: "bk_1", paymentIntent: "hold" },
+      { bookingId: "bk_1", paymentIntent: "card" },
     ).catch((error: unknown) => error)
 
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
@@ -232,99 +215,11 @@ describe("startCatalogCheckout", () => {
     expect(publication.isProductPublished).not.toHaveBeenCalled()
   })
 
-  it("creates an inquiry through the injected Proposals runtime", async () => {
-    vi.spyOn(bookingsModule.bookingsService, "cancelBooking").mockResolvedValue({} as never)
-    const checkoutInquiry = {
-      resolvePipeline: vi.fn().mockResolvedValue({ pipelineId: "pipeline_1", stageId: "stage_1" }),
-      createInquiry: vi.fn().mockResolvedValue({ id: "prps_1" }),
-    }
-    const emit = vi.fn().mockResolvedValue(undefined)
-    const db = stubDb([
-      {
-        id: "bk_inquiry",
-        bookingNumber: "BK-2001",
-        status: "on_hold",
-        holdExpiresAt: null,
-        personId: "person_1",
-        organizationId: null,
-        sellAmountCents: 12500,
-        sellCurrency: "EUR",
-      },
-    ])
-
-    await expect(
-      startCatalogCheckout(
-        {
-          db,
-          env: {},
-          eventBus: { emit } as never,
-          options: stubOptions({ checkoutInquiry }),
-        },
-        { bookingId: "bk_inquiry", paymentIntent: "inquiry" },
-      ),
-    ).resolves.toEqual({
-      kind: "inquiry_received",
-      bookingId: "bk_inquiry",
-      inquiryId: "prps_1",
-    })
-    expect(checkoutInquiry.resolvePipeline).toHaveBeenCalledWith(db, {
-      pipelineId: null,
-      stageId: null,
-    })
-    expect(checkoutInquiry.createInquiry).toHaveBeenCalledWith(
-      db,
-      expect.objectContaining({
-        pipelineId: "pipeline_1",
-        stageId: "stage_1",
-        source: "storefront-inquiry",
-        sourceRef: "bk_inquiry",
-      }),
-    )
-    expect(emit).toHaveBeenCalledWith("inquiry.created", {
-      proposalId: "prps_1",
-      bookingId: "bk_inquiry",
-      bookingNumber: "BK-2001",
-      pipelineId: "pipeline_1",
-      stageId: "stage_1",
-    })
-  })
-
-  it("keeps the inquiry fallback when Proposals has no configured pipeline", async () => {
-    vi.spyOn(bookingsModule.bookingsService, "cancelBooking").mockResolvedValue({} as never)
-    const checkoutInquiry = {
-      resolvePipeline: vi.fn().mockRejectedValue(new Error("proposals unavailable")),
-      createInquiry: vi.fn(),
-    }
-
-    const result = await startCatalogCheckout(
-      {
-        db: stubDb([
-          {
-            id: "bk_fallback",
-            bookingNumber: "BK-2002",
-            status: "on_hold",
-            holdExpiresAt: null,
-          },
-        ]),
-        env: {},
-        options: stubOptions({ checkoutInquiry }),
-      },
-      { bookingId: "bk_fallback", paymentIntent: "inquiry" },
-    )
-
-    expect(result).toMatchObject({
-      kind: "inquiry_received",
-      inquiryId: "inq-bk_fallback",
-      note: expect.stringContaining("No proposal pipeline configured"),
-    })
-    expect(checkoutInquiry.createInquiry).not.toHaveBeenCalled()
-  })
-
   it("throws booking_not_found when the booking does not exist", async () => {
     const db = stubDb([])
     const err = await startCatalogCheckout(
       { db, env: {}, options: stubOptions() },
-      { bookingId: "missing", paymentIntent: "hold" },
+      { bookingId: "missing", paymentIntent: "card" },
     ).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(CatalogCheckoutStartError)
     expect(err).toMatchObject({ code: "booking_not_found", status: 404 })
@@ -347,8 +242,8 @@ describe("startCatalogCheckout", () => {
     expect(calls.updates).toBe(0)
   })
 
-  it("does not mark an existing booking awaiting payment when no proforma series is active", async () => {
-    const booking = { id: "bk_1", status: "on_hold", holdExpiresAt: null }
+  it("does not mutate Booking lifecycle when no proforma series is active", async () => {
+    const booking = { id: "bk_1", status: "confirmed" }
     const { db, calls } = queuedDb([[booking], [{ productId: "prod_1" }]])
 
     const err = await startCatalogCheckout(
@@ -379,8 +274,7 @@ describe("startCatalogCheckout", () => {
     const booking = {
       id: "bk_bank",
       bookingNumber: "BK-1001",
-      status: "on_hold",
-      holdExpiresAt: null,
+      status: "confirmed",
       personId: null,
       organizationId: null,
       sellAmountCents: 100000,
@@ -469,7 +363,7 @@ describe("startCatalogCheckout", () => {
       proformaNumber: "PF-1001",
       paymentSessionId: "ps_bank_transfer",
     })
-    expect(updates).toHaveLength(1)
+    expect(updates).toHaveLength(0)
     const activityRows = inserts.map((insert) => insert.values)
     expect(activityRows).toHaveLength(3)
     expect(activityRows.map((row) => row.description)).toEqual([
@@ -536,8 +430,7 @@ describe("startCatalogCheckout", () => {
     const booking = {
       id: "bk_bank",
       bookingNumber: "BK-1001",
-      status: "on_hold",
-      holdExpiresAt: null,
+      status: "confirmed",
       personId: null,
       organizationId: null,
       sellAmountCents: 100000,

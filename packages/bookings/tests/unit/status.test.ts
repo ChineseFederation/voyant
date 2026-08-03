@@ -6,36 +6,20 @@ import {
   isBookingResourceAvailabilityStatus,
 } from "../../src/status.js"
 
-describe("booking resource availability statuses", () => {
-  it("uses current booking status enum values for resource availability counts", () => {
-    expect(BOOKING_RESOURCE_AVAILABILITY_STATUSES).toEqual([
-      "draft",
-      "on_hold",
-      "awaiting_payment",
-      "confirmed",
-      "in_progress",
-    ])
-    expect(BOOKING_RESOURCE_AVAILABILITY_STATUSES).not.toContain("pending")
-    expect(BOOKING_RESOURCE_AVAILABILITY_STATUSES).not.toContain("checked_in")
-    expect(BOOKING_RESOURCE_AVAILABILITY_STATUSES).not.toContain("completed")
+describe("booking resource status policy", () => {
+  it("counts only live delivery states in availability", () => {
+    expect(BOOKING_RESOURCE_AVAILABILITY_STATUSES).toEqual(["confirmed", "in_progress"])
   })
 
-  it("keeps completed bookings in resource capacity counts", () => {
-    expect(BOOKING_RESOURCE_CAPACITY_STATUSES).toEqual([
-      "draft",
-      "on_hold",
-      "awaiting_payment",
-      "confirmed",
-      "in_progress",
-      "completed",
-    ])
-    expect(BOOKING_RESOURCE_CAPACITY_STATUSES).not.toContain("pending")
-    expect(BOOKING_RESOURCE_CAPACITY_STATUSES).not.toContain("checked_in")
+  it("retains completed commitments in capacity history", () => {
+    expect(BOOKING_RESOURCE_CAPACITY_STATUSES).toEqual(["confirmed", "in_progress", "completed"])
   })
 
-  it("checks resource availability status membership", () => {
-    expect(isBookingResourceAvailabilityStatus("awaiting_payment")).toBe(true)
+  it("checks canonical availability membership", () => {
+    expect(isBookingResourceAvailabilityStatus("confirmed")).toBe(true)
+    expect(isBookingResourceAvailabilityStatus("in_progress")).toBe(true)
+    expect(isBookingResourceAvailabilityStatus("completed")).toBe(false)
     expect(isBookingResourceAvailabilityStatus("cancelled")).toBe(false)
-    expect(isBookingResourceAvailabilityStatus("checked_in")).toBe(false)
+    expect(isBookingResourceAvailabilityStatus("awaiting_payment")).toBe(false)
   })
 })

@@ -64,11 +64,11 @@ describe("recordPaidBookingCancellationSettlement", () => {
       buildPaidBookingCancellationSettlementNote({
         bookingId: "book_1",
         bookingNumber: "BK-1",
-        previousStatus: "awaiting_payment",
+        previousStatus: "confirmed",
         reason: "Card capture failed",
         actorId: "user_1",
       }),
-    ).toContain("Booking BK-1 was cancelled from awaiting_payment.")
+    ).toContain("Booking BK-1 was cancelled from confirmed.")
     expect(
       buildPaidBookingCancellationSettlementNote({
         bookingId: "book_1",

@@ -116,6 +116,112 @@ for (const legacyCreateSurface of [
 const bookingSchema = read("packages/bookings/src/schema-operations.ts")
 rejectText("packages/bookings/src/schema-operations.ts", bookingSchema, "bookingSessionStates")
 
+const bookingSharedSchema = read("packages/bookings/src/schema-shared.ts")
+for (const legacyBookingStatus of ['"draft"', '"on_hold"', '"awaiting_payment"', '"expired"']) {
+  rejectText(
+    "packages/bookings/src/schema-shared.ts",
+    bookingSharedSchema.slice(
+      bookingSharedSchema.indexOf("bookingStatusEnum"),
+      bookingSharedSchema.indexOf("supplierConfirmationStatusEnum"),
+    ),
+    legacyBookingStatus,
+  )
+}
+
+const bookingItemsSchema = read("packages/bookings/src/schema-items.ts")
+rejectText("packages/bookings/src/schema-items.ts", bookingItemsSchema, '.default("confirmed")')
+
+const bookingItemStatusSlice = bookingSharedSchema.slice(
+  bookingSharedSchema.indexOf("bookingItemStatusEnum"),
+  bookingSharedSchema.indexOf("bookingAllocationTypeEnum"),
+)
+for (const legacyBookingItemStatus of ['"pending"', '"reserved"']) {
+  rejectText(
+    "packages/bookings/src/schema-shared.ts",
+    bookingItemStatusSlice,
+    legacyBookingItemStatus,
+  )
+}
+
+const bookingCoreSchema = read("packages/bookings/src/schema-core.ts")
+for (const forbiddenBookingField of [
+  '.default("draft")',
+  "holdExpiresAt",
+  "expiredAt",
+  "awaitingPaymentAt",
+  "paidAt",
+]) {
+  rejectText("packages/bookings/src/schema-core.ts", bookingCoreSchema, forbiddenBookingField)
+}
+
+const bookingCreateContract = read("packages/finance/src/service-booking-create.ts")
+rejectText("packages/finance/src/service-booking-create.ts", bookingCreateContract, "initialStatus")
+requireText(
+  "packages/finance/src/service-booking-create.ts",
+  bookingCreateContract,
+  "WHERE b.status IN ('confirmed', 'in_progress')",
+)
+rejectText(
+  "packages/finance/src/service-booking-create.ts",
+  bookingCreateContract,
+  "b.status NOT IN",
+)
+
+for (const retiredBookingLifecycleFile of [
+  "packages/bookings/src/stale-holds-job.ts",
+  "packages/bookings/src/stale-holds-job-runtime-port.ts",
+  "packages/bookings/src/tasks/expire-stale-holds.ts",
+]) {
+  if (existsSync(resolve(root, retiredBookingLifecycleFile))) {
+    failures.push(
+      `${retiredBookingLifecycleFile}: retired Booking lifecycle surface must stay deleted`,
+    )
+  }
+}
+
+const bookingAdminRoutes = read("packages/bookings/src/routes-admin.ts")
+for (const legacyBookingRoute of [
+  '"/bookings/{id}/confirm"',
+  '"/bookings/{id}/extend-hold"',
+  '"/bookings/{id}/expire"',
+  '"/bookings/expire-stale"',
+]) {
+  rejectText("packages/bookings/src/routes-admin.ts", bookingAdminRoutes, legacyBookingRoute)
+}
+
+const adminBookingContracts = read("packages/admin-contracts/src/bookings.ts")
+for (const legacyAdminContract of [
+  "confirmBookingSchema",
+  'id: "bookings.confirm"',
+  'pathTemplate: "/v1/admin/bookings/:id/confirm"',
+]) {
+  rejectText("packages/admin-contracts/src/bookings.ts", adminBookingContracts, legacyAdminContract)
+}
+
+const adminClient = read("packages/admin-react/src/client/client.ts")
+rejectText("packages/admin-react/src/client/client.ts", adminClient, "bookingsOperations.confirm")
+
+const notificationsManifest = read("packages/notifications/src/voyant.ts")
+rejectText("packages/notifications/src/voyant.ts", notificationsManifest, '"booking.expired"')
+
+for (const path of [
+  "packages/bookings/openapi/admin/bookings.json",
+  "packages/bookings/openapi/storefront/bookings.json",
+]) {
+  const document = read(path)
+  for (const legacyBookingStatus of ['"on_hold"', '"awaiting_payment"']) {
+    rejectText(path, document, legacyBookingStatus)
+  }
+  for (const legacyBookingPath of [
+    "/v1/admin/bookings/expire-stale",
+    "/v1/admin/bookings/{id}/confirm",
+    "/v1/admin/bookings/{id}/extend-hold",
+    "/v1/admin/bookings/{id}/expire",
+  ]) {
+    rejectText(path, document, legacyBookingPath)
+  }
+}
+
 for (const legacyCatalogFile of [
   "packages/catalog/src/booking-engine/drafts-schema.ts",
   "packages/catalog/src/booking-engine/drafts-service.ts",
@@ -174,6 +280,25 @@ for (const requiredCutoverRule of [
   requireText(
     "packages/catalog/migrations/20260802190000_booking_v1_beta_draft_cutover.sql",
     betaDraftCutover,
+    requiredCutoverRule,
+  )
+}
+
+const betaBookingStatusCutover = read(
+  "packages/bookings/migrations/20260802200000_booking_v1_status_cutover.sql",
+)
+for (const requiredCutoverRule of [
+  "ambiguous supplier effect",
+  "unresolved external payment effect",
+  "booking_v1_legacy_allocations_to_release",
+  "genuine_commitment",
+  "abandoned_attempt",
+  'DROP TABLE IF EXISTS "booking_session_states"',
+  "CREATE TYPE \"booking_status\" AS ENUM ('confirmed', 'in_progress', 'completed', 'cancelled')",
+]) {
+  requireText(
+    "packages/bookings/migrations/20260802200000_booking_v1_status_cutover.sql",
+    betaBookingStatusCutover,
     requiredCutoverRule,
   )
 }

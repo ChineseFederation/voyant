@@ -13,12 +13,7 @@ import type { BookingDocumentBundleItem, BookingPaymentScheduleRow } from "./ser
 import { listBookingNotificationItems, resolveReminderRecipient } from "./service-shared.js"
 import type { NotificationAttachment } from "./types.js"
 
-export const PAYABLE_BOOKING_STATUSES = new Set([
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-])
+export const PAYABLE_BOOKING_STATUSES = new Set(["confirmed", "in_progress", "completed"])
 export const OPEN_PAYMENT_SCHEDULE_STATUSES = new Set(["pending", "due"])
 
 export interface BookingEventReminderRuntimeOptions {

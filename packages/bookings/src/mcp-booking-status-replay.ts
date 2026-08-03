@@ -1,6 +1,6 @@
 import { ToolError } from "@voyant-travel/tools"
 
-export type BookingStatusToolAction = "confirm" | "cancel"
+export type BookingStatusToolAction = "cancel"
 
 export async function requiredBookingStatusReplayDetail(input: {
   action: BookingStatusToolAction
@@ -9,11 +9,10 @@ export async function requiredBookingStatusReplayDetail(input: {
 }) {
   const detail = await input.loadBookingDetail(input.input.id)
   if (!detail) {
-    throw new ToolError(
-      `${input.action === "confirm" ? "Confirmed" : "Cancelled"} booking could not be read.`,
-      "NOT_FOUND",
-      { bookingId: input.input.id, action: input.action },
-    )
+    throw new ToolError("Cancelled booking could not be read.", "NOT_FOUND", {
+      bookingId: input.input.id,
+      action: input.action,
+    })
   }
 
   const expectedStatus = bookingStatusToolTerminalStatus(input.action)
@@ -34,8 +33,8 @@ export async function requiredBookingStatusReplayDetail(input: {
   return detail
 }
 
-function bookingStatusToolTerminalStatus(action: BookingStatusToolAction) {
-  return action === "confirm" ? "confirmed" : "cancelled"
+function bookingStatusToolTerminalStatus(_action: BookingStatusToolAction) {
+  return "cancelled"
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

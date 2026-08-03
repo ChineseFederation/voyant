@@ -1,5 +1,5 @@
 /**
- * Bookings admin operations (first slice: list, get, confirm, cancel).
+ * Bookings admin operations (first slice: list, get, cancel).
  *
  * Input schemas derive from `@voyant-travel/bookings-contracts` (the canonical route
  * validation) so the SDK can't drift from the routes. Output schemas stay a
@@ -7,7 +7,7 @@
  * status, for forward-compatibility (see ADR-0002 / ADR-0003).
  */
 
-import { cancelBookingSchema, confirmBookingSchema } from "@voyant-travel/bookings-contracts"
+import { cancelBookingSchema } from "@voyant-travel/bookings-contracts"
 import { z } from "zod"
 
 import { defineOperation } from "./core/operation.js"
@@ -42,9 +42,8 @@ export const bookingListInputSchema = pageQuerySchema.extend({
 })
 
 // Re-use the canonical route validation from @voyant-travel/bookings-contracts so the
-// SDK input matches what the confirm/cancel routes accept (which also allow a
-// null note).
-export const confirmBookingInputSchema = confirmBookingSchema
+// SDK input matches what the cancel route accepts (which also allows a null
+// note).
 export const cancelBookingInputSchema = cancelBookingSchema
 
 const list = defineOperation({
@@ -72,20 +71,6 @@ const get = defineOperation({
   summary: "Get a single booking by id.",
 })
 
-const confirm = defineOperation({
-  id: "bookings.confirm",
-  method: "POST",
-  path: (p: { id: string }) => `/v1/admin/bookings/${p.id}/confirm`,
-  pathTemplate: "/v1/admin/bookings/:id/confirm",
-  input: confirmBookingInputSchema,
-  output: bookingSummarySchema,
-  classification: "requires_confirmation",
-  scopes: ["bookings:write"],
-  capabilityKey: "booking.status.confirm",
-  idempotent: true,
-  summary: "Confirm an on-hold booking. May require approval (HTTP 202).",
-})
-
 const cancel = defineOperation({
   id: "bookings.cancel",
   method: "POST",
@@ -100,4 +85,4 @@ const cancel = defineOperation({
   summary: "Cancel a booking. May require approval (HTTP 202).",
 })
 
-export const bookingsOperations = { list, get, confirm, cancel } as const
+export const bookingsOperations = { list, get, cancel } as const

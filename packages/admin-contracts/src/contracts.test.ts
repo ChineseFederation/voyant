@@ -21,27 +21,27 @@ describe("@voyant-travel/admin-contracts operation descriptors", () => {
     expect(get.envelope).toBe("data")
     expect(get.idempotent).toBe(false)
 
-    const confirm = bookingsOperations.confirm
-    expect(confirm.inputLocation).toBe("body") // POST → body
-    expect(confirm.idempotent).toBe(true)
-    expect(confirm.classification).toBe("requires_confirmation")
-    expect(confirm.capabilityKey).toBe("booking.status.confirm")
+    const cancel = bookingsOperations.cancel
+    expect(cancel.inputLocation).toBe("body") // POST → body
+    expect(cancel.idempotent).toBe(true)
+    expect(cancel.classification).toBe("requires_confirmation")
+    expect(cancel.capabilityKey).toBe("booking.status.cancel")
   })
 
   it("builds paths from params and exposes stable templates", () => {
-    expect(bookingsOperations.confirm.path({ id: "book_123" })).toBe(
-      "/v1/admin/bookings/book_123/confirm",
+    expect(bookingsOperations.cancel.path({ id: "book_123" })).toBe(
+      "/v1/admin/bookings/book_123/cancel",
     )
-    expect(bookingsOperations.confirm.pathTemplate).toBe("/v1/admin/bookings/:id/confirm")
+    expect(bookingsOperations.cancel.pathTemplate).toBe("/v1/admin/bookings/:id/cancel")
     expect(financeOperations.payments.record.path({ id: "inv_9" })).toBe(
       "/v1/admin/finance/invoices/inv_9/payments",
     )
   })
 
   it("validates input against the operation schema", () => {
-    type ConfirmInput = InferInput<typeof bookingsOperations.confirm>
-    const input: ConfirmInput = { note: "ok", suppressNotifications: true }
-    expect(bookingsOperations.confirm.input.parse(input)).toMatchObject({ note: "ok" })
+    type CancelInput = InferInput<typeof bookingsOperations.cancel>
+    const input: CancelInput = { note: "ok", suppressNotifications: true }
+    expect(bookingsOperations.cancel.input.parse(input)).toMatchObject({ note: "ok" })
 
     const bad = financeOperations.payments.record.input.safeParse({
       amountCents: -1,
@@ -97,7 +97,7 @@ describe("@voyant-travel/admin-contracts registry", () => {
     // consistency.test.ts.
     for (const id of [
       "bookings.list",
-      "bookings.confirm",
+      "bookings.cancel",
       "finance.invoices.get",
       "finance.payments.record",
       "crm.people.list",
@@ -171,10 +171,10 @@ describe("@voyant-travel/admin-contracts registry", () => {
       operations: operationCapabilities(),
     }
     expect(deploymentCapabilitiesSchema.safeParse(capabilities).success).toBe(true)
-    const confirm = capabilities.operations.find((o) => o.id === "bookings.confirm")
-    expect(confirm).toMatchObject({
+    const cancel = capabilities.operations.find((o) => o.id === "bookings.cancel")
+    expect(cancel).toMatchObject({
       method: "POST",
-      pathTemplate: "/v1/admin/bookings/:id/confirm",
+      pathTemplate: "/v1/admin/bookings/:id/cancel",
       classification: "requires_confirmation",
     })
   })

@@ -133,6 +133,22 @@ Only after classification and audit insertion does the migration drop
 and draft reaper are removed in the same release, preventing new beta rows from
 appearing after cutover.
 
+The committed-Booking cutover then classifies legacy `draft`, `on_hold`,
+`awaiting_payment`, and `expired` Booking rows. First-acceptance timestamps,
+settled Finance state, Legal records, Fulfillments, redemptions, Amendments, and
+conclusive supplier evidence preserve a genuine commitment. `awaiting_payment`
+becomes `confirmed`; an expired genuine commitment becomes `cancelled` history.
+Unresolved supplier or provider-payment effects fail closed for explicit
+reconciliation. Only evidence-free attempts are deleted, after held/confirmed
+Allocations restore their Slot capacity in stable lock order. The same
+transaction removes `booking_session_states`, contracts Booking and Booking
+Item enums, drops the beta lifecycle columns, and removes both status defaults.
+
+The booking-backed wizard contained neither a v1 target snapshot nor a secure
+anonymous capability, so it cannot be made safely resumable. Genuine parent
+commitments are preserved; evidence-free rows follow the explicit beta-expiry
+policy rather than receiving fabricated credentials.
+
 ## Conformance and maintenance
 
 The shared conformance suite in

@@ -19,7 +19,6 @@
  * which holds the request-scoped services.
  */
 import { bookingToolDetailSchema } from "@voyant-travel/bookings"
-import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
 import { z } from "zod"
 
 import { type BookingCreateInput, bookingCreateSchema } from "./service-booking-create.js"
@@ -162,9 +161,6 @@ export const bookProductToolInputSchema = z.object({
   documentGeneration: documentGenerationSchema
     .optional()
     .describe("Ask the create to also request a contract and/or an invoice or proforma."),
-  initialStatus: bookingStatusSchema
-    .optional()
-    .describe("Seat the booking in this status instead of the default `draft`."),
   suppressNotifications: z
     .boolean()
     .optional()
@@ -253,7 +249,6 @@ export function mapBookProductIntentToCommand(
     })),
     paymentSchedules: input.paymentSchedules,
     documentGeneration: input.documentGeneration,
-    ...(input.initialStatus ? { initialStatus: input.initialStatus } : {}),
     ...(input.suppressNotifications !== undefined
       ? { suppressNotifications: input.suppressNotifications }
       : {}),

@@ -107,16 +107,6 @@ const checkoutStartResultSchema = z.discriminatedUnion("kind", [
     paymentSessionId: z.string().nullable(),
     instructions: bankTransferInstructionsSchema,
   }),
-  z.object({
-    kind: z.literal("inquiry_received"),
-    bookingId: z.string(),
-    inquiryId: z.string(),
-    note: z.string().optional(),
-  }),
-  z.object({
-    kind: z.literal("hold_placed"),
-    bookingId: z.string(),
-  }),
 ])
 
 const checkoutStartRoute = createRoute({

@@ -20,7 +20,6 @@ async function fixture(overrides = {}) {
     "packages/trips/src/runtime.ts":
       "createTripsRouteRuntime createCatalogComponentAdapter VoyantRuntimeHostPrimitives",
     "packages/trips/src/checkout/voyant-fx.ts": "runtime",
-    "packages/finance/src/stale-booking-holds-runtime.ts": "runtime",
     "packages/distribution/src/channel-push/jobs.ts": "runtime",
     "packages/inventory/src/brochure-runtime.ts": "runtime",
     "packages/inventory/src/booking-payment-policy-runtime.ts": "runtime",

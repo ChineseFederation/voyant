@@ -25,13 +25,7 @@ type SlotExtraSelectionPatch = z.infer<typeof slotExtraSelectionPatchSchema>
 type SlotExtraSelectionBulk = z.infer<typeof slotExtraSelectionBulkSchema>
 type SlotExtraCollectionBulk = z.infer<typeof slotExtraCollectionBulkSchema>
 
-const activeBookingStatusesForSlot = [
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-  "completed",
-] as const
+const activeBookingStatusesForSlot = ["confirmed", "in_progress", "completed"] as const
 
 const activeAllocationStatusesForSlot = ["held", "confirmed", "fulfilled"] as const
 

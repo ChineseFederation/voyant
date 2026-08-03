@@ -81,37 +81,6 @@ export const BOOKING_ACTION_DECLARATIONS = {
     },
   },
   status: {
-    confirm: {
-      ...bookingWriteCapability,
-      id: "bookings:status:confirm",
-      action: "confirm",
-      risk: "high",
-      approvalPolicy: "conditional",
-      graph: {
-        ...bookingWriteCapability.graph,
-        id: "booking.status.confirm",
-        approval: "required",
-        policy: "bookings-status-approval-v1",
-        commandTargetField: "id",
-        targetLifecycle: "existing",
-        existingTarget: { durability: "handler-command-result-v1" },
-        effectBoundary: "multistage",
-        durability: {
-          strategy: "transactional",
-          testReference: "packages/finance/tests/integration/booking-create.test.ts",
-        },
-        from: {
-          ...adminRouteBinding,
-          tools: ["@voyant-travel/bookings#tool.confirm-booking"],
-        },
-      },
-    },
-    expire: {
-      ...bookingWriteCapability,
-      id: "bookings:status:expire",
-      action: "expire",
-      graph: { ...bookingWriteCapability.graph, id: "booking.status.expire" },
-    },
     cancel: {
       ...bookingWriteCapability,
       id: "bookings:status:cancel",
@@ -267,8 +236,6 @@ export const BOOKING_PII_READ_CAPABILITY = toCapabilityDefinition(
 )
 
 export const BOOKING_STATUS_CAPABILITIES = {
-  confirm: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.confirm),
-  expire: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.expire),
   cancel: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.cancel),
   start: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.start),
   complete: toCapabilityDefinition(BOOKING_ACTION_DECLARATIONS.status.complete),

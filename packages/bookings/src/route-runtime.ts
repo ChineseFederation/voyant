@@ -79,7 +79,7 @@ export type ResolveBookingBillingOrganizationById = (
 export type ClosePaymentSchedulesForBooking = (
   db: PostgresJsDatabase,
   bookingId: string,
-  status: Extract<BookingStatus, "cancelled" | "expired">,
+  status: Extract<BookingStatus, "cancelled">,
 ) => Promise<void> | void
 
 export type RecordCancellationFinancialSettlement = (
@@ -87,10 +87,7 @@ export type RecordCancellationFinancialSettlement = (
   input: {
     bookingId: string
     bookingNumber: string
-    previousStatus: Extract<
-      BookingStatus,
-      "draft" | "on_hold" | "awaiting_payment" | "confirmed" | "in_progress"
-    >
+    previousStatus: Extract<BookingStatus, "confirmed" | "in_progress">
     reason: string | null
     actorId: string
   },

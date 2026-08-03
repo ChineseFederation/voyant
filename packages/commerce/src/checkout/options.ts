@@ -20,7 +20,6 @@
  */
 
 import type { BookingTaxSettings, PaymentPolicy, PaymentPolicySource } from "@voyant-travel/finance"
-import type { CheckoutInquiryRuntime } from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 /**
@@ -96,8 +95,6 @@ export interface CheckoutModuleOptions {
  * bank_transfer path needs.
  */
 export interface CheckoutStartOptions extends CheckoutModuleOptions {
-  /** Package-owned Proposals adapter used by the inquiry checkout path. */
-  checkoutInquiry: CheckoutInquiryRuntime
   /**
    * Resolve the bank-transfer instructions for the bank_transfer payment
    * intent. The deployment reads its operator profile / payment

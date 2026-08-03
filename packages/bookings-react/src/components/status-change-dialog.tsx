@@ -71,7 +71,7 @@ export function StatusChangeDialog({
   const form = useForm<StatusChangeFormValues, unknown, StatusChangeFormOutput>({
     resolver: zodResolver(statusChangeFormSchema),
     defaultValues: {
-      status: "draft",
+      status: "confirmed",
       note: "",
       suppressNotifications: false,
     },
@@ -87,12 +87,11 @@ export function StatusChangeDialog({
     }
   }, [currentStatus, form, open])
 
-  // Suppression only takes effect on the `confirm` verb today (see
-  // status-dispatch.ts), so only show the toggle when the target is
-  // `confirmed`. Hide it otherwise to keep the dialog focused.
+  // Customer lifecycle messages can be suppressed for cancellation and for
+  // an exceptional correction back to confirmed.
   const targetStatus = form.watch("status")
   const suppressNotifications = form.watch("suppressNotifications")
-  const showSuppressToggle = targetStatus === "confirmed"
+  const showSuppressToggle = targetStatus === "confirmed" || targetStatus === "cancelled"
 
   const onSubmit = async (values: StatusChangeFormOutput) => {
     await mutation.mutateAsync({

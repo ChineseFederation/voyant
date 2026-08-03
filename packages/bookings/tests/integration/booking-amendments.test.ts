@@ -62,9 +62,6 @@ describe.skipIf(!DB_AVAILABLE)("Booking traveler Amendments", () => {
 
   function financeRuntime(): BookingsFinanceRuntime {
     return {
-      createStaleBookingHoldsJobRuntime() {
-        throw new Error("not used by Amendment tests")
-      },
       async quoteBookingAmendment(_db, input) {
         const amountCents = input.lines.reduce((sum, line) => sum + line.subtotalDeltaCents, 0)
         return {

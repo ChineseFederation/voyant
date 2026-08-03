@@ -7,8 +7,8 @@ describe("runCheckoutFinalize", () => {
     const calls: string[] = []
     const deps: CheckoutFinalizeDeps = {
       db: {} as CheckoutFinalizeDeps["db"],
-      confirmBooking: async () => {
-        calls.push("confirm")
+      assertBookingCommitted: async () => {
+        calls.push("assert")
       },
       issueInvoice: async () => {
         calls.push("invoice")
@@ -22,23 +22,20 @@ describe("runCheckoutFinalize", () => {
 
     await runCheckoutFinalize({ bookingId: "bk_1", paymentSessionId: "ps_1" }, deps)
 
-    expect(calls).toEqual(["confirm", "invoice", "link"])
+    expect(calls).toEqual(["assert", "invoice", "link"])
   })
 
-  it("can be redelivered after a post-confirmation failure without duplicating domain effects", async () => {
+  it("can be redelivered after an invoice failure without duplicating financial effects", async () => {
     const effects = {
-      confirmed: false,
       invoiceId: null as string | null,
       paymentId: null as string | null,
     }
     let failFirstInvoiceAttempt = true
-    const calls = { confirm: 0, invoice: 0, link: 0 }
+    const calls = { assert: 0, invoice: 0, link: 0 }
     const deps: CheckoutFinalizeDeps = {
       db: {} as CheckoutFinalizeDeps["db"],
-      confirmBooking: async () => {
-        if (effects.confirmed) return
-        calls.confirm++
-        effects.confirmed = true
+      assertBookingCommitted: async () => {
+        calls.assert++
       },
       issueInvoice: async () => {
         if (failFirstInvoiceAttempt) {
@@ -66,6 +63,6 @@ describe("runCheckoutFinalize", () => {
     await runCheckoutFinalize({ bookingId: "bk_1" }, deps)
     await runCheckoutFinalize({ bookingId: "bk_1" }, deps)
 
-    expect(calls).toEqual({ confirm: 1, invoice: 1, link: 1 })
+    expect(calls).toEqual({ assert: 3, invoice: 1, link: 1 })
   })
 })

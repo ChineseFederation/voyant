@@ -19,9 +19,9 @@ export interface UpdateBookingStatusInput {
   status: BookingStatus
   note?: string | null
   /**
-   * When true and `status === "confirmed"`, downstream subscribers
+   * When true for cancellation or a correction back to confirmed, downstream subscribers
    * (auto-dispatch notifications, document bundle email) skip
-   * sending. Lets the operator confirm a booking silently.
+   * sending.
    */
   suppressNotifications?: boolean
   /**
@@ -68,11 +68,8 @@ export interface UpdateBookingStatusByIdInput extends UpdateBookingStatusInput {
 }
 
 /**
- * Variant of `useBookingStatusMutation` that accepts the booking id at call
- * time instead of at hook-setup time. Used by flows that create a booking
- * and immediately transition its status in the same handler — the id only
- * exists after the create returns, so the per-booking hook shape doesn't
- * fit.
+ * Variant of `useBookingStatusMutation` that accepts the Booking id at call
+ * time instead of hook setup time.
  */
 export function useBookingStatusByIdMutation() {
   const { baseUrl, fetcher } = useVoyantBookingsContext()

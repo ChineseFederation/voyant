@@ -16,7 +16,7 @@ import { bookings as bookingsTable } from "../../src/schema.js"
 interface FakeBooking {
   id: string
   bookingNumber: string
-  status: "draft" | "on_hold" | "confirmed" | "in_progress" | "completed" | "expired" | "cancelled"
+  status: "confirmed" | "in_progress" | "completed" | "cancelled"
   sellAmountCents: number | null
 }
 
@@ -216,19 +216,19 @@ describe("refund-booking saga", () => {
     expect(state.booking.status).toBe("cancelled")
   })
 
-  it("rejects refund on a draft booking and never touches downstream services", async () => {
+  it("rejects refund on a completed booking and never touches downstream services", async () => {
     const { deps, calls, state } = makeDeps({
       booking: {
         id: "book_1",
         bookingNumber: "BK-1",
-        status: "draft",
+        status: "completed",
         sellAmountCents: 12000,
       },
     })
     const wf = buildRefundBookingSaga(deps)
     await expect(wf.run({ input: baseInput })).rejects.toThrow(/not refundable/)
     expect(calls.createCreditNote).toBe(0)
-    expect(state.booking.status).toBe("draft")
+    expect(state.booking.status).toBe("completed")
   })
 
   it("rejects refund on a cancelled booking", async () => {
@@ -250,7 +250,7 @@ describe("refund-booking saga", () => {
       booking: {
         id: "book_1",
         bookingNumber: "BK-1",
-        status: "on_hold",
+        status: "confirmed",
         sellAmountCents: 0,
       },
     })

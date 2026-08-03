@@ -1,7 +1,6 @@
 // agent-quality: file-size exception -- owner: commerce; checkout finalization
 // (confirm booking, issue invoice, and link payments) is one cohesive
 // domain operation.
-import { bookingsService } from "@voyant-travel/bookings"
 import { bookings } from "@voyant-travel/bookings/schema"
 import {
   type CheckoutFinalizeDeps,
@@ -31,12 +30,12 @@ export function buildCheckoutFinalizeDeps(
   db: PostgresJsDatabase,
   eventBus: EventBus,
   identity: CheckoutFinalizationIdentity,
-  monthlyBookingLimit?: number | null,
+  _monthlyBookingLimit?: number | null,
 ): CheckoutFinalizeDeps {
   return {
     db,
     eventBus,
-    confirmBooking: async (bookingId) => {
+    assertBookingCommitted: async (bookingId) => {
       const checkpoint = await getCheckoutFinalization(db, identity.bookingId)
       if (checkpoint?.confirmedAt) return
 
@@ -53,52 +52,7 @@ export function buildCheckoutFinalizeDeps(
         await markBookingConfirmed(db, identity)
         return
       }
-
-      const result = await bookingsService.confirmBooking(db, bookingId, {}, undefined, {
-        eventBus,
-        monthlyBookingLimit,
-      })
-      if (result.status === "ok") {
-        await markBookingConfirmed(db, identity)
-        return
-      }
-
-      if (result.status === "monthly_booking_limit_reached" && "message" in result) {
-        throw new Error(`checkout-finalize: ${result.message}`)
-      }
-
-      if (result.status === "hold_expired") {
-        const recovered = await bookingsService.recoverExpiredPaidBooking(
-          db,
-          bookingId,
-          { note: "Recovered after late payment completion" },
-          undefined,
-          { eventBus, monthlyBookingLimit },
-        )
-        if (recovered.status === "ok") {
-          await markBookingConfirmed(db, identity)
-          return
-        }
-        throw new Error(`checkout-finalize: late payment recovery failed (${recovered.status})`)
-      }
-
-      if (result.status === "invalid_transition") {
-        const [current] = await db
-          .select({ status: bookings.status })
-          .from(bookings)
-          .where(eq(bookings.id, bookingId))
-          .limit(1)
-        if (
-          current?.status === "confirmed" ||
-          current?.status === "in_progress" ||
-          current?.status === "completed"
-        ) {
-          await markBookingConfirmed(db, identity)
-          return
-        }
-      }
-
-      throw new Error(`checkout-finalize: booking confirmation failed (${result.status})`)
+      throw new Error("checkout-finalize: payment target is not a committed Booking")
     },
     issueInvoice: async ({ bookingId, convertedFromInvoiceId }) => {
       return withCheckoutFinalizationLock(db, identity, async (tx, state) => {

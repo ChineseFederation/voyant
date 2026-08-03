@@ -13,20 +13,26 @@ import {
 } from "../../src/validation.js"
 
 describe("Booking schema", () => {
-  const valid = { bookingNumber: "BK-000001", sellCurrency: "USD" }
+  const valid = { bookingNumber: "BK-000001", sellCurrency: "USD", status: "confirmed" as const }
   const validPersonId = newId("people")
   const validOrganizationId = newId("organizations")
 
-  it("accepts valid input with defaults", () => {
+  it("accepts an explicitly committed Booking", () => {
     const result = insertBookingSchema.parse(valid)
     expect(result.bookingNumber).toBe("BK-000001")
     expect(result.sellCurrency).toBe("USD")
-    expect(result.status).toBe("draft")
+    expect(result.status).toBe("confirmed")
     expect(result.sourceType).toBe("manual")
   })
 
+  it("rejects an unstated Booking lifecycle", () => {
+    expect(() =>
+      insertBookingSchema.parse({ bookingNumber: "BK-000001", sellCurrency: "USD" }),
+    ).toThrow()
+  })
+
   it("rejects missing bookingNumber", () => {
-    expect(() => insertBookingSchema.parse({ sellCurrency: "USD" })).toThrow()
+    expect(() => insertBookingSchema.parse({ sellCurrency: "USD", status: "confirmed" })).toThrow()
   })
 
   it("rejects empty bookingNumber", () => {
@@ -38,7 +44,9 @@ describe("Booking schema", () => {
   })
 
   it("rejects missing sellCurrency", () => {
-    expect(() => insertBookingSchema.parse({ bookingNumber: "BK-1" })).toThrow()
+    expect(() =>
+      insertBookingSchema.parse({ bookingNumber: "BK-1", status: "confirmed" }),
+    ).toThrow()
   })
 
   it("rejects sellCurrency not 3 chars", () => {
@@ -47,15 +55,7 @@ describe("Booking schema", () => {
   })
 
   it("accepts valid status overrides", () => {
-    for (const status of [
-      "draft",
-      "on_hold",
-      "confirmed",
-      "in_progress",
-      "completed",
-      "expired",
-      "cancelled",
-    ]) {
+    for (const status of ["confirmed", "in_progress", "completed", "cancelled"]) {
       expect(insertBookingSchema.parse({ ...valid, status }).status).toBe(status)
     }
   })
@@ -170,9 +170,9 @@ describe("Update booking schema", () => {
   const validPersonId = newId("people")
   const validOrganizationId = newId("organizations")
 
-  it("accepts partial update", () => {
-    const result = updateBookingSchema.parse({ status: "confirmed" })
-    expect(result.status).toBe("confirmed")
+  it("accepts partial mutable-field updates", () => {
+    const result = updateBookingSchema.parse({ internalNotes: "VIP" })
+    expect(result.internalNotes).toBe("VIP")
     expect(result.bookingNumber).toBeUndefined()
   })
 
@@ -188,6 +188,11 @@ describe("Update booking schema", () => {
 
   it("rejects clearing durable notification suppression", () => {
     expect(() => updateBookingSchema.parse({ notificationsSuppressed: false })).toThrow()
+  })
+
+  it("rejects lifecycle fields", () => {
+    expect(() => updateBookingSchema.parse({ status: "cancelled" })).toThrow()
+    expect(() => updateBookingSchema.parse({ confirmedAt: "2026-05-12T10:00:00.000Z" })).toThrow()
   })
 
   it("rejects malformed billing-party updates", () => {
@@ -216,8 +221,8 @@ describe("Manual create booking schema", () => {
     expect(() => createBookingSchema.parse({ ...valid, sourceType: "ota" })).toThrow()
   })
 
-  it("rejects on-hold state and hold expiry fields", () => {
-    expect(() => createBookingSchema.parse({ ...valid, status: "on_hold" })).toThrow()
+  it("rejects caller-owned lifecycle fields", () => {
+    expect(() => createBookingSchema.parse({ ...valid, status: "confirmed" })).toThrow()
     expect(() =>
       createBookingSchema.parse({
         ...valid,

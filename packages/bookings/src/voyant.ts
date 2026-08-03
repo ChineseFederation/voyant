@@ -23,12 +23,10 @@ import {
   bookingsRelationshipsRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
-import { bookingsStaleHoldsJobRuntimePort } from "./stale-holds-job-runtime-port.js"
 import { bookingsVoyantAdmin } from "./voyant-admin.js"
 import {
   bookingCancelledPayloadSchema,
   bookingConfirmedPayloadSchema,
-  bookingExpiredPayloadSchema,
   bookingLifecyclePayloadSchema,
   bookingRefundedPayloadSchema,
   bookingStatusOverriddenPayloadSchema,
@@ -333,7 +331,6 @@ export const bookingsVoyantModule = defineModule({
     requirePort(bookingsAccommodationRuntimePort),
     requirePort(customFieldsRuntimePort),
     requirePort(bookingsFinanceRuntimePort),
-    requirePort(bookingsStaleHoldsJobRuntimePort),
     requirePort(bookingsRelationshipsRuntimePort),
     requirePort(bookingsSupplierAmendmentRuntimePort, { optional: true }),
     requirePort(bookingActionProjectionRuntimePort, { optional: true }),
@@ -363,7 +360,6 @@ export const bookingsVoyantModule = defineModule({
       providePort(actionLedgerBookingDriftRuntimePort),
       providePort(customFieldValueLifecycleRuntimePort),
       providePort(customFieldValueOperationsRuntimePort),
-      providePort(bookingsStaleHoldsJobRuntimePort),
     ],
   },
   reporting: bookingsReportingDeclaration,
@@ -420,38 +416,13 @@ export const bookingsVoyantModule = defineModule({
       source: "@voyant-travel/bookings/linkables",
     },
   ],
-  jobs: [
-    {
-      id: "bookings.expire-stale-holds",
-      schedule: { cron: "*/5 * * * *", overlap: "skip" },
-      scheduling: {
-        required: true,
-        profiles: {
-          eager: { cron: "* * * * *", overlap: "skip" },
-          economical: { cron: "*/15 * * * *", overlap: "skip" },
-          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
-        },
-      },
-      runtime: {
-        entry: "@voyant-travel/bookings/stale-holds-job",
-        export: "runBookingsExpireStaleHoldsJob",
-      },
-    },
-  ],
+  jobs: [],
   events: [
     {
       id: "@voyant-travel/bookings#event.booking.confirmed",
       eventType: "booking.confirmed",
       version: "1.0.0",
       payloadSchema: bookingConfirmedPayloadSchema,
-      visibility: "internal",
-      audit: { sourceModule: "bookings", category: "domain" },
-    },
-    {
-      id: "@voyant-travel/bookings#event.booking.expired",
-      eventType: "booking.expired",
-      version: "1.0.0",
-      payloadSchema: bookingExpiredPayloadSchema,
       visibility: "internal",
       audit: { sourceModule: "bookings", category: "domain" },
     },
@@ -512,7 +483,7 @@ export const bookingsVoyantModule = defineModule({
           {
             action: "write",
             label: "Manage bookings",
-            description: "Create, update, confirm, or cancel bookings.",
+            description: "Create, update, start, complete, or cancel bookings.",
             sensitive: true,
           },
           {
@@ -557,14 +528,6 @@ export const bookingsVoyantModule = defineModule({
       requiredScopes: ["bookings:read"],
       context: ["bookings"],
       risk: "low",
-    },
-    {
-      id: "@voyant-travel/bookings#tool.confirm-booking",
-      name: "confirm_booking",
-      runtime: { entry: "@voyant-travel/bookings/tools", export: "confirmBookingTool" },
-      requiredScopes: ["bookings:write"],
-      context: ["bookings"],
-      risk: "high",
     },
     {
       id: "@voyant-travel/bookings#tool.cancel-booking",

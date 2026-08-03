@@ -714,6 +714,7 @@
   "paths": {
     "/v1/public/bookings/overview": {
       "get": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
         "parameters": [
           {
             "schema": {
@@ -757,7 +758,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Guest-facing booking overview",
+            "description": "Guest-facing committed Booking overview",
             "content": {
               "application/json": {
                 "schema": {
@@ -778,16 +779,7 @@
                         },
                         "status": {
                           "type": "string",
-                          "enum": [
-                            "draft",
-                            "on_hold",
-                            "awaiting_payment",
-                            "confirmed",
-                            "in_progress",
-                            "completed",
-                            "expired",
-                            "cancelled"
-                          ]
+                          "enum": ["confirmed", "in_progress", "completed", "cancelled"]
                         },
                         "sellCurrency": {
                           "type": "string"
@@ -875,14 +867,7 @@
                               },
                               "status": {
                                 "type": "string",
-                                "enum": [
-                                  "draft",
-                                  "on_hold",
-                                  "confirmed",
-                                  "cancelled",
-                                  "expired",
-                                  "fulfilled"
-                                ]
+                                "enum": ["confirmed", "cancelled", "fulfilled"]
                               },
                               "serviceDate": {
                                 "type": ["string", "null"]
@@ -1079,7 +1064,23 @@
             }
           },
           "401": {
-            "description": "Missing guest booking access capability",
+            "description": "Missing guest Booking access capability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
             "content": {
               "application/json": {
                 "schema": {
@@ -1111,7 +1112,7 @@
             }
           },
           "429": {
-            "description": "Too many guest booking lookups",
+            "description": "Too many guest Booking lookups",
             "content": {
               "application/json": {
                 "schema": {
@@ -1126,16 +1127,12 @@
               }
             }
           }
-        },
-        "operationId": "getPublicBookingsOverview",
-        "summary": "GET /v1/public/bookings/overview",
-        "tags": ["bookings"],
-        "x-voyant-module": "bookings",
-        "x-voyant-surface": "storefront"
+        }
       }
     },
     "/v1/public/bookings/guest-lookup": {
       "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
         "requestBody": {
           "required": true,
           "content": {
@@ -1160,7 +1157,7 @@
         },
         "responses": {
           "200": {
-            "description": "Booking overview with a guest booking access capability",
+            "description": "Committed Booking overview with a guest access capability",
             "content": {
               "application/json": {
                 "schema": {
@@ -1178,18 +1175,13 @@
                             "bookingNumber": {
                               "type": "string"
                             },
+                            "revision": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
                             "status": {
                               "type": "string",
-                              "enum": [
-                                "draft",
-                                "on_hold",
-                                "awaiting_payment",
-                                "confirmed",
-                                "in_progress",
-                                "completed",
-                                "expired",
-                                "cancelled"
-                              ]
+                              "enum": ["confirmed", "in_progress", "completed", "cancelled"]
                             },
                             "sellCurrency": {
                               "type": "string"
@@ -1277,14 +1269,7 @@
                                   },
                                   "status": {
                                     "type": "string",
-                                    "enum": [
-                                      "draft",
-                                      "on_hold",
-                                      "confirmed",
-                                      "cancelled",
-                                      "expired",
-                                      "fulfilled"
-                                    ]
+                                    "enum": ["confirmed", "cancelled", "fulfilled"]
                                   },
                                   "serviceDate": {
                                     "type": ["string", "null"]
@@ -1517,6 +1502,22 @@
               }
             }
           },
+          "403": {
+            "description": "Missing or mismatched active storefront channel context",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
           "404": {
             "description": "Booking overview not found",
             "content": {
@@ -1534,7 +1535,7 @@
             }
           },
           "429": {
-            "description": "Too many guest booking lookups",
+            "description": "Too many guest Booking lookups",
             "content": {
               "application/json": {
                 "schema": {
@@ -1549,116 +1550,7 @@
               }
             }
           }
-        },
-        "operationId": "postPublicBookingsGuestLookup",
-        "summary": "POST /v1/public/bookings/guest-lookup",
-        "tags": ["bookings"],
-        "x-voyant-module": "bookings",
-        "x-voyant-surface": "storefront"
-      }
-    },
-    "/v1/public/payment-policy/resolve": {
-      "post": {
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "entityModule": {
-                    "type": "string"
-                  },
-                  "entityId": {
-                    "type": "string"
-                  },
-                  "sailingId": {
-                    "type": "string"
-                  },
-                  "cabinCategoryId": {
-                    "type": "string"
-                  },
-                  "ratePlanId": {
-                    "type": "string"
-                  }
-                },
-                "required": ["entityModule", "entityId"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Resolved effective payment policy + cascade source for an entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "policy": {
-                          "type": "object",
-                          "properties": {
-                            "deposit": {
-                              "type": "object",
-                              "properties": {
-                                "kind": {
-                                  "type": "string",
-                                  "enum": ["none", "percent", "fixed_cents"]
-                                },
-                                "percent": {
-                                  "type": "number",
-                                  "minimum": 0,
-                                  "maximum": 100
-                                },
-                                "amountCents": {
-                                  "type": "integer",
-                                  "minimum": 0
-                                }
-                              },
-                              "required": ["kind"]
-                            },
-                            "minDaysBeforeDepartureForDeposit": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "balanceDueDaysBeforeDeparture": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "balanceDueMinDaysFromNow": {
-                              "type": "integer",
-                              "minimum": 0
-                            }
-                          },
-                          "required": [
-                            "deposit",
-                            "minDaysBeforeDepartureForDeposit",
-                            "balanceDueDaysBeforeDeparture",
-                            "balanceDueMinDaysFromNow"
-                          ]
-                        },
-                        "source": {
-                          "type": "string",
-                          "enum": ["booking", "listing", "category", "supplier", "operator_default"]
-                        }
-                      },
-                      "required": ["policy", "source"]
-                    }
-                  },
-                  "required": ["data"]
-                }
-              }
-            }
-          }
-        },
-        "operationId": "postPublicPaymentPolicyResolve",
-        "summary": "POST /v1/public/payment-policy/resolve",
-        "tags": ["bookings"],
-        "x-voyant-module": "bookings",
-        "x-voyant-surface": "storefront"
+        }
       }
     },
     "/v1/public/bookings/{bookingId}/amendments/traveler-corrections/preview": {
@@ -1725,6 +1617,256 @@
                   }
                 },
                 "required": ["travelerId", "expectedBookingRevision", "reason", "patch"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotent or no-op preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingAmendmentPreviewNoOpResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Traveler correction preview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingAmendmentOkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid Idempotency-Key header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bookingItemId": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing or mismatched Booking access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bookingItemId": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Booking or traveler not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bookingItemId": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "currentBookingRevision": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "bookingItemId": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/public/bookings/{bookingId}/amendments/traveler-roster/preview": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedBookingRevision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "change": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["traveler_add"]
+                          },
+                          "bookingItemIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "description": "One or more distinct Booking Item ids; duplicate ids are rejected."
+                          },
+                          "traveler": {
+                            "type": "object",
+                            "properties": {
+                              "personId": {
+                                "type": ["string", "null"],
+                                "minLength": 1
+                              },
+                              "participantType": {
+                                "type": "string",
+                                "enum": ["traveler", "occupant", "other"],
+                                "default": "traveler"
+                              },
+                              "travelerCategory": {
+                                "type": ["string", "null"],
+                                "enum": ["adult", "child", "infant", "senior", "other", null]
+                              },
+                              "firstName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "lastName": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 255
+                              },
+                              "email": {
+                                "type": ["string", "null"],
+                                "format": "email"
+                              },
+                              "phone": {
+                                "type": ["string", "null"],
+                                "maxLength": 50
+                              },
+                              "preferredLanguage": {
+                                "type": ["string", "null"],
+                                "maxLength": 35
+                              }
+                            },
+                            "required": ["firstName", "lastName"]
+                          }
+                        },
+                        "required": ["type", "bookingItemIds", "traveler"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["traveler_drop"]
+                          },
+                          "bookingItemIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "description": "One or more distinct Booking Item ids; duplicate ids are rejected."
+                          },
+                          "travelerId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["type", "bookingItemIds", "travelerId"]
+                      }
+                    ]
+                  }
+                },
+                "required": ["expectedBookingRevision", "reason", "change"]
               }
             }
           }
@@ -2321,256 +2463,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookingAmendmentApplyConflictResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/public/bookings/{bookingId}/amendments/traveler-roster/preview": {
-      "post": {
-        "x-voyant-api-id": "@voyant-travel/bookings#api.public",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "bookingId",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "expectedBookingRevision": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0
-                  },
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  },
-                  "change": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": ["traveler_add"]
-                          },
-                          "bookingItemIds": {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1,
-                            "description": "One or more distinct Booking Item ids; duplicate ids are rejected."
-                          },
-                          "traveler": {
-                            "type": "object",
-                            "properties": {
-                              "personId": {
-                                "type": ["string", "null"],
-                                "minLength": 1
-                              },
-                              "participantType": {
-                                "type": "string",
-                                "enum": ["traveler", "occupant", "other"],
-                                "default": "traveler"
-                              },
-                              "travelerCategory": {
-                                "type": ["string", "null"],
-                                "enum": ["adult", "child", "infant", "senior", "other", null]
-                              },
-                              "firstName": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
-                              },
-                              "lastName": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
-                              },
-                              "email": {
-                                "type": ["string", "null"],
-                                "format": "email"
-                              },
-                              "phone": {
-                                "type": ["string", "null"],
-                                "maxLength": 50
-                              },
-                              "preferredLanguage": {
-                                "type": ["string", "null"],
-                                "maxLength": 35
-                              }
-                            },
-                            "required": ["firstName", "lastName"]
-                          }
-                        },
-                        "required": ["type", "bookingItemIds", "traveler"]
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "enum": ["traveler_drop"]
-                          },
-                          "bookingItemIds": {
-                            "type": "array",
-                            "items": {
-                              "type": "string",
-                              "minLength": 1
-                            },
-                            "minItems": 1,
-                            "description": "One or more distinct Booking Item ids; duplicate ids are rejected."
-                          },
-                          "travelerId": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "required": ["type", "bookingItemIds", "travelerId"]
-                      }
-                    ]
-                  }
-                },
-                "required": ["expectedBookingRevision", "reason", "change"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Idempotent or no-op preview",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BookingAmendmentPreviewNoOpResponse"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Traveler correction preview",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BookingAmendmentOkResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing or invalid Idempotency-Key header",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "currentBookingRevision": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "bookingItemId": {
-                      "type": "string"
-                    },
-                    "reason": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing or mismatched Booking access",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "currentBookingRevision": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "bookingItemId": {
-                      "type": "string"
-                    },
-                    "reason": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Booking or traveler not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "currentBookingRevision": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "bookingItemId": {
-                      "type": "string"
-                    },
-                    "reason": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Revision or idempotency conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "currentBookingRevision": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "bookingItemId": {
-                      "type": "string"
-                    },
-                    "reason": {
-                      "type": "string"
-                    }
-                  },
-                  "required": ["error"]
                 }
               }
             }

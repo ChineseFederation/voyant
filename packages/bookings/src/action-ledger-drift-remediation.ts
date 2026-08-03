@@ -7,16 +7,6 @@ import type {
 import { checkBookingActionLedgerDrift } from "./action-ledger-drift.js"
 
 const BACKFILL_ACTION_BY_CHECK = {
-  booking_confirmed: {
-    actionName: "booking.status.confirm",
-    targetType: "booking",
-    targetIdKind: "booking_id",
-  },
-  booking_expired: {
-    actionName: "booking.status.expire",
-    targetType: "booking",
-    targetIdKind: "booking_id",
-  },
   booking_cancelled: {
     actionName: "booking.status.cancel",
     targetType: "booking",

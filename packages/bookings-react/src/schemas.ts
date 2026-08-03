@@ -8,16 +8,7 @@ export const singleEnvelope = <T extends z.ZodTypeAny>(item: T) => z.object({ da
 export const arrayEnvelope = <T extends z.ZodTypeAny>(item: T) => z.object({ data: z.array(item) })
 export const successEnvelope = z.object({ success: z.boolean() })
 
-export const bookingStatusSchema = z.enum([
-  "draft",
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-  "completed",
-  "expired",
-  "cancelled",
-])
+export const bookingStatusSchema = z.enum(["confirmed", "in_progress", "completed", "cancelled"])
 
 export type BookingStatus = z.infer<typeof bookingStatusSchema>
 
@@ -238,14 +229,7 @@ export const bookingItemTypeSchema = z.enum([
   "other",
 ])
 
-export const bookingItemStatusSchema = z.enum([
-  "draft",
-  "on_hold",
-  "confirmed",
-  "cancelled",
-  "expired",
-  "fulfilled",
-])
+export const bookingItemStatusSchema = z.enum(["confirmed", "cancelled", "fulfilled"])
 
 export const bookingItemRecordSchema = z.object({
   id: z.string(),

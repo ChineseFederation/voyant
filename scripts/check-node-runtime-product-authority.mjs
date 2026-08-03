@@ -100,7 +100,6 @@ for (const [source, required] of [
     [
       "relationships.upsertPersonFromContact",
       "accommodation.enrichOverviewItems",
-      "finance.createStaleBookingHoldsJobRuntime",
       "inventory.resolveProductSnapshot",
     ],
   ],

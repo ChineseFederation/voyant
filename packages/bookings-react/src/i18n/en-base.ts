@@ -7,14 +7,10 @@ export const bookingsUiEnBase = {
     add: "Add",
     loading: "Loading...",
     bookingStatusLabels: {
-      draft: "Draft",
-      on_hold: "On hold",
-      awaiting_payment: "Awaiting payment",
       confirmed: "Confirmed",
       in_progress: "In progress",
       cancelled: "Cancelled",
       completed: "Completed",
-      expired: "Expired",
     },
     supplierStatusLabels: {
       pending: "Pending",

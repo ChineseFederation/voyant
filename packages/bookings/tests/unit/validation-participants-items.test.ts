@@ -7,6 +7,8 @@ import {
   insertBookingTravelerDocumentSchema,
   insertTravelerRecordSchema,
   updateBookingItemSchema,
+  updateTravelerRecordSchema,
+  updateTravelerWithTravelDetailsSchema,
   upsertTravelerTravelDetailsSchema,
 } from "../../src/validation.js"
 
@@ -57,6 +59,13 @@ describe("Traveler record schema", () => {
       ).toBe(travelerCategory)
     }
   })
+
+  it("does not inject insert defaults into partial updates", () => {
+    expect(updateTravelerRecordSchema.parse({ notes: "Updated" })).toEqual({ notes: "Updated" })
+    expect(updateTravelerWithTravelDetailsSchema.parse({ nationality: "RO" })).toEqual({
+      nationality: "RO",
+    })
+  })
 })
 
 describe("Booking item schema", () => {
@@ -66,7 +75,6 @@ describe("Booking item schema", () => {
     const result = insertBookingItemSchema.parse(valid)
     expect(result.title).toBe("Airport Transfer")
     expect(result.itemType).toBe("unit")
-    expect(result.status).toBe("draft")
     expect(result.quantity).toBe(1)
   })
 
@@ -95,10 +103,9 @@ describe("Booking item schema", () => {
     }
   })
 
-  it("accepts valid item statuses", () => {
-    for (const status of ["draft", "on_hold", "confirmed", "cancelled", "expired", "fulfilled"]) {
-      expect(insertBookingItemSchema.parse({ ...valid, status }).status).toBe(status)
-    }
+  it("rejects caller-owned item status", () => {
+    expect(() => insertBookingItemSchema.parse({ ...valid, status: "confirmed" })).toThrow()
+    expect(() => updateBookingItemSchema.parse({ status: "cancelled" })).toThrow()
   })
 
   it("rejects non-positive quantity", () => {
@@ -131,6 +138,10 @@ describe("Booking item schema", () => {
   it("accepts metadata", () => {
     const result = insertBookingItemSchema.parse({ ...valid, metadata: { foo: "bar" } })
     expect(result.metadata).toEqual({ foo: "bar" })
+  })
+
+  it("does not inject insert defaults into partial updates", () => {
+    expect(updateBookingItemSchema.parse({ notes: "Updated" })).toEqual({ notes: "Updated" })
   })
 })
 

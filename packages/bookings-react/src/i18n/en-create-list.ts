@@ -11,7 +11,6 @@ export const bookingsUiEnCreateList = {
       departure: "Departure",
       sellAmount: "Sell amount",
       currency: "Currency",
-      initialStatus: "Initial status",
       contactFirstName: "Contact first name or organization",
       contactLastName: "Contact last name",
       contactEmail: "Contact email",
@@ -133,14 +132,9 @@ export const bookingsUiEnCreateList = {
     fields: {
       departure: "Departure",
       internalNotes: "Internal notes",
-      confirmAfterCreate: "Confirm booking after creating",
-      confirmAfterCreateHint: "Transitions the new booking to confirmed.",
-      createAsDraft: "Create as draft",
-      createAsDraftHint:
-        "Otherwise the booking goes live — confirmed if a payment is marked paid, or awaiting payment if not.",
       notifyTraveler: "Notify traveler",
       notifyTravelerHint:
-        "Sends the customer their confirmation email and documents. Turn off to confirm silently.",
+        "Sends the customer their booking confirmation and documents. Turn off for a silent operator commit.",
     },
     placeholders: {
       departure: "Select a departure...",
@@ -161,8 +155,6 @@ export const bookingsUiEnCreateList = {
       roomCapacityExceeded:
         "{room} can fit {capacity} travelers, but {assigned} travelers are assigned.",
       selectSharedRoomGroup: "Select a shared room to join",
-      confirmFailedPrefix: "Booking created but confirm failed: {message}",
-      confirmFailed: "Booking created but confirm failed",
       createFailed: "Failed to create booking",
       payloadResolverMismatchDetails:
         "Your selection changed while you were booking. Please recheck the highlighted options.",
@@ -172,9 +164,7 @@ export const bookingsUiEnCreateList = {
       paidPaymentDateRequired: "Payment date is required when Already paid is checked.",
     },
     actions: {
-      createDraftBooking: "Create draft booking",
-      createConfirmedBooking: "Create confirmed booking",
-      createAwaitingPaymentBooking: "Create booking",
+      createBooking: "Create booking",
     },
     labels: {
       currency: "EUR",

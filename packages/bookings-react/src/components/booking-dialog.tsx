@@ -4,11 +4,6 @@ import {
   Button,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Sheet,
   SheetBody,
   SheetContent,
@@ -31,16 +26,6 @@ import { type BookingRecord, useBookingMutation } from "../index.js"
 function createBookingFormSchema(messages: ReturnType<typeof useBookingsUiMessagesOrDefault>) {
   return z.object({
     bookingNumber: z.string().min(1, messages.bookingDialog.validation.bookingNumberRequired),
-    status: z.enum([
-      "draft",
-      "on_hold",
-      "awaiting_payment",
-      "confirmed",
-      "in_progress",
-      "completed",
-      "expired",
-      "cancelled",
-    ]),
     sellCurrency: z.string().min(3).max(3, messages.bookingDialog.validation.sellCurrencyInvalid),
     startDate: z.string().optional().nullable(),
     endDate: z.string().optional().nullable(),
@@ -59,13 +44,6 @@ export interface BookingDialogProps {
   onSuccess?: (booking: BookingRecord) => void
 }
 
-const BOOKING_STATUS_VALUES = [
-  "draft",
-  "confirmed",
-  "in_progress",
-  "completed",
-  "cancelled",
-] as const
 const DEFAULT_CURRENCY = "EUR" // i18n-literal-ok ISO default currency
 const noopCurrencyChange = (_value: number | null) => {}
 
@@ -100,7 +78,6 @@ function BookingEditDialog({ open, onOpenChange, booking, onSuccess }: BookingEd
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       bookingNumber: "",
-      status: "draft",
       sellCurrency: DEFAULT_CURRENCY,
       startDate: "",
       endDate: "",
@@ -113,8 +90,6 @@ function BookingEditDialog({ open, onOpenChange, booking, onSuccess }: BookingEd
     if (!open) return
     form.reset({
       bookingNumber: booking.bookingNumber,
-      status:
-        booking.status === "on_hold" || booking.status === "expired" ? "draft" : booking.status,
       sellCurrency: booking.sellCurrency,
       startDate: booking.startDate ?? "",
       endDate: booking.endDate ?? "",
@@ -126,7 +101,6 @@ function BookingEditDialog({ open, onOpenChange, booking, onSuccess }: BookingEd
   const onSubmit = async (values: BookingFormOutput) => {
     const payload = {
       bookingNumber: values.bookingNumber,
-      status: values.status,
       sellCurrency: values.sellCurrency,
       startDate: values.startDate || null,
       endDate: values.endDate || null,
@@ -153,7 +127,7 @@ function BookingEditDialog({ open, onOpenChange, booking, onSuccess }: BookingEd
           className="flex flex-1 flex-col overflow-hidden"
         >
           <SheetBody className="grid gap-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="flex flex-col gap-2">
                 <Label>{messages.bookingDialog.fields.bookingNumber}</Label>
                 <Input
@@ -165,27 +139,6 @@ function BookingEditDialog({ open, onOpenChange, booking, onSuccess }: BookingEd
                     {form.formState.errors.bookingNumber.message}
                   </p>
                 )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label>{messages.bookingDialog.fields.status}</Label>
-                <Select
-                  value={form.watch("status")}
-                  onValueChange={(value) =>
-                    form.setValue("status", value as BookingFormValues["status"])
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BOOKING_STATUS_VALUES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {messages.common.bookingStatusLabels[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 

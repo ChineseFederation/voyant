@@ -14,9 +14,6 @@
     "./requirements/validation": "./src/requirements/validation.ts",
     "./requirements/routes": "./src/requirements/routes.ts",
     "./requirements/public-routes": "./src/requirements/routes-public.ts",
-    "./tasks": "./src/tasks/index.ts",
-    "./stale-holds-job": "./src/stale-holds-job.ts",
-    "./job-runtime": "./src/job-runtime.ts",
     "./validation": "./src/validation.ts",
     "./routes": "./src/routes.ts",
     "./booking-create-command-domain": "./src/booking-create-command-domain.ts",
@@ -69,6 +66,7 @@
     "@voyant-travel/tools": "workspace:^"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "drizzle-kit": "^0.31.10",
     "typescript": "catalog:"
@@ -131,21 +129,6 @@
         "types": "./dist/requirements/routes-public.d.ts",
         "import": "./dist/requirements/routes-public.js",
         "default": "./dist/requirements/routes-public.js"
-      },
-      "./tasks": {
-        "types": "./dist/tasks/index.d.ts",
-        "import": "./dist/tasks/index.js",
-        "default": "./dist/tasks/index.js"
-      },
-      "./stale-holds-job": {
-        "types": "./dist/stale-holds-job.d.ts",
-        "import": "./dist/stale-holds-job.js",
-        "default": "./dist/stale-holds-job.js"
-      },
-      "./job-runtime": {
-        "types": "./dist/job-runtime.d.ts",
-        "import": "./dist/job-runtime.js",
-        "default": "./dist/job-runtime.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

@@ -7,14 +7,10 @@ export const bookingsUiRoBase = {
     add: "Adauga",
     loading: "Se incarca...",
     bookingStatusLabels: {
-      draft: "Ciorna",
-      on_hold: "In asteptare",
-      awaiting_payment: "Asteapta plata",
       confirmed: "Confirmata",
       in_progress: "In desfasurare",
       cancelled: "Anulata",
       completed: "Finalizata",
-      expired: "Expirata",
     },
     supplierStatusLabels: {
       pending: "In asteptare",

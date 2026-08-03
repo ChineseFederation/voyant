@@ -6,7 +6,6 @@ export {
   type BookingCancelledEvent,
   type BookingCompletedEvent,
   type BookingConfirmedEvent,
-  type BookingExpiredEvent,
   type BookingResourceCapacityViolation,
   type BookingServiceRuntime,
   type BookingStartedEvent,

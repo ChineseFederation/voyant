@@ -402,7 +402,7 @@ export type SelectCandidateBody = z.infer<typeof selectCandidateSchema>
 export const startTripCheckoutSchema = z.object({
   envelopeId: z.string().min(1),
   idempotencyKey: z.string().min(1).max(255).optional(),
-  intent: z.enum(["card", "bank_transfer", "hold", "inquiry"]).default("card"),
+  intent: z.enum(["card", "bank_transfer"]).default("card"),
   request: z.record(z.string(), z.unknown()).default({}),
 })
 

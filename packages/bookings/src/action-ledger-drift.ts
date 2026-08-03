@@ -8,8 +8,6 @@ import { bookingItems } from "./schema-items.js"
 const DEFAULT_SAMPLE_LIMIT = 20
 const MAX_SAMPLE_LIMIT = 100
 
-const BOOKING_CONFIRM_ACTION_NAME = "booking.status.confirm"
-const BOOKING_EXPIRE_ACTION_NAME = "booking.status.expire"
 const BOOKING_CANCEL_ACTION_NAME = "booking.status.cancel"
 const BOOKING_COMPLETE_ACTION_NAME = "booking.status.complete"
 const BOOKING_TRAVELER_CREATE_ACTION_NAMES = [
@@ -23,8 +21,6 @@ const BOOKING_TRAVELER_TRAVEL_DETAILS_ACTION_NAMES = [
 const BOOKING_ITEM_CREATE_ACTION_NAME = "booking.item.create"
 
 export type BookingActionLedgerDriftCheck =
-  | "booking_confirmed"
-  | "booking_expired"
   | "booking_cancelled"
   | "booking_completed"
   | "booking_item"
@@ -59,20 +55,6 @@ export function buildBookingActionLedgerDriftQueries(
   const sampleLimit = normalizeSampleLimit(input.sampleLimit)
 
   return {
-    booking_confirmed: buildBookingStatusDriftQuery({
-      check: "booking_confirmed",
-      actionName: BOOKING_CONFIRM_ACTION_NAME,
-      timestampColumn: bookings.confirmedAt,
-      input,
-      sampleLimit,
-    }),
-    booking_expired: buildBookingStatusDriftQuery({
-      check: "booking_expired",
-      actionName: BOOKING_EXPIRE_ACTION_NAME,
-      timestampColumn: bookings.expiredAt,
-      input,
-      sampleLimit,
-    }),
     booking_cancelled: buildBookingStatusDriftQuery({
       check: "booking_cancelled",
       actionName: BOOKING_CANCEL_ACTION_NAME,
@@ -189,8 +171,6 @@ export async function checkBookingActionLedgerDrift(
 ): Promise<CheckBookingActionLedgerDriftResult> {
   const queries = buildBookingActionLedgerDriftQueries(input)
   const results: unknown[] = await Promise.all([
-    db.execute<BookingActionLedgerDriftQueryRow>(queries.booking_confirmed),
-    db.execute<BookingActionLedgerDriftQueryRow>(queries.booking_expired),
     db.execute<BookingActionLedgerDriftQueryRow>(queries.booking_cancelled),
     db.execute<BookingActionLedgerDriftQueryRow>(queries.booking_completed),
     db.execute<BookingActionLedgerDriftQueryRow>(queries.booking_item),

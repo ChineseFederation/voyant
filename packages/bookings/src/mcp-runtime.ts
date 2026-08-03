@@ -114,24 +114,6 @@ export const voyantToolContextContribution = defineToolContextContribution({
               loadBookingDetail,
             })
           },
-          async confirmBooking(
-            input: {
-              id: string
-              note?: string
-              suppressNotifications?: boolean
-              idempotencyKey: string
-            },
-            admitted: ToolHandlerActionPolicyContext,
-          ) {
-            return executeBookingStatusToolCommand({
-              action: "confirm",
-              db,
-              c,
-              input,
-              admitted,
-              loadBookingDetail,
-            })
-          },
           async previewTravelerCorrectionAmendment(
             input: Parameters<BookingsToolServices["previewTravelerCorrectionAmendment"]>[0],
           ) {
@@ -316,7 +298,7 @@ async function executeBookingStatusToolCommand(input: {
         suppressNotifications: input.input.suppressNotifications === true,
         consequencePreview: preview,
       },
-      evaluatedRisk: input.action === "confirm" ? "high" : "critical",
+      evaluatedRisk: "critical",
       idempotencyKey: input.input.idempotencyKey,
       targetId: input.input.id,
       approvalMutationDetail: {
@@ -355,33 +337,21 @@ async function executeBookingStatusToolCommand(input: {
           bookingToolActionLedgerContext(input.c),
           command.causation.claimActionId,
         )
-        const statusResult =
-          input.action === "confirm"
-            ? await bookingsService.confirmBooking(
-                tx as Parameters<typeof bookingsService.confirmBooking>[0],
-                input.input.id,
-                {
-                  note: input.input.note,
-                  suppressNotifications: input.input.suppressNotifications,
-                },
-                userId,
-                lifecycleRuntime,
-              )
-            : await bookingsService.cancelBooking(
-                tx as Parameters<typeof bookingsService.cancelBooking>[0],
-                input.input.id,
-                {
-                  note: input.input.note,
-                  suppressNotifications: input.input.suppressNotifications,
-                },
-                userId,
-                {
-                  ...lifecycleRuntime,
-                  closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
-                  recordCancellationFinancialSettlement:
-                    routeRuntime.recordCancellationFinancialSettlement,
-                },
-              )
+        const statusResult = await bookingsService.cancelBooking(
+          tx as Parameters<typeof bookingsService.cancelBooking>[0],
+          input.input.id,
+          {
+            note: input.input.note,
+            suppressNotifications: input.input.suppressNotifications,
+          },
+          userId,
+          {
+            ...lifecycleRuntime,
+            closePaymentSchedulesForBooking: routeRuntime.closePaymentSchedulesForBooking,
+            recordCancellationFinancialSettlement:
+              routeRuntime.recordCancellationFinancialSettlement,
+          },
+        )
         if (statusResult.status !== "ok" || !("booking" in statusResult) || !statusResult.booking) {
           throw bookingStatusCommandError(input.action, input.input.id, statusResult.status)
         }
@@ -401,7 +371,7 @@ async function executeBookingStatusToolCommand(input: {
     }
   }
   return {
-    status: input.action === "confirm" ? ("confirmed" as const) : ("cancelled" as const),
+    status: "cancelled" as const,
     booking: result.value,
     replayed: result.replayed,
   }
@@ -438,11 +408,10 @@ async function requiredBookingStatusDetail(input: {
 }) {
   const detail = await input.loadBookingDetail(input.input.id)
   if (!detail) {
-    throw new ToolError(
-      `${input.action === "confirm" ? "Confirmed" : "Cancelled"} booking could not be read.`,
-      "NOT_FOUND",
-      { bookingId: input.input.id, action: input.action },
-    )
+    throw new ToolError("Cancelled booking could not be read.", "NOT_FOUND", {
+      bookingId: input.input.id,
+      action: input.action,
+    })
   }
   return detail
 }
@@ -502,212 +471,73 @@ export async function loadBookingStatusConsequencePreview(
   const allocations = [...(await bookingsService.listAllocations(db, bookingId))].sort(
     (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
   )
-  const fulfillmentProjection =
-    action === "confirm" ? await loadConfirmationFulfillmentProjection(db, bookingId) : null
-  const financialSettlement =
-    action === "cancel"
-      ? await loadCancellationFinancialConsequences(db, bookingId, settlementHookAvailable)
-      : null
+  const financialSettlement = await loadCancellationFinancialConsequences(
+    db,
+    bookingId,
+    settlementHookAvailable,
+  )
   return {
     action,
     bookingId,
     bookingNumber: booking.bookingNumber,
     currentStatus: booking.status,
-    resultingStatus: action === "confirm" ? "confirmed" : "cancelled",
+    resultingStatus: "cancelled",
     pax: booking.pax,
     sellCurrency: booking.sellCurrency,
     sellAmountCents: booking.sellAmountCents,
     costAmountCents: booking.costAmountCents,
-    holdExpiresAt: toIsoString(booking.holdExpiresAt),
     notificationsSuppressed: booking.notificationsSuppressed || suppressNotifications === true,
-    closesPaymentSchedules: action === "cancel",
+    closesPaymentSchedules: true,
     financialSettlement,
-    fulfillmentProjection,
     allocations: allocations.map((allocation) => ({
       id: allocation.id,
       status: allocation.status,
       availabilitySlotId: allocation.availabilitySlotId,
       quantity: allocation.quantity,
       resultingStatus:
-        action === "confirm"
-          ? "confirmed"
-          : allocation.status === "held" || allocation.status === "confirmed"
-            ? "cancelled"
-            : allocation.status,
+        allocation.status === "held" || allocation.status === "confirmed"
+          ? "cancelled"
+          : allocation.status,
       restoresCapacity:
-        action === "cancel" &&
         allocation.availabilitySlotId !== null &&
         ["held", "confirmed", "fulfilled"].includes(allocation.status),
     })),
   }
 }
 
-async function loadConfirmationFulfillmentProjection(
-  db: Parameters<typeof bookingsService.getBookingById>[0],
-  bookingId: string,
-) {
-  const items = [...(await bookingsService.listItems(db, bookingId))].sort(
-    (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
-  )
-  const productIds = [
-    ...new Set(
-      items.map((item) => item.productId).filter((value): value is string => Boolean(value)),
-    ),
-  ].sort()
-  const [participantEntries, travelers, fulfillments, ticketSettings] = await Promise.all([
-    Promise.all(
-      items.map(
-        async (item) =>
-          [
-            item.id,
-            [...(await bookingsService.listItemParticipants(db, item.id))].sort(
-              (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id),
-            ),
-          ] as const,
-      ),
-    ),
-    bookingsService.listTravelers(db, bookingId),
-    bookingsService.listFulfillments(db, bookingId),
-    bookingsService.listProductTicketSettings(db, productIds),
-  ])
-  const participantsByItemId = new Map(participantEntries)
-
-  return {
-    items: items.map((item) => ({
-      id: item.id,
-      itemType: item.itemType,
-      status: item.status,
-      productId: item.productId,
-      optionId: item.optionId,
-      optionUnitId: item.optionUnitId,
-      pricingCategoryId: item.pricingCategoryId,
-      availabilitySlotId: item.availabilitySlotId,
-      quantity: item.quantity,
-      serviceDate: item.serviceDate,
-      startsAt: toIsoString(item.startsAt),
-      endsAt: toIsoString(item.endsAt),
-      metadata: item.metadata,
-      participants: (participantsByItemId.get(item.id) ?? []).map((participant) => ({
-        id: participant.id,
-        travelerId: participant.travelerId,
-        role: participant.role,
-        isPrimary: participant.isPrimary,
-      })),
-    })),
-    ticketSettings: [...ticketSettings]
-      .sort((a, b) => a.productId.localeCompare(b.productId) || a.id.localeCompare(b.id))
-      .map((setting) => ({
-        id: setting.id,
-        productId: setting.productId,
-        fulfillmentMode: setting.fulfillmentMode,
-        defaultDeliveryFormat: setting.defaultDeliveryFormat,
-      })),
-    existingFulfillments: [...fulfillments]
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
-      .map((fulfillment) => ({ id: fulfillment.id })),
-    travelers: [...travelers]
-      .sort(
-        (a, b) =>
-          Number(b.isPrimary) - Number(a.isPrimary) ||
-          a.createdAt.getTime() - b.createdAt.getTime() ||
-          a.id.localeCompare(b.id),
-      )
-      .map((traveler) => ({
-        id: traveler.id,
-        participantType: traveler.participantType,
-        isPrimary: traveler.isPrimary,
-        createdAt: toIsoString(traveler.createdAt),
-      })),
-  }
-}
-
 export async function lockBookingStatusConsequenceState(
   db: Parameters<typeof bookingsService.getBookingById>[0],
   bookingId: string,
-  action: BookingStatusToolAction,
+  _action: BookingStatusToolAction,
 ) {
   // Finance writers use advisory fence -> booking row. Cancellation preview
   // locking must use the same order, and cancelBooking will re-enter this
   // transaction-scoped advisory lock when it performs the mutation.
-  if (action === "cancel") {
-    await lockBookingFinanceInsertionFence(db, bookingId)
+  await lockBookingFinanceInsertionFence(db, bookingId)
+  // Existing Finance mutations lock their consequence row before touching the
+  // linked booking. Keep cancellation in that same row-before-booking order.
+  // New Finance rows cannot appear while we do this because every insertion
+  // must acquire the advisory fence above before taking any row lock.
+  const financeTables = await loadFinanceConsequenceTables(db)
+  if (financeTables?.invoicesTable) {
+    await db.execute(sql`
+      SELECT id
+      FROM invoices
+      WHERE booking_id = ${bookingId}
+      ORDER BY id
+      FOR UPDATE
+    `)
   }
-
-  if (action === "cancel") {
-    // Existing Finance mutations lock their consequence row before touching the
-    // linked booking. Keep cancellation in that same row-before-booking order.
-    // New Finance rows cannot appear while we do this because every insertion
-    // must acquire the advisory fence above before taking any row lock.
-    const financeTables = await loadFinanceConsequenceTables(db)
-    if (financeTables?.invoicesTable) {
-      await db.execute(sql`
-        SELECT id
-        FROM invoices
-        WHERE booking_id = ${bookingId}
-        ORDER BY id
-        FOR UPDATE
-      `)
-    }
-    if (financeTables?.paymentSchedulesTable) {
-      await db.execute(sql`
-        SELECT id
-        FROM booking_payment_schedules
-        WHERE booking_id = ${bookingId}
-        ORDER BY id
-        FOR UPDATE
-      `)
-    }
-    // Preserve Finance row -> booking -> allocation ordering for cancellation.
-    await lockBookingAndAllocations(db, bookingId)
-    return
+  if (financeTables?.paymentSchedulesTable) {
+    await db.execute(sql`
+      SELECT id
+      FROM booking_payment_schedules
+      WHERE booking_id = ${bookingId}
+      ORDER BY id
+      FOR UPDATE
+    `)
   }
-
-  // Item writers update item -> booking. Confirmation takes all mutable
-  // fulfillment inputs before the parent to remain compatible with that order.
-  await db.execute(sql`
-    SELECT id
-    FROM booking_items
-    WHERE booking_id = ${bookingId}
-    ORDER BY created_at, id
-    FOR UPDATE
-  `)
-  await db.execute(sql`
-    SELECT id
-    FROM booking_travelers
-    WHERE booking_id = ${bookingId}
-    ORDER BY is_primary DESC, created_at, id
-    FOR UPDATE
-  `)
-  await db.execute(sql`
-    SELECT participant.id
-    FROM booking_item_travelers participant
-    JOIN booking_items item ON item.id = participant.booking_item_id
-    WHERE item.booking_id = ${bookingId}
-    ORDER BY participant.booking_item_id, participant.created_at, participant.id
-    FOR UPDATE OF participant
-  `)
-  await db.execute(sql`
-    SELECT id
-    FROM booking_fulfillments
-    WHERE booking_id = ${bookingId}
-    ORDER BY created_at, id
-    FOR UPDATE
-  `)
-  // Product ticket settings are not booking-owned, so a table-level SHARE lock
-  // also prevents a new setting from appearing after the drift re-read.
-  await db.execute(sql`LOCK TABLE product_ticket_settings IN SHARE MODE`)
-  await db.execute(sql`
-    SELECT setting.id
-    FROM product_ticket_settings setting
-    WHERE setting.product_id IN (
-      SELECT item.product_id
-      FROM booking_items item
-      WHERE item.booking_id = ${bookingId}
-        AND item.product_id IS NOT NULL
-    )
-    ORDER BY setting.product_id, setting.id
-    FOR UPDATE OF setting
-  `)
+  // Preserve Finance row -> booking -> allocation ordering for cancellation.
   await lockBookingAndAllocations(db, bookingId)
 }
 
@@ -830,7 +660,7 @@ function rowsFromExecute<T>(result: unknown): T[] {
 }
 
 function bookingStatusConsequenceSummary(
-  action: BookingStatusToolAction,
+  _action: BookingStatusToolAction,
   preview: Record<string, unknown>,
 ) {
   const allocations = Array.isArray(preview.allocations) ? preview.allocations : []
@@ -844,9 +674,7 @@ function bookingStatusConsequenceSummary(
   const notificationText = preview.notificationsSuppressed
     ? "customer notifications suppressed"
     : "customer notifications enabled"
-  return action === "confirm"
-    ? `Confirm booking ${String(preview.bookingNumber)} for ${String(preview.sellCurrency)} ${String(preview.sellAmountCents)}; pax ${String(preview.pax)}; ${allocations.length} allocation(s); ${notificationText}.`
-    : cancellationConsequenceSummary(preview, restored, notificationText)
+  return cancellationConsequenceSummary(preview, restored, notificationText)
 }
 
 function cancellationConsequenceSummary(
@@ -883,17 +711,13 @@ function bookingStatusCommandError(
   const detail =
     status === "slot_not_found" || status === "slot_unavailable"
       ? "Capacity restoration could not complete; the booking remains unchanged and may be retried."
-      : `Booking cannot transition to ${action === "confirm" ? "confirmed" : "cancelled"}.`
-  return new ToolError(
-    `${action === "confirm" ? "Confirmation" : "Cancellation"} failed. ${detail}`,
-    "INVALID_INPUT",
-    {
-      bookingId,
-      action,
-      status,
-      retryable: status === "slot_not_found" || status === "slot_unavailable",
-    },
-  )
+      : "Booking cannot transition to cancelled."
+  return new ToolError(`Cancellation failed. ${detail}`, "INVALID_INPUT", {
+    bookingId,
+    action,
+    status,
+    retryable: status === "slot_not_found" || status === "slot_unavailable",
+  })
 }
 
 function bookingToolActionLedgerContext(c: Context<Env>): ActionLedgerRequestContextValues {
@@ -923,11 +747,6 @@ function getBookingToolRouteRuntime(c: Context<Env>): BookingRouteRuntime {
   } catch {
     return buildBookingRouteRuntime(c.env)
   }
-}
-
-function toIsoString(value: Date | string | null): string | null {
-  if (!value) return null
-  return value instanceof Date ? value.toISOString() : value
 }
 
 function toJsonValue(value: unknown): unknown {

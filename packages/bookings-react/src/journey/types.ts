@@ -177,8 +177,7 @@ export interface UnitsPickerProps {
  * - `acceptsCard` — Stripe / Netopia / generic card flow. The
  *   `renderPaymentProviderStep` slot supplies the actual widget.
  * - `acceptsBankTransfer` — operator emails the buyer bank details;
- *   booking is created with status "awaiting_payment". Inventory
- *   hold is still placed so capacity is reserved.
+ *   payment remains outstanding in Finance after Commit.
  * - `acceptsHold` — staff/agent-only soft-hold path; useful when an
  *   operator is brokering for an end customer.
  * - `acceptsTicketOnCredit` — agency credit account.

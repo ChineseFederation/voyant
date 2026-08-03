@@ -81,7 +81,7 @@ interface InventoryReleaseOutput {
  * **Steps**
  *
  * 1. `validate-state` — load the booking, ensure it's in a refundable
- *    status (`confirmed`, `in_progress`, or `on_hold`), compute the refund
+ *    status (`confirmed` or `in_progress`), compute the refund
  *    amount. Compensation: none — this step doesn't mutate.
  * 2. `create-credit-note` — call into finance via the injected dep.
  *    Compensation: void the credit note.
@@ -117,7 +117,7 @@ export function buildRefundBookingSaga(deps: RefundBookingDeps) {
       if (!row) {
         throw new Error(`refund-booking: booking ${input.bookingId} not found`)
       }
-      if (row.status !== "confirmed" && row.status !== "in_progress" && row.status !== "on_hold") {
+      if (row.status !== "confirmed" && row.status !== "in_progress") {
         throw new Error(
           `refund-booking: booking ${input.bookingId} is in ${row.status}, not refundable`,
         )

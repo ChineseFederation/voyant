@@ -13,13 +13,10 @@ describe("booking status approval organization continuity", () => {
       sellAmountCents: 1000,
       costAmountCents: 500,
       customerPaymentPolicy: null,
-      holdExpiresAt: null,
+      acceptedAt: new Date("2026-07-24T00:00:00.000Z"),
       confirmedAt: new Date("2026-07-24T00:00:00.000Z"),
-      awaitingPaymentAt: null,
-      paidAt: null,
       cancelledAt: null,
       completedAt: null,
-      expiredAt: null,
     } as never)
     const validateApprovedAction = vi
       .spyOn(actionLedgerService, "validateApprovedAction")

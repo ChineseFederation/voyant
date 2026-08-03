@@ -95,10 +95,9 @@ export function stripUnitSuffix(name: string): string {
 }
 
 /**
- * Any payment-schedule entry the operator has marked as already
- * paid. Drives the smart-default booking status on submit — if money
- * is in (deposit / full / split installment), the booking lands in
- * `confirmed`; otherwise it lands in `awaiting_payment`.
+ * Whether any payment-schedule entry has already been paid. The Booking
+ * remains a committed Booking either way; this only selects the appropriate
+ * payment intent and Finance-owned schedule state.
  */
 export function hasAnyPaidPayment(schedule: PaymentScheduleValue): boolean {
   return schedule.installments.some((installment) => installment.alreadyPaid)

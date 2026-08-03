@@ -375,7 +375,6 @@
       ],
       "@voyant-travel/bookings/extras": ["../bookings/dist/extras.d.ts"],
       "@voyant-travel/bookings/extras/validation": ["../bookings/dist/extras/validation.d.ts"],
-      "@voyant-travel/bookings/job-runtime": ["../bookings/dist/job-runtime.d.ts"],
       "@voyant-travel/bookings/linkables": ["../bookings/dist/linkables.d.ts"],
       "@voyant-travel/bookings/pii": ["../bookings/dist/pii.d.ts"],
       "@voyant-travel/bookings/pricing-assignment": ["../bookings/dist/pricing-assignment.d.ts"],
@@ -399,10 +398,8 @@
       "@voyant-travel/bookings/service-sourced-commitment": [
         "../bookings/dist/service-sourced-commitment.d.ts"
       ],
-      "@voyant-travel/bookings/stale-holds-job": ["../bookings/dist/stale-holds-job.d.ts"],
       "@voyant-travel/bookings/status": ["../bookings/dist/status.d.ts"],
       "@voyant-travel/bookings/status-dispatch": ["../bookings/dist/status-dispatch.d.ts"],
-      "@voyant-travel/bookings/tasks": ["../bookings/dist/tasks/index.d.ts"],
       "@voyant-travel/bookings/tools": ["../bookings/dist/mcp-runtime.d.ts"],
       "@voyant-travel/bookings/validation": ["../bookings/dist/validation.d.ts"],
       "@voyant-travel/bookings/voyant": ["../bookings/dist/voyant.d.ts"],
@@ -1013,9 +1010,6 @@
       ],
       "@voyant-travel/finance/setup/travel-credits": [
         "../finance/dist/service-travel-credits-migration.d.ts"
-      ],
-      "@voyant-travel/finance/stale-booking-holds-runtime": [
-        "../finance/dist/stale-booking-holds-runtime.d.ts"
       ],
       "@voyant-travel/finance/tools": ["../finance/dist/mcp-runtime.d.ts"],
       "@voyant-travel/finance/travel-credits": ["../finance/dist/service-travel-credits.d.ts"],

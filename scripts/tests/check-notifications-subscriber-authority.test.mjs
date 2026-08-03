@@ -18,15 +18,12 @@ eventType: "payment.completed"
 export: "notificationsPaymentCompletedReminderSubscriber"
 eventType: "booking.cancelled"
 export: "notificationsBookingCancelledReminderSubscriber"
-eventType: "booking.expired"
-export: "notificationsBookingExpiredReminderSubscriber"
 `
 
 const subscriberRuntime = `
 export const notificationsBookingConfirmedReminderSubscriber = factory()
 export const notificationsPaymentCompletedReminderSubscriber = factory()
 export const notificationsBookingCancelledReminderSubscriber = factory()
-export const notificationsBookingExpiredReminderSubscriber = factory()
 eventBus.subscribe("booking.confirmed", handler)
 eventBus.subscribe("payment.completed", handler)
 `

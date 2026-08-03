@@ -259,7 +259,7 @@ export function BookingDetailPage({
     )
   }
 
-  const canCancel = ["draft", "on_hold", "confirmed", "in_progress"].includes(booking.status)
+  const canCancel = ["confirmed", "in_progress"].includes(booking.status)
   const isCancelled = booking.status === "cancelled"
   const sellHint = booking.priceOverride?.isManual
     ? `${detailMessages.summaryPriceOverride}: ${booking.priceOverride.reason}`

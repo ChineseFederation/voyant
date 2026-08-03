@@ -46,7 +46,7 @@ function validateExclusiveBillingParty(
 
 const bookingCoreSchema = z.object({
   bookingNumber: z.string().min(1).max(50),
-  status: bookingStatusSchema.default("draft"),
+  status: bookingStatusSchema,
   personId: bookingBillingPersonIdSchema,
   organizationId: bookingBillingOrganizationIdSchema,
   sourceType: bookingSourceTypeSchema.default("manual"),
@@ -82,9 +82,7 @@ const bookingCoreSchema = z.object({
   // Values are always `customFields[namespace][key]`; definitions and scalar
   // types are validated against the resolved registry at the write boundary.
   customFields: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
-  holdExpiresAt: z.string().datetime().optional().nullable(),
   confirmedAt: z.string().datetime().optional().nullable(),
-  expiredAt: z.string().datetime().optional().nullable(),
   cancelledAt: z.string().datetime().optional().nullable(),
   completedAt: z.string().datetime().optional().nullable(),
   redeemedAt: z.string().datetime().optional().nullable(),
@@ -92,22 +90,21 @@ const bookingCoreSchema = z.object({
 
 export const insertBookingSchema = bookingCoreSchema.superRefine(validateExclusiveBillingParty)
 export const updateBookingSchema = bookingCoreSchema
+  .omit({ status: true, confirmedAt: true, cancelledAt: true, completedAt: true })
   .partial()
-  .extend({ notificationsSuppressed: z.literal(true).optional() })
+  .extend({
+    sourceType: bookingSourceTypeSchema.optional(),
+    notificationsSuppressed: z.literal(true).optional(),
+  })
+  .strict()
   .superRefine(validateExclusiveBillingParty)
 
 export const createBookingSchema = bookingCoreSchema
+  .omit({ status: true, confirmedAt: true, cancelledAt: true, completedAt: true })
   .extend({
     sourceType: z.enum(["manual", "internal"]).default("manual"),
   })
-  .refine((value) => value.status !== "on_hold", {
-    message: "Use the reservation flow to create on-hold bookings",
-    path: ["status"],
-  })
-  .refine((value) => value.holdExpiresAt == null, {
-    message: "Use the reservation flow to manage booking hold expiry",
-    path: ["holdExpiresAt"],
-  })
+  .strict()
   .superRefine(validateExclusiveBillingParty)
 
 export const bookingListSortFieldSchema = z.enum([
@@ -125,13 +122,10 @@ export const bookingListSortDirSchema = z.enum(["asc", "desc"])
 export const bookingListQuerySchema = z.object({
   status: bookingStatusSchema.optional(),
   /**
-   * Statuses to omit from the result. Lets the operator list page hide
-   * noise (draft + expired by default) without forcing a separate
-   * endpoint. The wire format is a comma-separated string (e.g.
-   * `?excludeStatuses=draft,expired`) — query parsing collapses
-   * repeated keys, so a list has to ride on a single param. The
-   * preprocess hook splits + trims; the union then validates each
-   * entry against the enum.
+   * Statuses to omit from the result. The wire format is a comma-separated
+   * string because query parsing collapses repeated keys; the preprocess
+   * hook splits and trims before validating every entry against the
+   * canonical Booking status enum.
    */
   excludeStatuses: z.preprocess((value) => {
     if (typeof value !== "string" || !value.includes(",")) return value
@@ -226,15 +220,6 @@ export const convertProductSchema = z
       .optional()
       .describe("Persistently suppress customer-facing messages for this booking lifecycle."),
     /**
-     * Initial status to insert with — defaults to `draft`. Lets the booking-
-     * create flow commit straight to `confirmed` or `awaiting_payment` in
-     * one transaction instead of doing a `create-then-flip` dance that's
-     * vulnerable to a window where the second request can't see the just-
-     * committed booking row. When set to `confirmed`, the caller is
-     * responsible for emitting the matching `booking.confirmed` event.
-     */
-    initialStatus: bookingStatusSchema.optional(),
-    /**
      * Billing-contact snapshot. Captures who the operator was billing
      * at create time so the booking detail page renders the right
      * payer even if the linked CRM person/organization changes later
@@ -304,44 +289,10 @@ export const pricingPreviewSchema = z.object({
   catalogId: z.string().optional().nullable(),
 })
 
-export const extendBookingHoldSchema = z
-  .object({
-    holdMinutes: z
-      .number()
-      .int()
-      .positive()
-      .max(24 * 60)
-      .optional(),
-    holdExpiresAt: z.string().datetime().optional().nullable(),
-  })
-  .refine((value) => value.holdMinutes !== undefined || value.holdExpiresAt !== undefined, {
-    message: "holdMinutes or holdExpiresAt is required",
-  })
-
-export const confirmBookingSchema = z.object({
-  note: z.string().optional().nullable(),
-  /**
-   * When true, downstream subscribers that send customer-facing
-   * notifications (e.g. notifications module's `autoConfirmAndDispatch`)
-   * skip dispatching for this confirmation. Lets the operator confirm a
-   * booking internally without auto-sending a confirmation email.
-   */
-  suppressNotifications: z.boolean().optional(),
-})
-
 export const cancelBookingSchema = z.object({
   note: z.string().optional().nullable(),
   /** Persistently suppress customer-facing cancellation messages. */
   suppressNotifications: z.boolean().optional(),
-})
-
-export const expireBookingSchema = z.object({
-  note: z.string().optional().nullable(),
-})
-
-export const expireStaleBookingsSchema = z.object({
-  before: z.string().datetime().optional().nullable(),
-  note: z.string().optional().nullable(),
 })
 
 export const startBookingSchema = z.object({
@@ -355,17 +306,17 @@ export const completeBookingSchema = z.object({
 /**
  * Admin-only override: skips the transition graph. `reason` is required —
  * the operator has to explain why they're bypassing lifecycle laws. Use the
- * verb-specific endpoints (/confirm, /cancel, /start, /complete, /expire) for
+ * verb-specific endpoints (/cancel, /start, /complete) for
  * normal state changes; this is for data-correction and exceptional cases.
- * Confirmed overrides emit `booking.confirmed` by default for create-dialog
- * compatibility; pass `suppressLifecycleEvents` for pure data correction.
+ * Overrides back to confirmed emit `booking.confirmed` by default so derived
+ * projections converge; pass `suppressLifecycleEvents` for pure data correction.
  */
 export const overrideBookingStatusSchema = z.object({
   status: bookingStatusSchema,
   reason: z.string().min(1).max(2000),
   note: z.string().optional().nullable(),
   /**
-   * Same notification opt-out as `confirmBookingSchema.suppressNotifications`.
+   * Keep customer lifecycle notifications suppressed when restoring confirmed state.
    * Only applies when the override path emits `booking.confirmed`.
    */
   suppressNotifications: z.boolean().optional(),

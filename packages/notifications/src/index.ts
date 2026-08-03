@@ -96,16 +96,13 @@ export type {
 export {
   createBookingCancelledReminderSubscriberRuntime,
   createBookingConfirmedReminderSubscriberRuntime,
-  createBookingExpiredReminderSubscriberRuntime,
   createPaymentCompletedReminderSubscriberRuntime,
   NOTIFICATIONS_BOOKING_CANCELLED_REMINDER_SUBSCRIBER_ID,
   NOTIFICATIONS_BOOKING_CONFIRMED_REMINDER_SUBSCRIBER_ID,
-  NOTIFICATIONS_BOOKING_EXPIRED_REMINDER_SUBSCRIBER_ID,
   NOTIFICATIONS_PAYMENT_COMPLETED_REMINDER_SUBSCRIBER_ID,
   NOTIFICATIONS_SUBSCRIBER_RUNTIME_KEY,
   notificationsBookingCancelledReminderSubscriber,
   notificationsBookingConfirmedReminderSubscriber,
-  notificationsBookingExpiredReminderSubscriber,
   notificationsPaymentCompletedReminderSubscriber,
   notificationsReminderSubscriberRuntimeDescriptors,
 } from "./subscriber-runtime.js"

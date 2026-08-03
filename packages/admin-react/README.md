@@ -44,10 +44,10 @@ re-exported from this package):
 import { bookingsOperations, useAdminMutation, useAdminQuery } from "@voyant-travel/admin-react"
 
 function Bookings() {
-  const { data, isLoading } = useAdminQuery(bookingsOperations.list, { input: { status: "on_hold" } })
-  const confirm = useAdminMutation(bookingsOperations.confirm)
+  const { data, isLoading } = useAdminQuery(bookingsOperations.list, { input: { status: "confirmed" } })
+  const cancel = useAdminMutation(bookingsOperations.cancel)
 
-  // confirm.mutate({ params: { id: "book_123" }, input: { note: "ok" } })
+  // cancel.mutate({ params: { id: "book_123" }, input: { note: "Customer request" } })
 }
 ```
 

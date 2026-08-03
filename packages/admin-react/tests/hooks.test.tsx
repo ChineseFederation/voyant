@@ -44,24 +44,24 @@ describe("admin-react hooks", () => {
     }
 
     const { result } = renderHook(
-      () => useAdminQuery(bookingsOperations.list, { input: { status: "on_hold" } }),
+      () => useAdminQuery(bookingsOperations.list, { input: { status: "confirmed" } }),
       { wrapper: makeWrapper(fetchImpl) },
     )
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.data[0]?.id).toBe("book_1")
     expect(calls[0]).toContain("GET https://acme.voyant.app/v1/admin/bookings?")
-    expect(calls[0]).toContain("status=on_hold")
+    expect(calls[0]).toContain("status=confirmed")
   })
 
-  it("useAdminMutation posts a confirm through the descriptor", async () => {
+  it("useAdminMutation posts a cancellation through the descriptor", async () => {
     const calls: { method: string; url: string; body?: string }[] = []
     const fetchImpl: FetchLike = async (url, init) => {
       calls.push({ method: init.method, url, body: init.body })
       return { ok: true, status: 200, json: async () => ({ data: booking }) }
     }
 
-    const { result } = renderHook(() => useAdminMutation(bookingsOperations.confirm), {
+    const { result } = renderHook(() => useAdminMutation(bookingsOperations.cancel), {
       wrapper: makeWrapper(fetchImpl),
     })
 
@@ -74,7 +74,7 @@ describe("admin-react hooks", () => {
     })
 
     expect(calls[0]?.method).toBe("POST")
-    expect(calls[0]?.url).toBe("https://acme.voyant.app/v1/admin/bookings/book_1/confirm")
+    expect(calls[0]?.url).toBe("https://acme.voyant.app/v1/admin/bookings/book_1/cancel")
     expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({ note: "ok" })
     // The mutation resolves with the parsed operation output.
     expect(mutated?.bookingNumber).toBe("B-1")

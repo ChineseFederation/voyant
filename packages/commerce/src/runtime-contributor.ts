@@ -17,10 +17,6 @@ import {
   financeDistributionPaymentPolicyRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
-import {
-  type CheckoutInquiryRuntime,
-  checkoutInquiryRuntimePort,
-} from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import { catalogCommerceRuntimeExtension } from "./catalog-runtime-extension.js"
 import {
   bookingMaintenanceRuntimePort,
@@ -77,7 +73,6 @@ export function createCommerceRuntimePortContribution(
         host.getRuntimePort<FinanceInventoryPaymentPolicyRuntime>(
           financeInventoryPaymentPolicyRuntimePort,
         ),
-        host.getRuntimePort<CheckoutInquiryRuntime>(checkoutInquiryRuntimePort),
         resolveOptionalPort(host, commerceCardPaymentRuntimePort),
       ]),
     )
@@ -92,7 +87,6 @@ export function createCommerceRuntimePortContribution(
         accommodations,
         cruises,
         inventoryPolicy,
-        checkoutInquiry,
         cardPayment,
       ]) =>
         createCommerceRuntime({
@@ -106,7 +100,6 @@ export function createCommerceRuntimePortContribution(
           accommodations,
           cruises,
           inventoryPolicy,
-          checkoutInquiry,
           cardPayment,
         }),
     )

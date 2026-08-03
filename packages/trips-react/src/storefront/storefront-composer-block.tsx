@@ -43,7 +43,7 @@ import {
 } from "../operations.js"
 
 type ComponentTemplate = "product" | "stay" | "transfer"
-type CheckoutIntent = "card" | "bank_transfer" | "hold" | "inquiry"
+type CheckoutIntent = "card" | "bank_transfer"
 
 export interface StorefrontComposerMessages {
   heading: string
@@ -71,8 +71,6 @@ export interface StorefrontComposerMessages {
     paymentLabel: string
     paymentCard: string
     paymentBankTransfer: string
-    paymentHold: string
-    paymentInquiry: string
     tripNotesLabel: string
     addToTrip: string
   }
@@ -602,8 +600,6 @@ function ComposerForm({
               <SelectContent>
                 <SelectItem value="card">{f.paymentCard}</SelectItem>
                 <SelectItem value="bank_transfer">{f.paymentBankTransfer}</SelectItem>
-                <SelectItem value="hold">{f.paymentHold}</SelectItem>
-                <SelectItem value="inquiry">{f.paymentInquiry}</SelectItem>
               </SelectContent>
             </Select>
           </div>

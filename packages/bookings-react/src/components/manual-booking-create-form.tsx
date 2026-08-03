@@ -1938,27 +1938,25 @@ export function ManualBookingCreateForm({
                     {messages.bookingCreateDialog.labels.generateInvoiceAndContract}
                   </Label>
                 </div>
-                {hasAnyPaidPayment(paymentSchedule) ? (
-                  <div className="flex items-start gap-2 border-t pt-2 text-sm">
-                    <Checkbox
-                      id="manual-booking-notify-traveler"
-                      checked={notifyTraveler}
-                      onCheckedChange={(value) => setNotifyTraveler(value === true)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex flex-col gap-1">
-                      <Label
-                        htmlFor="manual-booking-notify-traveler"
-                        className="cursor-pointer text-sm"
-                      >
-                        {messages.bookingCreateDialog.fields.notifyTraveler}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {messages.bookingCreateDialog.fields.notifyTravelerHint}
-                      </p>
-                    </div>
+                <div className="flex items-start gap-2 border-t pt-2 text-sm">
+                  <Checkbox
+                    id="manual-booking-notify-traveler"
+                    checked={notifyTraveler}
+                    onCheckedChange={(value) => setNotifyTraveler(value === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="manual-booking-notify-traveler"
+                      className="cursor-pointer text-sm"
+                    >
+                      {messages.bookingCreateDialog.fields.notifyTraveler}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {messages.bookingCreateDialog.fields.notifyTravelerHint}
+                    </p>
                   </div>
-                ) : null}
+                </div>
               </div>
             </div>
           ) : null}
@@ -2012,9 +2010,7 @@ export function ManualBookingCreateForm({
             {submitting ? (
               <Loader2 data-icon="inline-start" className="animate-spin" aria-hidden="true" />
             ) : null}
-            {hasAnyPaidPayment(paymentSchedule)
-              ? messages.bookingCreateDialog.actions.createConfirmedBooking
-              : messages.bookingCreateDialog.actions.createAwaitingPaymentBooking}
+            {messages.bookingCreateDialog.actions.createBooking}
           </Button>
         </div>
       </div>

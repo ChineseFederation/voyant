@@ -30,8 +30,6 @@ export const adminTripsMessagesEnPart2 = {
       paymentLabel: "Payment",
       paymentCard: "Card",
       paymentBankTransfer: "Bank transfer",
-      paymentHold: "Hold",
-      paymentInquiry: "Inquiry",
       tripNotesLabel: "Trip notes",
       addToTrip: "Add to trip",
     },

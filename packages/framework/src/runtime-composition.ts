@@ -111,7 +111,6 @@ function runtimePortStub(id: string): unknown {
     register: () => {},
     readConfig: () => undefined,
     enrichOverviewItems: unavailableAsync,
-    createStaleBookingHoldsJobRuntime: () => runtimeServiceStub(id),
     resolveProductSnapshot: unavailableAsync,
     loadPersonTravelSnapshot: unavailableAsync,
     upsertPersonFromContact: unavailableAsync,

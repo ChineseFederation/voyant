@@ -1,7 +1,7 @@
 // agent-quality: file-size exception -- owner: finance; existing service module stays co-located until a dedicated split preserves behavior and tests.
 
 import type { CreatedTargetMutationLease } from "@voyant-travel/action-ledger"
-import { bookingGroupsService } from "@voyant-travel/bookings"
+import { bookingGroupsService, bookingsService } from "@voyant-travel/bookings"
 import {
   BookingItemsUnresolvedError,
   BookingMonthlyLimitReachedError,
@@ -20,7 +20,6 @@ import {
   bookings,
   bookingTravelers,
 } from "@voyant-travel/bookings/schema"
-import { bookingStatusSchema } from "@voyant-travel/bookings/validation"
 import { withBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
 import { and, asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -518,19 +517,8 @@ const bookingCreateBaseSchema = z.object({
     ),
 
   /**
-   * Initial lifecycle status to seat the booking in — defaults to `draft`.
-   * Lets the dialog commit straight to `confirmed` or `awaiting_payment`
-   * in the same transaction, avoiding the post-create `/override-status`
-   * roundtrip that previously occasionally raced the create's COMMIT.
-   *
-   * When set to `confirmed`, the orchestrator emits `booking.confirmed`
-   * post-commit so notification + document-bundle subscribers fire just
-   * like they would for an after-the-fact transition.
-   */
-  initialStatus: bookingStatusSchema.optional(),
-  /**
-   * When true and `initialStatus === "confirmed"`, the post-commit
-   * `booking.confirmed` event carries `suppressNotifications: true` so
+   * When true, the post-commit `booking.confirmed` event carries
+   * `suppressNotifications: true` so
    * downstream subscribers skip customer-facing email + document
    * bundles. Operators can confirm a booking silently this way.
    */
@@ -624,7 +612,6 @@ export const bookingSessionStaffSelectionV1 = bookingCreateOperatorInputSchema
     catalogId: true,
     availabilityHoldToken: true,
     bookingNumber: true,
-    initialStatus: true,
   })
   .superRefine(requireUniqueClientTravelerKeys)
   .superRefine(requireKnownTravelerKeys)
@@ -843,7 +830,7 @@ async function findDuplicateBookingForCreate(
       b.booking_number AS "bookingNumber",
       b.status AS "status"
     FROM bookings b
-    WHERE b.status NOT IN ('cancelled', 'expired')
+    WHERE b.status IN ('confirmed', 'in_progress')
       AND ${partyCondition}
       AND EXISTS (
         SELECT 1
@@ -2248,19 +2235,6 @@ function validateTaxLines(
   )
 }
 
-function bookingItemStatusForInitialStatus(
-  status: BookingCreateInput["initialStatus"] | undefined,
-): "draft" | "on_hold" | "confirmed" | "cancelled" | "expired" | "fulfilled" {
-  if (status === "on_hold") return "on_hold"
-  if (status === "cancelled") return "cancelled"
-  if (status === "expired") return "expired"
-  if (status === "completed") return "fulfilled"
-  if (status === "confirmed" || status === "awaiting_payment" || status === "in_progress") {
-    return "confirmed"
-  }
-  return "draft"
-}
-
 function generateInvoiceNumber(bookingNumber: string) {
   return `INV-${bookingNumber}`.slice(0, 50)
 }
@@ -2396,7 +2370,6 @@ export async function createBookingMutation(
           confirmedSellAmountCents: input.confirmedSellAmountCents ?? null,
           priceOverrideReason: input.priceOverrideReason ?? null,
           manualPriceOverride: input.manualPriceOverride,
-          initialStatus: input.initialStatus,
           suppressNotifications: input.suppressNotifications,
           contactFirstName: input.contactFirstName ?? null,
           contactLastName: input.contactLastName ?? null,
@@ -2446,7 +2419,7 @@ export async function createBookingMutation(
               title: line.name,
               description: line.description ?? null,
               itemType: "extra" as const,
-              status: bookingItemStatusForInitialStatus(input.initialStatus),
+              status: "confirmed" as const,
               quantity: line.quantity,
               sellCurrency: line.sellCurrency,
               unitSellAmountCents,
@@ -2628,6 +2601,11 @@ export async function createBookingMutation(
           }
         }
       }
+
+      // Commit creates the confirmed Booking. Issue any product-default
+      // fulfillments only after Items, traveler links, and group context are
+      // complete, while the root transaction can still roll everything back.
+      await bookingsService.issueDefaultFulfillments(tx, booking.id, userId)
 
       return {
         booking,

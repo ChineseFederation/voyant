@@ -6,7 +6,7 @@ import { bookingPaymentSchedules, financeNotes, invoices } from "./schema.js"
 export interface BookingCancellationSettlementInput {
   bookingId: string
   bookingNumber: string
-  previousStatus: "draft" | "on_hold" | "awaiting_payment" | "confirmed" | "in_progress"
+  previousStatus: "confirmed" | "in_progress"
   reason: string | null
   actorId: string
 }
@@ -27,7 +27,7 @@ export const financeBookingLifecycle: BookingFinancialLifecycle = {
 export async function closeTerminalBookingPaymentSchedules(
   db: Parameters<BookingFinancialLifecycle["closePaymentSchedulesForBooking"]>[0],
   bookingId: string,
-  status: "cancelled" | "expired",
+  status: "cancelled",
 ): Promise<void> {
   await db
     .update(bookingPaymentSchedules)

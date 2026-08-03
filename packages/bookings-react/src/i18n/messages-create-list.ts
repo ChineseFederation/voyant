@@ -9,7 +9,6 @@ export type BookingsUiCreateListMessages = {
       departure: string
       sellAmount: string
       currency: string
-      initialStatus: string
       contactFirstName: string
       contactLastName: string
       contactEmail: string
@@ -121,10 +120,6 @@ export type BookingsUiCreateListMessages = {
     fields: {
       departure: string
       internalNotes: string
-      confirmAfterCreate: string
-      confirmAfterCreateHint: string
-      createAsDraft: string
-      createAsDraftHint: string
       notifyTraveler: string
       notifyTravelerHint: string
     }
@@ -146,8 +141,6 @@ export type BookingsUiCreateListMessages = {
       firstAndLastNameRequired: string
       roomCapacityExceeded: string
       selectSharedRoomGroup: string
-      confirmFailedPrefix: string
-      confirmFailed: string
       createFailed: string
       payloadResolverMismatchDetails: string
       payloadResolverMismatchFallback: string
@@ -155,9 +148,7 @@ export type BookingsUiCreateListMessages = {
       paidPaymentDateRequired: string
     }
     actions: {
-      createDraftBooking: string
-      createConfirmedBooking: string
-      createAwaitingPaymentBooking: string
+      createBooking: string
     }
     labels: {
       currency: string

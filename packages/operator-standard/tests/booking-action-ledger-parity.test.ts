@@ -1,8 +1,5 @@
 import { bookingActionLedgerCapabilityRegistry } from "@voyant-travel/bookings/action-ledger-capabilities"
-import {
-  CANCEL_BOOKING_HANDLER_POLICY,
-  CONFIRM_BOOKING_HANDLER_POLICY,
-} from "@voyant-travel/bookings/tools"
+import { CANCEL_BOOKING_HANDLER_POLICY } from "@voyant-travel/bookings/tools"
 import { bookingsVoyantModule } from "@voyant-travel/bookings/voyant"
 import { describe, expect, it } from "vitest"
 import { lowerVoyantGraphActionsToActionLedgerRegistry } from "../../framework/src/graph-action-ledger.js"
@@ -13,8 +10,6 @@ describe("standard booking action-ledger authority", () => {
     const actions = bookingsVoyantModule.actions ?? []
     expect(actions.map(({ id, capabilityId }) => ({ id, capabilityId }))).toEqual([
       { id: "booking.pii.read", capabilityId: "bookings-pii:read" },
-      { id: "booking.status.confirm", capabilityId: "bookings:status:confirm" },
-      { id: "booking.status.expire", capabilityId: "bookings:status:expire" },
       { id: "booking.status.cancel", capabilityId: "bookings:status:cancel" },
       { id: "booking.status.start", capabilityId: "bookings:status:start" },
       { id: "booking.status.complete", capabilityId: "bookings:status:complete" },
@@ -123,7 +118,7 @@ describe("standard booking action-ledger authority", () => {
         (left, right) =>
           left.id.localeCompare(right.id) || left.version.localeCompare(right.version),
       )
-    const requiredInSelectedGraph = new Set(["bookings:status:confirm", "bookings:status:cancel"])
+    const requiredInSelectedGraph = new Set(["bookings:status:cancel"])
     const selectedGraphCanonical = canonical.map((definition) =>
       requiredInSelectedGraph.has(definition.id)
         ? { ...definition, approvalPolicy: "required" as const }
@@ -133,12 +128,6 @@ describe("standard booking action-ledger authority", () => {
     expect(lowered).toEqual(selectedGraphCanonical)
 
     const lifecycleActionExpectations = [
-      {
-        graphId: "booking.status.confirm",
-        capabilityId: "bookings:status:confirm",
-        toolId: "@voyant-travel/bookings#tool.confirm-booking",
-        toolPolicy: CONFIRM_BOOKING_HANDLER_POLICY,
-      },
       {
         graphId: "booking.status.cancel",
         capabilityId: "bookings:status:cancel",

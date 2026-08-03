@@ -168,7 +168,7 @@ export function createPaymentPolicyCascade(
  * Persist the winning cascade source onto a booking's `internalNotes`.
  *
  * Replaces any existing `__payment_policy_source__:` marker line so the stamp
- * is idempotent across re-confirmations. The source enum is small
+ * is idempotent across event replay and explicit status correction. The source enum is small
  * (booking | listing | category | supplier | operator_default) so a single
  * marker line is enough.
  *

@@ -35,7 +35,7 @@ export const bookingItems = pgTable(
     title: text("title").notNull(),
     description: text("description"),
     itemType: bookingItemTypeEnum("item_type").notNull().default("unit"),
-    status: bookingItemStatusEnum("status").notNull().default("draft"),
+    status: bookingItemStatusEnum("status").notNull(),
     serviceDate: date("service_date"),
     startsAt: timestamp("starts_at", { withTimezone: true }),
     endsAt: timestamp("ends_at", { withTimezone: true }),

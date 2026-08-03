@@ -41,8 +41,5 @@ export function applyBookingSessionStaffSelectionV1(
     slotId: baseCommand.slotId,
     catalogId: baseCommand.catalogId,
     availabilityHoldToken: baseCommand.availabilityHoldToken,
-    // Booking Session Commit is the commercial commitment point. Finance state
-    // stays on schedules/payments and never changes the Booking lifecycle.
-    initialStatus: "confirmed",
   }
 }

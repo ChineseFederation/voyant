@@ -1,12 +1,7 @@
 // agent-quality: file-size exception -- owner: commerce; the checkout-start
-// service (card / bank-transfer / inquiry / hold intents) is one cohesive
+// service (card / bank-transfer collection intents) is one cohesive
 // entry point; splitting it would scatter a single request lifecycle.
-import {
-  bookingsService,
-  canTransitionBooking,
-  getBookingOriginByBookingId,
-  transitionBooking,
-} from "@voyant-travel/bookings"
+import { getBookingOriginByBookingId } from "@voyant-travel/bookings"
 import { bookingActivityLog, bookingItems, bookings } from "@voyant-travel/bookings/schema"
 import type { EventBus } from "@voyant-travel/core"
 import {
@@ -19,14 +14,14 @@ import {
   type PaymentPolicy,
   type PaymentPolicySource,
 } from "@voyant-travel/finance"
-import { eq, sql } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { z } from "zod"
 import type { CheckoutStartOptions } from "./options.js"
 
 export const checkoutStartSchema = z.object({
   bookingId: z.string().min(1),
-  paymentIntent: z.enum(["card", "bank_transfer", "hold", "inquiry"]),
+  paymentIntent: z.enum(["card", "bank_transfer"]),
   contractAcceptance: z
     .object({
       templateId: z.string().min(1),
@@ -88,16 +83,6 @@ export type CatalogCheckoutStartResult =
         dueAt: string
       }
     }
-  | {
-      kind: "inquiry_received"
-      bookingId: string
-      inquiryId: string
-      note?: string
-    }
-  | {
-      kind: "hold_placed"
-      bookingId: string
-    }
 
 export class CatalogCheckoutStartError extends Error {
   constructor(
@@ -129,6 +114,9 @@ export async function startCatalogCheckout(
   const booking: typeof bookings.$inferSelect | null =
     (await db.select().from(bookings).where(eq(bookings.id, body.bookingId)).limit(1))[0] ?? null
   if (!booking) throw new CatalogCheckoutStartError("booking_not_found", 404)
+  if (!["confirmed", "in_progress", "completed"].includes(booking.status)) {
+    throw new CatalogCheckoutStartError("booking_not_committed", 409)
+  }
 
   const bookingOrigin = await getBookingOriginByBookingId(db, booking.id)
   if (
@@ -139,18 +127,11 @@ export async function startCatalogCheckout(
   ) {
     throw new CatalogCheckoutStartError("booking_storefront_origin_mismatch", 409)
   }
-  if (
-    (body.paymentIntent === "card" || body.paymentIntent === "bank_transfer") &&
-    booking.holdExpiresAt &&
-    booking.holdExpiresAt <= new Date()
-  ) {
-    throw new CatalogCheckoutStartError("hold_expired", 409)
-  }
   await ensureBookingPublishedForCheckout(context, booking.id, storefrontChannel)
 
-  // Pre-create a draft contract carrying the acceptance fingerprint
+  // Pre-create a Legal-owned contract draft carrying the acceptance fingerprint
   // in `metadata.acceptance`. The auto-generate-contract subscriber
-  // (fired by `booking.confirmed` after payment) detects this draft
+  // detects this draft from the already committed Booking
   // by booking_id, populates the rendered body + variables from the
   // confirmed booking state, and issues + generates the PDF —
   // allocating the contract number at issue time. The signature
@@ -188,13 +169,6 @@ export async function startCatalogCheckout(
       return startCardCheckout(context, booking, body)
     case "bank_transfer":
       return startBankTransferCheckout(context, booking, body)
-    case "inquiry":
-      return startInquiryCheckout(context, booking)
-    case "hold":
-      return {
-        kind: "hold_placed",
-        bookingId: booking.id,
-      }
   }
 }
 
@@ -252,123 +226,6 @@ async function ensureBookingPublishedForCheckout(
   }
 }
 
-/**
- * Inquiry intent — write a proposal for the operator to follow
- * up on, then cancel the booking so inventory isn't blocked.
- *
- * The pipeline + stage used can be pinned via env vars
- * (`INQUIRY_PIPELINE_ID` / `INQUIRY_STAGE_ID`); otherwise we pick the
- * first sales pipeline + its first stage. Without any configured
- * pipeline the endpoint falls back to a stub response so the journey
- * keeps working through demos.
- */
-async function startInquiryCheckout(
-  context: CatalogCheckoutStartContext,
-  booking: typeof bookings.$inferSelect,
-): Promise<CatalogCheckoutStartResult> {
-  const db = context.db
-  const env = context.env
-  const eventBus = context.eventBus
-
-  let pipelineId = env.INQUIRY_PIPELINE_ID ?? null
-  let stageId = env.INQUIRY_STAGE_ID ?? null
-
-  if (!pipelineId || !stageId) {
-    const selection = await context.options.checkoutInquiry
-      .resolvePipeline(db, { pipelineId, stageId })
-      .catch(() => null)
-    if (selection) {
-      pipelineId = selection.pipelineId
-      stageId = selection.stageId
-    }
-  }
-
-  if (!pipelineId || !stageId) {
-    // No proposal pipeline configured. Still cancel the booking so the
-    // hold doesn't linger, and return a stub inquiry reference.
-    await releaseInquiryBooking(db, booking, eventBus)
-    return {
-      kind: "inquiry_received",
-      bookingId: booking.id,
-      inquiryId: `inq-${booking.id}`,
-      note: "No proposal pipeline configured — set INQUIRY_PIPELINE_ID + INQUIRY_STAGE_ID to record a real proposal.",
-    }
-  }
-
-  const proposal = await context.options.checkoutInquiry.createInquiry(db, {
-    title: `Inquiry — booking ${booking.bookingNumber}`,
-    pipelineId,
-    stageId,
-    personId: booking.personId,
-    organizationId: booking.organizationId,
-    valueAmountCents: booking.sellAmountCents ?? null,
-    valueCurrency: booking.sellCurrency ?? null,
-    source: "storefront-inquiry",
-    sourceRef: booking.id,
-  })
-
-  await releaseInquiryBooking(db, booking, eventBus)
-
-  await eventBus?.emit("inquiry.created", {
-    proposalId: proposal?.id ?? null,
-    bookingId: booking.id,
-    bookingNumber: booking.bookingNumber,
-    pipelineId,
-    stageId,
-  })
-
-  return {
-    kind: "inquiry_received",
-    bookingId: booking.id,
-    inquiryId: proposal?.id ?? `inq-${booking.id}`,
-  }
-}
-
-async function releaseInquiryBooking(
-  db: PostgresJsDatabase,
-  booking: typeof bookings.$inferSelect,
-  eventBus: EventBus | undefined,
-): Promise<void> {
-  // Inquiry mode: don't keep capacity locked. Cancel the booking so
-  // the hold drops; the row stays for the audit trail.
-  if (!canTransitionBooking(booking.status, "cancelled")) return
-  try {
-    await bookingsService.cancelBooking(
-      db,
-      booking.id,
-      { reason: "Released — converted to inquiry" } as never,
-      undefined,
-      { eventBus },
-    )
-  } catch (err) {
-    console.warn("[catalog-checkout] could not release booking on inquiry path", err)
-  }
-}
-
-/**
- * Move the booking from `on_hold` (or `draft`) into `awaiting_payment`
- * so ops can see in the bookings list which rows are pending money
- * vs. just brokered. The state machine accepts the transition;
- * already-`awaiting_payment` / already-`confirmed` rows are
- * silently no-op'd so re-entries (e.g. user reloads the dialog
- * twice) stay idempotent.
- */
-async function markAwaitingPayment(
-  db: PostgresJsDatabase,
-  booking: typeof bookings.$inferSelect,
-): Promise<void> {
-  if (!canTransitionBooking(booking.status, "awaiting_payment")) return
-  const patch = transitionBooking(booking.status, "awaiting_payment")
-  await db
-    .update(bookings)
-    .set({
-      ...patch,
-      revision: sql`${bookings.revision} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(bookings.id, booking.id))
-}
-
 async function startCardCheckout(
   context: CatalogCheckoutStartContext,
   booking: typeof bookings.$inferSelect,
@@ -383,14 +240,12 @@ async function startCardCheckout(
   const amountCents = booking.sellAmountCents ?? 0
   const currency = booking.sellCurrency ?? "EUR"
 
-  await markAwaitingPayment(db, booking)
-
   const session = await financeService.createPaymentSession(db, {
     bookingId: booking.id,
     amountCents,
     currency,
     status: "pending",
-    expiresAt: booking.holdExpiresAt?.toISOString() ?? null,
+    expiresAt: null,
     payerName: body.payerName ?? null,
     payerEmail: body.payerEmail ?? null,
     notes: `Storefront card payment for booking ${booking.bookingNumber}`,
@@ -561,8 +416,6 @@ async function startBankTransferCheckout(
     throw err
   }
 
-  await markAwaitingPayment(db, booking)
-
   // Create a payment session targeting the booking + proforma so the
   // operator can mark it received via the existing
   // POST /v1/admin/finance/payment-sessions/:id/complete endpoint.
@@ -575,7 +428,7 @@ async function startBankTransferCheckout(
     currency: booking.sellCurrency ?? "EUR",
     status: "pending",
     paymentMethod: "bank_transfer",
-    expiresAt: booking.holdExpiresAt?.toISOString() ?? null,
+    expiresAt: null,
     notes: `Bank transfer for booking ${booking.bookingNumber} (proforma ${
       proforma?.invoiceNumber ?? "—"
     })`,

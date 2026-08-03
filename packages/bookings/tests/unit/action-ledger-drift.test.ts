@@ -4,30 +4,17 @@ import { describe, expect, it } from "vitest"
 import { __test__, buildBookingActionLedgerDriftQueries } from "../../src/action-ledger-drift.js"
 
 describe("booking action ledger drift checks", () => {
-  it("builds drift queries for timestamped booking status transitions", () => {
+  it("builds drift queries for operator-owned Booking transitions", () => {
     const queries = buildBookingActionLedgerDriftQueries({
       createdAtFrom: "2026-05-17T00:00:00.000Z",
       sampleLimit: 5,
     })
     const dialect = new PgDialect()
-    const confirmed = dialect.sqlToQuery(queries.booking_confirmed)
-    const expired = dialect.sqlToQuery(queries.booking_expired)
     const cancelled = dialect.sqlToQuery(queries.booking_cancelled)
     const completed = dialect.sqlToQuery(queries.booking_completed)
 
-    expect(confirmed.sql).toContain('"bookings"')
-    expect(confirmed.sql).toContain('"action_ledger_entries"')
-    expect(confirmed.sql).toContain('"bookings"."confirmed_at" IS NOT NULL')
-    expect(confirmed.sql).toContain('"bookings"."confirmed_at" >= ')
-    expect(confirmed.params).toEqual(
-      expect.arrayContaining(["booking_confirmed", "booking.status.confirm", "booking"]),
-    )
-
-    expect(expired.sql).toContain('"bookings"."expired_at" IS NOT NULL')
-    expect(expired.params).toEqual(
-      expect.arrayContaining(["booking_expired", "booking.status.expire", "booking"]),
-    )
-
+    expect(cancelled.sql).toContain('"bookings"')
+    expect(cancelled.sql).toContain('"action_ledger_entries"')
     expect(cancelled.sql).toContain('"bookings"."cancelled_at" IS NOT NULL')
     expect(cancelled.params).toEqual(
       expect.arrayContaining(["booking_cancelled", "booking.status.cancel", "booking"]),
@@ -71,7 +58,7 @@ describe("booking action ledger drift checks", () => {
 
   it("clamps the sample limit and normalizes rows", () => {
     const query = new PgDialect().sqlToQuery(
-      buildBookingActionLedgerDriftQueries({ sampleLimit: 999 }).booking_confirmed,
+      buildBookingActionLedgerDriftQueries({ sampleLimit: 999 }).booking_cancelled,
     )
 
     expect(query.params).toContain(100)

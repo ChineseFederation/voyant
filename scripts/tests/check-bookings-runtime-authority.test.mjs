@@ -91,7 +91,7 @@ function validFiles() {
     ],
     [
       "packages/bookings/src/runtime.ts",
-      "createBookingsRuntime createBookingRequirementsRuntime customFields.resolveRegistry relationships.upsertPersonFromContact accommodation.enrichOverviewItems finance.createStaleBookingHoldsJobRuntime inventory.resolveProductSnapshot",
+      "createBookingsRuntime createBookingRequirementsRuntime customFields.resolveRegistry relationships.upsertPersonFromContact accommodation.enrichOverviewItems inventory.resolveProductSnapshot",
     ],
     [
       "packages/bookings/src/runtime-port.ts",

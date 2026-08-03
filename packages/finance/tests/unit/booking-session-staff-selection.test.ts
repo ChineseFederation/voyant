@@ -30,7 +30,6 @@ describe("Booking Session staff selection", () => {
         contactLastName: "Lovelace",
         contactEmail: "ada@example.test",
         internalNotes: "Call before arrival",
-        initialStatus: "awaiting_payment",
         bookingNumber: "CLIENT-CONTROLLED",
         travelers: [
           {
@@ -64,11 +63,11 @@ describe("Booking Session staff selection", () => {
       availabilityHoldToken: "bshd_1",
       sellAmountCentsOverride: 10_000,
       personId: "pers_staff",
-      initialStatus: "confirmed",
       internalNotes: "Call before arrival",
       travelers: [{ firstName: "Ada", lastName: "Lovelace" }],
     })
     expect(result).not.toHaveProperty("bookingNumber")
+    expect(result).not.toHaveProperty("initialStatus")
   })
 
   it("strips legacy client-authored totals without an explicit manual override", () => {

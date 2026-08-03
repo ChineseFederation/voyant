@@ -39,7 +39,7 @@ export const bookings = pgTable(
     bookingNumber: text("booking_number").notNull().unique(),
     /** Optimistic-concurrency token for immutable Booking revisions. */
     revision: integer("revision").notNull().default(1),
-    status: bookingStatusEnum("status").notNull().default("draft"),
+    status: bookingStatusEnum("status").notNull(),
     personId: text("person_id"),
     organizationId: text("organization_id"),
     sourceType: bookingSourceTypeEnum("source_type").notNull().default("manual"),
@@ -72,7 +72,7 @@ export const bookings = pgTable(
     internalNotes: text("internal_notes"),
     /**
      * Durable customer-message opt-out for this booking lifecycle. Once set,
-     * create/confirm/cancel events continue to carry suppression even when a
+     * commit/cancel events continue to carry suppression even when a
      * later command does not repeat the flag.
      */
     notificationsSuppressed: boolean("notifications_suppressed").notNull().default(false),
@@ -96,7 +96,6 @@ export const bookings = pgTable(
      * registry; `{}` when none are declared. Keys are the registered field keys.
      */
     customFields: jsonb("custom_fields").$type<NamespacedCustomFieldValues>().notNull().default({}),
-    holdExpiresAt: timestamp("hold_expires_at", { withTimezone: true }),
     /**
      * Immutable, server-controlled timestamp for the booking's first accepted
      * state. Unlike `confirmedAt`, this is never cleared by later lifecycle
@@ -104,11 +103,8 @@ export const bookings = pgTable(
      */
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-    expiredAt: timestamp("expired_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
-    awaitingPaymentAt: timestamp("awaiting_payment_at", { withTimezone: true }),
-    paidAt: timestamp("paid_at", { withTimezone: true }),
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

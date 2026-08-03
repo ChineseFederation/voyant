@@ -9,7 +9,7 @@ export interface BookingStatusDispatchTarget {
   /**
    * JSON body the server expects for the resolved verb.
    *
-   * - For named verbs (`/confirm`, `/expire`, `/start`, `/complete`, `/cancel`)
+   * - For named verbs (`/start`, `/complete`, `/cancel`)
    *   this is `{ note }` when a note is provided, otherwise an empty object.
    * - For `/override-status` it is `{ status, reason, note? }`. When callers
    *   do not provide a note, the dispatcher supplies a non-empty audit reason.
@@ -35,10 +35,10 @@ export function dispatchBookingStatusChange(
   options?: { suppressNotifications?: boolean; suppressLifecycleEvents?: boolean },
 ): BookingStatusDispatchTarget {
   const noteBody = note ? { note } : {}
-  // Confirmation and cancellation may both trigger customer-facing messages.
+  // Cancellation may trigger customer-facing messages.
   // Once requested, the service persists suppression across the lifecycle.
   const suppress =
-    (target === "confirmed" || target === "cancelled") && options?.suppressNotifications === true
+    (target === "cancelled" || target === "confirmed") && options?.suppressNotifications === true
       ? { suppressNotifications: true }
       : {}
   const lifecycleSuppression =
@@ -46,25 +46,13 @@ export function dispatchBookingStatusChange(
       ? { suppressLifecycleEvents: true }
       : {}
 
-  if (current === "on_hold" && target === "confirmed") {
-    return { path: `/v1/admin/bookings/${bookingId}/confirm`, body: { ...noteBody, ...suppress } }
-  }
-  if (current === "on_hold" && target === "expired") {
-    return { path: `/v1/admin/bookings/${bookingId}/expire`, body: noteBody }
-  }
   if (current === "confirmed" && target === "in_progress") {
     return { path: `/v1/admin/bookings/${bookingId}/start`, body: noteBody }
   }
   if (current === "in_progress" && target === "completed") {
     return { path: `/v1/admin/bookings/${bookingId}/complete`, body: noteBody }
   }
-  if (
-    target === "cancelled" &&
-    (current === "draft" ||
-      current === "on_hold" ||
-      current === "confirmed" ||
-      current === "in_progress")
-  ) {
+  if (target === "cancelled" && (current === "confirmed" || current === "in_progress")) {
     return {
       path: `/v1/admin/bookings/${bookingId}/cancel`,
       body: { ...noteBody, ...suppress },

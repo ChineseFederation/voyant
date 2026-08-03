@@ -15,13 +15,9 @@ export type BookingStatusBadgeVariant = "default" | "secondary" | "outline" | "d
  * fallback in every app that kept its own local copy of this map.
  */
 export const bookingStatusBadgeVariant: Record<BookingStatus, BookingStatusBadgeVariant> = {
-  draft: "outline",
-  on_hold: "secondary",
-  awaiting_payment: "secondary",
   confirmed: "default",
   in_progress: "secondary",
   completed: "default",
-  expired: "secondary",
   cancelled: "destructive",
 }
 

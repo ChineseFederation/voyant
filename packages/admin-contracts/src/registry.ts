@@ -40,7 +40,7 @@ export const allOperations: AnyOperation[] = (() => {
   return out
 })()
 
-/** Lookup a descriptor by its dotted id (`"bookings.confirm"`). */
+/** Lookup a descriptor by its dotted id (`"bookings.cancel"`). */
 export function getOperation(id: string): AnyOperation | undefined {
   return allOperations.find((op) => op.id === id)
 }

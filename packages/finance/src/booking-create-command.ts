@@ -197,22 +197,20 @@ async function insertBookingCreatedOutbox(
       },
     },
   ]
-  if (command.initialStatus === "confirmed") {
-    events.push({
-      name: "booking.confirmed",
-      data: {
-        bookingId: result.booking.id,
-        bookingNumber: result.booking.bookingNumber,
-        actorId: context.userId ?? null,
-        suppressNotifications: command.suppressNotifications === true ? true : undefined,
-      },
-      metadata: {
-        category: "domain",
-        source: "service",
-        eventId: `evt_finance_booking_confirmed_${result.booking.id}`,
-      },
-    })
-  }
+  events.push({
+    name: "booking.confirmed",
+    data: {
+      bookingId: result.booking.id,
+      bookingNumber: result.booking.bookingNumber,
+      actorId: context.userId ?? null,
+      suppressNotifications: command.suppressNotifications === true ? true : undefined,
+    },
+    metadata: {
+      category: "domain",
+      source: "service",
+      eventId: `evt_finance_booking_confirmed_${result.booking.id}`,
+    },
+  })
   if (command.documentGeneration?.contractDocument) {
     events.push({
       name: "booking.contract_document.requested",

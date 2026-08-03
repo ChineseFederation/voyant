@@ -723,14 +723,13 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       slotId: slot.id,
       availabilityHoldToken: holdToken,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "on_hold",
       pax: 2,
       ...bookingParty(),
     })
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(outcome.result.booking.status).toBe("on_hold")
+    expect(outcome.result.booking.status).toBe("confirmed")
 
     const [slotAfter] = await db
       .select({ remainingPax: availabilitySlots.remainingPax })
@@ -751,7 +750,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(allocations[0]).toMatchObject({
       availabilitySlotId: slot.id,
       quantity: 2,
-      status: "held",
+      status: "confirmed",
       metadata: {
         availabilityHoldId: hold.id,
         availabilityHoldToken: holdToken,
@@ -814,7 +813,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       slotId: slot.id,
       availabilityHoldToken: holdToken,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "on_hold",
       pax: 2,
       ...bookingParty(),
     })
@@ -911,7 +909,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     expect(outcome.status).toBe("ok")
     if (outcome.status !== "ok") return
-    expect(outcome.result.booking.status).toBe("draft")
+    expect(outcome.result.booking.status).toBe("confirmed")
     expect(outcome.result.travelers).toHaveLength(2)
     expect(outcome.result.travelers[0]?.firstName).toBe("Alice")
     expect(outcome.result.paymentSchedules).toHaveLength(2)
@@ -1026,7 +1024,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(bookingRows).toHaveLength(2)
   })
 
-  it("ignores expired bookings when checking duplicates", async () => {
+  it("ignores completed bookings when checking duplicates", async () => {
     const { productId, optionId } = await seedProduct()
     const slot = await seedSlot({ productId, optionId })
 
@@ -1042,7 +1040,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
 
     await db
       .update(bookings)
-      .set({ status: "expired" })
+      .set({ status: "completed" })
       .where(eq(bookings.id, first.result.booking.id))
 
     const second = await createBooking(db, {
@@ -1277,7 +1275,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const outcome = await createBooking(db, {
       productId,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "confirmed",
       ...bookingParty(),
       paymentSchedules: [
         {
@@ -1329,7 +1326,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const outcome = await createBooking(db, {
       productId,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "confirmed",
       ...bookingParty(),
       paymentSchedules: [
         {
@@ -1448,7 +1444,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const outcome = await createBooking(db, {
       productId,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "confirmed",
       ...bookingParty(),
     })
     expect(outcome.status).toBe("ok")
@@ -1522,7 +1517,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     const outcome = await createBooking(db, {
       productId,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "confirmed",
       ...bookingParty(),
     })
     expect(outcome.status).toBe("ok")
@@ -1948,7 +1942,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(links).toHaveLength(2)
   })
 
-  it("holds and restores passenger capacity while queuing confirm and cancel exactly once", async () => {
+  it("commits and restores passenger capacity while queuing cancellation exactly once", async () => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const slot = await seedSlot({ productId, optionId, capacity: 12 })
     const outcome = await createBooking(db, {
@@ -1956,7 +1950,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       optionId,
       slotId: slot.id,
       bookingNumber: nextBookingNumber(),
-      initialStatus: "on_hold",
       pax: 2,
       ...bookingParty(),
       travelers: [
@@ -2001,17 +1994,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       subscribe: vi.fn(() => ({ unsubscribe() {} })),
     } as never
 
-    const confirmed = await bookingsService.confirmBooking(
-      db,
-      outcome.result.booking.id,
-      { note: "QA confirmation", suppressNotifications: true },
-      "user_qa",
-      { eventBus },
-    )
-    expect(confirmed.status).toBe("ok")
-    expect(await remaining()).toBe(10)
-    expect(directEmit).not.toHaveBeenCalled()
-
     const cancelled = await bookingsService.cancelBooking(
       db,
       outcome.result.booking.id,
@@ -2042,14 +2024,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         .from(eventOutboxTable)
         .orderBy(asc(eventOutboxTable.createdAt)),
     ).toEqual([
-      {
-        eventId: expect.stringMatching(
-          new RegExp(`^evt_booking_confirmed_${outcome.result.booking.id}_[0-9a-f]+$`),
-        ),
-        name: "booking.confirmed",
-        payload: expect.objectContaining({ suppressNotifications: true }),
-        status: "pending",
-      },
       {
         eventId: expect.stringMatching(
           new RegExp(`^evt_booking_cancelled_${outcome.result.booking.id}_[0-9a-f]+$`),
@@ -4359,11 +4333,9 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
   })
 
   it.each([
-    ["on_hold", "closed", 12],
-    ["confirmed", "closed", 12],
-    ["on_hold", "cancelled", 10],
-    ["confirmed", "cancelled", 10],
-  ] as const)("cancels a %s allocation on a %s departure safely", async (initialStatus, slotStatus, expectedRemainingPax) => {
+    ["closed", 12],
+    ["cancelled", 10],
+  ] as const)("cancels an allocation on a %s departure safely", async (slotStatus, expectedRemainingPax) => {
     const { productId, optionId, roomUnitId } = await seedAccommodationProduct()
     const slot = await seedSlot({ productId, optionId, capacity: 12 })
     const outcome = await createBooking(db, {
@@ -4371,7 +4343,6 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       optionId,
       slotId: slot.id,
       bookingNumber: nextBookingNumber(),
-      initialStatus,
       pax: 2,
       ...bookingParty(),
       itemLines: [{ optionUnitId: roomUnitId, quantity: 1 }],
@@ -4977,7 +4948,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(await db.select().from(paymentInstruments)).toHaveLength(0)
   })
 
-  it("settles one durable booking, result ledger, and outbox entry across exact replays", async () => {
+  it("settles one durable booking, result ledger, and outbox event pair across exact replays", async () => {
     const { productId, unitId } = await seedProduct()
     const idempotencyKey = "finance-booking-create-replay"
     const command = await durableCommand(idempotencyKey, {
@@ -5000,12 +4971,20 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     )
     expect(await db.select().from(bookings)).toHaveLength(1)
     expect(await db.select().from(bookingItemTaxLines)).toHaveLength(1)
-    expect(await db.select().from(eventOutboxTable)).toEqual([
-      expect.objectContaining({
-        eventId: financeBookingCreatedEventId(first.value.bookingId),
-        name: "booking.created",
-      }),
-    ])
+    const outboxRows = await db.select().from(eventOutboxTable)
+    expect(outboxRows).toHaveLength(2)
+    expect(outboxRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: financeBookingCreatedEventId(first.value.bookingId),
+          name: "booking.created",
+        }),
+        expect.objectContaining({
+          eventId: `evt_finance_booking_confirmed_${first.value.bookingId}`,
+          name: "booking.confirmed",
+        }),
+      ]),
+    )
     expect(
       await db
         .select()
@@ -5035,7 +5014,7 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
     expect(results.map((result) => result.replayed).sort()).toEqual([false, true])
     expect(new Set(results.map((result) => result.value.bookingId)).size).toBe(1)
     expect(await db.select().from(bookings)).toHaveLength(1)
-    expect(await db.select().from(eventOutboxTable)).toHaveLength(1)
+    expect(await db.select().from(eventOutboxTable)).toHaveLength(2)
     expect(
       await db
         .select()

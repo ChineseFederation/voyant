@@ -20,8 +20,8 @@ import { type AdminClientConfig, createExecutor, fetchCapabilities } from "./htt
  *   baseUrl: "https://acme.voyant.app",
  *   auth: { type: "apiKey", apiKey: "voy_..." },
  * })
- * const { data } = await client.bookings.list({ status: "on_hold" })
- * await client.bookings.confirm({ id: "book_123" }, { note: "ok" })
+ * const { data } = await client.bookings.list({ status: "confirmed" })
+ * await client.bookings.cancel({ id: "book_123" }, { note: "Customer request" })
  * ```
  */
 export function createAdminClient(config: AdminClientConfig) {
@@ -37,8 +37,6 @@ export function createAdminClient(config: AdminClientConfig) {
       list: (input?: InferInput<typeof bookingsOperations.list>) =>
         execute(bookingsOperations.list, undefined, input),
       get: (params: { id: string }) => execute(bookingsOperations.get, params),
-      confirm: (params: { id: string }, input?: InferInput<typeof bookingsOperations.confirm>) =>
-        execute(bookingsOperations.confirm, params, input),
       cancel: (params: { id: string }, input?: InferInput<typeof bookingsOperations.cancel>) =>
         execute(bookingsOperations.cancel, params, input),
     },

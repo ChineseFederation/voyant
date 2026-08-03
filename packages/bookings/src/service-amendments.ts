@@ -469,7 +469,7 @@ async function buildRosterPlans(
   const quantityDelta = input.change.type === "traveler_add" ? (1 as const) : (-1 as const)
   const plans: BookingAmendmentRosterItemPlan[] = []
   for (const item of selectedItems) {
-    if (item.status !== "confirmed" && item.status !== "on_hold") {
+    if (item.status !== "confirmed") {
       throw new RosterPlanError(
         "unsupported_configuration",
         "Only active Booking Items can change traveler roster",

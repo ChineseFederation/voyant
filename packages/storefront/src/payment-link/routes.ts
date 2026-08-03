@@ -1021,8 +1021,7 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
       const paidSession = sessions.find((session) => session.status === "paid")
       const latestSession = paidSession ?? sessions[0] ?? null
       const isBankTransferSession =
-        latestSession?.paymentMethod === "bank_transfer" ||
-        (booking.status === "awaiting_payment" && Boolean(latestSession?.invoiceId))
+        latestSession?.paymentMethod === "bank_transfer" || Boolean(latestSession?.invoiceId)
       const bankTransferInstructions =
         isBankTransferSession && latestSession
           ? await buildPublicBankTransferInstructions(
@@ -1033,12 +1032,11 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
             )
           : null
       const failedStatuses = new Set(["failed", "cancelled", "expired"])
-      const paymentStatus: "paid" | "failed" | "pending" =
-        booking.status === "confirmed" || paidSession
-          ? "paid"
-          : sessions.length > 0 && sessions.every((session) => failedStatuses.has(session.status))
-            ? "failed"
-            : "pending"
+      const paymentStatus: "paid" | "failed" | "pending" = paidSession
+        ? "paid"
+        : sessions.length > 0 && sessions.every((session) => failedStatuses.has(session.status))
+          ? "failed"
+          : "pending"
 
       return c.json(
         {

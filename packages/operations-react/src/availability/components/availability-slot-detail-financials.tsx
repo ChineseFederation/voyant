@@ -132,13 +132,7 @@ export interface SlotFinancialRollup {
   entries: CurrencyTotals[]
 }
 
-const FINANCIAL_BOOKING_STATUSES = new Set([
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-  "completed",
-])
+const FINANCIAL_BOOKING_STATUSES = new Set(["confirmed", "in_progress", "completed"])
 
 export function aggregateSlotFinancials(
   bookings: ReadonlyArray<AllocationManifestBooking>,

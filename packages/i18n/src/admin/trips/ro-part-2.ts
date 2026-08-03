@@ -30,8 +30,6 @@ export const adminTripsMessagesRoPart2 = {
       paymentLabel: "Plata",
       paymentCard: "Card",
       paymentBankTransfer: "Transfer bancar",
-      paymentHold: "Hold",
-      paymentInquiry: "Cerere",
       tripNotesLabel: "Note calatorie",
       addToTrip: "Adauga la calatorie",
     },

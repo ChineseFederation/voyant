@@ -340,7 +340,6 @@ describe("production Booking Session ports", () => {
             contactLastName: "Lovelace",
             contactEmail: "ada@example.test",
             internalNotes: "Call before arrival",
-            initialStatus: "awaiting_payment",
             bookingNumber: "CLIENT-1",
             travelers: [
               {
@@ -381,9 +380,9 @@ describe("production Booking Session ports", () => {
       availabilityHoldToken: "derived_hold",
       personId: "per_selected",
       internalNotes: "Call before arrival",
-      initialStatus: "confirmed",
       travelers: [{ firstName: "Ada", lastName: "Lovelace" }],
     })
+    expect(financeCreate.resolvedCommand).not.toHaveProperty("initialStatus")
     expect(financeCreate.resolvedCommand).not.toHaveProperty("bookingNumber")
   })
 

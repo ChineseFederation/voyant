@@ -434,15 +434,6 @@ export const notificationsReminderSubscribersVoyantPlugin = defineExtension({
         export: "notificationsBookingCancelledReminderSubscriber",
       },
     },
-    {
-      id: "@voyant-travel/notifications#subscriber.reminder-booking-expired",
-      eventType: "booking.expired",
-      source: "@voyant-travel/notifications/subscriber-runtime",
-      runtime: {
-        entry: "@voyant-travel/notifications/subscriber-runtime",
-        export: "notificationsBookingExpiredReminderSubscriber",
-      },
-    },
   ],
   meta: {
     ownership: "package",

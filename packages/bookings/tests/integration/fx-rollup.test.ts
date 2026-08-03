@@ -92,7 +92,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -122,7 +121,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "EUR tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -134,7 +132,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "GBP supplement",
       itemType: "extra",
-      status: "draft",
       quantity: 1,
       sellCurrency: "GBP",
       unitSellAmountCents: 5000,
@@ -163,7 +160,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Domestic",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -188,7 +184,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "EUR",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       totalSellAmountCents: 10000,
@@ -200,7 +195,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "GBP",
       itemType: "extra",
-      status: "draft",
       quantity: 1,
       sellCurrency: "GBP",
       totalSellAmountCents: 5000,
@@ -240,7 +234,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "EUR via inverse",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       totalSellAmountCents: 10000,
@@ -265,7 +258,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings FX rollup", () => {
     const item = await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       totalSellAmountCents: 10000,

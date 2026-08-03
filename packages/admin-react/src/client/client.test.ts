@@ -33,7 +33,7 @@ const booking = {
 }
 
 describe("createAdminClient", () => {
-  it("confirms a booking: POST, auth + idempotency headers, JSON body, data-unwrapped result", async () => {
+  it("cancels a booking: POST, auth + idempotency headers, JSON body, data-unwrapped result", async () => {
     const { fetchImpl, calls } = mockFetch(() => ({ status: 200, body: { data: booking } }))
     const client = createAdminClient({
       baseUrl: "https://acme.voyant.app/",
@@ -42,16 +42,16 @@ describe("createAdminClient", () => {
       idempotencyKey: (op) => `idem-${op}`,
     })
 
-    const result = await client.bookings.confirm({ id: "book_123" }, { note: "ok" })
+    const result = await client.bookings.cancel({ id: "book_123" }, { note: "Customer request" })
 
     expect(result.bookingNumber).toBe("B-123") // { data } unwrapped + output-parsed
     const [req] = calls
     expect(req?.method).toBe("POST")
-    expect(req?.url).toBe("https://acme.voyant.app/v1/admin/bookings/book_123/confirm")
+    expect(req?.url).toBe("https://acme.voyant.app/v1/admin/bookings/book_123/cancel")
     expect(req?.headers.authorization).toBe("Bearer voy_test")
     expect(req?.headers["content-type"]).toBe("application/json")
-    expect(req?.headers["idempotency-key"]).toBe("idem-bookings.confirm")
-    expect(JSON.parse(req?.body ?? "{}")).toEqual({ note: "ok" })
+    expect(req?.headers["idempotency-key"]).toBe("idem-bookings.cancel")
+    expect(JSON.parse(req?.body ?? "{}")).toEqual({ note: "Customer request" })
   })
 
   it("lists bookings: GET with query string, raw paginated envelope", async () => {
@@ -65,14 +65,14 @@ describe("createAdminClient", () => {
       fetch: fetchImpl,
     })
 
-    const page = await client.bookings.list({ status: "on_hold", limit: 20, offset: 0 })
+    const page = await client.bookings.list({ status: "confirmed", limit: 20, offset: 0 })
 
     expect(page.total).toBe(1)
     expect(page.data[0]?.id).toBe("book_123")
     const [req] = calls
     expect(req?.method).toBe("GET")
     expect(req?.url).toContain("/v1/admin/bookings?")
-    expect(req?.url).toContain("status=on_hold")
+    expect(req?.url).toContain("status=confirmed")
     expect(req?.url).toContain("limit=20")
     expect(req?.headers.authorization).toBe("Bearer jwt123")
     expect(req?.body).toBeUndefined()
@@ -143,7 +143,7 @@ describe("createAdminClient", () => {
           requestedAction: {
             id: "act_1",
             status: "pending_approval",
-            actionName: "booking.status.confirm",
+            actionName: "booking.status.cancel",
           },
           approval: { id: "appr_1", status: "pending", requestedActionId: "act_1" },
           replayed: false,
@@ -156,11 +156,11 @@ describe("createAdminClient", () => {
       fetch: fetchImpl,
     })
 
-    await expect(client.bookings.confirm({ id: "book_123" }, {})).rejects.toBeInstanceOf(
+    await expect(client.bookings.cancel({ id: "book_123" }, {})).rejects.toBeInstanceOf(
       AdminApprovalRequiredError,
     )
     try {
-      await client.bookings.confirm({ id: "book_123" }, {})
+      await client.bookings.cancel({ id: "book_123" }, {})
     } catch (err) {
       expect(err).toBeInstanceOf(AdminApprovalRequiredError)
       expect((err as AdminApprovalRequiredError).approvalId).toBe("appr_1")
@@ -268,9 +268,9 @@ describe("createAdminClient", () => {
         modules: ["bookings", "finance"],
         operations: [
           {
-            id: "bookings.confirm",
+            id: "bookings.cancel",
             method: "POST",
-            pathTemplate: "/v1/admin/bookings/:id/confirm",
+            pathTemplate: "/v1/admin/bookings/:id/cancel",
             classification: "requires_confirmation",
             scopes: ["bookings:write"],
           },
@@ -285,7 +285,7 @@ describe("createAdminClient", () => {
 
     const caps = await client.capabilities()
     expect(caps.modules).toContain("finance")
-    expect(caps.operations[0]?.id).toBe("bookings.confirm")
+    expect(caps.operations[0]?.id).toBe("bookings.cancel")
     expect(calls[0]?.url).toBe("https://acme.voyant.app/v1/admin/_meta/capabilities")
   })
 })

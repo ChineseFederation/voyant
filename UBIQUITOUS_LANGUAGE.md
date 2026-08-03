@@ -244,8 +244,8 @@ See [agent tool library](docs/architecture/agent-tool-library.md) and
 
 | Verb           | Meaning                                                                                          | Used on                                  |
 | -------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| **Hold**       | Place a time-limited claim on inventory.                                                         | Booking, Allocation                      |
-| **Confirm**    | Promote from draft/held to a binding state.                                                      | Booking, Allocation, Supplier status |
+| **Hold**       | Place a time-limited pre-Commit claim on inventory.                                              | Booking Session, inventory capacity      |
+| **Confirm**    | Record a binding supplier or allocation result. A Booking itself is created confirmed by Commit rather than confirmed later. | Allocation, Supplier status |
 | **Start**      | Mark a confirmed Booking as in-progress — service is underway.                                   | Booking                                  |
 | **Complete**   | Mark an in-progress Booking as fully delivered.                                                  | Booking                                  |
 | **Issue**      | Produce a deliverable artifact (Service Voucher, invoice, contract, policy version).             | Fulfillment, Invoice, Contract, Policy Version |

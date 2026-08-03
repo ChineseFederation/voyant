@@ -89,10 +89,6 @@ export interface BookingsToolServices {
     to?: string
     upcomingLimit?: number
   }): Promise<unknown>
-  confirmBooking(
-    input: z.infer<typeof confirmBookingToolInputSchema>,
-    admitted: ToolHandlerActionPolicyContext,
-  ): Promise<unknown>
   cancelBooking(
     input: z.infer<typeof cancelBookingToolInputSchema>,
     admitted: ToolHandlerActionPolicyContext,
@@ -194,12 +190,6 @@ export const cancelBookingToolInputSchema = z.object({
     .describe("Stable key used when requesting approval and replaying the command."),
 })
 
-const completedConfirmedBookingActionSchema = z.object({
-  status: z.literal("confirmed"),
-  booking: bookingToolDetailSchema,
-  replayed: z.boolean(),
-})
-
 const completedCancelledBookingActionSchema = z.object({
   status: z.literal("cancelled"),
   booking: bookingToolDetailSchema,
@@ -258,75 +248,6 @@ export const cancelBookingTool = defineTool<
   async handler(input, ctx) {
     const admitted = admitHandlerActionPolicy(ctx, CANCEL_BOOKING_HANDLER_POLICY)
     return cancelBookingToolOutputSchema.parse(await bookings(ctx).cancelBooking(input, admitted))
-  },
-})
-
-export const confirmBookingToolInputSchema = z.object({
-  id: z.string().min(1).describe("The on-hold booking id to confirm."),
-  note: z.string().trim().min(1).optional().describe("Optional confirmation audit note."),
-  suppressNotifications: z
-    .boolean()
-    .optional()
-    .describe("Keep customer email and SMS suppressed for this booking lifecycle."),
-  idempotencyKey: z
-    .string()
-    .trim()
-    .min(1)
-    .describe("Stable key used when requesting approval and replaying the command."),
-})
-
-export const confirmBookingToolOutputSchema = completedConfirmedBookingActionSchema
-
-export const CONFIRM_BOOKING_HANDLER_POLICY = {
-  capabilityId: "@voyant-travel/bookings#tool.confirm-booking",
-  capabilityVersion: "v1",
-  canonicalName: "confirm_booking",
-  actionPolicy: {
-    id: "booking.status.confirm",
-    capabilityId: "bookings:status:confirm",
-    version: "v1",
-    kind: "execute",
-    targetType: "booking",
-    commandTargetField: "id",
-    targetLifecycle: "existing",
-    existingTarget: { durability: "handler-command-result-v1" },
-    risk: "high",
-    ledger: "required",
-    approval: "required",
-    policy: "bookings-status-approval-v1",
-    reversible: false,
-    allowedActorTypes: ["staff", "system"],
-  },
-} as const satisfies HandlerActionPolicyExpectation
-
-export const confirmBookingTool = defineTool<
-  z.infer<typeof confirmBookingToolInputSchema>,
-  z.infer<typeof confirmBookingToolOutputSchema>,
-  BookingsToolContext
->({
-  owner: "@voyant-travel/bookings",
-  capabilityId: "@voyant-travel/bookings#tool.confirm-booking",
-  capabilityVersion: "v1",
-  name: "confirm_booking",
-  description:
-    "Request approval to confirm the exact on-hold booking, including its amount and notification consequence, or replay the exact approved confirmation.",
-  inputSchema: confirmBookingToolInputSchema,
-  outputSchema: confirmBookingToolOutputSchema,
-  requiredScopes: ["bookings:write"],
-  audience: { source: "grant", allowed: ["staff"] },
-  tier: "destructive",
-  riskPolicy: {
-    destructive: true,
-    reversible: false,
-    dryRunSupported: false,
-    confirmationRequired: true,
-    sideEffects: ["data-write", "external-booking"],
-  },
-  annotations: { idempotentHint: true },
-  actionPolicyEnforcement: "handler",
-  async handler(input, ctx) {
-    const admitted = admitHandlerActionPolicy(ctx, CONFIRM_BOOKING_HANDLER_POLICY)
-    return confirmBookingToolOutputSchema.parse(await bookings(ctx).confirmBooking(input, admitted))
   },
 })
 
@@ -506,7 +427,6 @@ export const reconcileBookingAmendmentTool = defineTool({
 export const bookingsTools = [
   listBookingsTool,
   getBookingTool,
-  confirmBookingTool,
   cancelBookingTool,
   previewTravelerCorrectionAmendmentTool,
   previewTravelerRosterChangeAmendmentTool,

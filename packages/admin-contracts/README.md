@@ -15,7 +15,7 @@ web-UI dependencies. See [`docs/adr/0003-admin-api-contract-sdk.md`](../../docs/
   (`read | routine_write | destructive | requires_confirmation`), the shared
   error and pagination envelopes, and the capability-discovery descriptor.
 - **Operation catalogues** — `bookingsOperations`, `financeOperations`
-  (first slice: list/get/confirm/cancel and invoice list/get, record payment,
+  (first slice: list/get/cancel and invoice list/get, record payment,
   create payment link).
 
 Execute these with [`@voyant-travel/admin-client`](../admin-client/README.md).
@@ -25,12 +25,12 @@ Execute these with [`@voyant-travel/admin-client`](../admin-client/README.md).
 ```ts
 import { bookingsOperations, type InferInput } from "@voyant-travel/admin-contracts"
 
-const op = bookingsOperations.confirm
-op.id            // "bookings.confirm"
+const op = bookingsOperations.cancel
+op.id            // "bookings.cancel"
 op.classification // "requires_confirmation"
 op.scopes        // ["bookings:write"]
-op.path({ id: "book_123" }) // "/v1/admin/bookings/book_123/confirm"
-type ConfirmInput = InferInput<typeof op>
+op.path({ id: "book_123" }) // "/v1/admin/bookings/book_123/cancel"
+type CancelInput = InferInput<typeof op>
 ```
 
 The descriptors are data: the client turns them into typed calls, a Max-tool

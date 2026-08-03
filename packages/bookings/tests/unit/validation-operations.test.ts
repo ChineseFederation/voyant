@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest"
 
 import {
   cancelBookingSchema,
-  confirmBookingSchema,
   convertProductSchema,
-  expireBookingSchema,
-  expireStaleBookingsSchema,
-  extendBookingHoldSchema,
   insertBookingAllocationSchema,
   insertBookingFulfillmentSchema,
   recordBookingRedemptionSchema,
   updateBookingAllocationSchema,
   updateBookingFulfillmentSchema,
+  updateBookingGroupSchema,
+  updateSupplierStatusSchema,
 } from "../../src/validation.js"
 
 describe("Reservation schemas", () => {
@@ -25,24 +23,8 @@ describe("Reservation schemas", () => {
     expect(result.pax).toBe(3)
   })
 
-  it("requires a hold extension value", () => {
-    expect(() => extendBookingHoldSchema.parse({})).toThrow()
-    expect(extendBookingHoldSchema.parse({ holdMinutes: 15 }).holdMinutes).toBe(15)
-  })
-
-  it("accepts confirm, cancel, and expire payloads", () => {
-    expect(confirmBookingSchema.parse({ note: "ok" }).note).toBe("ok")
+  it("accepts cancellation payloads", () => {
     expect(cancelBookingSchema.parse({ note: "cancel" }).note).toBe("cancel")
-    expect(expireBookingSchema.parse({ note: "expire" }).note).toBe("expire")
-  })
-
-  it("parses expire stale bookings payload", () => {
-    const result = expireStaleBookingsSchema.parse({
-      before: "2026-06-01T10:00:00.000Z",
-      note: "sweep",
-    })
-    expect(result.before).toBe("2026-06-01T10:00:00.000Z")
-    expect(result.note).toBe("sweep")
   })
 
   it("parses booking allocation input", () => {
@@ -58,6 +40,12 @@ describe("Reservation schemas", () => {
   it("accepts partial booking allocation updates", () => {
     const result = updateBookingAllocationSchema.parse({ status: "confirmed" })
     expect(result.status).toBe("confirmed")
+  })
+
+  it("does not inject allocation defaults into partial updates", () => {
+    expect(updateBookingAllocationSchema.parse({ metadata: { source: "staff" } })).toEqual({
+      metadata: { source: "staff" },
+    })
   })
 })
 
@@ -98,6 +86,28 @@ describe("Booking fulfillment schema", () => {
   it("accepts partial fulfillment update", () => {
     const result = updateBookingFulfillmentSchema.parse({ status: "revoked" })
     expect(result.status).toBe("revoked")
+  })
+
+  it("does not inject fulfillment defaults into partial updates", () => {
+    expect(
+      updateBookingFulfillmentSchema.parse({ artifactUrl: "https://example.com/reissued.pdf" }),
+    ).toEqual({ artifactUrl: "https://example.com/reissued.pdf" })
+  })
+})
+
+describe("Supplier status schema", () => {
+  it("does not inject supplier defaults into partial updates", () => {
+    expect(updateSupplierStatusSchema.parse({ notes: "Supplier called" })).toEqual({
+      notes: "Supplier called",
+    })
+  })
+})
+
+describe("Booking group schema", () => {
+  it("does not inject group defaults into partial updates", () => {
+    expect(updateBookingGroupSchema.parse({ label: "Room pair" })).toEqual({
+      label: "Room pair",
+    })
   })
 })
 

@@ -9,15 +9,6 @@ import { bookingSingleResponse, successEnvelope } from "../schemas.js"
 
 export interface UpdateBookingInput {
   bookingNumber?: string
-  status?:
-    | "draft"
-    | "on_hold"
-    | "awaiting_payment"
-    | "confirmed"
-    | "in_progress"
-    | "completed"
-    | "expired"
-    | "cancelled"
   personId?: string | null
   organizationId?: string | null
   sellCurrency?: string

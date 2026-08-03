@@ -679,19 +679,9 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       expect(res.status).toBe(200)
       const body = await res.json()
       expect(body.data.total).toBeGreaterThanOrEqual(2)
-      // countsByStatus includes all 7 statuses with zeroes for unused ones.
+      // countsByStatus includes every committed Booking status, including zeroes.
       const statuses = body.data.countsByStatus.map((row: { status: string }) => row.status)
-      expect(statuses).toEqual(
-        expect.arrayContaining([
-          "draft",
-          "on_hold",
-          "confirmed",
-          "in_progress",
-          "completed",
-          "expired",
-          "cancelled",
-        ]),
-      )
+      expect(statuses).toEqual(["confirmed", "in_progress", "completed", "cancelled"])
       expect(body.data.upcomingDepartures).toBeGreaterThanOrEqual(1)
       // Revenue only counts the confirmed booking (cancelled is excluded).
       const revenueTotal = body.data.monthlyRevenue.reduce(
@@ -811,32 +801,29 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
       expect((await res.json()).data.status).toBe("confirmed")
     })
 
-    it("emits distinct lifecycle outbox events when a metadata-free caller repeats after override", async () => {
-      const booking = await seedBooking({
-        status: "on_hold",
-        holdExpiresAt: "2026-12-31T00:00:00.000Z",
-      })
+    it("emits distinct lifecycle outbox events when a start repeats after override", async () => {
+      const booking = await seedBooking()
 
-      const first = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      const first = await bookingsService.startBooking(db, booking.id, {}, "user_start")
       expect(first.status).toBe("ok")
 
       const override = await bookingsService.overrideBookingStatus(
         db,
         booking.id,
-        { status: "on_hold", reason: "Administrative correction" },
+        { status: "confirmed", reason: "Administrative correction" },
         "user_override",
       )
       expect(override.status).toBe("ok")
 
       await new Promise((resolve) => setTimeout(resolve, 2))
 
-      const second = await bookingsService.confirmBooking(db, booking.id, {}, "user_confirm")
+      const second = await bookingsService.startBooking(db, booking.id, {}, "user_start")
       expect(second.status).toBe("ok")
 
       const outboxRows = await db
         .select({ eventId: eventOutboxTable.eventId })
         .from(eventOutboxTable)
-        .where(eq(eventOutboxTable.name, "booking.confirmed"))
+        .where(eq(eventOutboxTable.name, "booking.started"))
 
       expect(outboxRows).toHaveLength(2)
       expect(new Set(outboxRows.map((row) => row.eventId)).size).toBe(2)
@@ -882,65 +869,24 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
   })
 
   describe("Booking updates", () => {
-    it("clears confirmedAt when a generic update leaves the booking non-confirmed", async () => {
-      const booking = await seedBooking({
-        status: "draft",
-        confirmedAt: "2026-06-01T10:00:00.000Z",
-      })
-
-      expect(booking.status).toBe("draft")
-      expect(booking.confirmedAt).toBeNull()
-
+    it("rejects lifecycle fields at the generic update boundary", async () => {
+      const booking = await seedBooking()
       const res = await app.request(`/${booking.id}`, {
         method: "PATCH",
-        ...json({ confirmedAt: "2026-06-01T10:00:00.000Z" }),
+        ...json({ status: "cancelled" }),
       })
-
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body.data.status).toBe("draft")
-      expect(body.data.confirmedAt).toBeNull()
-
-      const [stored] = await db
-        .select({ acceptedAt: bookings.acceptedAt })
-        .from(bookings)
-        .where(eq(bookings.id, booking.id))
-      expect(stored?.acceptedAt).toBeNull()
+      expect(res.status).toBe(400)
     })
 
-    it("clears confirmedAt when a generic update moves a booking out of confirmed", async () => {
-      const booking = await seedBooking({ status: "confirmed" })
+    it("preserves commitment timestamps across generic updates and lifecycle transitions", async () => {
+      const booking = await seedBooking()
       expect(booking.confirmedAt).toBeTruthy()
-
-      const res = await app.request(`/${booking.id}`, {
+      expect(booking.acceptedAt).toBeTruthy()
+      const updated = await app.request(`/${booking.id}`, {
         method: "PATCH",
-        ...json({ status: "draft" }),
+        ...json({ internalNotes: "Customer called" }),
       })
-
-      expect(res.status).toBe(200)
-      const body = await res.json()
-      expect(body.data.status).toBe("draft")
-      expect(body.data.confirmedAt).toBeNull()
-    })
-
-    it("records first acceptance with server time and never clears it", async () => {
-      const booking = await seedBooking({ status: "draft" })
-      const beforeAcceptance = Date.now()
-
-      const accepted = await app.request(`/${booking.id}`, {
-        method: "PATCH",
-        ...json({ status: "confirmed", confirmedAt: "2020-01-01T00:00:00.000Z" }),
-      })
-
-      expect(accepted.status).toBe(200)
-      const [firstStored] = await db
-        .select({ acceptedAt: bookings.acceptedAt, confirmedAt: bookings.confirmedAt })
-        .from(bookings)
-        .where(eq(bookings.id, booking.id))
-      expect(firstStored?.confirmedAt?.toISOString()).toBe("2020-01-01T00:00:00.000Z")
-      expect(firstStored?.acceptedAt?.getTime()).toBeGreaterThanOrEqual(beforeAcceptance)
-
-      const firstAcceptedAt = firstStored?.acceptedAt?.toISOString()
+      expect(updated.status).toBe(200)
       const movedOn = await app.request(`/${booking.id}/start`, {
         method: "POST",
         ...json({}),
@@ -951,8 +897,8 @@ describe.skipIf(!DB_AVAILABLE)("Booking routes", () => {
         .select({ acceptedAt: bookings.acceptedAt, confirmedAt: bookings.confirmedAt })
         .from(bookings)
         .where(eq(bookings.id, booking.id))
-      expect(afterTransition?.acceptedAt?.toISOString()).toBe(firstAcceptedAt)
-      expect(afterTransition?.confirmedAt).toBeNull()
+      expect(afterTransition?.acceptedAt?.toISOString()).toBe(booking.acceptedAt)
+      expect(afterTransition?.confirmedAt?.toISOString()).toBe(booking.confirmedAt)
     })
   })
 

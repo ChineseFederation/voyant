@@ -102,8 +102,8 @@ describe("booking route custom-fields validation", () => {
       expect.anything(),
       id,
       expect.objectContaining({ customFields: { custom: { tour_guide: "Ana", group_size: 4 } } }),
-      { monthlyBookingLimit: undefined },
     )
+    expect(updateSpy.mock.calls[0]?.[2]).not.toHaveProperty("sourceType")
   })
 
   it("rejects custom fields when the deployment declares none (400)", async () => {

@@ -29,7 +29,7 @@ function ctx(
   }
 }
 
-function bookingDetail(id: string, status: "draft" | "confirmed" | "cancelled") {
+function bookingDetail(id: string, status: "confirmed" | "cancelled") {
   return {
     id,
     bookingNumber: "B-1001",
@@ -69,13 +69,10 @@ function bookingDetail(id: string, status: "draft" | "confirmed" | "cancelled") 
     customerPaymentPolicy: null,
     priceOverride: null,
     customFields: {},
-    holdExpiresAt: null,
-    confirmedAt: null,
-    expiredAt: null,
+    acceptedAt: "2026-07-15T10:00:00.000Z",
+    confirmedAt: "2026-07-15T10:00:00.000Z",
     cancelledAt: status === "cancelled" ? "2026-07-15T11:00:00.000Z" : null,
     completedAt: null,
-    awaitingPaymentAt: null,
-    paidAt: null,
     redeemedAt: null,
     createdAt: "2026-07-15T10:00:00.000Z",
     updatedAt: "2026-07-15T10:00:00.000Z",
@@ -85,41 +82,31 @@ function bookingDetail(id: string, status: "draft" | "confirmed" | "cancelled") 
 }
 
 describe("bookings tools", () => {
-  it.each([
-    { action: "confirm" as const, status: "confirmed" as const },
-    { action: "cancel" as const, status: "cancelled" as const },
-  ])("returns detail on $action replay when status is $status", async ({ action, status }) => {
+  it("returns detail on cancellation replay", async () => {
     await expect(
       requiredBookingStatusReplayDetail({
-        action,
+        action: "cancel",
         input: { id: "bk_1" },
-        loadBookingDetail: async (id) => bookingDetail(id, status),
+        loadBookingDetail: async (id) => bookingDetail(id, "cancelled"),
       }),
-    ).resolves.toMatchObject({ id: "bk_1", status })
+    ).resolves.toMatchObject({ id: "bk_1", status: "cancelled" })
   })
 
-  it.each([
-    { action: "confirm" as const, expectedStatus: "confirmed", currentStatus: "draft" as const },
-    { action: "cancel" as const, expectedStatus: "cancelled", currentStatus: "confirmed" as const },
-  ])("rejects $action replay when status drifted to $currentStatus", async ({
-    action,
-    expectedStatus,
-    currentStatus,
-  }) => {
+  it("rejects cancellation replay when status drifted", async () => {
     await expect(
       requiredBookingStatusReplayDetail({
-        action,
+        action: "cancel",
         input: { id: "bk_1" },
-        loadBookingDetail: async (id) => bookingDetail(id, currentStatus),
+        loadBookingDetail: async (id) => bookingDetail(id, "confirmed"),
       }),
     ).rejects.toMatchObject({
       code: "INVALID_INPUT",
       meta: {
         bookingId: "bk_1",
-        action,
+        action: "cancel",
         reason: "replay_state_drift",
-        expectedStatus,
-        currentStatus,
+        expectedStatus: "cancelled",
+        currentStatus: "confirmed",
       },
     })
   })
@@ -132,7 +119,6 @@ describe("bookings tools", () => {
       "accept_booking_amendment",
       "apply_booking_amendment",
       "cancel_booking",
-      "confirm_booking",
       "get_booking",
       "list_bookings",
       "preview_traveler_correction_amendment",
@@ -161,26 +147,12 @@ describe("bookings tools", () => {
       requiredScopes: ["bookings:write"],
       riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
     })
-    expect(list.find((tool) => tool.name === "confirm_booking")).toMatchObject({
-      tier: "destructive",
-      requiredScopes: ["bookings:write"],
-      riskPolicy: { destructive: true, reversible: false, confirmationRequired: true },
-    })
     expect(
       bookingsTools
         .find((tool) => tool.name === "cancel_booking")
         ?.inputSchema.parse({
           id: "bk_1",
           idempotencyKey: "cancel-bk-1",
-          approvalId: "dead-top-level-field",
-        }),
-    ).not.toHaveProperty("approvalId")
-    expect(
-      bookingsTools
-        .find((tool) => tool.name === "confirm_booking")
-        ?.inputSchema.parse({
-          id: "bk_1",
-          idempotencyKey: "confirm-bk-1",
           approvalId: "dead-top-level-field",
         }),
     ).not.toHaveProperty("approvalId")
@@ -264,7 +236,7 @@ describe("bookings tools", () => {
         },
         async getBookingById(id) {
           return {
-            ...bookingDetail(id, "draft"),
+            ...bookingDetail(id, "confirmed"),
             items: [
               {
                 id: "item_1",

@@ -39,7 +39,10 @@ const travelerCoreSchema = z.object({
 export const insertTravelerSchema = travelerCoreSchema
 export const updateTravelerSchema = travelerCoreSchema.partial()
 export const insertTravelerRecordSchema = travelerRecordCoreSchema
-export const updateTravelerRecordSchema = travelerRecordCoreSchema.partial()
+export const updateTravelerRecordSchema = travelerRecordCoreSchema.partial().extend({
+  participantType: bookingParticipantTypeSchema.optional(),
+  isPrimary: z.boolean().optional(),
+})
 
 // ---------- traveler travel details ----------
 
@@ -71,4 +74,9 @@ export const upsertTravelerTravelDetailsSchema = z.object({
 export const createTravelerWithTravelDetailsSchema = travelerRecordCoreSchema.extend(
   upsertTravelerTravelDetailsSchema.shape,
 )
-export const updateTravelerWithTravelDetailsSchema = createTravelerWithTravelDetailsSchema.partial()
+export const updateTravelerWithTravelDetailsSchema = createTravelerWithTravelDetailsSchema
+  .partial()
+  .extend({
+    participantType: bookingParticipantTypeSchema.optional(),
+    isPrimary: z.boolean().optional(),
+  })

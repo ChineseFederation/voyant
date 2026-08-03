@@ -46,11 +46,11 @@ describe("renderGoogleCloudSchedulerScript", () => {
     const script = renderGoogleCloudSchedulerScript(
       [
         {
-          id: "@voyant-travel/bookings#schedule.expire-holds",
-          cron: "*/5 * * * *",
-          description: "Expire stale booking holds",
+          id: "@voyant-travel/catalog#catalog.maintain-booking-sessions",
+          cron: "10 * * * *",
+          description: "Maintain terminal Booking Sessions",
           route: "/__voyant/scheduled",
-          module: "@voyant-travel/bookings",
+          module: "@voyant-travel/catalog",
         },
       ],
       {
@@ -62,10 +62,12 @@ describe("renderGoogleCloudSchedulerScript", () => {
     )
 
     expect(script).toContain(
-      "gcloud scheduler jobs create http voyant-voyant-travel-bookings-schedule-expire-holds",
+      "gcloud scheduler jobs create http voyant-voyant-travel-catalog-catalog-maintain-booking-sessions",
     )
-    expect(script).toContain("--schedule='*/5 * * * *'")
-    expect(script).toContain("schedule=%40voyant-travel%2Fbookings%23schedule.expire-holds")
+    expect(script).toContain("--schedule='10 * * * *'")
+    expect(script).toContain(
+      "schedule=%40voyant-travel%2Fcatalog%23catalog.maintain-booking-sessions",
+    )
     expect(script).toContain("--location='europe-west1'")
     expect(script).toContain("--oidc-service-account-email='scheduler@example.test'")
     expect(script).toContain("x-voyant-origin-trust=trust'\\''key")

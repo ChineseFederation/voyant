@@ -18,8 +18,6 @@ export const NOTIFICATIONS_PAYMENT_COMPLETED_REMINDER_SUBSCRIBER_ID =
   "@voyant-travel/notifications#subscriber.reminder-payment-completed"
 export const NOTIFICATIONS_BOOKING_CANCELLED_REMINDER_SUBSCRIBER_ID =
   "@voyant-travel/notifications#subscriber.reminder-booking-cancelled"
-export const NOTIFICATIONS_BOOKING_EXPIRED_REMINDER_SUBSCRIBER_ID =
-  "@voyant-travel/notifications#subscriber.reminder-booking-expired"
 /** Deployment-owned services required by package-owned Notifications subscribers. */
 export interface NotificationsSubscriberRuntime {
   resolveDb(bindings: unknown): PostgresJsDatabase
@@ -54,16 +52,9 @@ interface PaymentCompletedPayload extends Record<string, unknown> {
 interface BookingCancelledPayload extends Record<string, unknown> {
   bookingId: string
   bookingNumber: string
-  previousStatus: "draft" | "on_hold" | "confirmed" | "in_progress"
+  previousStatus: "confirmed" | "in_progress"
   actorId: string | null
   suppressNotifications?: boolean
-}
-
-interface BookingExpiredPayload extends Record<string, unknown> {
-  bookingId: string
-  bookingNumber: string
-  cause: "route" | "sweep"
-  actorId: string | null
 }
 
 function resolveRuntime(container: ModuleContainer): NotificationsSubscriberRuntime {
@@ -175,7 +166,6 @@ export function createBookingCancelledReminderSubscriberRuntime(
           await skipQueuedBookingPaymentReminders(db, data.bookingId, "cancelled")
           if (data.suppressNotifications === true) return
           if (await isNotificationsSuppressed(db, data.bookingId)) return
-          if (data.previousStatus !== "on_hold") return
           await dispatchReminderRules(
             db,
             runtime.dispatcher,
@@ -196,48 +186,10 @@ export function createBookingCancelledReminderSubscriberRuntime(
   }
 }
 
-export function createBookingExpiredReminderSubscriberRuntime(
-  dependencies: NotificationsSubscriberDependencies = {},
-): SubscriberRuntimeDescriptor {
-  const dispatchReminderRules = dependencies.dispatchReminderRules ?? dispatchReminderEventRules
-  const isNotificationsSuppressed =
-    dependencies.isNotificationsSuppressed ?? bookingNotificationsSuppressedForNotification
-  const logger = dependencies.logger ?? console
-
-  return {
-    id: NOTIFICATIONS_BOOKING_EXPIRED_REMINDER_SUBSCRIBER_ID,
-    eventType: "booking.expired",
-    register: ({ bindings, container, eventBus }) => {
-      eventBus.subscribe<BookingExpiredPayload>("booking.expired", async ({ data }) => {
-        try {
-          const runtime = resolveRuntime(container)
-          const db = runtime.resolveDb(bindings)
-          await skipQueuedBookingPaymentReminders(db, data.bookingId, "expired")
-          if (await isNotificationsSuppressed(db, data.bookingId)) return
-          await dispatchReminderRules(
-            db,
-            runtime.dispatcher,
-            {
-              targetType: "booking_cancelled_non_payment",
-              bookingId: data.bookingId,
-              eventData: data,
-            },
-            { documentAttachmentResolver: runtime.documentAttachmentResolver },
-          )
-        } catch (error) {
-          logger.error(
-            `[notifications] booking_cancelled_non_payment reminder rules failed for expired booking ${data.bookingId}: ${errorMessage(error)}`,
-          )
-        }
-      })
-    },
-  }
-}
-
 export async function skipQueuedBookingPaymentReminders(
   db: PostgresJsDatabase,
   bookingId: string,
-  status: "cancelled" | "expired",
+  status: "cancelled",
 ): Promise<void> {
   const now = new Date()
   await db
@@ -263,11 +215,8 @@ export const notificationsPaymentCompletedReminderSubscriber =
   createPaymentCompletedReminderSubscriberRuntime()
 export const notificationsBookingCancelledReminderSubscriber =
   createBookingCancelledReminderSubscriberRuntime()
-export const notificationsBookingExpiredReminderSubscriber =
-  createBookingExpiredReminderSubscriberRuntime()
 export const notificationsReminderSubscriberRuntimeDescriptors = [
   notificationsBookingConfirmedReminderSubscriber,
   notificationsPaymentCompletedReminderSubscriber,
   notificationsBookingCancelledReminderSubscriber,
-  notificationsBookingExpiredReminderSubscriber,
 ] as const

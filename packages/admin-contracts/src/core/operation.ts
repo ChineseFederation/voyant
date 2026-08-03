@@ -38,12 +38,12 @@ export interface OperationDescriptor<
   TInput extends z.ZodTypeAny = z.ZodTypeAny,
   TOutput extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  /** Stable dotted id, e.g. `"bookings.confirm"`. */
+  /** Stable dotted id, e.g. `"bookings.cancel"`. */
   id: string
   method: HttpMethod
   /** Build the request path from route params. */
   path: (params: TParams) => string
-  /** A stable, param-templated path (`/v1/admin/bookings/:id/confirm`) for capability listing. */
+  /** A stable, param-templated path (`/v1/admin/bookings/:id/cancel`) for capability listing. */
   pathTemplate: string
   /** Request body (POST/PATCH/PUT) or query (GET) schema. */
   input: TInput

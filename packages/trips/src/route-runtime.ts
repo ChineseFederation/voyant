@@ -61,8 +61,6 @@ export type CatalogCheckoutResult =
       paymentSessionId?: string | null
       instructions: NonNullable<ComponentCheckoutResult["bankTransferInstructions"]>
     }
-  | { kind: "inquiry_received"; bookingId: string; inquiryId: string }
-  | { kind: "hold_placed"; bookingId: string }
 
 /** Map Commerce checkout outcomes to the Trips component contract. */
 export function catalogCheckoutResultToComponentResult(
@@ -83,13 +81,5 @@ export function catalogCheckoutResultToComponentResult(
         paymentSessionId: result.paymentSessionId ?? undefined,
         bankTransferInstructions: result.instructions,
       }
-    case "inquiry_received":
-      return {
-        kind: "inquiry_received",
-        bookingId: result.bookingId,
-        providerRef: result.inquiryId,
-      }
-    case "hold_placed":
-      return { kind: "hold_placed", bookingId: result.bookingId }
   }
 }

@@ -40,10 +40,6 @@ export {
   VOYANT_BOOKINGS_MONTHLY_LIMIT_BINDING,
 } from "./booking-plan-limit.js"
 export { bookingsSupplierExtension } from "./extensions/suppliers.js"
-export {
-  BOOKINGS_EXPIRE_STALE_HOLDS_RUNTIME_KEY,
-  type BookingsExpireStaleHoldsJobRuntime,
-} from "./job-runtime.js"
 export { bookingLinkable, bookingsLinkable } from "./linkables.js"
 export {
   type BookingPiiAuditEvent,
@@ -140,11 +136,6 @@ export {
   type BookingStatusDispatchTarget,
   dispatchBookingStatusChange,
 } from "./status-dispatch.js"
-export {
-  type ExpireStaleBookingHoldsInput,
-  type ExpireStaleBookingHoldsResult,
-  expireStaleBookingHolds,
-} from "./tasks/index.js"
 export { bookingToolDetailSchema } from "./tool-output-schemas.js"
 
 export const bookingsModule: Module = {
@@ -375,13 +366,9 @@ export {
   bookingPriceOverrideSchema,
   cancelBookingSchema,
   completeBookingSchema,
-  confirmBookingSchema,
   convertProductSchema,
   createBookingSchema,
   createTravelerWithTravelDetailsSchema,
-  expireBookingSchema,
-  expireStaleBookingsSchema,
-  extendBookingHoldSchema,
   insertBookingAllocationSchema,
   insertBookingDocumentSchema,
   insertBookingFulfillmentSchema,

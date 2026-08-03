@@ -12,9 +12,6 @@ import {
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { checkBookingActionLedgerDrift } from "./action-ledger-drift.js"
-import type { BookingsExpireStaleHoldsJobRuntime } from "./job-runtime.js"
-import { type BookingsFinanceRuntime, bookingsFinanceRuntimePort } from "./runtime-port.js"
-import { bookingsStaleHoldsJobRuntimePort } from "./stale-holds-job-runtime-port.js"
 
 export interface BookingsRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
@@ -112,7 +109,7 @@ const bookingCustomFieldValueOperations: CustomFieldValueOperationsRuntime = {
 
 /** Bind Bookings-owned runtime behavior; domain behavior arrives through graph ports. */
 export function createBookingsRuntimePortContribution(
-  host: BookingsRuntimeContributorHost,
+  _host: BookingsRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   return {
     [actionLedgerBookingDriftRuntimePort.id]: {
@@ -120,19 +117,5 @@ export function createBookingsRuntimePortContribution(
     } satisfies ActionLedgerBookingDriftRuntime,
     [customFieldValueLifecycleRuntimePort.id]: bookingCustomFieldValues,
     [customFieldValueOperationsRuntimePort.id]: bookingCustomFieldValueOperations,
-    [bookingsStaleHoldsJobRuntimePort.id]: {
-      resolveDb: () => host.primitives.database.resolve<PostgresJsDatabase>(undefined),
-      async resolveRuntime(db, input) {
-        const finance = await host.getRuntimePort<BookingsFinanceRuntime>(
-          bookingsFinanceRuntimePort,
-        )
-        const runtime = finance.createStaleBookingHoldsJobRuntime({
-          resolveDb: () => db,
-          userId: "system",
-        })
-        return runtime.resolveRuntime?.(db, input) ?? {}
-      },
-      userId: "system",
-    } satisfies BookingsExpireStaleHoldsJobRuntime,
   }
 }

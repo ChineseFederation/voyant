@@ -15,7 +15,9 @@ const bookingGroupCoreSchema = z.object({
 })
 
 export const insertBookingGroupSchema = bookingGroupCoreSchema
-export const updateBookingGroupSchema = bookingGroupCoreSchema.partial()
+export const updateBookingGroupSchema = bookingGroupCoreSchema.partial().extend({
+  kind: bookingGroupKindSchema.optional(),
+})
 
 export const addBookingGroupMemberSchema = z.object({
   bookingId: z.string().min(1),

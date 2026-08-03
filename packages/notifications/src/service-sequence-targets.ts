@@ -54,12 +54,7 @@ type DateEnvelopes = {
   invoiceIssueDate?: { from: string; to: string }
 }
 
-const PAYABLE_BOOKING_STATUSES = [
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-] as const
+const PAYABLE_BOOKING_STATUSES = ["confirmed", "in_progress", "completed"] as const
 
 async function fetchOpenPaymentScheduleTargets(
   db: PostgresJsDatabase,

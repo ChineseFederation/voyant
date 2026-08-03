@@ -1,13 +1,4 @@
-const bookingStatusValues = [
-  "draft",
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-  "completed",
-  "expired",
-  "cancelled",
-] as const
+const bookingStatusValues = ["confirmed", "in_progress", "completed", "cancelled"] as const
 
 const bookingEventIdentityProperties = {
   bookingId: { type: "string" },
@@ -41,23 +32,13 @@ export const bookingConfirmedPayloadSchema = {
   additionalProperties: false,
 } as const
 
-export const bookingExpiredPayloadSchema = {
-  type: "object",
-  required: ["bookingId", "bookingNumber", "cause", "actorId"],
-  properties: {
-    ...bookingEventIdentityProperties,
-    cause: { enum: ["route", "sweep"] },
-  },
-  additionalProperties: false,
-} as const
-
 export const bookingCancelledPayloadSchema = {
   type: "object",
   required: ["bookingId", "bookingNumber", "previousStatus", "reason", "actorId"],
   properties: {
     ...bookingEventIdentityProperties,
     previousStatus: {
-      enum: ["draft", "on_hold", "awaiting_payment", "confirmed", "in_progress"],
+      enum: ["confirmed", "in_progress"],
     },
     reason: { type: ["string", "null"] },
     suppressNotifications: { type: "boolean" },

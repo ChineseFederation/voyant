@@ -11,7 +11,6 @@ export const bookingsUiRoCreateList = {
       departure: "Plecare",
       sellAmount: "Valoare de vanzare",
       currency: "Moneda",
-      initialStatus: "Stare initiala",
       contactFirstName: "Prenume contact sau organizatie",
       contactLastName: "Nume contact",
       contactEmail: "E-mail contact",
@@ -134,14 +133,9 @@ export const bookingsUiRoCreateList = {
     fields: {
       departure: "Plecare",
       internalNotes: "Note interne",
-      confirmAfterCreate: "Confirma rezervarea dupa creare",
-      confirmAfterCreateHint: "Dupa creare, rezervarea trece in status confirmat.",
-      createAsDraft: "Creeaza ca draft",
-      createAsDraftHint:
-        "Altfel, rezervarea devine activa — confirmata daca o plata este marcata ca achitata, sau in asteptarea platii daca nu.",
       notifyTraveler: "Anunta calatorul",
       notifyTravelerHint:
-        "Cand este activ, trimite emailul de confirmare si documentele (daca auto-dispatch este configurat). Dezactiveaza pentru confirmare silentioasa.",
+        "Trimite clientului confirmarea rezervarii si documentele. Dezactiveaza pentru o finalizare silentioasa de catre operator.",
     },
     placeholders: {
       departure: "Selecteaza o plecare...",
@@ -162,8 +156,6 @@ export const bookingsUiRoCreateList = {
       roomCapacityExceeded:
         "{room} are capacitate pentru {capacity} calatori, dar sunt asignati {assigned}.",
       selectSharedRoomGroup: "Selecteaza un partaj la care sa te alaturi",
-      confirmFailedPrefix: "Rezervarea a fost creata, dar confirmarea a esuat: {message}",
-      confirmFailed: "Rezervarea a fost creata, dar confirmarea a esuat",
       createFailed: "Crearea rezervarii a esuat",
       payloadResolverMismatchDetails:
         "Selectia s-a schimbat in timpul rezervarii. Verifica din nou optiunile evidentiate.",
@@ -174,9 +166,7 @@ export const bookingsUiRoCreateList = {
         "Data platii este obligatorie cand plata este marcata ca deja achitata.",
     },
     actions: {
-      createDraftBooking: "Creeaza rezervare draft",
-      createConfirmedBooking: "Creeaza rezervare confirmata",
-      createAwaitingPaymentBooking: "Creeaza rezervare",
+      createBooking: "Creeaza rezervare",
     },
     labels: {
       currency: "EUR",

@@ -20,7 +20,6 @@ describe("bookings deployment manifest", () => {
           { id: "action-ledger.booking-drift-runtime" },
           { id: "custom-fields.value-lifecycle" },
           { id: "custom-fields.value-operations" },
-          { id: "bookings.stale-holds-job" },
         ],
       },
       runtime: { entry: "@voyant-travel/bookings", export: "createBookingsVoyantRuntime" },
@@ -28,7 +27,6 @@ describe("bookings deployment manifest", () => {
         { id: "bookings.accommodation.runtime" },
         { id: "custom-fields.runtime" },
         { id: "bookings.finance.runtime" },
-        { id: "bookings.stale-holds-job" },
         { id: "bookings.relationships.runtime" },
         { id: "bookings.supplier-amendment.runtime", optional: true },
         { id: "bookings.booking-action-projection.runtime", optional: true },
@@ -60,24 +58,7 @@ describe("bookings deployment manifest", () => {
         },
       ],
       links: [{ id: "@voyant-travel/bookings#linkable.booking" }],
-      jobs: [
-        {
-          id: "bookings.expire-stale-holds",
-          schedule: { cron: "*/5 * * * *", overlap: "skip" },
-          scheduling: {
-            required: true,
-            profiles: {
-              eager: { cron: "* * * * *", overlap: "skip" },
-              economical: { cron: "*/15 * * * *", overlap: "skip" },
-              "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
-            },
-          },
-          runtime: {
-            entry: "@voyant-travel/bookings/stale-holds-job",
-            export: "runBookingsExpireStaleHoldsJob",
-          },
-        },
-      ],
+      jobs: [],
     })
 
     expectConcreteEventSchemas(bookingsVoyantModule.events)
@@ -102,7 +83,6 @@ describe("bookings deployment manifest", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "list_bookings", risk: "low" }),
         expect.objectContaining({ name: "get_booking", risk: "low" }),
-        expect.objectContaining({ name: "confirm_booking", risk: "high" }),
         expect.objectContaining({ name: "cancel_booking", risk: "critical" }),
       ]),
     )
@@ -266,7 +246,6 @@ describe("bookings deployment manifest", () => {
             resolveVisibleValues: async () => ({}),
           },
           "bookings.finance.runtime": {
-            createStaleBookingHoldsJobRuntime: () => ({}),
             quoteBookingAmendment: async () => {
               throw new Error("not used")
             },

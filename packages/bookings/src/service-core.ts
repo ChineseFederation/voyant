@@ -57,7 +57,6 @@ import {
   productOptionsRef,
   productsRef,
   productTicketSettingsRef,
-  suppliersRef,
 } from "./products-ref.js"
 import { bookingTravelerTravelDetails } from "./schema/travel-details.js"
 import {
@@ -80,12 +79,8 @@ import type {
   bookingListQuerySchema,
   cancelBookingSchema,
   completeBookingSchema,
-  confirmBookingSchema,
   convertProductSchema,
   createTravelerWithTravelDetailsSchema,
-  expireBookingSchema,
-  expireStaleBookingsSchema,
-  extendBookingHoldSchema,
   insertBookingDocumentSchema,
   insertBookingFulfillmentSchema,
   insertBookingItemParticipantSchema,
@@ -180,11 +175,7 @@ function buildBookingSearchCondition(search: string): SQL | undefined {
 type BookingListQuery = z.infer<typeof bookingListQuerySchema>
 type ConvertProductInput = z.infer<typeof convertProductSchema>
 type UpdateBookingInput = z.infer<typeof updateBookingSchema>
-type ExtendBookingHoldInput = z.infer<typeof extendBookingHoldSchema>
-type ConfirmBookingInput = z.infer<typeof confirmBookingSchema>
 type CancelBookingInput = z.infer<typeof cancelBookingSchema>
-type ExpireBookingInput = z.infer<typeof expireBookingSchema>
-type ExpireStaleBookingsInput = z.infer<typeof expireStaleBookingsSchema>
 type StartBookingInput = z.infer<typeof startBookingSchema>
 type CompleteBookingInput = z.infer<typeof completeBookingSchema>
 type OverrideBookingStatusInput = z.infer<typeof overrideBookingStatusSchema>
@@ -241,20 +232,18 @@ type CreateBookingDocumentInput = z.infer<typeof insertBookingDocumentSchema>
 type CreateBookingFulfillmentInput = z.infer<typeof insertBookingFulfillmentSchema>
 type UpdateBookingFulfillmentInput = z.infer<typeof updateBookingFulfillmentSchema>
 type RecordBookingRedemptionInput = z.infer<typeof recordBookingRedemptionSchema>
-type BookingItemStatus = NonNullable<CreateBookingItemInput["status"]>
+type BookingItemStatus = (typeof bookingItems.$inferSelect)["status"]
 type BookingAllocationStatus = NonNullable<(typeof bookingAllocations.$inferInsert)["status"]>
 
 function allocationStatusForBookingItemStatus(status: BookingItemStatus): BookingAllocationStatus {
   if (status === "confirmed") return "confirmed"
   if (status === "fulfilled") return "fulfilled"
   if (status === "cancelled") return "cancelled"
-  if (status === "expired") return "expired"
-  return "held"
+  return "confirmed"
 }
 
 function terminalBookingItemStatusForOverride(status: BookingStatus): BookingItemStatus | null {
   if (status === "cancelled") return "cancelled"
-  if (status === "expired") return "expired"
   if (status === "completed") return "fulfilled"
   return null
 }
@@ -263,7 +252,6 @@ function terminalBookingAllocationStatusForOverride(
   status: BookingStatus,
 ): BookingAllocationStatus | null {
   if (status === "cancelled") return "cancelled"
-  if (status === "expired") return "expired"
   if (status === "completed") return "fulfilled"
   return null
 }
@@ -373,7 +361,7 @@ export interface BookingServiceRuntime {
   closePaymentSchedulesForBooking?: (
     db: PostgresJsDatabase,
     bookingId: string,
-    status: Extract<BookingStatus, "cancelled" | "expired">,
+    status: Extract<BookingStatus, "cancelled">,
   ) => Promise<void> | void
   recordCancellationFinancialSettlement?: (
     db: PostgresJsDatabase,
@@ -420,8 +408,6 @@ function encodeEventIdPart(value: string) {
 }
 
 type BookingStatusActionName =
-  | "booking.status.confirm"
-  | "booking.status.expire"
   | "booking.status.cancel"
   | "booking.status.start"
   | "booking.status.complete"
@@ -534,28 +520,15 @@ export interface BookingConfirmedEvent {
 /**
  * Payload for `booking.cancelled`. `previousStatus` is the state the booking
  * transitioned *out of* — useful for subscribers that care about cancelling a
- * confirmed booking (refund flow) vs cancelling a draft/hold (no side effects).
+ * confirmed Booking versus one whose delivery has already started.
  */
 export interface BookingCancelledEvent {
   bookingId: string
   bookingNumber: string
-  previousStatus: "draft" | "on_hold" | "awaiting_payment" | "confirmed" | "in_progress"
+  previousStatus: "confirmed" | "in_progress"
   reason?: string | null
   actorId: string | null
   suppressNotifications?: boolean
-}
-
-/**
- * Payload for `booking.expired`. Fires when an on-hold booking's timer runs
- * out. `cause` flags whether it was the explicit route call or the sweep job —
- * subscribers that want to email the customer should probably skip
- * sweep-originated events to avoid pager noise during backfills.
- */
-export interface BookingExpiredEvent {
-  bookingId: string
-  bookingNumber: string
-  cause: "route" | "sweep"
-  actorId: string | null
 }
 
 /** Payload for `booking.started` — confirmed → in_progress. */
@@ -620,13 +593,7 @@ export interface BookingTravelerSharingGroupSummary {
 
 const travelerParticipantTypes = ["traveler", "occupant"] as const
 type TravelerParticipantType = (typeof travelerParticipantTypes)[number]
-const sharingGroupBookingStatuses = [
-  "draft",
-  "on_hold",
-  "confirmed",
-  "in_progress",
-  "completed",
-] as const
+const sharingGroupBookingStatuses = ["confirmed", "in_progress", "completed"] as const
 const sharingGroupAllocationStatuses = ["held", "confirmed", "fulfilled"] as const
 
 class BookingServiceError extends Error {
@@ -656,20 +623,8 @@ function isAcceptedBookingStatus(status: BookingStatus) {
 }
 
 function confirmedAtForStatus(status: BookingStatus, value: Date | null, now = new Date()) {
-  if (status !== "confirmed") return null
-  return value ?? now
-}
-
-function confirmedAtForBookingUpdate(
-  currentStatus: BookingStatus,
-  data: UpdateBookingInput,
-  now = new Date(),
-) {
-  const nextStatus = data.status ?? currentStatus
-  if (nextStatus !== "confirmed") return null
-  if (data.confirmedAt !== undefined)
-    return confirmedAtForStatus(nextStatus, toTimestamp(data.confirmedAt), now)
-  return currentStatus === "confirmed" ? undefined : now
+  if (value) return value
+  return isAcceptedBookingStatus(status) ? now : null
 }
 
 function toDateValue(value: Date | string) {
@@ -1068,12 +1023,6 @@ async function getConvertProductData(
   }
 }
 
-const DEFAULT_HOLD_MINUTES = 30
-
-function positiveHoldMinutes(value: number | null | undefined) {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null
-}
-
 function isUndefinedTableError(error: unknown) {
   return (
     typeof error === "object" &&
@@ -1200,93 +1149,6 @@ function formatDepartureLabel(startsAt: Date | null, timezone: string | null): s
   }
 }
 
-async function resolvePolicyHoldMinutes(
-  db: PostgresJsDatabase,
-  items: ReadonlyArray<{
-    productId?: string | null
-    availabilitySlotId?: string | null
-    slotId?: string | null
-  }>,
-) {
-  const productIds = new Set<string>()
-  const slotIds = new Set<string>()
-
-  for (const item of items) {
-    if (item.productId) productIds.add(item.productId)
-    const slotId = item.availabilitySlotId ?? item.slotId
-    if (slotId) slotIds.add(slotId)
-  }
-
-  if (slotIds.size > 0) {
-    const slotRows = await db
-      .select({ productId: availabilitySlotsRef.productId })
-      .from(availabilitySlotsRef)
-      .where(inArray(availabilitySlotsRef.id, [...slotIds]))
-
-    for (const slot of slotRows) {
-      if (slot.productId) productIds.add(slot.productId)
-    }
-  }
-
-  if (productIds.size === 0) {
-    return DEFAULT_HOLD_MINUTES
-  }
-
-  const productRows = await db
-    .select({
-      id: productsRef.id,
-      supplierId: productsRef.supplierId,
-      reservationTimeoutMinutes: productsRef.reservationTimeoutMinutes,
-    })
-    .from(productsRef)
-    .where(inArray(productsRef.id, [...productIds]))
-    .catch((error: unknown) => {
-      if (isUndefinedTableError(error)) return []
-      throw error
-    })
-
-  const supplierIds = [
-    ...new Set(productRows.map((product) => product.supplierId).filter(Boolean) as string[]),
-  ]
-  const supplierRows =
-    supplierIds.length > 0
-      ? await db
-          .select({
-            id: suppliersRef.id,
-            reservationTimeoutMinutes: suppliersRef.reservationTimeoutMinutes,
-          })
-          .from(suppliersRef)
-          .where(inArray(suppliersRef.id, supplierIds))
-          .catch((error: unknown) => {
-            if (isUndefinedTableError(error)) return []
-            throw error
-          })
-      : []
-
-  const supplierTimeouts = new Map(
-    supplierRows.map((supplier) => [
-      supplier.id,
-      positiveHoldMinutes(supplier.reservationTimeoutMinutes),
-    ]),
-  )
-  const candidates: number[] = []
-
-  for (const product of productRows) {
-    const productMinutes = positiveHoldMinutes(product.reservationTimeoutMinutes)
-    if (productMinutes !== null) {
-      candidates.push(productMinutes)
-      continue
-    }
-
-    const supplierMinutes = product.supplierId ? supplierTimeouts.get(product.supplierId) : null
-    if (supplierMinutes !== null && supplierMinutes !== undefined) {
-      candidates.push(supplierMinutes)
-    }
-  }
-
-  return candidates.length > 0 ? Math.min(...candidates) : DEFAULT_HOLD_MINUTES
-}
-
 async function listBookingItemsForSummaries(db: PostgresJsDatabase, bookingIds: string[]) {
   if (bookingIds.length === 0) return []
 
@@ -1329,22 +1191,6 @@ async function listBookingItemsForSummaries(db: PostgresJsDatabase, bookingIds: 
         .where(inArray(bookingItems.bookingId, bookingIds))
         .orderBy(asc(bookingItems.createdAt))
     })
-}
-
-async function computeHoldExpiresAt(
-  db: PostgresJsDatabase,
-  input: { holdMinutes?: number; holdExpiresAt?: string | null },
-  items: ReadonlyArray<{
-    productId?: string | null
-    availabilitySlotId?: string | null
-    slotId?: string | null
-  }> = [],
-) {
-  if (input.holdExpiresAt) {
-    return new Date(input.holdExpiresAt)
-  }
-  const minutes = input.holdMinutes ?? (await resolvePolicyHoldMinutes(db, items))
-  return new Date(Date.now() + minutes * 60 * 1000)
 }
 
 /**
@@ -2123,11 +1969,9 @@ async function autoIssueFulfillmentsForBooking(
 
 /**
  * Booking statuses that count as "active" for aggregate purposes (matches the
- * slot-unit-availability counting rules — cancelled and expired drop out).
+ * slot-unit-availability counting rules — cancelled Bookings drop out).
  */
 const AGGREGATE_ACTIVE_STATUSES: readonly BookingStatus[] = [
-  "draft",
-  "on_hold",
   "confirmed",
   "in_progress",
   "completed",
@@ -2319,7 +2163,7 @@ const bookingsServiceInternal = {
     return {
       total: totalRow?.count ?? 0,
       totalPax: Number(totalPaxRow?.totalPax ?? 0),
-      countsByStatus: AGGREGATE_ACTIVE_STATUSES.concat(["expired", "cancelled"]).map((status) => ({
+      countsByStatus: AGGREGATE_ACTIVE_STATUSES.concat(["cancelled"]).map((status) => ({
         status,
         count: countsByStatusMap.get(status) ?? 0,
       })),
@@ -2614,50 +2458,18 @@ const bookingsServiceInternal = {
       throw new BookingItemsUnresolvedError(product.id, option?.id ?? null, selectedUnits.length)
     }
 
-    const initialStatus = data.initialStatus ?? "draft"
-    if (isAcceptedBookingStatus(initialStatus)) {
-      await assertMonthlyBookingLimitAvailable(db, options.monthlyBookingLimit)
-    }
+    await assertMonthlyBookingLimitAvailable(db, options.monthlyBookingLimit)
     const bookingPax = Object.hasOwn(data, "pax") ? (data.pax ?? null) : product.pax
-    // Map the booking lifecycle status onto the booking-item lifecycle.
-    // Items don't have an `awaiting_payment` state — when the booking is
-    // committed (confirmed / awaiting payment / in progress) the items
-    // are sold, so they land in `confirmed`. Holds, cancellations,
-    // expirations, and completions cascade their analog. Draft falls
-    // through as draft.
-    const initialItemStatus:
-      | "draft"
-      | "on_hold"
-      | "confirmed"
-      | "cancelled"
-      | "expired"
-      | "fulfilled" =
-      initialStatus === "on_hold"
-        ? "on_hold"
-        : initialStatus === "confirmed" ||
-            initialStatus === "in_progress" ||
-            initialStatus === "awaiting_payment"
-          ? "confirmed"
-          : initialStatus === "cancelled"
-            ? "cancelled"
-            : initialStatus === "expired"
-              ? "expired"
-              : initialStatus === "completed"
-                ? "fulfilled"
-                : "draft"
     const now = new Date()
     const [booking] = await db
       .insert(bookings)
       .values({
         bookingNumber: data.bookingNumber,
-        status: initialStatus,
-        acceptedAt: isAcceptedBookingStatus(initialStatus) ? now : null,
-        // Mirror the lifecycle timestamps that overrideBookingStatus
-        // stamps when the status transition happens after-the-fact, so
-        // a booking that lands in `confirmed` straight from create is
-        // indistinguishable downstream from one that was flipped via
-        // the verb endpoint.
-        confirmedAt: confirmedAtForStatus(initialStatus, null, now),
+        // Commit is the only Booking creation boundary. There is no
+        // pre-commit Booking lifecycle and no caller-selected initial status.
+        status: "confirmed",
+        acceptedAt: now,
+        confirmedAt: now,
         personId: data.personId ?? null,
         organizationId: data.organizationId ?? null,
         // Billing-contact snapshot — captured at create time so the
@@ -2758,7 +2570,7 @@ const bookingsServiceInternal = {
               title: line.title?.trim() || unit.name,
               description: line.description ?? unit.description,
               itemType: "unit" as const,
-              status: initialItemStatus,
+              status: "confirmed" as const,
               quantity: line.quantity,
               sellCurrency: product.sellCurrency,
               unitSellAmountCents: line.unitSellAmountCents ?? null,
@@ -2789,7 +2601,7 @@ const bookingsServiceInternal = {
                 title: unit.name,
                 description: unit.description,
                 itemType: "unit" as const,
-                status: initialItemStatus,
+                status: "confirmed" as const,
                 quantity,
                 sellCurrency: product.sellCurrency,
                 unitSellAmountCents:
@@ -2821,7 +2633,7 @@ const bookingsServiceInternal = {
                 title: option?.name ?? product.name,
                 description: product.description,
                 itemType: "unit" as const,
-                status: initialItemStatus,
+                status: "confirmed" as const,
                 quantity: 1,
                 sellCurrency: product.sellCurrency,
                 unitSellAmountCents: effectiveSellAmountCents ?? null,
@@ -3044,12 +2856,7 @@ const bookingsServiceInternal = {
       .orderBy(asc(bookingAllocations.createdAt))
   },
 
-  async updateBooking(
-    db: PostgresJsDatabase,
-    id: string,
-    data: UpdateBookingInput,
-    runtime: BookingServiceRuntime = {},
-  ) {
+  async updateBooking(db: PostgresJsDatabase, id: string, data: UpdateBookingInput) {
     const normalizedData = normalizeBookingBillingPartyUpdate(data)
     const includesDirectTotalUpdate =
       data.sellAmountCents !== undefined ||
@@ -3058,9 +2865,6 @@ const bookingsServiceInternal = {
       data.baseCostAmountCents !== undefined
 
     return db.transaction(async (tx) => {
-      if (data.status === "cancelled") {
-        await lockBookingFinanceInsertionFence(tx, id)
-      }
       const rows = await tx.execute(
         sql`SELECT status, accepted_at, custom_fields
             FROM ${bookings}
@@ -3074,15 +2878,6 @@ const bookingsServiceInternal = {
       }>(rows)[0]
 
       if (!existing) return null
-
-      const nextStatus = data.status ?? existing.status
-      if (existing.accepted_at === null && isAcceptedBookingStatus(nextStatus)) {
-        await assertMonthlyBookingLimitAvailable(
-          tx as PostgresJsDatabase,
-          runtime.monthlyBookingLimit,
-          { excludeBookingId: id },
-        )
-      }
 
       let updateData = normalizedData
       let shouldRecomputeTotals = false
@@ -3150,14 +2945,6 @@ const bookingsServiceInternal = {
             data.contactAddressLine2 === undefined ? undefined : (data.contactAddressLine2 ?? null),
           contactPostalCode:
             data.contactPostalCode === undefined ? undefined : (data.contactPostalCode ?? null),
-          holdExpiresAt:
-            data.holdExpiresAt === undefined ? undefined : toTimestamp(data.holdExpiresAt),
-          acceptedAt:
-            existing.accepted_at ?? (isAcceptedBookingStatus(nextStatus) ? now : undefined),
-          confirmedAt: confirmedAtForBookingUpdate(existing.status, data, now),
-          expiredAt: data.expiredAt === undefined ? undefined : toTimestamp(data.expiredAt),
-          cancelledAt: data.cancelledAt === undefined ? undefined : toTimestamp(data.cancelledAt),
-          completedAt: data.completedAt === undefined ? undefined : toTimestamp(data.completedAt),
           redeemedAt: data.redeemedAt === undefined ? undefined : toTimestamp(data.redeemedAt),
           updatedAt: now,
         })
@@ -3179,547 +2966,6 @@ const bookingsServiceInternal = {
       .returning({ id: bookings.id })
 
     return row ?? null
-  },
-
-  async confirmBooking(
-    db: PostgresJsDatabase,
-    id: string,
-    data: ConfirmBookingInput,
-    userId?: string,
-    runtime: BookingServiceRuntime = {},
-  ) {
-    try {
-      const result = await db.transaction(async (tx) => {
-        const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, hold_expires_at, notifications_suppressed, accepted_at
-              FROM ${bookings}
-              WHERE ${bookings.id} = ${id}
-              FOR UPDATE`,
-        )
-        const booking = toRows<{
-          id: string
-          booking_number: string
-          status: BookingStatus
-          hold_expires_at: Date | null
-          notifications_suppressed: boolean
-          accepted_at: Date | null
-        }>(rows)[0]
-
-        if (!booking) {
-          throw new BookingServiceError("not_found")
-        }
-        if (!canTransitionBooking(booking.status, "confirmed")) {
-          throw new BookingServiceError("invalid_transition")
-        }
-        // Accept both the staff-brokered "on_hold" and the customer
-        // checkout flow's "awaiting_payment". Other statuses (draft,
-        // already-confirmed, expired, cancelled) reject — the state
-        // machine catches the rest, but we explicitly forbid the
-        // states that would skip a step in the lifecycle.
-        if (booking.status !== "on_hold" && booking.status !== "awaiting_payment") {
-          throw new BookingServiceError("invalid_transition")
-        }
-        if (booking.hold_expires_at && booking.hold_expires_at < new Date()) {
-          throw new BookingServiceError("hold_expired")
-        }
-
-        await assertMonthlyBookingLimitAvailable(
-          tx as PostgresJsDatabase,
-          runtime.monthlyBookingLimit,
-          { excludeBookingId: id },
-        )
-
-        const now = new Date()
-        const patch = transitionBooking(booking.status, "confirmed", { now })
-        const suppressNotifications =
-          booking.notifications_suppressed || data.suppressNotifications === true
-
-        await tx
-          .update(bookingAllocations)
-          .set({
-            status: "confirmed",
-            confirmedAt: now,
-            updatedAt: now,
-          })
-          .where(and(eq(bookingAllocations.bookingId, id), eq(bookingAllocations.status, "held")))
-
-        await tx
-          .update(bookingItems)
-          .set({ status: "confirmed", updatedAt: new Date() })
-          .where(
-            and(eq(bookingItems.bookingId, id), inArray(bookingItems.status, ["draft", "on_hold"])),
-          )
-
-        const [row] = await tx
-          .update(bookings)
-          .set({
-            ...patch,
-            revision: sql`${bookings.revision} + 1`,
-            acceptedAt: booking.accepted_at ?? now,
-            holdExpiresAt: null,
-            notificationsSuppressed: suppressNotifications,
-            updatedAt: now,
-          })
-          .where(eq(bookings.id, id))
-          .returning()
-
-        await autoIssueFulfillmentsForBooking(tx as PostgresJsDatabase, id, userId)
-
-        await tx.insert(bookingActivityLog).values({
-          bookingId: id,
-          actorId: userId ?? "system",
-          activityType: "booking_confirmed",
-          description: `Booking ${booking.booking_number} confirmed`,
-        })
-
-        if (data.note) {
-          await tx.insert(bookingNotes).values({
-            bookingId: id,
-            authorId: userId ?? "system",
-            content: data.note,
-          })
-        }
-
-        await appendBookingStatusMutationLedger(tx as PostgresJsDatabase, runtime, {
-          actionName: "booking.status.confirm",
-          routeOrToolName: runtime.actionLedgerRouteOrToolName ?? "bookings.confirm",
-          capabilityId: BOOKING_STATUS_CAPABILITIES.confirm.id,
-          bookingId: id,
-          fromStatus: booking.status,
-          toStatus: "confirmed",
-        })
-
-        if (row) {
-          await insertOutboxEvents(tx as PostgresJsDatabase, [
-            {
-              name: "booking.confirmed",
-              data: {
-                bookingId: row.id,
-                bookingNumber: row.bookingNumber,
-                actorId: userId ?? null,
-                suppressNotifications: row.notificationsSuppressed,
-              } satisfies BookingConfirmedEvent,
-              metadata: {
-                category: "domain",
-                source: "service",
-                eventId: bookingLifecycleOutboxEventId(
-                  "confirmed",
-                  row.id,
-                  runtime,
-                  row.confirmedAt,
-                ),
-              },
-            },
-          ])
-        }
-
-        return { status: "ok" as const, booking: row ?? null }
-      })
-
-      return result
-    } catch (error) {
-      if (error instanceof BookingMonthlyLimitReachedError) {
-        return monthlyBookingLimitResult(error)
-      }
-      if (error instanceof BookingServiceError) {
-        return { status: error.code as Exclude<string, "ok"> }
-      }
-      throw error
-    }
-  },
-
-  async recoverExpiredPaidBooking(
-    db: PostgresJsDatabase,
-    id: string,
-    data: ConfirmBookingInput = {},
-    userId?: string,
-    runtime: BookingServiceRuntime = {},
-  ) {
-    const slotChanges: AvailabilitySlotChangedEventPayload[] = []
-    try {
-      const result = await db.transaction(async (tx) => {
-        const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, accepted_at
-              FROM ${bookings}
-              WHERE ${bookings.id} = ${id}
-              FOR UPDATE`,
-        )
-        const booking = toRows<{
-          id: string
-          booking_number: string
-          status: BookingStatus
-          accepted_at: Date | null
-        }>(rows)[0]
-
-        if (!booking) {
-          throw new BookingServiceError("not_found")
-        }
-        if (booking.status !== "awaiting_payment" && booking.status !== "expired") {
-          throw new BookingServiceError("invalid_transition")
-        }
-
-        await assertMonthlyBookingLimitAvailable(
-          tx as PostgresJsDatabase,
-          runtime.monthlyBookingLimit,
-          { excludeBookingId: id },
-        )
-
-        const allocations = await tx
-          .select()
-          .from(bookingAllocations)
-          .where(eq(bookingAllocations.bookingId, id))
-
-        for (const allocation of allocations) {
-          if (allocation.status === "confirmed") {
-            continue
-          }
-          if (allocation.status !== "held" && allocation.status !== "expired") {
-            throw new BookingServiceError("invalid_transition")
-          }
-          if (!allocation.availabilitySlotId || allocation.status === "held") {
-            continue
-          }
-
-          const capacity = await adjustSlotCapacity(
-            tx as PostgresJsDatabase,
-            allocation.availabilitySlotId,
-            -allocation.quantity,
-            "booking",
-          )
-          if (capacity.status === "slot_not_found") {
-            throw new BookingServiceError("slot_not_found")
-          }
-          if (capacity.status === "slot_unavailable") {
-            throw new BookingServiceError("slot_unavailable")
-          }
-          if (capacity.status === "insufficient_capacity") {
-            throw new BookingServiceError("insufficient_capacity")
-          }
-          if (capacity.slotChange) slotChanges.push(capacity.slotChange)
-        }
-
-        const now = new Date()
-        await tx
-          .update(bookingAllocations)
-          .set({
-            status: "confirmed",
-            confirmedAt: now,
-            releasedAt: null,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(bookingAllocations.bookingId, id),
-              inArray(bookingAllocations.status, ["held", "expired"]),
-            ),
-          )
-
-        await tx
-          .update(bookingItems)
-          .set({ status: "confirmed", updatedAt: now })
-          .where(
-            and(
-              eq(bookingItems.bookingId, id),
-              inArray(bookingItems.status, ["draft", "on_hold", "expired"]),
-            ),
-          )
-
-        const [row] = await tx
-          .update(bookings)
-          .set({
-            status: "confirmed",
-            revision: sql`${bookings.revision} + 1`,
-            acceptedAt: booking.accepted_at ?? now,
-            confirmedAt: now,
-            paidAt: now,
-            expiredAt: null,
-            holdExpiresAt: null,
-            updatedAt: now,
-          })
-          .where(eq(bookings.id, id))
-          .returning()
-
-        await autoIssueFulfillmentsForBooking(tx as PostgresJsDatabase, id, userId)
-
-        await tx.insert(bookingActivityLog).values({
-          bookingId: id,
-          actorId: userId ?? "system",
-          activityType: "booking_confirmed",
-          description: `Late payment recovered and booking ${booking.booking_number} confirmed`,
-          metadata: { recoveredFromStatus: booking.status },
-        })
-
-        if (data.note) {
-          await tx.insert(bookingNotes).values({
-            bookingId: id,
-            authorId: userId ?? "system",
-            content: data.note,
-          })
-        }
-
-        await appendBookingStatusMutationLedger(tx as PostgresJsDatabase, runtime, {
-          actionName: "booking.status.expire",
-          routeOrToolName: "bookings.expire",
-          capabilityId: BOOKING_STATUS_CAPABILITIES.expire.id,
-          bookingId: id,
-          fromStatus: booking.status,
-          toStatus: "expired",
-        })
-
-        return { status: "ok" as const, booking: row ?? null }
-      })
-
-      if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.confirmed",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            actorId: userId ?? null,
-          } satisfies BookingConfirmedEvent,
-          { category: "domain", source: "service" },
-        )
-        await emitSlotChanges(runtime, slotChanges)
-      }
-
-      return result
-    } catch (error) {
-      if (error instanceof BookingMonthlyLimitReachedError) {
-        return monthlyBookingLimitResult(error)
-      }
-      if (error instanceof BookingServiceError) {
-        return { status: error.code as Exclude<string, "ok"> }
-      }
-      throw error
-    }
-  },
-
-  async extendBookingHold(
-    db: PostgresJsDatabase,
-    id: string,
-    data: ExtendBookingHoldInput,
-    userId?: string,
-  ) {
-    try {
-      return await db.transaction(async (tx) => {
-        const rows = await tx.execute(
-          sql`SELECT id, status, hold_expires_at
-              FROM ${bookings}
-              WHERE ${bookings.id} = ${id}
-              FOR UPDATE`,
-        )
-        const booking = toRows<{
-          id: string
-          status: BookingStatus
-          hold_expires_at: Date | null
-        }>(rows)[0]
-
-        if (!booking) {
-          throw new BookingServiceError("not_found")
-        }
-        if (booking.status !== "on_hold" && booking.status !== "awaiting_payment") {
-          throw new BookingServiceError("invalid_transition")
-        }
-        if (booking.hold_expires_at && booking.hold_expires_at < new Date()) {
-          throw new BookingServiceError("hold_expired")
-        }
-
-        const holdExpiresAt = await computeHoldExpiresAt(tx as PostgresJsDatabase, data)
-
-        await tx
-          .update(bookingAllocations)
-          .set({
-            holdExpiresAt,
-            updatedAt: new Date(),
-          })
-          .where(and(eq(bookingAllocations.bookingId, id), eq(bookingAllocations.status, "held")))
-
-        const [row] = await tx
-          .update(bookings)
-          .set({
-            holdExpiresAt,
-            revision: sql`${bookings.revision} + 1`,
-            updatedAt: new Date(),
-          })
-          .where(eq(bookings.id, id))
-          .returning()
-
-        await tx.insert(bookingActivityLog).values({
-          bookingId: id,
-          actorId: userId ?? "system",
-          activityType: "hold_extended",
-          description: "Booking hold extended",
-          metadata: { holdExpiresAt: holdExpiresAt.toISOString() },
-        })
-
-        return { status: "ok" as const, booking: row ?? null }
-      })
-    } catch (error) {
-      if (error instanceof BookingServiceError) {
-        return { status: error.code as Exclude<string, "ok"> }
-      }
-      throw error
-    }
-  },
-
-  async expireBooking(
-    db: PostgresJsDatabase,
-    id: string,
-    data: ExpireBookingInput,
-    userId?: string,
-    runtime: BookingServiceRuntime & { cause?: "route" | "sweep" } = {},
-  ) {
-    const slotChanges: AvailabilitySlotChangedEventPayload[] = []
-    try {
-      const result = await db.transaction(async (tx) => {
-        const rows = await tx.execute(
-          sql`SELECT id, status, hold_expires_at
-              FROM ${bookings}
-              WHERE ${bookings.id} = ${id}
-              FOR UPDATE`,
-        )
-        const booking = toRows<{
-          id: string
-          status: BookingStatus
-          hold_expires_at: Date | null
-        }>(rows)[0]
-
-        if (!booking) {
-          throw new BookingServiceError("not_found")
-        }
-        if (!canTransitionBooking(booking.status, "expired")) {
-          throw new BookingServiceError("invalid_transition")
-        }
-        if (booking.status !== "on_hold") {
-          throw new BookingServiceError("invalid_transition")
-        }
-
-        const patch = transitionBooking(booking.status, "expired")
-
-        const allocations = await tx
-          .select()
-          .from(bookingAllocations)
-          .where(eq(bookingAllocations.bookingId, id))
-
-        for (const allocation of allocations) {
-          const change = await releaseAllocationCapacity(
-            tx as PostgresJsDatabase,
-            allocation,
-            "expire",
-          )
-          if (change) slotChanges.push(change)
-        }
-
-        await tx
-          .update(bookingAllocations)
-          .set({
-            status: "expired",
-            releasedAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(and(eq(bookingAllocations.bookingId, id), eq(bookingAllocations.status, "held")))
-
-        await tx
-          .update(bookingItems)
-          .set({ status: "expired", updatedAt: new Date() })
-          .where(and(eq(bookingItems.bookingId, id), eq(bookingItems.status, "on_hold")))
-
-        const [row] = await tx
-          .update(bookings)
-          .set({
-            ...patch,
-            revision: sql`${bookings.revision} + 1`,
-            holdExpiresAt: null,
-            updatedAt: new Date(),
-          })
-          .where(eq(bookings.id, id))
-          .returning()
-
-        await runtime.closePaymentSchedulesForBooking?.(tx as PostgresJsDatabase, id, "expired")
-
-        await tx.insert(bookingActivityLog).values({
-          bookingId: id,
-          actorId: userId ?? "system",
-          activityType: "hold_expired",
-          description: "Booking hold expired",
-        })
-
-        if (data.note) {
-          await tx.insert(bookingNotes).values({
-            bookingId: id,
-            authorId: userId ?? "system",
-            content: data.note,
-          })
-        }
-
-        return { status: "ok" as const, booking: row ?? null }
-      })
-
-      if (result.status === "ok" && result.booking) {
-        await runtime.eventBus?.emit(
-          "booking.expired",
-          {
-            bookingId: result.booking.id,
-            bookingNumber: result.booking.bookingNumber,
-            cause: runtime.cause ?? "route",
-            actorId: userId ?? null,
-          } satisfies BookingExpiredEvent,
-          { category: "domain", source: "service" },
-        )
-        await emitSlotChanges(runtime, slotChanges)
-        await runtime.expirePaymentSessionsForBooking?.(db, result.booking.id)
-      }
-
-      return result
-    } catch (error) {
-      if (error instanceof BookingServiceError) {
-        return { status: error.code as Exclude<string, "ok"> }
-      }
-      throw error
-    }
-  },
-
-  async expireStaleBookings(
-    db: PostgresJsDatabase,
-    data: ExpireStaleBookingsInput,
-    userId?: string,
-    runtime: BookingServiceRuntime = {},
-  ) {
-    const cutoff = data.before ? new Date(data.before) : new Date()
-    const staleBookings = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(
-        and(
-          inArray(bookings.status, ["on_hold", "awaiting_payment"]),
-          // agent-quality: raw-sql reviewed -- owner: bookings; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-          sql`${bookings.holdExpiresAt} IS NOT NULL`,
-          lte(bookings.holdExpiresAt, cutoff),
-        ),
-      )
-      .orderBy(asc(bookings.holdExpiresAt), asc(bookings.createdAt))
-
-    const expiredIds: string[] = []
-
-    for (const booking of staleBookings) {
-      const result = await this.expireBooking(
-        db,
-        booking.id,
-        { note: data.note ?? "Hold expired by sweep" },
-        userId,
-        { ...runtime, cause: "sweep" },
-      )
-
-      if ("booking" in result && result.booking) {
-        expiredIds.push(result.booking.id)
-      }
-    }
-
-    return {
-      expiredIds,
-      count: expiredIds.length,
-      cutoff,
-    }
   },
 
   async cancelBooking(
@@ -3795,23 +3041,13 @@ const bookingsServiceInternal = {
             status: "cancelled",
             updatedAt: new Date(),
           })
-          .where(
-            and(
-              eq(bookingItems.bookingId, id),
-              or(
-                eq(bookingItems.status, "draft"),
-                eq(bookingItems.status, "on_hold"),
-                eq(bookingItems.status, "confirmed"),
-              ),
-            ),
-          )
+          .where(and(eq(bookingItems.bookingId, id), eq(bookingItems.status, "confirmed")))
 
         const [row] = await tx
           .update(bookings)
           .set({
             ...patch,
             revision: sql`${bookings.revision} + 1`,
-            holdExpiresAt: null,
             notificationsSuppressed: suppressNotifications,
             updatedAt: new Date(),
           })
@@ -4122,24 +3358,23 @@ const bookingsServiceInternal = {
         if (data.status === "cancelled") {
           await lockBookingFinanceInsertionFence(tx, id)
         }
-        const rows = await tx.execute(
-          sql`SELECT id, booking_number, status, accepted_at
-              FROM ${bookings}
-              WHERE ${bookings.id} = ${id}
-              FOR UPDATE`,
-        )
-        const booking = toRows<{
-          id: string
-          booking_number: string
-          status: BookingStatus
-          accepted_at: Date | null
-        }>(rows)[0]
+        const [booking] = await tx
+          .select({
+            id: bookings.id,
+            bookingNumber: bookings.bookingNumber,
+            status: bookings.status,
+            acceptedAt: bookings.acceptedAt,
+            confirmedAt: bookings.confirmedAt,
+          })
+          .from(bookings)
+          .where(eq(bookings.id, id))
+          .for("update")
 
         if (!booking) {
           throw new BookingServiceError("not_found")
         }
 
-        if (booking.accepted_at === null && isAcceptedBookingStatus(data.status)) {
+        if (booking.acceptedAt === null && isAcceptedBookingStatus(data.status)) {
           await assertMonthlyBookingLimitAvailable(
             tx as PostgresJsDatabase,
             runtime.monthlyBookingLimit,
@@ -4153,19 +3388,18 @@ const bookingsServiceInternal = {
         const updates: Record<string, unknown> = {
           status: data.status,
           acceptedAt:
-            booking.accepted_at ?? (isAcceptedBookingStatus(data.status) ? now : undefined),
-          confirmedAt: confirmedAtForStatus(data.status, null, now),
+            booking.acceptedAt ?? (isAcceptedBookingStatus(data.status) ? now : undefined),
+          confirmedAt: confirmedAtForStatus(data.status, booking.confirmedAt, now),
           updatedAt: now,
         }
         if (data.suppressNotifications === true) {
           updates.notificationsSuppressed = true
         }
-        if (data.status === "expired") updates.expiredAt = now
         if (data.status === "cancelled") updates.cancelledAt = now
         if (data.status === "completed") updates.completedAt = now
 
         if (terminalItemStatus && terminalAllocationStatus) {
-          if (data.status === "cancelled" || data.status === "expired") {
+          if (data.status === "cancelled") {
             const allocations = await tx
               .select()
               .from(bookingAllocations)
@@ -4184,7 +3418,7 @@ const bookingsServiceInternal = {
               const change = await releaseAllocationCapacity(
                 tx as PostgresJsDatabase,
                 allocation,
-                data.status === "expired" ? "expire" : "cancel",
+                "cancel",
               )
               if (change) slotChanges.push(change)
             }
@@ -4194,7 +3428,7 @@ const bookingsServiceInternal = {
             status: terminalAllocationStatus,
             updatedAt: now,
           }
-          if (data.status === "cancelled" || data.status === "expired") {
+          if (data.status === "cancelled") {
             allocationUpdates.releasedAt = now
           }
 
@@ -4218,22 +3452,7 @@ const bookingsServiceInternal = {
             .where(
               and(
                 eq(bookingItems.bookingId, id),
-                or(
-                  eq(bookingItems.status, "draft"),
-                  eq(bookingItems.status, "on_hold"),
-                  eq(bookingItems.status, "confirmed"),
-                  eq(bookingItems.status, "fulfilled"),
-                ),
-              ),
-            )
-        } else if (data.status === "confirmed") {
-          await tx
-            .update(bookingItems)
-            .set({ status: "confirmed", updatedAt: now })
-            .where(
-              and(
-                eq(bookingItems.bookingId, id),
-                inArray(bookingItems.status, ["draft", "on_hold", "expired"]),
+                or(eq(bookingItems.status, "confirmed"), eq(bookingItems.status, "fulfilled")),
               ),
             )
         }
@@ -4243,7 +3462,7 @@ const bookingsServiceInternal = {
           .set({ ...updates, revision: sql`${bookings.revision} + 1` })
           .where(eq(bookings.id, id))
           .returning()
-        if (data.status === "cancelled" || data.status === "expired") {
+        if (data.status === "cancelled") {
           await runtime.closePaymentSchedulesForBooking?.(tx as PostgresJsDatabase, id, data.status)
         }
 
@@ -4298,9 +3517,8 @@ const bookingsServiceInternal = {
           } satisfies BookingStatusOverriddenEvent,
           { category: "domain", source: "service" },
         )
-        // Keep draft → confirmed overrides compatible with the create dialog,
-        // but let data-correction callers preserve the audit event without
-        // re-running the full confirm lifecycle.
+        // A correction back to confirmed must refresh derived projections, but
+        // callers can preserve only the audit event when repairing raw data.
         if (result.toStatus === "confirmed" && data.suppressLifecycleEvents !== true) {
           await runtime.eventBus?.emit(
             "booking.confirmed",
@@ -4795,6 +4013,10 @@ const bookingsServiceInternal = {
       .orderBy(asc(productTicketSettingsRef.productId), asc(productTicketSettingsRef.id))
   },
 
+  issueDefaultFulfillments(db: PostgresJsDatabase, bookingId: string, userId?: string) {
+    return autoIssueFulfillmentsForBooking(db, bookingId, userId)
+  },
+
   /**
    * Re-derive `bookings.sellAmountCents` / `costAmountCents` from
    * `Σ(booking_items.total*AmountCents)`, plus — when the booking
@@ -4944,7 +4166,7 @@ const bookingsServiceInternal = {
           title: data.title,
           description: data.description ?? null,
           itemType: data.itemType,
-          status: data.status,
+          status: "confirmed",
           serviceDate: serviceDateInput ?? null,
           startsAt: startsAtInput,
           endsAt: endsAtInput,
@@ -5553,11 +4775,7 @@ const bookingsServiceInternal = {
             and(
               eq(bookingItems.id, data.bookingItemId),
               eq(bookingItems.bookingId, bookingId),
-              or(
-                eq(bookingItems.status, "confirmed"),
-                eq(bookingItems.status, "on_hold"),
-                eq(bookingItems.status, "draft"),
-              ),
+              eq(bookingItems.status, "confirmed"),
             ),
           )
 

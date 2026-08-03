@@ -41,7 +41,6 @@ const itemTypes = [
   "other",
 ] as const
 
-const itemStatuses = ["draft", "on_hold", "confirmed", "cancelled", "expired", "fulfilled"] as const
 const DEFAULT_CURRENCY = "EUR" // i18n-literal-ok ISO default currency
 
 function createBookingItemFormSchema(messages: ReturnType<typeof useBookingsUiMessagesOrDefault>) {
@@ -49,7 +48,6 @@ function createBookingItemFormSchema(messages: ReturnType<typeof useBookingsUiMe
     .object({
       title: z.string().min(1, messages.bookingItemDialog.validation.titleRequired),
       itemType: z.enum(itemTypes).default("unit"),
-      status: z.enum(itemStatuses).default("draft"),
       quantity: z.coerce.number().int().positive().default(1),
       sellCurrency: z.string().min(3).max(3).default("EUR"),
       unitSellAmountCents: z.coerce.number().int().optional().nullable(),
@@ -103,21 +101,12 @@ export function BookingItemDialog({
       })),
     [messages.bookingItemDialog.itemTypeLabels],
   )
-  const statusItems = useMemo(
-    () =>
-      itemStatuses.map((s) => ({
-        value: s,
-        label: messages.bookingItemDialog.itemStatusLabels[s],
-      })),
-    [messages.bookingItemDialog.itemStatusLabels],
-  )
 
   const form = useForm<BookingItemFormValues, unknown, BookingItemFormOutput>({
     resolver: zodResolver(bookingItemFormSchema),
     defaultValues: {
       title: "",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: DEFAULT_CURRENCY,
       unitSellAmountCents: null,
@@ -143,7 +132,6 @@ export function BookingItemDialog({
       form.reset({
         title: item.title,
         itemType: item.itemType,
-        status: item.status,
         quantity: item.quantity,
         sellCurrency: item.sellCurrency,
         unitSellAmountCents: item.unitSellAmountCents,
@@ -164,7 +152,6 @@ export function BookingItemDialog({
     const payload = {
       title: values.title,
       itemType: values.itemType,
-      status: values.status,
       quantity: values.quantity,
       sellCurrency: values.sellCurrency,
       unitSellAmountCents: values.unitSellAmountCents ?? null,
@@ -230,25 +217,6 @@ export function BookingItemDialog({
                     {itemTypes.map((t) => (
                       <SelectItem key={t} value={t}>
                         {messages.bookingItemDialog.itemTypeLabels[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>{messages.bookingItemDialog.fields.status}</Label>
-                <Select
-                  items={statusItems}
-                  value={form.watch("status")}
-                  onValueChange={(v) => form.setValue("status", v as (typeof itemStatuses)[number])}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {itemStatuses.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {messages.bookingItemDialog.itemStatusLabels[s]}
                       </SelectItem>
                     ))}
                   </SelectContent>

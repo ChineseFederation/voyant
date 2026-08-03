@@ -257,7 +257,6 @@ describe("selected Operator graph runtime composition", () => {
     expect(subscribe.mock.calls.map(([eventType]) => eventType)).toEqual([
       "booking.cancelled",
       "booking.confirmed",
-      "booking.expired",
       "payment.completed",
     ])
     expect(

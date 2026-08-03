@@ -32,13 +32,9 @@ export type BookingStatusApprovalTargetState =
       sellAmountCents: number | null
       costAmountCents: number | null
       customerPaymentPolicy: unknown
-      holdExpiresAt: string | null
       confirmedAt: string | null
-      awaitingPaymentAt: string | null
-      paidAt: string | null
       cancelledAt: string | null
       completedAt: string | null
-      expiredAt: string | null
     }
 
 export interface BookingStatusAuthorizationInput {
@@ -329,13 +325,9 @@ async function loadBookingStatusApprovalTargetState(
     sellAmountCents: booking.sellAmountCents,
     costAmountCents: booking.costAmountCents,
     customerPaymentPolicy: booking.customerPaymentPolicy,
-    holdExpiresAt: serializeDate(booking.holdExpiresAt),
     confirmedAt: serializeDate(booking.confirmedAt),
-    awaitingPaymentAt: serializeDate(booking.awaitingPaymentAt),
-    paidAt: serializeDate(booking.paidAt),
     cancelledAt: serializeDate(booking.cancelledAt),
     completedAt: serializeDate(booking.completedAt),
-    expiredAt: serializeDate(booking.expiredAt),
   }
 }
 

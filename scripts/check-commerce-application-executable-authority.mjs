@@ -77,8 +77,8 @@ requireMatch(
 )
 requireMatch(
   notificationsRuntime,
-  /skipQueuedBookingPaymentReminders\(db, data\.bookingId, "cancelled"\)[\s\S]*skipQueuedBookingPaymentReminders\(db, data\.bookingId, "expired"\)/,
-  "Notifications subscribers must own terminal booking reminder cleanup",
+  /eventBus\.subscribe<BookingCancelledPayload>\("booking\.cancelled",[\s\S]*skipQueuedBookingPaymentReminders\(db, data\.bookingId, "cancelled"\)/,
+  "Notifications subscribers must own cancelled-booking reminder cleanup",
 )
 rejectMatch(
   composition,

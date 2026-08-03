@@ -1,15 +1,6 @@
 import { z } from "zod"
 
-export const bookingStatusSchema = z.enum([
-  "draft",
-  "on_hold",
-  "awaiting_payment",
-  "confirmed",
-  "in_progress",
-  "completed",
-  "expired",
-  "cancelled",
-])
+export const bookingStatusSchema = z.enum(["confirmed", "in_progress", "completed", "cancelled"])
 
 export const supplierConfirmationStatusSchema = z.enum([
   "pending",
@@ -45,14 +36,7 @@ export const bookingItemTypeSchema = z.enum([
   "other",
 ])
 
-export const bookingItemStatusSchema = z.enum([
-  "draft",
-  "on_hold",
-  "confirmed",
-  "cancelled",
-  "expired",
-  "fulfilled",
-])
+export const bookingItemStatusSchema = z.enum(["confirmed", "cancelled", "fulfilled"])
 
 export const bookingItemParticipantRoleSchema = z.enum([
   "traveler",

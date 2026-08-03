@@ -23,7 +23,6 @@
     "./booking-tax": "./src/booking-tax.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./runtime-port": "./src/runtime-port.ts",
-    "./stale-booking-holds-runtime": "./src/stale-booking-holds-runtime.ts",
     "./booking-schedule-subscriber": "./src/booking-schedule/subscriber-runtime.ts",
     "./proforma-conversion-subscriber": "./src/proforma-conversion-runtime.ts",
     "./routes": "./src/routes.ts",
@@ -181,11 +180,6 @@
         "types": "./dist/runtime-port.d.ts",
         "import": "./dist/runtime-port.js",
         "default": "./dist/runtime-port.js"
-      },
-      "./stale-booking-holds-runtime": {
-        "types": "./dist/stale-booking-holds-runtime.d.ts",
-        "import": "./dist/stale-booking-holds-runtime.js",
-        "default": "./dist/stale-booking-holds-runtime.js"
       },
       "./booking-schedule-subscriber": {
         "types": "./dist/booking-schedule/subscriber-runtime.d.ts",

@@ -85,7 +85,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Half-day tour",
       itemType: "unit",
-      status: "draft",
       quantity: 2,
       sellCurrency: "EUR",
       unitSellAmountCents: 5000,
@@ -103,7 +102,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Pickup",
       itemType: "extra",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 1500,
@@ -121,7 +119,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     const created = await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -142,7 +139,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 16500,
@@ -173,7 +169,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -221,7 +216,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     const a = await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 10000,
@@ -230,7 +224,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Pickup",
       itemType: "extra",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 2000,
@@ -249,7 +242,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Tour",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       unitSellAmountCents: 5000,
@@ -277,7 +269,6 @@ describe.skipIf(!DB_AVAILABLE)("bookings auto-rollup", () => {
     await bookingsService.createItem(db, booking.id, {
       title: "Pricing TBD",
       itemType: "unit",
-      status: "draft",
       quantity: 1,
       sellCurrency: "EUR",
       // unit/total left null intentionally

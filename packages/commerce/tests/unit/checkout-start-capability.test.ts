@@ -28,7 +28,10 @@ const BOOKING_ID = "book_123"
 describe("POST /checkout/start capability", () => {
   beforeEach(() => {
     startCatalogCheckout.mockReset()
-    startCatalogCheckout.mockResolvedValue({ kind: "hold_placed", bookingId: BOOKING_ID })
+    startCatalogCheckout.mockResolvedValue({
+      kind: "payment_session_started",
+      bookingId: BOOKING_ID,
+    })
   })
 
   it("refuses a request carrying no capability", async () => {
@@ -83,7 +86,7 @@ async function call(headers: Record<string, string> = {}) {
     {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify({ bookingId: BOOKING_ID, paymentIntent: "hold" }),
+      body: JSON.stringify({ bookingId: BOOKING_ID, paymentIntent: "card" }),
     },
     CAPABILITY_ENV,
   )

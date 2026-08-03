@@ -199,15 +199,9 @@ export function BookingList({
   const paxMinNumber = paxMin === "" ? undefined : Number.parseInt(paxMin, 10)
   const paxMaxNumber = paxMax === "" ? undefined : Number.parseInt(paxMax, 10)
 
-  // "All" hides drafts + expired by default — they're rarely actionable
-  // and crowd the operator's queue. Explicit selection of either status
-  // (or any other) opts back in.
-  const excludeStatuses = status === BOOKING_STATUS_ALL ? ["draft", "expired"] : undefined
-
   const { data, isPending, isFetching, isError } = useBookings({
     search: search || undefined,
     status: status === BOOKING_STATUS_ALL ? undefined : status,
-    excludeStatuses,
     productId: productId ?? undefined,
     optionId: optionId ?? undefined,
     availabilitySlotId: availabilitySlotId ?? undefined,

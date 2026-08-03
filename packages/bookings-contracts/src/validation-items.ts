@@ -8,7 +8,6 @@ import {
   bookingFulfillmentStatusSchema,
   bookingFulfillmentTypeSchema,
   bookingItemParticipantRoleSchema,
-  bookingItemStatusSchema,
   bookingItemTypeSchema,
   bookingRedemptionMethodSchema,
   supplierConfirmationStatusSchema,
@@ -20,7 +19,6 @@ const bookingItemCoreShape = {
   title: z.string().min(1).max(255),
   description: z.string().optional().nullable(),
   itemType: bookingItemTypeSchema.default("unit"),
-  status: bookingItemStatusSchema.default("draft"),
   serviceDate: z.string().optional().nullable(),
   startsAt: z.string().optional().nullable(),
   endsAt: z.string().optional().nullable(),
@@ -57,7 +55,7 @@ function hasCostAmount(value: {
   return value.unitCostAmountCents != null || value.totalCostAmountCents != null
 }
 
-const bookingItemCoreObjectSchema = z.object(bookingItemCoreShape)
+const bookingItemCoreObjectSchema = z.object(bookingItemCoreShape).strict()
 type BookingItemCoreInput = z.input<typeof bookingItemCoreObjectSchema>
 
 const bookingItemCoreSchema = bookingItemCoreObjectSchema.refine(
@@ -71,6 +69,11 @@ const bookingItemCoreSchema = bookingItemCoreObjectSchema.refine(
 export const insertBookingItemSchema = bookingItemCoreSchema
 export const updateBookingItemSchema = bookingItemCoreObjectSchema
   .partial()
+  .extend({
+    itemType: bookingItemTypeSchema.optional(),
+    quantity: z.number().int().positive().optional(),
+  })
+  .strict()
   .refine((value) => !hasCostAmount(value) || Boolean(value.costCurrency), {
     message: "Cost currency is required when cost amounts are provided",
     path: ["costCurrency"],
@@ -92,7 +95,11 @@ export const insertBookingAllocationSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 
-export const updateBookingAllocationSchema = insertBookingAllocationSchema.partial()
+export const updateBookingAllocationSchema = insertBookingAllocationSchema.partial().extend({
+  quantity: z.number().int().positive().optional(),
+  allocationType: bookingAllocationTypeSchema.optional(),
+  status: bookingAllocationStatusSchema.optional(),
+})
 
 // ---------- booking fulfillments ----------
 
@@ -117,6 +124,9 @@ export const insertBookingFulfillmentSchema = bookingFulfillmentInputSchema.tran
 
 export const updateBookingFulfillmentSchema = bookingFulfillmentInputSchema
   .partial()
+  .extend({
+    status: bookingFulfillmentStatusSchema.optional(),
+  })
   .transform(({ travelerId, ...rest }) => ({
     ...rest,
     travelerId: travelerId !== undefined ? (travelerId ?? null) : undefined,
@@ -172,6 +182,7 @@ const supplierStatusCoreSchema = z.object({
 
 export const insertSupplierStatusSchema = supplierStatusCoreSchema
 export const updateSupplierStatusSchema = supplierStatusCoreSchema.partial().extend({
+  status: supplierConfirmationStatusSchema.optional(),
   confirmedAt: z.string().optional().nullable(),
 })
 

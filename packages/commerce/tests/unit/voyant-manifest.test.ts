@@ -9,7 +9,6 @@ import {
   financeDistributionPaymentPolicyRuntimePort,
   financeInventoryPaymentPolicyRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
-import { checkoutInquiryRuntimePort } from "@voyant-travel/proposals-contracts/checkout-inquiry"
 import { describe, expect, it } from "vitest"
 import {
   bookingMaintenanceRuntimePort,
@@ -67,7 +66,6 @@ describe("commerce deployment manifest", () => {
         { id: financeAccommodationsPaymentPolicyRuntimePort.id },
         { id: financeCruisesPaymentPolicyRuntimePort.id },
         { id: financeInventoryPaymentPolicyRuntimePort.id },
-        { id: checkoutInquiryRuntimePort.id },
       ],
       api: [
         {

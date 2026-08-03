@@ -92,11 +92,7 @@ import {
   bookingTravelerCategorySchema,
   cancelBookingSchema,
   completeBookingSchema,
-  confirmBookingSchema,
   createTravelerWithTravelDetailsSchema,
-  expireBookingSchema,
-  expireStaleBookingsSchema,
-  extendBookingHoldSchema,
   insertBookingDocumentSchema,
   insertBookingFulfillmentSchema,
   insertBookingItemSchema,
@@ -509,16 +505,6 @@ const ignoredBookingMutationFields = new Set(["updatedAt", "createdAt"])
 
 type BookingStatusCapabilityRoute =
   | {
-      key: "confirm"
-      actionName: "booking.status.confirm"
-      routeOrToolName: "bookings.confirm"
-    }
-  | {
-      key: "expire"
-      actionName: "booking.status.expire"
-      routeOrToolName: "bookings.expire"
-    }
-  | {
       key: "cancel"
       actionName: "booking.status.cancel"
       routeOrToolName: "bookings.cancel"
@@ -561,16 +547,6 @@ async function authorizeBookingStatusMutation(
   })
 
   return bookingStatusAuthorizationRouteResult(c, result)
-}
-
-function confirmBookingAuthorizationInput(bookingId: string, commandInput: unknown) {
-  return {
-    key: "confirm",
-    actionName: "booking.status.confirm",
-    routeOrToolName: "bookings.confirm",
-    bookingId,
-    commandInput,
-  } as const
 }
 
 async function bookingStatusAuthorizationRouteResult(
@@ -1327,13 +1303,10 @@ const bookingSchema = z.object({
   customerPaymentPolicy: z.unknown().nullable(),
   priceOverride: jsonObject.nullable(),
   customFields: namespacedCustomFields,
-  holdExpiresAt: nullableIsoTimestamp,
+  acceptedAt: nullableIsoTimestamp,
   confirmedAt: nullableIsoTimestamp,
-  expiredAt: nullableIsoTimestamp,
   cancelledAt: nullableIsoTimestamp,
   completedAt: nullableIsoTimestamp,
-  awaitingPaymentAt: nullableIsoTimestamp,
-  paidAt: nullableIsoTimestamp,
   redeemedAt: nullableIsoTimestamp,
   createdAt: isoTimestamp,
   updatedAt: isoTimestamp,
@@ -1599,12 +1572,6 @@ const travelerWithTravelDetailsSchema = bookingTravelerSchema.extend({
   travelDetails: z.unknown(),
 })
 
-const expireStaleResultSchema = z.object({
-  expiredIds: z.array(z.string()),
-  count: z.number().int(),
-  cutoff: isoTimestamp,
-})
-
 // `GET /:id/group` returns `(BookingGroup & { membership }) | null`. The group
 // row shape is bespoke (and the membership join is nested); author it
 // permissively as a passthrough object with the discriminating `id`/`membership`.
@@ -1838,16 +1805,15 @@ coreCrudRoutes
     const db = c.get("db")
     let row: Awaited<ReturnType<typeof bookingsService.updateBooking>>
     try {
-      const runtime = { monthlyBookingLimit: getRouteRuntime(c).monthlyBookingLimit }
       row =
         data.customFields !== undefined && getRouteRuntime(c).customFieldsForWrite
           ? await db.transaction(async (tx) => {
               await validateBookingCustomFields(c, data, "update", tx)
-              return bookingsService.updateBooking(tx, c.req.valid("param").id, data, runtime)
+              return bookingsService.updateBooking(tx, c.req.valid("param").id, data)
             })
           : await (async () => {
               await validateBookingCustomFields(c, data, "update", db)
-              return bookingsService.updateBooking(db, c.req.valid("param").id, data, runtime)
+              return bookingsService.updateBooking(db, c.req.valid("param").id, data)
             })()
     } catch (error) {
       if (error instanceof BookingMonthlyLimitReachedError) {
@@ -2091,75 +2057,6 @@ const actionLedgerRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
 // Lifecycle sub-chain
 // ==========================================================================
 
-const expireStaleRoute = createRoute({
-  method: "post",
-  path: "/expire-stale",
-  request: { body: jsonBody(expireStaleBookingsSchema, false, "Expire-stale cutoff") },
-  responses: {
-    200: {
-      description: "Stale-hold expiry sweep result",
-      content: { "application/json": { schema: expireStaleResultSchema } },
-    },
-    400: invalidRequestResponse,
-  },
-})
-
-const confirmRoute = createRoute({
-  method: "post",
-  path: "/{id}/confirm",
-  request: {
-    params: idParamSchema,
-    body: jsonBody(confirmBookingSchema, false, "Confirm options"),
-  },
-  responses: {
-    200: dataResponse(bookingSchema, "The confirmed booking"),
-    202: {
-      description: "approval_required — an action approval was requested",
-      content: { "application/json": { schema: jsonObject } },
-    },
-    400: invalidRequestResponse,
-    402: notFoundResponse("Monthly booking plan limit reached"),
-    403: notFoundResponse("Forbidden"),
-    404: notFoundResponse("Booking not found"),
-    409: conflictResponse("Hold expired / invalid transition / approval idempotency conflict"),
-  },
-})
-
-const extendHoldRoute = createRoute({
-  method: "post",
-  path: "/{id}/extend-hold",
-  request: {
-    params: idParamSchema,
-    body: jsonBody(extendBookingHoldSchema, true, "Hold extension input"),
-  },
-  responses: {
-    200: dataResponse(bookingSchema, "The booking with an extended hold"),
-    400: invalidRequestResponse,
-    404: notFoundResponse("Booking not found"),
-    409: conflictResponse("Hold expired / invalid transition"),
-  },
-})
-
-const expireRoute = createRoute({
-  method: "post",
-  path: "/{id}/expire",
-  request: {
-    params: idParamSchema,
-    body: jsonBody(expireBookingSchema, false, "Expire options"),
-  },
-  responses: {
-    200: dataResponse(bookingSchema, "The expired booking"),
-    202: {
-      description: "approval_required — an action approval was requested",
-      content: { "application/json": { schema: jsonObject } },
-    },
-    400: invalidRequestResponse,
-    403: notFoundResponse("Forbidden"),
-    404: notFoundResponse("Booking not found"),
-    409: conflictResponse("Invalid transition / approval idempotency conflict"),
-  },
-})
-
 const cancelRoute = createRoute({
   method: "post",
   path: "/{id}/cancel",
@@ -2244,116 +2141,6 @@ const overrideStatusRoute = createRoute({
 const lifecycleRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
 
 lifecycleRoutes
-  .openapi(expireStaleRoute, async (c) => {
-    return c.json(
-      await bookingsService.expireStaleBookings(
-        c.get("db"),
-        c.req.valid("json") ?? {},
-        c.get("userId"),
-        {
-          eventBus: c.get("eventBus"),
-          closePaymentSchedulesForBooking: getRouteRuntime(c).closePaymentSchedulesForBooking,
-        },
-      ),
-      200,
-    )
-  })
-  .openapi(confirmRoute, async (c) =>
-    asRouteResponse(
-      (async () => {
-        const bookingId = c.req.valid("param").id
-        const data = c.req.valid("json") ?? {}
-        const auth = await authorizeBookingStatusMutation(
-          c,
-          confirmBookingAuthorizationInput(bookingId, data),
-        )
-        if (!auth.allowed) return auth.response
-        const result = await bookingsService.confirmBooking(
-          c.get("db"),
-          bookingId,
-          data,
-          c.get("userId"),
-          bookingStatusMutationRuntime(c, auth),
-        )
-        if (result.status === "not_found") {
-          return c.json({ error: "Booking not found" }, 404)
-        }
-        if (result.status === "hold_expired") {
-          return c.json({ error: "Booking hold has expired" }, 409)
-        }
-        if (result.status === "invalid_transition") {
-          return c.json({ error: "Booking is not in an on-hold state" }, 409)
-        }
-        if (result.status === "monthly_booking_limit_reached" && "message" in result) {
-          return c.json({ error: result.message }, 402)
-        }
-        if ("booking" in result) {
-          return c.json({ data: result.booking }, 200)
-        }
-        return c.json({ error: "Unable to confirm booking" }, 400)
-      })(),
-    ),
-  )
-  .openapi(extendHoldRoute, async (c) =>
-    asRouteResponse(
-      (async () => {
-        const result = await bookingsService.extendBookingHold(
-          c.get("db"),
-          c.req.valid("param").id,
-          c.req.valid("json"),
-          c.get("userId"),
-        )
-        if (result.status === "not_found") {
-          return c.json({ error: "Booking not found" }, 404)
-        }
-        if (result.status === "hold_expired") {
-          return c.json({ error: "Booking hold has expired" }, 409)
-        }
-        if (result.status === "invalid_transition") {
-          return c.json({ error: "Booking is not in an on-hold state" }, 409)
-        }
-        if ("booking" in result) {
-          return c.json({ data: result.booking }, 200)
-        }
-        return c.json({ error: "Unable to extend booking hold" }, 400)
-      })(),
-    ),
-  )
-  .openapi(expireRoute, async (c) =>
-    asRouteResponse(
-      (async () => {
-        const bookingId = c.req.valid("param").id
-        const data = c.req.valid("json") ?? {}
-        const auth = await authorizeBookingStatusMutation(c, {
-          key: "expire",
-          actionName: "booking.status.expire",
-          routeOrToolName: "bookings.expire",
-          bookingId,
-        })
-        if (!auth.allowed) return auth.response
-        const result = await bookingsService.expireBooking(
-          c.get("db"),
-          bookingId,
-          data,
-          c.get("userId"),
-          {
-            ...bookingStatusMutationRuntime(c, auth),
-            cause: "route",
-          },
-        )
-        if (result.status === "not_found") {
-          return c.json({ error: "Booking not found" }, 404)
-        }
-        if (result.status === "invalid_transition") {
-          return c.json({ error: "Booking is not in an on-hold state" }, 409)
-        }
-        if ("booking" in result) {
-          return c.json({ data: result.booking }, 200)
-        }
-        return c.json({ error: "Unable to expire booking" }, 400)
-      })(),
-    ),
-  )
   .openapi(cancelRoute, async (c) =>
     asRouteResponse(
       (async () => {
@@ -3881,5 +3668,4 @@ export const __test__ = {
   bookingDetailSchema,
   bookingAggregatesSchema,
   sharingGroupSummarySchema,
-  confirmBookingAuthorizationInput,
 }

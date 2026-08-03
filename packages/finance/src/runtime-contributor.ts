@@ -20,7 +20,6 @@ import {
   financeHostRuntimePort,
   financeOperatorSettingsRuntimePort,
 } from "./runtime-port.js"
-import { createFinanceStaleBookingHoldsJobRuntime } from "./stale-booking-holds-runtime.js"
 
 export interface FinanceRuntimeContributorHost {
   primitives: VoyantRuntimeHostPrimitives
@@ -49,7 +48,6 @@ export function createFinanceRuntimePortContribution(
     } satisfies ActionLedgerFinanceDriftRuntime,
     [financeHostRuntimePort.id]: { primitives: host.primitives },
     [bookingsFinanceRuntimePort.id]: {
-      createStaleBookingHoldsJobRuntime: createFinanceStaleBookingHoldsJobRuntime,
       ...amendmentRuntime,
     } satisfies BookingsFinanceRuntime,
   }

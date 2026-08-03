@@ -4,17 +4,7 @@ export type BookingsUiBaseMessages = {
     saveChanges: string
     add: string
     loading: string
-    bookingStatusLabels: Record<
-      | "draft"
-      | "on_hold"
-      | "awaiting_payment"
-      | "confirmed"
-      | "in_progress"
-      | "completed"
-      | "expired"
-      | "cancelled",
-      string
-    >
+    bookingStatusLabels: Record<"confirmed" | "in_progress" | "completed" | "cancelled", string>
     supplierStatusLabels: Record<"pending" | "confirmed" | "rejected" | "cancelled", string>
   }
   bookingsPage: {

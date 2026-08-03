@@ -3,17 +3,14 @@
  * bookings created through the storefront's checkout-start path.
  *
  * Steps:
- *   1. transition_to_confirmed — flip the booking from
- *      `awaiting_payment` to `confirmed`, stamping `paidAt`. This
- *      emits `booking.confirmed` which fans out to:
- *        - legal's auto-generate-contract subscriber (if wired)
- *        - finance's auto-generate-invoice subscriber (Phase 5)
+ *   1. assert_booking_committed — verify checkout targets the durable Booking
+ *      created by canonical Booking Session Commit.
  *   2. issue_invoice — explicit fallback when finance auto-generation
  *      isn't wired. Idempotent — checks if an invoice already exists.
  *
  * Compensation: if `issue_invoice` fails after the booking is
- * already confirmed, we don't roll back to `awaiting_payment` — the
- * payment was real and the booking is real. Instead the saga leaves the
+ * already committed, we don't mutate Booking lifecycle — the payment and
+ * Booking are separate durable facts. The saga leaves the
  * booking in `confirmed` and rethrows so operations can surface the failure.
  *
  * This is an in-process compensation saga. It is not a background job or
@@ -46,12 +43,8 @@ export interface CheckoutFinalizeDeps {
   eventBus?: EventBus
   /** Optional observability sink — see CheckoutFinalizeStepRecorder. */
   recorder?: CheckoutFinalizeStepRecorder
-  /**
-   * Confirms the booking — flips it from `awaiting_payment`/`on_hold`
-   * to `confirmed`. Implementations should emit `booking.confirmed`
-   * once the transaction commits so downstream subscribers fan out.
-   */
-  confirmBooking: (bookingId: string) => Promise<void>
+  /** Verify that the payment belongs to an already committed Booking. */
+  assertBookingCommitted: (bookingId: string) => Promise<void>
   /**
    * Issues the final invoice for the booking. When `convertedFromInvoiceId`
    * is supplied (proforma → invoice path), implementations should
@@ -65,8 +58,8 @@ export interface CheckoutFinalizeDeps {
   /**
    * Look up an existing proforma for this booking so we can pass
    * its id into `issueInvoice` (for the conversion linkage). Return
-   * `null` if there isn't one — the booking went through card or
-   * inquiry rather than bank-transfer.
+   * `null` if there isn't one — the Booking used card collection rather
+   * than bank transfer.
    */
   findProformaForBooking?: (bookingId: string) => Promise<{ invoiceId: string } | null>
   /**
@@ -116,11 +109,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 export const checkoutFinalizeSaga = createSaga("checkout-finalize", [
-  sagaStep<CheckoutFinalizeInput, void>("transition_to_confirmed").run(async (input, ctx) => {
+  sagaStep<CheckoutFinalizeInput, void>("assert_booking_committed").run(async (input, ctx) => {
     const deps = ctx.results.__deps as CheckoutFinalizeDeps | undefined
     if (!deps) throw new Error("checkout-finalize: deps not seeded into context")
-    await runStep("transition_to_confirmed", deps.recorder, () =>
-      deps.confirmBooking(input.bookingId),
+    await runStep("assert_booking_committed", deps.recorder, () =>
+      deps.assertBookingCommitted(input.bookingId),
     )
   }),
 
