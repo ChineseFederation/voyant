@@ -29,6 +29,8 @@ export interface SurfaceManifest {
 }
 
 export interface SurfaceReport {
+  /** Published packages that are not on the allowlist. */
+  unlisted: string[]
   /** Allowlisted packages whose dependencies reach outside the allowlist. */
   escapes: { package: string; via: string; dependency: string }[]
   /** Allowlist entries that name a package that does not exist. */
@@ -77,7 +79,14 @@ export function checkPublicSurface(
     }
   }
 
-  return { escapes, missing, unpublishable, closureSize: seen.size }
+  // The allowlist is the whole published surface, not a subset of it: anything
+  // publishable and unlisted has widened the surface without a decision.
+  const unlisted = manifests
+    .filter((manifest) => manifest.private !== true && !allowed.has(manifest.name))
+    .map((manifest) => manifest.name)
+    .sort()
+
+  return { escapes, missing, unpublishable, unlisted, closureSize: seen.size }
 }
 
 export function formatSurfaceViolations(report: SurfaceReport): string[] {
@@ -87,6 +96,13 @@ export function formatSurfaceViolations(report: SurfaceReport): string[] {
   }
   for (const name of report.unpublishable) {
     violations.push(`${name}: on the public surface allowlist but marked private`)
+  }
+  for (const name of report.unlisted) {
+    violations.push(
+      `${name}: publishable but not on the public surface allowlist. The deployment ships as an ` +
+        `image, so the npm assembly path is private. Mark it \`private: true\`, or add it to the ` +
+        `allowlist deliberately.`,
+    )
   }
   for (const leak of report.escapes) {
     violations.push(

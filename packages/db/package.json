@@ -438,5 +438,6 @@
     },
     "schema": "./schema",
     "requiresSchemas": []
-  }
+  },
+  "private": true
 }

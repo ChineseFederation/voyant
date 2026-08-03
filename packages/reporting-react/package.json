@@ -116,5 +116,6 @@
         "default": "./src/styles.css"
       }
     }
-  }
+  },
+  "private": true
 }

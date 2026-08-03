@@ -66,5 +66,6 @@
     "type": "git",
     "url": "https://github.com/voyant-travel/voyant.git",
     "directory": "packages/finance-contracts"
-  }
+  },
+  "private": true
 }

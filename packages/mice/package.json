@@ -152,5 +152,6 @@
       "@voyant-travel/accommodations",
       "@voyant-travel/operations"
     ]
-  }
+  },
+  "private": true
 }

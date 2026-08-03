@@ -165,5 +165,6 @@
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  }
+  },
+  "private": true
 }

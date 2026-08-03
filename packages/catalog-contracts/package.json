@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/catalog-contracts",
   "version": "0.115.1",
+  "description": "Implement a catalog inventory channel \u2014 source adapters to receive, push contracts to publish, and the indexer seam.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

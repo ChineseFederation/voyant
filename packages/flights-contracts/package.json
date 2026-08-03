@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/flights-contracts",
   "version": "0.104.14",
+  "description": "Flight offer and order contracts for connector authors \u2014 search, price, and seat-map payload shapes.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

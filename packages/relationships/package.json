@@ -140,5 +140,6 @@
       "@voyant-travel/db",
       "@voyant-travel/identity"
     ]
-  }
+  },
+  "private": true
 }

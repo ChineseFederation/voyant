@@ -79,5 +79,6 @@
     "type": "git",
     "url": "https://github.com/voyant-travel/voyant.git",
     "directory": "packages/event-catalog"
-  }
+  },
+  "private": true
 }

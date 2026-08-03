@@ -142,5 +142,6 @@
         "self-hosted"
       ]
     }
-  }
+  },
+  "private": true
 }

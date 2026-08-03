@@ -226,5 +226,6 @@
       "@voyant-travel/operations",
       "@voyant-travel/bookings"
     ]
-  }
+  },
+  "private": true
 }

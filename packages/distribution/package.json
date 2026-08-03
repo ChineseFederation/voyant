@@ -203,5 +203,6 @@
       "entry": "./runtime-contributor",
       "export": "createDistributionRuntimePortContribution"
     }
-  }
+  },
+  "private": true
 }

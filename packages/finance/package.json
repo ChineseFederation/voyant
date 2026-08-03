@@ -269,5 +269,6 @@
       "@voyant-travel/commerce",
       "@voyant-travel/db"
     ]
-  }
+  },
+  "private": true
 }

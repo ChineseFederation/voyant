@@ -182,5 +182,6 @@
       "entry": "./runtime-contributor",
       "export": "createChartersRuntimePortContribution"
     }
-  }
+  },
+  "private": true
 }

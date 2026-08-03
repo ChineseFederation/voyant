@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/payments",
   "version": "0.9.0",
+  "description": "Implement a Voyant payment adapter: the canonical initiate/status/verify contract, provider catalog, and remote transport.",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

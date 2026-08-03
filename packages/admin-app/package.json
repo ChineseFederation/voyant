@@ -103,5 +103,6 @@
     "@voyant-travel/inventory-react": {
       "optional": true
     }
-  }
+  },
+  "private": true
 }

@@ -99,5 +99,6 @@
       "entry": "./runtime-contributor",
       "export": "createVoyantConnectRuntimePortContribution"
     }
-  }
+  },
+  "private": true
 }

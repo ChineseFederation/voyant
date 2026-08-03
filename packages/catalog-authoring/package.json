@@ -102,5 +102,6 @@
       "@voyant-travel/commerce",
       "@voyant-travel/operations"
     ]
-  }
+  },
+  "private": true
 }

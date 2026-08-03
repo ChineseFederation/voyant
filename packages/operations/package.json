@@ -162,5 +162,6 @@
       "entry": "./runtime-contributor",
       "export": "createOperationsRuntimePortContribution"
     }
-  }
+  },
+  "private": true
 }

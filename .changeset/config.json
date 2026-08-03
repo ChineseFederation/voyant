@@ -2,27 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
   "changelog": "@changesets/changelog-git",
   "commit": false,
-  "fixed": [
-    ["@voyant-travel/admin", "@voyant-travel/admin-react"],
-    ["@voyant-travel/auth", "@voyant-travel/auth-react"],
-    ["@voyant-travel/bookings", "@voyant-travel/bookings-react"],
-    ["@voyant-travel/catalog", "@voyant-travel/catalog-react"],
-    ["@voyant-travel/charters", "@voyant-travel/charters-react"],
-    ["@voyant-travel/cruises", "@voyant-travel/cruises-react"],
-    ["@voyant-travel/distribution", "@voyant-travel/distribution-react"],
-    ["@voyant-travel/finance", "@voyant-travel/finance-react"],
-    ["@voyant-travel/flights", "@voyant-travel/flights-react"],
-    ["@voyant-travel/identity", "@voyant-travel/identity-react"],
-    ["@voyant-travel/legal", "@voyant-travel/legal-react"],
-    ["@voyant-travel/notifications", "@voyant-travel/notifications-react"],
-    ["@voyant-travel/navigation-preferences", "@voyant-travel/navigation-preferences-react"],
-    [
-      "@voyant-travel/storefront",
-      "@voyant-travel/storefront-react",
-      "@voyant-travel/storefront-sdk"
-    ],
-    ["@voyant-travel/trips", "@voyant-travel/trips-react"]
-  ],
+  "fixed": [],
   "linked": [],
   "ignore": ["@voyant-travel/voyant-test-utils", "@voyant-travel/voyant-typescript-config"],
   "access": "public",

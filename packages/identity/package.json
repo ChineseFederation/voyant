@@ -113,5 +113,6 @@
     "requiresSchemas": [
       "@voyant-travel/db"
     ]
-  }
+  },
+  "private": true
 }

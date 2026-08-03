@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/ui",
   "version": "0.110.3",
+  "description": "The Voyant admin component library, for building framed admin extensions that match the host.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

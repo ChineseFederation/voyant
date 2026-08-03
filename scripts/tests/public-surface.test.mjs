@@ -18,10 +18,14 @@ test("a dependency outside the allowlist is an escape", () => {
     name: "@voyant-travel/apps",
     dependencies: { "@voyant-travel/db": "workspace:^", zod: "catalog:" },
   }
-  const report = checkPublicSurface([apps, { name: "@voyant-travel/db" }], [apps.name])
+  const report = checkPublicSurface(
+    [apps, { name: "@voyant-travel/db", private: true }],
+    [apps.name],
+  )
   assert.deepEqual(report.escapes, [
     { package: apps.name, via: apps.name, dependency: "@voyant-travel/db" },
   ])
+  assert.equal(report.unlisted.length, 0)
   assert.match(formatSurfaceViolations(report)[0], /would drag @voyant-travel\/db/)
 })
 
@@ -30,7 +34,7 @@ test("peer dependencies count — they are installed by the consumer too", () =>
     name: "@voyant-travel/ui",
     peerDependencies: { "@voyant-travel/i18n": "workspace:^" },
   }
-  const report = checkPublicSurface([ui, { name: "@voyant-travel/i18n" }], [ui.name])
+  const report = checkPublicSurface([ui, { name: "@voyant-travel/i18n", private: true }], [ui.name])
   assert.equal(report.escapes.length, 1)
   assert.equal(report.escapes[0].dependency, "@voyant-travel/i18n")
 })
@@ -53,7 +57,7 @@ test("an escape is reported transitively, naming the package that introduces it"
     dependencies: { "@voyant-travel/db": "workspace:^" },
   }
   const report = checkPublicSurface(
-    [manifest, cfc, { name: "@voyant-travel/db" }],
+    [manifest, cfc, { name: "@voyant-travel/db", private: true }],
     [manifest.name, cfc.name],
   )
   assert.deepEqual(report.escapes, [
@@ -72,6 +76,19 @@ test("an allowlisted package marked private is a violation", () => {
   const report = checkPublicSurface([pkg], [pkg.name])
   assert.deepEqual(report.unpublishable, [pkg.name])
   assert.match(formatSurfaceViolations(report)[0], /marked private/)
+})
+
+test("a publishable package that is not allowlisted is a violation", () => {
+  const stray = { name: "@voyant-travel/admin" }
+  const report = checkPublicSurface([stray], [])
+  assert.deepEqual(report.unlisted, ["@voyant-travel/admin"])
+  assert.match(formatSurfaceViolations(report)[0], /publishable but not on the public surface/)
+})
+
+test("a private package is not required to be allowlisted", () => {
+  const report = checkPublicSurface([{ name: "@voyant-travel/admin", private: true }], [])
+  assert.deepEqual(report.unlisted, [])
+  assert.deepEqual(formatSurfaceViolations(report), [])
 })
 
 test("a dependency cycle inside the allowlist terminates", () => {

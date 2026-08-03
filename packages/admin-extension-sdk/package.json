@@ -1,6 +1,7 @@
 {
   "name": "@voyant-travel/admin-extension-sdk",
   "version": "0.3.0",
+  "description": "Build a framed admin extension: the UI extension protocol, slot vocabulary, and host message bridge.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
