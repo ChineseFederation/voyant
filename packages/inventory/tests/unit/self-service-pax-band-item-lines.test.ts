@@ -43,13 +43,14 @@ describe("deriveSelfServiceCommand for person-priced products", () => {
     // Not one merged line: each band reserves its own unit, and the amounts
     // come back from the accepted quote rather than from a fresh price lookup.
     // Titles come from the quote line each item matched, which is what makes
-    // the per-band split legible on the booking.
+    // the per-band split legible on the booking. The band's label, not its
+    // code — a per-product tier code would be unreadable there.
     expect(command.itemLines).toEqual([
       {
         optionId: "opt_1",
         optionUnitId: "u_adult",
         quantity: 2,
-        title: "Danube Delta Day Trip — adult",
+        title: "Danube Delta Day Trip — Adult",
         unitSellAmountCents: 16000,
         totalSellAmountCents: 32000,
       },
@@ -57,7 +58,7 @@ describe("deriveSelfServiceCommand for person-priced products", () => {
         optionId: "opt_1",
         optionUnitId: "u_child",
         quantity: 1,
-        title: "Danube Delta Day Trip — child",
+        title: "Danube Delta Day Trip — Child",
         unitSellAmountCents: 9500,
         totalSellAmountCents: 9500,
       },
@@ -79,7 +80,7 @@ describe("deriveSelfServiceCommand for person-priced products", () => {
         optionId: "opt_1",
         optionUnitId: "u_adult",
         quantity: 1,
-        title: "Danube Delta Day Trip — adult",
+        title: "Danube Delta Day Trip — Adult",
         unitSellAmountCents: 16000,
         totalSellAmountCents: 16000,
       },

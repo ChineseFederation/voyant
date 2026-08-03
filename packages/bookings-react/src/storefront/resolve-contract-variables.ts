@@ -43,6 +43,7 @@ import type {
   BookingDraftV1,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
 import type {
   ComputedScheduleEntry,
   PaymentPolicySource,
@@ -158,8 +159,10 @@ export function resolveContractVariables(
       index: i + 1,
       band: t.band,
       // The seeded template branches on `participantType != "traveler"`.
-      // We map adult → traveler, everything else passes through.
-      participantType: t.band === "adult" ? "traveler" : t.band,
+      // We map adult → traveler, everything else passes through as its
+      // canonical category — a per-product tier code ("child:pricing_…")
+      // would match no template branch.
+      participantType: paxBandBaseCode(t.band) === "adult" ? "traveler" : paxBandBaseCode(t.band),
       isLead: i === 0,
       firstName: t.firstName,
       lastName: t.lastName,
@@ -180,6 +183,17 @@ export function resolveContractVariables(
 
   const paxBands = draft.configure?.pax ?? {}
   const paxTotal = Object.values(paxBands).reduce((acc, count) => acc + (count ?? 0), 0)
+  // `paxAdult` / `paxChild` / `paxInfant` are per-category totals, so a
+  // product's own tiers ("child:pricing_…") roll up into the category they
+  // belong to rather than dropping out of the contract entirely.
+  const paxByCategory = Object.entries(paxBands).reduce<Record<string, number>>(
+    (totals, [code, count]) => {
+      const base = paxBandBaseCode(code)
+      totals[base] = (totals[base] ?? 0) + (count ?? 0)
+      return totals
+    },
+    {},
+  )
 
   // Prefer raw ISO from entitySummary (set by the detail page from
   // departures[].starts_at / sailings[].start_date / search.checkIn)
@@ -300,9 +314,9 @@ export function resolveContractVariables(
       pax: paxTotal,
       paxTotal,
       paxBands,
-      paxAdult: paxBands.adult ?? 0,
-      paxChild: paxBands.child ?? 0,
-      paxInfant: paxBands.infant ?? 0,
+      paxAdult: paxByCategory.adult ?? 0,
+      paxChild: paxByCategory.child ?? 0,
+      paxInfant: paxByCategory.infant ?? 0,
 
       // Configure (raw inputs for verticals that need slot ids)
       departureSlotId: draft.configure?.departureSlotId ?? "",

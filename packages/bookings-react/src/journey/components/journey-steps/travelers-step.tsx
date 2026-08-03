@@ -1,6 +1,9 @@
 "use client"
 
-import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import {
+  type BookingDraftShape,
+  paxBandBaseCode,
+} from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
 import { Separator } from "@voyant-travel/ui/components"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
@@ -212,7 +215,13 @@ function TravelerCard({
   const bands = shape.paxBands
   const applicableFields = shape.travelerFields.filter((f) => {
     if (!f.appliesToBands || f.appliesToBands.length === 0) return true
-    return f.appliesToBands.includes(traveler.band)
+    // Field requirements are stated per canonical category, so a product's
+    // own tier ("child:pricing_…") matches on the category it belongs to —
+    // while an explicit tier code in `appliesToBands` still wins.
+    return (
+      f.appliesToBands.includes(traveler.band) ||
+      f.appliesToBands.includes(paxBandBaseCode(traveler.band))
+    )
   })
 
   const dobField = applicableFields.find((f) => f.key === "dateOfBirth")

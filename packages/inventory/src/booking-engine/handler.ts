@@ -34,6 +34,7 @@ import {
   type PaxBandDependency,
   type PaxBandSpec,
   type ProductVariantOption,
+  paxBandBaseCode,
   paxBandsAllowedTotalFrom,
   type TravelerFieldRequirement,
 } from "@voyant-travel/catalog/booking-engine"
@@ -188,7 +189,14 @@ export function buildOwnedProductDraftShape(
 export interface ResolvedUnitPrice {
   unitId: string
   unitType: "person" | "room" | "vehicle" | "service" | "group" | "other" | string
-  travelerCategory: "adult" | "child" | "infant" | "senior" | null
+  /**
+   * The pax-band code this price row is charged against, or null when the
+   * unit is not a person. A canonical category (`"adult"`) or a
+   * tier-qualified code (`"child:pricing_categories_01j…"`) for the second
+   * and later tiers of one category — the resolver and `loadPaxBands` derive
+   * both from the same ordered category list so they always agree.
+   */
+  travelerCategory: string | null
   pricingMode?: "per_unit" | "per_person" | "per_booking" | "included" | "free" | "on_request"
   sellAmountCents: number | null
   /**
@@ -479,11 +487,24 @@ async function paxBandItemLines(input: {
   const bandLines = bookingItemLinesFromPaxBands({ optionId, resolvedPrice, pax })
   if (bandLines) return bandLines
 
-  const units = await safeLoad(
-    "loadOptionUnits",
-    options.loadOptionUnits?.(ctx, { productId, optionId }),
-  )
-  return units ? bookingItemLinesFromPaxBandUnits({ optionId, units, pax }) : undefined
+  // No per-band unit price to derive from. The bands themselves say which unit
+  // each tier reserves, so load them too — without them a second "Child …"
+  // tier has no unit of its own to claim and would be dropped (voyant#4121).
+  const [units, bands] = await Promise.all([
+    safeLoad("loadOptionUnits", options.loadOptionUnits?.(ctx, { productId, optionId })),
+    safeLoad("loadPaxBands", options.loadPaxBands?.(ctx, productId)),
+  ])
+  return units ? bookingItemLinesFromPaxBandUnits({ optionId, units, pax, bands }) : undefined
+}
+
+/**
+ * The booking traveler category a pax band maps onto. Bands can be
+ * tier-qualified per product ("child:pricing_categories_01j…"); booking
+ * parties are typed by canonical category, so the tier is dropped here.
+ */
+function bookingTravelerCategory(band: string | undefined): "adult" | "child" | "infant" {
+  const base = paxBandBaseCode(band ?? "")
+  return base === "child" || base === "infant" ? base : "adult"
 }
 
 export function createProductsBookingHandler(
@@ -598,6 +619,7 @@ export function createProductsBookingHandler(
                       : []
                   }),
                 ),
+                paxBands: shape.paxBands,
               })
             : priceQuote({
                 product,
@@ -605,6 +627,7 @@ export function createProductsBookingHandler(
                 pax: draft.configure?.pax,
                 effectivePax,
                 optionId,
+                paxBands: shape.paxBands,
               })
         const pricedWithAddons = applyAddonSelections({
           priced,
@@ -760,10 +783,9 @@ export function createProductsBookingHandler(
         email: traveler.email,
         phone: traveler.phone,
         participantType: "traveler" as const,
-        travelerCategory:
-          traveler.band === "child" || traveler.band === "infant"
-            ? (traveler.band as "child" | "infant")
-            : ("adult" as const),
+        // Bookings type a traveler by canonical category, so a tiered band
+        // ("child:pricing_categories_01j…") lands on its base category.
+        travelerCategory: bookingTravelerCategory(traveler.band),
       }))
       if (travelers.length === 0) {
         return { status: "rejected" as const, reason: "incomplete_draft" as const }

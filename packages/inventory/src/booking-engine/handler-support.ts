@@ -2,9 +2,11 @@
 import type {
   AddonOffer,
   OwnedHandlerContext,
+  PaxBandSpec,
   PricingBasis,
   ProductVariantOption,
 } from "@voyant-travel/catalog/booking-engine"
+import { paxBandBaseCode } from "@voyant-travel/catalog/booking-engine"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { and, eq, gte, isNull, lte, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -118,6 +120,8 @@ export async function priceOptionSelections(input: {
   travelerAssignments?: Record<string, string>
   /** Traveler band by draft row key, used to scope category pricing to assigned rooms. */
   travelerBands?: Record<string, string>
+  /** The bands the shopper was offered, used to label the per-band lines. */
+  paxBands?: ReadonlyArray<PaxBandSpec> | undefined
 }): Promise<PricedQuote> {
   const lines: PricedLine[] = []
   let totalCents = 0
@@ -216,7 +220,7 @@ export async function priceOptionSelections(input: {
           band,
           cents: row.sellAmountCents ?? 0,
           count,
-          label: `${unitLabel} — ${band}`,
+          label: `${unitLabel} — ${paxBandLabel(band, input.paxBands)}`,
           optionId: selection.optionId,
           ...(selection.optionUnitId ? { optionUnitId: selection.optionUnitId } : {}),
         })
@@ -536,6 +540,15 @@ export function bookingExtraLinesFromAddonSelections(input: {
  * item lines. Deriving both from one function is what keeps the quote and the
  * commit from disagreeing about which units a person-priced product reserves.
  */
+/**
+ * The operator's own name for a band ("Child 6-12"), for quote lines and
+ * booking item titles. Falls back to the raw code when the bands are not to
+ * hand — legible for a canonical code, and never worse than not labelling.
+ */
+export function paxBandLabel(code: string, bands: ReadonlyArray<PaxBandSpec> | undefined): string {
+  return bands?.find((band) => band.code === code)?.label ?? code
+}
+
 export interface PaxBandUnitCharge {
   unitId: string
   travelerCategory: string
@@ -551,10 +564,13 @@ export function paxBandUnitCharges(
   const claimed = new Set<string>()
   return sortedByOperatorOrder(resolvedPrice.unitPrices).flatMap((unit) => {
     if (!unit.travelerCategory) return []
-    // One unit per band. `deriveTravelerCategory` collapses every age tier
-    // under 18 onto `child`, so an operator selling "Child 6-12" and
-    // "Child 0-5" has two units competing for one band. Charging both bills
-    // the same child twice and reserves two seats for them (voyant#4118).
+    // One unit per band. A price row tied to a pricing category now carries
+    // that tier's own band code, so "Child 6-12" and "Child 0-5" no longer
+    // contend and this guard never fires for them (voyant#4121). It still
+    // holds for price rows with no pricing category, where the band is
+    // derived from the unit's age window and `deriveTravelerCategory`
+    // collapses every tier under 18 onto `child`: charging both would bill
+    // the same child twice and reserve two seats (voyant#4118).
     if (claimed.has(unit.travelerCategory)) return []
     const count = pax?.[unit.travelerCategory] ?? 0
     if (count <= 0) return []
@@ -617,6 +633,8 @@ export function priceQuote(input: {
   /** Option the resolved price belongs to, stamped onto the band lines as
    *  quote provenance so the commit can match them back to its item lines. */
   optionId?: string | null
+  /** The bands the shopper was offered, used to label the per-band lines. */
+  paxBands?: ReadonlyArray<PaxBandSpec> | undefined
 }): PricedQuote {
   const { product, resolvedPrice, pax, effectivePax } = input
 
@@ -628,7 +646,7 @@ export function priceQuote(input: {
       total += lineTotal
       return {
         kind: "base",
-        label: `${product.name} — ${charge.travelerCategory}`,
+        label: `${product.name} — ${paxBandLabel(charge.travelerCategory, input.paxBands)}`,
         quantity: charge.count,
         unitAmount: charge.sellAmountCents,
         totalAmount: lineTotal,
@@ -748,29 +766,79 @@ export function bookingItemLinesFromPaxBands(input: {
  * price to derive from, but the units still exist and each pax band still has
  * to reserve one.
  *
- * Bands map onto units by the unit's own age window (`deriveTravelerCategory`,
- * the same rule the price resolver uses). When two units derive the same band
- * — "Child 6-12" and "Child 0-5" both derive `child` — the first in sort order
- * takes the whole band's count rather than each taking it in full, which would
- * reserve the party twice. A band with no matching unit is dropped: the option
- * has nothing to reserve for it, and inventing a unit would bill a traveler
- * against someone else's rate.
+ * When the shape's bands are known, each band claims the unit whose own age
+ * window it falls inside — so "Child 0-5" reserves the 0-5 unit and
+ * "Child 6-12" the 6-12 one, rather than both landing on whichever unit sorts
+ * first. Two bands never share a unit.
+ *
+ * Without bands (or when none matched by age) the mapping falls back to the
+ * unit's derived category, the same rule the price resolver uses. There, two
+ * units deriving the same band — "Child 6-12" and "Child 0-5" both derive
+ * `child` — mean the first in sort order takes the whole band's count rather
+ * than each taking it in full, which would reserve the party twice.
+ *
+ * A band with no matching unit is dropped: the option has nothing to reserve
+ * for it, and inventing a unit would bill a traveler against someone else's
+ * rate.
  */
 export function bookingItemLinesFromPaxBandUnits(input: {
   optionId: string
   units: ReadonlyArray<OptionUnitBandCandidate>
   pax: Partial<Record<string, number>> | undefined
+  /** The bands the shopper was offered, in the order the journey showed them. */
+  bands?: ReadonlyArray<PaxBandSpec> | undefined
 }): SelfServiceItemLines | undefined {
-  const claimed = new Set<string>()
-  const lines = input.units.flatMap((unit) => {
+  const claimedUnits = new Set<string>()
+  const lines: SelfServiceItemLines = []
+
+  for (const band of input.bands ?? []) {
+    const quantity = input.pax?.[band.code] ?? 0
+    if (quantity <= 0) continue
+    const unit = findUnitForBand(input.units, band, claimedUnits)
+    if (!unit) continue
+    claimedUnits.add(unit.id)
+    lines.push({ optionId: input.optionId, optionUnitId: unit.id, quantity })
+  }
+  if (lines.length > 0) return lines
+
+  const claimedBands = new Set<string>()
+  const derived = input.units.flatMap((unit) => {
     const band = deriveTravelerCategory(unit)
-    if (!band || claimed.has(band)) return []
+    if (!band || claimedBands.has(band)) return []
     const quantity = input.pax?.[band] ?? 0
     if (quantity <= 0) return []
-    claimed.add(band)
+    claimedBands.add(band)
     return [{ optionId: input.optionId, optionUnitId: unit.id, quantity }]
   })
-  return lines.length > 0 ? lines : undefined
+  return derived.length > 0 ? derived : undefined
+}
+
+/**
+ * The unit a band reserves: same traveler category, and — when both declare
+ * one — overlapping age windows, so a tiered band lands on its own unit
+ * rather than on the first unit of its category.
+ */
+function findUnitForBand(
+  units: ReadonlyArray<OptionUnitBandCandidate>,
+  band: PaxBandSpec,
+  claimedUnits: ReadonlySet<string>,
+): OptionUnitBandCandidate | undefined {
+  const base = paxBandBaseCode(band.code)
+  const candidates = units.filter(
+    (unit) => !claimedUnits.has(unit.id) && deriveTravelerCategory(unit) === base,
+  )
+  return candidates.find((unit) => ageWindowsOverlap(unit, band)) ?? candidates[0]
+}
+
+function ageWindowsOverlap(
+  unit: { minAge: number | null; maxAge: number | null },
+  band: { minAge?: number; maxAge?: number },
+): boolean {
+  const unitMin = unit.minAge ?? 0
+  const unitMax = unit.maxAge ?? Number.POSITIVE_INFINITY
+  const bandMin = band.minAge ?? 0
+  const bandMax = band.maxAge ?? Number.POSITIVE_INFINITY
+  return unitMin <= bandMax && bandMin <= unitMax
 }
 
 interface AcceptedBasePriceLine {

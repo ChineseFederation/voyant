@@ -262,7 +262,8 @@ describe("createProductsBookingHandler.computeQuote", () => {
     const lines = breakdown?.lines as Array<{ label: string; quantity: number; unitAmount: number }>
     expect(lines).toHaveLength(1)
     expect(lines[0]).toEqual(
-      expect.objectContaining({ quantity: 2, unitAmount: 40000, label: "Double — adult" }),
+      // The band's label, not its code — the shopper reads this line.
+      expect.objectContaining({ quantity: 2, unitAmount: 40000, label: "Double — Adult" }),
     )
   })
 

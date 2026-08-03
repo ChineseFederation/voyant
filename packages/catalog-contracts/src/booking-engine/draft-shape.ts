@@ -33,7 +33,12 @@
 /** A single occupancy band — adult / child / infant or vertical-specific. */
 export interface PaxBandSpec {
   /** Stable code; `"adult" | "child" | "infant"` are the canonical
-   *  three. Verticals may add senior / student / etc. */
+   *  three. Verticals may add senior / student / etc.
+   *
+   *  A product that sells several tiers of one category ("Child 6-12"
+   *  and "Child 0-5") qualifies the second and later tiers as
+   *  `child:<tierId>` so each is separately countable and separately
+   *  priced — see `paxBandBaseCode`. */
   code: string
   /** Human-readable label rendered next to the count stepper. */
   label: string
@@ -332,6 +337,44 @@ export const DEFAULT_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
 
 /** Sensible default total-pax window. Verticals override per product. */
 export const DEFAULT_PAX_TOTAL = { min: 1, max: 8 } as const
+
+/**
+ * Separator between a pax band's canonical traveler category and the
+ * discriminator that makes a second tier of that category addressable.
+ *
+ * An operator selling "Child 6-12" at one price and "Child 0-5" at
+ * another needs two countable bands, but everything downstream of the
+ * journey — booking traveler categories, supplier commitments, contract
+ * variables — still speaks the four canonical categories. Qualifying the
+ * code rather than inventing a new one keeps both true: the tier is
+ * addressable, and its category is still readable off the code.
+ *
+ * The first tier of each category keeps the bare code, so a product with
+ * one tier per category emits exactly the codes it emitted before tiers
+ * existed and sessions/quotes stored against them keep resolving.
+ */
+export const PAX_BAND_TIER_SEPARATOR = ":"
+
+/**
+ * The canonical traveler category a band code belongs to.
+ * `"child"` → `"child"`; `"child:pricing_categories_01j…"` → `"child"`.
+ *
+ * Read this — never the raw code — when mapping a band onto something
+ * that is typed as one of the four categories.
+ */
+export function paxBandBaseCode(code: string): string {
+  const index = code.indexOf(PAX_BAND_TIER_SEPARATOR)
+  return index === -1 ? code : code.slice(0, index)
+}
+
+/**
+ * Qualify a band code for a tier of an already-claimed category.
+ * `tierId` is whatever identifies the tier stably for the product — the
+ * pricing category id where one exists, the option unit otherwise.
+ */
+export function paxBandTierCode(baseCode: string, tierId: string): string {
+  return `${baseCode}${PAX_BAND_TIER_SEPARATOR}${tierId}`
+}
 
 /**
  * Canonical engine-level allow list of payment intents a booking

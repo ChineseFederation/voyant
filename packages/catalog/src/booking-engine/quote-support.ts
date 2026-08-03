@@ -1,5 +1,6 @@
 import type { PricingBasis } from "../snapshot/schema.js"
 import { type PricingBreakdownV1, type QuoteResponseV1, quoteResponseV1 } from "./contracts.js"
+import { paxBandBaseCode } from "./draft-shape.js"
 import type { QuoteEntityResult } from "./quote.js"
 
 /**
@@ -160,8 +161,14 @@ function mapPackageTraveler(
   }
 }
 
+/**
+ * Canonical traveler category for a pax band code. A product selling
+ * several tiers of one category qualifies the band ("child:pricing_…"),
+ * and the package supplier is only ever told the category.
+ */
 function packageTravelerCategory(value: string | null): "adult" | "child" | "infant" | "senior" {
-  if (value === "child" || value === "infant" || value === "senior") return value
+  const base = value == null ? null : paxBandBaseCode(value)
+  if (base === "child" || base === "infant" || base === "senior") return base
   return "adult"
 }
 

@@ -2,8 +2,23 @@
 
 import { z } from "zod"
 
+/** The canonical traveler categories a pax band can belong to. */
 export const paxBandCodeSchema = z.enum(["adult", "child", "infant", "senior", "student", "other"])
 export type PaxBandCode = z.infer<typeof paxBandCodeSchema>
+
+/**
+ * A band code as it travels on the wire. Either a canonical code or a
+ * tier-qualified one (`"child:pricing_categories_01j…"`) for a product
+ * selling several tiers of one category — see `paxBandBaseCode` in
+ * `draft-shape.ts`.
+ *
+ * Deliberately open: the wizard learns the active bands off the
+ * descriptor, and the descriptor is per product. Narrowing this to an
+ * enum is what made a second child tier unrepresentable (voyant#4121).
+ * Every canonical code stays valid, so drafts written before tiers
+ * existed still parse.
+ */
+export const travelerBandCodeSchema = z.string().min(1).max(128)
 
 const optionalEmailStringV1 = z.union([z.literal(""), z.email()])
 
@@ -20,7 +35,7 @@ export const travelerEntryV1 = z.object({
    *  an existing contact. Lets the picker reflect the selection and the
    *  commit path attach the traveler to a known person. */
   personId: z.string().optional(),
-  band: paxBandCodeSchema.default("adult"),
+  band: travelerBandCodeSchema.default("adult"),
   dateOfBirth: z.string().optional(), // ISO yyyy-mm-dd
   /**
    * Open-shape document map populated according to the descriptor's

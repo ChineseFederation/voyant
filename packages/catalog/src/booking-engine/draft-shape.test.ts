@@ -6,8 +6,29 @@ import {
   defaultBookingFields,
   defaultDraftShapeFlags,
   defaultTravelerFields,
+  paxBandBaseCode,
   paxBandsAllowedTotalFrom,
+  paxBandTierCode,
 } from "./draft-shape.js"
+
+describe("pax band tier codes", () => {
+  it("leaves a canonical code untouched", () => {
+    // What a product with one tier per category emits, and what every draft
+    // written before tiers existed carries.
+    expect(paxBandBaseCode("adult")).toBe("adult")
+    expect(paxBandBaseCode("child")).toBe("child")
+  })
+
+  it("reads the category back off a tier-qualified code", () => {
+    const code = paxBandTierCode("child", "pricing_categories_01j")
+    expect(code).toBe("child:pricing_categories_01j")
+    expect(paxBandBaseCode(code)).toBe("child")
+  })
+
+  it("stops at the first separator so an id containing one still resolves", () => {
+    expect(paxBandBaseCode("child:a:b")).toBe("child")
+  })
+})
 
 describe("defaultDraftShapeFlags", () => {
   it("returns the canonical flag set: configure + billing + travelers + payment + review on, accommodation + addons off", () => {
