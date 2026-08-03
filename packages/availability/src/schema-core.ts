@@ -104,6 +104,24 @@ export const availabilitySlots = pgTable(
   {
     id: typeId("availability_slots"),
     productId: text("product_id").notNull(),
+    /**
+     * The immutable Product Version this departure was materialized from.
+     *
+     * A departure must be able to name the exact Product definition it was
+     * sold against, and later Product edits must not silently rewrite it
+     * (#4032, under the model accepted in #4027).
+     *
+     * A soft reference, deliberately: `product_versions` is owned by Inventory
+     * and a cross-domain foreign key would violate schema discipline. It stays
+     * a plain text column exactly like `product_id` above.
+     *
+     * Nullable, because slots created before this column existed have no
+     * recorded version. Those legacy rows are reported for operator review
+     * rather than being assigned a version by inference — guessing which
+     * definition an already-sold departure ran under is worse than admitting
+     * it is unknown.
+     */
+    productVersionId: text("product_version_id"),
     itineraryId: text("itinerary_id"),
     optionId: text("option_id"),
     facilityId: text("facility_id"),
@@ -134,6 +152,10 @@ export const availabilitySlots = pgTable(
   },
   (table) => [
     index("idx_availability_slots_product_starts_at").on(table.productId, table.startsAt),
+    // Backs both directions of the version binding: "which departures ran on
+    // this version" (impact preview before a Product edit) and the legacy
+    // report's scan for departures with no version recorded.
+    index("idx_availability_slots_product_version").on(table.productVersionId),
     index("idx_availability_slots_itinerary_starts_at").on(table.itineraryId, table.startsAt),
     index("idx_availability_slots_option_starts_at").on(table.optionId, table.startsAt),
     index("idx_availability_slots_facility_starts_at").on(table.facilityId, table.startsAt),

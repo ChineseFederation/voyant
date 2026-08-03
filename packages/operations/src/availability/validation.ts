@@ -176,6 +176,13 @@ export const availabilityStartTimeListQuerySchema = paginationSchema.extend({
 
 export const availabilitySlotCoreSchema = z.object({
   productId: z.string(),
+  /**
+   * The Product Version this departure operates from. Normally resolved at
+   * creation from the product's currently published version; supply it
+   * explicitly to materialize a departure against a specific version. Null
+   * when the product has never been published or for legacy rows (#4032).
+   */
+  productVersionId: z.string().nullable().optional(),
   itineraryId: z.string().nullable().optional(),
   optionId: z.string().nullable().optional(),
   facilityId: z.string().nullable().optional(),

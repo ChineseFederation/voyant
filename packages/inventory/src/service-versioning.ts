@@ -87,6 +87,33 @@ export async function ensureProductVersionOnPublish(
   return { created: true, versionNumber: created.versionNumber, versionId: created.id }
 }
 
+/**
+ * The Product Version a departure created *now* should be bound to: the
+ * product's highest version number, which is the one publish most recently
+ * froze.
+ *
+ * Deterministic by construction — version numbers are assigned monotonically
+ * per product, so "current" never depends on wall-clock time or row order.
+ * Returns `null` when the product has never been published; callers record
+ * that as an unbound departure rather than inventing a version (#4032).
+ *
+ * Exposed for the deployment to wire into Operations' slot creation, which
+ * cannot read `product_versions` itself without closing a dependency cycle.
+ */
+export async function resolveCurrentProductVersionId(
+  db: PostgresJsDatabase,
+  productId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ id: productVersions.id })
+    .from(productVersions)
+    .where(eq(productVersions.productId, productId))
+    .orderBy(desc(productVersions.versionNumber))
+    .limit(1)
+
+  return row?.id ?? null
+}
+
 function toRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

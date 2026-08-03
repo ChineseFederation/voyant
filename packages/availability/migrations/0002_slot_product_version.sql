@@ -1,0 +1,2 @@
+ALTER TABLE "availability_slots" ADD COLUMN "product_version_id" text;--> statement-breakpoint
+CREATE INDEX "idx_availability_slots_product_version" ON "availability_slots" USING btree ("product_version_id");

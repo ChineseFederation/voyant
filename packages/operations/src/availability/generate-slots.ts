@@ -23,6 +23,20 @@ export type GenerateAvailabilitySlotsOptions = {
    * pax-aware materialisation via the admin route. Defaults to true.
    */
   materializeResources?: boolean
+  /**
+   * Resolves the Product Version each freshly-generated departure is bound to
+   * — the product's currently published version, or `null` when it has never
+   * been published.
+   *
+   * Resolved once per rule rather than per slot: a generation run materializes
+   * against the version current when the run starts, so one run cannot produce
+   * departures split across two definitions. Already-generated departures are
+   * never rewritten by a later run.
+   *
+   * Supplied by the deployment; `product_versions` is Inventory-owned and
+   * Inventory already depends on Operations. See #4032.
+   */
+  resolveCurrentProductVersionId?: (productId: string) => Promise<string | null>
 }
 
 export type GenerateAvailabilitySlotsResult = {
@@ -92,9 +106,15 @@ export async function generateAvailabilitySlots(
     const minute = Number.parseInt(mm ?? "0", 10) || 0
 
     const startTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+    // Resolved once per rule so a single run cannot split its departures
+    // across two Product Versions if a publish lands mid-run.
+    const productVersionId =
+      (await options.resolveCurrentProductVersionId?.(rule.productId)) ?? null
+
     const rows = toInsert.map((dateLocal) => {
       return {
         productId: rule.productId,
+        productVersionId,
         optionId: rule.optionId,
         facilityId: rule.facilityId,
         availabilityRuleId: rule.id,

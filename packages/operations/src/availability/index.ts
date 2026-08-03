@@ -77,6 +77,13 @@ export {
   generateAvailabilitySlots,
 } from "./generate-slots.js"
 export {
+  countDeparturesOnVersion,
+  listUnboundDepartures,
+  reportUnboundDepartures,
+  type UnboundDeparture,
+  type UnboundDepartureReport,
+} from "./service-aggregates.js"
+export {
   type AllocationManifestBooking,
   type AllocationManifestTraveler,
   getSlotAllocationManifest,

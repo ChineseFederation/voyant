@@ -56,6 +56,12 @@ export {
   type ProductReadinessOptions,
   type ProductReadinessSubject,
 } from "./service-readiness.js"
+export {
+  type EnsureProductVersionInput,
+  type EnsureProductVersionOutcome,
+  ensureProductVersionOnPublish,
+  resolveCurrentProductVersionId,
+} from "./service-versioning.js"
 export const productsModule: Module = {
   name: "products",
   linkable: productsCompatibilityLinkable,

@@ -15,6 +15,13 @@
       "when": 1784090529380,
       "tag": "20260715044209_booking_hold_conversion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785777005358,
+      "tag": "0002_slot_product_version",
+      "breakpoints": true
     }
   ]
 }
