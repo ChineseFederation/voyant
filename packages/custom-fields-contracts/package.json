@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/custom-fields-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Custom field definition contracts for app publishers and external consumers, without the custom-fields runtime.",
   "license": "Apache-2.0",
   "type": "module",
