@@ -1,5 +1,140 @@
 # @voyant-travel/inventory
 
+## 0.28.0
+
+### Minor Changes
+
+- 06a79a0: Stop treating Extras as independently sellable catalog inventory.
+
+  An Extra — an optional lunch, an attraction ticket — is lifecycle-dependent on
+  the Product Booking that carries it. It is authored on the Product's Plan and
+  Options, selected while the Booking is made, and fulfilled on the Departure. It
+  was nonetheless still modelled as a first-class catalog vertical: it had a
+  browse tab, filters, an entry in `DEFAULT_CATALOG_VERTICALS`, and document
+  builders that could write it into the search index.
+
+  `PRODUCT_OWNED_VERTICALS` in `@voyant-travel/catalog-contracts/indexer/contract`
+  now names the verticals that exist only so their parent can freeze a booking
+  snapshot, with `isProductOwnedVertical` / `owningVerticalFor` to read it.
+  Consequently:
+
+  - `extras` leaves `DEFAULT_CATALOG_VERTICALS`, so no extras slice or collection
+    is provisioned and nothing can be indexed into one.
+  - `POST /v1/{admin,public}/catalog/search` answers a product-owned vertical with
+    `400 { reason: "not_independently_sellable", ownedBy }` instead of silently
+    returning nothing, so an old deep link can explain itself.
+  - The shared Catalog page drops the Extras tab, its columns and its filters, and
+    renders a compatibility notice for `?tab=extras` pointing at the owning
+    Product rather than falling through to a different result set.
+  - `@voyant-travel/inventory/extras` no longer exports `createExtraDocumentBuilder`
+    or `createExtraDocumentEmitter`; every extras field policy is now
+    `reindex: "none"`. Snapshot and provenance helpers are unchanged — they are how
+    the owning Product records what it sold.
+  - `CatalogVertical` in the Trip composer no longer admits `extras`.
+
+  `verify:extras-lifecycle` holds the line, and also refuses any migration that
+  would promote an existing Extra into a Product or Component Booking — that is a
+  commercial decision an operator makes deliberately, not a backfill.
+
+- 038a576: Evaluate product publish readiness once, expose it as a read, and freeze a
+  Product Version when publication changes how a departure would operate.
+
+  Publish readiness was a single check — a scheduled product needed one future
+  open departure — thrown only when a publish attempt was refused. An operator
+  had no way to see what was missing before trying, and the reasons a product
+  could not be sold (no default option, no units, no price, a multi-day product
+  with no itinerary) were not among them.
+
+  `evaluateProductReadiness` is now the one evaluator, shared by the admin API
+  and the publish gate so a readiness panel and a 422 can never disagree. It is a
+  pure function over already-loaded facts; `service-readiness.ts` loads them.
+  Issues carry a stable `code`, the `field` to fix, and a new `severity`:
+
+  - `blocking` refuses publication — missing/inactive default option, no option
+    units, no price, and for multi-day products a missing, empty, or
+    non-consecutive itinerary, alongside the existing departure check.
+  - `warning` permits it — unresolved duration, missing family, no capacity
+    source, no meeting point, no allocation template, uncosted planned services,
+    missing description/default language/contract template, and no active
+    channel. Per the product model RFC a product with an unresolved duration or
+    family stays discoverable and raises an actionable warning instead of
+    silently disappearing from a view.
+
+  Checks are gated on behaviour — booking mode, capacity mode, resolved
+  duration, composition — never on the merchandising family, so a 60-minute Boat
+  Tour and a seven-day coach Tour are asked for different things by the same
+  evaluator. Dynamically supplied products (`open`, `stay`) are still never asked
+  for a departure, and a product being created is not refused for child rows it
+  has had no opportunity to author yet.
+
+  New: `GET /products/{id}/readiness` returns `ready`, `blocking`, `warnings`,
+  and the combined `issues`. `severity` was added additively to the existing
+  422 `product_not_ready_to_publish` payload, which still carries only blocking
+  issues.
+
+  Publishing an active product whose operationally relevant definition changed
+  now creates an immutable Product Version automatically. Comparison covers the
+  product columns a departure depends on plus the structure it materializes from
+  (options, units, itineraries, days, day services); marketing copy, media, and
+  record timestamps are excluded, so rewording a description does not invalidate
+  a sold departure's provenance. Re-publishing an unchanged product creates
+  nothing. `buildSnapshot` is split out of `createVersion` so the candidate is
+  compared before anything is written.
+
+  Distribution stays a non-dependency of inventory: the channel check is
+  supplied through an optional `resolveActiveChannelCount` and skipped — not
+  guessed — when a deployment cannot resolve it.
+
+### Patch Changes
+
+- 2df8a92: Charge and reserve one unit when several option units collapse onto the same
+  pax band.
+
+  `deriveTravelerCategory` maps every age tier under 18 onto `child`, so an
+  operator selling "Child 6-12" alongside "Child 0-5" has two units competing for
+  one band. `paxBandUnitCharges` had no record of which bands were already
+  spoken for, so each unit contributed a full line carrying the whole band count.
+  For `pax = { adult: 1, child: 1 }` against units priced 16000 / 13600 / 10400,
+  the quote totalled 40000 for two travelers, and since voyant#4117 the commit
+  also wrote three booking item lines and reserved three seats (voyant#4118).
+
+  The overcharge predates voyant#4117 — `priceQuote` always had the ungated loop —
+  but that change propagated it from the price into the reservation, which is the
+  part that consumes departure capacity.
+
+  A band is now claimed by exactly one unit, which is the rule the room path has
+  always applied: `priceOptionSelections` keys its per-band prices on
+  `option + band` and takes the first. The person-priced path was the outlier.
+
+  The operator's `option_units.sort_order` decides the winner, so a contested band
+  resolves to something the operator controls rather than to an accident of query
+  planning. `sort_order` now travels on `ResolvedUnitPrice` and the charge list is
+  sorted by it, with `unitId` breaking ties. This matters for correctness, not
+  just predictability: `option_unit_price_rules` is selected with no `ORDER BY`,
+  and the quote and the commit resolve prices in two separate calls, so a
+  first-row-wins rule over unsorted rows could have picked one tier when quoting
+  and another when committing.
+
+  A zero-priced unit still does not claim a band. Free units produced no quote
+  line and no reservation before this change, and letting one win a contested band
+  would have quietly stopped charging for that band altogether.
+
+  This does not make an operator with several child tiers expressible. The journey
+  still collects one `child` count, so which tier the traveler belongs to remains
+  unknown and the price for a contested band is still a guess — it is simply the
+  operator's guess now, made once, instead of every tier being billed at once.
+  Collecting pax per tier is the real fix and is tracked separately.
+
+- Updated dependencies [06a79a0]
+- Updated dependencies [06a79a0]
+  - @voyant-travel/finance@0.238.0
+  - @voyant-travel/bookings@0.238.0
+  - @voyant-travel/catalog@0.237.0
+  - @voyant-travel/commerce@0.47.4
+  - @voyant-travel/operator-settings@0.17.14
+  - @voyant-travel/operations@0.13.7
+  - @voyant-travel/products-contracts@0.108.6
+
 ## 0.27.9
 
 ### Patch Changes

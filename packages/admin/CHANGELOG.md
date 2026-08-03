@@ -1,5 +1,12 @@
 # @voyant-travel/admin
 
+## 0.134.2
+
+### Patch Changes
+
+- Updated dependencies [06a79a0]
+  - @voyant-travel/i18n@0.120.0
+
 ## 0.134.1
 
 ### Patch Changes

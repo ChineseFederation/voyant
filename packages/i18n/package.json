@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/i18n",
-  "version": "0.119.4",
+  "version": "0.120.0",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
