@@ -11,25 +11,15 @@ import {
 } from "./service-allocation.js"
 import {
   createCloseout,
-  createRule,
   createSlot,
-  createStartTime,
   deleteCloseout,
-  deleteRule,
   deleteSlot,
-  deleteStartTime,
   getCloseoutById,
-  getRuleById,
   getSlotById,
-  getStartTimeById,
   listCloseouts,
-  listRules,
   listSlots,
-  listStartTimes,
   updateCloseout,
-  updateRule,
   updateSlot,
-  updateStartTime,
 } from "./service-core.js"
 import { getAvailabilityOverview } from "./service-overview.js"
 import {
@@ -69,6 +59,18 @@ import {
   updatePickupPoint,
   updateSlotPickup,
 } from "./service-pickups.js"
+import {
+  createRule,
+  createStartTime,
+  deleteRule,
+  deleteStartTime,
+  getRuleById,
+  getStartTimeById,
+  listRules,
+  listStartTimes,
+  updateRule,
+  updateStartTime,
+} from "./service-rules.js"
 import { getSlotUnitAvailability } from "./service-unit-availability.js"
 
 export const availabilityService = {

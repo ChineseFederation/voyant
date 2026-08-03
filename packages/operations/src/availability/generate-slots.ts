@@ -1,6 +1,7 @@
 import { availabilityRules, availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, eq, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { resolveCurrentProductVersionId } from "./products-ref.js"
 import { expandRRule } from "./rrule.js"
 import { materializeSlotResourcesFromTemplateDefaults } from "./service-allocation-automation.js"
 import { localToInstant } from "./slot-timezone.js"
@@ -33,8 +34,8 @@ export type GenerateAvailabilitySlotsOptions = {
    * departures split across two definitions. Already-generated departures are
    * never rewritten by a later run.
    *
-   * Supplied by the deployment; `product_versions` is Inventory-owned and
-   * Inventory already depends on Operations. See #4032.
+   * Defaults to reading the product's highest version number directly. Supply
+   * an override to materialize a run against a specific definition. See #4032.
    */
   resolveCurrentProductVersionId?: (productId: string) => Promise<string | null>
 }
@@ -108,8 +109,9 @@ export async function generateAvailabilitySlots(
     const startTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
     // Resolved once per rule so a single run cannot split its departures
     // across two Product Versions if a publish lands mid-run.
-    const productVersionId =
-      (await options.resolveCurrentProductVersionId?.(rule.productId)) ?? null
+    const productVersionId = options.resolveCurrentProductVersionId
+      ? await options.resolveCurrentProductVersionId(rule.productId)
+      : await resolveCurrentProductVersionId(db, rule.productId)
 
     const rows = toInsert.map((dateLocal) => {
       return {
