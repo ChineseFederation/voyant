@@ -1,5 +1,7 @@
 # @voyant-travel/auth-react
 
+## 0.150.8
+
 ## 0.150.7
 
 ## 0.150.6

@@ -1,5 +1,12 @@
 # @voyant-travel/plugin-voyant-connect
 
+## 0.6.0
+
+### Patch Changes
+
+- @voyant-travel/catalog@0.233.0
+- @voyant-travel/cruises@0.234.0
+
 ## 0.5.0
 
 ### Minor Changes
