@@ -1,5 +1,24 @@
 # @voyant-travel/catalog
 
+## 0.234.0
+
+### Minor Changes
+
+- eeaa5b5: Make Booking Sessions the sole Booking Platform v1 pre-commit lifecycle.
+
+  The transactional beta-data cutover verifies genuine commitments, releases
+  owned capacity, preserves resumable staff attempts as canonical Sessions,
+  redacts disposable attempts into audited tombstones, and then removes
+  `booking_drafts`. The duplicate quote/draft/hold routes, draft capability,
+  reaper, low-level quote tool, and deployment source-provider gate are removed.
+
+### Patch Changes
+
+- Updated dependencies [eeaa5b5]
+  - @voyant-travel/catalog-contracts@0.115.1
+  - @voyant-travel/finance@0.236.0
+  - @voyant-travel/bookings@0.236.0
+
 ## 0.233.0
 
 ### Patch Changes
