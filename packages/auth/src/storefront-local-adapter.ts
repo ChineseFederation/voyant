@@ -370,21 +370,26 @@ export function createLocalStorefrontAdapter(options: {
       origin: string,
     ): Promise<StorefrontDto | null> {
       // Preflight authorization is keyless, so it cannot select a single
-      // storefront up front. Exact-origin entries are filtered in SQL via array
+      // storefront up front. Exact-origin entries are filtered in SQL via
       // containment; wildcard (`https://*.host`) declarations are matched in
       // memory over the small self-host storefront set. Multiple matches are
       // rejected so keyless preflight cannot authorize an ambiguous origin.
+      //
+      // `allowed_origins` is a jsonb array, not a Postgres text[]. Both filters
+      // below have to speak jsonb: `jsonb @> text[]` and `unnest(jsonb)` do not
+      // exist, so the text[] forms failed to plan and every origin-bearing
+      // request 500ed regardless of the stored data.
       const exactMatches = await context.db
         .select()
         .from(storefronts)
-        // agent-quality: raw-sql reviewed -- Postgres text[] containment authorizes the exact declared origin without loading every row.
-        .where(sql`${storefronts.allowedOrigins} @> ARRAY[${origin}]::text[]`)
+        // agent-quality: raw-sql reviewed -- jsonb containment authorizes the exact declared origin without loading every row.
+        .where(sql`${storefronts.allowedOrigins} @> ${JSON.stringify([origin])}::jsonb`)
       const wildcardCandidates = await context.db
         .select()
         .from(storefronts)
         // agent-quality: raw-sql reviewed -- Only rows carrying a wildcard origin declaration are considered for the in-memory match.
         .where(
-          sql`EXISTS (SELECT 1 FROM unnest(${storefronts.allowedOrigins}) AS o WHERE o LIKE 'https://*.%')`,
+          sql`EXISTS (SELECT 1 FROM jsonb_array_elements_text(${storefronts.allowedOrigins}) AS o WHERE o LIKE 'https://*.%')`,
         )
       const wildcardMatches = wildcardCandidates.filter((row) =>
         isStorefrontOriginAllowed(origin, row.allowedOrigins),

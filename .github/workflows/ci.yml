@@ -365,6 +365,8 @@ jobs:
                 tests/integration/durable-sourcing.test.ts
               pnpm --filter @voyant-travel/flights exec vitest run \
                 tests/integration/durable-action-command.test.ts
+              pnpm --filter @voyant-travel/auth exec vitest run \
+                tests/integration/local-storefront.test.ts
               ;;
           esac
 
