@@ -47,6 +47,7 @@ import { securityHeaders } from "./middleware/security-headers.js"
 import { resolveSurfaceMountPath } from "./mount-paths.js"
 import { noopReporter, safeCaptureException } from "./observability/reporter.js"
 import { getRequestId } from "./observability/request-context.js"
+import { assembleBodyKeyedCachePaths } from "./public-cache-paths.js"
 import type { VoyantAppConfig, VoyantBindings, VoyantDb, VoyantVariables } from "./types.js"
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"])
@@ -246,6 +247,7 @@ export function mountApp<TBindings extends VoyantBindings>(
   ])
   const optionalCustomerAuthPaths = assembleOptionalCustomerAuthPaths(allModules, allExtensions)
   const clientAuthenticatedRoutes = assembleClientAuthenticatedRoutes(allModules)
+  const bodyKeyedCachePaths = assembleBodyKeyedCachePaths(allModules, allExtensions)
   const composedAuth = composeAuthAugmentations(config.auth, allModules)
   // When the framework owns the bus, route subscriber-dispatch failures
   // (including the workflow forwarder) to the reporter — they're otherwise
@@ -540,7 +542,14 @@ export function mountApp<TBindings extends VoyantBindings>(
   // route explicitly marks `Cache-Control: public, s-maxage=…` are
   // stored (see middleware docs).
   if (config.publicCache !== false) {
-    app.use("*", publicResponseCache(config.publicCache ?? {}))
+    app.use(
+      "*",
+      publicResponseCache({
+        // Module-declared body-keyed reads, unless the deployment named its own.
+        bodyKeyedPaths: bodyKeyedCachePaths,
+        ...(config.publicCache ?? {}),
+      }),
+    )
   }
 
   // Per-request outbox store factory: emits happen in route handlers,

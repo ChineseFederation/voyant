@@ -36,6 +36,22 @@ export interface PublicCacheOptions {
    * Defaults to `["x-api-key"]` (ADR 0021 §3).
    */
   keyHeaders?: string[]
+  /**
+   * Absolute paths whose public POST reads are keyed on the canonicalized
+   * request body in addition to the URL and the variant headers.
+   *
+   * Assembled from module `bodyKeyedCache` declarations, so a second cacheable
+   * body-keyed read is a declaration next to the route rather than a change to
+   * a proxy (ADR 0021 §2). Eligibility only; the response still has to mark
+   * itself `public, s-maxage=…` to be stored.
+   */
+  bodyKeyedPaths?: readonly string[]
+  /**
+   * Request bodies larger than this are not keyed — the request goes to the
+   * origin uncached. Default 64 KiB, matching the bound the Voyant Cloud
+   * dispatcher already applies to catalog search.
+   */
+  maxKeyedRequestBodyBytes?: number
 }
 
 const DEFAULT_PREFIXES = ["/v1/public/"]
@@ -49,6 +65,29 @@ const KV_KEY_PREFIX = "respcache:v2:"
 /** Cloudflare KV rejects expirationTtl below 60 seconds. */
 const KV_MIN_TTL_SECONDS = 60
 const DEFAULT_KEY_HEADERS = ["x-api-key"]
+const DEFAULT_MAX_KEYED_BODY_BYTES = 64 * 1024
+
+/**
+ * Body fields that make a response specific to one caller, anywhere in the
+ * request. Their presence takes the request to the origin uncached rather than
+ * letting a personalized answer be keyed as if it were shareable.
+ */
+const KEYED_BODY_BYPASS_FIELDS = new Set([
+  "query_embedding",
+  "queryEmbedding",
+  "caller_embedding",
+  "callerEmbedding",
+  "debug",
+  "preview",
+  "personalized",
+  "personalization",
+  "customer_id",
+  "customerId",
+  "session_id",
+  "sessionId",
+  "user_id",
+  "userId",
+])
 
 /**
  * Headers never persisted into the shared cache: per-request identifiers
@@ -117,6 +156,75 @@ async function variantDigest(values: Array<string | undefined>): Promise<string>
   const canonical = values.map((value) => value ?? "").join("\u0000")
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical))
   return hex(digest).slice(0, 32)
+}
+
+function normalizePath(path: string): string {
+  const trimmed = path.replace(/\/+$/, "")
+  return trimmed === "" ? "/" : trimmed
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+function hasBypassField(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasBypassField)
+  if (!isPlainObject(value)) return false
+  return Object.entries(value).some(
+    ([field, child]) => KEYED_BODY_BYPASS_FIELDS.has(field) || hasBypassField(child),
+  )
+}
+
+/**
+ * Stable text for a JSON body: object keys sorted at every depth, so two
+ * requests that differ only in property order share an entry.
+ */
+export function canonicalizeKeyedBody(value: unknown): string {
+  const canonical = (child: unknown): unknown => {
+    if (Array.isArray(child)) return child.map(canonical)
+    if (!isPlainObject(child)) return child
+    return Object.fromEntries(
+      Object.keys(child)
+        .sort()
+        .map((field) => [field, canonical(child[field])]),
+    )
+  }
+  return JSON.stringify(canonical(value))
+}
+
+/**
+ * Digest of a body-keyed request, or `null` when the request must not be
+ * cached at all: a query string (unknown parameters may gain meaning later and
+ * must not alias a body-only key), a non-JSON body, an oversized body, a body
+ * that is not a JSON object, or one carrying a caller-specific field.
+ */
+async function keyedRequestBodyDigest(request: Request, maxBytes: number): Promise<string | null> {
+  if (new URL(request.url).search.length > 0) return null
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return null
+  }
+  const declaredLength = Number(request.headers.get("content-length"))
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) return null
+
+  try {
+    // Clone: the route still has to read this body itself.
+    const bytes = new Uint8Array(await request.clone().arrayBuffer())
+    if (bytes.byteLength > maxBytes) return null
+    const body: unknown = JSON.parse(new TextDecoder().decode(bytes))
+    if (!isPlainObject(body)) return null
+    if (hasBypassField(body)) return null
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(canonicalizeKeyedBody(body)),
+    )
+    return hex(digest)
+  } catch {
+    // Unreadable or pathological JSON degrades to an origin request rather
+    // than turning canonicalization into a request failure.
+    return null
+  }
 }
 
 /** Test hook — resets the memoized Cache API probe state. */
@@ -284,9 +392,13 @@ export function publicResponseCache<TBindings extends VoyantBindings>(
   const maxKvBodyBytes = options.maxKvBodyBytes ?? DEFAULT_MAX_KV_BODY_BYTES
   const keyHeaders = options.keyHeaders ?? DEFAULT_KEY_HEADERS
 
+  const bodyKeyedPaths = new Set(options.bodyKeyedPaths ?? [])
+  const maxKeyedBodyBytes = options.maxKeyedRequestBodyBytes ?? DEFAULT_MAX_KEYED_BODY_BYTES
+
   return async (c, next) => {
-    if (c.req.method !== "GET") return next()
     const path = c.req.path
+    const isBodyKeyed = c.req.method === "POST" && bodyKeyedPaths.has(normalizePath(path))
+    if (c.req.method !== "GET" && !isBodyKeyed) return next()
     if (!prefixes.some((prefix) => path.startsWith(prefix))) return next()
     // A credentialed request is outside the shared representation contract:
     // it is neither served from nor stored into an entry other requesters
@@ -297,9 +409,15 @@ export function publicResponseCache<TBindings extends VoyantBindings>(
     const requestDirective = c.req.header("cache-control")?.toLowerCase() ?? ""
     const bypass = requestDirective.includes("no-cache") || requestDirective.includes("no-store")
 
+    // A body-keyed read has to be canonicalized before the route runs, and any
+    // condition that makes the body an unsafe key takes the request straight
+    // to the origin rather than caching it under a partial one.
+    const bodyDigest = isBodyKeyed ? await keyedRequestBodyDigest(c.req.raw, maxKeyedBodyBytes) : ""
+    if (isBodyKeyed && bodyDigest === null) return next()
+
     const key = kvKeyFor(
       c.req.url,
-      await variantDigest(keyHeaders.map((name) => c.req.header(name))),
+      await variantDigest([...keyHeaders.map((name) => c.req.header(name)), bodyDigest ?? ""]),
     )
     const kv = c.env.CACHE
 

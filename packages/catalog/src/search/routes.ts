@@ -331,12 +331,39 @@ export function createCatalogSearchApiModule(options: CatalogSearchRoutesOptions
     adminRoutes: createCatalogSearchRoutes({ ...options, surface: "admin" }),
     publicRoutes: createCatalogSearchRoutes({ ...options, surface: "public" }),
     optionalCustomerAuth: true,
+    // The public search read is keyed on its request body, so the framework
+    // caches it in-process and a self-hosted deployment gets the same
+    // behaviour a hosting proxy used to provide for managed ones only.
+    bodyKeyedCache: ["/search"],
   }
 }
 
 export function mountCatalogSearchRoutes(hono: HonoApp, options: CatalogSearchRoutesOptions): void {
   hono.route("/v1/admin/catalog", createCatalogSearchRoutes({ ...options, surface: "admin" }))
   hono.route("/v1/public/catalog", createCatalogSearchRoutes({ ...options, surface: "public" }))
+}
+
+/**
+ * Shared-cache policy for the public search read (ADR 0021, voyant#4091).
+ *
+ * Declared on the route so the framework's body-keyed cache and any edge tier
+ * in front of it read the same contract, instead of a proxy inventing a TTL
+ * for a hardcoded path. Applied to the public surface only — the staff surface
+ * is never shared-cached.
+ *
+ * A browse with no query term is the storefront's landing read: hottest, and
+ * the one whose result set changes least, so it gets the longer window. Both
+ * carry `stale-while-revalidate`, which is what keeps a lapse from handing the
+ * uncached search latency to whoever arrives first.
+ *
+ * The TTLs stay short deliberately: without a catalog projection generation in
+ * the cache key (voyant-travel/platform#1726) the clock is the only
+ * invalidation there is, so a longer window would just mean staler results
+ * with no bound but time.
+ */
+function setPublicSearchCacheHeaders(c: Context, body: CatalogSearchBody): void {
+  const sMaxage = (body.query ?? "").trim().length === 0 ? 60 : 30
+  c.header("Cache-Control", `public, s-maxage=${sMaxage}, stale-while-revalidate=300`)
 }
 
 async function handleSearch(
@@ -384,6 +411,7 @@ async function handleSearch(
       slice,
       request,
     })
+    if (options.surface === "public") setPublicSearchCacheHeaders(c, body)
     return c.json({
       vertical: body.vertical,
       mode: responseMode,

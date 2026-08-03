@@ -596,6 +596,226 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     expect(handler).toHaveBeenCalledTimes(2)
   })
 
+  describe("body-keyed POST reads", () => {
+    const SEARCH = "/v1/public/catalog/search"
+
+    function buildSearchApp(
+      kv: ReturnType<typeof fakeKv>,
+      handler: (body: unknown) => Response | Promise<Response>,
+    ) {
+      const app = new Hono<{ Bindings: TestBindings }>()
+      app.use("*", publicResponseCache({ bodyKeyedPaths: [SEARCH] }))
+      app.post(SEARCH, async (c) => handler(await c.req.json()))
+      const env = { DATABASE_URL: "postgres://localhost/test", CACHE: kv }
+      return {
+        post: (body: unknown, init?: RequestInit) =>
+          app.request(
+            SEARCH,
+            {
+              ...init,
+              method: "POST",
+              headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+              body: JSON.stringify(body),
+            },
+            testEnv(env),
+          ),
+      }
+    }
+
+    const cacheable = (payload: unknown) =>
+      new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
+        },
+      })
+
+    it("caches a declared body-keyed POST and serves the repeat from cache", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [1] }))
+      const app = buildSearchApp(kv, handler)
+
+      const first = await app.post({ vertical: "products", query: "crete" })
+      expect(first.status).toBe(200)
+      await flush()
+
+      const second = await app.post({ vertical: "products", query: "crete" })
+      expect(second.headers.get("x-voyant-cache")).toBe("hit")
+      expect(await second.json()).toEqual({ hits: [1] })
+      expect(handler).toHaveBeenCalledTimes(1)
+    })
+
+    it("keys on the body, so a different search is a different entry", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn((body: unknown) => cacheable(body))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post({ vertical: "products", query: "crete" })
+      await flush()
+      const other = await app.post({ vertical: "products", query: "rhodes" })
+      await flush()
+
+      expect(handler).toHaveBeenCalledTimes(2)
+      expect(await other.json()).toEqual({ vertical: "products", query: "rhodes" })
+    })
+
+    it("treats bodies differing only in key order as the same read", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post({ vertical: "products", query: "crete" })
+      await flush()
+      const reordered = await app.post({ query: "crete", vertical: "products" })
+
+      expect(reordered.headers.get("x-voyant-cache")).toBe("hit")
+      expect(handler).toHaveBeenCalledTimes(1)
+    })
+
+    it("never caches a POST to a path that did not declare itself", async () => {
+      const kv = fakeKv()
+      const app = new Hono<{ Bindings: TestBindings }>()
+      app.use("*", publicResponseCache({ bodyKeyedPaths: [SEARCH] }))
+      const handler = vi.fn(() => cacheable({ ok: true }))
+      app.post("/v1/public/catalog/quote", handler)
+      const env = { DATABASE_URL: "x", CACHE: kv }
+
+      await app.request(
+        "/v1/public/catalog/quote",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ vertical: "products" }),
+        },
+        testEnv(env),
+      )
+      await flush()
+
+      expect(kv.put).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ["a caller embedding", { vertical: "products", query_embedding: [0.1, 0.2] }],
+      ["a nested personalization id", { vertical: "products", filters: { customerId: "c_1" } }],
+      ["a preview flag", { vertical: "products", preview: true }],
+      ["a debug flag", { vertical: "products", debug: true }],
+    ])("bypasses the cache for a body carrying %s", async (_label, body) => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post(body)
+      await flush()
+
+      expect(kv.put).not.toHaveBeenCalled()
+      expect(handler).toHaveBeenCalledOnce()
+    })
+
+    it("bypasses the cache for an oversized body", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post({ vertical: "products", note: "x".repeat(64 * 1024) })
+      await flush()
+
+      expect(kv.put).not.toHaveBeenCalled()
+    })
+
+    it("bypasses the cache when a query string is present", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = new Hono<{ Bindings: TestBindings }>()
+      app.use("*", publicResponseCache({ bodyKeyedPaths: [SEARCH] }))
+      app.post(SEARCH, handler)
+      const env = { DATABASE_URL: "x", CACHE: kv }
+
+      await app.request(
+        `${SEARCH}?trace=1`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ vertical: "products" }),
+        },
+        testEnv(env),
+      )
+      await flush()
+
+      expect(kv.put).not.toHaveBeenCalled()
+    })
+
+    it("bypasses the cache for a non-JSON body", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = new Hono<{ Bindings: TestBindings }>()
+      app.use("*", publicResponseCache({ bodyKeyedPaths: [SEARCH] }))
+      app.post(SEARCH, handler)
+      const env = { DATABASE_URL: "x", CACHE: kv }
+
+      await app.request(
+        SEARCH,
+        {
+          method: "POST",
+          headers: { "content-type": "text/plain" },
+          body: "vertical=products",
+        },
+        testEnv(env),
+      )
+      await flush()
+
+      expect(kv.put).not.toHaveBeenCalled()
+    })
+
+    it("neither reads nor writes for a credentialed body-keyed request", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post({ vertical: "products" })
+      await flush()
+      expect(kv.put).toHaveBeenCalledOnce()
+
+      const authed = await app.post(
+        { vertical: "products" },
+        { headers: { authorization: "Bearer t" } },
+      )
+      await flush()
+
+      expect(authed.headers.get("x-voyant-cache")).toBeNull()
+      expect(handler).toHaveBeenCalledTimes(2)
+      expect(kv.put).toHaveBeenCalledOnce()
+    })
+
+    it("does not share an entry between storefront keys for the same body", async () => {
+      const kv = fakeKv()
+      const handler = vi.fn(() => cacheable({ hits: [] }))
+      const app = buildSearchApp(kv, handler)
+
+      await app.post({ vertical: "products" }, { headers: { "x-api-key": "pk_website" } })
+      await flush()
+      const b2b = await app.post({ vertical: "products" }, { headers: { "x-api-key": "pk_b2b" } })
+      await flush()
+
+      expect(b2b.headers.get("x-voyant-cache")).toBeNull()
+      expect(handler).toHaveBeenCalledTimes(2)
+      expect(kv.store.size).toBe(2)
+    })
+
+    it("leaves the request body readable by the route", async () => {
+      const kv = fakeKv()
+      const seen: unknown[] = []
+      const app = buildSearchApp(kv, (body) => {
+        seen.push(body)
+        return cacheable({ ok: true })
+      })
+
+      await app.post({ vertical: "products", query: "crete" })
+
+      expect(seen).toEqual([{ vertical: "products", query: "crete" }])
+    })
+  })
+
   it("is a transparent no-op when neither Cache API nor KV is available", async () => {
     const handler = vi.fn(
       () =>

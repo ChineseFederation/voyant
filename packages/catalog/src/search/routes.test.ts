@@ -226,6 +226,59 @@ describe("createCatalogSearchRoutes", () => {
     expect(executeSearch.mock.calls[1]?.[0].slice.channel).toBe("chan_website")
   })
 
+  it("declares a shared-cache policy on the public search read only", async () => {
+    const executeSearch = vi.fn(
+      async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,
+    )
+    const module = createCatalogSearchApiModule({
+      resolveRuntime: () => ({
+        indexer: createIndexer(),
+        defaultScope: { locale: "en-GB", audience: "staff", market: "default" },
+      }),
+      executeSearch,
+    })
+    const app = new Hono()
+    app.use("/v1/public/*", async (c, next) => {
+      c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+      await next()
+    })
+    app.route("/v1/admin/catalog", module.adminRoutes!)
+    app.route("/v1/public/catalog", module.publicRoutes!)
+
+    const search = (surface: string, body: Record<string, unknown>) =>
+      app.request(`/v1/${surface}/catalog/search`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ vertical: "products", mode: "keyword", ...body }),
+      })
+
+    // An empty-query browse is the storefront landing read: longer window.
+    const browse = await search("public", {})
+    expect(browse.headers.get("cache-control")).toBe(
+      "public, s-maxage=60, stale-while-revalidate=300",
+    )
+
+    const keyword = await search("public", { query: "crete" })
+    expect(keyword.headers.get("cache-control")).toBe(
+      "public, s-maxage=30, stale-while-revalidate=300",
+    )
+
+    // The staff surface is never shared-cached.
+    const admin = await search("admin", { query: "crete" })
+    expect(admin.headers.get("cache-control")).toBeNull()
+  })
+
+  it("declares the public search path as a body-keyed cache participant", () => {
+    const module = createCatalogSearchApiModule({
+      resolveRuntime: () => ({
+        indexer: createIndexer(),
+        defaultScope: { locale: "en-GB", audience: "staff", market: "default" },
+      }),
+    })
+
+    expect(module.bodyKeyedCache).toEqual(["/search"])
+  })
+
   it("denies public search without an active storefront channel context", async () => {
     const executeSearch = vi.fn(
       async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,

@@ -132,8 +132,18 @@ function checkKvCacheBindings() {
 function checkSourceMarkers() {
   requireContains(
     "packages/hono/src/app.ts",
-    "publicResponseCache(config.publicCache ?? {})",
+    "publicResponseCache({",
     "public response cache middleware must stay mounted by default",
+  )
+  requireContains(
+    "packages/hono/src/app.ts",
+    "...(config.publicCache ?? {})",
+    "deployment public-cache config must still override the assembled defaults",
+  )
+  requireContains(
+    "packages/hono/src/app.ts",
+    "bodyKeyedPaths: bodyKeyedCachePaths",
+    "module-declared body-keyed reads must reach the middleware",
   )
   requireContains(
     "packages/hono/src/middleware/public-cache.ts",

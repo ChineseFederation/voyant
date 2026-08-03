@@ -65,6 +65,18 @@ export interface ApiModule {
   /** Anonymous paths that also attempt live customer-session resolution. */
   optionalCustomerAuth?: boolean | readonly string[]
   /**
+   * Public sub-paths whose POST reads are keyed on the request body as well as
+   * the URL, making them eligible for the shared response cache (ADR 0021 §2).
+   *
+   * Paths are relative to the public mount, the same as `anonymous`. Eligibility
+   * is declared here rather than by a response header because the middleware has
+   * to canonicalize the request body before the route runs; the cache policy
+   * itself still lives on the response, so an edge tier reads the same
+   * declaration. A declared path whose response is not marked
+   * `public, s-maxage=…` is still never stored.
+   */
+  bodyKeyedCache?: readonly string[]
+  /**
    * Concrete admin endpoints whose credential is validated by the route itself
    * instead of by the staff-session middleware. Each declaration is matched by
    * exact HTTP method and exact path; it never opens sibling or child routes.
@@ -140,6 +152,18 @@ export interface ApiExtension {
   anonymous?: boolean | readonly string[]
   /** Anonymous paths that also attempt live customer-session resolution. */
   optionalCustomerAuth?: boolean | readonly string[]
+  /**
+   * Public sub-paths whose POST reads are keyed on the request body as well as
+   * the URL, making them eligible for the shared response cache (ADR 0021 §2).
+   *
+   * Paths are relative to the public mount, the same as `anonymous`. Eligibility
+   * is declared here rather than by a response header because the middleware has
+   * to canonicalize the request body before the route runs; the cache policy
+   * itself still lives on the response, so an edge tier reads the same
+   * declaration. A declared path whose response is not marked
+   * `public, s-maxage=…` is still never stored.
+   */
+  bodyKeyedCache?: readonly string[]
   /**
    * Absolute transactional path prefixes — same semantics as
    * {@link ApiModule.transactionalPaths}.

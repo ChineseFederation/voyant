@@ -29,8 +29,15 @@ Cloudflare Cache API.
 - `live-by-correctness`: volatile price quote, hold, booking, payment mutation,
   eligibility, or write flow where stale data can change correctness.
 - `index-backed`: search/index reads. GET searches can use shared response
-  cache when non-personalized; POST searches are not cached by the current
-  public response cache because the cache key is URL-only.
+  cache when non-personalized; POST searches use `body-keyed-shared-cache`.
+- `body-keyed-shared-cache`: a non-personalized POST read whose result is
+  determined by its request body. The module declares participation at mount
+  time via `bodyKeyedCache` (the middleware has to canonicalize the body before
+  the route runs, so a response header cannot carry that decision), and the
+  route still declares the policy itself with
+  `Cache-Control: public, s-maxage=..., stale-while-revalidate=...`. A request
+  carrying a query string, a non-JSON or oversized body, `Authorization`, or a
+  caller-specific body field goes to the origin uncached.
 
 ## Route Matrix
 
@@ -48,7 +55,7 @@ Cloudflare Cache API.
 | Operator public profile, public operator settings, payment-link config | `shared-response-cache` | Public deploy configuration and operator identity; payment sessions remain private/live. |
 | Payment link sessions, payment resolve/retry/card start, trip summaries | `private-no-store` or `live-by-correctness` | Session-specific and payment-state dependent. |
 | Proposals, finance customer portal, document delivery | `private-no-store` | Customer-facing but bearer/session scoped. |
-| Catalog POST search | `index-backed` | Not response-cached today because the request body is outside the URL cache key. Use GET/hash read models before adding shared response caching. |
+| Catalog POST search | `body-keyed-shared-cache` | Declares `bodyKeyedCache: ["/search"]` and a per-request policy: 60s for an empty-query browse, 30s for a keyword search, both with `stale-while-revalidate=300`. TTLs stay short because the key carries no catalog projection generation, so the clock is the only invalidation (voyant-travel/platform#1726). |
 
 ## Authoring Rule
 
@@ -59,8 +66,9 @@ When adding a public route:
    `Cache-Control` with `s-maxage`.
 3. For personalized or bearer-like public routes, set `private, no-store` when
    returning sensitive state.
-4. Do not cache a route that varies by request headers unless the route also
-   emits the correct `Vary` header or normalizes the variant into the URL.
+4. Do not cache a route that varies by request headers unless that header is a
+   cache-key contributor (`keyHeaders`, which covers the storefront key by
+   default). A response declaring a `Vary` the key does not model is refused.
 5. Do not use KV or response cache as a correctness primitive; the live DB path
    must remain correct on every cache miss.
 
