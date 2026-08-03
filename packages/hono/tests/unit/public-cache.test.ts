@@ -213,6 +213,162 @@ describe("publicResponseCache (KV fallback — no Cache API in the test runtime)
     expect(hit.headers.get("content-type")).toBe("application/json")
   })
 
+  it("does not share an entry between two storefront keys on the same URL", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      (c: { req: { header(name: string): string | undefined } }) =>
+        new Response(JSON.stringify({ channel: c.req.header("x-api-key") }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "cache-control": "public, s-maxage=60",
+          },
+        }),
+    )
+    const app = new Hono<{ Bindings: TestBindings }>()
+    app.use("*", publicResponseCache())
+    app.get("/v1/public/products", (c) => handler(c))
+    const env = { DATABASE_URL: "postgres://localhost/test", CACHE: kv }
+
+    const website = await app.request(
+      "/v1/public/products",
+      { headers: { "x-api-key": "pk_website" } },
+      testEnv(env),
+    )
+    const b2b = await app.request(
+      "/v1/public/products",
+      { headers: { "x-api-key": "pk_b2b" } },
+      testEnv(env),
+    )
+
+    expect(await website.json()).toEqual({ channel: "pk_website" })
+    expect(await b2b.json()).toEqual({ channel: "pk_b2b" })
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(b2b.headers.get("x-voyant-cache")).toBeNull()
+    expect(kv.store.size).toBe(2)
+
+    // ...and each key still serves its own entry on a repeat request.
+    const websiteAgain = await app.request(
+      "/v1/public/products",
+      { headers: { "x-api-key": "pk_website" } },
+      testEnv(env),
+    )
+    expect(websiteAgain.headers.get("x-voyant-cache")).toBe("hit")
+    expect(await websiteAgain.json()).toEqual({ channel: "pk_website" })
+    expect(handler).toHaveBeenCalledTimes(2)
+  })
+
+  it("never embeds the presented storefront key in the cache key", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products", { headers: { "x-api-key": "pk_secret_value" } })
+
+    expect(kv.put).toHaveBeenCalledOnce()
+    expect(kv.put.mock.calls[0]?.[0]).not.toContain("pk_secret_value")
+  })
+
+  it("never caches a response declaring a Vary the key does not model", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: {
+            "cache-control": "public, s-maxage=60",
+            vary: "accept-language",
+          },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    expect(kv.put).not.toHaveBeenCalled()
+  })
+
+  it("caches a response whose Vary names only key contributors", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: {
+            "cache-control": "public, s-maxage=60",
+            vary: "X-Api-Key",
+          },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    expect(kv.put).toHaveBeenCalledOnce()
+  })
+
+  it("never caches a response declaring Vary: *", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60", vary: "*" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    expect(kv.put).not.toHaveBeenCalled()
+  })
+
+  it("neither reads nor writes the shared cache for a credentialed request", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    // Populate from an anonymous request first, so a read would have hit.
+    await app.request("/v1/public/products")
+    expect(kv.put).toHaveBeenCalledOnce()
+
+    const authed = await app.request("/v1/public/products", {
+      headers: { authorization: "Bearer token" },
+    })
+
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(authed.headers.get("x-voyant-cache")).toBeNull()
+    expect(kv.put).toHaveBeenCalledOnce()
+  })
+
+  it("performs no cache read or write work outside the KV store on the hit path", async () => {
+    const kv = fakeKv()
+    const handler = vi.fn(
+      () =>
+        new Response("{}", {
+          status: 200,
+          headers: { "cache-control": "public, s-maxage=60" },
+        }),
+    )
+    const app = buildApp(kv, handler)
+
+    await app.request("/v1/public/products")
+    kv.get.mockClear()
+    await app.request("/v1/public/products")
+
+    // One lookup, no second round trip to resolve the variant.
+    expect(kv.get).toHaveBeenCalledOnce()
+  })
+
   it("is a transparent no-op when neither Cache API nor KV is available", async () => {
     const handler = vi.fn(
       () =>
