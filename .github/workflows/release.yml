@@ -219,3 +219,16 @@ jobs:
       - name: No release action needed
         if: steps.release_plan.outputs.has_releasable_changesets != 'true' && steps.release_plan.outputs.pending != 'true'
         run: echo "No releasable changesets and npm is already up to date."
+
+      # Asks the only question the steps above cannot: can an outside consumer
+      # install what main says is published, and import it? See issue #4086 —
+      # a package can be published and still be uninstallable, and neither the
+      # publish step nor any manifest inspection notices.
+      #
+      # Last in the job, and `!cancelled()` rather than `success()`, on purpose.
+      # A failed publish is exactly when the surface is split between what
+      # shipped and what did not, so this must still run and say which. Running
+      # it last keeps a broken surface from also blocking the release PR.
+      - name: Verify the published surface installs
+        if: ${{ !cancelled() }}
+        run: pnpm verify:published-surface

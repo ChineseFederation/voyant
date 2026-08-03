@@ -30,6 +30,7 @@
     "verify:ui-orientation-selectors": "node scripts/check-ui-orientation-selectors.mjs",
     "verify:date-picker-single-source": "node scripts/check-date-picker-single-source.mjs",
     "verify:publish-tarballs": "node --test scripts/tests/packed-exports.test.mjs scripts/tests/packed-install.test.mjs scripts/tests/packed-sourcemaps.test.mjs && node scripts/verify-package-tarballs.mjs",
+    "verify:published-surface": "node --test scripts/tests/published-surface.test.mjs && node scripts/verify-published-surface.mjs",
     "verify:tenant-scoping": "node scripts/check-tenant-scoping.mjs",
     "verify:route-authoring": "node scripts/check-route-authoring.mjs",
     "verify:api-runtime-vocabulary": "node scripts/check-api-runtime-vocabulary.mjs",
