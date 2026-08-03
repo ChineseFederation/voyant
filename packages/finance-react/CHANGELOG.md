@@ -1,5 +1,17 @@
 # @voyant-travel/finance-react
 
+## 0.237.0
+
+### Patch Changes
+
+- Updated dependencies [f69e880]
+  - @voyant-travel/bookings-react@0.237.0
+  - @voyant-travel/i18n@0.119.4
+  - @voyant-travel/finance@0.237.0
+  - @voyant-travel/operations-react@0.118.0
+  - @voyant-travel/distribution-react@0.227.0
+  - @voyant-travel/inventory-react@0.119.0
+
 ## 0.236.0
 
 ### Patch Changes

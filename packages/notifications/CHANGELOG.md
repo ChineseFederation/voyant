@@ -1,5 +1,24 @@
 # @voyant-travel/notifications
 
+## 0.147.3
+
+### Patch Changes
+
+- f69e880: Make commercial commitment the sole Booking creation boundary for Booking
+  Platform v1.
+
+  Bookings now use only `confirmed`, `in_progress`, `completed`, and `cancelled`
+  states. Quote, Hold, supplier-operation, and payment lifecycles remain owned by
+  their respective domains. The beta-data migration preserves evidenced
+  commitments, fails closed on ambiguous external effects, restores capacity for
+  abandoned attempts, and removes the obsolete Booking-backed session state.
+
+- Updated dependencies [f69e880]
+  - @voyant-travel/bookings@0.237.0
+  - @voyant-travel/finance@0.237.0
+  - @voyant-travel/storefront@0.238.1
+  - @voyant-travel/legal@0.236.1
+
 ## 0.147.2
 
 ### Patch Changes

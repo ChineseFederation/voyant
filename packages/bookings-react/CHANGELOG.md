@@ -1,5 +1,36 @@
 # @voyant-travel/bookings-react
 
+## 0.237.0
+
+### Minor Changes
+
+- f69e880: Make commercial commitment the sole Booking creation boundary for Booking
+  Platform v1.
+
+  Bookings now use only `confirmed`, `in_progress`, `completed`, and `cancelled`
+  states. Quote, Hold, supplier-operation, and payment lifecycles remain owned by
+  their respective domains. The beta-data migration preserves evidenced
+  commitments, fails closed on ambiguous external effects, restores capacity for
+  abandoned attempts, and removes the obsolete Booking-backed session state.
+
+### Patch Changes
+
+- Updated dependencies [f69e880]
+  - @voyant-travel/bookings@0.237.0
+  - @voyant-travel/i18n@0.119.4
+  - @voyant-travel/finance@0.237.0
+  - @voyant-travel/operations-react@0.118.0
+  - @voyant-travel/accommodations@0.197.0
+  - @voyant-travel/distribution-react@0.227.0
+  - @voyant-travel/finance-react@0.237.0
+  - @voyant-travel/identity-react@0.237.0
+  - @voyant-travel/legal-react@0.237.0
+  - @voyant-travel/commerce-react@0.119.0
+  - @voyant-travel/inventory-react@0.119.0
+  - @voyant-travel/storefront-react@0.239.0
+  - @voyant-travel/catalog-react@0.235.0
+  - @voyant-travel/relationships-react@0.237.0
+
 ## 0.236.0
 
 ### Patch Changes
