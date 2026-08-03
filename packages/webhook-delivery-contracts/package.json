@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/webhook-delivery-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Webhook signature signing/verification and outbound endpoint policy for app publishers receiving Voyant webhooks.",
   "license": "Apache-2.0",
   "type": "module",
