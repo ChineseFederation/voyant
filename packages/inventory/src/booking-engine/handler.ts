@@ -42,6 +42,8 @@ import {
   applyAddonSelections,
   bookingExtraLinesFromAddonSelections,
   bookingItemLinesFromOptionSelections,
+  bookingItemLinesFromPaxBands,
+  bookingItemLinesFromPaxBandUnits,
   fillMissingBookingItemSellAmounts,
   loadProduct,
   normalizeOptionSelections,
@@ -200,6 +202,15 @@ export interface ResolvedOptionPrice {
   unitPrices: ReadonlyArray<ResolvedUnitPrice>
 }
 
+/** An option unit, reduced to what pax-band mapping needs: its age window
+ *  decides which traveler band reserves it. */
+export interface OptionUnitBandCandidate {
+  id: string
+  unitType: string
+  minAge: number | null
+  maxAge: number | null
+}
+
 /** Option/unit-specific pax-tier price from `product_pax_pricing_tiers`. */
 export interface ResolvedPaxPricingTier {
   pricePerPaxCents: number
@@ -334,6 +345,18 @@ export interface OwnedProductsShapeLoaders {
   ) => Promise<ResolvedPaxPricingTier | null>
 
   /**
+   * Resolve an option's bookable units, age windows included, so a
+   * person-priced product whose price lives at the option or product level
+   * can still map its pax bands onto units at commit time. Caller-supplied
+   * like the rest; when omitted, commits fall back to the per-band unit
+   * prices alone.
+   */
+  loadOptionUnits?: (
+    ctx: OwnedHandlerContext,
+    args: { productId: string; optionId: string },
+  ) => Promise<ReadonlyArray<OptionUnitBandCandidate>>
+
+  /**
    * Look up the local date of a departure slot (`availability_slots`).
    * Caller-supplied so the Inventory package does not import
    * `@voyant-travel/operations`. Returns null when the slot is missing.
@@ -403,6 +426,56 @@ async function safeLoad<T>(label: string, promise: Promise<T> | undefined): Prom
     console.warn(`[products/booking-engine] ${label} failed; continuing without it`, error)
     return undefined
   }
+}
+
+/**
+ * Item lines for a draft that carries pax bands but no unit selections.
+ *
+ * Resolves the option price the same way `computeQuote` did — same slot date,
+ * same loader — so the per-band lines derived here are the ones the shopper
+ * was quoted. When the option carries no per-band unit prices (its price lives
+ * at the option or product level) the units themselves are mapped onto the
+ * bands instead.
+ *
+ * Enrichment failures degrade to "no lines" rather than rejecting the commit:
+ * that leaves booking creation to apply its own refusal, which is a clearer
+ * signal than a derivation error.
+ */
+async function paxBandItemLines(input: {
+  ctx: OwnedHandlerContext
+  options: CreateProductsBookingHandlerOptions
+  productId: string
+  optionId: string
+  draft: DraftLike
+}) {
+  const { ctx, options, productId, optionId, draft } = input
+  const pax = draft.configure?.pax
+  if (sumPax(pax) <= 0) return undefined
+
+  const slotId = draft.configure?.departureSlotId
+  const slotDate =
+    (slotId && options.loadSlotDate
+      ? await safeLoad("loadSlotDate", options.loadSlotDate(ctx, slotId))
+      : null) ??
+    draft.configure?.departureDate ??
+    null
+
+  const resolvedPrice =
+    slotDate && options.loadResolvedOptionPrice
+      ? await safeLoad(
+          "loadResolvedOptionPrice",
+          options.loadResolvedOptionPrice(ctx, { productId, optionId, date: slotDate }),
+        )
+      : null
+
+  const bandLines = bookingItemLinesFromPaxBands({ optionId, resolvedPrice, pax })
+  if (bandLines) return bandLines
+
+  const units = await safeLoad(
+    "loadOptionUnits",
+    options.loadOptionUnits?.(ctx, { productId, optionId }),
+  )
+  return units ? bookingItemLinesFromPaxBandUnits({ optionId, units, pax }) : undefined
 }
 
 export function createProductsBookingHandler(
@@ -523,6 +596,7 @@ export function createProductsBookingHandler(
                 resolvedPrice,
                 pax: draft.configure?.pax,
                 effectivePax,
+                optionId,
               })
         const pricedWithAddons = applyAddonSelections({
           priced,
@@ -710,10 +784,26 @@ export function createProductsBookingHandler(
         quantityMultiplier: Math.max(1, travelers.length),
       })
 
+      // A product the journey never showed a units step for reaches here with
+      // no selections at all. Fall back to the pax bands, which is the only
+      // thing the shopper was actually asked for, so the command still names
+      // the units it reserves instead of arriving empty (voyant#4113).
+      const derivedItemLines =
+        bookingItemLinesFromOptionSelections(optionSelections) ??
+        (primaryOptionId
+          ? await paxBandItemLines({
+              ctx,
+              options,
+              productId: product.id,
+              optionId: primaryOptionId,
+              draft,
+            })
+          : undefined)
+
       let itemLines: ReturnType<typeof fillMissingBookingItemSellAmounts> | undefined
       try {
         itemLines = fillMissingBookingItemSellAmounts({
-          itemLines: bookingItemLinesFromOptionSelections(optionSelections),
+          itemLines: derivedItemLines,
           pricing: request.pricing,
           targetSellAmountCents: sellAmountCentsOverride,
           extraLines,

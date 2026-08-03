@@ -117,8 +117,20 @@ describe("createProductsBookingHandler.computeQuote", () => {
     const breakdown = result.pricing?.breakdown as Record<string, unknown>
     // 2 × 16000 + 1 × 9500 = 41500. Infant (sell=0) drops out.
     expect(breakdown?.total).toBe(41500)
-    const lines = breakdown?.lines as Array<{ quantity: number; unitAmount: number }>
+    const lines = breakdown?.lines as Array<{
+      quantity: number
+      unitAmount: number
+      optionId?: string
+      optionUnitId?: string
+    }>
     expect(lines).toHaveLength(2)
+    // Band lines carry the unit they priced. The commit matches its item lines
+    // back to these, so a quote without provenance can only be reconciled
+    // positionally (voyant#4113).
+    expect(lines.map((line) => [line.optionId, line.optionUnitId])).toEqual([
+      ["opt_default", "u_adult"],
+      ["opt_default", "u_child"],
+    ])
     expect(lines.map((l) => `${l.quantity}×${l.unitAmount}`)).toEqual(["2×16000", "1×9500"])
   })
 

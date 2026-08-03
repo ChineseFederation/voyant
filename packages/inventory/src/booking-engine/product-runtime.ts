@@ -433,6 +433,26 @@ export function registerProductBookingHandler(
           return undefined
         }
       },
+      async loadOptionUnits(ctx, args) {
+        const db = asPostgresDb(ctx.db)
+        return db
+          .select({
+            id: optionUnits.id,
+            unitType: optionUnits.unitType,
+            minAge: optionUnits.minAge,
+            maxAge: optionUnits.maxAge,
+          })
+          .from(optionUnits)
+          .innerJoin(productOptions, eq(optionUnits.optionId, productOptions.id))
+          .where(
+            and(
+              eq(optionUnits.optionId, args.optionId),
+              eq(productOptions.productId, args.productId),
+              eq(optionUnits.isHidden, false),
+            ),
+          )
+          .orderBy(asc(optionUnits.sortOrder), asc(optionUnits.createdAt))
+      },
       async loadSlotDate(ctx, slotId) {
         const db = asPostgresDb(ctx.db)
         const [slot] = await db
