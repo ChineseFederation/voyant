@@ -14,7 +14,7 @@ import type { ApiExtension, ApiModule } from "./module.js"
  * definitions before mounting them.
  */
 export interface ApiBundle {
-  /** Unique bundle identifier (e.g. "payload-cms", "bokun"). */
+  /** Unique bundle identifier (e.g. "netopia", "bokun"). */
   name: string
   /** Optional version tag for diagnostics. */
   version?: string

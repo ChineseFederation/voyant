@@ -1591,11 +1591,6 @@
       "@voyant-travel/payments": ["../payments/dist/index.d.ts"],
       "@voyant-travel/payments/conformance": ["../payments/dist/conformance.d.ts"],
       "@voyant-travel/payments/runtime-port": ["../payments/dist/runtime-port.d.ts"],
-      "@voyant-travel/plugin-sanity-cms": ["../plugins/sanity-cms/dist/index.d.ts"],
-      "@voyant-travel/plugin-sanity-cms/client": ["../plugins/sanity-cms/dist/client.d.ts"],
-      "@voyant-travel/plugin-sanity-cms/plugin": ["../plugins/sanity-cms/dist/plugin.d.ts"],
-      "@voyant-travel/plugin-sanity-cms/types": ["../plugins/sanity-cms/dist/types.d.ts"],
-      "@voyant-travel/plugin-sanity-cms/voyant": ["../plugins/sanity-cms/dist/voyant.d.ts"],
       "@voyant-travel/plugin-voyant-connect": ["../plugins/voyant-connect/dist/index.d.ts"],
       "@voyant-travel/plugin-voyant-connect/catalog-sources": [
         "../plugins/voyant-connect/dist/catalog-sources-extension.d.ts"

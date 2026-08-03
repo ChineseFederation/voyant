@@ -53,7 +53,7 @@ export interface Subscriber<
  * `ApiBundle` in `@voyant-travel/hono`.
  */
 export interface Plugin {
-  /** Unique plugin identifier (e.g. "payload-cms", "bokun"). */
+  /** Unique identifier (e.g. "netopia", "bokun"). */
   name: string
   /** Optional version tag for diagnostics. */
   version?: string
