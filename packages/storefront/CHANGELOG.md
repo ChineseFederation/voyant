@@ -1,5 +1,11 @@
 # @voyant-travel/storefront
 
+## 0.240.0
+
+### Patch Changes
+
+- @voyant-travel/legal@0.238.0
+
 ## 0.239.0
 
 ### Patch Changes
