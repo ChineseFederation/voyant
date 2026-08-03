@@ -38,8 +38,6 @@ import {
   bookingTravelersBySharingGroupResponse,
   bookingTravelersResponse,
   pricingPreviewResponse,
-  publicBookingSessionResponse,
-  publicBookingSessionStateResponse,
   taxPreviewResponse,
 } from "./schemas.js"
 
@@ -281,36 +279,6 @@ export function getBookingNotesQueryOptions(
     queryKey: bookingsQueryKeys.notes(bookingId ?? ""),
     queryFn: () =>
       fetchWithValidation(`/v1/admin/bookings/${bookingId}/notes`, bookingNotesResponse, client),
-  })
-}
-
-export function getPublicBookingSessionQueryOptions(
-  client: FetchWithValidationOptions,
-  sessionId: string | null | undefined,
-) {
-  return queryOptions({
-    queryKey: bookingsQueryKeys.publicSession(sessionId ?? ""),
-    queryFn: () =>
-      fetchWithValidation(
-        `/v1/public/bookings/sessions/${sessionId}`,
-        publicBookingSessionResponse,
-        client,
-      ),
-  })
-}
-
-export function getPublicBookingSessionStateQueryOptions(
-  client: FetchWithValidationOptions,
-  sessionId: string | null | undefined,
-) {
-  return queryOptions({
-    queryKey: bookingsQueryKeys.publicSessionState(sessionId ?? ""),
-    queryFn: () =>
-      fetchWithValidation(
-        `/v1/public/bookings/sessions/${sessionId}/state`,
-        publicBookingSessionStateResponse,
-        client,
-      ),
   })
 }
 

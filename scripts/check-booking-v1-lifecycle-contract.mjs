@@ -24,6 +24,10 @@ function requireText(path, source, text) {
   if (!source.includes(text)) failures.push(`${path}: missing ${JSON.stringify(text)}`)
 }
 
+function rejectText(path, source, text) {
+  if (source.includes(text)) failures.push(`${path}: forbidden ${JSON.stringify(text)}`)
+}
+
 const adr = read("docs/adr/0019-booking-v1-commitment-point-policies.md")
 requireText("docs/adr/0019-booking-v1-commitment-point-policies.md", adr, "Status:** Accepted")
 requireText(
@@ -96,6 +100,41 @@ for (const outcome of [
   "idempotent_replay",
 ]) {
   if (!outcomeKinds.has(outcome)) failures.push(`missing required outcome scenario ${outcome}`)
+}
+
+const publicBookingRoutes = read("packages/bookings/src/routes-public.ts")
+rejectText("packages/bookings/src/routes-public.ts", publicBookingRoutes, '"/sessions')
+
+const bookingsEntryPoint = read("packages/bookings/src/index.ts")
+for (const legacyCreateSurface of [
+  "createSelfServiceBookingRoutes",
+  "bookingsSelfServiceCreateRuntimePort",
+]) {
+  rejectText("packages/bookings/src/index.ts", bookingsEntryPoint, legacyCreateSurface)
+}
+
+const bookingSchema = read("packages/bookings/src/schema-operations.ts")
+rejectText("packages/bookings/src/schema-operations.ts", bookingSchema, "bookingSessionStates")
+
+const storefrontSdkPackage = JSON.parse(read("packages/storefront-sdk/package.json"))
+for (const legacyExport of ["./booking-engine", "./engine-state"]) {
+  if (storefrontSdkPackage.exports?.[legacyExport]) {
+    failures.push(`packages/storefront-sdk/package.json: forbidden export ${legacyExport}`)
+  }
+  if (storefrontSdkPackage.publishConfig?.exports?.[legacyExport]) {
+    failures.push(
+      `packages/storefront-sdk/package.json: forbidden published export ${legacyExport}`,
+    )
+  }
+}
+
+const storefrontSdkDocs = read("docs/architecture/custom-storefront-sdk.md")
+for (const legacyRoute of [
+  "/v1/public/bookings/sessions",
+  "bookingEngine.getSnapshot",
+  "booking_session_states",
+]) {
+  rejectText("docs/architecture/custom-storefront-sdk.md", storefrontSdkDocs, legacyRoute)
 }
 
 if (failures.length > 0) {

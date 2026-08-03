@@ -1,11 +1,10 @@
 /**
- * Finance's provider for `bookings.self-service-create.runtime`.
+ * Finance's durable Booking settlement helper for Catalog Booking Session v1.
  *
- * Bookings owns the `/v1/public/bookings` resource; Finance owns the durable
- * command that composes a booking with its payment schedules, tax lines, and
- * documents. Finance depends on Bookings and not the reverse, so the command
- * reaches the route through this port rather than the route reaching into
- * Finance.
+ * Catalog owns the public Session Commit route; Finance owns the durable
+ * command that composes a Booking with its payment schedules, tax lines, and
+ * documents. Catalog derives the command from the exact Session revision,
+ * Quote, and Hold before invoking this helper inside the root transaction.
  *
  * Everything in the command is derived server-side. The caller named a draft
  * and a quote; it never names a booking number, price, tax line, relationship

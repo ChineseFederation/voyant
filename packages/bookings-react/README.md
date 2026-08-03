@@ -14,11 +14,6 @@ packages) are optional and only needed when you import those subpaths.
 
 It includes public booking-session helpers alongside the admin hooks:
 
-- `usePublicBookingSession`
-- `usePublicBookingSessionState`
-- `usePublicBookingSessionFlowMutation`
-- `getPublicBookingSessionQueryOptions`
-- `getPublicBookingSessionStateQueryOptions`
 
 Those helpers target existing public booking sessions for customer-portal
 state and room-selection repricing. They do not create bookings.

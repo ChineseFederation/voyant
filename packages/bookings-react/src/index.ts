@@ -32,8 +32,6 @@ export {
   getBookingsQueryOptions,
   getBookingTravelerDocumentsQueryOptions,
   getPricingPreviewQueryOptions,
-  getPublicBookingSessionQueryOptions,
-  getPublicBookingSessionStateQueryOptions,
   getSharingGroupsForSlotQueryOptions,
   getSupplierStatusesQueryOptions,
   getTaxPreviewQueryOptions,

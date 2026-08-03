@@ -4,9 +4,8 @@
  * `consumed_booking_id` records the booking created later through the
  * admitted Finance command; abandoned drafts never produce a booking.
  *
- * Per `docs/architecture/booking-journey-architecture.md` §5.7 +
- * §12.10 (settled on the sibling-table option B — ships alongside
- * `booking_session_states` rather than extending it).
+ * Beta predecessor to Booking Session v1. Retained temporarily so the
+ * explicit beta-data cutover can classify and migrate or expire each row.
  *
  * Lifecycle:
  *   1. Wizard PUTs the draft on every step transition.

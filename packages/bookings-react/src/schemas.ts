@@ -1,9 +1,4 @@
 // agent-quality: file-size exception -- owner: bookings-react; existing schema contract stays co-located until a dedicated split preserves behavior and tests.
-import {
-  publicBookingSessionRepriceResultSchema,
-  publicBookingSessionSchema,
-  publicBookingSessionStateSchema,
-} from "@voyant-travel/bookings/validation"
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
@@ -429,12 +424,6 @@ export const bookingTravelersBySharingGroupResponse = arrayEnvelope(
 export const bookingSupplierStatusesResponse = arrayEnvelope(bookingSupplierStatusRecordSchema)
 export const bookingActivityResponse = arrayEnvelope(bookingActivityRecordSchema)
 export const bookingNotesResponse = arrayEnvelope(bookingNoteRecordSchema)
-export const publicBookingSessionResponse = singleEnvelope(publicBookingSessionSchema)
-export const publicBookingSessionStateResponse = singleEnvelope(publicBookingSessionStateSchema)
-export const publicBookingSessionRepriceResponse = singleEnvelope(
-  publicBookingSessionRepriceResultSchema,
-)
-
 // Pricing preview — the catalog-resolved snapshot the storefront engine uses
 // to compute totals. Consumers match it against their traveler/unit selection
 // to render a breakdown; see @voyant-travel/bookings/validation for the request.

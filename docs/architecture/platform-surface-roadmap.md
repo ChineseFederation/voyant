@@ -199,25 +199,20 @@ Still missing:
 
 ### Public booking and checkout surface
 
-Partially resolved:
+Canonical surface for Booking v1:
 
-- public read/update/reprice/confirm operations for an existing booking session
-  and public overview are in Voyant source; session initialization does not
-  create booking rows
-- first-class booking-session state storage now exists at
-  `/v1/public/bookings/sessions/:sessionId/state`
-- session snapshots now include persisted wizard state
-- storefront repricing now exists at
-  `/v1/public/bookings/sessions/:sessionId/reprice` with preview mode and
-  explicit `applyToSession` support
-- matching React helpers now exist in `@voyant-travel/bookings-react` for public
-  session read, state read/write, and repricing flows
+- Catalog Booking Session v1 is the sole pre-commit aggregate and public
+  construction surface
+- Session state, Quote, Hold, payment intent, idempotency, and Commit outcomes
+  remain on their owning aggregates until Commit succeeds
+- the Storefront SDK exposes the canonical create/resume/adopt/renew/update/
+  quote/hold/commit/abandon operations
+- Bookings public routes expose committed overview and guest access only
 - `@voyant-travel/finance/checkout` now exposes a module-based checkout surface with typed
   collection-plan and initiate-collection contracts
 - `@voyant-travel/finance/checkout` now also exposes a unified
   `/v1/public/finance/checkout/collections/bootstrap` contract that can start exact-amount
-  collection from either a `bookingId` or a `sessionId`, covering booking-
-  backed and session-backed storefront flows through one request shape
+  collection from either a committed `bookingId` or a Booking Session id
 - admin checkout reminder tracking is now backed by first-class notification
   reminder runs instead of app-local booking metadata
 - bookings now expose a first-class admin overview lookup route and service
@@ -228,11 +223,12 @@ Partially resolved:
   preview, itinerary, extensions, and promotional offers
 - `@voyant-travel/storefront-sdk` now provides the framework-agnostic TypeScript
   facade for custom storefronts, wrapping existing public storefront, booking
-  session, and checkout collection contracts with derived booking-engine state
-  helpers
+  session, committed Booking overview, and checkout collection contracts
 
 Still missing:
 
+- transactionally classify and cut over beta booking-session/draft rows before
+  removing their retained physical tables
 - migrate React storefront helpers to delegate to `@voyant-travel/storefront-sdk`
   instead of maintaining parallel fetch wrappers
 - lifecycle contracts for legal previews, explicit payment result polling, and

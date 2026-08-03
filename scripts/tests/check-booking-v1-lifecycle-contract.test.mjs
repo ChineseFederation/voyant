@@ -77,6 +77,25 @@ function writeMinimumFixture(root, overrides = {}) {
       },
     ),
   )
+  write(root, "packages/bookings/src/routes-public.ts", overrides.publicRoutes ?? "overview")
+  write(
+    root,
+    "packages/bookings/src/index.ts",
+    overrides.bookingsEntryPoint ?? "publicBookingRoutes",
+  )
+  write(root, "packages/bookings/src/schema-operations.ts", overrides.bookingSchema ?? "bookings")
+  write(
+    root,
+    "packages/storefront-sdk/package.json",
+    JSON.stringify(
+      overrides.storefrontSdkPackage ?? { exports: {}, publishConfig: { exports: {} } },
+    ),
+  )
+  write(
+    root,
+    "docs/architecture/custom-storefront-sdk.md",
+    overrides.storefrontSdkDocs ?? "Booking Session v1",
+  )
 }
 
 test("accepts the booking v1 lifecycle contract anchors", (t) => {
@@ -96,4 +115,26 @@ test("rejects missing ADR status and package export anchors", (t) => {
   assert.match(output, /Status/)
   assert.match(output, /source lifecycle-conformance export/)
   assert.match(output, /published lifecycle-conformance export/)
+})
+
+test("rejects legacy Booking-backed session surfaces", (t) => {
+  const root = fixture(t)
+  writeMinimumFixture(root, {
+    publicRoutes: 'app.get("/sessions/:id")',
+    bookingsEntryPoint: "createSelfServiceBookingRoutes bookingsSelfServiceCreateRuntimePort",
+    bookingSchema: "export const bookingSessionStates = table()",
+    storefrontSdkPackage: {
+      exports: { "./booking-engine": "./src/booking-engine.ts" },
+      publishConfig: { exports: { "./engine-state": {} } },
+    },
+    storefrontSdkDocs: "/v1/public/bookings/sessions bookingEngine.getSnapshot",
+  })
+
+  const output = failure(root)
+  assert.match(output, /forbidden.*sessions/)
+  assert.match(output, /createSelfServiceBookingRoutes/)
+  assert.match(output, /bookingsSelfServiceCreateRuntimePort/)
+  assert.match(output, /bookingSessionStates/)
+  assert.match(output, /forbidden export \.\/booking-engine/)
+  assert.match(output, /forbidden published export \.\/engine-state/)
 })

@@ -186,7 +186,7 @@ describe("requireAuth API keys", () => {
         auth: { resolve },
       }),
     )
-    app.post("/v1/public/bookings/sessions", (c) =>
+    app.post("/v1/public/bookings/overview", (c) =>
       c.json({
         actor: c.get("actor") ?? null,
         realm: c.get("realm") ?? null,
@@ -195,7 +195,7 @@ describe("requireAuth API keys", () => {
       }),
     )
 
-    const response = await app.request("/v1/public/bookings/sessions", { method: "POST" }, TEST_ENV)
+    const response = await app.request("/v1/public/bookings/overview", { method: "POST" }, TEST_ENV)
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ actor: null, realm: null, userId: null, guest: true })
@@ -218,7 +218,7 @@ describe("requireAuth API keys", () => {
         auth: { resolve },
       }),
     )
-    app.post("/v1/public/bookings/sessions", (c) =>
+    app.post("/v1/public/bookings/overview", (c) =>
       c.json({
         actor: c.get("actor"),
         realm: c.get("realm"),
@@ -227,7 +227,7 @@ describe("requireAuth API keys", () => {
       }),
     )
 
-    const response = await app.request("/v1/public/bookings/sessions", { method: "POST" }, TEST_ENV)
+    const response = await app.request("/v1/public/bookings/overview", { method: "POST" }, TEST_ENV)
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
@@ -249,13 +249,13 @@ describe("requireAuth API keys", () => {
         optionalCustomerAuthPaths: ["/v1/public/bookings"],
       }),
     )
-    app.post("/v1/public/bookings/sessions", (c) => {
+    app.post("/v1/public/bookings/overview", (c) => {
       requireCustomerBuyerContext(c)
       return c.json({ ok: true })
     })
 
     const response = await app.fetch(
-      new Request("http://example.com/v1/public/bookings/sessions", {
+      new Request("http://example.com/v1/public/bookings/overview", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       }),

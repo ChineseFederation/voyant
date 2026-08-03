@@ -1831,14 +1831,10 @@
       "@voyant-travel/storefront-sdk/booking-amendments": [
         "../storefront-sdk/dist/booking-amendments.d.ts"
       ],
-      "@voyant-travel/storefront-sdk/booking-engine": [
-        "../storefront-sdk/dist/booking-engine.d.ts"
-      ],
       "@voyant-travel/storefront-sdk/booking-session-v1": [
         "../storefront-sdk/dist/booking-session-v1.d.ts"
       ],
       "@voyant-travel/storefront-sdk/client": ["../storefront-sdk/dist/client.d.ts"],
-      "@voyant-travel/storefront-sdk/engine-state": ["../storefront-sdk/dist/engine-state.d.ts"],
       "@voyant-travel/storefront-sdk/errors": ["../storefront-sdk/dist/errors.d.ts"],
       "@voyant-travel/storefront-sdk/operations": ["../storefront-sdk/dist/operations.d.ts"],
       "@voyant-travel/storefront-sdk/schemas": ["../storefront-sdk/dist/schemas.d.ts"],

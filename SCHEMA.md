@@ -2000,19 +2000,6 @@ Constraints:
 | `metadata` | jsonb • nullable |
 | `created_at` (`createdAt`) | timestamp with time zone • not null • default |
 
-### `booking_session_states`
-| Column | Type |
-|--------|------|
-| `id` | text • PK • not null • default |
-| `booking_id` (`bookingId`) | text • FK -> bookings.id • not null |
-| `state_key` (`stateKey`) | text • not null • default "wizard" |
-| `current_step` (`currentStep`) | text • nullable |
-| `completed_steps` (`completedSteps`) | jsonb • not null • default [] |
-| `payload` | jsonb • nullable |
-| `version` | integer • not null • default 1 |
-| `created_at` (`createdAt`) | timestamp with time zone • not null • default |
-| `updated_at` (`updatedAt`) | timestamp with time zone • not null • default |
-
 ### `booking_supplier_statuses`
 | Column | Type |
 |--------|------|

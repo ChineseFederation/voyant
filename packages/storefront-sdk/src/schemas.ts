@@ -1,13 +1,6 @@
 import {
   publicBookingOverviewLookupQuerySchema,
   publicBookingOverviewSchema,
-  publicBookingSessionMutationSchema,
-  publicBookingSessionRepriceResultSchema,
-  publicBookingSessionSchema,
-  publicBookingSessionStateSchema,
-  publicRepriceBookingSessionSchema,
-  publicUpdateBookingSessionSchema,
-  publicUpsertBookingSessionStateSchema,
 } from "@voyant-travel/bookings/public-validation"
 import {
   bootstrapCheckoutCollectionSchema,
@@ -64,13 +57,6 @@ export {
   previewCheckoutCollectionSchema,
   publicBookingOverviewLookupQuerySchema,
   publicBookingOverviewSchema,
-  publicBookingSessionMutationSchema,
-  publicBookingSessionRepriceResultSchema,
-  publicBookingSessionSchema,
-  publicBookingSessionStateSchema,
-  publicRepriceBookingSessionSchema,
-  publicUpdateBookingSessionSchema,
-  publicUpsertBookingSessionStateSchema,
   storefrontDepartureItineraryQuerySchema,
   storefrontDepartureItinerarySchema,
   storefrontDepartureListQuerySchema,
@@ -125,15 +111,6 @@ export const storefrontPromotionalOfferResponseSchema = storefrontSingleEnvelope
   storefrontPromotionalOfferSchema,
 )
 
-export const publicBookingSessionResponseSchema = storefrontSingleEnvelopeSchema(
-  publicBookingSessionSchema,
-)
-export const publicBookingSessionStateResponseSchema = storefrontSingleEnvelopeSchema(
-  publicBookingSessionStateSchema,
-)
-export const publicBookingSessionRepriceResponseSchema = storefrontSingleEnvelopeSchema(
-  publicBookingSessionRepriceResultSchema,
-)
 export const publicBookingOverviewResponseSchema = storefrontSingleEnvelopeSchema(
   publicBookingOverviewSchema,
 )
@@ -179,19 +156,8 @@ export type StorefrontPromotionalOfferListQuery = z.input<
 >
 export type StorefrontPromotionalOfferRecord = z.infer<typeof storefrontPromotionalOfferSchema>
 
-export type PublicUpdateBookingSessionInput = z.input<typeof publicUpdateBookingSessionSchema>
-export type PublicBookingSessionMutationInput = z.input<typeof publicBookingSessionMutationSchema>
-export type PublicBookingSessionRepriceInput = z.input<typeof publicRepriceBookingSessionSchema>
-export type PublicUpsertBookingSessionStateInput = z.input<
-  typeof publicUpsertBookingSessionStateSchema
->
 export type PublicBookingOverviewLookupQuery = z.input<
   typeof publicBookingOverviewLookupQuerySchema
->
-export type PublicBookingSessionRecord = z.infer<typeof publicBookingSessionSchema>
-export type PublicBookingSessionStateRecord = z.infer<typeof publicBookingSessionStateSchema>
-export type PublicBookingSessionRepriceResultRecord = z.infer<
-  typeof publicBookingSessionRepriceResultSchema
 >
 export type PublicBookingOverviewRecord = z.infer<typeof publicBookingOverviewSchema>
 

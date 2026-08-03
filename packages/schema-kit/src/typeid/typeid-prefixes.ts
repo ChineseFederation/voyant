@@ -99,7 +99,6 @@ export const PREFIXES = {
   booking_revisions: "bkrv",
   booking_groups: "bkgr",
   booking_group_members: "bkgm",
-  booking_session_states: "bkst",
   availability_rules: "avrl",
   availability_start_times: "avst",
   availability_slots: "avsl",
@@ -396,10 +395,7 @@ export const PREFIXES = {
   catalog_content_drift_event: "cnde",
   catalog_demo_inventory: "cdmi",
   catalog_demo_orders: "cdmo",
-  // Resumable session-bound draft for the unified booking journey.
-  // Per docs/architecture/booking-journey-architecture.md §5.7 +
-  // §12.10 (chose option B: ship as a sibling table to
-  // booking_session_states).
+  // Legacy draft retained until the Booking v1 beta-data cutover.
   booking_drafts: "bdrf",
   booking_sessions: "bses",
   booking_session_quotes: "bsqu",

@@ -138,7 +138,7 @@ Before specifying anything new, this doc commits to reusing the following primit
 | Quantity-tier pricing (more units → cheaper per-unit) | `option_unit_tiers` — `packages/commerce/src/pricing/schema-option-rules.ts` | **Reuse.** Quantity tiers are an orthogonal axis to per-occupancy tiers; the engine consults both when pricing an option. |
 | Snapshot graph | `booking_catalog_snapshot` + `captureSnapshot` / `captureSnapshotGraph` — `packages/catalog/src/services/snapshot-service.ts` | **Reuse.** Snapshot capture cannot create a booking row. |
 | Atomic booking creation | admitted Finance command + lease-gated Bookings settlement | **Single authority.** Vertical handlers quote and hold only; they do not expose a second commit bridge. ADR-0019 requires owned Commit to validate exact Session revision, Quote, live Hold, and payment guarantee before creating Booking and Allocation in one transaction. |
-| Public booking sessions (existing model) | `booking_session_states` keyed by an existing `booking_id` - `packages/bookings/src/schema-operations.ts`. Public routes read/update/reprice/confirm/expire that existing session. | **Legacy sibling, not v1 replacement.** V1 Booking Session initialization does not create a booking. The journey's `booking_drafts` (§5.7) is pre-booking state that may *never* be consumed (abandonment is the common case). |
+| Booking Sessions | `booking_sessions` and its Quote/Hold/Commit children in Catalog | **Canonical v1 pre-Booking aggregate.** Session initialization never creates a Booking; abandonment is expected and explicitly modeled. |
 
 The rule of thumb: if a reasonable read of "I need X" finds an existing primitive in the table above, the new code uses it. Adding a parallel primitive needs a one-paragraph justification in this doc.
 
@@ -795,12 +795,12 @@ const HoldExtendRequestV1 = z.object({ holdToken: z.string() })
 const HoldReleaseRequestV1 = z.object({ holdToken: z.string() })
 ```
 
-The package exports `ENGINE_CONTRACT_V1` and V1 schemas as the current public wire contract. Runtime capability negotiation for V2 is not implemented yet; when V2 lands, add explicit adapter/handler version declaration and keep V1 callable for one full minor-version cycle of every vertical that adopted it.
+The package exports `ENGINE_CONTRACT_V1` and v1 schemas as the public wire contract.
 
 **Why this matters now.** The journey shell typechecks against the response
 shape; multiple adapters and owned handlers agree on what "available" means;
 the composer needs the same contract to call N journeys' worth of quotes. V1
-is the execution contract until a concrete V2 migration is opened.
+is the execution contract.
 
 ## 9. Schema additions
 
@@ -811,7 +811,7 @@ not just the original proposal.
 
 1. **`products.tax_class_id`** — text reference to a `tax_classes` row. Drives the engine's tax computation for owned products. (Default `null` → falls through to a market-level default.) **Why new:** today there is no per-product link from `products` to `tax_regimes`; tax is computed only at invoice time.
 2. **`tax_classes`** — `{ id, code, label, default_regime_id, lines: [{ regime_id, applies_to: "base"|"extra"|"all" }] }`. Lives in `packages/finance/`. **Why not extend `tax_regimes`:** `tax_regimes` is the jurisdictional rate catalog (RO 19% VAT, EU rates, etc.) and stays as-is. `tax_classes` is the *per-product treatment decision* — "this product applies the standard VAT regime; that one is exempt under Art. 311 margin scheme; the third applies a reduced regime in DE only." A product points at a class; the class points at a regime row keyed off buyer country. The two stack.
-3. **`booking_drafts`** — shipped in `packages/catalog/src/booking-engine/drafts-schema.ts`; see §5.7. **Why not extend `booking_session_states`:** the existing model is keyed by an existing `booking_id` (it wraps a materialized booking). The journey needs a *pre-booking-row* hold so abandoned drafts don't litter `bookings`.
+3. **`booking_drafts`** — a beta predecessor retained only until the Booking v1 data cutover. New journeys use `booking_sessions`; abandoned attempts never create `bookings` rows.
 4. **`product_extra_offers` view** — convenience view over Inventory extras + `option_extra_configs` that the engine queries to populate `BookingDraftShape.addonGroups`. View, not a table; no source-of-truth change. If an older implementation creates `product_addon_offers`, keep it as a legacy alias rather than the canonical name.
 5. **`product_pax_pricing_tiers`** — per-product per-occupancy rate tier table **for non-cruise verticals**. Columns: `product_id`, `option_unit_id`, `tier_pax` (1, 2, 3, 4), `price_per_pax_cents`, `promo_price_per_pax_cents`, `effective_from`, `effective_to`. Falls back to `option_unit_tiers` (quantity, not occupancy) when no occupancy tiers exist. **Why not generalize `cruise_prices`:** cruises have specialized columns (`fareCode`, `secondGuestPricePerPerson`, `singleSupplementPercent`) the rest of the catalog doesn't need. Cruises keep `cruise_prices`; the engine reads from `cruise_prices` for cruise rows and `product_pax_pricing_tiers` for everyone else. The handler dispatches.
 6. **`product_excursion_offers`** — for cruise/tour products with per-port excursion catalogs. Columns: `product_id`, `port_facility_id` or `day_number`, `excursion_extra_id` (fk into Inventory extras so we don't fork the Extras model), `pricing_kind`, `availability_kind`. Lets the descriptor's `addonGroups` carry a grouped excursion section without a new Extra table.
@@ -925,7 +925,7 @@ vertical hardening or composer work.
 7. **Cabin number selection — actual deck plan or numbered grid?** A numbered grid is the simpler affordance and what production cruise systems we've shipped converged on; a deck plan (visual) is richer but takes a CMS and SVG assets per ship. v1 should ship the grid; deck plan is a follow-up that's purely a presentation swap (descriptor unchanged).
 8. **Per-guest excursion selection vs party-level.** Per-guest selection (each guest can pick different excursions) is what production cruise systems we've shipped use; some cruise lines mandate party-level. The descriptor's `addonGroups[].perGuestSelection` boolean already covers this — but who declares the value? Probably the supplier, surfaced via supplier metadata on the cruise's catalog row.
 9. ~~**Hold release semantics.**~~ **Resolved:** immediate release on `expires_at` for v1. The reaper job (`/api/draft-reaper-scheduled` cron) lists expired drafts hourly and calls each handler's `releaseHold`. Per-supplier grace periods are a follow-up that lives on adapter metadata (the contract takes a `releaseHold(token)` method that adapters can implement to delay the upstream release).
-10. ~~**Extend `booking_session_states` vs. ship `booking_drafts`.**~~ **Resolved (option B):** `booking_drafts` shipped as a sibling table. `booking_session_states` stays untouched (post-booking-row session lifecycle); `booking_drafts` carries pre-booking-row resumable state. Two tables, two lifetimes.
+10. ~~**Keep parallel session tables.**~~ **Superseded:** Booking Session v1 owns all pre-commit journey state. The beta tables are cutover inputs, not permanent parallel lifecycles.
 
 ## 13. Related documents
 

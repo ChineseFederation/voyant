@@ -3,7 +3,6 @@ import { actionLedgerFinanceDriftRuntimePort } from "@voyant-travel/action-ledge
 import {
   bookingActionSourceRuntimePort,
   bookingsFinanceRuntimePort,
-  bookingsSelfServiceCreateRuntimePort,
 } from "@voyant-travel/bookings/runtime-port"
 import {
   defineExtension,
@@ -73,9 +72,6 @@ export const financeVoyantModule = defineModule({
       providePort(bookingActionSourceRuntimePort),
       providePort(financeHostRuntimePort),
       providePort(financeAppApiRuntimePort),
-      // The public booking-create route lives in Bookings; Finance supplies
-      // the durable command it dispatches.
-      providePort(bookingsSelfServiceCreateRuntimePort),
     ],
   },
   api: [
@@ -722,11 +718,10 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
       approval: "never",
       reversible: false,
       allowedActorTypes: ["customer"],
-      // Served by the public Bookings API bundle: the resource is a booking,
-      // and Finance supplies the command through
-      // bookings.self-service-create.runtime rather than owning the route.
+      // Booking Session Commit is served by Catalog and settles through
+      // Finance's admitted command.
       from: {
-        routes: ["@voyant-travel/bookings#api.public"],
+        routes: ["@voyant-travel/catalog#booking-engine.api.public"],
       },
     },
   ],

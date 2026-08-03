@@ -4,7 +4,6 @@ import {
   bookingFulfillments,
   bookingItems,
   bookingItemTravelers,
-  bookingSessionStates,
   bookingStaffAssignments,
   bookings,
   bookingTravelers,
@@ -58,7 +57,6 @@ import { customerPortalBookingDetailSchema } from "./validation-public.js"
 
 const linkedCustomerSource = "customer_auth.user"
 const companionMetadataKind = "companion"
-const bookingWizardStateKey = "wizard"
 const peopleKeyRef = { keyType: "people" as const }
 
 interface CustomerPortalServiceOptions {
@@ -484,35 +482,6 @@ function selectPreferredAddress(
     addresses[0] ??
     null
   )
-}
-
-function resolveBillingContactFromSessionPayload(
-  payload: Record<string, unknown> | null | undefined,
-): CustomerPortalBookingBillingContact | null {
-  const root = getRecord(payload)
-  const stepData = getNestedRecord(root, ["stepData", "steps"])
-  const billingRecord =
-    getNestedRecord(root, ["billing", "billingContact", "contact"]) ??
-    getNestedRecord(stepData, ["billing", "billingContact", "contact"])
-
-  const billing = getNestedRecord(billingRecord, ["billing", "contact"]) ?? billingRecord
-
-  if (!billing) {
-    return null
-  }
-
-  return {
-    email: getRecordString(billing, ["email"]),
-    phone: getRecordString(billing, ["phone"]),
-    firstName: getRecordString(billing, ["firstName"]),
-    lastName: getRecordString(billing, ["lastName"]),
-    country: getRecordString(billing, ["country"]),
-    state: getRecordString(billing, ["state", "region"]),
-    city: getRecordString(billing, ["city"]),
-    address1: getRecordString(billing, ["addressLine1", "address1", "line1"]),
-    address2: getRecordString(billing, ["addressLine2", "address2", "line2"]),
-    postal: getRecordString(billing, ["postalCode", "postal", "zip"]),
-  }
 }
 
 function resolveFinanceDocumentFileName(
@@ -1429,7 +1398,7 @@ async function getBookingBillingContact(
   bookingId: string,
   customerRecord: Awaited<ReturnType<typeof getCustomerRecord>> | null,
 ): Promise<CustomerPortalBookingBillingContact | null> {
-  const [bookingRows, stateRows, primaryParticipantRows] = await Promise.all([
+  const [bookingRows, primaryParticipantRows] = await Promise.all([
     db
       .select({
         contactFirstName: bookings.contactFirstName,
@@ -1447,16 +1416,6 @@ async function getBookingBillingContact(
       .where(eq(bookings.id, bookingId))
       .limit(1),
     db
-      .select({ payload: bookingSessionStates.payload })
-      .from(bookingSessionStates)
-      .where(
-        and(
-          eq(bookingSessionStates.bookingId, bookingId),
-          eq(bookingSessionStates.stateKey, bookingWizardStateKey),
-        ),
-      )
-      .limit(1),
-    db
       .select({
         firstName: bookingTravelers.firstName,
         lastName: bookingTravelers.lastName,
@@ -1470,56 +1429,25 @@ async function getBookingBillingContact(
   ])
 
   const booking = bookingRows[0] ?? null
-  const stateRow = stateRows[0] ?? null
   const primaryParticipant = primaryParticipantRows[0] ?? null
-
-  const sessionBillingContact = resolveBillingContactFromSessionPayload(stateRow?.payload ?? null)
   const billingAddress = customerRecord?.billingAddress ?? null
 
   const result: CustomerPortalBookingBillingContact = {
-    email:
-      booking?.contactEmail ??
-      sessionBillingContact?.email ??
-      primaryParticipant?.email ??
-      customerRecord?.email ??
-      null,
-    phone:
-      booking?.contactPhone ??
-      sessionBillingContact?.phone ??
-      primaryParticipant?.phone ??
-      customerRecord?.phone ??
-      null,
+    email: booking?.contactEmail ?? primaryParticipant?.email ?? customerRecord?.email ?? null,
+    phone: booking?.contactPhone ?? primaryParticipant?.phone ?? customerRecord?.phone ?? null,
     firstName:
       booking?.contactFirstName ??
-      sessionBillingContact?.firstName ??
       primaryParticipant?.firstName ??
       customerRecord?.firstName ??
       null,
     lastName:
-      booking?.contactLastName ??
-      sessionBillingContact?.lastName ??
-      primaryParticipant?.lastName ??
-      customerRecord?.lastName ??
-      null,
-    country:
-      booking?.contactCountry ?? sessionBillingContact?.country ?? billingAddress?.country ?? null,
-    state: booking?.contactRegion ?? sessionBillingContact?.state ?? billingAddress?.region ?? null,
-    city: booking?.contactCity ?? sessionBillingContact?.city ?? billingAddress?.city ?? null,
-    address1:
-      booking?.contactAddressLine1 ??
-      sessionBillingContact?.address1 ??
-      billingAddress?.line1 ??
-      null,
-    address2:
-      booking?.contactAddressLine2 ??
-      sessionBillingContact?.address2 ??
-      billingAddress?.line2 ??
-      null,
-    postal:
-      booking?.contactPostalCode ??
-      sessionBillingContact?.postal ??
-      billingAddress?.postalCode ??
-      null,
+      booking?.contactLastName ?? primaryParticipant?.lastName ?? customerRecord?.lastName ?? null,
+    country: booking?.contactCountry ?? billingAddress?.country ?? null,
+    state: booking?.contactRegion ?? billingAddress?.region ?? null,
+    city: booking?.contactCity ?? billingAddress?.city ?? null,
+    address1: booking?.contactAddressLine1 ?? billingAddress?.line1 ?? null,
+    address2: booking?.contactAddressLine2 ?? billingAddress?.line2 ?? null,
+    postal: booking?.contactPostalCode ?? billingAddress?.postalCode ?? null,
   }
 
   const hasValue = Object.values(result).some(

@@ -62,15 +62,9 @@ export const bookingsQueryKeys = {
   all: ["voyant", "bookings"] as const,
 
   bookings: () => [...bookingsQueryKeys.all, "bookings"] as const,
-  publicSessions: () => [...bookingsQueryKeys.all, "public-sessions"] as const,
   bookingsList: (filters: BookingsListFilters) =>
     [...bookingsQueryKeys.bookings(), "list", filters] as const,
   booking: (id: string) => [...bookingsQueryKeys.bookings(), "detail", id] as const,
-  publicSession: (sessionId: string) =>
-    [...bookingsQueryKeys.publicSessions(), "detail", sessionId] as const,
-  publicSessionState: (sessionId: string) =>
-    [...bookingsQueryKeys.publicSession(sessionId), "state"] as const,
-
   items: (bookingId: string) => [...bookingsQueryKeys.booking(bookingId), "items"] as const,
   itemTravelers: (bookingId: string, itemId: string) =>
     [...bookingsQueryKeys.items(bookingId), itemId, "travelers"] as const,

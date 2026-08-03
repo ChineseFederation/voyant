@@ -31,9 +31,6 @@ describe("finance deployment manifest", () => {
           { id: "bookings.booking-action-source.runtime" },
           { id: "finance.host.runtime" },
           { id: "finance.app-api.runtime" },
-          // The public booking-create route lives in Bookings; Finance
-          // supplies the durable command it dispatches.
-          { id: "bookings.self-service-create.runtime" },
         ],
       },
       runtime: { entry: "@voyant-travel/finance", export: "createFinanceVoyantRuntime" },
@@ -601,7 +598,7 @@ describe("finance deployment manifest", () => {
             },
             ledger: "required",
             allowedActorTypes: ["customer"],
-            from: { routes: ["@voyant-travel/bookings#api.public"] },
+            from: { routes: ["@voyant-travel/catalog#booking-engine.api.public"] },
             // Fail closed: unavailable until a deployment selects a provider
             // that can resolve a public draft/quote into a create command.
             availability: {

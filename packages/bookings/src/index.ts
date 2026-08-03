@@ -3,7 +3,6 @@ import type { BootstrapContext, Module } from "@voyant-travel/core"
 import { customFieldsRuntimePort } from "@voyant-travel/core/custom-fields"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { ApiModule } from "@voyant-travel/hono/module"
-import type { Context } from "hono"
 import { resolveBookingFinancialLifecycle } from "./financial-lifecycle.js"
 import { bookingsLinkable } from "./linkables.js"
 import {
@@ -15,22 +14,14 @@ import { bookingRoutes } from "./routes.js"
 import { bookingAmendmentPublicRoutes } from "./routes-amendments.js"
 import { publicBookingRoutes } from "./routes-public.js"
 import { createPublicBookingActionRoutes } from "./routes-public-booking-actions.js"
-import {
-  createSelfServiceBookingRoutes,
-  type SelfServiceCreateRouteOptions,
-} from "./routes-public-self-service-create.js"
 import { createBookingsRuntime } from "./runtime.js"
 import {
   type BookingActionProjectionRuntime,
-  type BookingsGuestVerificationRuntime,
-  type BookingsSelfServiceCreateRuntime,
   type BookingsSupplierAmendmentRuntime,
   bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
   bookingsFinanceRuntimePort,
-  bookingsGuestVerificationRuntimePort,
   bookingsRelationshipsRuntimePort,
-  bookingsSelfServiceCreateRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
 
@@ -162,9 +153,7 @@ export const bookingsModule: Module = {
   requiresTransactionalDb: true,
 }
 
-export interface BookingsApiModuleOptions
-  extends BookingRouteRuntimeOptions,
-    SelfServiceCreateRouteOptions {
+export interface BookingsApiModuleOptions extends BookingRouteRuntimeOptions {
   bookingActions?: BookingActionProjectionRuntime
 }
 
@@ -199,8 +188,7 @@ export function createBookingsApiModule(options: BookingsApiModuleOptions = {}):
     publicRoutes: new OpenAPIHono()
       .route("/", publicBookingRoutes)
       .route("/", bookingAmendmentPublicRoutes)
-      .route("/", createPublicBookingActionRoutes(options.bookingActions))
-      .route("/", createSelfServiceBookingRoutes(options)),
+      .route("/", createPublicBookingActionRoutes(options.bookingActions)),
     anonymous: true,
     optionalCustomerAuth: true,
   }
@@ -224,16 +212,6 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
       relationships,
     })
 
-    // Public self-service creation is served only when a deployment selected a
-    // provider for the durable command; otherwise the route reports 501. The
-    // guest-verification provider is separate: without it only authenticated
-    // customers can create.
-    const selfServiceCreate = hasPort(bookingsSelfServiceCreateRuntimePort)
-      ? ((await getPort(bookingsSelfServiceCreateRuntimePort)) as BookingsSelfServiceCreateRuntime)
-      : undefined
-    const guestVerification = hasPort(bookingsGuestVerificationRuntimePort)
-      ? ((await getPort(bookingsGuestVerificationRuntimePort)) as BookingsGuestVerificationRuntime)
-      : undefined
     const amendmentSupplier = hasPort(bookingsSupplierAmendmentRuntimePort)
       ? ((await getPort(bookingsSupplierAmendmentRuntimePort)) as BookingsSupplierAmendmentRuntime)
       : undefined
@@ -243,13 +221,9 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
 
     const configured = createBookingsApiModule({
       ...provider.options,
-      ...(selfServiceCreate ? { resolveSelfServiceCreate: () => selfServiceCreate } : {}),
-      ...(guestVerification ? { resolveGuestVerification: () => guestVerification } : {}),
       amendmentFinance: finance,
       ...(amendmentSupplier ? { amendmentSupplier } : {}),
       ...(bookingActions ? { bookingActions } : {}),
-      resolveAuthenticatedPersonId: (c) => readCustomerPrincipal(c).personId,
-      resolveAuthenticatedUserId: (c) => readCustomerPrincipal(c).userId,
     })
 
     const bootstrap = configured.module.bootstrap
@@ -272,24 +246,6 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
     return selected
   },
 )
-
-/**
- * Read the authenticated customer from request context.
- *
- * The public bookings bundle runs with `optionalCustomerAuth`, so an anonymous
- * caller has no customer realm set — which is exactly when the create route
- * requires a verified challenge instead. Mirrors
- * `requireCustomerIdentityContext` without throwing.
- */
-function readCustomerPrincipal(c: Context): { personId?: string; userId?: string } {
-  if (c.get("realm") !== "customer" || c.get("actor") !== "customer") return {}
-  const userId = c.get("userId")
-  const personId = c.get("relationshipPersonId")
-  return {
-    ...(typeof personId === "string" && personId ? { personId } : {}),
-    ...(typeof userId === "string" && userId ? { userId } : {}),
-  }
-}
 
 export {
   BOOKING_FINANCIAL_LIFECYCLE_KEY,
@@ -319,17 +275,7 @@ export {
 export type { BookingActionLedgerListResponse, BookingRoutes } from "./routes.js"
 export type { PublicBookingRoutes } from "./routes-public.js"
 export { publicBookingRoutes } from "./routes-public.js"
-export {
-  createSelfServiceBookingRoutes,
-  type SelfServiceCreateRouteOptions,
-  type SelfServiceGuestVerification,
-} from "./routes-public-self-service-create.js"
-export type {
-  BookingsGuestVerificationRuntime,
-  BookingsRuntimeProvider,
-  BookingsSelfServiceCreateResult,
-  BookingsSelfServiceCreateRuntime,
-} from "./runtime-port.js"
+export type { BookingsRuntimeProvider } from "./runtime-port.js"
 export {
   bookingRequirementsRuntimePort,
   bookingsAccommodationRuntimePort,
@@ -337,7 +283,6 @@ export {
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,
   bookingsRuntimePort,
-  bookingsSelfServiceCreateRuntimePort,
 } from "./runtime-port.js"
 export type {
   BookingTravelerBedPreference,
@@ -376,7 +321,6 @@ export type {
   BookingPiiAccessLog,
   BookingPriceOverride,
   BookingRedemptionEvent,
-  BookingSessionState,
   BookingStaffAssignment,
   BookingSupplierStatus,
   BookingTraveler,
@@ -393,7 +337,6 @@ export type {
   NewBookingOrigin,
   NewBookingPiiAccessLog,
   NewBookingRedemptionEvent,
-  NewBookingSessionState,
   NewBookingStaffAssignment,
   NewBookingSupplierStatus,
   NewBookingTraveler,
@@ -414,14 +357,12 @@ export {
   bookingOrigins,
   bookingPiiAccessLog,
   bookingRedemptionEvents,
-  bookingSessionStates,
   bookingStaffAssignments,
   bookingSupplierStatuses,
   bookings,
   bookingTravelers,
 } from "./schema.js"
 export {
-  type PublicBookingsServiceResolvers,
   publicBookingsService,
   resolveSessionPricingSnapshot,
 } from "./service-public.js"
@@ -457,18 +398,9 @@ export {
   pricingPreviewSchema,
   publicBookingOverviewAccessQuerySchema,
   publicBookingOverviewLookupQuerySchema,
-  publicBookingSessionMutationSchema,
-  publicBookingSessionRepriceItemSchema,
-  publicBookingSessionRepriceResultSchema,
-  publicBookingSessionRepriceSummarySchema,
-  publicBookingSessionStateSchema,
-  publicCreateBookingSessionSchema,
   publicGuestBookingAccessSchema,
   publicGuestBookingLookupResponseSchema,
   publicGuestBookingLookupSchema,
-  publicRepriceBookingSessionSchema,
-  publicUpdateBookingSessionSchema,
-  publicUpsertBookingSessionStateSchema,
   recordBookingRedemptionSchema,
   sharingGroupsForSlotQuerySchema,
   startBookingSchema,

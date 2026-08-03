@@ -1,5 +1,4 @@
 import { customerBusinessAccountOnboardingRuntimePort } from "@voyant-travel/auth/ports"
-import { bookingsGuestVerificationRuntimePort } from "@voyant-travel/bookings/runtime-port"
 import { catalogPublicationRuntimePort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
 
@@ -409,9 +408,6 @@ export const storefrontVerificationVoyantModule = defineModule({
     export: "createStorefrontVerificationVoyantRuntime",
   },
   runtimePorts: [requirePort(storefrontVerificationRuntimePort)],
-  provides: {
-    ports: [providePort(bookingsGuestVerificationRuntimePort)],
-  },
   api: [
     {
       id: "@voyant-travel/storefront#verification.api",

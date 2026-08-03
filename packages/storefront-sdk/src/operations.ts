@@ -15,20 +15,9 @@ import {
   initiatedCheckoutCollectionResponseSchema,
   type PreviewCheckoutCollectionInput,
   type PublicBookingOverviewLookupQuery,
-  type PublicBookingSessionMutationInput,
-  type PublicBookingSessionRepriceInput,
-  type PublicUpdateBookingSessionInput,
-  type PublicUpsertBookingSessionStateInput,
   previewCheckoutCollectionSchema,
   publicBookingOverviewLookupQuerySchema,
   publicBookingOverviewResponseSchema,
-  publicBookingSessionMutationSchema,
-  publicBookingSessionRepriceResponseSchema,
-  publicBookingSessionResponseSchema,
-  publicBookingSessionStateResponseSchema,
-  publicRepriceBookingSessionSchema,
-  publicUpdateBookingSessionSchema,
-  publicUpsertBookingSessionStateSchema,
   type StorefrontDepartureItineraryQuery,
   type StorefrontDepartureListQuery,
   type StorefrontDeparturePricePreviewInput,
@@ -212,97 +201,6 @@ export function getStorefrontOfferBySlug(
     withStorefrontQueryParams(`/v1/public/offers/${encodeURIComponent(slug)}`, query),
     storefrontPromotionalOfferResponseSchema,
     client,
-  ).then((response) => response.data)
-}
-
-export function getPublicBookingSession(client: ResolvedClientOptions, sessionId: string) {
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}`,
-    publicBookingSessionResponseSchema,
-    client,
-  ).then((response) => response.data)
-}
-
-export function updatePublicBookingSession(
-  client: ResolvedClientOptions,
-  sessionId: string,
-  input: PublicUpdateBookingSessionInput,
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicUpdateBookingSessionSchema.parse(input)
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}`,
-    publicBookingSessionResponseSchema,
-    client,
-    { method: "PATCH", headers: requestHeaders(options), body: JSON.stringify(parsed) },
-  ).then((response) => response.data)
-}
-
-export function getPublicBookingSessionState(client: ResolvedClientOptions, sessionId: string) {
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}/state`,
-    publicBookingSessionStateResponseSchema,
-    client,
-  ).then((response) => response.data)
-}
-
-export function updatePublicBookingSessionState(
-  client: ResolvedClientOptions,
-  sessionId: string,
-  input: PublicUpsertBookingSessionStateInput,
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicUpsertBookingSessionStateSchema.parse(input)
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}/state`,
-    publicBookingSessionStateResponseSchema,
-    client,
-    { method: "PUT", headers: requestHeaders(options), body: JSON.stringify(parsed) },
-  ).then((response) => response.data)
-}
-
-export function repricePublicBookingSession(
-  client: ResolvedClientOptions,
-  sessionId: string,
-  input: PublicBookingSessionRepriceInput,
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicRepriceBookingSessionSchema.parse(input)
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}/reprice`,
-    publicBookingSessionRepriceResponseSchema,
-    client,
-    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
-  ).then((response) => response.data)
-}
-
-export function confirmPublicBookingSession(
-  client: ResolvedClientOptions,
-  sessionId: string,
-  input: PublicBookingSessionMutationInput = {},
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicBookingSessionMutationSchema.parse(input)
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}/confirm`,
-    publicBookingSessionResponseSchema,
-    client,
-    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
-  ).then((response) => response.data)
-}
-
-export function expirePublicBookingSession(
-  client: ResolvedClientOptions,
-  sessionId: string,
-  input: PublicBookingSessionMutationInput = {},
-  options?: StorefrontRequestOptions,
-) {
-  const parsed = publicBookingSessionMutationSchema.parse(input)
-  return storefrontFetchWithValidation(
-    `/v1/public/bookings/sessions/${encodeURIComponent(sessionId)}/expire`,
-    publicBookingSessionResponseSchema,
-    client,
-    { method: "POST", headers: requestHeaders(options), body: JSON.stringify(parsed) },
   ).then((response) => response.data)
 }
 

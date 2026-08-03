@@ -128,42 +128,6 @@ function findDockerContainerForPort(port) {
   return null
 }
 
-function ensureCurrentBookingsSchema(containerName) {
-  const ensureSql = `
-    CREATE TABLE IF NOT EXISTS booking_session_states (
-      id text PRIMARY KEY,
-      booking_id text NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
-      state_key text NOT NULL DEFAULT 'wizard',
-      current_step text,
-      completed_steps jsonb NOT NULL DEFAULT '[]'::jsonb,
-      payload jsonb,
-      version integer NOT NULL DEFAULT 1,
-      created_at timestamptz NOT NULL DEFAULT now(),
-      updated_at timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS idx_booking_session_states_booking
-      ON booking_session_states (booking_id);
-    CREATE INDEX IF NOT EXISTS idx_booking_session_states_key
-      ON booking_session_states (state_key);
-    CREATE UNIQUE INDEX IF NOT EXISTS uidx_booking_session_states_booking_key
-      ON booking_session_states (booking_id, state_key);
-  `
-
-  run("docker", [
-    "exec",
-    containerName,
-    "psql",
-    "-U",
-    "test",
-    "-d",
-    "voyant_test",
-    "-v",
-    "ON_ERROR_STOP=1",
-    "-c",
-    ensureSql,
-  ])
-}
-
 async function main() {
   console.log(`Using test database: ${testDbUrl}`)
 
@@ -205,10 +169,6 @@ async function main() {
     console.warn(
       "Skipping db:migrate failure because an existing test database is already running and seeded.",
     )
-  }
-
-  if (containerName) {
-    ensureCurrentBookingsSchema(containerName)
   }
 
   const bookingTestFiles = [

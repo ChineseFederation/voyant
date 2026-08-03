@@ -13,7 +13,6 @@ import {
   bookingActivityLog,
   bookingDocuments,
   bookingNotes,
-  bookingSessionStates,
   bookingSupplierStatuses,
 } from "./schema-operations.js"
 import { bookingStaffAssignments } from "./schema-staff.js"
@@ -24,7 +23,6 @@ export const bookingsRelations = relations(bookings, ({ many }) => ({
   supplierStatuses: many(bookingSupplierStatuses),
   activityLog: many(bookingActivityLog),
   notes: many(bookingNotes),
-  sessionStates: many(bookingSessionStates),
   documents: many(bookingDocuments),
   fulfillments: many(bookingFulfillments),
   redemptionEvents: many(bookingRedemptionEvents),
@@ -124,13 +122,6 @@ export const bookingRedemptionEventsRelations = relations(bookingRedemptionEvent
 
 export const bookingActivityLogRelations = relations(bookingActivityLog, ({ one }) => ({
   booking: one(bookings, { fields: [bookingActivityLog.bookingId], references: [bookings.id] }),
-}))
-
-export const bookingSessionStatesRelations = relations(bookingSessionStates, ({ one }) => ({
-  booking: one(bookings, {
-    fields: [bookingSessionStates.bookingId],
-    references: [bookings.id],
-  }),
 }))
 
 export const bookingNotesRelations = relations(bookingNotes, ({ one }) => ({

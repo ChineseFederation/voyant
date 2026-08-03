@@ -2,36 +2,38 @@
 
 Framework-agnostic TypeScript client for custom Voyant storefronts.
 
-The SDK does not own HTTP routes. It wraps the existing public contracts from
-`@voyant-travel/storefront`, `@voyant-travel/bookings`, and `@voyant-travel/finance` behind a
-single typed client so custom booking UIs can consume Voyant booking logic
-without stitching together package-local fetchers.
+Booking construction uses the Catalog-owned Booking Session v1 aggregate. A
+client creates or resumes a Session, updates its state, quotes, holds, and then
+commits. Commit is the only operation that may create a Booking.
 
 ```ts
-import { createVoyantStorefrontClient } from "@voyant-travel/storefront-sdk"
+import {
+  createBookingSessionCapabilityV1,
+  createVoyantStorefrontClient,
+} from "@voyant-travel/storefront-sdk"
 
-const voyant = createVoyantStorefrontClient({
-  baseUrl: "https://operator.example.com",
-})
+const voyant = createVoyantStorefrontClient({ baseUrl })
+const capability = createBookingSessionCapabilityV1()
 
-const session = await voyant.booking.getSession("booking_session_123")
+const created = await voyant.bookingSessionsV1.create(
+  {
+    idempotencyKey: `${journeyKey}:create`,
+    target: { entityModule: "products", entityId: productId },
+  },
+  { capability },
+)
 
-const state = voyant.booking.deriveState(session)
-```
-
-For custom booking engines, prefer the `bookingEngine` facade. It keeps the
-route-shaped public booking and checkout calls behind flow-oriented methods and
-returns a canonical engine snapshot alongside session reads and mutations.
-
-```ts
-const booking = await voyant.bookingEngine.getSnapshot("booking_session_123")
-
-if (voyant.bookingEngine.canRunAction(booking.engine.state, "start_payment")) {
-  await voyant.bookingEngine.startPayment(booking.session.sessionId, {
-    method: "card",
-  })
+if (created.kind === "session_created") {
+  await voyant.bookingSessionsV1.quote(
+    created.session.id,
+    {
+      expectedRevision: created.session.revision,
+      idempotencyKey: `${journeyKey}:quote`,
+    },
+    { capability },
+  )
 }
 ```
 
-React consumers should layer React Query hooks on top of this package rather
-than reimplementing request paths directly.
+The SDK does not own HTTP routes or business state. React consumers should
+layer their hooks on this package instead of reimplementing request paths.

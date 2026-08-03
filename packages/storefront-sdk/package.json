@@ -13,9 +13,7 @@
     ".": "./src/index.ts",
     "./booking-amendments": "./src/booking-amendments.ts",
     "./booking-session-v1": "./src/booking-session-v1.ts",
-    "./booking-engine": "./src/booking-engine.ts",
     "./client": "./src/client.ts",
-    "./engine-state": "./src/engine-state.ts",
     "./errors": "./src/errors.ts",
     "./operations": "./src/operations.ts",
     "./schemas": "./src/schemas.ts"
@@ -68,20 +66,10 @@
         "import": "./dist/booking-session-v1.js",
         "default": "./dist/booking-session-v1.js"
       },
-      "./booking-engine": {
-        "types": "./dist/booking-engine.d.ts",
-        "import": "./dist/booking-engine.js",
-        "default": "./dist/booking-engine.js"
-      },
       "./client": {
         "types": "./dist/client.d.ts",
         "import": "./dist/client.js",
         "default": "./dist/client.js"
-      },
-      "./engine-state": {
-        "types": "./dist/engine-state.d.ts",
-        "import": "./dist/engine-state.js",
-        "default": "./dist/engine-state.js"
       },
       "./errors": {
         "types": "./dist/errors.d.ts",

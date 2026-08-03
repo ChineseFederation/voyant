@@ -19,10 +19,8 @@ import {
   bookingActionProjectionRuntimePort,
   bookingsAccommodationRuntimePort,
   bookingsFinanceRuntimePort,
-  bookingsGuestVerificationRuntimePort,
   bookingsInventoryRuntimePort,
   bookingsRelationshipsRuntimePort,
-  bookingsSelfServiceCreateRuntimePort,
   bookingsSupplierAmendmentRuntimePort,
 } from "./runtime-port.js"
 import { bookingsStaleHoldsJobRuntimePort } from "./stale-holds-job-runtime-port.js"
@@ -337,13 +335,6 @@ export const bookingsVoyantModule = defineModule({
     requirePort(bookingsFinanceRuntimePort),
     requirePort(bookingsStaleHoldsJobRuntimePort),
     requirePort(bookingsRelationshipsRuntimePort),
-    // Finance composes the durable booking-create command; Bookings owns the
-    // public resource. Optional, so a deployment without it simply serves no
-    // public creation route.
-    requirePort(bookingsSelfServiceCreateRuntimePort, { optional: true }),
-    // Authorizes a guest create. Without it only authenticated customers can
-    // use the public create route.
-    requirePort(bookingsGuestVerificationRuntimePort, { optional: true }),
     requirePort(bookingsSupplierAmendmentRuntimePort, { optional: true }),
     requirePort(bookingActionProjectionRuntimePort, { optional: true }),
   ],

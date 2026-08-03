@@ -1,5 +1,5 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
-import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 
 import { bookings, bookingTravelers } from "./schema-core.js"
 import {
@@ -61,28 +61,6 @@ export const bookingActivityLog = pgTable(
   ],
 )
 
-export const bookingSessionStates = pgTable(
-  "booking_session_states",
-  {
-    id: typeId("booking_session_states"),
-    bookingId: typeIdRef("booking_id")
-      .notNull()
-      .references(() => bookings.id, { onDelete: "cascade" }),
-    stateKey: text("state_key").notNull().default("wizard"),
-    currentStep: text("current_step"),
-    completedSteps: jsonb("completed_steps").$type<string[]>().notNull().default([]),
-    payload: jsonb("payload").$type<Record<string, unknown>>(),
-    version: integer("version").notNull().default(1),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    index("idx_booking_session_states_booking").on(table.bookingId),
-    index("idx_booking_session_states_key").on(table.stateKey),
-    uniqueIndex("uidx_booking_session_states_booking_key").on(table.bookingId, table.stateKey),
-  ],
-)
-
 export const bookingNotes = pgTable(
   "booking_notes",
   {
@@ -128,8 +106,6 @@ export type BookingSupplierStatus = typeof bookingSupplierStatuses.$inferSelect
 export type NewBookingSupplierStatus = typeof bookingSupplierStatuses.$inferInsert
 export type BookingActivity = typeof bookingActivityLog.$inferSelect
 export type NewBookingActivity = typeof bookingActivityLog.$inferInsert
-export type BookingSessionState = typeof bookingSessionStates.$inferSelect
-export type NewBookingSessionState = typeof bookingSessionStates.$inferInsert
 export type BookingNote = typeof bookingNotes.$inferSelect
 export type NewBookingNote = typeof bookingNotes.$inferInsert
 export type BookingDocument = typeof bookingDocuments.$inferSelect
