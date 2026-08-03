@@ -57,6 +57,20 @@
       "when": 1785605700000,
       "tag": "20260801173500_backfill_prior_visible_catalog_publications",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785715200000,
+      "tag": "20260803120000_publication_source_intent_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785715800000,
+      "tag": "20260803121000_channel_source_publications",
+      "breakpoints": true
     }
   ]
 }

@@ -41,6 +41,18 @@ Product lifecycle and distribution are separate axes:
 7. Channel Product Mappings store external identifiers, routing, and
    synchronization configuration. They are not Publication authority, and a
    direct Storefront does not require an external mapping.
+8. Sourced catalog entries are subject to the same assortment authority,
+   addressed by provenance rather than by Product. A sourced entry has no
+   `products` row and therefore no canonical Supplier, so its subject is the
+   `(source kind, source connection)` pair recorded when discovery found it.
+   Publication is default-deny, a connection-specific rule overrides a
+   source-kind rule, and a missing or inactive Channel denies sale. Attaching a
+   supply connection is a sourcing decision; selling its inventory is a
+   separate publication decision.
+9. Catalog documents project provenance (`isSourced`, `sourceKind`, and
+   staff-only `sourceConnectionId`) in every vertical, so consumers scope on
+   ownership directly rather than inferring it from a supply model or an
+   identifier prefix.
 
 Staff catalog slices continue to show active Products independently of
 Publication so operators can find and configure undistributed inventory.
@@ -62,7 +74,8 @@ A deployment adopting this decision must:
 
 1. create an active Channel and Storefront binding for every direct storefront;
 2. create Product- or Supplier-scoped Publication rules for each Channel's
-   assortment;
+   assortment, and supply-source rules for each connection whose inventory the
+   Channel sells;
 3. keep Channel Product Mappings only where external routing or synchronization
    requires them;
 4. run a catalog reindex so deprecated Product flags disappear from documents

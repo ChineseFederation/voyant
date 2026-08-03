@@ -7,17 +7,22 @@ import { fetchWithValidation } from "../client.js"
 import { useVoyantDistributionContext } from "../provider.js"
 import type {
   ProductPublicationsListFilters,
+  SourcePublicationsListFilters,
   SupplierPublicationsListFilters,
 } from "../query-keys.js"
 import { distributionQueryKeys } from "../query-keys.js"
 import {
   getEffectivePublicationQueryOptions,
   getProductPublicationsQueryOptions,
+  getPublicationSourcesQueryOptions,
+  getSourcePublicationsQueryOptions,
   getSupplierPublicationsQueryOptions,
 } from "../query-options.js"
 import {
   channelProductPublicationSingleResponse,
   publicationDecisionSchema,
+  sourcePublicationMutationResponse,
+  sourcePublicationPreviewResponse,
   successEnvelope,
   supplierPublicationMutationResponse,
   supplierPublicationPreviewResponse,
@@ -38,14 +43,25 @@ export const supplierPublicationInputSchema = publicationInputSchema.extend({
   supplierId: z.string().min(1),
 })
 
+export const sourcePublicationInputSchema = publicationInputSchema.extend({
+  sourceKind: z.string().min(1),
+  // Absent addresses every connection of the kind; present addresses one.
+  sourceConnectionId: z.string().min(1).nullable().optional(),
+})
+
 export type ProductPublicationInput = z.infer<typeof productPublicationInputSchema>
 export type SupplierPublicationInput = z.infer<typeof supplierPublicationInputSchema>
+export type SourcePublicationInput = z.infer<typeof sourcePublicationInputSchema>
 
 export interface UseProductPublicationsOptions extends ProductPublicationsListFilters {
   enabled?: boolean
 }
 
 export interface UseSupplierPublicationsOptions extends SupplierPublicationsListFilters {
+  enabled?: boolean
+}
+
+export interface UseSourcePublicationsOptions extends SourcePublicationsListFilters {
   enabled?: boolean
 }
 
@@ -68,6 +84,21 @@ export function useSupplierPublications(options: UseSupplierPublicationsOptions 
   return useQuery({ ...getSupplierPublicationsQueryOptions(client, options), enabled })
 }
 
+export function useSourcePublications(options: UseSourcePublicationsOptions = {}) {
+  const client = useVoyantDistributionContext()
+  const { enabled = true } = options
+  return useQuery({ ...getSourcePublicationsQueryOptions(client, options), enabled })
+}
+
+/** The supply sources discovery has found, as publication subjects. */
+export function usePublicationSources(options: { enabled?: boolean } = {}) {
+  const client = useVoyantDistributionContext()
+  return useQuery({
+    ...getPublicationSourcesQueryOptions(client),
+    enabled: options.enabled ?? true,
+  })
+}
+
 export function useEffectivePublication(options: UseEffectivePublicationOptions) {
   const client = useVoyantDistributionContext()
   const enabled = !!options.channelId && !!options.productId && (options.enabled ?? true)
@@ -82,6 +113,7 @@ export function usePublicationMutation() {
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: distributionQueryKeys.productPublications() })
     void queryClient.invalidateQueries({ queryKey: distributionQueryKeys.supplierPublications() })
+    void queryClient.invalidateQueries({ queryKey: distributionQueryKeys.sourcePublications() })
     void queryClient.invalidateQueries({ queryKey: distributionQueryKeys.all })
   }
 
@@ -141,5 +173,46 @@ export function usePublicationMutation() {
     onSuccess: invalidate,
   })
 
-  return { upsertProduct, removeProduct, previewSupplier, upsertSupplier, removeSupplier }
+  const previewSource = useMutation({
+    mutationFn: (input: SourcePublicationInput) =>
+      fetchWithValidation(
+        "/v1/admin/distribution/source-publications/preview",
+        sourcePublicationPreviewResponse,
+        client,
+        { method: "POST", body: JSON.stringify(sourcePublicationInputSchema.parse(input)) },
+      ),
+  })
+
+  const upsertSource = useMutation({
+    mutationFn: (input: SourcePublicationInput) =>
+      fetchWithValidation(
+        "/v1/admin/distribution/source-publications",
+        sourcePublicationMutationResponse,
+        client,
+        { method: "PUT", body: JSON.stringify(sourcePublicationInputSchema.parse(input)) },
+      ),
+    onSuccess: invalidate,
+  })
+
+  const removeSource = useMutation({
+    mutationFn: (id: string) =>
+      fetchWithValidation(
+        `/v1/admin/distribution/source-publications/${encodeURIComponent(id)}`,
+        successEnvelope,
+        client,
+        { method: "DELETE" },
+      ),
+    onSuccess: invalidate,
+  })
+
+  return {
+    upsertProduct,
+    removeProduct,
+    previewSupplier,
+    upsertSupplier,
+    removeSupplier,
+    previewSource,
+    upsertSource,
+    removeSource,
+  }
 }

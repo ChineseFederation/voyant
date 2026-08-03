@@ -169,6 +169,31 @@ export const channelSupplierPublicationRecordSchema = z.object({
 
 export type ChannelSupplierPublicationRow = z.infer<typeof channelSupplierPublicationRecordSchema>
 
+export const channelSourcePublicationRecordSchema = z.object({
+  id: z.string(),
+  channelId: z.string(),
+  sourceKind: z.string(),
+  sourceConnectionId: z.string().nullable(),
+  decision: publicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export type ChannelSourcePublicationRow = z.infer<typeof channelSourcePublicationRecordSchema>
+
+/** One supply source discovery has found, with how much inventory it carries. */
+export const publicationSourceSchema = z.object({
+  sourceKind: z.string(),
+  sourceConnectionId: z.string().nullable(),
+  entryCount: z.number().int(),
+})
+
+export type PublicationSourceRow = z.infer<typeof publicationSourceSchema>
+
 export const effectivePublicationRecordSchema = z.object({
   channelId: z.string(),
   productId: z.string(),
@@ -241,6 +266,12 @@ export const channelProductPublicationListResponse = paginatedEnvelope(
 export const channelSupplierPublicationListResponse = paginatedEnvelope(
   channelSupplierPublicationRecordSchema,
 )
+export const channelSourcePublicationListResponse = paginatedEnvelope(
+  channelSourcePublicationRecordSchema,
+)
+export const publicationSourceListResponse = z
+  .object({ data: z.array(publicationSourceSchema) })
+  .strict()
 export const channelBookingLinkListResponse = paginatedEnvelope(channelBookingLinkRecordSchema)
 export const channelWebhookEventListResponse = paginatedEnvelope(channelWebhookEventRecordSchema)
 export const supplierSingleResponse = singleEnvelope(supplierOptionSchema)
@@ -261,6 +292,27 @@ export const supplierPublicationMutationResponse = z
   .object({
     data: channelSupplierPublicationRecordSchema,
     affectedProductCount: z.number().int(),
+  })
+  .strict()
+export const sourcePublicationMutationResponse = z
+  .object({
+    data: channelSourcePublicationRecordSchema,
+    affectedEntryCount: z.number().int(),
+  })
+  .strict()
+export const sourcePublicationPreviewResponse = z
+  .object({
+    data: z
+      .object({
+        channelId: z.string(),
+        sourceKind: z.string(),
+        sourceConnectionId: z.string().nullable().optional(),
+        decision: publicationDecisionSchema,
+        reason: z.string().nullable().optional(),
+        metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+      })
+      .strict(),
+    affectedEntryCount: z.number().int(),
   })
   .strict()
 export const supplierPublicationPreviewResponse = z

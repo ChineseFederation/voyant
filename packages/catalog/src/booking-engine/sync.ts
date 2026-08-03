@@ -41,6 +41,19 @@ import {
 
 import type { SourceAdapterRegistry } from "./registry.js"
 
+/**
+ * Decides whether one sourced entry may be emitted into one slice.
+ *
+ * Addressed by provenance rather than by entity id: a sourced entry has no
+ * owned row to resolve a publication rule against, and its
+ * `(source_kind, source_connection_id)` pair is the only durable identity the
+ * operator's channel publication rules can name.
+ */
+export type SourcedEntryListabilityGate = (input: {
+  slice: IndexerSlice
+  provenance: { sourceKind: string; sourceConnectionId: string | null }
+}) => boolean | Promise<boolean>
+
 export interface SyncSourcesOptions {
   /** Booking-engine registry — every registered adapter's `discover` is fanned out. */
   registry: SourceAdapterRegistry
@@ -81,6 +94,17 @@ export interface SyncSourcesOptions {
    * provider.
    */
   wrapBuilder?: (builder: DocumentBuilder) => DocumentBuilder
+  /**
+   * Per-slice emission gate for sourced projections. Owned projections are not
+   * gated here — they pass through their vertical's own document builder,
+   * which consults the equivalent product publication rule.
+   *
+   * Omitting it emits every sourced projection into every slice, which is what
+   * the sync did before #4089 and is retained only for pure-indexer test setups
+   * with no publication store. Production wiring always passes a gate;
+   * `runCatalogDiscoverySync` supplies the deployment's.
+   */
+  isSourcedEntryListable?: SourcedEntryListabilityGate
   /** Per-page log hook — called every page so callers can show progress. */
   onProgress?: (event: SyncProgressEvent) => void
   /**
@@ -288,11 +312,32 @@ export async function syncSources(options: SyncSourcesOptions): Promise<SyncSour
           }
 
           const projectionMap = toProjectionMap(projection.fields)
+          const gate = isOwned(projection.provenance) ? undefined : options.isSourcedEntryListable
           const baseBuilder: DocumentBuilder = async (
             _entityId: string,
             slice: IndexerSlice,
-          ): Promise<IndexerDocument | null> =>
-            buildIndexerDocument(registry, projectionMap, slice, projection.entity_id)
+          ): Promise<IndexerDocument | null> => {
+            // Returning null is the emission gate: `reindexEntity` treats it as
+            // "this entry does not belong in this slice" and deletes any
+            // document already there, so revoking publication takes effect on
+            // the next pass without a separate teardown path.
+            if (
+              gate &&
+              !(await gate({
+                slice,
+                provenance: {
+                  sourceKind: projection.provenance.source_kind,
+                  sourceConnectionId: projection.provenance.source_connection_id ?? null,
+                },
+              }))
+            ) {
+              return null
+            }
+            return buildIndexerDocument(registry, projectionMap, slice, projection.entity_id, {
+              sourceKind: projection.provenance.source_kind,
+              sourceConnectionId: projection.provenance.source_connection_id ?? null,
+            })
+          }
           const builder = options.wrapBuilder ? options.wrapBuilder(baseBuilder) : baseBuilder
 
           await options.indexerService.reindexEntity(

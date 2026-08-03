@@ -492,11 +492,22 @@ export const distributionUiEn = {
         defaultDeny:
           "Publication is default-deny. Products are unavailable on this channel unless an Include rule applies.",
         precedence:
-          "Precedence: inactive or missing channel denies first, then product Include/Exclude, then supplier Include/Exclude, then default-deny.",
+          "Precedence: inactive or missing channel denies first, then product Include/Exclude, then supplier Include/Exclude, then default-deny. Sourced inventory resolves separately: connection Include/Exclude, then source kind, then default-deny.",
         inactiveWarning:
           "This channel is inactive. Effective publication denies every product until the channel is active.",
         productsTitle: "Products Include/Exclude",
         suppliersTitle: "Suppliers Include/Exclude",
+        sourcesTitle: "Supply sources Include/Exclude",
+        sourcesDescription:
+          "Choose which connected suppliers this channel sells. Connecting a supplier does not publish it — inventory stays out of the storefront until an Include rule applies here.",
+        sourceLabel: "Supply source",
+        sourcePlaceholder: "Select supply source",
+        sourceEntryCount: "{count} entries",
+        saveSource: "Save source rule",
+        previewSource: "Preview impact",
+        sourceImpact: "{count} sourced entries affected",
+        confirmSourceImpact: "Confirm saving this source rule for {count} affected entries.",
+        sourcesEmpty: "No supply source publication rules for this channel.",
         productLabel: "Product",
         supplierLabel: "Supplier",
         productPlaceholder: "Select product",

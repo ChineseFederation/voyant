@@ -61,3 +61,38 @@ describe("publication cutover migrations", () => {
     ).not.toHaveProperty("uniq_channel_pub_reindex_catalog_pending")
   })
 })
+
+describe("source publication migrations", () => {
+  it("commits the intent kind before the constraint that references it", () => {
+    const kind = migration("20260803120000_publication_source_intent_kind.sql")
+    const table = migration("20260803121000_channel_source_publications.sql")
+    expect(kind).toContain(`ADD VALUE IF NOT EXISTS 'source'`)
+    // The enum value must land in its own committed migration — PostgreSQL
+    // cannot use a value added in the same transaction that references it.
+    expect(kind).not.toContain("channel_source_publications")
+    expect(table).toContain(`"kind" = 'source'`)
+  })
+
+  it("makes an absent connection a real key value rather than a distinct NULL", () => {
+    const sql = migration("20260803121000_channel_source_publications.sql")
+    expect(sql).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "uniq_channel_source_publications_connected"',
+    )
+    expect(sql).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "uniq_channel_source_publications_connectionless"',
+    )
+    expect(sql).toContain(`WHERE "source_connection_id" IS NULL`)
+    expect(sql).toContain(`coalesce("source_connection_id", '')`)
+  })
+
+  it("extends the subject constraint without loosening the existing kinds", () => {
+    const sql = migration("20260803121000_channel_source_publications.sql")
+    expect(sql).toContain('DROP CONSTRAINT IF EXISTS "ck_channel_pub_reindex_subject"')
+    // Every pre-existing kind must now also assert `source_kind IS NULL`, so a
+    // product intent can never carry a source subject.
+    for (const kind of ["product", "supplier", "catalog"]) {
+      expect(sql).toMatch(new RegExp(`"kind" = '${kind}'[^)]*"source_kind" IS NULL`))
+    }
+    expect(sql).toContain(`("kind" = 'source' AND "source_kind" IS NOT NULL`)
+  })
+})

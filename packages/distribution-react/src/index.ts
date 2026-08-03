@@ -30,6 +30,8 @@ export {
   getProductPublicationsQueryOptions,
   getProductQueryOptions,
   getProductsQueryOptions,
+  getPublicationSourcesQueryOptions,
+  getSourcePublicationsQueryOptions,
   getSupplierPublicationsQueryOptions,
   getSupplierQueryOptions,
   getSuppliersQueryOptions,

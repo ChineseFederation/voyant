@@ -1,15 +1,20 @@
 // agent-quality: file-size exception -- publication mutation and durable intent enqueue stay transactionally colocated.
 import type { EventBus } from "@voyant-travel/core"
 import { RequestValidationError } from "@voyant-travel/hono"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { emitProductPublicationChanged } from "../events.js"
 import { publicationProductsRef } from "../publication-product-ref.js"
-import { resolveEffectivePublication } from "../publication-resolver.js"
+import {
+  resolveEffectivePublication,
+  resolveEffectiveSourcePublication,
+} from "../publication-resolver.js"
+import { publicationSourcedEntriesRef } from "../publication-sourced-entry-ref.js"
 import {
   channelProductPublications,
   channelPublicationReindexIntents,
+  channelSourcePublications,
   channelSupplierPublications,
   channels,
 } from "../schema.js"
@@ -17,14 +22,38 @@ import { ensureSupplierExists } from "../suppliers/service-shared.js"
 import { paginate } from "./helpers.js"
 import type {
   ChannelProductPublicationListQuery,
+  ChannelSourcePublicationListQuery,
   ChannelSupplierPublicationListQuery,
   CreateChannelProductPublicationInput,
+  CreateChannelSourcePublicationInput,
   CreateChannelSupplierPublicationInput,
   EffectivePublicationInput,
+  EffectiveSourcePublicationInput,
+  PreviewChannelSourcePublicationInput,
   PreviewChannelSupplierPublicationInput,
   UpdateChannelProductPublicationInput,
+  UpdateChannelSourcePublicationInput,
   UpdateChannelSupplierPublicationInput,
 } from "./types.js"
+
+/**
+ * Address one source publication subject. A null connection id is an actual
+ * key value here (the kind-wide rule), so it must match with `IS NULL` rather
+ * than an equality that would never be true.
+ */
+function sourceSubjectConditions(input: {
+  channelId: string
+  sourceKind: string
+  sourceConnectionId?: string | null
+}) {
+  return [
+    eq(channelSourcePublications.channelId, input.channelId),
+    eq(channelSourcePublications.sourceKind, input.sourceKind),
+    input.sourceConnectionId
+      ? eq(channelSourcePublications.sourceConnectionId, input.sourceConnectionId)
+      : isNull(channelSourcePublications.sourceConnectionId),
+  ]
+}
 
 async function readChannelStatus(db: PostgresJsDatabase, channelId: string) {
   const [channel] = await db
@@ -92,6 +121,27 @@ async function enqueueSupplierPublicationReindex(
       channelId: input.channelId ?? null,
       kind: "supplier",
       supplierId: input.supplierId,
+      requestedBy: input.requestedBy ?? null,
+    })
+    .onConflictDoNothing()
+}
+
+async function enqueueSourcePublicationReindex(
+  db: PostgresJsDatabase,
+  input: {
+    channelId?: string | null
+    sourceKind: string
+    sourceConnectionId?: string | null
+    requestedBy?: string | null
+  },
+) {
+  await db
+    .insert(channelPublicationReindexIntents)
+    .values({
+      channelId: input.channelId ?? null,
+      kind: "source",
+      sourceKind: input.sourceKind,
+      sourceConnectionId: input.sourceConnectionId ?? null,
       requestedBy: input.requestedBy ?? null,
     })
     .onConflictDoNothing()
@@ -642,6 +692,270 @@ export const publicationServiceOperations = {
     })
     if (!row) return null
     return { id: row.id }
+  },
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Source publications — the sourced-inventory counterpart of the product
+  // and supplier rules above. Subject is a provenance pair rather than a
+  // `products` row, because sourced entries have neither (#4089).
+  // ───────────────────────────────────────────────────────────────────────
+
+  async listSourcePublications(db: PostgresJsDatabase, query: ChannelSourcePublicationListQuery) {
+    const conditions = []
+    if (query.channelId) conditions.push(eq(channelSourcePublications.channelId, query.channelId))
+    if (query.sourceKind)
+      conditions.push(eq(channelSourcePublications.sourceKind, query.sourceKind))
+    if (query.sourceConnectionId)
+      conditions.push(eq(channelSourcePublications.sourceConnectionId, query.sourceConnectionId))
+    if (query.decision) conditions.push(eq(channelSourcePublications.decision, query.decision))
+    const where = conditions.length ? and(...conditions) : undefined
+    return paginate(
+      db
+        .select()
+        .from(channelSourcePublications)
+        .where(where)
+        .limit(query.limit)
+        .offset(query.offset)
+        .orderBy(desc(channelSourcePublications.updatedAt)),
+      db.select({ count: sql<number>`count(*)::int` }).from(channelSourcePublications).where(where),
+      query.limit,
+      query.offset,
+    )
+  },
+
+  async getSourcePublicationById(db: PostgresJsDatabase, id: string) {
+    const [row] = await db
+      .select()
+      .from(channelSourcePublications)
+      .where(eq(channelSourcePublications.id, id))
+      .limit(1)
+    return row ?? null
+  },
+
+  async getSourcePublicationForSubject(
+    db: PostgresJsDatabase,
+    input: { channelId: string; sourceKind: string; sourceConnectionId?: string | null },
+  ) {
+    const [row] = await db
+      .select()
+      .from(channelSourcePublications)
+      .where(and(...sourceSubjectConditions(input)))
+      .limit(1)
+    return row ?? null
+  },
+
+  async countSourcedEntriesForSource(
+    db: PostgresJsDatabase,
+    input: { sourceKind: string; sourceConnectionId?: string | null },
+  ) {
+    const conditions = [
+      eq(publicationSourcedEntriesRef.source_kind, input.sourceKind),
+      eq(publicationSourcedEntriesRef.status, "active"),
+    ]
+    // A connection-scoped rule counts only its own entries; a kind-wide rule
+    // counts every connection of that kind, which is the set it governs.
+    if (input.sourceConnectionId) {
+      conditions.push(
+        eq(publicationSourcedEntriesRef.source_connection_id, input.sourceConnectionId),
+      )
+    }
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(publicationSourcedEntriesRef)
+      .where(and(...conditions))
+    return row?.count ?? 0
+  },
+
+  /**
+   * The supply sources an operator can actually publish, derived from what
+   * discovery has already found.
+   *
+   * Connections live in the operator's Connect account upstream, not in any
+   * local table, so there is nothing here to join against. The set that
+   * matters for a publication decision is narrower anyway: a connection with
+   * no discovered entries has nothing to merchandise. Entry counts come along
+   * because "TUI — 2038 entries" is the whole basis for the decision.
+   */
+  async listKnownSources(db: PostgresJsDatabase) {
+    return db
+      .select({
+        sourceKind: publicationSourcedEntriesRef.source_kind,
+        sourceConnectionId: publicationSourcedEntriesRef.source_connection_id,
+        entryCount: sql<number>`count(*)::int`,
+      })
+      .from(publicationSourcedEntriesRef)
+      .where(eq(publicationSourcedEntriesRef.status, "active"))
+      .groupBy(
+        publicationSourcedEntriesRef.source_kind,
+        publicationSourcedEntriesRef.source_connection_id,
+      )
+      .orderBy(
+        asc(publicationSourcedEntriesRef.source_kind),
+        asc(publicationSourcedEntriesRef.source_connection_id),
+      )
+  },
+
+  async previewSourcePublication(
+    db: PostgresJsDatabase,
+    data: PreviewChannelSourcePublicationInput,
+  ) {
+    await requireChannel(db, data.channelId)
+    const affectedEntryCount = await publicationServiceOperations.countSourcedEntriesForSource(db, {
+      sourceKind: data.sourceKind,
+      sourceConnectionId: data.sourceConnectionId ?? null,
+    })
+    return { input: data, affectedEntryCount }
+  },
+
+  async upsertSourcePublication(
+    db: PostgresJsDatabase,
+    data: CreateChannelSourcePublicationInput,
+    options: { actorId?: string | null } = {},
+  ) {
+    const actorId = data.updatedBy ?? options.actorId ?? null
+    const sourceConnectionId = data.sourceConnectionId ?? null
+    const row = await db.transaction(async (tx) => {
+      await requireChannel(tx, data.channelId)
+      const now = new Date()
+      // Two partial uniques cover this subject, and `onConflictDoUpdate`
+      // targets exactly one of them, so pick the one matching the shape being
+      // written rather than letting the connectionless form collide.
+      const [row] = await tx
+        .insert(channelSourcePublications)
+        .values({
+          ...data,
+          sourceConnectionId,
+          createdBy: data.createdBy ?? actorId,
+          updatedBy: actorId,
+        })
+        .onConflictDoUpdate({
+          target: sourceConnectionId
+            ? [
+                channelSourcePublications.channelId,
+                channelSourcePublications.sourceKind,
+                channelSourcePublications.sourceConnectionId,
+              ]
+            : [channelSourcePublications.channelId, channelSourcePublications.sourceKind],
+          targetWhere: sourceConnectionId
+            ? sql`${channelSourcePublications.sourceConnectionId} IS NOT NULL`
+            : sql`${channelSourcePublications.sourceConnectionId} IS NULL`,
+          set: {
+            decision: data.decision,
+            reason: data.reason ?? null,
+            updatedBy: actorId,
+            metadata: data.metadata ?? null,
+            updatedAt: now,
+          },
+        })
+        .returning()
+      await enqueueSourcePublicationReindex(tx, {
+        channelId: data.channelId,
+        sourceKind: data.sourceKind,
+        sourceConnectionId,
+        requestedBy: actorId,
+      })
+      return row!
+    })
+    const affectedEntryCount = await publicationServiceOperations.countSourcedEntriesForSource(db, {
+      sourceKind: data.sourceKind,
+      sourceConnectionId,
+    })
+    return { publication: row, affectedEntryCount }
+  },
+
+  async updateSourcePublication(
+    db: PostgresJsDatabase,
+    id: string,
+    data: UpdateChannelSourcePublicationInput,
+    options: { actorId?: string | null } = {},
+  ) {
+    const actorId = data.updatedBy ?? options.actorId ?? null
+    const outcome = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select({
+          channelId: channelSourcePublications.channelId,
+          sourceKind: channelSourcePublications.sourceKind,
+          sourceConnectionId: channelSourcePublications.sourceConnectionId,
+        })
+        .from(channelSourcePublications)
+        .where(eq(channelSourcePublications.id, id))
+        .limit(1)
+      if (!existing) return null
+      const [row] = await tx
+        .update(channelSourcePublications)
+        .set({ ...data, updatedBy: actorId, updatedAt: new Date() })
+        .where(eq(channelSourcePublications.id, id))
+        .returning()
+      await enqueueSourcePublicationReindex(tx, { ...existing, requestedBy: actorId })
+      return { existing, row: row ?? null }
+    })
+    if (!outcome) return null
+    const affectedEntryCount = await publicationServiceOperations.countSourcedEntriesForSource(db, {
+      sourceKind: outcome.existing.sourceKind,
+      sourceConnectionId: outcome.existing.sourceConnectionId,
+    })
+    return outcome.row ? { publication: outcome.row, affectedEntryCount } : null
+  },
+
+  async deleteSourcePublication(
+    db: PostgresJsDatabase,
+    id: string,
+    options: { actorId?: string | null } = {},
+  ) {
+    const row = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .delete(channelSourcePublications)
+        .where(eq(channelSourcePublications.id, id))
+        .returning({
+          id: channelSourcePublications.id,
+          channelId: channelSourcePublications.channelId,
+          sourceKind: channelSourcePublications.sourceKind,
+          sourceConnectionId: channelSourcePublications.sourceConnectionId,
+        })
+      if (!row) return null
+      // Deleting a rule reverts the subject to default-deny, so the entries it
+      // covered must leave the projection — same enqueue as any other change.
+      await enqueueSourcePublicationReindex(tx, {
+        channelId: row.channelId,
+        sourceKind: row.sourceKind,
+        sourceConnectionId: row.sourceConnectionId,
+        requestedBy: options.actorId ?? null,
+      })
+      return row
+    })
+    if (!row) return null
+    return { id: row.id }
+  },
+
+  async getEffectiveSourcePublication(
+    db: PostgresJsDatabase,
+    input: EffectiveSourcePublicationInput,
+  ) {
+    const sourceConnectionId = input.sourceConnectionId ?? null
+    const [channel, connectionRule, kindRule] = await Promise.all([
+      readChannelStatus(db, input.channelId),
+      sourceConnectionId
+        ? publicationServiceOperations.getSourcePublicationForSubject(db, {
+            channelId: input.channelId,
+            sourceKind: input.sourceKind,
+            sourceConnectionId,
+          })
+        : Promise.resolve(null),
+      publicationServiceOperations.getSourcePublicationForSubject(db, {
+        channelId: input.channelId,
+        sourceKind: input.sourceKind,
+        sourceConnectionId: null,
+      }),
+    ])
+
+    return resolveEffectiveSourcePublication({
+      channelId: input.channelId,
+      sourceKind: input.sourceKind,
+      sourceConnectionId,
+      channelStatus: channel?.status ?? null,
+      connectionRule,
+      kindRule,
+    })
   },
 
   async getEffectivePublication(db: PostgresJsDatabase, input: EffectivePublicationInput) {

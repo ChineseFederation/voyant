@@ -13,6 +13,7 @@ import type { UseProductsOptions } from "./hooks/use-products.js"
 import type {
   UseEffectivePublicationOptions,
   UseProductPublicationsOptions,
+  UseSourcePublicationsOptions,
   UseSupplierPublicationsOptions,
 } from "./hooks/use-publications.js"
 import type { UseSuppliersOptions } from "./hooks/use-suppliers.js"
@@ -32,12 +33,14 @@ import {
   channelProductMappingSingleResponse,
   channelProductPublicationListResponse,
   channelSingleResponse,
+  channelSourcePublicationListResponse,
   channelSupplierPublicationListResponse,
   channelWebhookEventListResponse,
   channelWebhookEventSingleResponse,
   effectivePublicationSingleResponse,
   productListResponse,
   productSingleResponse,
+  publicationSourceListResponse,
   supplierListResponse,
   supplierSingleResponse,
 } from "./schemas.js"
@@ -317,6 +320,42 @@ export function getProductPublicationsQueryOptions(
         client,
       )
     },
+  })
+}
+
+export function getSourcePublicationsQueryOptions(
+  client: FetchWithValidationOptions,
+  options: UseSourcePublicationsOptions = {},
+) {
+  const { enabled: _enabled = true, ...filters } = options
+  return queryOptions({
+    queryKey: distributionQueryKeys.sourcePublicationsList(filters),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (filters.channelId) params.set("channelId", filters.channelId)
+      if (filters.sourceKind) params.set("sourceKind", filters.sourceKind)
+      if (filters.sourceConnectionId) params.set("sourceConnectionId", filters.sourceConnectionId)
+      if (filters.decision) params.set("decision", filters.decision)
+      appendPagination(params, filters)
+      const qs = params.toString()
+      return fetchWithValidation(
+        `/v1/admin/distribution/source-publications${qs ? `?${qs}` : ""}`,
+        channelSourcePublicationListResponse,
+        client,
+      )
+    },
+  })
+}
+
+export function getPublicationSourcesQueryOptions(client: FetchWithValidationOptions) {
+  return queryOptions({
+    queryKey: distributionQueryKeys.publicationSources(),
+    queryFn: () =>
+      fetchWithValidation(
+        "/v1/admin/distribution/publication-sources",
+        publicationSourceListResponse,
+        client,
+      ),
   })
 }
 

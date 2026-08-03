@@ -1,10 +1,12 @@
 /**
- * Owned-product catalog listability policy for the operator deployment.
+ * Catalog listability policy for the operator deployment — the audience gate
+ * for both halves of the catalog plane.
  *
- * This is the deployment-owned rule the inventory document builder injects via
- * its `isPublicAudienceListable` hook. It decides whether an owned product
- * (already gated as active upstream) should be emitted
- * into a public-audience search slice.
+ * Owned products reach it through the inventory document builder's
+ * `isPublicAudienceListable` hook; sourced entries reach it through the
+ * discovery sync's emission gate. Both resolve the same question — may this
+ * entry appear in this slice? — against the same Distribution authority, just
+ * addressed differently: a product id versus a provenance pair.
  *
  * Kept in its own module so the audience decision can be unit-tested without
  * dragging in the whole catalog-plane runtime graph (embeddings, policies,
@@ -35,6 +37,42 @@ export type OwnedProductStorefrontListabilityInput = {
 export async function isOwnedProductStorefrontListable(
   input: OwnedProductStorefrontListabilityInput,
 ): Promise<boolean> {
+  if (!input.channel) return false
+  return input.isEffectivelyPublished()
+}
+
+export type SourcedEntryStorefrontListabilityInput = {
+  audience: IndexerSlice["audience"]
+  channel?: string
+  /** Resolves Distribution-owned effective source publication for the channel. */
+  isEffectivelyPublished: () => boolean | Promise<boolean>
+}
+
+/**
+ * True when a slice is customer-facing and therefore subject to publication.
+ *
+ * Mirrors the inventory document builder's own audience split so owned and
+ * sourced entries cannot drift on which slices are gated.
+ */
+export function isPublicAudienceSlice(audience: IndexerSlice["audience"]): boolean {
+  return audience === "customer" || audience === "partner" || audience === "supplier"
+}
+
+/**
+ * Storefront/distribution listability predicate for sourced entries.
+ *
+ * Staff slices are deliberately ungated: the operator has to be able to browse
+ * a connected supplier's inventory in admin in order to decide what to publish,
+ * and manual booking discovery reads the same staff slice. Publication governs
+ * merchandising, not visibility to the operator.
+ *
+ * Customer-facing slices are default-deny and require an explicit
+ * server-derived channel, exactly as owned products do.
+ */
+export async function isSourcedEntryStorefrontListable(
+  input: SourcedEntryStorefrontListabilityInput,
+): Promise<boolean> {
+  if (!isPublicAudienceSlice(input.audience)) return true
   if (!input.channel) return false
   return input.isEffectivelyPublished()
 }

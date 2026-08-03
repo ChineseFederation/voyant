@@ -18,6 +18,7 @@ import {
   applyOperatorTaxToQuoteResult,
   createOperatorCatalogBookingRouteModuleOptions,
 } from "./runtime/booking-runtime.js"
+import { isSourcedEntryStorefrontListable } from "./runtime/catalog-listability.js"
 import {
   buildEmbeddingProvider,
   createCatalogDocumentBuilder,
@@ -141,6 +142,13 @@ export function createCatalogRuntime(
     },
     createProductsDocumentBuilder,
     createCatalogDocumentBuilder,
+    isSourcedEntryListable: ({ db, slice, provenance }) =>
+      isSourcedEntryStorefrontListable({
+        audience: slice.audience,
+        channel: slice.channel,
+        isEffectivelyPublished: () =>
+          extensions.distribution.hasEffectiveSourcePublication(db, provenance, slice.channel),
+      }),
     withEmbedding,
     applyTaxToQuoteResult: (db, result, entityModule, entityId, sourceKind) =>
       applyOperatorTaxToQuoteResult(

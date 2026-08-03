@@ -26,6 +26,12 @@ export interface SupplierPublicationsListFilters extends PaginationFilters {
   supplierId?: string | undefined
   decision?: "include" | "exclude" | undefined
 }
+export interface SourcePublicationsListFilters extends PaginationFilters {
+  channelId?: string | undefined
+  sourceKind?: string | undefined
+  sourceConnectionId?: string | undefined
+  decision?: "include" | "exclude" | undefined
+}
 export interface BookingLinksListFilters extends PaginationFilters {
   channelId?: string | undefined
 }
@@ -78,6 +84,10 @@ export const distributionQueryKeys = {
   supplierPublications: () => [...distributionQueryKeys.all, "supplier-publications"] as const,
   supplierPublicationsList: (filters: SupplierPublicationsListFilters) =>
     [...distributionQueryKeys.supplierPublications(), "list", filters] as const,
+  sourcePublications: () => [...distributionQueryKeys.all, "source-publications"] as const,
+  sourcePublicationsList: (filters: SourcePublicationsListFilters) =>
+    [...distributionQueryKeys.sourcePublications(), "list", filters] as const,
+  publicationSources: () => [...distributionQueryKeys.all, "publication-sources"] as const,
   effectivePublication: (
     channelId: string,
     productId: string,

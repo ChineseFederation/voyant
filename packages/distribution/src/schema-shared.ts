@@ -163,5 +163,5 @@ export const channelPublicationReindexIntentStatusEnum = pgEnum(
 
 export const channelPublicationReindexIntentKindEnum = pgEnum(
   "channel_publication_reindex_intent_kind",
-  ["product", "supplier", "catalog"],
+  ["product", "supplier", "source", "catalog"],
 )

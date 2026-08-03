@@ -323,6 +323,16 @@ export type DistributionUiMessages = {
         inactiveWarning: string
         productsTitle: string
         suppliersTitle: string
+        sourcesTitle: string
+        sourcesDescription: string
+        sourceLabel: string
+        sourcePlaceholder: string
+        sourceEntryCount: string
+        saveSource: string
+        previewSource: string
+        sourceImpact: string
+        confirmSourceImpact: string
+        sourcesEmpty: string
         productLabel: string
         supplierLabel: string
         productPlaceholder: string

@@ -497,11 +497,23 @@ export const distributionUiRo = {
         defaultDeny:
           "Publicarea este default-deny. Produsele nu sunt disponibile pe acest canal fara o regula Include aplicabila.",
         precedence:
-          "Precedenta: canalul inactiv sau lipsa respinge primul, apoi Include/Exclude pe produs, apoi Include/Exclude pe furnizor, apoi default-deny.",
+          "Precedenta: canalul inactiv sau lipsa respinge primul, apoi Include/Exclude pe produs, apoi Include/Exclude pe furnizor, apoi default-deny. Stocul din surse se rezolva separat: Include/Exclude pe conexiune, apoi pe tipul sursei, apoi default-deny.",
         inactiveWarning:
           "Acest canal este inactiv. Publicarea efectiva respinge fiecare produs pana cand canalul este activ.",
         productsTitle: "Produse Include/Exclude",
         suppliersTitle: "Furnizori Include/Exclude",
+        sourcesTitle: "Surse de aprovizionare Include/Exclude",
+        sourcesDescription:
+          "Alege ce furnizori conectati vinde acest canal. Conectarea unui furnizor nu il publica — stocul ramane in afara magazinului pana cand se aplica aici o regula Include.",
+        sourceLabel: "Sursa de aprovizionare",
+        sourcePlaceholder: "Selecteaza sursa de aprovizionare",
+        sourceEntryCount: "{count} intrari",
+        saveSource: "Salveaza regula sursei",
+        previewSource: "Previzualizeaza impactul",
+        sourceImpact: "{count} intrari din surse afectate",
+        confirmSourceImpact:
+          "Confirma salvarea acestei reguli de sursa pentru {count} intrari afectate.",
+        sourcesEmpty: "Nu exista reguli de publicare pentru surse pe acest canal.",
         productLabel: "Produs",
         supplierLabel: "Furnizor",
         productPlaceholder: "Selecteaza produs",

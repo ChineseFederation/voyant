@@ -80,10 +80,12 @@ export interface CatalogDiscoverySyncDependencies {
 /**
  * Compose the catalog indexer stack and run one discovery pass.
  *
- * Discovered projections land in every slice the deployment materializes,
- * which always includes the `market: "default"` / `locale: "en-GB"` staff and
- * customer slices the admin browse queries — sourced rows are never filtered
- * out for lacking a market of their own.
+ * Discovered projections land in every staff slice the deployment
+ * materializes, which always includes the `market: "default"` /
+ * `locale: "en-GB"` slice the admin browse queries — sourced rows are never
+ * filtered out for lacking a market of their own. Customer-facing slices are
+ * gated on the connection's channel publication rule, so connecting a supplier
+ * does not merchandise it (#4089).
  */
 export async function runCatalogDiscoverySync(
   dependencies: CatalogDiscoverySyncDependencies,
@@ -108,6 +110,7 @@ export async function runCatalogDiscoverySync(
     indexerService,
     fieldPolicyRegistries,
     db,
+    isSourcedEntryListable: (input) => services.isSourcedEntryListable({ db, ...input }),
     pruneMissing: options.pruneMissing ?? false,
     continueOnError: options.continueOnError ?? true,
     wrapBuilder: (builder) => services.withEmbedding(builder, embeddings),

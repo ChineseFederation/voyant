@@ -100,6 +100,24 @@ catalog_sourced_entries (
 
 Owned products do NOT have a row here — `provenance.source_kind === "owned"` reads provenance from the vertical's owned schema, not from `catalog_sourced_entries`. The sourced-entry store is sourced-only.
 
+### 2.5.2.1. Discovery does not publish
+
+Landing in the sourced-entry store is not the same as being sellable. Each projection is emitted per slice through a channel publication gate resolved from its `(source_kind, source_connection_id)` pair against `channel_source_publications` (ADR 0020 §8): default-deny, connection rule beating source-kind rule, missing or inactive channel denying outright.
+
+The gate applies to customer, partner, and supplier slices only. **Staff slices stay ungated** — an operator has to be able to browse a connected supplier's inventory in admin in order to decide what to publish, and manual booking discovery reads the same staff slice. Publication governs merchandising, not visibility to the operator.
+
+Returning `null` from the per-slice builder *is* the gate: `reindexEntity` treats it as "this entry does not belong in this slice" and deletes any document already there, so revoking publication takes effect on the next pass with no separate teardown path.
+
+The catalog document builder applies the same gate when rebuilding a single entry from its stored projection, so a publication-rule change can drive a targeted reindex rather than waiting for the next discovery pass.
+
+Before this existed, discovery emitted every projection into every slice, and attaching a supply connection published that supplier's whole catalogue to the operator's live storefront (voyant#4089).
+
+### 2.5.2.2. Provenance is projected into the index
+
+Every catalog collection carries `isSourced`, `sourceKind`, and staff-only `sourceConnectionId`, composed into each vertical's field-policy registry rather than declared per vertical so the facet means the same thing everywhere.
+
+Ownership is a catalog-plane fact, not a vertical one: an entry in the `products` collection may be an operator's own programme or a supplier's package. Without these fields, search could not see the answer that `catalog_sourced_entries` already held, and consumers were reduced to inferring ownership from `supplyModel` or an id prefix — both of which correlate with ownership today, and neither of which states it.
+
 ### 2.5.3. Provenance reads
 
 The `readProvenance(db, entityModule, entityId)` helper (referenced throughout this doc) becomes:

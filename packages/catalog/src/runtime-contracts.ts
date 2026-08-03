@@ -81,6 +81,18 @@ export interface CatalogDistributionRuntimeExtension {
     productId: string,
     channelId?: string,
   ): Promise<boolean>
+  /**
+   * Publication decision for a sourced catalog entry, addressed by its
+   * provenance. Sourced entries have no `products` row, so
+   * {@link hasEffectiveProductPublication} cannot answer for them; without
+   * this, attaching a supply connection published its whole catalogue to every
+   * channel slice (#4089).
+   */
+  hasEffectiveSourcePublication(
+    db: AnyDrizzleDb,
+    source: { sourceKind: string; sourceConnectionId?: string | null },
+    channelId?: string,
+  ): Promise<boolean>
   loadSupplierReservationTimeout(
     db: AnyDrizzleDb,
     supplierId: string,
@@ -323,6 +335,17 @@ export interface CatalogRuntimeServices {
     db: AnyDrizzleDb,
     context: { sellerOperatorId: string },
   ): DocumentBuilder
+  /**
+   * Per-slice emission gate for sourced entries, resolved against the
+   * deployment's Distribution publication rules. The discovery sync passes it
+   * to `syncSources`; without it a supply connection publishes its whole
+   * catalogue to every channel slice (#4089).
+   */
+  isSourcedEntryListable(input: {
+    db: AnyDrizzleDb
+    slice: IndexerSlice
+    provenance: { sourceKind: string; sourceConnectionId: string | null }
+  }): Promise<boolean>
   withEmbedding(inner: DocumentBuilder, embeddings: EmbeddingProvider | undefined): DocumentBuilder
   applyTaxToQuoteResult(
     db: AnyDrizzleDb,
@@ -352,6 +375,7 @@ export const catalogRuntimeServicesPort = definePort<CatalogRuntimeServices>({
       "reindexReferencedSubjectOverlayChange",
       "createProductsDocumentBuilder",
       "createCatalogDocumentBuilder",
+      "isSourcedEntryListable",
       "withEmbedding",
       "applyTaxToQuoteResult",
     ] as const) {

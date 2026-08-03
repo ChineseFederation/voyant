@@ -67,6 +67,60 @@ export const channelSupplierPublications = pgTable(
   ],
 )
 
+/**
+ * Channel publication decision for a whole supply source — one Connect
+ * connection, or a connectionless connector keyed by its adapter kind.
+ *
+ * Sourced catalog entries have no `products` row and therefore no canonical
+ * Supplier, so {@link channelSupplierPublications} cannot reach them. Their
+ * only durable identity is the provenance pair recorded on
+ * `catalog_sourced_entries`: `(source_kind, source_connection_id)`. This table
+ * applies an include/exclude decision to that pair, which is what makes
+ * "connect a supplier" and "merchandise a supplier" independent decisions.
+ *
+ * `sourceConnectionId` is a plain text column, not a `typeIdRef`: connections
+ * are owned by the operator's Connect account upstream, not by any local
+ * table. A NULL connection id addresses the connectionless registration for a
+ * kind (the `default:<kind>` fallback the source registry uses before its
+ * per-connection warm completes).
+ */
+export const channelSourcePublications = pgTable(
+  "channel_source_publications",
+  {
+    id: typeId("channel_source_publications"),
+    channelId: typeIdRef("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    sourceKind: text("source_kind").notNull(),
+    sourceConnectionId: text("source_connection_id"),
+    decision: channelPublicationDecisionEnum("decision").notNull(),
+    reason: text("reason"),
+    createdBy: text("created_by"),
+    updatedBy: text("updated_by"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Two partial uniques rather than one: Postgres treats NULLs as distinct,
+    // so a plain composite unique would let the connectionless rule for a kind
+    // be inserted repeatedly. Mirrors `catalog_sourced_entries`.
+    uniqueIndex("uniq_channel_source_publications_connected")
+      .on(table.channelId, table.sourceKind, table.sourceConnectionId)
+      .where(sql`${table.sourceConnectionId} IS NOT NULL`),
+    uniqueIndex("uniq_channel_source_publications_connectionless")
+      .on(table.channelId, table.sourceKind)
+      .where(sql`${table.sourceConnectionId} IS NULL`),
+    index("idx_channel_source_publications_channel").on(table.channelId, table.updatedAt),
+    index("idx_channel_source_publications_source").on(
+      table.sourceKind,
+      table.sourceConnectionId,
+      table.updatedAt,
+    ),
+    index("idx_channel_source_publications_decision").on(table.decision, table.updatedAt),
+  ],
+)
+
 export const channelPublicationReindexIntents = pgTable(
   "channel_publication_reindex_intents",
   {
@@ -75,6 +129,10 @@ export const channelPublicationReindexIntents = pgTable(
     kind: channelPublicationReindexIntentKindEnum("kind").notNull(),
     productId: typeIdRef("product_id"),
     supplierId: typeIdRef("supplier_id"),
+    // Subject of a `source` intent. `sourceConnectionId` stays nullable even
+    // for that kind — a connectionless connector is addressed by kind alone.
+    sourceKind: text("source_kind"),
+    sourceConnectionId: text("source_connection_id"),
     cursor: text("cursor"),
     status: channelPublicationReindexIntentStatusEnum("status").notNull().default("pending"),
     attempts: integer("attempts").notNull().default(0),
@@ -95,6 +153,11 @@ export const channelPublicationReindexIntents = pgTable(
     index("idx_channel_pub_reindex_channel").on(table.channelId, table.requestedAt),
     index("idx_channel_pub_reindex_product").on(table.productId, table.requestedAt),
     index("idx_channel_pub_reindex_supplier").on(table.supplierId, table.requestedAt),
+    index("idx_channel_pub_reindex_source").on(
+      table.sourceKind,
+      table.sourceConnectionId,
+      table.requestedAt,
+    ),
     uniqueIndex("uniq_channel_pub_reindex_product_pending")
       .on(table.channelId, table.kind, table.productId)
       // agent-quality: raw-sql reviewed -- owner: distribution; static partial-index predicate.
@@ -116,9 +179,23 @@ export const channelPublicationReindexIntents = pgTable(
     uniqueIndex("uniq_channel_pub_reindex_catalog_pending")
       .on(table.kind)
       .where(sql`${table.status} = 'pending' AND ${table.kind} = 'catalog'`),
+    // One index instead of the four the product/supplier subjects need: both
+    // the channel scope and the connection id are nullable, and Postgres would
+    // treat each NULL as distinct, so a plain composite unique could not
+    // collapse repeat enqueues for a global or connectionless source. COALESCE
+    // makes "absent" a real key value.
+    uniqueIndex("uniq_channel_pub_reindex_source_pending")
+      .on(
+        // agent-quality: raw-sql reviewed -- owner: distribution; COALESCE over bound column identifiers.
+        sql`coalesce(${table.channelId}, '')`,
+        table.kind,
+        table.sourceKind,
+        sql`coalesce(${table.sourceConnectionId}, '')`,
+      )
+      .where(sql`${table.status} = 'pending' AND ${table.kind} = 'source'`),
     check(
       "ck_channel_pub_reindex_subject",
-      sql`((${table.kind} = 'product' AND ${table.productId} IS NOT NULL AND ${table.supplierId} IS NULL) OR (${table.kind} = 'supplier' AND ${table.supplierId} IS NOT NULL AND ${table.productId} IS NULL) OR (${table.kind} = 'catalog' AND ${table.channelId} IS NULL AND ${table.productId} IS NULL AND ${table.supplierId} IS NULL))`,
+      sql`((${table.kind} = 'product' AND ${table.productId} IS NOT NULL AND ${table.supplierId} IS NULL AND ${table.sourceKind} IS NULL) OR (${table.kind} = 'supplier' AND ${table.supplierId} IS NOT NULL AND ${table.productId} IS NULL AND ${table.sourceKind} IS NULL) OR (${table.kind} = 'source' AND ${table.sourceKind} IS NOT NULL AND ${table.productId} IS NULL AND ${table.supplierId} IS NULL) OR (${table.kind} = 'catalog' AND ${table.channelId} IS NULL AND ${table.productId} IS NULL AND ${table.supplierId} IS NULL AND ${table.sourceKind} IS NULL))`,
     ),
   ],
 )
@@ -153,6 +230,8 @@ export type ChannelProductPublication = typeof channelProductPublications.$infer
 export type NewChannelProductPublication = typeof channelProductPublications.$inferInsert
 export type ChannelSupplierPublication = typeof channelSupplierPublications.$inferSelect
 export type NewChannelSupplierPublication = typeof channelSupplierPublications.$inferInsert
+export type ChannelSourcePublication = typeof channelSourcePublications.$inferSelect
+export type NewChannelSourcePublication = typeof channelSourcePublications.$inferInsert
 export type ChannelPublicationReindexIntent = typeof channelPublicationReindexIntents.$inferSelect
 export type NewChannelPublicationReindexIntent =
   typeof channelPublicationReindexIntents.$inferInsert

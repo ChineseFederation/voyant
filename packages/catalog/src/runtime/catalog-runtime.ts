@@ -7,6 +7,7 @@
 
 import {
   createFieldPolicyRegistry,
+  type FieldPolicy,
   type FieldPolicyRegistry,
 } from "@voyant-travel/catalog/contract"
 import type { EmbeddingProvider } from "@voyant-travel/catalog/embeddings/contract"
@@ -15,6 +16,7 @@ import {
   CATALOG_PRESENTATION_SUBJECT_MODULES,
   getCatalogPresentationSubjectDefinition,
 } from "@voyant-travel/catalog/presentation-subjects"
+import { CATALOG_PROVENANCE_FIELD_POLICY } from "@voyant-travel/catalog/provenance"
 import {
   buildCatalogEmbeddingProvider,
   buildCatalogSlices,
@@ -23,21 +25,26 @@ import {
   withCatalogEmbedding,
   withoutCatalogScopeChannel,
 } from "@voyant-travel/catalog/runtime-support"
-import type {
-  DocumentBuilder,
-  DocumentBuilderContext,
-  EffectiveReferencedSubjectProjection,
+import {
+  buildIndexerDocument,
+  type DocumentBuilder,
+  type DocumentBuilderContext,
+  type EffectiveReferencedSubjectProjection,
 } from "@voyant-travel/catalog/services/indexer"
 import { fetchOverlaysForEntity } from "@voyant-travel/catalog/services/overlay"
 import { readSourcedEntry } from "@voyant-travel/catalog/services/sourced-entry"
 import type {
   IndexerAdapter,
+  IndexerDocument,
   IndexerProvider,
   IndexerSlice,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
-import { isOwnedProductStorefrontListable } from "./catalog-listability.js"
+import {
+  isOwnedProductStorefrontListable,
+  isSourcedEntryStorefrontListable,
+} from "./catalog-listability.js"
 import { catalogRuntimeExtensions } from "./host.js"
 
 export const CATALOG_VERTICALS = DEFAULT_CATALOG_VERTICALS
@@ -87,19 +94,24 @@ let _registries: Map<string, FieldPolicyRegistry> | undefined
 export function getFieldPolicyRegistries(): Map<string, FieldPolicyRegistry> {
   if (!_registries) {
     const { accommodations, charters, cruises, inventory } = catalogRuntimeExtensions()
+    // Provenance is appended to every vertical rather than declared by each,
+    // so `isSourced` means the same thing in every collection and no vertical
+    // can ship a registry that silently drops it (#4089).
+    const withProvenance = (policies: readonly FieldPolicy[]): FieldPolicyRegistry =>
+      createFieldPolicyRegistry([...policies, ...CATALOG_PROVENANCE_FIELD_POLICY])
     _registries = new Map<string, FieldPolicyRegistry>([
-      ["products", createFieldPolicyRegistry([...inventory.productFieldPolicy])],
-      ["extras", createFieldPolicyRegistry([...inventory.extrasFieldPolicy])],
-      ["cruises", cruises.createRegistry(cruises.fieldPolicy)],
+      ["products", withProvenance(inventory.productFieldPolicy)],
+      ["extras", withProvenance(inventory.extrasFieldPolicy)],
       [
-        CATALOG_PRESENTATION_SUBJECT_MODULES.CRUISE_SHIPS,
-        createFieldPolicyRegistry([...cruises.shipFieldPolicy]),
+        "cruises",
+        cruises.createRegistry([...cruises.fieldPolicy, ...CATALOG_PROVENANCE_FIELD_POLICY]),
       ],
-      ["charters", createFieldPolicyRegistry([...charters.fieldPolicy])],
-      ["accommodations", createFieldPolicyRegistry([...accommodations.fieldPolicy])],
+      [CATALOG_PRESENTATION_SUBJECT_MODULES.CRUISE_SHIPS, withProvenance(cruises.shipFieldPolicy)],
+      ["charters", withProvenance(charters.fieldPolicy)],
+      ["accommodations", withProvenance(accommodations.fieldPolicy)],
       [
         CATALOG_PRESENTATION_SUBJECT_MODULES.ACCOMMODATION_PROPERTIES,
-        createFieldPolicyRegistry([...accommodations.propertyFieldPolicy]),
+        withProvenance(accommodations.propertyFieldPolicy),
       ],
     ])
   }
@@ -164,10 +176,11 @@ export function createCatalogDocumentBuilder(
   })
   const shipSubjects = cruises.createShipDocumentBuilder(db)
   const propertySubjects = accommodations.createPropertyDocumentBuilder(db)
-  return (entityId, slice, context) => {
-    const buildContext =
-      context ??
-      createReferencedSubjectDocumentBuilderContext(db, slice, getFieldPolicyRegistries())
+  const buildOwned = (
+    entityId: string,
+    slice: IndexerSlice,
+    buildContext: DocumentBuilderContext,
+  ): Promise<IndexerDocument | null> => {
     switch (slice.vertical) {
       case "products":
         return products(entityId, slice, buildContext)
@@ -183,6 +196,66 @@ export function createCatalogDocumentBuilder(
         return Promise.resolve(null)
     }
   }
+  return async (entityId, slice, context) => {
+    const buildContext =
+      context ??
+      createReferencedSubjectDocumentBuilderContext(db, slice, getFieldPolicyRegistries())
+    const owned = await buildOwned(entityId, slice, buildContext)
+    if (owned) return owned
+    // Every owned builder returns null both for "no such row" and for "not
+    // listable in this slice". Only the first case can be a sourced entry —
+    // owned entities never have a sourced-entry row — so the fallback cannot
+    // resurrect a product its own gate just rejected.
+    return buildSourcedEntryDocument(db, entityId, slice)
+  }
+}
+
+/**
+ * Build one sourced entry's document for a slice from its durable projection
+ * capture, applying the same channel publication gate the discovery sync
+ * applies at emission time.
+ *
+ * This is what makes `reindexEntity` correct for sourced entities. Without it
+ * the owned builders answer null for every sourced id, and any reindex — a
+ * publication rule change, a lifecycle sweep — would silently delete supplier
+ * inventory from the staff slices instead of re-evaluating it.
+ */
+export async function buildSourcedEntryDocument(
+  db: AnyDrizzleDb,
+  entityId: string,
+  slice: IndexerSlice,
+): Promise<IndexerDocument | null> {
+  const registry = getFieldPolicyRegistries().get(slice.vertical)
+  if (!registry) return null
+  const entry = await readSourcedEntry(db, slice.vertical, entityId)
+  if (!entry || entry.status !== "active") return null
+
+  const { distribution } = catalogRuntimeExtensions()
+  const listable = await isSourcedEntryStorefrontListable({
+    audience: slice.audience,
+    channel: slice.channel,
+    isEffectivelyPublished: () =>
+      distribution.hasEffectiveSourcePublication(
+        db,
+        {
+          sourceKind: entry.source_kind,
+          sourceConnectionId: entry.source_connection_id,
+        },
+        slice.channel,
+      ),
+  })
+  if (!listable) return null
+
+  return buildIndexerDocument(
+    registry,
+    new Map(Object.entries(entry.projection)),
+    slice,
+    entityId,
+    {
+      sourceKind: entry.source_kind,
+      sourceConnectionId: entry.source_connection_id,
+    },
+  )
 }
 
 /**

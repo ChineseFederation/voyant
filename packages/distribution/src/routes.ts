@@ -62,11 +62,16 @@ import {
   channelProductPublicationSchema,
   channelPublicationReindexIntentSchema,
   channelSchema,
+  channelSourcePublicationSchema,
   channelSupplierPublicationSchema,
   channelWebhookEventSchema,
   effectivePublicationSchema,
+  effectiveSourcePublicationSchema,
   errorResponseSchema,
   idParamSchema,
+  publicationSourceSchema,
+  sourcePublicationMutationResponseSchema,
+  sourcePublicationPreviewResponseSchema,
   successResponseSchema,
   supplierPublicationMutationResponseSchema,
   supplierPublicationPreviewResponseSchema,
@@ -80,17 +85,21 @@ import {
   channelListQuerySchema,
   channelProductMappingListQuerySchema,
   channelProductPublicationListQuerySchema,
+  channelSourcePublicationListQuerySchema,
   channelSupplierPublicationListQuerySchema,
   channelWebhookEventListQuerySchema,
   effectivePublicationInputSchema,
+  effectiveSourcePublicationInputSchema,
   insertChannelBookingLinkSchema,
   insertChannelCommissionRuleSchema,
   insertChannelContractSchema,
   insertChannelProductMappingSchema,
   insertChannelProductPublicationSchema,
   insertChannelSchema,
+  insertChannelSourcePublicationSchema,
   insertChannelSupplierPublicationSchema,
   insertChannelWebhookEventSchema,
+  previewChannelSourcePublicationSchema,
   previewChannelSupplierPublicationSchema,
   updateChannelBookingLinkSchema,
   updateChannelCommissionRuleSchema,
@@ -98,6 +107,7 @@ import {
   updateChannelProductMappingSchema,
   updateChannelProductPublicationSchema,
   updateChannelSchema,
+  updateChannelSourcePublicationSchema,
   updateChannelSupplierPublicationSchema,
   updateChannelWebhookEventSchema,
 } from "./validation.js"
@@ -1002,6 +1012,104 @@ const deleteSupplierPublicationRoute = createRoute({
   },
 })
 
+const listPublicationSourcesRoute = createRoute({
+  method: "get",
+  path: "/publication-sources",
+  responses: {
+    200: {
+      description: "Supply sources discovery has found, with their entry counts",
+      ...jsonContent(z.object({ data: z.array(publicationSourceSchema) })),
+    },
+  },
+})
+
+const listSourcePublicationsRoute = createRoute({
+  method: "get",
+  path: "/source-publications",
+  request: { query: channelSourcePublicationListQuerySchema },
+  responses: {
+    200: {
+      description: "Paginated supply source publication rules",
+      ...jsonContent(listResponseSchema(channelSourcePublicationSchema)),
+    },
+  },
+})
+
+const upsertSourcePublicationRoute = createRoute({
+  method: "put",
+  path: "/source-publications",
+  request: requiredJsonBody(insertChannelSourcePublicationSchema),
+  responses: {
+    200: {
+      description: "The authored source publication rule with affected count",
+      ...jsonContent(sourcePublicationMutationResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const previewSourcePublicationRoute = createRoute({
+  method: "post",
+  path: "/source-publications/preview",
+  request: requiredJsonBody(previewChannelSourcePublicationSchema),
+  responses: {
+    200: {
+      description: "Dry-run source publication affected-entry count",
+      ...jsonContent(sourcePublicationPreviewResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const getSourcePublicationRoute = createRoute({
+  method: "get",
+  path: "/source-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      description: "A source publication rule by id",
+      ...jsonContent(z.object({ data: channelSourcePublicationSchema })),
+    },
+    404: { description: "Source publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const updateSourcePublicationRoute = createRoute({
+  method: "patch",
+  path: "/source-publications/{id}",
+  request: { params: idParamSchema, ...requiredJsonBody(updateChannelSourcePublicationSchema) },
+  responses: {
+    200: {
+      description: "The updated source publication rule with affected count",
+      ...jsonContent(sourcePublicationMutationResponseSchema),
+    },
+    400: { description: "invalid_request", ...jsonContent(errorResponseSchema) },
+    404: { description: "Source publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const deleteSourcePublicationRoute = createRoute({
+  method: "delete",
+  path: "/source-publications/{id}",
+  request: { params: idParamSchema },
+  responses: {
+    200: { description: "Source publication deleted", ...jsonContent(successResponseSchema) },
+    404: { description: "Source publication not found", ...jsonContent(errorResponseSchema) },
+  },
+})
+
+const previewEffectiveSourcePublicationRoute = createRoute({
+  method: "post",
+  path: "/source-publications/effective",
+  request: requiredJsonBody(effectiveSourcePublicationInputSchema),
+  responses: {
+    200: {
+      description: "Effective publication decision for a channel and supply source",
+      ...jsonContent(z.object({ data: effectiveSourcePublicationSchema })),
+    },
+  },
+})
+
 const previewEffectivePublicationRoute = createRoute({
   method: "post",
   path: "/publications/effective",
@@ -1130,6 +1238,65 @@ const publicationRoutes = new OpenAPIHono<DistributionRouteEnv>({
     return row
       ? c.json({ success: true } as const, 200)
       : c.json({ error: "Supplier publication not found" }, 404)
+  })
+  .openapi(listPublicationSourcesRoute, async (c) =>
+    c.json({ data: await distributionService.listKnownSources(c.get("db")) }, 200),
+  )
+  .openapi(listSourcePublicationsRoute, async (c) =>
+    c.json(
+      await distributionService.listSourcePublications(c.get("db"), c.req.valid("query")),
+      200,
+    ),
+  )
+  .openapi(upsertSourcePublicationRoute, async (c) => {
+    const result = await distributionService.upsertSourcePublication(
+      c.get("db"),
+      c.req.valid("json"),
+      { actorId: c.get("userId") ?? null },
+    )
+    return c.json({ data: result.publication, affectedEntryCount: result.affectedEntryCount }, 200)
+  })
+  .openapi(previewSourcePublicationRoute, async (c) => {
+    const result = await distributionService.previewSourcePublication(
+      c.get("db"),
+      c.req.valid("json"),
+    )
+    return c.json({ data: result.input, affectedEntryCount: result.affectedEntryCount }, 200)
+  })
+  .openapi(previewEffectiveSourcePublicationRoute, async (c) => {
+    const result = await distributionService.getEffectiveSourcePublication(
+      c.get("db"),
+      c.req.valid("json"),
+    )
+    return c.json({ data: result }, 200)
+  })
+  .openapi(getSourcePublicationRoute, async (c) => {
+    const row = await distributionService.getSourcePublicationById(
+      c.get("db"),
+      c.req.valid("param").id,
+    )
+    return row ? c.json({ data: row }, 200) : c.json({ error: "Source publication not found" }, 404)
+  })
+  .openapi(updateSourcePublicationRoute, async (c) => {
+    const result = await distributionService.updateSourcePublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      c.req.valid("json"),
+      { actorId: c.get("userId") ?? null },
+    )
+    return result
+      ? c.json({ data: result.publication, affectedEntryCount: result.affectedEntryCount }, 200)
+      : c.json({ error: "Source publication not found" }, 404)
+  })
+  .openapi(deleteSourcePublicationRoute, async (c) => {
+    const row = await distributionService.deleteSourcePublication(
+      c.get("db"),
+      c.req.valid("param").id,
+      { actorId: c.get("userId") ?? null },
+    )
+    return row
+      ? c.json({ success: true } as const, 200)
+      : c.json({ error: "Source publication not found" }, 404)
   })
   .openapi(previewEffectivePublicationRoute, async (c) => {
     const result = await distributionService.getEffectivePublication(

@@ -148,6 +148,18 @@ export const distributionVoyantModule = defineModule({
       dependsOn: ["@voyant-travel/distribution#migrations"],
     },
     {
+      id: "@voyant-travel/distribution#setup.publication-source-backfill.v1",
+      source: "@voyant-travel/distribution/setup/publication-source-backfill",
+      runtime: {
+        entry: "@voyant-travel/distribution/setup/publication-source-backfill",
+        export: "runPublicationSourceBackfillSetupMigration",
+      },
+      // Reads Catalog's sourced-entry store, so it must run after Catalog has
+      // created it — otherwise the backfill finds nothing and every connected
+      // supplier silently drops out of the storefront.
+      dependsOn: ["@voyant-travel/catalog#migrations", "@voyant-travel/distribution#migrations"],
+    },
+    {
       id: "@voyant-travel/distribution#setup.storefront-channel-bindings.v1",
       source: "@voyant-travel/distribution/setup/storefront-channel-bindings",
       runtime: {

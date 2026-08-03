@@ -79,6 +79,18 @@ describe("distribution deployment manifests", () => {
           dependsOn: ["@voyant-travel/distribution#migrations"],
         },
         {
+          id: "@voyant-travel/distribution#setup.publication-source-backfill.v1",
+          runtime: {
+            entry: "@voyant-travel/distribution/setup/publication-source-backfill",
+            export: "runPublicationSourceBackfillSetupMigration",
+          },
+          // Reads Catalog's sourced-entry store, so it must run after Catalog.
+          dependsOn: [
+            "@voyant-travel/catalog#migrations",
+            "@voyant-travel/distribution#migrations",
+          ],
+        },
+        {
           id: "@voyant-travel/distribution#setup.storefront-channel-bindings.v1",
           runtime: {
             entry: "@voyant-travel/distribution/setup/storefront-channel-bindings",

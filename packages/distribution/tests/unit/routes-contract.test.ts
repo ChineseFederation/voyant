@@ -203,6 +203,8 @@ const publicationReindexIntentRow: InferSelectModel<typeof channelPublicationRei
   kind: "supplier",
   productId: null,
   supplierId: supplierPublicationRow.supplierId,
+  sourceKind: null,
+  sourceConnectionId: null,
   cursor: null,
   status: "pending",
   attempts: 0,

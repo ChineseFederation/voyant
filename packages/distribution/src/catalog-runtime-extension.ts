@@ -1,11 +1,15 @@
 import type { CatalogDistributionRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
 import type { PaymentPolicy } from "@voyant-travel/finance"
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, isNull } from "drizzle-orm"
 
 import { publicationProductsRef } from "./publication-product-ref.js"
-import { resolveEffectivePublication } from "./publication-resolver.js"
+import {
+  resolveEffectivePublication,
+  resolveEffectiveSourcePublication,
+} from "./publication-resolver.js"
 import {
   channelProductPublications,
+  channelSourcePublications,
   channelSupplierPublications,
   channels,
   suppliers,
@@ -74,6 +78,56 @@ export const catalogDistributionRuntimeExtension = {
       channelStatus: channel?.status ?? null,
       productRule,
       supplierRule,
+    }).published
+  },
+  async hasEffectiveSourcePublication(db, source, channelId) {
+    if (!channelId) return false
+    const sourceConnectionId = source.sourceConnectionId ?? null
+    const [channel, connectionRule, kindRule] = await Promise.all([
+      db
+        .select({ id: channels.id, status: channels.status })
+        .from(channels)
+        .where(eq(channels.id, channelId))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+      sourceConnectionId
+        ? db
+            .select({
+              id: channelSourcePublications.id,
+              decision: channelSourcePublications.decision,
+            })
+            .from(channelSourcePublications)
+            .where(
+              and(
+                eq(channelSourcePublications.channelId, channelId),
+                eq(channelSourcePublications.sourceKind, source.sourceKind),
+                eq(channelSourcePublications.sourceConnectionId, sourceConnectionId),
+              ),
+            )
+            .limit(1)
+            .then((rows) => rows[0] ?? null)
+        : Promise.resolve(null),
+      db
+        .select({ id: channelSourcePublications.id, decision: channelSourcePublications.decision })
+        .from(channelSourcePublications)
+        .where(
+          and(
+            eq(channelSourcePublications.channelId, channelId),
+            eq(channelSourcePublications.sourceKind, source.sourceKind),
+            isNull(channelSourcePublications.sourceConnectionId),
+          ),
+        )
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ])
+
+    return resolveEffectiveSourcePublication({
+      channelId,
+      sourceKind: source.sourceKind,
+      sourceConnectionId,
+      channelStatus: channel?.status ?? null,
+      connectionRule,
+      kindRule,
     }).published
   },
   async loadSupplierReservationTimeout(db, supplierId) {

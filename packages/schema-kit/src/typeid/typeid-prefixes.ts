@@ -214,6 +214,7 @@ export const PREFIXES = {
   channel_content_push_intents: "ccpi",
   channel_product_publications: "chpp",
   channel_supplier_publications: "chsu",
+  channel_source_publications: "chsc",
   channel_publication_reindex_intents: "chpi",
   facilities: "fac",
   facility_contacts: "fcon",

@@ -923,6 +923,9 @@
       "@voyant-travel/distribution/setup/publication-catalog-backfill": [
         "../distribution/dist/publication-catalog-backfill-setup.d.ts"
       ],
+      "@voyant-travel/distribution/setup/publication-source-backfill": [
+        "../distribution/dist/publication-source-backfill-setup.d.ts"
+      ],
       "@voyant-travel/distribution/setup/storefront-channel-bindings": [
         "../distribution/dist/storefront-channel-binding-setup.d.ts"
       ],

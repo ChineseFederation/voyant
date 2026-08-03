@@ -5,7 +5,7 @@ import type {
   SearchResults,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { SourceAdapter } from "../adapter/contract.js"
 import type { FieldPolicy, FieldPolicyRegistry } from "../contract.js"
 import type { DocumentBuilder, IndexerService } from "../services/indexer-service.js"
@@ -421,5 +421,165 @@ describe("syncSources", () => {
     expect(summary.adapters[0]?.withdrawnProjections).toBe(1)
     expect(deleted).toEqual([{ entityModule: "products", entityId: "stale_b" }])
     expect(updatedIds).toHaveLength(1)
+  })
+})
+
+/**
+ * Regression coverage for #4089: attaching a supply connection used to publish
+ * the supplier's whole catalogue into every channel slice, because sourced
+ * projections never passed a listability gate at all.
+ */
+describe("syncSources sourced-entry publication gate", () => {
+  const slices: IndexerSlice[] = [
+    { vertical: "products", locale: "en-GB", audience: "staff", market: "default" },
+    {
+      vertical: "products",
+      locale: "en-GB",
+      audience: "customer",
+      market: "default",
+      channel: "chan_website",
+    },
+  ]
+
+  it("keeps an unpublished sourced entry out of customer slices but in staff slices", async () => {
+    const registry = createSourceAdapterRegistry()
+    registry.register(makeAdapter("tui", [{ projections: ["tui-pkg:ACE20001"] }]))
+    const { service, upserted } = makeStubIndexer({ products: slices })
+
+    const summary = await syncSources({
+      registry,
+      indexerService: service,
+      fieldPolicyRegistries: new Map([["products", makePassthroughRegistry()]]),
+      // No publication rule exists for this connection.
+      isSourcedEntryListable: ({ slice }) => slice.audience === "staff",
+    })
+
+    expect(summary.totalProjections).toBe(1)
+    expect(upserted.map((entry) => entry.slice.audience)).toEqual(["staff"])
+  })
+
+  it("emits into the customer slice once the connection is published", async () => {
+    const registry = createSourceAdapterRegistry()
+    registry.register(makeAdapter("tui", [{ projections: ["tui-pkg:ACE20001"] }]))
+    const { service, upserted } = makeStubIndexer({ products: slices })
+    const seen: Array<{ sourceKind: string; sourceConnectionId: string | null }> = []
+
+    await syncSources({
+      registry,
+      indexerService: service,
+      fieldPolicyRegistries: new Map([["products", makePassthroughRegistry()]]),
+      isSourcedEntryListable: ({ provenance }) => {
+        seen.push(provenance)
+        return true
+      },
+    })
+
+    expect(upserted.map((entry) => entry.slice.audience).sort()).toEqual(["customer", "staff"])
+    // The gate is addressed by provenance, not by entity id — a sourced entry
+    // has no owned row for a product rule to hang off.
+    expect(seen[0]?.sourceKind).toBe("tui")
+  })
+
+  it("projects provenance into the document so consumers need not infer ownership", async () => {
+    const registry = createSourceAdapterRegistry()
+    registry.register(makeAdapter("tui", [{ projections: ["tui-pkg:ACE20001"] }]))
+    const { service, upserted } = makeStubIndexer({ products: slices })
+
+    await syncSources({
+      registry,
+      indexerService: service,
+      fieldPolicyRegistries: new Map([["products", makePassthroughRegistry()]]),
+      isSourcedEntryListable: () => true,
+    })
+
+    expect(upserted[0]?.doc.fields).toMatchObject({ isSourced: true, sourceKind: "tui" })
+  })
+
+  it("does not gate owned projections — they carry their own product rule", async () => {
+    const registry = createSourceAdapterRegistry()
+    registry.register(makeOwnedAdapter("in-house", ["prod_123"]))
+    const { service, upserted } = makeStubIndexer({ products: slices })
+    const gate = vi.fn(() => false)
+
+    await syncSources({
+      registry,
+      indexerService: service,
+      fieldPolicyRegistries: new Map([["products", makePassthroughRegistry()]]),
+      isSourcedEntryListable: gate,
+    })
+
+    expect(gate).not.toHaveBeenCalled()
+    expect(upserted).toHaveLength(2)
+    expect(upserted[0]?.doc.fields).toMatchObject({ isSourced: false, sourceKind: "owned" })
+  })
+})
+
+/** An adapter whose `discover()` emits operator-owned projections. */
+function makeOwnedAdapter(kind: string, ids: string[]): SourceAdapter {
+  let done = false
+  return {
+    ...makeAdapter(kind, []),
+    discover: async () => {
+      if (done) return { projections: [], next_cursor: undefined }
+      done = true
+      return {
+        projections: ids.map((id) => ({
+          entity_module: "products",
+          entity_id: id,
+          provenance: { source_kind: "owned", source_freshness: "sync" as const },
+          fields: { id, name: `Owned ${id}`, status: "active" },
+        })),
+        next_cursor: undefined,
+      }
+    },
+  }
+}
+
+describe("syncSources provenance authority", () => {
+  it("does not let an adapter payload overwrite the provenance it was routed by", async () => {
+    const registry = createSourceAdapterRegistry()
+    // A supplier payload claiming to be owned inventory.
+    registry.register({
+      ...makeAdapter("tui", []),
+      discover: (() => {
+        let done = false
+        return async () => {
+          if (done) return { projections: [], next_cursor: undefined }
+          done = true
+          return {
+            projections: [
+              {
+                entity_module: "products",
+                entity_id: "tui-pkg:ACE20001",
+                provenance: {
+                  source_kind: "tui",
+                  source_connection_id: "conn_tui",
+                  source_freshness: "sync" as const,
+                },
+                fields: { id: "tui-pkg:ACE20001", isSourced: false, sourceKind: "owned" },
+              },
+            ],
+            next_cursor: undefined,
+          }
+        }
+      })(),
+    })
+    const slices: IndexerSlice[] = [
+      { vertical: "products", locale: "en-GB", audience: "staff", market: "default" },
+    ]
+    const { service, upserted } = makeStubIndexer({ products: slices })
+
+    await syncSources({
+      registry,
+      indexerService: service,
+      fieldPolicyRegistries: new Map([["products", makePassthroughRegistry()]]),
+      isSourcedEntryListable: () => true,
+    })
+
+    expect(upserted[0]?.doc.fields).toMatchObject({
+      isSourced: true,
+      sourceKind: "tui",
+      sourceConnectionId: "conn_tui",
+    })
   })
 })

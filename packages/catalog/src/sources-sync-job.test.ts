@@ -157,6 +157,10 @@ function stubServices(
     reindexReferencedSubjectOverlayChange: async () => {},
     createProductsDocumentBuilder: () => (async () => null) as DocumentBuilder,
     createCatalogDocumentBuilder: () => (async () => null) as DocumentBuilder,
+    // Publication is exercised in `booking-engine/sync.test.ts`; these cases
+    // are about the composition the job performs around it, so the default
+    // stub publishes everything and one case below asserts the wiring.
+    isSourcedEntryListable: async () => true,
     withEmbedding: (inner) => inner,
     applyTaxToQuoteResult: async (_db, result) => result,
     ...rest,
@@ -187,6 +191,33 @@ describe("runCatalogDiscoverySync", () => {
         .map(({ slice, documents }) => `${slice.audience}:${documents[0]?.id}`)
         .sort(),
     ).toEqual(["customer:prd_1", "customer:prd_2", "staff:prd_1", "staff:prd_2"])
+  })
+
+  it("routes the deployment's publication gate into the emission decision", async () => {
+    const adapter = createStubAdapter()
+    const registry = createSourceAdapterRegistry()
+    registry.register(connectStyleAdapter("voyant-connect", ["prd_1"]))
+    const db = drizzleStub()
+    const asked: Array<{ audience: string; sourceKind: string }> = []
+    const services = stubServices({
+      registry,
+      buildIndexer: () => adapter,
+      // Stand in for the real Distribution-backed rule: this connection is
+      // published to staff but not to the storefront.
+      isSourcedEntryListable: async ({ db: gateDb, slice, provenance }) => {
+        expect(gateDb).toBe(db)
+        asked.push({ audience: slice.audience, sourceKind: provenance.sourceKind })
+        return slice.audience === "staff"
+      },
+    })
+
+    await runCatalogDiscoverySync({ env: {}, db, services })
+
+    expect(asked.map(({ audience }) => audience).sort()).toEqual(["customer", "staff"])
+    expect(asked[0]?.sourceKind).toBe("voyant-connect")
+    // The customer slice gets a delete rather than an upsert, so revoking
+    // publication empties the storefront on the next pass.
+    expect(adapter.upserted.map(({ slice }) => slice.audience)).toEqual(["staff"])
   })
 
   it("wraps the document builder with the resolved embedding provider", async () => {

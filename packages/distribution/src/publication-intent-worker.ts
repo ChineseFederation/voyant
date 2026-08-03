@@ -1,12 +1,13 @@
 import type { CatalogProjectionRuntime } from "@voyant-travel/catalog/projection-runtime"
 import type { VoyantGraphRuntimeFactoryContext } from "@voyant-travel/core/project"
-import { and, asc, eq, gt, sql } from "drizzle-orm"
+import { and, asc, eq, gt, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
   type DistributionPublicationIntentWorkerDeps,
   distributionPublicationIntentWorkerRuntimePort,
 } from "./publication-intent-runtime-port.js"
 import { publicationProductsRef } from "./publication-product-ref.js"
+import { publicationSourcedEntriesRef } from "./publication-sourced-entry-ref.js"
 import {
   channelProductPublications,
   channelPublicationBackfillChannels,
@@ -29,9 +30,11 @@ const DEFAULT_RETRY_DELAY_MS = 60_000
 type ClaimedIntent = {
   id: string
   channelId: string | null
-  kind: "product" | "supplier" | "catalog"
+  kind: "product" | "supplier" | "source" | "catalog"
   productId: string | null
   supplierId: string | null
+  sourceKind: string | null
+  sourceConnectionId: string | null
   cursor: string | null
   metadata: unknown
   attempts: number
@@ -94,6 +97,8 @@ async function claimIntent(
       intent.kind,
       intent.product_id AS "productId",
       intent.supplier_id AS "supplierId",
+      intent.source_kind AS "sourceKind",
+      intent.source_connection_id AS "sourceConnectionId",
       intent.cursor,
       intent.metadata,
       intent.attempts,
@@ -191,6 +196,64 @@ async function listSupplierProductIds(
     .limit(input.limit)
 
   return result.map(({ id }) => id)
+}
+
+/**
+ * Page the sourced entries a source rule governs, ordered by the same
+ * `(entity_module, entity_id)` identity the cursor encodes so a checkpointed
+ * intent resumes without re-walking or skipping.
+ *
+ * A rule with no connection id governs every connection of its kind, so the
+ * connection predicate is applied only when the rule names one.
+ */
+async function listSourcedEntriesPage(
+  db: PostgresJsDatabase,
+  input: {
+    sourceKind: string
+    sourceConnectionId: string | null
+    after: SourcedEntryCursor | null
+    limit: number
+  },
+) {
+  const conditions = [
+    eq(publicationSourcedEntriesRef.source_kind, input.sourceKind),
+    eq(publicationSourcedEntriesRef.status, "active"),
+  ]
+  if (input.sourceConnectionId) {
+    conditions.push(eq(publicationSourcedEntriesRef.source_connection_id, input.sourceConnectionId))
+  }
+  if (input.after) {
+    conditions.push(
+      or(
+        gt(publicationSourcedEntriesRef.entity_module, input.after.entityModule),
+        and(
+          eq(publicationSourcedEntriesRef.entity_module, input.after.entityModule),
+          gt(publicationSourcedEntriesRef.entity_id, input.after.entityId),
+        ),
+      )!,
+    )
+  }
+  return db
+    .select({
+      entityModule: publicationSourcedEntriesRef.entity_module,
+      entityId: publicationSourcedEntriesRef.entity_id,
+    })
+    .from(publicationSourcedEntriesRef)
+    .where(and(...conditions))
+    .orderBy(
+      asc(publicationSourcedEntriesRef.entity_module),
+      asc(publicationSourcedEntriesRef.entity_id),
+    )
+    .limit(input.limit)
+}
+
+type SourcedEntryCursor = { entityModule: string; entityId: string }
+
+function parseSourcedEntryCursor(cursor: string | null): SourcedEntryCursor | null {
+  if (!cursor) return null
+  const parsed = JSON.parse(cursor) as Partial<SourcedEntryCursor>
+  if (typeof parsed.entityModule !== "string" || typeof parsed.entityId !== "string") return null
+  return { entityModule: parsed.entityModule, entityId: parsed.entityId }
 }
 
 async function listBackfillProductIdsPage(
@@ -365,6 +428,32 @@ async function processIntent(
 
     if (intent.kind === "catalog") {
       await processCatalogBackfillIntent(db, projection, intent, options)
+      return
+    }
+
+    if (intent.kind === "source") {
+      if (!intent.sourceKind) throw new Error("source intent is missing sourceKind")
+      const entries = await listSourcedEntriesPage(db, {
+        sourceKind: intent.sourceKind,
+        sourceConnectionId: intent.sourceConnectionId,
+        after: parseSourcedEntryCursor(intent.cursor),
+        limit: options.productBatchSize,
+      })
+      if (entries.length === 0) {
+        await completeIntent(db, intent)
+        return
+      }
+
+      for (const entry of entries) {
+        await projection.reindexEntity(entry)
+      }
+
+      const last = entries[entries.length - 1]
+      if (entries.length < options.productBatchSize || !last) {
+        await completeIntent(db, intent)
+        return
+      }
+      await checkpointIntent(db, intent, JSON.stringify(last), options.leaseMs)
       return
     }
 

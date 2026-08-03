@@ -17,6 +17,7 @@
     "./publication-intent-subscribers": "./src/publication-intent-subscribers.ts",
     "./publication-intent-runtime-port": "./src/publication-intent-runtime-port.ts",
     "./setup/publication-catalog-backfill": "./src/publication-catalog-backfill-setup.ts",
+    "./setup/publication-source-backfill": "./src/publication-source-backfill-setup.ts",
     "./setup/storefront-channel-bindings": "./src/storefront-channel-binding-setup.ts",
     "./runtime-contributor": "./src/runtime-contributor.ts",
     "./mcp-runtime": "./src/mcp-runtime.ts",
@@ -134,6 +135,11 @@
         "types": "./dist/publication-catalog-backfill-setup.d.ts",
         "import": "./dist/publication-catalog-backfill-setup.js",
         "default": "./dist/publication-catalog-backfill-setup.js"
+      },
+      "./setup/publication-source-backfill": {
+        "types": "./dist/publication-source-backfill-setup.d.ts",
+        "import": "./dist/publication-source-backfill-setup.js",
+        "default": "./dist/publication-source-backfill-setup.js"
       },
       "./setup/storefront-channel-bindings": {
         "types": "./dist/storefront-channel-binding-setup.d.ts",

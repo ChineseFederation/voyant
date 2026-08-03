@@ -20,10 +20,13 @@ import type {
   channelSettlementItemListQuerySchema,
   channelSettlementPolicyListQuerySchema,
   channelSettlementRunListQuerySchema,
+  channelSourcePublicationListQuerySchema,
   channelSupplierPublicationListQuerySchema,
   channelWebhookEventListQuerySchema,
   effectivePublicationInputSchema,
   effectivePublicationResultSchema,
+  effectiveSourcePublicationInputSchema,
+  effectiveSourcePublicationResultSchema,
   insertChannelBookingLinkSchema,
   insertChannelCommissionRuleSchema,
   insertChannelContractSchema,
@@ -43,8 +46,10 @@ import type {
   insertChannelSettlementItemSchema,
   insertChannelSettlementPolicySchema,
   insertChannelSettlementRunSchema,
+  insertChannelSourcePublicationSchema,
   insertChannelSupplierPublicationSchema,
   insertChannelWebhookEventSchema,
+  previewChannelSourcePublicationSchema,
   previewChannelSupplierPublicationSchema,
   updateChannelBookingLinkSchema,
   updateChannelCommissionRuleSchema,
@@ -65,6 +70,7 @@ import type {
   updateChannelSettlementItemSchema,
   updateChannelSettlementPolicySchema,
   updateChannelSettlementRunSchema,
+  updateChannelSourcePublicationSchema,
   updateChannelSupplierPublicationSchema,
   updateChannelWebhookEventSchema,
 } from "../validation.js"
@@ -136,6 +142,22 @@ export type PreviewChannelSupplierPublicationInput = z.infer<
 >
 export type UpdateChannelSupplierPublicationInput = z.infer<
   typeof updateChannelSupplierPublicationSchema
+>
+export type ChannelSourcePublicationListQuery = z.infer<
+  typeof channelSourcePublicationListQuerySchema
+>
+export type CreateChannelSourcePublicationInput = z.infer<
+  typeof insertChannelSourcePublicationSchema
+>
+export type PreviewChannelSourcePublicationInput = z.infer<
+  typeof previewChannelSourcePublicationSchema
+>
+export type UpdateChannelSourcePublicationInput = z.infer<
+  typeof updateChannelSourcePublicationSchema
+>
+export type EffectiveSourcePublicationInput = z.infer<typeof effectiveSourcePublicationInputSchema>
+export type EffectiveSourcePublicationResult = z.infer<
+  typeof effectiveSourcePublicationResultSchema
 >
 export type EffectivePublicationInput = z.infer<typeof effectivePublicationInputSchema>
 export type EffectivePublicationResult = z.infer<typeof effectivePublicationResultSchema>

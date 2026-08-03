@@ -42,6 +42,7 @@ import {
   distributionCancellationOwnerSchema,
   distributionPaymentOwnerSchema,
   effectivePublicationReasonSchema,
+  effectiveSourcePublicationReasonSchema,
 } from "../validation.js"
 
 // --- shared envelopes -------------------------------------------------------
@@ -252,12 +253,63 @@ export const supplierPublicationPreviewResponseSchema = z.object({
   affectedProductCount: z.number().int(),
 })
 
+export const channelSourcePublicationSchema = z.object({
+  id: idSchema,
+  channelId: z.string(),
+  sourceKind: z.string(),
+  sourceConnectionId: z.string().nullable(),
+  decision: channelPublicationDecisionSchema,
+  reason: z.string().nullable(),
+  createdBy: z.string().nullable(),
+  updatedBy: z.string().nullable(),
+  metadata: jsonRecord.nullable(),
+  createdAt: isoTimestamp,
+  updatedAt: isoTimestamp,
+})
+
+export const effectiveSourcePublicationSchema = z.object({
+  channelId: z.string(),
+  sourceKind: z.string(),
+  sourceConnectionId: z.string().nullable(),
+  published: z.boolean(),
+  decision: channelPublicationDecisionSchema.nullable(),
+  reason: effectiveSourcePublicationReasonSchema,
+  source: z.enum(["connection", "source_kind", "channel", "default"]),
+  ruleId: z.string().nullable(),
+  message: z.string(),
+})
+
+export const publicationSourceSchema = z.object({
+  sourceKind: z.string(),
+  sourceConnectionId: z.string().nullable(),
+  entryCount: z.number().int(),
+})
+
+export const sourcePublicationMutationResponseSchema = z.object({
+  data: channelSourcePublicationSchema,
+  affectedEntryCount: z.number().int(),
+})
+
+export const sourcePublicationPreviewResponseSchema = z.object({
+  data: z.object({
+    channelId: z.string(),
+    sourceKind: z.string(),
+    sourceConnectionId: z.string().nullable().optional(),
+    decision: channelPublicationDecisionSchema,
+    reason: z.string().nullable().optional(),
+    metadata: jsonRecord.nullable().optional(),
+  }),
+  affectedEntryCount: z.number().int(),
+})
+
 export const channelPublicationReindexIntentSchema = z.object({
   id: idSchema,
   channelId: z.string().nullable(),
   kind: channelPublicationReindexIntentKindSchema,
   productId: z.string().nullable(),
   supplierId: z.string().nullable(),
+  sourceKind: z.string().nullable(),
+  sourceConnectionId: z.string().nullable(),
   cursor: z.string().nullable(),
   status: channelPublicationReindexIntentStatusSchema,
   attempts: z.number().int(),

@@ -25,6 +25,11 @@ import type {
 } from "@voyant-travel/catalog-contracts/indexer/contract"
 import type { FieldPolicy, FieldPolicyRegistry } from "../contract.js"
 import type { EntityOverlayChangedPayload } from "../events/taxonomy.js"
+import {
+  type CatalogDocumentProvenance,
+  OWNED_DOCUMENT_PROVENANCE,
+  provenanceProjectionEntries,
+} from "../provenance.js"
 
 /**
  * Options for constructing an IndexerService.
@@ -237,9 +242,19 @@ export function buildIndexerDocument(
   projection: ReadonlyMap<string, unknown>,
   slice: IndexerSlice,
   entityId: string,
+  provenance: CatalogDocumentProvenance = OWNED_DOCUMENT_PROVENANCE,
 ): IndexerDocument {
   const fields: Record<string, unknown> = {}
-  for (const [path, value] of projection) {
+  // Provenance is stamped here rather than by each vertical's emitter because
+  // this is the one funnel every document passes through, owned or sourced.
+  // It still goes through the registry filter below, so audience visibility is
+  // decided by policy like any other field.
+  //
+  // Stamped last so it wins: the projection is adapter-supplied data, and a
+  // supplier payload carrying its own `sourceKind` must not be able to
+  // overwrite the provenance we routed the entry by and claim to be owned.
+  const entries = [...projection, ...provenanceProjectionEntries(provenance)]
+  for (const [path, value] of entries) {
     let policy = registry.resolve(path)
     let policyPath = path
     if (!policy && Array.isArray(value)) {

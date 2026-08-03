@@ -12,7 +12,12 @@ export const channelPublicationReindexIntentStatusSchema = z.enum([
   "completed",
   "failed",
 ])
-export const channelPublicationReindexIntentKindSchema = z.enum(["product", "supplier", "catalog"])
+export const channelPublicationReindexIntentKindSchema = z.enum([
+  "product",
+  "supplier",
+  "source",
+  "catalog",
+])
 export const effectivePublicationReasonSchema = z.enum([
   "channel_missing",
   "channel_inactive",
@@ -21,6 +26,13 @@ export const effectivePublicationReasonSchema = z.enum([
   "default_deny",
   "product_missing_supplier",
   "product_eligibility",
+])
+export const effectiveSourcePublicationReasonSchema = z.enum([
+  "channel_missing",
+  "channel_inactive",
+  "connection_decision",
+  "source_kind_decision",
+  "default_deny",
 ])
 
 const publicationMetadataSchema = z.record(z.string(), z.unknown()).nullable().optional()
@@ -36,6 +48,19 @@ export const supplierPublicationSubjectSchema = z
   .object({
     channelId: z.string().min(1),
     supplierId: z.string().min(1),
+  })
+  .strict()
+
+/**
+ * Subject of a source publication rule. A null/absent `sourceConnectionId`
+ * addresses every connection of that kind rather than a specific one, so the
+ * two forms are deliberately the same shape.
+ */
+export const sourcePublicationSubjectSchema = z
+  .object({
+    channelId: z.string().min(1),
+    sourceKind: z.string().min(1),
+    sourceConnectionId: z.string().min(1).nullable().optional(),
   })
   .strict()
 
@@ -88,6 +113,35 @@ export const channelSupplierPublicationListQuerySchema = paginationSchema
   })
   .strict()
 
+export const channelSourcePublicationCoreSchema = sourcePublicationSubjectSchema
+  .extend({
+    decision: channelPublicationDecisionSchema,
+    reason: z.string().min(1).nullable().optional(),
+    createdBy: z.string().min(1).nullable().optional(),
+    updatedBy: z.string().min(1).nullable().optional(),
+    metadata: publicationMetadataSchema,
+  })
+  .strict()
+
+export const insertChannelSourcePublicationSchema = channelSourcePublicationCoreSchema
+export const previewChannelSourcePublicationSchema = channelSourcePublicationCoreSchema
+  .omit({ createdBy: true, updatedBy: true })
+  .strict()
+export const updateChannelSourcePublicationSchema = channelSourcePublicationCoreSchema
+  .omit({ channelId: true, sourceKind: true, sourceConnectionId: true, createdBy: true })
+  .partial()
+  .strict()
+export const channelSourcePublicationListQuerySchema = paginationSchema
+  .extend({
+    channelId: z.string().optional(),
+    sourceKind: z.string().optional(),
+    sourceConnectionId: z.string().optional(),
+    decision: channelPublicationDecisionSchema.optional(),
+  })
+  .strict()
+
+export const effectiveSourcePublicationInputSchema = sourcePublicationSubjectSchema
+
 export const effectivePublicationInputSchema = z
   .object({
     channelId: z.string().min(1),
@@ -110,6 +164,20 @@ export const effectivePublicationResultSchema = z
   })
   .strict()
 
+export const effectiveSourcePublicationResultSchema = z
+  .object({
+    channelId: z.string(),
+    sourceKind: z.string(),
+    sourceConnectionId: z.string().nullable(),
+    published: z.boolean(),
+    decision: channelPublicationDecisionSchema.nullable(),
+    reason: effectiveSourcePublicationReasonSchema,
+    source: z.enum(["connection", "source_kind", "channel", "default"]),
+    ruleId: z.string().nullable(),
+    message: z.string(),
+  })
+  .strict()
+
 export const channelPublicationReindexIntentSchema = z
   .object({
     id: z.string(),
@@ -117,6 +185,8 @@ export const channelPublicationReindexIntentSchema = z
     kind: channelPublicationReindexIntentKindSchema,
     productId: z.string().nullable(),
     supplierId: z.string().nullable(),
+    sourceKind: z.string().nullable(),
+    sourceConnectionId: z.string().nullable(),
     cursor: z.string().nullable(),
     status: channelPublicationReindexIntentStatusSchema,
     attempts: z.number().int(),
