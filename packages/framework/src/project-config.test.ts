@@ -67,4 +67,14 @@ describe("framework project config", () => {
       providers: { database: "postgres", cache: "postgres", storage: "memory" },
     })
   })
+
+  it("declares the standard response-cache posture and lets an author override it", () => {
+    expect(defineConfig().deployment?.responseCache).toEqual({ edge: "none" })
+
+    expect(
+      defineConfig({
+        deployment: { responseCache: { edge: "declared" } },
+      }).deployment?.responseCache,
+    ).toEqual({ edge: "declared" })
+  })
 })

@@ -26,8 +26,10 @@ export {
 export {
   canonicalDeploymentProvider,
   DEFAULT_MANAGED_CLOUD_PROVIDERS,
+  DEFAULT_RESPONSE_CACHE_POSTURE,
   DEPLOYMENT_PROVIDER_CONTRACTS,
   DEPLOYMENT_PROVIDER_ROLES,
+  resolveResponseCachePosture,
   type VoyantDeploymentEnvRequirement,
   type VoyantDeploymentEnvValueFormat,
   type VoyantDeploymentMode,
@@ -37,6 +39,8 @@ export {
   type VoyantRedisBindingConstraints,
   type VoyantRedisBindingIsolation,
   type VoyantRedisBindingNetwork,
+  type VoyantResponseCacheEdgeTier,
+  type VoyantResponseCachePosture,
 } from "./deployment-types.js"
 export {
   type DeploymentExtensionDeclaration,

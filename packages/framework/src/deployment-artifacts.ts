@@ -643,6 +643,9 @@ export function buildProjectRuntimeModule(input: BuildProjectRuntimeModuleInput)
   const deployment = {
     ...(input.graph.deployment.mode ? { mode: input.graph.deployment.mode } : {}),
     providers: input.graph.deployment.providers,
+    ...(input.graph.deployment.responseCache
+      ? { responseCache: input.graph.deployment.responseCache }
+      : {}),
   }
 
   return `${graphRuntime}
@@ -846,7 +849,7 @@ export function resolveGeneratedRuntimeDeployment(): VoyantNodeRuntimeDeployment
   if (!deployment || typeof deployment !== "object" || Array.isArray(deployment)) {
     throw new Error("Generated deployment graph deployment is missing or invalid")
   }
-  const candidate = deployment as { mode?: unknown; providers?: unknown }
+  const candidate = deployment as { mode?: unknown; providers?: unknown; responseCache?: unknown }
   if (
     candidate.mode !== "local" &&
     candidate.mode !== "managed-cloud" &&
@@ -861,7 +864,22 @@ export function resolveGeneratedRuntimeDeployment(): VoyantNodeRuntimeDeployment
   return {
     mode: candidate.mode,
     providers,
+    ...(candidate.responseCache === undefined
+      ? {}
+      : { responseCache: generatedResponseCachePosture(candidate.responseCache) }),
   }
+}
+
+function generatedResponseCachePosture(
+  value: unknown,
+): NonNullable<VoyantNodeRuntimeDeployment["responseCache"]> {
+  const edge = isGeneratedRecord(value) ? value.edge : undefined
+  if (edge !== "declared" && edge !== "none") {
+    throw new Error(
+      'Generated deployment graph deployment.responseCache.edge must be "declared" or "none"',
+    )
+  }
+  return { edge }
 }
 
 function requireGeneratedDeploymentProvider<
@@ -886,7 +904,7 @@ function isGeneratedRecord(value: unknown): value is Record<string, unknown> {
 function readGeneratedDeploymentGraph(): {
   schemaVersion?: unknown
   contentHash?: unknown
-  deployment?: { target?: unknown; mode?: unknown; providers?: unknown }
+  deployment?: { target?: unknown; mode?: unknown; providers?: unknown; responseCache?: unknown }
   requirements?: unknown
   diagnostics?: unknown
 } {
@@ -898,7 +916,7 @@ function readGeneratedDeploymentGraph(): {
   ) as {
     schemaVersion?: unknown
     contentHash?: unknown
-    deployment?: { target?: unknown; mode?: unknown; providers?: unknown }
+    deployment?: { target?: unknown; mode?: unknown; providers?: unknown; responseCache?: unknown }
     requirements?: unknown
     diagnostics?: unknown
   }

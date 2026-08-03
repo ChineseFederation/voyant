@@ -3,6 +3,7 @@ import {
   DEPLOYMENT_PROVIDER_CONTRACTS,
   type VoyantDeploymentMode,
   type VoyantRedisBindingConstraints,
+  type VoyantResponseCachePosture,
 } from "@voyant-travel/framework"
 
 export const VOYANT_DEPLOYMENT_BINDINGS_ENV = "VOYANT_DEPLOYMENT_BINDINGS_JSON" as const
@@ -10,6 +11,8 @@ export const VOYANT_DEPLOYMENT_BINDINGS_ENV = "VOYANT_DEPLOYMENT_BINDINGS_JSON" 
 export interface GeneratedRuntimeDeploymentBindings {
   mode?: VoyantDeploymentMode
   providers: Readonly<Record<string, string>>
+  /** Declared response-cache posture, carried verbatim from the generated graph. */
+  responseCache?: VoyantResponseCachePosture
 }
 
 export interface ResolvedRuntimeDeploymentBindings {
@@ -17,6 +20,8 @@ export interface ResolvedRuntimeDeploymentBindings {
   mode?: VoyantDeploymentMode
   providers: Readonly<Record<string, string>>
   redis: VoyantRedisBindingConstraints
+  /** Undefined when the deployment declared none; the runtime reads that as no edge tier. */
+  responseCache?: VoyantResponseCachePosture
   source: "generated" | "runtime"
 }
 
@@ -42,6 +47,7 @@ export function resolveRuntimeDeploymentBindings(
       ...(generated.mode ? { mode: generated.mode } : {}),
       providers: normalizeProviders(generated.providers, "generated deployment providers"),
       redis: legacyRedisConstraints(generated.mode),
+      ...(generated.responseCache ? { responseCache: generated.responseCache } : {}),
       source: "generated",
     }
   }
@@ -84,6 +90,7 @@ export function resolveRuntimeDeploymentBindings(
     ...(generated.mode ? { mode: generated.mode } : {}),
     providers,
     redis: decoded.redis ? parseRedisConstraints(decoded.redis) : dedicatedRedisConstraints(),
+    ...(generated.responseCache ? { responseCache: generated.responseCache } : {}),
     source: "runtime",
   }
 }

@@ -477,6 +477,20 @@ export interface VoyantGraphProjectDeploymentMigration {
 }
 
 /**
+ * How shared public responses reach requesters.
+ *
+ * `edge: "declared"` states that an HTTP cache in front of the origin honours
+ * the route's `Cache-Control`; `"none"` states that the origin is the only
+ * shared cache. Absent means undeclared, which reads as `"none"`.
+ *
+ * This is a deployment property, not a provider role: no component is resolved
+ * from it, so it is not part of `providers`.
+ */
+export interface VoyantGraphProjectResponseCache {
+  edge: "declared" | "none"
+}
+
+/**
  * Unified application graphs always compile to the Node runtime. Hosting
  * choices such as Voyant Cloud, Docker, Fly, or Railway are CLI target adapters
  * for that Node artifact, not alternate application runtimes.
@@ -486,6 +500,8 @@ export interface VoyantGraphProjectDeployment {
   mode?: VoyantGraphProjectDeploymentMode
   providers?: Readonly<Record<string, string>>
   migrations?: readonly VoyantGraphProjectDeploymentMigration[]
+  /** Declared by a deployment that mounts public routes. See ADR 0021 section 7. */
+  responseCache?: VoyantGraphProjectResponseCache
 }
 
 /** A host preference may select only package-declared profile names. */
@@ -730,11 +746,24 @@ function normalizeProjectDeployment(
     )
   }
 
+  let responseCache: VoyantGraphProjectResponseCache | undefined
+  if (input.responseCache !== undefined) {
+    if (!isPlainObject(input.responseCache)) {
+      throw new Error("defineProject: deployment.responseCache must be a plain object.")
+    }
+    const edge = (input.responseCache as { edge?: unknown }).edge
+    if (edge !== "declared" && edge !== "none") {
+      throw new Error('defineProject: deployment.responseCache.edge must be "declared" or "none".')
+    }
+    responseCache = { edge }
+  }
+
   if (
     !target &&
     input.mode === undefined &&
     Object.keys(providers).length === 0 &&
-    migrations.length === 0
+    migrations.length === 0 &&
+    responseCache === undefined
   ) {
     return undefined
   }
@@ -743,6 +772,7 @@ function normalizeProjectDeployment(
     ...(input.mode ? { mode: input.mode } : {}),
     ...(Object.keys(providers).length > 0 ? { providers } : {}),
     ...(migrations.length > 0 ? { migrations } : {}),
+    ...(responseCache ? { responseCache } : {}),
   }
 }
 

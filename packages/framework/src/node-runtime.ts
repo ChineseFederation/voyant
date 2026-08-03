@@ -47,6 +47,7 @@ import type {
   VoyantDeploymentMode,
   VoyantDeploymentProviders,
   VoyantRedisBindingConstraints,
+  VoyantResponseCachePosture,
 } from "./deployment-types.js"
 import { lowerVoyantGraphActionsToActionLedgerRegistry } from "./graph-action-ledger.js"
 import {
@@ -57,9 +58,11 @@ import {
 } from "./node-job-host.js"
 import {
   resolveVoyantNodeProviderPlan,
+  type VoyantNodeDeploymentPostureInput,
   type VoyantNodeKvProvider,
   type VoyantNodeProviderPlan,
   validateVoyantNodeProviderPlanEnv,
+  voyantNodeDeploymentPostureReports,
 } from "./node-provider-plan.js"
 import { createLazyNodeRedisTcpClient } from "./node-redis-client.js"
 import { composeVoyantGraphRuntime } from "./runtime-composition.js"
@@ -197,6 +200,8 @@ export interface VoyantNodeRuntimeDeployment {
     Partial<Pick<VoyantDeploymentProviders, "scheduledJobs">>
   /** Explicit properties of the concrete Redis binding selected at boot. */
   redis?: VoyantRedisBindingConstraints
+  /** How shared public responses reach requesters. Absent reads as no edge tier. */
+  responseCache?: VoyantResponseCachePosture
 }
 
 /** Inputs for booting a generated application graph in a resident Node process. */
@@ -344,6 +349,15 @@ export async function loadVoyantNodeRuntime(
     requirements,
     env,
     hasAuthIntegration: Boolean(auth),
+  })
+  reportVoyantNodeDeploymentPosture({
+    plan: providerPlan,
+    ...(options.deployment.responseCache
+      ? { responseCache: options.deployment.responseCache }
+      : {}),
+    mountsPublicRoutes:
+      graphComposition.routePosture.publicPaths.length > 0 ||
+      (options.app?.publicPaths?.length ?? 0) > 0,
   })
   const applicationId = options.applicationId?.trim() || "application"
   const app = createVoyantNodeApp({
@@ -732,6 +746,17 @@ function assertVoyantNodeRuntimeSupport(options: {
   }
 }
 
+/**
+ * Report the deployment postures a route author cannot see from the header
+ * they wrote. Reported once per runtime load, on the same console channel the
+ * generated Node entrypoint already uses for boot messages.
+ */
+function reportVoyantNodeDeploymentPosture(input: VoyantNodeDeploymentPostureInput): void {
+  for (const report of voyantNodeDeploymentPostureReports(input)) {
+    console.warn(`[node-runtime] ${report}`)
+  }
+}
+
 function resolveRedisBindingConstraints(
   deployment: VoyantNodeRuntimeDeployment,
 ): VoyantRedisBindingConstraints {
@@ -845,8 +870,17 @@ function resolveDb(env: unknown): VoyantDb {
   return resolveNodeDatabase(env as VoyantNodeRuntimeEnv) as VoyantDb
 }
 
-export type { StorageProvider, StorageProviderResolver, VoyantNodeProviderPlan }
-export { resolveVoyantNodeProviderPlan, validateVoyantNodeProviderPlanEnv }
+export type {
+  StorageProvider,
+  StorageProviderResolver,
+  VoyantNodeDeploymentPostureInput,
+  VoyantNodeProviderPlan,
+}
+export {
+  resolveVoyantNodeProviderPlan,
+  validateVoyantNodeProviderPlanEnv,
+  voyantNodeDeploymentPostureReports,
+}
 
 /**
  * Flatten the runtime env bag (string vars + provider bindings) into a plain

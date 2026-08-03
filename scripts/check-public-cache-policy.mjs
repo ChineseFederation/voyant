@@ -36,6 +36,13 @@ function requireNotContains(relativePath, phrase, reason) {
   }
 }
 
+function requireMatches(relativePath, pattern, reason) {
+  const content = read(relativePath)
+  if (!pattern.test(content)) {
+    addViolation(`${relativePath}: missing required pattern ${pattern} (${reason})`)
+  }
+}
+
 function requireNotMatches(relativePath, pattern, reason) {
   const content = read(relativePath)
   if (pattern.test(content)) {
@@ -95,10 +102,14 @@ function checkKvCacheBindings() {
   // The operator is Node-only (voyant#2966): public-cache/rate-limit stores
   // are concrete Node providers in `src/server.ts`, while consumers type
   // against the KVStore-compatible CACHE member and RateLimitStore.
-  requireContains(
+  // The standard profile declares HOW it serves shared public responses, not
+  // WHICH cache backend it happens to select: pinning the backend literal here
+  // pins the pattern in place (ADR 0021 section 7). The posture is what a route
+  // author's `Cache-Control` header depends on, so that is what is asserted.
+  requireMatches(
     "packages/operator-standard/src/index.ts",
-    'cache: "postgres"',
-    "standard Node product cache backend",
+    /responseCache:\s*\{\s*edge:\s*"(declared|none)"\s*,?\s*\}/,
+    "standard profile must declare a response-cache posture",
   )
   requireNotContains(
     "apps/operator/voyant.config.ts",

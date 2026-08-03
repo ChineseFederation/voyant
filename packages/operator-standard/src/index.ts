@@ -95,9 +95,22 @@ export const STANDARD_OPERATOR_ACCESS: VoyantGraphProjectAccessDeclaration = {
   ],
 }
 
+/**
+ * The standard profile is a single-instance, self-hosted Node deployment that
+ * runs on nothing but Postgres, so it declares the posture that follows from
+ * that: no HTTP cache in front of the origin, and per-process `sharedState` and
+ * `rateLimit`. The declaration does not endorse the posture — it makes it
+ * visible, and the runtime reports the consequences at startup. A deployment
+ * that puts a CDN or reverse proxy in front of the origin overrides
+ * `responseCache` in its own `voyant.config.ts`.
+ *
+ * See docs/adr/0021-http-response-cache-tiers.md section 7 and
+ * docs/architecture/caching-architecture.md section 12.
+ */
 export const STANDARD_OPERATOR_DEPLOYMENT: VoyantGraphProjectDeployment = {
   target: "node",
   mode: "self-hosted",
+  responseCache: { edge: "none" },
   providers: {
     database: "postgres",
     storage: "memory",

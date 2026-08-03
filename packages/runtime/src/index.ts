@@ -405,6 +405,7 @@ export async function loadVoyantProject(
       ...(deployment.mode ? { mode: deployment.mode } : {}),
       providers: deployment.providers,
       redis: deployment.redis,
+      ...(deployment.responseCache ? { responseCache: deployment.responseCache } : {}),
     },
     deploymentRequirements,
     runtimePorts: deploymentResources.ports,

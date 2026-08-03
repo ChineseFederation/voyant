@@ -270,6 +270,28 @@ describe("deployment graph v1", () => {
     )
   })
 
+  it("carries a declared response-cache posture from the project into the resolved graph", async () => {
+    const declared = defineProject({
+      modules: [],
+      deployment: { responseCache: { edge: "declared" } },
+    })
+    const undeclared = defineProject({ modules: [] })
+
+    expect((await resolveDeploymentGraph({ project: declared })).deployment.responseCache).toEqual({
+      edge: "declared",
+    })
+    // Absent stays absent in the artifact; the runtime is what reads it as "none".
+    expect(
+      (await resolveDeploymentGraph({ project: undeclared })).deployment.responseCache,
+    ).toBeUndefined()
+    expect(() =>
+      defineProject({
+        modules: [],
+        deployment: { responseCache: { edge: "cdn" } as never },
+      }),
+    ).toThrow(/deployment\.responseCache\.edge/)
+  })
+
   it("normalizes legacy v1 projects without an extension lane", async () => {
     const plugin = definePlugin({ id: "@acme/voyant-fiscal#smartbill" })
     const project = defineProject({ modules: [], plugins: [plugin] })

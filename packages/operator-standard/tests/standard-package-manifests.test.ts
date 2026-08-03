@@ -26,6 +26,15 @@ import {
 } from "../src/index.js"
 
 describe("standard package manifests", () => {
+  it("declares its response-cache posture alongside the cache backend it selected", () => {
+    // The profile is a single-instance self-hosted deployment with nothing but
+    // Postgres, so it declares that nothing caches responses in front of the
+    // origin. ADR 0021 section 7: the posture has to be one the deployment can
+    // observe, whichever backend it chose.
+    expect(STANDARD_OPERATOR_DEPLOYMENT.responseCache).toEqual({ edge: "none" })
+    expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.cache).toBe("postgres")
+  })
+
   it("selects durable Postgres outbound webhook enqueueing explicitly", () => {
     expect(STANDARD_OPERATOR_DEPLOYMENT.providers?.outboundWebhooks).toBe("postgres")
     expect(validateGraphUnitManifest(operatorWebhooksVoyantModule, "module")).toEqual([])

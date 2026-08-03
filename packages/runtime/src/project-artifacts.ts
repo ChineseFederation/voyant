@@ -47,6 +47,7 @@ export interface GeneratedProjectRuntime {
   deployment: {
     mode?: "local" | "managed-cloud" | "self-hosted"
     providers: VoyantNodeRuntime["deployment"]["providers"]
+    responseCache?: VoyantNodeRuntime["deployment"]["responseCache"]
   }
   graphRuntime: VoyantGraphRuntime
   /** Recreate the fixed graph with boot-selected provider bindings. */
@@ -123,7 +124,11 @@ async function loadDeploymentGraphRuntime(artifactRoot: string): Promise<Generat
   const graph = JSON.parse(
     await readFile(path.join(artifactRoot, PROJECT_GRAPH_ENTRY), "utf8"),
   ) as {
-    deployment?: { mode?: GeneratedProjectRuntime["deployment"]["mode"]; providers?: unknown }
+    deployment?: {
+      mode?: GeneratedProjectRuntime["deployment"]["mode"]
+      providers?: unknown
+      responseCache?: GeneratedProjectRuntime["deployment"]["responseCache"]
+    }
   }
   if (
     typeof namespace.GENERATED_GRAPH_RUNTIME_HASH !== "string" ||
@@ -142,6 +147,9 @@ async function loadDeploymentGraphRuntime(artifactRoot: string): Promise<Generat
     deployment: {
       mode: graph.deployment.mode,
       providers: { ...providers },
+      ...(graph.deployment.responseCache
+        ? { responseCache: { ...graph.deployment.responseCache } }
+        : {}),
     },
     graphRuntime: namespace.createGeneratedGraphRuntime(),
     createGraphRuntime: (providerSelections) =>

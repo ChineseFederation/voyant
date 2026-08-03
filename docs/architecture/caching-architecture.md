@@ -19,6 +19,12 @@ The goal is simple:
 
 Caching should be a performance optimization, not part of the correctness model.
 
+This guide governs cache-aside *data* caching. HTTP *response* caching — the
+tier in front of the origin, the `Cache-Control` a public route declares, and
+which deployment postures can honour it — is owned by
+[ADR 0021](../adr/0021-http-response-cache-tiers.md). Rule 12 below states only
+what a deployment has to declare; the reasoning lives in the ADR.
+
 For active guidance on transactions, row locks, and when a first-class locking
 surface is still deferred, see
 [`locking-and-concurrency-policy.md`](./locking-and-concurrency-policy.md).
@@ -229,6 +235,60 @@ Rule:
 
 Cache backend selection is a deployment concern, not a reason to fork the
 framework surface.
+
+### 12. A deployment that serves public routes declares its response-cache posture
+
+Rule 11 leaves the cache backend with the deployment. Serving a public
+storefront adds a second choice the backend cannot express: whether anything
+caches responses *in front of* the origin. `deployment.responseCache` is where
+that is stated.
+
+    responseCache: { edge: "declared" | "none" }
+
+Two postures are supported, and both reach the same behaviour:
+
+- **Origin-cached.** A non-database shared cache at the origin —
+  `providers.cache: "redis"` — with `responseCache: { edge: "none" }`. Every
+  process shares one cache; the database is not in the response path.
+- **Edge-cached.** A standards-compliant HTTP cache in front of the origin — a
+  CDN, a reverse proxy, or the Voyant Cloud dispatcher — with
+  `responseCache: { edge: "declared" }`. The origin cache then only backstops
+  what the edge misses, so a small deployment can keep `providers.cache:
+  "memory"` behind it.
+
+Absent means undeclared, and undeclared reads as `"none"`. The standard
+self-hosted profile declares `{ edge: "none" }` over `providers.cache:
+"postgres"`, which is the one combination the Node runtime reports at startup:
+shared public responses are read from and written to the same Postgres the
+routes query, and the only tier in front of it is a per-process in-memory cache
+capped at 60 seconds. That posture is supported and reasonable for a small
+single-instance deployment. It is not a posture for serving a storefront under
+load, which is why it is reported rather than assumed.
+
+The same profile selects per-process `sharedState` and `rateLimit`, which the
+runtime reports for the same reason: a per-process rate limit means N instances
+enforce the configured limit N times over. The standard profile is a
+single-instance profile until those are moved to a cross-process provider.
+
+**Parity is a declaration, not a component.** Managed deployments get their
+response caching from Redis at the origin plus the dispatcher at the edge. A
+self-hosted deployment reaches the same behaviour by declaring one of the two
+postures above — it does not need any Voyant-specific component to do it. That
+holds only because the framework's obligation is *standard* HTTP cache
+semantics: routes declare `Cache-Control: public, s-maxage=…,
+stale-while-revalidate=…`, and the framework emits and honours `s-maxage`,
+`stale-while-revalidate`, `Vary`, and request-side `no-cache`/`no-store`. Any
+conforming shared cache can therefore substitute for any other, which is what
+makes an ordinary CDN an exact substitute for the dispatcher. A host-specific
+cache keyed on a hardcoded route path would not be substitutable, and is a
+defect under [ADR 0021](../adr/0021-http-response-cache-tiers.md).
+
+Rule:
+
+A deployment that mounts public routes declares how it serves them. Undeclared
+is read as no tier in front of the origin, and a database-backed response cache
+with no declared edge tier is reported at startup rather than left for a route
+author to discover from a header that did not behave as written.
 
 ## Practical Checklist
 

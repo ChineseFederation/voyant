@@ -36,6 +36,7 @@ import {
   type VoyantGraphProjectDeploymentMigration,
   type VoyantGraphProjectDeploymentMode,
   type VoyantGraphProjectJobScheduling,
+  type VoyantGraphProjectResponseCache,
   type VoyantGraphProjectSelections,
   type VoyantGraphProviderDeclaration,
   type VoyantGraphReportingCatalog,
@@ -306,6 +307,8 @@ export interface DefineVoyantGraphDeploymentInput {
   providers?: Partial<Record<VoyantDeploymentProviderRole | string, string>>
   migrations?: readonly VoyantGraphProjectDeploymentMigration[]
   mode?: VoyantGraphProjectDeploymentMode
+  /** How shared public responses reach requesters. See ADR 0021 section 7. */
+  responseCache?: VoyantGraphProjectResponseCache
   requirements?: VoyantGraphDeploymentRequirements
   meta?: VoyantGraphJsonObject
 }
@@ -324,6 +327,8 @@ export interface VoyantGraphDeployment {
   providers: Partial<Record<VoyantDeploymentProviderRole | string, string>>
   migrations?: readonly VoyantGraphProjectDeploymentMigration[]
   mode?: VoyantGraphProjectDeploymentMode
+  /** How shared public responses reach requesters. See ADR 0021 section 7. */
+  responseCache?: VoyantGraphProjectResponseCache
   requirements: VoyantGraphDeploymentRequirements
   meta?: VoyantGraphJsonObject
 }
@@ -456,6 +461,7 @@ export interface ResolvedVoyantDeploymentGraph {
     mode?: VoyantGraphProjectDeploymentMode
     providers: Partial<Record<VoyantDeploymentProviderRole | string, string>>
     migrations?: readonly VoyantGraphProjectDeploymentMigration[]
+    responseCache?: VoyantGraphProjectResponseCache
   }
   requirements: VoyantGraphDeploymentRequirements
   modules: readonly ResolvedVoyantGraphUnit[]
@@ -583,6 +589,11 @@ export function defineDeployment(input: DefineVoyantGraphDeploymentInput): Voyan
     providers,
     ...(input.migrations?.length ? { migrations: [...input.migrations] } : {}),
     ...(input.mode ? { mode: input.mode } : {}),
+    ...(input.responseCache
+      ? { responseCache: { edge: input.responseCache.edge } }
+      : input.project.deployment?.responseCache
+        ? { responseCache: { edge: input.project.deployment.responseCache.edge } }
+        : {}),
     requirements: normalizeDeploymentRequirements(
       input.requirements ?? deriveDeploymentRequirements(providers),
     ),
@@ -735,6 +746,7 @@ export async function resolveDeploymentGraph(
   const deploymentProviders = canonicalDeploymentProviders(input.deployment?.providers)
   const requirements = normalizeDeploymentRequirements(input.deployment?.requirements)
   const migrations = input.deployment?.migrations ?? input.project.deployment?.migrations
+  const responseCache = input.deployment?.responseCache ?? input.project.deployment?.responseCache
   const selectionConfigById = new Map(
     [
       ...(input.project.selections?.modules ?? []),
@@ -839,6 +851,7 @@ export async function resolveDeploymentGraph(
       ...(mode ? { mode } : {}),
       providers: deploymentProviders,
       ...(migrations?.length ? { migrations: [...migrations] } : {}),
+      ...(responseCache ? { responseCache: { edge: responseCache.edge } } : {}),
     },
     requirements,
     modules,

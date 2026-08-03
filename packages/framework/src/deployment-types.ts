@@ -18,6 +18,41 @@ export interface VoyantRedisBindingConstraints {
   network: VoyantRedisBindingNetwork
 }
 
+/**
+ * Whether an HTTP cache in front of the origin honours the route's
+ * `Cache-Control`.
+ *
+ * `"declared"` means the deployment has put one there — a CDN, a reverse proxy,
+ * or the Voyant Cloud dispatcher. `"none"` means the origin is the only shared
+ * cache a public response ever reaches.
+ */
+export type VoyantResponseCacheEdgeTier = "declared" | "none"
+
+/**
+ * How shared public responses reach requesters.
+ *
+ * This is a property of the deployment, not a provider role: nothing is bound
+ * or constructed from it, so it has no entry in {@link VoyantDeploymentProviders}.
+ * It records the one thing the provider selections cannot express — whether
+ * anything caches responses in front of the origin — so a deployment that
+ * mounts public routes states its posture instead of leaving it inferred.
+ */
+export interface VoyantResponseCachePosture {
+  edge: VoyantResponseCacheEdgeTier
+}
+
+/** Undeclared reads as no HTTP cache in front of the origin, never as one. */
+export const DEFAULT_RESPONSE_CACHE_POSTURE = {
+  edge: "none",
+} as const satisfies VoyantResponseCachePosture
+
+/** Read a declared posture, or the conservative default when none was declared. */
+export function resolveResponseCachePosture(
+  posture: VoyantResponseCachePosture | undefined,
+): VoyantResponseCachePosture {
+  return posture ?? DEFAULT_RESPONSE_CACHE_POSTURE
+}
+
 export type VoyantDeploymentProviderRole =
   | "database"
   | "storage"

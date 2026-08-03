@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 
+import { DEFAULT_RESPONSE_CACHE_POSTURE, resolveResponseCachePosture } from "./deployment-types"
 import {
   resolveVoyantNodeProviderPlan,
   validateVoyantNodeProviderPlanEnv,
+  voyantNodeDeploymentPostureReports,
 } from "./node-provider-plan"
 
 describe("resolveVoyantNodeProviderPlan", () => {
@@ -129,5 +131,88 @@ describe("resolveVoyantNodeProviderPlan", () => {
         rateLimit: "memory",
       }),
     ).toThrow(/providers\.sharedState/)
+  })
+})
+
+describe("response cache posture", () => {
+  const postgresCachePlan = resolveVoyantNodeProviderPlan({
+    storage: "memory",
+    cache: "postgres",
+    sharedState: "redis",
+    rateLimit: "redis",
+  })
+
+  it("reads an undeclared posture as no edge tier in front of the origin", () => {
+    expect(DEFAULT_RESPONSE_CACHE_POSTURE).toEqual({ edge: "none" })
+    expect(resolveResponseCachePosture(undefined)).toEqual({ edge: "none" })
+    expect(resolveResponseCachePosture({ edge: "declared" })).toEqual({ edge: "declared" })
+  })
+
+  it("reports a database-backed response cache with no declared edge tier", () => {
+    const reports = voyantNodeDeploymentPostureReports({
+      plan: postgresCachePlan,
+      mountsPublicRoutes: true,
+    })
+
+    expect(reports).toHaveLength(1)
+    expect(reports[0]).toContain('deployment.providers.cache = "postgres" and no declared edge')
+    expect(reports[0]).toContain("the same Postgres the routes query")
+    expect(reports[0]).toContain("capped at 60 seconds")
+    expect(reports[0]).toContain('deployment.providers.cache = "redis"')
+    expect(reports[0]).toContain('deployment.responseCache = { edge: "declared" }')
+  })
+
+  it("does not report a database-backed cache when an edge tier is declared", () => {
+    expect(
+      voyantNodeDeploymentPostureReports({
+        plan: postgresCachePlan,
+        responseCache: { edge: "declared" },
+        mountsPublicRoutes: true,
+      }),
+    ).toEqual([])
+  })
+
+  it("does not report a response cache that is not the database", () => {
+    expect(
+      voyantNodeDeploymentPostureReports({
+        plan: resolveVoyantNodeProviderPlan({
+          storage: "memory",
+          cache: "redis",
+          sharedState: "redis",
+          rateLimit: "redis",
+        }),
+        responseCache: { edge: "none" },
+        mountsPublicRoutes: true,
+      }),
+    ).toEqual([])
+  })
+
+  it("does not report a response-cache posture when no public routes are mounted", () => {
+    expect(
+      voyantNodeDeploymentPostureReports({
+        plan: postgresCachePlan,
+        responseCache: { edge: "none" },
+        mountsPublicRoutes: false,
+      }),
+    ).toEqual([])
+  })
+
+  it("states the per-process condition for memory rate limiting and shared state", () => {
+    const reports = voyantNodeDeploymentPostureReports({
+      plan: resolveVoyantNodeProviderPlan({
+        storage: "memory",
+        cache: "redis",
+        sharedState: "memory",
+        rateLimit: "memory",
+      }),
+      responseCache: { edge: "declared" },
+      mountsPublicRoutes: true,
+    })
+
+    expect(reports).toHaveLength(2)
+    expect(reports[0]).toContain('deployment.providers.rateLimit = "memory"')
+    expect(reports[0]).toContain("cannot observe how many instances or processes")
+    expect(reports[1]).toContain('deployment.providers.sharedState = "memory"')
+    expect(reports[1]).toContain("nothing is shared despite the name")
   })
 })
