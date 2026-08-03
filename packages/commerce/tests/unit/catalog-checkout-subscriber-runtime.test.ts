@@ -125,6 +125,39 @@ describe("catalog-checkout subscriber runtimes", () => {
     )
   })
 
+  it("resolves the monthly booking limit per event, not once at registration", async () => {
+    let live: number | null | undefined = 10
+    const finalize = vi.fn(async () => undefined)
+    const withDb = vi.fn(async (_bindings, operation) => operation({} as PostgresJsDatabase))
+    const { eventBus, subscriptions } = recordingEventBus()
+    const descriptor = createCheckoutFinalizeSubscriberRuntime({
+      withDb,
+      finalize,
+      resolveMonthlyBookingLimit: () => live,
+    })
+    await descriptor.register({
+      bindings: { VOYANT_BOOKINGS_MONTHLY_LIMIT: "100" },
+      container: createContainer(),
+      eventBus,
+    })
+
+    const deliver = async () => {
+      await subscriptions[0]?.handler(
+        event("payment.completed", { bookingId: "booking_1", paymentSessionId: "session_1" }),
+      )
+    }
+
+    await deliver()
+    live = 250
+    await deliver()
+    live = undefined
+    await deliver()
+
+    expect(finalize.mock.calls.map(([params]) => params.monthlyBookingLimit)).toEqual([
+      10, 250, 100,
+    ])
+  })
+
   it("ignores unrelated payments and rethrows dispatch failures for outbox retry", async () => {
     const error = new Error("checkout finalization failure")
     const finalize = vi.fn(async () => {

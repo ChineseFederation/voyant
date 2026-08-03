@@ -1,4 +1,8 @@
-import { resolveMonthlyBookingLimit } from "@voyant-travel/bookings"
+import {
+  type MonthlyBookingLimitResolver,
+  resolveMonthlyBookingLimit,
+  selectMonthlyBookingLimit,
+} from "@voyant-travel/bookings"
 import type { BootstrapContext, EventBus, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -46,6 +50,13 @@ export interface CheckoutFinalizeSubscriberRuntimeOptions<TBindings = unknown>
   extends CatalogCheckoutRuntimeDatabase<TBindings> {
   finalize?: typeof finalizeCheckout
   logger?: Pick<Console, "error">
+  /**
+   * Per-event monthly booking allowance, for hosts whose plan entitlement
+   * changes while the process runs. Same contract as the bookings runtime
+   * option of the same name. Finalizing a checkout accepts a booking, so this
+   * path consumes the same quota as the booking and finance routes.
+   */
+  resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
 }
 
 interface ContractDocumentGeneratedPayload {
@@ -105,7 +116,7 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
             process?: { env?: Record<string, string | undefined> }
           }
         ).process?.env ?? {}
-      const monthlyBookingLimit = resolveMonthlyBookingLimit({
+      const configuredMonthlyBookingLimit = resolveMonthlyBookingLimit({
         ...processEnv,
         ...(bindings as Record<string, unknown>),
       })
@@ -114,6 +125,12 @@ export function createCheckoutFinalizeSubscriberRuntime<TBindings = unknown>(
         async ({ data }, context) => {
           if (!data.bookingId) return
           const bookingId = data.bookingId
+          // Resolved per event, not at registration: the subscriber outlives
+          // any single tenant plan state.
+          const monthlyBookingLimit = selectMonthlyBookingLimit(
+            options.resolveMonthlyBookingLimit,
+            configuredMonthlyBookingLimit,
+          )
           const nestedEventBus = (context?.eventBus ?? eventBus) as EventBus
 
           try {

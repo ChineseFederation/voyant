@@ -47,6 +47,46 @@ export function resolveMonthlyBookingLimit(env: Readonly<Record<string, unknown>
   return parsed
 }
 
+/**
+ * Supplies the monthly booking allowance that applies to the work in flight,
+ * rather than the one the process booted with.
+ *
+ * A composed API graph is built once per process and reused for the process
+ * lifetime, so anything read from bindings at composition time is a boot-time
+ * constant. That is correct for a self-hosted deployment, where the allowance
+ * is a property of the container. It is wrong for a managed host serving a
+ * tenant whose plan entitlement can change while the process runs — there the
+ * allowance is a property of the request's subscription state.
+ *
+ * A host supplies one of these (typically reading an `AsyncLocalStorage` it
+ * populates per request) and the runtime consults it on every read. Returning:
+ *
+ * - a `number` — that allowance applies right now
+ * - `null` — unlimited right now, overriding whatever was configured
+ * - `undefined` — no live answer available; fall back to the configured value
+ *
+ * The resolver is not validated here. `assertMonthlyBookingLimitAvailable` is
+ * the single validation authority for the value that is actually enforced, so
+ * a malformed live answer fails at the point of enforcement rather than
+ * silently capping a tenant at the wrong number.
+ */
+export type MonthlyBookingLimitResolver = () => number | null | undefined
+
+/**
+ * Pick between a host's live allowance and the value resolved from bindings at
+ * composition time. Absent a resolver — or absent a live answer from one — the
+ * configured value wins, so a deployment that installs no resolver behaves
+ * exactly as it did before the seam existed.
+ */
+export function selectMonthlyBookingLimit(
+  resolveLive: MonthlyBookingLimitResolver | undefined,
+  configured: number | null,
+): number | null {
+  if (!resolveLive) return configured
+  const live = resolveLive()
+  return live === null || typeof live === "number" ? live : configured
+}
+
 type MonthlyBookingUsageRow = {
   current: number | string
   period_start: string | Date

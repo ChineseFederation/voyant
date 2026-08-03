@@ -1,4 +1,8 @@
-import { resolveMonthlyBookingLimit } from "@voyant-travel/bookings"
+import {
+  type MonthlyBookingLimitResolver,
+  resolveMonthlyBookingLimit,
+  selectMonthlyBookingLimit,
+} from "@voyant-travel/bookings"
 import type { EventBus } from "@voyant-travel/core"
 
 import type { InvoiceFxOptions } from "./invoice-fx.js"
@@ -12,7 +16,13 @@ import type {
 import type { InvoiceDocumentGenerator } from "./service-documents.js"
 
 export type FinanceRouteRuntime = {
-  monthlyBookingLimit?: number | null
+  /**
+   * The monthly booking allowance in force for the booking this runtime is
+   * about to create. Read per use — when a host installs
+   * `resolveMonthlyBookingLimit` this is an accessor over live entitlement,
+   * and copying it into a local re-freezes it.
+   */
+  readonly monthlyBookingLimit?: number | null
   invoiceDocumentGenerator?: InvoiceDocumentGenerator
   resolveCustomFields?: FinanceDocumentRouteOptions["resolveCustomFields"]
   resolveDocumentDownloadUrl?: FinanceDocumentRouteOptions["resolveDocumentDownloadUrl"]
@@ -32,6 +42,14 @@ export interface FinanceRuntimeOptions
   descriptionResolver?: InvoiceLineDescriptionResolver
   invoiceDueDateResolver?: InvoiceDueDateResolver
   paymentScheduleLineDescriptionFormat?: PaymentScheduleLineDescriptionFormat
+  /**
+   * Per-request monthly booking allowance, for hosts whose plan entitlement
+   * changes while the process runs. Same contract as the bookings runtime
+   * option of the same name — finance creates bookings too, so both paths
+   * have to consult the same live answer or a managed tenant gets one cap
+   * from the booking routes and another from the finance routes.
+   */
+  resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
 }
 
 export function buildFinanceRouteRuntime(
@@ -44,9 +62,15 @@ export function buildFinanceRouteRuntime(
         process?: { env?: Record<string, string | undefined> }
       }
     ).process?.env ?? {}
+  const configuredMonthlyBookingLimit = resolveMonthlyBookingLimit({ ...processEnv, ...bindings })
 
   return {
-    monthlyBookingLimit: resolveMonthlyBookingLimit({ ...processEnv, ...bindings }),
+    get monthlyBookingLimit() {
+      return selectMonthlyBookingLimit(
+        options.resolveMonthlyBookingLimit,
+        configuredMonthlyBookingLimit,
+      )
+    },
     invoiceDocumentGenerator:
       options.resolveInvoiceDocumentGenerator?.(bindings) ?? options.invoiceDocumentGenerator,
     resolveCustomFields: options.resolveCustomFields,

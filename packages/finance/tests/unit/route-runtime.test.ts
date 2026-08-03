@@ -7,6 +7,29 @@ import {
 import { getFinanceRouteRuntime } from "../../src/routes-runtime.js"
 
 describe("buildFinanceRouteRuntime", () => {
+  it("resolves the monthly booking limit from bindings when no host resolver is installed", () => {
+    expect(
+      buildFinanceRouteRuntime({ VOYANT_BOOKINGS_MONTHLY_LIMIT: "100" }).monthlyBookingLimit,
+    ).toBe(100)
+    expect(buildFinanceRouteRuntime({}).monthlyBookingLimit).toBeNull()
+  })
+
+  it("consults the host monthly-booking-limit resolver on every read", () => {
+    let live: number | null | undefined = 10
+    const runtime = buildFinanceRouteRuntime(
+      { VOYANT_BOOKINGS_MONTHLY_LIMIT: "100" },
+      { resolveMonthlyBookingLimit: () => live },
+    )
+
+    expect(runtime.monthlyBookingLimit).toBe(10)
+    live = 250
+    expect(runtime.monthlyBookingLimit).toBe(250)
+    live = null
+    expect(runtime.monthlyBookingLimit).toBeNull()
+    live = undefined
+    expect(runtime.monthlyBookingLimit).toBe(100)
+  })
+
   it("exposes invoice-from-booking resolver options", async () => {
     const descriptionResolver = () => "Custom legal line"
     const invoiceDueDateResolver = () => "2026-05-23"

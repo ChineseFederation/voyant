@@ -2,7 +2,11 @@ import type { CustomFieldRegistryResolver } from "@voyant-travel/core/custom-fie
 import { createKmsProviderFromEnv, type KmsProvider } from "@voyant-travel/utils/kms"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { resolveMonthlyBookingLimit } from "./booking-plan-limit.js"
+import {
+  type MonthlyBookingLimitResolver,
+  resolveMonthlyBookingLimit,
+  selectMonthlyBookingLimit,
+} from "./booking-plan-limit.js"
 import type { BookingTravelerSnapshot } from "./pii.js"
 import type { KmsBindings } from "./routes-shared.js"
 import type { BookingsFinanceRuntime, BookingsSupplierAmendmentRuntime } from "./runtime-port.js"
@@ -126,7 +130,14 @@ export type BookingOverviewItemEnricher = (
 
 export interface BookingRouteRuntime {
   getKmsProvider(): Promise<KmsProvider>
-  monthlyBookingLimit?: number | null
+  /**
+   * The monthly booking allowance in force. Read this per use rather than
+   * caching it: when a host installs `resolveMonthlyBookingLimit`, this is an
+   * accessor that answers from the host's live entitlement, so copying it into
+   * a local (or spreading the runtime object) re-freezes what the seam exists
+   * to keep live.
+   */
+  readonly monthlyBookingLimit?: number | null
   resolveTravelSnapshot?: ResolveBookingTravelSnapshot
   resolveBillingPerson?: ResolveBookingBillingPerson
   resolveTravelerPerson?: ResolveBookingTravelerPerson
@@ -155,6 +166,15 @@ export type ResolveBookingKmsProvider = (
 
 export interface BookingRouteRuntimeOptions {
   resolveKmsProvider?: ResolveBookingKmsProvider
+  /**
+   * Hook for hosts whose monthly booking allowance is a property of the
+   * request rather than of the container — a managed host serving a tenant
+   * whose plan can be upgraded, downgraded, or expire while the process runs.
+   * Consulted on every read of `monthlyBookingLimit`; returning `undefined`
+   * falls back to the value resolved from bindings at composition time. Omit
+   * it and the allowance stays the boot-time constant it has always been.
+   */
+  resolveMonthlyBookingLimit?: MonthlyBookingLimitResolver
   resolveTravelSnapshot?: ResolveBookingTravelSnapshot
   resolveBillingPerson?: ResolveBookingBillingPerson
   resolveTravelerPerson?: ResolveBookingTravelerPerson
@@ -187,9 +207,15 @@ export function buildBookingRouteRuntime(
   options: BookingRouteRuntimeOptions = {},
 ): BookingRouteRuntime {
   const runtimeEnv = buildRuntimeEnv(bindings)
+  const configuredMonthlyBookingLimit = resolveMonthlyBookingLimit(runtimeEnv)
 
   return {
-    monthlyBookingLimit: resolveMonthlyBookingLimit(runtimeEnv),
+    get monthlyBookingLimit() {
+      return selectMonthlyBookingLimit(
+        options.resolveMonthlyBookingLimit,
+        configuredMonthlyBookingLimit,
+      )
+    },
     async getKmsProvider() {
       if (options.resolveKmsProvider) {
         return options.resolveKmsProvider(runtimeEnv)

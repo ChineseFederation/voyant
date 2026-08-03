@@ -36,7 +36,9 @@ export {
   BookingMonthlyLimitConfigurationError,
   type BookingMonthlyLimitReachedDetails,
   BookingMonthlyLimitReachedError,
+  type MonthlyBookingLimitResolver,
   resolveMonthlyBookingLimit,
+  selectMonthlyBookingLimit,
   VOYANT_BOOKINGS_MONTHLY_LIMIT_BINDING,
 } from "./booking-plan-limit.js"
 export { bookingsSupplierExtension } from "./extensions/suppliers.js"
