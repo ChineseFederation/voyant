@@ -1,5 +1,122 @@
 # @voyant-travel/operator-standard
 
+## 0.20.0
+
+### Minor Changes
+
+- e4833a1: Make the response-cache posture of a deployment declarable, and report it.
+
+  A route that declares `Cache-Control: public, s-maxage=900` is addressing every
+  shared cache at once, but nothing told its author which of them the deployment
+  actually has. The standard self-hosted profile selects `cache: "postgres"`, so
+  the tier meant to shield the database _is_ the database, with only a per-process
+  in-memory cache in front of it whose entries are capped at 60 seconds. Managed
+  deployments select Redis and put the Voyant Cloud dispatcher at the edge. The
+  two products cached public responses very differently and neither said so.
+
+  `deployment.responseCache` is where a deployment now states how it serves shared
+  public responses:
+
+      responseCache: { edge: "declared" | "none" }
+
+  `"declared"` means an HTTP cache in front of the origin honours the route's
+  `Cache-Control` — a CDN, a reverse proxy, or the dispatcher. `"none"` means the
+  origin is the only shared cache. The field is optional and absent reads as
+  `"none"`, never as a tier that might be there.
+
+  It is deliberately not a provider role. Nothing is bound or constructed from it,
+  so it has no entry in `VoyantDeploymentProviders` or
+  `DEPLOYMENT_PROVIDER_CONTRACTS`. It records the one thing the provider
+  selections cannot express — whether anything sits in front of the origin — and
+  it travels with the deployment through `defineProject`, the resolved graph, and
+  the generated Node artifact.
+
+  The Node runtime reports three postures once at startup, on the console channel
+  the generated entrypoint already uses for boot messages:
+
+  - public routes mounted over `cache: "postgres"` with no declared edge tier,
+    naming both remedies: a response cache that is not the database, or an edge
+    tier the deployment declares;
+  - `rateLimit: "memory"`, which keeps counters per process — the runtime cannot
+    observe the instance count, so it states the condition rather than guessing
+    the multiplier;
+  - `sharedState: "memory"`, which is not shared across processes despite the name.
+
+  None of these fail the boot. Every posture is supported; what was not supported
+  was the deployment being unable to tell.
+
+  `@voyant-travel/operator-standard` declares `{ edge: "none" }`, which is what it
+  already was. Its `cache` provider is unchanged — the point is to make the choice
+  visible, not to change it. The guardrail in
+  `scripts/check-public-cache-policy.mjs` now asserts that the standard profile
+  declares a posture rather than pinning the `cache: "postgres"` literal that kept
+  the pattern in place.
+
+  See ADR 0021 section 7 and `docs/architecture/caching-architecture.md` rule 12,
+  which documents the two postures a self-hosted deployment can declare to reach
+  managed response-caching behaviour without adopting a Voyant-specific component.
+
+### Patch Changes
+
+- Updated dependencies [41a6567]
+- Updated dependencies [c35841b]
+  - @voyant-travel/inventory@0.27.9
+  - @voyant-travel/catalog@0.236.0
+  - @voyant-travel/accommodations@0.198.1
+  - @voyant-travel/action-ledger@0.115.11
+  - @voyant-travel/admin-host@0.91.0
+  - @voyant-travel/apps@0.14.5
+  - @voyant-travel/auth@0.150.12
+  - @voyant-travel/bookings@0.237.2
+  - @voyant-travel/catalog-authoring@0.107.37
+  - @voyant-travel/charters@0.234.3
+  - @voyant-travel/commerce@0.47.3
+  - @voyant-travel/cruises@0.235.4
+  - @voyant-travel/custom-fields@0.2.25
+  - @voyant-travel/distribution@0.227.1
+  - @voyant-travel/event-catalog@0.2.24
+  - @voyant-travel/finance@0.237.2
+  - @voyant-travel/flights@0.236.4
+  - @voyant-travel/identity@0.236.2
+  - @voyant-travel/legal@0.236.4
+  - @voyant-travel/mcp@0.15.3
+  - @voyant-travel/media@0.6.7
+  - @voyant-travel/mice@0.94.1
+  - @voyant-travel/navigation-preferences@0.24.2
+  - @voyant-travel/notifications@0.147.5
+  - @voyant-travel/operations@0.13.6
+  - @voyant-travel/operator-settings@0.17.13
+  - @voyant-travel/proposals@0.137.12
+  - @voyant-travel/realtime@0.8.2
+  - @voyant-travel/relationships@0.133.12
+  - @voyant-travel/reporting@0.3.15
+  - @voyant-travel/setup@0.7.8
+  - @voyant-travel/storefront@0.238.4
+  - @voyant-travel/trips@0.229.4
+  - @voyant-travel/webhook-delivery@0.5.13
+  - @voyant-travel/bookings-react@0.240.0
+  - @voyant-travel/plugin-voyant-connect@0.9.0
+  - @voyant-travel/trips-react@0.233.0
+  - @voyant-travel/core@0.137.2
+  - @voyant-travel/payments@0.9.2
+  - @voyant-travel/action-ledger-react@0.129.0
+  - @voyant-travel/distribution-react@0.230.0
+  - @voyant-travel/finance-react@0.240.0
+  - @voyant-travel/identity-react@0.240.0
+  - @voyant-travel/legal-react@0.240.0
+  - @voyant-travel/operations-react@0.121.0
+  - @voyant-travel/admin-app@0.133.0
+  - @voyant-travel/catalog-react@0.238.0
+  - @voyant-travel/commerce-react@0.122.0
+  - @voyant-travel/flights-react@0.240.0
+  - @voyant-travel/inventory-react@0.122.0
+  - @voyant-travel/operator-settings-react@0.97.0
+  - @voyant-travel/relationships-react@0.240.0
+  - @voyant-travel/cruises-react@0.239.0
+  - @voyant-travel/storefront-react@0.242.0
+  - @voyant-travel/mice-react@0.108.0
+  - @voyant-travel/proposals-react@0.238.0
+
 ## 0.19.15
 
 ### Patch Changes

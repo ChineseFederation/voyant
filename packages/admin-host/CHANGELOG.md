@@ -1,5 +1,13 @@
 # @voyant-travel/admin-host
 
+## 0.91.0
+
+### Patch Changes
+
+- Updated dependencies [c35841b]
+  - @voyant-travel/hono@0.140.0
+  - @voyant-travel/admin-app@0.133.0
+
 ## 0.90.0
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/observability-sentry",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Sentry adapter for the Voyant observability Reporter seam (RFC voyant#1553).",
