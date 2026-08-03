@@ -121,6 +121,88 @@ describe("deriveSelfServiceCommand for person-priced products", () => {
     expect(sumLineTotals(command.itemLines)).toBe(command.sellAmountCentsOverride)
   })
 
+  it("charges and reserves one unit when two priced tiers collapse onto a band", async () => {
+    // `deriveTravelerCategory` puts every age tier under 18 on `child`, so
+    // "Child 6-12" and "Child 0-5" compete for one band. Charging both bills
+    // the same child twice and reserves two seats for one traveler
+    // (voyant#4118).
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-06-21",
+      loadResolvedOptionPrice: async () => twoChildTiers,
+    })
+
+    const command = await quoteThenDerive(handler, draft({ adult: 1, child: 1 }))
+
+    expect(command.itemLines?.map((line) => [line.optionUnitId, line.quantity])).toEqual([
+      ["u_adult", 1],
+      ["u_child_6_12", 1],
+    ])
+    // Two travelers, two seats — not the three the ungated loop reserved.
+    expect(sumQuantities(command.itemLines)).toBe(2)
+    // 16000 + 13600. The 10400 second child tier is not added on top.
+    expect(command.sellAmountCentsOverride).toBe(29600)
+  })
+
+  it("lets the operator's sort order pick the winner, whatever order the rows arrive in", async () => {
+    // `option_unit_price_rules` is selected without an ORDER BY, and the quote
+    // and the commit resolve prices in separate calls. Sorting on the unit's
+    // own `sort_order` is what stops the two picking different tiers.
+    const reversed: ResolvedOptionPrice = {
+      ...twoChildTiers,
+      unitPrices: [...twoChildTiers.unitPrices].reverse(),
+    }
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-06-21",
+      loadResolvedOptionPrice: async () => reversed,
+    })
+
+    const command = await quoteThenDerive(handler, draft({ adult: 1, child: 1 }))
+
+    expect(command.itemLines?.map((line) => line.optionUnitId)).toEqual(["u_adult", "u_child_6_12"])
+    expect(command.sellAmountCentsOverride).toBe(29600)
+  })
+
+  it("passes a contested band to the next tier when the operator's first is free", async () => {
+    // A zero-priced unit produced no quote line and no reservation before the
+    // dedupe, and still does — claiming the band with it would silently stop
+    // charging for children.
+    const freeFirstTier: ResolvedOptionPrice = {
+      baseSellAmountCents: 16000,
+      unitPrices: [
+        {
+          unitId: "u_adult",
+          unitType: "person",
+          travelerCategory: "adult",
+          sellAmountCents: 16000,
+          sortOrder: 0,
+        },
+        {
+          unitId: "u_child_6_12",
+          unitType: "person",
+          travelerCategory: "child",
+          sellAmountCents: 0,
+          sortOrder: 1,
+        },
+        {
+          unitId: "u_child_0_5",
+          unitType: "person",
+          travelerCategory: "child",
+          sellAmountCents: 10400,
+          sortOrder: 2,
+        },
+      ],
+    }
+    const handler = createProductsBookingHandler({
+      loadSlotDate: async () => "2026-06-21",
+      loadResolvedOptionPrice: async () => freeFirstTier,
+    })
+
+    const command = await quoteThenDerive(handler, draft({ adult: 1, child: 1 }))
+
+    expect(command.itemLines?.map((line) => line.optionUnitId)).toEqual(["u_adult", "u_child_0_5"])
+    expect(command.sellAmountCentsOverride).toBe(26400)
+  })
+
   it("leaves the command without item lines when nothing can resolve the units", async () => {
     // Neither loader is wired, so there is nothing to derive from. Booking
     // creation still applies its own refusal — derivation must not invent a
@@ -132,6 +214,34 @@ describe("deriveSelfServiceCommand for person-priced products", () => {
     expect(command.itemLines).toBeUndefined()
   })
 })
+
+/** The reporting operator's shape: two child tiers on one option. */
+const twoChildTiers: ResolvedOptionPrice = {
+  baseSellAmountCents: 16000,
+  unitPrices: [
+    {
+      unitId: "u_adult",
+      unitType: "person",
+      travelerCategory: "adult",
+      sellAmountCents: 16000,
+      sortOrder: 0,
+    },
+    {
+      unitId: "u_child_6_12",
+      unitType: "person",
+      travelerCategory: "child",
+      sellAmountCents: 13600,
+      sortOrder: 1,
+    },
+    {
+      unitId: "u_child_0_5",
+      unitType: "person",
+      travelerCategory: "child",
+      sellAmountCents: 10400,
+      sortOrder: 2,
+    },
+  ],
+}
 
 const units: OptionUnitBandCandidate[] = [
   { id: "u_adult", unitType: "person", minAge: 18, maxAge: null },
@@ -199,6 +309,10 @@ async function quoteThenDerive(
 
 function sumLineTotals(lines: { totalSellAmountCents?: number | null }[] | undefined) {
   return (lines ?? []).reduce((sum, line) => sum + (line.totalSellAmountCents ?? 0), 0)
+}
+
+function sumQuantities(lines: { quantity: number }[] | undefined) {
+  return (lines ?? []).reduce((sum, line) => sum + line.quantity, 0)
 }
 
 /** Derivation only reads the product row, so the double implements exactly

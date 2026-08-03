@@ -191,6 +191,14 @@ export interface ResolvedUnitPrice {
   travelerCategory: "adult" | "child" | "infant" | "senior" | null
   pricingMode?: "per_unit" | "per_person" | "per_booking" | "included" | "free" | "on_request"
   sellAmountCents: number | null
+  /**
+   * The unit's `option_units.sort_order`. When several units collapse onto the
+   * same band, the operator's ordering decides which one wins, so this has to
+   * survive the price lookup — the underlying query returns rows in whatever
+   * order Postgres picks, and the quote and the commit resolve prices in two
+   * separate calls (voyant#4118).
+   */
+  sortOrder?: number | null
 }
 
 /** Output of `loadResolvedOptionPrice`. The handler prefers

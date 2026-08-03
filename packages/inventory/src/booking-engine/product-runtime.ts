@@ -518,6 +518,7 @@ export function registerProductBookingHandler(
               unitType: optionUnits.unitType,
               minAge: optionUnits.minAge,
               maxAge: optionUnits.maxAge,
+              sortOrder: optionUnits.sortOrder,
             })
             .from(optionUnits)
             .where(and(eq(optionUnits.optionId, args.optionId), eq(optionUnits.isHidden, false))),
@@ -558,6 +559,7 @@ export function registerProductBookingHandler(
                 travelerCategory: band as "adult" | "child" | "infant" | "senior",
                 pricingMode: up.pricingMode,
                 sellAmountCents: up.sellAmountCents,
+                sortOrder: unit.sortOrder,
               },
             ]
           }
@@ -568,6 +570,7 @@ export function registerProductBookingHandler(
               travelerCategory: deriveTravelerCategory(unit),
               pricingMode: up.pricingMode,
               sellAmountCents: up.sellAmountCents,
+              sortOrder: unit.sortOrder,
             },
           ]
         })

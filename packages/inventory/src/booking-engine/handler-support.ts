@@ -548,12 +548,19 @@ export function paxBandUnitCharges(
   pax: Partial<Record<string, number>> | undefined,
 ): PaxBandUnitCharge[] {
   if (!resolvedPrice) return []
-  return resolvedPrice.unitPrices.flatMap((unit) => {
+  const claimed = new Set<string>()
+  return sortedByOperatorOrder(resolvedPrice.unitPrices).flatMap((unit) => {
     if (!unit.travelerCategory) return []
+    // One unit per band. `deriveTravelerCategory` collapses every age tier
+    // under 18 onto `child`, so an operator selling "Child 6-12" and
+    // "Child 0-5" has two units competing for one band. Charging both bills
+    // the same child twice and reserves two seats for them (voyant#4118).
+    if (claimed.has(unit.travelerCategory)) return []
     const count = pax?.[unit.travelerCategory] ?? 0
     if (count <= 0) return []
     const sellAmountCents = unit.sellAmountCents ?? 0
     if (sellAmountCents <= 0) return []
+    claimed.add(unit.travelerCategory)
     return [
       {
         unitId: unit.unitId,
@@ -562,6 +569,28 @@ export function paxBandUnitCharges(
         sellAmountCents,
       },
     ]
+  })
+}
+
+/**
+ * Order unit prices the way the operator ordered the units.
+ *
+ * Which unit wins a contested band has to be the operator's call, and it has
+ * to be the same call twice: the quote and the commit each resolve the price
+ * in a separate query, and the underlying `option_unit_price_rules` select
+ * carries no `ORDER BY`, so relying on the returned order would let the two
+ * disagree. `unitId` breaks ties so units sharing a `sort_order` — and the
+ * several category rows a single unit can carry — still land in a stable
+ * order.
+ */
+function sortedByOperatorOrder(
+  unitPrices: ReadonlyArray<ResolvedOptionPrice["unitPrices"][number]>,
+): ResolvedOptionPrice["unitPrices"][number][] {
+  return [...unitPrices].sort((left, right) => {
+    const leftOrder = left.sortOrder ?? Number.MAX_SAFE_INTEGER
+    const rightOrder = right.sortOrder ?? Number.MAX_SAFE_INTEGER
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder
+    return left.unitId.localeCompare(right.unitId)
   })
 }
 
