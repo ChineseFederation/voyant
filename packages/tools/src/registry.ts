@@ -4,11 +4,12 @@ import {
   type ToolManifestEntry,
 } from "./binding.js"
 import type { ToolContext, ToolHandlerActionPolicyContext } from "./context.js"
-import { ToolError } from "./errors.js"
+import { isToolError, ToolError, toToolError } from "./errors.js"
 import {
   firstHandlerActionPolicyIdentityMismatch,
   mintHandlerActionPolicyContext,
 } from "./handler-action-policy.js"
+import { warnOnDuplicateToolsPackageInstance } from "./package-instance.js"
 import {
   type AnyToolDefinition,
   createRegisteredTool,
@@ -74,6 +75,10 @@ export interface ToolRegistry {
 }
 
 export function createToolRegistry(): ToolRegistry {
+  // A duplicated install makes every cross-copy admission fail closed. Say so
+  // at construction rather than leaving it to be discovered on the first
+  // destructive Tool call (voyant#4115).
+  warnOnDuplicateToolsPackageInstance()
   const tools = new Map<string, RegisteredTool>()
   const invocationNames = new Map<string, RegisteredTool>()
   const capabilities = new Map<string, RegisteredTool>()
@@ -330,7 +335,10 @@ async function executeTool(
   try {
     result = await tool.handler(input, ctx)
   } catch (err) {
-    if (err instanceof ToolError) throw err
+    // A ToolError thrown by another loaded copy of this package must keep its
+    // code and remediation. `instanceof` alone would flatten it into a generic
+    // PROVIDER_ERROR whose raw text reaches the caller (voyant#4115).
+    if (isToolError(err)) throw toToolError(err)
     const message = err instanceof Error ? err.message : String(err)
     throw new ToolError(`Tool "${name}" failed: ${message}`, "PROVIDER_ERROR", undefined, {
       cause: err,

@@ -24,6 +24,7 @@ import {
   ToolError,
   type ToolManifestEntry,
   type ToolRegistry,
+  toToolError,
 } from "@voyant-travel/tools"
 import type { AccessCatalog, ApiKeyPermissions } from "@voyant-travel/types/api-keys"
 import { isAuthorized } from "./authorization.js"
@@ -449,10 +450,9 @@ function unknownToolResult(name: string): CallToolResult {
 }
 
 function errorResult(err: unknown): CallToolResult {
-  const toolError =
-    err instanceof ToolError
-      ? err
-      : new ToolError(err instanceof Error ? err.message : String(err), "PROVIDER_ERROR")
+  // Recognises a ToolError from another loaded copy of @voyant-travel/tools so
+  // a duplicated install cannot flatten its code into PROVIDER_ERROR.
+  const toolError = toToolError(err)
   return {
     isError: true,
     content: [{ type: "text", text: `[${toolError.code}] ${toolError.message}` }],

@@ -37,11 +37,13 @@ export {
 export { defineTool, type ToolDefinition } from "./define-tool.js"
 export {
   enforceAudienceAuthorization,
+  isToolError,
   requireService,
   TOOL_ERROR_DEFAULTS,
   ToolError,
   type ToolErrorCode,
   type ToolErrorDetails,
+  toToolError,
 } from "./errors.js"
 export {
   admitHandlerActionPolicy,
@@ -49,8 +51,19 @@ export {
   assertAdmittedActionPolicy,
   assertAuthenticHandlerActionPolicyContext,
   type HandlerActionPolicyExpectation,
+  type HandlerAdmissionAuthenticityFailure,
+  type HandlerAdmissionIdentityHint,
   withServerResolvedIdempotencyKey,
 } from "./handler-action-policy.js"
+export {
+  assertSingleToolsPackageInstance,
+  DUPLICATE_TOOLS_INSTANCE_REMEDIATION,
+  isToolsPackageDuplicated,
+  loadedToolsPackageInstanceCount,
+  TOOLS_PACKAGE_INSTANCE,
+  TOOLS_PACKAGE_NAME,
+  type ToolsPackageInstance,
+} from "./package-instance.js"
 export {
   createToolRegistry,
   type PreparedToolAction,

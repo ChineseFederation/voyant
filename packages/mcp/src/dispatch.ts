@@ -16,6 +16,7 @@ import {
   ToolError,
   type ToolManifestEntry,
   type ToolRegistry,
+  toToolError,
 } from "@voyant-travel/tools"
 
 import { isRecord } from "./guards.js"
@@ -107,11 +108,10 @@ export async function dispatchToResult(
     // Normalize any thrown value into a ToolError so the envelope always carries
     // the actionable fields. An unknown throw maps to PROVIDER_ERROR (terminal),
     // the safe-for-writes default — a blind retry of an unknown failure could
-    // duplicate a write.
-    const toolError =
-      err instanceof ToolError
-        ? err
-        : new ToolError(err instanceof Error ? err.message : String(err), "PROVIDER_ERROR")
+    // duplicate a write. `toToolError` recognises a ToolError raised by another
+    // loaded copy of @voyant-travel/tools, so a duplicated install does not
+    // strip its code and remediation here (voyant#4115).
+    const toolError = toToolError(err)
     const error = {
       contractVersion: TOOL_CONTRACT_VERSION,
       code: toolError.code,

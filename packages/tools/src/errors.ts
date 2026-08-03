@@ -106,6 +106,15 @@ export const TOOL_ERROR_DEFAULTS: Record<ToolErrorCode, ToolErrorDefault> = {
 }
 
 /**
+ * Well-known brand identifying a {@link ToolError} across copies of this
+ * package. `instanceof` compares against one module evaluation's class, so an
+ * error thrown by a second loaded copy fails it and gets re-wrapped — turning
+ * a precise code such as `ACTION_POLICY_REQUIRED` into a generic
+ * `PROVIDER_ERROR` whose text reaches the caller verbatim (voyant#4115).
+ */
+const TOOL_ERROR_BRAND = Symbol.for("@voyant-travel/tools.ToolError")
+
+/**
  * Standard error for tool failures. The transport adapter catches these and
  * translates them into its own error envelope (e.g. an MCP `isError` result).
  * The core stays transport-neutral — no `content[]` envelope here.
@@ -149,7 +158,67 @@ export class ToolError extends Error {
     if (details?.didYouMean) {
       this.didYouMean = details.didYouMean
     }
+    Object.defineProperty(this, TOOL_ERROR_BRAND, {
+      value: true,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    })
   }
+}
+
+/**
+ * Recognise a {@link ToolError} thrown by any loaded copy of this package.
+ *
+ * Prefer this over `instanceof` at a transport boundary: a duplicated install
+ * would otherwise strip the error's code and actionable fields and surface its
+ * raw message as provider error text.
+ */
+export function isToolError(value: unknown): value is ToolError {
+  if (value instanceof ToolError) return true
+  if (typeof value !== "object" || value === null) return false
+  if ((value as Record<symbol, unknown>)[TOOL_ERROR_BRAND] === true) return true
+  // A copy predating the brand still identifies itself by name and carries a
+  // string code, which is enough to forward it rather than flatten it.
+  const candidate = value as { name?: unknown; code?: unknown; message?: unknown }
+  return (
+    value instanceof Error &&
+    candidate.name === "ToolError" &&
+    typeof candidate.code === "string" &&
+    typeof candidate.message === "string"
+  )
+}
+
+/**
+ * Normalise any thrown value into a {@link ToolError} of *this* copy.
+ *
+ * A branded error from another copy keeps its code, message, meta and
+ * actionable fields; anything else becomes the conservative terminal
+ * `PROVIDER_ERROR` default.
+ */
+export function toToolError(value: unknown): ToolError {
+  if (value instanceof ToolError) return value
+  if (isToolError(value)) {
+    const foreign = value as unknown as ToolError
+    return new ToolError(
+      foreign.message,
+      foreign.code,
+      foreign.meta,
+      { cause: value },
+      {
+        retryable: foreign.retryable,
+        ...(foreign.nextSteps?.length ? { nextSteps: foreign.nextSteps } : {}),
+        ...(foreign.candidates?.length ? { candidates: foreign.candidates } : {}),
+        ...(foreign.didYouMean ? { didYouMean: foreign.didYouMean } : {}),
+      },
+    )
+  }
+  return new ToolError(
+    value instanceof Error ? value.message : String(value),
+    "PROVIDER_ERROR",
+    undefined,
+    { cause: value },
+  )
 }
 
 /**
