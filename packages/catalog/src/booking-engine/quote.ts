@@ -382,11 +382,10 @@ async function persistComputedQuote(
   if (deps.evaluatePromotions && available && pricing && request.entityModule === "products") {
     const params = request.parameters as Record<string, unknown> | undefined
     const promotionCode = readString(params?.promotionCode)
-    // Read `paxCount` first — `engineParametersFromDraft` (in this file's
-    // sibling `routes.ts`) writes the summed traveler count under that key
-    // when a draft drives the quote, and the products owned-handler reads
-    // `paxCount` too. Fall back to `pax` for callers that build parameters
-    // directly without going through the draft pipeline.
+    // Read `paxCount` first — the Booking Session selection bridge writes the
+    // summed traveler count under that key, and the products owned handler
+    // reads it too. Fall back to `pax` for lower-level callers that construct
+    // quote parameters directly.
     const pax = readNumber(params?.paxCount) ?? readNumber(params?.pax)
     const offerEval = await deps.evaluatePromotions({
       productId: request.entityId,

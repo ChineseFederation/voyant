@@ -3,10 +3,10 @@ import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 import { availabilitySlots } from "./schema-core.js"
 
 /**
- * `availability_holds` — soft holds against an availability slot,
- * tied to a `booking_drafts` row. Decrements
- * `availability_slots.remainingPax` while live; the reaper releases
- * stale holds and increments capacity back.
+ * `availability_holds` — soft holds against an availability slot owned by a
+ * canonical Booking Session Hold. Decrements `availability_slots.remainingPax`
+ * while live; Booking Session maintenance releases stale holds and restores
+ * capacity.
  *
  * Per booking-journey-architecture §5.7 + §6 — the doc proposes
  * `bookingAllocations` for owned holds, but allocations require a
@@ -17,7 +17,10 @@ export const availabilityHolds = pgTable(
   "availability_holds",
   {
     id: typeId("availability_holds"),
-    /** Plain text — booking_drafts lives in @voyant-travel/catalog. */
+    /**
+     * Canonical Booking Session Hold id. The physical column keeps its beta
+     * name until the availability-owned schema migration renames it.
+     */
     draftId: text("draft_id").notNull(),
     /** Token returned to callers; uniquely identifies the hold for
      *  extend/release. */

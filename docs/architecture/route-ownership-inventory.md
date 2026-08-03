@@ -42,7 +42,7 @@ honest.
 | `action-ledger-health.ts` | diagnostic | 2 | lazy | deployment-local | Synthetic ledger-drift health probe; not product surface. Wrap as deployment-local module (Phase 5). |
 | `app.ts` | — | 1 | — | deployment | App bootstrap; owns the single allowed `additionalRoutes` block + `publicPaths`/`dbTransactionalPaths`. |
 | `booking-schedule.ts` | package-owned-manual | 2 | eager + lazy | `@voyant-travel/finance` | Payment-schedule regen + public payment-policy resolve. Finance is **already composed** → add as a finance extension. |
-| `catalog-booking.ts` | package-owned-manual | 4 | lazy | `@voyant-travel/catalog` | Booking-engine routes via `createCatalogBookingRoutes`; slots/orders/snapshot enrichment stays local until classified. Move once lazy contributions land. |
+| `catalog-booking.ts` | removed | 0 | graph | `@voyant-travel/catalog` | Replaced by the package-owned Booking Session v1 module; deployment-local quote/draft/hold routes must stay deleted. |
 | `catalog-checkout.ts` | mixed | 1 | lazy | catalog/trips (composite) | Thin adapter to `startCatalogCheckout`; the service (event bus, runtime resolution) is not yet extracted. Explicitly deferred to Phase 4+. |
 | `catalog-offers.ts` | mixed | 6 | lazy | `@voyant-travel/catalog` + connect | Connect-sourced offer/search/pricing (`@voyant-travel/connect-sdk`); operator search enrichment (Typesense, geo-resolver) stays as adapters. Split reusable contract from enrichment. |
 | `contract-document-routes.ts` | package-owned-manual | 2 | lazy | `@voyant-travel/legal` / document delivery | Contract generation + private document serving. Needs storage + generator adapters. |

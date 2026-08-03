@@ -1,4 +1,3 @@
-import { bookingsRelationshipsRuntimePort } from "@voyant-travel/bookings/runtime-port"
 import { catalogSearchRuntimePort } from "@voyant-travel/catalog/api-runtime-ports"
 import { createFieldPolicyRegistry } from "@voyant-travel/catalog/contract"
 import { catalogIndexerProviderPort } from "@voyant-travel/catalog/indexer/provider"
@@ -18,29 +17,6 @@ import { describe, expect, it, vi } from "vitest"
 
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { createCatalogRuntimePortContribution } from "./runtime-contributor.js"
-
-type SelfServiceDeps = {
-  resolveBillingPerson?: (
-    contact: Record<string, unknown>,
-    provenance: { source: string; sourceRef: string },
-  ) => Promise<string | null>
-}
-
-/** Deps handed to the provider, in call order; the last one is the newest. */
-const capturedSelfServiceDeps: SelfServiceDeps[] = []
-
-vi.mock("@voyant-travel/catalog/booking-engine", async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
-  return {
-    ...actual,
-    createSelfServiceBookingSourceProvider: (deps: SelfServiceDeps) => {
-      capturedSelfServiceDeps.push(deps)
-      return (actual.createSelfServiceBookingSourceProvider as (d: SelfServiceDeps) => unknown)(
-        deps,
-      )
-    },
-  }
-})
 
 describe("createCatalogRuntimePortContribution", () => {
   it("does not read retention environment while contributing runtime ports", async () => {
@@ -150,7 +126,6 @@ describe("createCatalogRuntimePortContribution", () => {
       [catalogChartersRuntimeExtensionPort.id]: { fieldPolicy: [] },
       [catalogCommerceRuntimeExtensionPort.id]: {
         loadSliceInputs: vi.fn(async () => ({ markets: [], locales: [] })),
-        createPromotionEvaluator: vi.fn(),
         createPricingProjectionExtension: () => emptyProjection,
         createPromotionsProjectionExtension: () => emptyProjection,
       },
@@ -214,75 +189,5 @@ describe("createCatalogRuntimePortContribution", () => {
       expect.objectContaining({ id: "product_1" }),
     ])
     expect(transaction).toHaveBeenCalled()
-  })
-
-  /**
-   * Contributors load in alphabetical order by package name, and
-   * `bookings.relationships.runtime` comes from @voyant-travel/relationships —
-   * which sorts AFTER @voyant-travel/catalog and so cannot ever have run by the
-   * time this contributor is built. Deciding then read the port as permanently
-   * absent and dropped `resolveBillingPerson` from the deps entirely, which made
-   * `resolveBilling` return null and refused every guest self-service booking
-   * with `incomplete_draft`. Authenticated customers were unaffected, so it
-   * stayed invisible.
-   *
-   * `resolveBillingPerson` lives in the provider's closure, so the deps object
-   * handed to `createSelfServiceBookingSourceProvider` is the only place the
-   * wiring is observable.
-   */
-  it("wires a billing-person resolver even when the relationships port arrives later", async () => {
-    const upsertPersonFromContact = vi.fn(async () => ({ id: "person_1" }))
-    let relationshipsPortPresent = false
-    const contribution = createCatalogRuntimePortContribution({
-      primitives: { env: () => ({}), database: { resolve: () => ({}) } } as never,
-      hasRuntimePort: (port) =>
-        port.id === bookingsRelationshipsRuntimePort.id ? relationshipsPortPresent : false,
-      getRuntimePort: ((port: { id: string }) =>
-        port.id === bookingsRelationshipsRuntimePort.id
-          ? { upsertPersonFromContact }
-          : {}) as never,
-    })
-    // The port lands after every contributor has run, before any request.
-    relationshipsPortPresent = true
-
-    const deps = capturedSelfServiceDeps.at(-1)
-    expect(deps?.resolveBillingPerson).toBeTypeOf("function")
-    await expect(
-      deps?.resolveBillingPerson?.(
-        { firstName: "Mihai", lastName: "Ungureanu", email: "buyer@example.com", phone: null },
-        { source: "storefront-self-service", sourceRef: "bdrf_1" },
-      ),
-    ).resolves.toBe("person_1")
-    expect(upsertPersonFromContact).toHaveBeenCalledOnce()
-
-    await Promise.allSettled(
-      Object.values(contribution).filter(
-        (value): value is Promise<unknown> => value instanceof Promise,
-      ),
-    )
-  })
-
-  it("refuses a guest booking when the relationships port is genuinely absent", async () => {
-    const contribution = createCatalogRuntimePortContribution({
-      primitives: { env: () => ({}), database: { resolve: () => ({}) } } as never,
-      hasRuntimePort: () => false,
-      getRuntimePort: vi.fn() as never,
-    })
-
-    const deps = capturedSelfServiceDeps.at(-1)
-    // Null, not a throw: only authenticated customers can book on a deployment
-    // that ships no relationships runtime.
-    await expect(
-      deps?.resolveBillingPerson?.(
-        { firstName: "Mihai", lastName: "Ungureanu", email: "buyer@example.com", phone: null },
-        { source: "storefront-self-service", sourceRef: "bdrf_1" },
-      ),
-    ).resolves.toBeNull()
-
-    await Promise.allSettled(
-      Object.values(contribution).filter(
-        (value): value is Promise<unknown> => value instanceof Promise,
-      ),
-    )
   })
 })

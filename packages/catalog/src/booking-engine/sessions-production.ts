@@ -21,8 +21,8 @@ import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import { pricingBreakdownV1 } from "./contracts.js"
 import type { OwnedBookingHandlerRegistry, SelfServiceBillingParty } from "./owned-handler.js"
+import { engineParametersFromSelection } from "./quote-support.js"
 import type { SourceAdapterRegistry } from "./registry.js"
-import { engineParametersFromDraft } from "./routes.js"
 import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
 import {
@@ -151,7 +151,7 @@ function createProductionCompositeLeafRuntime(
           entityModule: handler.entityModule,
           entityId: entityIdForSession(session.target),
           draft: session.statePayload,
-          parameters: engineParametersFromDraft(undefined, session.statePayload, {
+          parameters: engineParametersFromSelection(undefined, session.statePayload, {
             entityModule: handler.entityModule,
             sourceKind: "owned",
           }),
@@ -173,7 +173,7 @@ function createProductionCompositeLeafRuntime(
       const handlers = await deps.resolveOwnedHandlers()
       const handler = handlers.resolve(entityModuleForSession(session.target))
       if (!handler?.placeHold) return "unavailable"
-      const parameters = engineParametersFromDraft(undefined, session.statePayload, {
+      const parameters = engineParametersFromSelection(undefined, session.statePayload, {
         entityModule: handler.entityModule,
         sourceKind: "owned",
       })
@@ -564,9 +564,9 @@ async function commitOwnedBookingInTransaction(
       return row ? { bookingNumber: row.bookingNumber, status: row.status } : null
     },
   })
-  const result = await runtime.createFromDraft({
+  const result = await runtime.createFromSession({
     db: tx,
-    draftId: input.session.id,
+    sessionId: input.session.id,
     quoteId: input.quote.id,
     caller: { personId: billing.personId ?? undefined },
     ...(input.session.storefrontOrigin ? { storefront: input.session.storefrontOrigin } : {}),
@@ -845,7 +845,7 @@ function sourcedParameters(
   payload: Record<string, unknown>,
   source: { entityModule: string; sourceKind: string; sourceProvider: string | null },
 ): Record<string, unknown> {
-  const parameters = engineParametersFromDraft(undefined, payload, {
+  const parameters = engineParametersFromSelection(undefined, payload, {
     entityModule: source.entityModule,
     sourceKind: source.sourceKind,
     sourceProvider: source.sourceProvider ?? undefined,

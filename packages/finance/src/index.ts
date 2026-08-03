@@ -439,7 +439,6 @@ export {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
-  financeSelfServiceBookingSourceRuntimePort,
 } from "./runtime-port.js"
 export type {
   BookingGuarantee,

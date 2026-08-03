@@ -100,22 +100,6 @@ export {
   type TravelerFieldRequirement,
 } from "./draft-shape.js"
 export {
-  bookingDraftsTable,
-  type InsertBookingDraft,
-  type SelectBookingDraft,
-} from "./drafts-schema.js"
-export {
-  createBookingDraft,
-  DEFAULT_DRAFT_TTL_MS,
-  deleteBookingDraft,
-  findExpiredDrafts,
-  getBookingDraft,
-  markDraftConsumed,
-  type UpdateDraftPatch,
-  type UpsertDraftInput,
-  updateBookingDraft,
-} from "./drafts-service.js"
-export {
   BookingEngineError,
   type BookingEngineErrorCode,
   NO_ADAPTER_REGISTERED,
@@ -188,39 +172,16 @@ export {
   quoteEntitiesBatch,
   quoteEntity,
 } from "./quote.js"
+export { engineParametersFromSelection, serializeQuoteResult } from "./quote-support.js"
 export {
   createSourceAdapterRegistry,
   type SourceAdapterRegistry,
 } from "./registry.js"
 export {
-  type CatalogBookingAdapterContextInput,
-  type CatalogBookingBatchQuoteBody,
-  type CatalogBookingBatchQuoteSelection,
-  type CatalogBookingBatchQuoteTransformInput,
-  type CatalogBookingDraftBody,
-  type CatalogBookingHoldPlaceBody,
-  type CatalogBookingHoldReleaseBody,
-  type CatalogBookingHoldTtlInput,
-  type CatalogBookingProvenance,
-  type CatalogBookingProvenanceInput,
-  type CatalogBookingQuoteBody,
-  type CatalogBookingQuoteTransformInput,
-  type CatalogBookingRoutesOptions,
-  createCatalogBookingApiModule,
-  createCatalogBookingRoutes,
-  engineParametersFromDraft,
-  serializeQuoteResult,
-} from "./routes.js"
-export {
   catalogQuotesTable,
   type InsertCatalogQuote,
   type SelectCatalogQuote,
 } from "./schema.js"
-export {
-  createSelfServiceBookingSourceProvider,
-  type ResolveSelfServiceBillingPerson,
-  type SelfServiceBookingSourceProviderDeps,
-} from "./self-service-source.js"
 export {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,

@@ -86,6 +86,34 @@ function writeMinimumFixture(root, overrides = {}) {
   write(root, "packages/bookings/src/schema-operations.ts", overrides.bookingSchema ?? "bookings")
   write(
     root,
+    "packages/catalog/src/booking-engine/operator-routes.ts",
+    overrides.catalogRoutes ?? '"/v1/public/catalog/booking-sessions"',
+  )
+  write(root, "packages/catalog/src/schema.ts", overrides.catalogSchema ?? "bookingSessionsTable")
+  write(
+    root,
+    "packages/catalog/openapi/admin/catalog-booking.json",
+    overrides.adminBookingOpenApi ?? '{"/v1/admin/catalog/booking-sessions":{}}',
+  )
+  write(
+    root,
+    "packages/catalog/openapi/storefront/catalog-booking.json",
+    overrides.storefrontBookingOpenApi ?? '{"/v1/public/catalog/booking-sessions":{}}',
+  )
+  write(
+    root,
+    "packages/catalog/migrations/20260802190000_booking_v1_beta_draft_cutover.sql",
+    overrides.betaDraftCutover ??
+      [
+        "ambiguous external effect",
+        "booking_v1_legacy_holds_to_release",
+        "genuine_commitment",
+        "resumable_staff_attempt",
+        'DROP TABLE "booking_drafts"',
+      ].join("\n"),
+  )
+  write(
+    root,
     "packages/storefront-sdk/package.json",
     JSON.stringify(
       overrides.storefrontSdkPackage ?? { exports: {}, publishConfig: { exports: {} } },
@@ -137,4 +165,16 @@ test("rejects legacy Booking-backed session surfaces", (t) => {
   assert.match(output, /bookingSessionStates/)
   assert.match(output, /forbidden export \.\/booking-engine/)
   assert.match(output, /forbidden published export \.\/engine-state/)
+})
+
+test("rejects retired beta routes in published Booking OpenAPI", (t) => {
+  const root = fixture(t)
+  writeMinimumFixture(root, {
+    adminBookingOpenApi: '{"/v1/admin/catalog/drafts/{id}":{}}',
+    storefrontBookingOpenApi: '{"/v1/public/catalog/drafts/{id}":{}}',
+  })
+
+  const output = failure(root)
+  assert.match(output, /missing.*booking-sessions/)
+  assert.match(output, /forbidden.*catalog\/drafts/)
 })

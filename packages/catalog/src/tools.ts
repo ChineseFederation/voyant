@@ -22,11 +22,7 @@ import {
 } from "@voyant-travel/tools"
 import { z } from "zod"
 
-import {
-  getCatalogOrderDefinition,
-  listCatalogOrdersDefinition,
-  quoteCatalogEntityDefinition,
-} from "./booking-tools.js"
+import { getCatalogOrderDefinition, listCatalogOrdersDefinition } from "./booking-tools.js"
 
 const visibilitySchema = z.enum(["staff", "customer", "partner", "supplier"])
 const searchModeSchema = z.enum(["keyword", "semantic", "hybrid"])
@@ -256,15 +252,10 @@ export const getCatalogEntryTool = defineTool<
 })
 
 /** All catalog agent tools, ready to register on a `ToolRegistry`. */
-export const quoteCatalogEntityTool = defineTool(quoteCatalogEntityDefinition)
 export const listCatalogOrdersTool = defineTool(listCatalogOrdersDefinition)
 export const getCatalogOrderTool = defineTool(getCatalogOrderDefinition)
 
-export const catalogBookingTools = [
-  quoteCatalogEntityTool,
-  listCatalogOrdersTool,
-  getCatalogOrderTool,
-] as const
+export const catalogBookingTools = [listCatalogOrdersTool, getCatalogOrderTool] as const
 
 export const catalogTools = [searchCatalogTool, getCatalogEntryTool] as const
 

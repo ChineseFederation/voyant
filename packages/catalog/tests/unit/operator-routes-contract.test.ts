@@ -78,10 +78,8 @@ const offerOptions: CatalogOffersRouteModuleOptions = {
 // the exercised legs (invalid body / non-products slots), so the resolvers throw
 // to prove they're never hit on these paths.
 const bookingOptions = {
-  booking: {
-    resolveDb: () => {
-      throw new Error("resolveDb should not be reached on the tested paths")
-    },
+  resolveDb: () => {
+    throw new Error("resolveDb should not be reached on the tested paths")
   },
   resolveRegistry: () => {
     throw new Error("resolveRegistry should not be reached on the tested paths")

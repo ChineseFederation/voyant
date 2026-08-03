@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const financeCreate = vi.hoisted(() => ({
-  createFromDraft: vi.fn(),
+  createFromSession: vi.fn(),
   resolvedCommand: undefined as Record<string, unknown> | undefined,
   runtimeDeps: undefined as
     | {
@@ -13,7 +13,7 @@ const financeCreate = vi.hoisted(() => ({
               }>
               consumeBookingSource(
                 tx: unknown,
-                input: { draftId: string; quoteId: string; bookingId: string },
+                input: { sessionId: string; quoteId: string; bookingId: string },
               ): Promise<void>
             }>
           | {
@@ -23,7 +23,7 @@ const financeCreate = vi.hoisted(() => ({
               }>
               consumeBookingSource(
                 tx: unknown,
-                input: { draftId: string; quoteId: string; bookingId: string },
+                input: { sessionId: string; quoteId: string; bookingId: string },
               ): Promise<void>
             }
       }
@@ -34,7 +34,7 @@ vi.mock("@voyant-travel/finance", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@voyant-travel/finance")>()),
   createSelfServiceCreateRuntime: (deps: NonNullable<typeof financeCreate.runtimeDeps>) => {
     financeCreate.runtimeDeps = deps
-    return { createFromDraft: financeCreate.createFromDraft }
+    return { createFromSession: financeCreate.createFromSession }
   },
 }))
 
@@ -218,14 +218,14 @@ describe("normalizeProductSelection", () => {
 
 describe("production Booking Session ports", () => {
   beforeEach(() => {
-    financeCreate.createFromDraft.mockReset()
+    financeCreate.createFromSession.mockReset()
     financeCreate.resolvedCommand = undefined
-    financeCreate.createFromDraft.mockImplementation(async (input) => {
+    financeCreate.createFromSession.mockImplementation(async (input) => {
       const source = await financeCreate.runtimeDeps?.resolveSource()
       const resolved = await source?.resolveBookingSource({})
       financeCreate.resolvedCommand = resolved?.command
       await source?.consumeBookingSource(input.db, {
-        draftId: input.draftId,
+        sessionId: input.sessionId,
         quoteId: input.quoteId,
         bookingId: "book_committed",
       })
@@ -305,9 +305,9 @@ describe("production Booking Session ports", () => {
       kind: "commit_result",
       outcome: { kind: "committed", booking: { id: "book_committed" } },
     })
-    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(expect.objectContaining(expected))
+    expect(financeCreate.createFromSession).toHaveBeenCalledWith(expect.objectContaining(expected))
     if (access.actorKind === "staff") {
-      expect(financeCreate.createFromDraft.mock.calls[0]?.[0]).not.toHaveProperty("storefront")
+      expect(financeCreate.createFromSession.mock.calls[0]?.[0]).not.toHaveProperty("storefront")
     }
   })
 
@@ -426,7 +426,7 @@ describe("production Booking Session ports", () => {
       customerAccess,
     )
 
-    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(
+    expect(financeCreate.createFromSession).toHaveBeenCalledWith(
       expect.objectContaining({ storefront: STOREFRONT_ACCESS.storefront }),
     )
   })
@@ -466,7 +466,7 @@ describe("production Booking Session ports", () => {
       },
     )
 
-    expect(financeCreate.createFromDraft).toHaveBeenCalledWith(
+    expect(financeCreate.createFromSession).toHaveBeenCalledWith(
       expect.objectContaining({ storefront: STOREFRONT_ACCESS.storefront }),
     )
   })

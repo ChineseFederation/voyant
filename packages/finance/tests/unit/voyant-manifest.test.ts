@@ -599,18 +599,7 @@ describe("finance deployment manifest", () => {
             ledger: "required",
             allowedActorTypes: ["customer"],
             from: { routes: ["@voyant-travel/catalog#booking-engine.api.public"] },
-            // Fail closed: unavailable until a deployment selects a provider
-            // that can resolve a public draft/quote into a create command.
-            availability: {
-              status: "unavailable",
-              reasonCode: "self-service-booking-source-unavailable",
-              enableWhen: {
-                selectedProviderPorts: {
-                  mode: "all",
-                  ports: ["finance.self-service-booking-source.runtime"],
-                },
-              },
-            },
+            availability: { status: "available" },
           }),
         ],
       },

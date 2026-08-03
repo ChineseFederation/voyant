@@ -42,17 +42,26 @@ export interface BookingSessionRoutesOptions {
 
 const sessionParamSchema = z.object({ sessionId: z.string().min(1) })
 const errorResponseSchema = z.object({ error: z.string(), code: z.string().optional() })
+const bookingSessionOutcomeOpenApiSchema = z
+  .lazy(() => bookingSessionOutcomeV1)
+  .openapi("BookingSessionOutcomeV1")
+const supplierOperationRecordOpenApiSchema = z
+  .lazy(() => supplierOperationRecordV1)
+  .openapi("SupplierOperationRecordV1")
 
 const createSessionRoute = createRoute({
   method: "post",
   path: "/booking-sessions",
   request: {
-    body: { required: true, content: { "application/json": { schema: createBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: createBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Booking Session created",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -70,12 +79,15 @@ const updateSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: updateBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: updateBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Booking Session updated",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -95,7 +107,7 @@ const resumeSessionRoute = createRoute({
   responses: {
     200: {
       description: "Authorized, redacted Booking Session view",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     403: {
       description: "Active storefront channel context is required for public booking sessions",
@@ -109,12 +121,15 @@ const adoptSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/adopt",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: adoptBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: adoptBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Anonymous Booking Session atomically adopted by the authenticated customer",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     403: {
       description: "Active storefront channel context is required for public booking sessions",
@@ -128,12 +143,15 @@ const renewSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/renew",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: renewBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: renewBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Policy-limited Booking Session renewal",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     403: {
       description: "Active storefront channel context is required for public booking sessions",
@@ -147,12 +165,15 @@ const quoteSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/quote",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: quoteBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: quoteBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Exact-revision Quote created",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -170,12 +191,15 @@ const holdSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/hold",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: placeBookingHoldV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: placeBookingHoldV1 } },
+    },
   },
   responses: {
     200: {
       description: "Real-capacity Hold created",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -193,12 +217,15 @@ const commitSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/commit",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: commitBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: commitBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Admitted Commit outcome",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -216,12 +243,15 @@ const abandonSessionRoute = createRoute({
   path: "/booking-sessions/{sessionId}/abandon",
   request: {
     params: sessionParamSchema,
-    body: { required: true, content: { "application/json": { schema: abandonBookingSessionV1 } } },
+    body: {
+      required: true,
+      content: { "application/json": { schema: abandonBookingSessionV1 } },
+    },
   },
   responses: {
     200: {
       description: "Booking Session abandoned",
-      content: { "application/json": { schema: bookingSessionOutcomeV1 } },
+      content: { "application/json": { schema: bookingSessionOutcomeOpenApiSchema } },
     },
     400: {
       description: "Invalid request",
@@ -283,7 +313,7 @@ const listSupplierOperationsRoute = createRoute({
       description: "Supplier Operations",
       content: {
         "application/json": {
-          schema: z.object({ operations: z.array(supplierOperationRecordV1) }),
+          schema: z.object({ operations: z.array(supplierOperationRecordOpenApiSchema) }),
         },
       },
     },
@@ -297,7 +327,7 @@ const getSupplierOperationRoute = createRoute({
   responses: {
     200: {
       description: "Supplier Operation",
-      content: { "application/json": { schema: supplierOperationRecordV1 } },
+      content: { "application/json": { schema: supplierOperationRecordOpenApiSchema } },
     },
     404: {
       description: "Not found",
@@ -319,7 +349,7 @@ const reconcileSupplierOperationRoute = createRoute({
   responses: {
     200: {
       description: "Reconciled Supplier Operation",
-      content: { "application/json": { schema: supplierOperationRecordV1 } },
+      content: { "application/json": { schema: supplierOperationRecordOpenApiSchema } },
     },
   },
 })
@@ -337,7 +367,7 @@ const resolveSupplierOperationRoute = createRoute({
   responses: {
     200: {
       description: "Manually resolved Supplier Operation",
-      content: { "application/json": { schema: supplierOperationRecordV1 } },
+      content: { "application/json": { schema: supplierOperationRecordOpenApiSchema } },
     },
   },
 })

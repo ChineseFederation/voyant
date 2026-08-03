@@ -10,12 +10,7 @@ import {
   providePort,
   requirePort,
 } from "@voyant-travel/core/project"
-import {
-  financeOperatorSettingsRuntimePort,
-  // Re-exported by the port barrel so the manifest stays import-cheap; the
-  // contract module it is defined in pulls in the create-command types.
-  financeSelfServiceBookingSourceRuntimePort,
-} from "@voyant-travel/finance/runtime-port"
+import { financeOperatorSettingsRuntimePort } from "@voyant-travel/finance/runtime-port"
 import {
   catalogBookingRuntimePort,
   catalogOffersRuntimePort,
@@ -24,7 +19,6 @@ import {
 import { catalogBookingSessionMaintenanceJobRuntimePort } from "./booking-session-maintenance-job-runtime-port.js"
 import { catalogBookingSnapshotSubscriberDeclaration } from "./booking-snapshot-subscriber-declaration.js"
 import { catalogContentRuntimePort } from "./content-runtime-port.js"
-import { catalogDraftReaperJobRuntimePort } from "./draft-reaper-job-runtime-port.js"
 import { catalogIndexSubscriberDeclarations } from "./index-subscriber-declarations.js"
 import { catalogIndexerProviderPort } from "./indexer/provider.js"
 import { catalogReindexJobRuntimePort } from "./reindex-job-runtime-port.js"
@@ -100,7 +94,6 @@ export const catalogVoyantModule = defineModule({
       providePort(catalogBookingSnapshotRuntimePort),
       providePort(catalogBookingSessionMaintenanceJobRuntimePort),
       providePort(catalogRuntimeServicesPort),
-      providePort(catalogDraftReaperJobRuntimePort),
       providePort(catalogReindexJobRuntimePort),
       providePort(catalogSourcesSyncJobRuntimePort),
       providePort(bookingsSupplierAmendmentRuntimePort),
@@ -113,7 +106,6 @@ export const catalogVoyantModule = defineModule({
     requirePort(catalogProjectionRuntimePort),
     requirePort(catalogBookingSnapshotRuntimePort),
     requirePort(catalogBookingSessionMaintenanceJobRuntimePort),
-    requirePort(catalogDraftReaperJobRuntimePort),
     requirePort(catalogReindexJobRuntimePort),
     requirePort(catalogSourcesSyncJobRuntimePort),
   ],
@@ -299,22 +291,6 @@ export const catalogVoyantModule = defineModule({
       },
     },
     {
-      id: "catalog.reap-expired-booking-drafts",
-      schedule: { cron: "5 * * * *", overlap: "skip" },
-      scheduling: {
-        required: true,
-        profiles: {
-          eager: { cron: "*/15 * * * *", overlap: "skip" },
-          economical: { cron: "5 */6 * * *", overlap: "skip" },
-          "scale-to-zero": { cron: "5 */6 * * *", overlap: "skip" },
-        },
-      },
-      runtime: {
-        entry: "@voyant-travel/catalog/draft-reaper-job",
-        export: "runCatalogDraftReaperJob",
-      },
-    },
-    {
       // Sourced inventory only reaches catalog browse through a discovery
       // pass; the live book path resolves adapters on its own. Wakeable so a
       // newly added Connect connection can index without waiting for the tick.
@@ -470,15 +446,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
   packageName: "@voyant-travel/catalog",
   localId: "catalog.booking-engine",
   requires: { capabilities: ["catalog.data-owner"] },
-  provides: {
-    ports: [
-      providePort(catalogBookingRuntimePort),
-      // Catalog owns the draft, quote, and hold a public caller books from, so
-      // it provides the source-resolution port Finance's self-service create
-      // action is gated on.
-      providePort(financeSelfServiceBookingSourceRuntimePort),
-    ],
-  },
+  provides: { ports: [providePort(catalogBookingRuntimePort)] },
   runtimePorts: [
     requirePort(catalogBookingRuntimePort),
     // Resolves the billing party for a verified guest, who has no account.
@@ -491,7 +459,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
       surface: "admin",
       mount: "catalog",
       openapi: { document: "catalog-booking" },
-      transactional: ["/booking-sessions", "/holds", "/orders", "/quote", "/quotes/batch"],
+      transactional: ["/booking-sessions", "/orders"],
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogBookingVoyantRuntime",
@@ -502,7 +470,7 @@ export const catalogBookingEngineVoyantModule = defineModule({
       surface: "public",
       mount: "catalog",
       openapi: { document: "catalog-booking" },
-      transactional: ["/booking-sessions", "/holds", "/quote", "/quotes/batch"],
+      transactional: ["/booking-sessions"],
       runtime: {
         entry: "@voyant-travel/catalog/graph-runtime",
         export: "createCatalogBookingVoyantRuntime",
@@ -510,17 +478,6 @@ export const catalogBookingEngineVoyantModule = defineModule({
     },
   ],
   tools: [
-    {
-      id: "@voyant-travel/catalog#booking-engine#tool.quote-catalog-entity",
-      name: "quote_catalog_entity",
-      runtime: {
-        entry: "@voyant-travel/catalog/tools",
-        export: "quoteCatalogEntityTool",
-      },
-      requiredScopes: ["catalog:quote"],
-      context: ["catalogBooking"],
-      risk: "medium",
-    },
     {
       id: "@voyant-travel/catalog#booking-engine#tool.list-catalog-orders",
       name: "list_catalog_orders",
@@ -563,29 +520,6 @@ export const catalogBookingEngineVoyantModule = defineModule({
           "@voyant-travel/catalog#booking-engine#tool.list-catalog-orders",
           "@voyant-travel/catalog#booking-engine#tool.get-catalog-order",
         ],
-      },
-    },
-    {
-      id: "@voyant-travel/catalog#booking-engine#action.quote-catalog-entity",
-      version: "v1",
-      kind: "execute",
-      targetType: "catalog-quote",
-      resource: "catalog",
-      action: "quote",
-      requiredScopes: ["catalog:quote"],
-      risk: "medium",
-      ledger: "required",
-      approval: "never",
-      reversible: true,
-      // Each call persists a fresh short-lived quote row (10-minute expiry);
-      // there is no client-supplied target id or claim registry backing a
-      // "created" contract, but a duplicate quote from a blind retry is
-      // harmless, so this is exposed as a lightweight "existing" target.
-      availability: { status: "available" },
-      effectBoundary: "local",
-      targetLifecycle: "existing",
-      from: {
-        tools: ["@voyant-travel/catalog#booking-engine#tool.quote-catalog-entity"],
       },
     },
   ],

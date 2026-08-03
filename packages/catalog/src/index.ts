@@ -80,7 +80,7 @@ export {
   type SourceAdapterRequestScope,
 } from "./adapter/contract.js"
 export * from "./adapter/schemas.js"
-// BookingJourney HTTP contract — root export matches the API module pattern
+// Booking Session v1 HTTP contract — root export matches the API module pattern
 // used by the vertical packages while keeping the ./booking-engine subpath.
 export {
   type CatalogBookingRouteModuleOptions,
@@ -90,23 +90,6 @@ export {
   createCatalogBookingOrdersRoutes,
   mountCatalogBookingRoutes,
 } from "./booking-engine/operator-routes.js"
-export {
-  type CatalogBookingAdapterContextInput,
-  type CatalogBookingBatchQuoteBody,
-  type CatalogBookingBatchQuoteSelection,
-  type CatalogBookingBatchQuoteTransformInput,
-  type CatalogBookingDraftBody,
-  type CatalogBookingHoldPlaceBody,
-  type CatalogBookingHoldReleaseBody,
-  type CatalogBookingHoldTtlInput,
-  type CatalogBookingProvenance,
-  type CatalogBookingProvenanceInput,
-  type CatalogBookingQuoteBody,
-  type CatalogBookingQuoteTransformInput,
-  type CatalogBookingRoutesOptions,
-  createCatalogBookingApiModule,
-  createCatalogBookingRoutes,
-} from "./booking-engine/routes.js"
 export {
   createSupplierOperationWorkflow,
   type DispatchSupplierAmendmentInput,

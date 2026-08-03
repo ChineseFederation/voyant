@@ -4,20 +4,12 @@
  * surface, owned by `@voyant-travel/catalog`.
  *
  * A deployment composes this and supplies two structural options:
- *   - `booking` — the `CatalogBookingRoutesOptions` (db / registries /
- *     hold-ttl / promotions / tax hooks) it already builds today, and
+ *   - `resolveDb(c)` — resolves the request-scoped transactional database, and
  *   - `resolveRegistry(c)` — pulls the process-local `SourceAdapterRegistry`
  *     off the request context (cancel needs it to dispatch to adapters).
  *
- * The module mounts the shared lifecycle from `./routes.js` on **two**
- * surfaces and adds the admin-only order-management endpoints:
- *
- *   POST   /v1/{admin,public}/catalog/quote          → quoteEntity
- *   PUT    /v1/{admin,public}/catalog/drafts/:id      → upsert booking draft
- *   GET    /v1/{admin,public}/catalog/drafts/:id      → read booking draft
- *   DELETE /v1/{admin,public}/catalog/drafts/:id      → delete booking draft
- *   POST   /v1/{admin,public}/catalog/holds/place     → place hold
- *   POST   /v1/{admin,public}/catalog/holds/release   → release hold
+ * The module mounts Booking Session v1 on the admin and public surfaces and
+ * adds the admin-only order-management endpoints:
  *   GET    /v1/admin/catalog/orders                   → listOrders
  *   GET    /v1/admin/catalog/orders/:id               → getOrderById
  *   POST   /v1/admin/catalog/orders/:id/cancel        → cancelEntity
@@ -58,7 +50,6 @@ import {
 } from "./errors.js"
 import { getOrderById, listOrders } from "./orders.js"
 import type { SourceAdapterRegistry } from "./registry.js"
-import { type CatalogBookingRoutesOptions, createCatalogBookingRoutes } from "./routes.js"
 import { type BookingSessionRoutesOptions, createBookingSessionRoutes } from "./sessions-routes.js"
 
 /**
@@ -124,12 +115,7 @@ export interface CatalogOwnedProductSummary {
  * or `@voyant-travel/operations` (both of which depend on catalog).
  */
 export interface CatalogBookingRouteModuleOptions {
-  /**
-   * The booking-engine lifecycle options (db, source/owned registries,
-   * hold-ttl, promotions, tax transforms). The deployment already builds
-   * these for `createCatalogBookingRoutes`.
-   */
-  booking: CatalogBookingRoutesOptions
+  resolveDb(c: Context): AnyDrizzleDb
   bookingSessions?: Omit<BookingSessionRoutesOptions, "actorKind">
   /**
    * Resolve the process-local source-adapter registry for a request. Used by
@@ -197,7 +183,7 @@ interface CancelBody {
 }
 
 function getDb(options: CatalogBookingRouteModuleOptions, c: Context): AnyDrizzleDb {
-  return options.booking.resolveDb(c)
+  return options.resolveDb(c)
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -401,43 +387,37 @@ export interface CatalogBookingMountTarget {
 export const catalogBookingRoutePaths = [
   "/v1/admin/catalog/booking-sessions",
   "/v1/admin/catalog/booking-sessions/:sessionId",
+  "/v1/admin/catalog/booking-sessions/:sessionId/adopt",
+  "/v1/admin/catalog/booking-sessions/:sessionId/renew",
   "/v1/admin/catalog/booking-sessions/:sessionId/quote",
   "/v1/admin/catalog/booking-sessions/:sessionId/hold",
   "/v1/admin/catalog/booking-sessions/:sessionId/abandon",
   "/v1/admin/catalog/booking-sessions/:sessionId/commit",
-  "/v1/admin/catalog/quote",
-  "/v1/admin/catalog/quotes/batch",
-  "/v1/admin/catalog/drafts/:id",
-  "/v1/admin/catalog/holds/place",
-  "/v1/admin/catalog/holds/release",
+  "/v1/admin/catalog/booking-sessions/maintenance/expire",
+  "/v1/admin/catalog/booking-sessions/maintenance/purge",
+  "/v1/admin/catalog/supplier-operations",
+  "/v1/admin/catalog/supplier-operations/:operationId",
+  "/v1/admin/catalog/supplier-operations/:operationId/reconcile",
+  "/v1/admin/catalog/supplier-operations/:operationId/resolve",
   "/v1/admin/catalog/slots",
   "/v1/admin/catalog/orders",
   "/v1/admin/catalog/orders/:id",
   "/v1/admin/catalog/orders/:id/cancel",
   "/v1/admin/bookings/:id/catalog-snapshot",
-  "/v1/public/catalog/quote",
   "/v1/public/catalog/booking-sessions",
   "/v1/public/catalog/booking-sessions/:sessionId",
+  "/v1/public/catalog/booking-sessions/:sessionId/adopt",
+  "/v1/public/catalog/booking-sessions/:sessionId/renew",
   "/v1/public/catalog/booking-sessions/:sessionId/quote",
   "/v1/public/catalog/booking-sessions/:sessionId/hold",
   "/v1/public/catalog/booking-sessions/:sessionId/abandon",
   "/v1/public/catalog/booking-sessions/:sessionId/commit",
-  "/v1/public/catalog/quotes/batch",
-  "/v1/public/catalog/drafts/:id",
-  "/v1/public/catalog/holds/place",
-  "/v1/public/catalog/holds/release",
   "/v1/public/catalog/slots",
 ] as const
 
 export const catalogBookingTransactionalPaths = [
-  "/v1/admin/catalog/quote",
-  "/v1/admin/catalog/quotes/batch",
-  "/v1/admin/catalog/holds",
   "/v1/admin/catalog/orders",
   "/v1/admin/catalog/booking-sessions",
-  "/v1/public/catalog/quote",
-  "/v1/public/catalog/quotes/batch",
-  "/v1/public/catalog/holds",
   "/v1/public/catalog/booking-sessions",
 ] as const
 
@@ -445,16 +425,6 @@ export function mountCatalogBookingRoutes(
   hono: CatalogBookingMountTarget,
   options: CatalogBookingRouteModuleOptions,
 ): void {
-  for (const [prefix, apiId] of [
-    ["/v1/admin/catalog", "@voyant-travel/catalog#booking-engine.api.admin"],
-    ["/v1/public/catalog", "@voyant-travel/catalog#booking-engine.api.public"],
-  ] as const) {
-    hono.route(
-      prefix,
-      stampOpenApiRegistryApiId(createCatalogBookingRoutes(options.booking), apiId),
-    )
-  }
-
   if (options.bookingSessions) {
     hono.route(
       "/v1/admin/catalog",

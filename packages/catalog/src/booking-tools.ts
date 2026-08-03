@@ -1,6 +1,5 @@
 /** Guarded MCP tools for the provider-neutral catalog booking engine. */
 
-import { quoteResponseV1 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import {
   READ_ONLY_RISK,
   requireService,
@@ -9,19 +8,9 @@ import {
 } from "@voyant-travel/tools"
 import { z } from "zod"
 
-import type { CatalogBookingQuoteBody } from "./booking-engine/index.js"
-import { quoteBodySchema } from "./booking-engine/routes-contracts.js"
-
 const OWNER = "@voyant-travel/catalog#booking-engine"
 const VERSION = "v1"
-const BOOKING_AUDIENCE = { source: "grant", allowed: ["staff", "customer"] } as const
 const STAFF_AUDIENCE = { source: "grant", allowed: ["staff"] } as const
-const quoteRisk = {
-  destructive: false,
-  reversible: true,
-  dryRunSupported: false,
-  sideEffects: ["data-write"],
-} as const
 const orderListInputSchema = z.object({
   bookingId: z.string().min(1).optional(),
   entityModule: z.string().min(1).optional(),
@@ -53,11 +42,9 @@ const catalogOrderSchema = z.object({
 })
 const orderListOutputSchema = z.object({ rows: z.array(catalogOrderSchema) })
 
-type QuoteInput = z.infer<typeof quoteBodySchema>
 type OrderListInput = z.infer<typeof orderListInputSchema>
 
 export interface CatalogBookingToolServices {
-  quote(input: CatalogBookingQuoteBody): Promise<z.infer<typeof quoteResponseV1>>
   listOrders(input: OrderListInput): Promise<{ rows: unknown[] }>
   getOrder(id: string): Promise<unknown | null>
 }
@@ -70,7 +57,7 @@ function booking(ctx: CatalogBookingToolContext): CatalogBookingToolServices {
   return requireService(ctx.catalogBooking, "catalogBooking")
 }
 
-function metadata(scopes: readonly string[], audience: ToolAudiencePolicy = BOOKING_AUDIENCE) {
+function metadata(scopes: readonly string[], audience: ToolAudiencePolicy) {
   return {
     owner: OWNER,
     capabilityVersion: VERSION,
@@ -78,29 +65,6 @@ function metadata(scopes: readonly string[], audience: ToolAudiencePolicy = BOOK
     audience,
   }
 }
-
-export const quoteCatalogEntityDefinition = {
-  ...metadata(["catalog:quote"]),
-  capabilityId: `${OWNER}#tool.quote-catalog-entity`,
-  name: "quote_catalog_entity",
-  description:
-    "Resolve live sellability and pricing for a catalog entity, persist a short-lived quote, and return the quote identifier needed for booking.",
-  inputSchema: quoteBodySchema,
-  outputSchema: quoteResponseV1,
-  tier: "write",
-  riskPolicy: quoteRisk,
-  async handler(input: QuoteInput, ctx: CatalogBookingToolContext) {
-    return booking(ctx).quote({
-      ...input,
-      scope: {
-        locale: input.scope?.locale ?? ctx.resolverScope.locale,
-        audience: input.scope?.audience ?? ctx.audience,
-        market: input.scope?.market ?? ctx.resolverScope.market,
-        currency: input.scope?.currency,
-      },
-    })
-  },
-} as const
 
 export const listCatalogOrdersDefinition = {
   ...metadata(["bookings:read"], STAFF_AUDIENCE),

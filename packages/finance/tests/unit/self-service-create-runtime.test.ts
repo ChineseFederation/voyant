@@ -34,9 +34,9 @@ describe("Finance self-service create runtime storefront origin", () => {
       admit: () => ({}) as never,
     })
 
-    await runtime.createFromDraft({
+    await runtime.createFromSession({
       db: {} as never,
-      draftId: "bdrf_1",
+      sessionId: "bses_1",
       quoteId: "cquo_1",
       caller: { personId: "per_1" },
       idempotencyKey: "create_1",

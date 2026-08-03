@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs"
 import { OpenAPIHono } from "@hono/zod-openapi"
 import { Hono } from "hono"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -28,19 +29,6 @@ vi.mock("../services/sourced-entry-service.js", () => ({
   readSourcedEntry: vi.fn(),
 }))
 
-// The booking-engine routes (quote/book/drafts/holds) are exercised by
-// routes.test.ts; here we stub the factory so the mount wiring stays focused
-// on orders + the multi-surface mount.
-vi.mock("./routes.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./routes.js")>()
-  return {
-    ...actual,
-    createCatalogBookingRoutes: vi.fn(() =>
-      new Hono().post("/quote", (c) => c.json({ ok: "quote" })),
-    ),
-  }
-})
-
 const db = { kind: "db" } as never
 const registry = createSourceAdapterRegistry()
 
@@ -48,11 +36,7 @@ function makeOptions(
   overrides: Partial<CatalogBookingRouteModuleOptions> = {},
 ): CatalogBookingRouteModuleOptions {
   return {
-    booking: {
-      resolveDb: () => db,
-      resolveSourceRegistry: () => registry,
-      resolveOwnedHandlers: () => ({}) as never,
-    } as never,
+    resolveDb: () => db,
     resolveRegistry: () => registry,
     getProductContent: vi.fn(async () => null),
     listAvailabilitySlots: vi.fn(async () => []),
@@ -213,6 +197,24 @@ describe("createCatalogBookingOrdersRoutes", () => {
 })
 
 describe("mountCatalogBookingRoutes", () => {
+  it("keeps the lazy dispatch contract aligned with the published OpenAPI paths", () => {
+    const admin = JSON.parse(
+      readFileSync(new URL("../../openapi/admin/catalog-booking.json", import.meta.url), "utf8"),
+    ) as { paths: Record<string, unknown> }
+    const storefront = JSON.parse(
+      readFileSync(
+        new URL("../../openapi/storefront/catalog-booking.json", import.meta.url),
+        "utf8",
+      ),
+    ) as { paths: Record<string, unknown> }
+    const publishedPaths = [...Object.keys(admin.paths), ...Object.keys(storefront.paths)].sort()
+    const dispatchPaths = catalogBookingRoutePaths
+      .map((path) => path.replace(/:([^/]+)/g, "{$1}"))
+      .sort()
+
+    expect(publishedPaths).toEqual(dispatchPaths)
+  })
+
   it("publishes a lazy package runtime descriptor with the complete route contract", async () => {
     const descriptor = createCatalogBookingEngineApiModule(makeOptions())
 
@@ -225,19 +227,19 @@ describe("mountCatalogBookingRoutes", () => {
 
     const routes = await descriptor.lazyRoutes?.load()
     const response = await routes?.request("/v1/public/catalog/quote", { method: "POST" })
-    expect(response?.status).toBe(200)
+    expect(response?.status).toBe(404)
   })
 
-  it("mounts the booking-engine surface on both admin and public prefixes", async () => {
+  it("does not mount the retired quote/draft/hold bootstrap surface", async () => {
     const app = new OpenAPIHono()
     mountCatalogBookingRoutes(app, makeOptions())
 
     const admin = await app.request("/v1/admin/catalog/quote", { method: "POST" })
     const pub = await app.request("/v1/public/catalog/quote", { method: "POST" })
+    const draft = await app.request("/v1/public/catalog/drafts/draft_1")
+    const hold = await app.request("/v1/public/catalog/holds/place", { method: "POST" })
 
-    expect(admin.status).toBe(200)
-    expect(pub.status).toBe(200)
-    expect(await admin.json()).toEqual({ ok: "quote" })
+    expect([admin.status, pub.status, draft.status, hold.status]).toEqual([404, 404, 404, 404])
   })
 
   it("mounts admin-only order routes", async () => {
@@ -374,7 +376,7 @@ describe("GET /catalog/slots", () => {
 describe("GET /admin/bookings/:id/catalog-snapshot", () => {
   it("404s when no snapshot exists", async () => {
     const options = makeOptions()
-    options.booking.resolveDb = () => makeFakeDb([[]])
+    options.resolveDb = () => makeFakeDb([[]])
     const app = new OpenAPIHono()
     mountCatalogBookingRoutes(app, options)
 
@@ -399,7 +401,7 @@ describe("GET /admin/bookings/:id/catalog-snapshot", () => {
       [{ projection: { name: "Northern Lights Hunt", description: "A tour" } }],
     ])
     const options = makeOptions()
-    options.booking.resolveDb = () => db
+    options.resolveDb = () => db
     const app = new OpenAPIHono()
     mountCatalogBookingRoutes(app, options)
 
@@ -436,7 +438,7 @@ describe("GET /admin/bookings/:id/catalog-snapshot", () => {
       description: "Owned desc",
     }))
     const options = makeOptions({ getOwnedProductById })
-    options.booking.resolveDb = () => db
+    options.resolveDb = () => db
     const app = new OpenAPIHono()
     mountCatalogBookingRoutes(app, options)
 

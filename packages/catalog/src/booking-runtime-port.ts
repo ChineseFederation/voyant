@@ -9,10 +9,8 @@ export const catalogBookingRuntimePort = definePort<CatalogBookingRouteModuleOpt
     if (provider === null || typeof provider !== "object") {
       throw new Error("catalog.booking-runtime provider must be an options object.")
     }
-    if (provider.booking === null || typeof provider.booking !== "object") {
-      throw new Error("catalog.booking-runtime provider must configure booking options.")
-    }
     for (const method of [
+      "resolveDb",
       "resolveRegistry",
       "getProductContent",
       "listAvailabilitySlots",

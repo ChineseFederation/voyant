@@ -72,9 +72,9 @@ the integration branch understandable.
   Owned rows dispatch through internal Voyant handlers when the corresponding
   module is installed; sourced rows dispatch through supplier/inventory-source
   adapters. OTA deployments may omit the products module entirely.
-- The composer reuses the catalog booking engine's per-line `quoteEntity`,
-  `bookEntity`, `booking_drafts`, holds, and snapshots. It does not introduce a
-  second single-line booking engine.
+- The composer reuses the catalog booking engine's per-line Booking Session,
+  Quote, Hold, Commit, and snapshot lifecycle. It does not introduce a second
+  single-line booking engine.
 - Split by lifecycle boundary, nest by dependency, aggregate by customer
   experience.
 - Keep taxes, cancellation rules, supplier references, and fulfillment status

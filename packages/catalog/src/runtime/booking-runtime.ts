@@ -1,7 +1,6 @@
 import type { BookingsRelationshipsRuntime } from "@voyant-travel/bookings/runtime-port"
 import {
   type CatalogBookingRouteModuleOptions,
-  type CatalogBookingRoutesOptions,
   catalogQuotesTable,
   createProductionBookingSessionModule,
   createSupplierOperationOperatorService,
@@ -9,10 +8,7 @@ import {
   type QuoteEntityResult,
 } from "@voyant-travel/catalog/booking-engine"
 import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
-import {
-  applyCatalogTaxToQuoteResult,
-  resolveCatalogHoldTtlMs,
-} from "@voyant-travel/catalog/runtime-support"
+import { applyCatalogTaxToQuoteResult } from "@voyant-travel/catalog/runtime-support"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import {
@@ -35,45 +31,6 @@ function getCatalogBookingDb(c: Context): AnyDrizzleDb {
   return (c.var as { db: AnyDrizzleDb }).db
 }
 
-function createOperatorCatalogBookingRoutesOptions(): CatalogBookingRoutesOptions {
-  const { commerce, inventory } = catalogRuntimeExtensions()
-  return {
-    resolveDb: getCatalogBookingDb,
-    resolveSourceRegistry: getBookingEngineRegistryFromContext,
-    resolveOwnedHandlers: getOwnedBookingHandlerRegistryFromContext,
-    resolveHoldTtlMs: ({ db, entityModule, entityId }) =>
-      resolveHoldTtlMs(db, entityModule, entityId),
-    // Promotions hook wires the per-request db into the evaluator. When
-    // the customer-supplied promotion code fails validation, quoteEntity
-    // surfaces a code_* invalidReason and tax recompute below sees no
-    // discount on base_amount.
-    resolveEvaluatePromotions: commerce.createPromotionEvaluator,
-    transformQuoteResult: async ({ c, db, result, request, provenance }) => {
-      const taxed = await requireCatalogRuntimeServices().applyTaxToQuoteResult(
-        db,
-        result,
-        request.entityModule,
-        request.entityId,
-        provenance.sourceKind,
-      )
-      return inventory.enrichProductQuoteShape({
-        db,
-        result: taxed,
-        entityModule: request.entityModule,
-        entityId: request.entityId,
-        locale: request.scope?.locale ?? "en-GB",
-        audience: request.scope?.audience,
-        market: request.scope?.market ?? "default",
-        currency: request.scope?.currency,
-        registry: getBookingEngineRegistryFromContext(c),
-        adapterContext: {
-          connection_id: provenance.sourceConnectionId ?? provenance.sourceKind,
-        },
-      })
-    },
-  }
-}
-
 export function createOperatorCatalogBookingRouteModuleOptions(options: {
   resolveBookingsRelationshipsRuntime?: () => Promise<BookingsRelationshipsRuntime | null>
   resolveFinanceServiceRuntime?: (context: Context) => FinanceServiceRuntime
@@ -82,7 +39,7 @@ export function createOperatorCatalogBookingRouteModuleOptions(options: {
 }): CatalogBookingRouteModuleOptions {
   const { distribution, inventory, operations } = catalogRuntimeExtensions()
   return {
-    booking: createOperatorCatalogBookingRoutesOptions(),
+    resolveDb: getCatalogBookingDb,
     bookingSessions: {
       resolveModule(c, dbOverride) {
         const db = (dbOverride ?? getCatalogBookingDb(c)) as PostgresJsDatabase
@@ -184,20 +141,6 @@ async function requireRelationshipsRuntime(options: {
     throw new Error("booking_session_relationships_runtime_required")
   }
   return runtime
-}
-
-async function resolveHoldTtlMs(
-  db: AnyDrizzleDb,
-  entityModule: string,
-  entityId: string,
-): Promise<number> {
-  const { distribution, inventory } = catalogRuntimeExtensions()
-  return resolveCatalogHoldTtlMs({
-    entityModule,
-    entityId,
-    loadProduct: (id) => inventory.loadProductReservationPolicy(db, id),
-    loadSupplier: (id) => distribution.loadSupplierReservationTimeout(db, id),
-  })
 }
 
 export async function applyOperatorTaxToQuoteResult(

@@ -50,10 +50,10 @@ const rejectMatch = (source, pattern, message) => {
   if (pattern.test(source)) failures.push(message)
 }
 
-requireMatch(
+rejectMatch(
   catalogManifest,
-  /catalog\.reap-expired-booking-drafts[\s\S]*runCatalogDraftReaperJob/,
-  "Catalog must own the draft-reaper job and schedule",
+  /catalog\.reap-expired-booking-drafts|runCatalogDraftReaperJob/,
+  "Catalog must use Booking Session maintenance instead of the retired draft reaper",
 )
 requireMatch(
   commerceManifest,

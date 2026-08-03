@@ -13,10 +13,7 @@ import {
   catalogOffersRuntimePort,
   catalogSearchRuntimePort,
 } from "@voyant-travel/catalog/api-runtime-ports"
-import {
-  createProductionBookingSessionModule,
-  createSelfServiceBookingSourceProvider,
-} from "@voyant-travel/catalog/booking-engine"
+import { createProductionBookingSessionModule } from "@voyant-travel/catalog/booking-engine"
 import type { CatalogBookingRouteModuleOptions } from "@voyant-travel/catalog/booking-engine/operator-routes"
 import { createDrizzleBookingSessionRepository } from "@voyant-travel/catalog/booking-engine/sessions-drizzle"
 import {
@@ -43,7 +40,6 @@ import {
   type FinanceOperatorSettingsRuntime,
   financeOperatorSettingsRuntimePort,
 } from "@voyant-travel/finance/runtime-port"
-import { financeSelfServiceBookingSourceRuntimePort } from "@voyant-travel/finance/self-service-booking-source"
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { catalogBookingActionSource } from "./booking-action-source.js"
@@ -53,7 +49,6 @@ import {
   type CatalogBookingSessionMaintenanceJobRuntime,
   catalogBookingSessionMaintenanceJobRuntimePort,
 } from "./booking-session-maintenance-job-runtime-port.js"
-import { catalogDraftReaperJobRuntimePort } from "./draft-reaper-job-runtime-port.js"
 import {
   type CatalogReindexCheckpoint,
   type CatalogReindexClaim,
@@ -207,44 +202,6 @@ export function createCatalogRuntimePortContribution(
         return services.ensureSourceRegistry(host.primitives.env(undefined))
       },
     }) satisfies BookingsSupplierAmendmentRuntime,
-    // Gates Finance's self-service create action.
-    [financeSelfServiceBookingSourceRuntimePort.id]: createSelfServiceBookingSourceProvider({
-      async resolveOwnedHandlers() {
-        const runtime = await contribution
-        const services = await runtime.services
-        return services.getOwnedHandlers(host.primitives.env(undefined))
-      },
-      // Verifies the draft capability. Absent secrets mean the capability
-      // cannot be checked, and booking is refused rather than allowed.
-      resolveEnv: () => host.primitives.env(undefined) as Record<string, string | undefined>,
-      // A verified guest has no account, so the booking's billing party is
-      // resolved from the contact they proved control of. `upsertPersonFromContact`
-      // matches on email then phone, so a retry reuses the same person rather
-      // than creating another. Absent the port, only authenticated customers
-      // can book — they already are the billing party.
-      //
-      // The port check happens HERE, on call, not while this contributor is
-      // being built. Contributors load in alphabetical order by package name,
-      // and `bookings.relationships.runtime` is provided by
-      // @voyant-travel/relationships — which sorts after @voyant-travel/catalog
-      // and therefore cannot ever have run yet. Deciding at build time read the
-      // port as permanently absent and dropped this method from every runtime,
-      // so `resolveBilling` returned null and every guest self-service booking
-      // was refused with `incomplete_draft`. By the time a request calls this,
-      // every contributor has run.
-      async resolveBillingPerson(contact, provenance) {
-        if (host.hasRuntimePort?.(bookingsRelationshipsRuntimePort) !== true) return null
-        const relationships = await host.getRuntimePort<BookingsRelationshipsRuntime>(
-          bookingsRelationshipsRuntimePort,
-        )
-        const person = await relationships.upsertPersonFromContact(
-          host.primitives.database.resolve(undefined) as never,
-          { ...contact, preferredLanguage: null },
-          { source: provenance.source, sourceRef: provenance.sourceRef },
-        )
-        return person?.id ?? null
-      },
-    }),
     [catalogBookingSessionMaintenanceJobRuntimePort.id]: {
       async resolveModule() {
         const db = host.primitives.database.resolve(undefined) as PostgresJsDatabase
@@ -280,24 +237,6 @@ export function createCatalogRuntimePortContribution(
         })
       },
     } satisfies CatalogBookingSessionMaintenanceJobRuntime,
-    [catalogDraftReaperJobRuntimePort.id]: {
-      async withDb<T>(operation: (db: AnyDrizzleDb) => Promise<T>) {
-        return operation(host.primitives.database.resolve(undefined))
-      },
-      async resolveSourceRegistry() {
-        const runtime = await contribution
-        const services = await runtime.services
-        return services.ensureSourceRegistry(host.primitives.env(undefined))
-      },
-      async resolveOwnedHandlers() {
-        const runtime = await contribution
-        const services = await runtime.services
-        return services.getOwnedHandlers(host.primitives.env(undefined))
-      },
-      reportFailure(error: unknown, details: { draftId: string; op: string }) {
-        console.error("[catalog-draft-reaper] operation failed", { error, ...details })
-      },
-    },
     [catalogSourcesSyncJobRuntimePort.id]: {
       async withDb<T>(operation: (db: AnyDrizzleDb) => Promise<T>) {
         return operation(host.primitives.database.resolve(undefined))

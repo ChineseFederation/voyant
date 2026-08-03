@@ -28,7 +28,6 @@ import {
   financeInvoiceSettlementPollerRuntimePort,
   financeNotificationsRuntimePort,
   financeOperatorSettingsRuntimePort,
-  financeSelfServiceBookingSourceRuntimePort,
 } from "./runtime-port.js"
 import { financeVoyantAdmin } from "./voyant-admin.js"
 import {
@@ -593,7 +592,6 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
   id: "@voyant-travel/finance#bookings-create-extension",
   packageName: "@voyant-travel/finance",
   localId: "finance.bookings-create-extension",
-  runtimePorts: [requirePort(financeSelfServiceBookingSourceRuntimePort, { optional: true })],
   tools: [
     {
       id: "@voyant-travel/finance#bookings-create-extension.tool.book-product",
@@ -684,19 +682,9 @@ export const financeBookingsCreateVoyantPlugin = defineExtension({
       version: "v1",
       kind: "execute",
       targetType: "booking",
-      // Fail closed. Self-service creation is only advertised once a
-      // deployment selects a provider that can resolve a public draft/quote
-      // into a server-derived command for the chosen vertical.
-      availability: {
-        status: "unavailable",
-        reasonCode: "self-service-booking-source-unavailable",
-        enableWhen: {
-          selectedProviderPorts: {
-            mode: "all",
-            ports: [financeSelfServiceBookingSourceRuntimePort.id],
-          },
-        },
-      },
+      // Catalog Booking Session Commit derives the command and consumes its
+      // Quote/Hold under the same root transaction.
+      availability: { status: "available" },
       effectBoundary: "multistage",
       durability: {
         strategy: "outbox",

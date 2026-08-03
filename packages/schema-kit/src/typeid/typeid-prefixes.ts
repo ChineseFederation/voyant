@@ -395,8 +395,6 @@ export const PREFIXES = {
   catalog_content_drift_event: "cnde",
   catalog_demo_inventory: "cdmi",
   catalog_demo_orders: "cdmo",
-  // Legacy draft retained until the Booking v1 beta-data cutover.
-  booking_drafts: "bdrf",
   booking_sessions: "bses",
   booking_session_quotes: "bsqu",
   booking_session_holds: "bshd",
@@ -427,14 +425,11 @@ export const PREFIXES = {
   product_pax_pricing_tiers: "ppt",
 
   // --- AVAILABILITY (extension for booking-journey holds) ---
-  // Soft holds against availability_slots tied to booking_drafts.
-  // Per booking-journey-architecture §5.7 + §6 — the doc proposes
-  // bookingAllocations for owned holds, but those require a
-  // booking_id FK and journey holds are pre-booking. A dedicated
-  // table is the cleanest fit.
+  // Soft holds against availability_slots before Booking Session Commit.
   availability_holds: "avhd",
 
   // Reserved legacy prefixes retained so historical identifiers remain valid.
+  booking_drafts: "bdrf",
   workflow_runs: "wfrn",
   workflow_run_steps: "wfrs",
   // --- Operator-starter-local settings ---

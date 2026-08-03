@@ -1,7 +1,6 @@
 # Catalog Booking Engine
 
-Status: draft / proposal - sits on top of the Phase 1 foundation. Commitment
-points are governed by
+Status: active Booking Platform v1 architecture. Commitment points are governed by
 [ADR-0019](../adr/0019-booking-v1-commitment-point-policies.md).
 Audience: anyone designing or implementing the cross-vertical booking lifecycle for the catalog plane.
 
@@ -18,7 +17,7 @@ they must not create a Booking before ADR-0019 authorizes the commitment point.
 
 ## 1. Phase relationship
 
-**Prerequisites** (must be live before this layer lands):
+**Foundation:**
 
 - Phase 1 catalog foundation: `SourceAdapter` contract (§5.6), provenance shape (§5.1), snapshot graph (§5.3), webhooks (§5.8).
 - The five existing verticals have adopted Phase 1's contract (`products`, `cruises`, `accommodations`, `charters`, `extras`).
@@ -29,11 +28,15 @@ they must not create a Booking before ADR-0019 authorizes the commitment point.
 - The flights booking engine (`packages/flights`) — that pattern is preserved verbatim. The cross-vertical booking engine here is a sibling, not a replacement. Flights' `searchFlights` / `bookFlight` shape stays specialized because flights' search request shape (slices, passengers, cabin) doesn't generalize cleanly across the rest of the catalog.
 - The `SourceAdapter` boundary as the only upstream-facing seam. Booking writes use `reserve` / `cancel`; authoritative reads use the optional `getReservation` / `listReservations` retrieval methods when an adapter declares `supportsReservationRetrieval`.
 
-**What this layer adds:**
+**This layer owns:**
 
-- `packages/catalog/src/booking-engine/` — the orchestration: `SourceAdapterRegistry`, `quoteEntity`, `bookEntity`, `cancelEntity`, `getOrder`, `listOrders`. Vertical-agnostic.
+- `packages/catalog/src/booking-engine/` — vertical-agnostic Booking Session,
+  Quote, Hold, Commit, Supplier Operation, cancellation, and order-read
+  orchestration.
 - `packages/catalog-demo-adapter` — a reference `SourceAdapter` implementation that serves as the integration test fixture and the operator's demo source. Backs its inventory and its orders in its own Postgres tables.
-- HTTP routes mounted by templates that opt in: `POST /v1/admin/catalog/quote`, `POST /v1/admin/catalog/book`, `POST /v1/admin/catalog/orders/:id/cancel`, `GET /v1/admin/catalog/orders`, `GET /v1/admin/catalog/orders/:id`.
+- HTTP routes mounted by selected deployments under
+  `/v1/{admin,public}/catalog/booking-sessions`; admin order reads and
+  cancellation remain under `/v1/admin/catalog/orders`.
 
 ## 2. Why a layer on top of `SourceAdapter`
 
@@ -416,10 +419,13 @@ apps/catalog-demo-api/           standalone upstream simulator
 
 Selected connector packages provide booking-engine adapters through the graph. If no selected connector provides an adapter for a sourced row, the booking engine reports `NO_ADAPTER_REGISTERED`.
 
-## 8. Open questions
+## 8. Resolved and remaining design questions
 
 1. **Owned-arm packaging.** Should the engine expose a built-in "owned adapter" for each vertical, or should it dispatch directly to the vertical's service layer when `source.kind === "owned"`? Lean toward direct dispatch for now (avoids a layer of indirection); revisit if templates start needing to swap out the owned path.
-2. **Quote persistence vs. signed tokens.** Persisting quotes in `catalog_quotes` is simple but adds a write per quote; signed JWT-style quote tokens skip the write but complicate cross-pod expiration. Lean toward persisted quotes for MVP — write volume is low (one per book attempt, not one per page view) and the audit trail is useful.
+2. **Quote persistence.** v1 persists immutable, revision-bound
+   `booking_session_quotes`. Durable records provide auditability and safe
+   multi-pod expiry/idempotency semantics; signed quote tokens are not a v1
+   alternative.
 3. **Multi-line bookings.** A package booking with a flight + hotel + extras hits multiple verticals (some sourced, some owned). The engine's `bookEntity` is single-entity; the multi-line orchestrator (analogous to flights' multi-passenger order) is deferred until the tracer is end-to-end on a single line.
 4. **Idempotency keys.** Commit accepts an idempotency key. A replay returns the
    original typed result and must not create a second Booking, Allocation, or

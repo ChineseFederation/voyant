@@ -50,7 +50,6 @@ const allowedPricingQuotePaths = [
 ]
 
 const allowedPricingQuoteTerms = [
-  "booking_drafts.current_quote_id",
   "catalog_quote_id",
   "catalog_quotes",
   "current_quote_id",

@@ -25,6 +25,19 @@ describe("Booking Session v1 contracts", () => {
     ).toBe(true)
   })
 
+  it("rejects ambiguous target identities instead of silently stripping them", () => {
+    expect(
+      createBookingSessionV1.safeParse({
+        idempotencyKey: "ambiguous_target_key",
+        target: {
+          kind: "product",
+          productId: "prod_1",
+          catalogItemId: "cse_1",
+        },
+      }).success,
+    ).toBe(false)
+  })
+
   it("requires revision preconditions for mutating choreography", () => {
     expect(updateBookingSessionV1.safeParse({ state: {} }).success).toBe(false)
     expect(

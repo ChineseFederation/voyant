@@ -26,7 +26,6 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.booking-snapshot-runtime" },
           { id: "catalog.booking-session-maintenance-job" },
           { id: "catalog.runtime-services" },
-          { id: "catalog.draft-reaper-job" },
           { id: "catalog.reindex-products-job" },
           { id: "catalog.sources-sync-job" },
           { id: "bookings.supplier-amendment.runtime" },
@@ -113,7 +112,6 @@ describe("catalog deployment manifest", () => {
       { id: "catalog.projection-runtime" },
       { id: "catalog.booking-snapshot-runtime" },
       { id: "catalog.booking-session-maintenance-job" },
-      { id: "catalog.draft-reaper-job" },
       { id: "catalog.reindex-products-job" },
       { id: "catalog.sources-sync-job" },
     ])
@@ -149,22 +147,6 @@ describe("catalog deployment manifest", () => {
         },
       },
       {
-        id: "catalog.reap-expired-booking-drafts",
-        schedule: { cron: "5 * * * *", overlap: "skip" },
-        scheduling: {
-          required: true,
-          profiles: {
-            eager: { cron: "*/15 * * * *", overlap: "skip" },
-            economical: { cron: "5 */6 * * *", overlap: "skip" },
-            "scale-to-zero": { cron: "5 */6 * * *", overlap: "skip" },
-          },
-        },
-        runtime: {
-          entry: "@voyant-travel/catalog/draft-reaper-job",
-          export: "runCatalogDraftReaperJob",
-        },
-      },
-      {
         id: "catalog.sync-sources",
         wakeup: true,
         schedule: { cron: "20 * * * *", overlap: "skip" },
@@ -189,21 +171,14 @@ describe("catalog deployment manifest", () => {
       id: "@voyant-travel/catalog#booking-engine",
       packageName: "@voyant-travel/catalog",
       requires: { capabilities: ["catalog.data-owner"] },
-      provides: {
-        ports: [
-          { id: "catalog.booking-runtime" },
-          // Catalog owns the draft/quote/hold a public caller books from, so
-          // it provides the port Finance's self-service create is gated on.
-          { id: "finance.self-service-booking-source.runtime" },
-        ],
-      },
+      provides: { ports: [{ id: "catalog.booking-runtime" }] },
       api: [
         {
           id: "@voyant-travel/catalog#booking-engine.api.admin",
           surface: "admin",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/booking-sessions", "/holds", "/orders", "/quote", "/quotes/batch"],
+          transactional: ["/booking-sessions", "/orders"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",
@@ -214,7 +189,7 @@ describe("catalog deployment manifest", () => {
           surface: "public",
           mount: "catalog",
           openapi: { document: "catalog-booking" },
-          transactional: ["/booking-sessions", "/holds", "/quote", "/quotes/batch"],
+          transactional: ["/booking-sessions"],
           runtime: {
             entry: "@voyant-travel/catalog/graph-runtime",
             export: "createCatalogBookingVoyantRuntime",

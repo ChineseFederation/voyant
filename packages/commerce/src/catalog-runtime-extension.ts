@@ -6,7 +6,6 @@ import {
   createProductPricingProjectionExtension,
   loadProductPriceFrom,
 } from "./pricing/service-catalog-plane-pricing.js"
-import { createCatalogPromotionEvaluator } from "./promotions/service-catalog-evaluator.js"
 import { createProductPromotionsProjectionExtension } from "./promotions/service-catalog-plane-promotions.js"
 
 export const catalogCommerceRuntimeExtension: CatalogCommerceRuntimeExtension = {
@@ -25,7 +24,6 @@ export const catalogCommerceRuntimeExtension: CatalogCommerceRuntimeExtension = 
     ])
     return { markets: marketRows, locales: localeRows }
   },
-  createPromotionEvaluator: ({ db }) => createCatalogPromotionEvaluator(db),
   createPricingProjectionExtension: () => createProductPricingProjectionExtension(),
   createPromotionsProjectionExtension: () =>
     createProductPromotionsProjectionExtension({ loadOriginalPrice: loadProductPriceFrom }),

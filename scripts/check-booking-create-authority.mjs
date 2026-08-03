@@ -7,13 +7,24 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx",
 const failures = []
 const files = sourceFiles("packages").filter(isProductionSource)
 const sources = new Map(files.map((file) => [file, parse(file)]))
+const bookingInsertAuthorities = new Set([
+  // Staff/manual creation settles an admitted Finance command.
+  "packages/bookings/src/service-core.ts",
+  // Supplier-first Commit settles only after the Supplier Operation is secured;
+  // its caller owns the surrounding transaction and operation lock.
+  "packages/bookings/src/service-sourced-commitment.ts",
+])
 
 for (const [file, routePath] of [
   ["packages/bookings/src/routes-admin.ts", "/reserve"],
   ["packages/bookings/src/routes-admin.ts", "/from-product"],
-  ["packages/catalog/src/booking-engine/routes.ts", "/book"],
 ]) {
   if (hasPostRoute(file, routePath)) fail(file, `forbidden POST route ${routePath}`)
+}
+for (const file of files.filter((path) =>
+  path.startsWith("packages/catalog/src/booking-engine/"),
+)) {
+  if (hasPostRoute(file, "/book")) fail(file, "forbidden POST route /book")
 }
 
 for (const [file, path, method] of [
@@ -36,7 +47,7 @@ assertReferencesWithin(
   "executeFinanceStaffBookingCreateCommand",
   new Set([
     "packages/finance/src/booking-create-command.ts",
-    "packages/finance/src/mcp-runtime.ts",
+    "packages/finance/src/mcp-booking-runtime.ts",
   ]),
 )
 assertReferencesWithin(
@@ -104,6 +115,14 @@ assertReferencesWithin(
 )
 assertReferencesWithin("reserveBooking", new Set())
 assertReferencesWithin("materializeBookingFromSnapshot", new Set())
+assertReferencesWithin(
+  "createSourcedBookingCommitment",
+  new Set([
+    "packages/bookings/src/index.ts",
+    "packages/bookings/src/service-sourced-commitment.ts",
+    "packages/catalog/src/booking-engine/sessions-production.ts",
+  ]),
+)
 
 for (const [file, source] of sources) {
   walk(source, (node) => {
@@ -114,7 +133,7 @@ for (const [file, source] of sources) {
       node.arguments.length > 0 &&
       ts.isIdentifier(node.arguments[0]) &&
       node.arguments[0].text === "bookings" &&
-      file !== "packages/bookings/src/service-core.ts"
+      !bookingInsertAuthorities.has(file)
     ) {
       fail(file, "booking-row insert escaped the lease-gated Bookings settlement")
     }
@@ -132,7 +151,7 @@ for (const [file, source] of sources) {
 }
 
 assertImportAndCall(
-  "packages/finance/src/mcp-runtime.ts",
+  "packages/finance/src/mcp-booking-runtime.ts",
   "./booking-create-command.js",
   "executeFinanceStaffBookingCreateCommand",
 )

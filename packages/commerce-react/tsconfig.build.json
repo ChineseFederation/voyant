@@ -483,9 +483,6 @@
       "@voyant-travel/catalog/booking-engine/draft-shape": [
         "../catalog/dist/booking-engine/draft-shape.d.ts"
       ],
-      "@voyant-travel/catalog/booking-engine/drafts-schema": [
-        "../catalog/dist/booking-engine/drafts-schema.d.ts"
-      ],
       "@voyant-travel/catalog/booking-engine/operator-routes": [
         "../catalog/dist/booking-engine/operator-routes.d.ts"
       ],
@@ -515,7 +512,6 @@
       ],
       "@voyant-travel/catalog/catalog-runtime": ["../catalog/dist/runtime/catalog-runtime.d.ts"],
       "@voyant-travel/catalog/contract": ["../catalog/dist/contract.d.ts"],
-      "@voyant-travel/catalog/draft-reaper-job": ["../catalog/dist/draft-reaper-job.d.ts"],
       "@voyant-travel/catalog/drift/events": ["../catalog/dist/drift/events.d.ts"],
       "@voyant-travel/catalog/embeddings/contract": ["../catalog/dist/embeddings/contract.d.ts"],
       "@voyant-travel/catalog/embeddings/gemini": ["../catalog/dist/embeddings/gemini.d.ts"],

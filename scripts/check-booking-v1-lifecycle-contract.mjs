@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
 import {
@@ -115,6 +115,68 @@ for (const legacyCreateSurface of [
 
 const bookingSchema = read("packages/bookings/src/schema-operations.ts")
 rejectText("packages/bookings/src/schema-operations.ts", bookingSchema, "bookingSessionStates")
+
+for (const legacyCatalogFile of [
+  "packages/catalog/src/booking-engine/drafts-schema.ts",
+  "packages/catalog/src/booking-engine/drafts-service.ts",
+  "packages/catalog/src/booking-engine/draft-capability.ts",
+  "packages/catalog/src/booking-engine/routes.ts",
+  "packages/catalog/src/booking-engine/self-service-source.ts",
+  "packages/catalog/src/draft-reaper-job.ts",
+]) {
+  if (existsSync(resolve(root, legacyCatalogFile))) {
+    failures.push(`${legacyCatalogFile}: retired beta booking path must stay deleted`)
+  }
+}
+
+const catalogRoutes = read("packages/catalog/src/booking-engine/operator-routes.ts")
+for (const legacyPath of [
+  '"/v1/admin/catalog/quote"',
+  '"/v1/public/catalog/quote"',
+  '"/v1/admin/catalog/drafts',
+  '"/v1/public/catalog/drafts',
+  '"/v1/admin/catalog/holds/place"',
+  '"/v1/public/catalog/holds/place"',
+]) {
+  rejectText("packages/catalog/src/booking-engine/operator-routes.ts", catalogRoutes, legacyPath)
+}
+
+const catalogSchema = read("packages/catalog/src/schema.ts")
+rejectText("packages/catalog/src/schema.ts", catalogSchema, "bookingDraftsTable")
+
+for (const [path, canonicalPath, legacyPath] of [
+  [
+    "packages/catalog/openapi/admin/catalog-booking.json",
+    '"/v1/admin/catalog/booking-sessions"',
+    '"/v1/admin/catalog/drafts',
+  ],
+  [
+    "packages/catalog/openapi/storefront/catalog-booking.json",
+    '"/v1/public/catalog/booking-sessions"',
+    '"/v1/public/catalog/drafts',
+  ],
+]) {
+  const document = read(path)
+  requireText(path, document, canonicalPath)
+  rejectText(path, document, legacyPath)
+}
+
+const betaDraftCutover = read(
+  "packages/catalog/migrations/20260802190000_booking_v1_beta_draft_cutover.sql",
+)
+for (const requiredCutoverRule of [
+  "ambiguous external effect",
+  "booking_v1_legacy_holds_to_release",
+  "genuine_commitment",
+  "resumable_staff_attempt",
+  'DROP TABLE "booking_drafts"',
+]) {
+  requireText(
+    "packages/catalog/migrations/20260802190000_booking_v1_beta_draft_cutover.sql",
+    betaDraftCutover,
+    requiredCutoverRule,
+  )
+}
 
 const storefrontSdkPackage = JSON.parse(read("packages/storefront-sdk/package.json"))
 for (const legacyExport of ["./booking-engine", "./engine-state"]) {

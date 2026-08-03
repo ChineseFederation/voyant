@@ -313,15 +313,15 @@ hosted, not how each package defines its route family.
 The rule for package authors:
 
 ```ts
-export function createCatalogBookingRoutes(options: CatalogBookingRoutesOptions): Hono
-
 export function createCatalogBookingApiModule(
-  options: CatalogBookingRoutesOptions,
+  options: CatalogBookingRouteModuleOptions,
 ): ApiModule
 ```
 
-The lower-level route factory is useful for tests and advanced composition. The
-`ApiModule` or `ApiExtension` is the normal deployment interface.
+For Booking Platform v1, the `ApiModule` is the deployment interface. Do not
+publish a lower-level quote/draft/hold route factory that can bypass the
+Booking Session lifecycle. Other packages may expose a lower-level factory when
+it represents the same domain operation rather than an alternate authority.
 
 ## Decision Rules
 

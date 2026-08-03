@@ -14,7 +14,6 @@ import type {
   SourceAdapterRegistry,
 } from "./booking-engine/index.js"
 import type { CatalogBookingRouteModuleOptions } from "./booking-engine/operator-routes.js"
-import type { CatalogBookingRoutesOptions } from "./booking-engine/routes-contracts.js"
 import type {
   CatalogBookingSnapshotExecutionContext,
   CatalogBookingSnapshotRuntime,
@@ -71,7 +70,6 @@ export interface CatalogCommerceRuntimeExtension {
     markets: readonly { id: string; defaultLanguageTag: string }[]
     locales: readonly { marketId: string; languageTag: string }[]
   }>
-  createPromotionEvaluator: NonNullable<CatalogBookingRoutesOptions["resolveEvaluatePromotions"]>
   createPricingProjectionExtension(): CatalogProjectionExtension
   createPromotionsProjectionExtension(): CatalogProjectionExtension
 }

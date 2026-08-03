@@ -48,15 +48,6 @@ describe("@voyant-travel/catalog package exports", () => {
     })
   })
 
-  it("publishes the draft-reaper workflow", () => {
-    expect(packageJson.exports["./draft-reaper-job"]).toBe("./src/draft-reaper-job.ts")
-    expect(packageJson.publishConfig.exports["./draft-reaper-job"]).toEqual({
-      types: "./dist/draft-reaper-job.d.ts",
-      import: "./dist/draft-reaper-job.js",
-      default: "./dist/draft-reaper-job.js",
-    })
-  })
-
   it("publishes the projection subscriber runtime contract", () => {
     expect(packageJson.exports["./projection-runtime"]).toBe("./src/projection-runtime.ts")
     expect(packageJson.publishConfig.exports["./projection-runtime"]).toEqual({

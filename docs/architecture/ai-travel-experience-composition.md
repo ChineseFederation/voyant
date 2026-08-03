@@ -34,9 +34,9 @@ for the feature-branch and PR-by-PR rollout.
 
 Current code alignment, May 2026:
 
-- The single-line booking journey foundation has shipped: V1 contracts,
-  `catalog_quotes`, `booking_drafts`, quote/book/draft/hold routes,
-  React hooks, and `@voyant-travel/bookings-react/journey`.
+- The single-line booking journey foundation has shipped as Booking Platform
+  v1: Booking Sessions, immutable revision-bound Quotes, real-capacity Holds,
+  idempotent Commit, React hooks, and storefront/admin route adapters.
 - The composer is catalog-first. It selects Catalog Items, not Product tables,
   hotels, or other vertical-owned tables directly. `sourceKind: "owned"` is
   one catalog provenance/fulfillment path: the booking engine calls an internal
@@ -74,12 +74,11 @@ Voyant already has many of the required primitives:
   inventory, with resolved views, provenance, overlays, search, and booking
   snapshots.
 - **Catalog booking engine** in `@voyant-travel/catalog/booking-engine` for
-  per-line `quoteEntity`, `bookEntity`, `cancelEntity`, `catalog_quotes`,
-  `booking_drafts`, `BookingDraftShape`, source-adapter dispatch,
-  optional owned-handler dispatch, and snapshot capture.
-- **Pre-booking holds** through `booking_drafts` plus `availability_holds` for
-  owned product slots. The operator starter ships a scheduled draft reaper
-  that releases expired holds and deletes abandoned drafts.
+  per-line Booking Session orchestration, Quote/Hold/Commit state,
+  source-adapter and owned-handler dispatch, and snapshot capture.
+- **Pre-booking holds** through `booking_session_holds` plus
+  `availability_holds` for owned product slots. Catalog's Booking Session
+  maintenance job expires Sessions and releases abandoned capacity.
 - **Catalog semantic search** in `@voyant-travel/catalog` for embedding providers,
   semantic/hybrid search orchestration, model-version helpers, and
   cross-audience federated search.
@@ -303,15 +302,14 @@ One proposed or committed component of a Trip Envelope. It may reference:
 
 - a CatalogEntry
 - a vertical-specific live offer, such as a flight offer
-- a catalog booking-engine `booking_drafts` row and/or `catalog_quotes` row for
-  a single bookable line
+- a Booking Session and its current revision-bound Quote for one bookable line
 - a freeform placeholder needing staff action
 - an informational/non-sellable activity
 
-Do not overload the booking engine's `booking_drafts` table with the whole
-multi-line itinerary. A booking draft is a per-line, resumable booking-journey
-primitive. A Trip Envelope is the multi-line composition aggregate that can
-point at zero or more booking drafts through its Trip Components.
+Do not overload Booking Session state with the whole multi-line itinerary. A
+Booking Session is a per-line, resumable booking attempt. A Trip Envelope is
+the multi-line composition aggregate that can point at zero or more Sessions
+through its Trip Components.
 
 ### Priced Trip
 
@@ -397,17 +395,18 @@ This distinction prevents two bad extremes:
 - forcing a customer-composed flight + hotel + tour into one backend booking
   when cancellation, taxes, fulfillment, and provider references differ
 
-### 5.3. Catalog booking engine and booking drafts
+### 5.3. Catalog booking engine and Booking Sessions
 
 The single-line booking journey and catalog booking engine now provide the
 leaf primitives the composer should reuse:
 
-- `BookingDraftShape` describes one bookable line's required steps, traveler
-  fields, payment intents, accommodation sub-steps, and Extras.
-- `booking_drafts` stores one resumable pre-booking-row draft for that line.
-- `catalog_quotes` stores short-lived live pricing for that line.
-- `quoteEntity` and `bookEntity` dispatch to the correct owned handler or
-  source adapter and capture booking snapshots.
+- The selection contract describes one bookable line's required steps,
+  traveler fields, payment intents, accommodation sub-steps, and Extras.
+- `booking_sessions` stores the resumable attempt and optimistic revision.
+- `booking_session_quotes` stores immutable, short-lived pricing bound to one
+  exact Session revision; `booking_session_holds` stores its Holds.
+- Commit dispatches to the correct owned handler or source adapter and captures
+  the Booking snapshot only at the governed commitment point.
 
 The composer should hold N Trip Components and call those primitives per
 component. It should not create a second single-line booking engine, and it
@@ -416,10 +415,10 @@ the booking journey to understand a whole custom itinerary.
 
 Current caveats:
 
-- `booking_drafts.current_quote_id` is one-to-one. The composer must store
-  quote references per Trip Component, not on the Trip Envelope root.
-- The current hold token convention is not yet uniform. Products use the draft
-  id as the hold token and lock `availability_holds`; cruises and accommodations
+- Quotes are revision-bound. The composer must store Session and Quote
+  references per Trip Component, not on the Trip Envelope root.
+- The current hold token convention is not yet uniform. Products bridge a
+  Booking Session Hold to `availability_holds`; cruises and accommodations
   return placeholder/stamping holds until their inventory models expose real
   locks; sourced adapters still lack a hold-only release primitive.
 
@@ -664,8 +663,8 @@ experience_tool_events
 ```
 
 Do not commit to this schema prematurely. The important decision is the seam:
-multi-line planning state is separate from per-line `booking_drafts` and from
-Booking Session state until the customer asks to reserve or buy.
+multi-line planning state is separate from per-line Booking Session state until
+the customer asks to reserve or buy.
 
 Avoid making the Trip Envelope depend on exactly one Booking. Multi-line
 composition may need one Booking with many items, several Bookings under a
@@ -734,8 +733,8 @@ High-level buy flow:
 6. **Ground transport boundary.** `@voyant-travel/operations/ground` is operational
    execution state. The composer still needs a sellable transfer/search surface
    before it can treat ground services like normal Trip Components.
-7. **Hold-release primitive for sourced drafts.** The draft reaper can release
-   owned holds through owned handlers and can honor
+7. **Hold-release primitive for sourced Sessions.** Booking Session maintenance
+   can release owned holds through owned handlers and can honor
    `AdapterCapabilities.holdReleaseGraceMs`. Sourced adapters currently expose
    `cancel`, not a hold-only release primitive, so sourced soft-hold cleanup
    still needs a SourceAdapter contract addition before broad multi-source
@@ -798,9 +797,9 @@ that component's supplier lifecycle.
 - Support create/read/revise operations against structured intent and
   constraints.
 - Keep all mutation deterministic and service-validated.
-- Store per-line references to `booking_drafts`, `catalog_quotes`, flight
-  offers/orders, and placeholders. Do not merge the itinerary envelope into
-  the catalog booking-engine `booking_drafts` table.
+- Store per-line references to Booking Sessions and Quotes, flight offers/orders,
+  and placeholders. Do not merge the itinerary envelope into Booking Session
+  state.
 
 ### Slice 3: price a trip
 

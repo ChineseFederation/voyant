@@ -32,6 +32,23 @@ describe("admin resource keys", () => {
       resourceKey("/v1/admin/proposals/proposal-versions/{id}/accept"),
       "proposal/proposal-version",
     )
+
+    for (const action of ["adopt", "renew", "quote", "hold", "abandon", "commit"]) {
+      assert.equal(
+        resourceKey(`/v1/admin/catalog/booking-sessions/{id}/${action}`),
+        "catalog/booking-session",
+      )
+    }
+    for (const action of ["reconcile", "resolve"]) {
+      assert.equal(
+        resourceKey(`/v1/admin/catalog/supplier-operations/{id}/${action}`),
+        "catalog/supplier-operation",
+      )
+    }
+    assert.equal(
+      resourceKey("/v1/admin/catalog/booking-sessions/maintenance/purge"),
+      "catalog/booking-session/maintenance",
+    )
   })
 })
 

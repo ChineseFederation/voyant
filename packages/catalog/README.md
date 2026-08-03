@@ -229,17 +229,13 @@ External adapters that do not run the catalog package can import the same
 schemas and types from `@voyant-travel/catalog-contracts/adapter/schemas` and
 `@voyant-travel/catalog-contracts/adapter/contract`.
 
-## Catalog quote and draft HTTP routes
+## Booking Session HTTP routes
 
-`@voyant-travel/catalog` exports `createCatalogBookingApiModule(...)` and
-`createCatalogBookingRoutes(...)` for catalog quote, draft, hold, and reservation
-contracts. The same functions remain available from
-`@voyant-travel/catalog/booking-engine` for consumers that prefer the narrower
-subpath. The module mounts these engine endpoints on both catalog API surfaces.
-They are not a second booking-row creation authority. Booking Session Commit is
-the authenticated staff and storefront creation authority; it derives and
-executes Finance's durable command only after the exact Quote and Hold have
-been validated:
+`@voyant-travel/catalog` exports `createCatalogBookingEngineApiModule(...)` for
+Booking Session v1. The module mounts the same Session lifecycle for staff and
+storefront callers. Session Commit is the only booking creation authority; it
+derives and executes Finance's durable command only after the exact Session
+revision, Quote, Hold, buyer, and policy state have been validated:
 
 - `/v1/admin/catalog/*`
 - `/v1/public/catalog/*`

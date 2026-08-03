@@ -6,8 +6,8 @@
  * documents. Catalog derives the command from the exact Session revision,
  * Quote, and Hold before invoking this helper inside the root transaction.
  *
- * Everything in the command is derived server-side. The caller named a draft
- * and a quote; it never names a booking number, price, tax line, relationship
+ * Everything in the command is derived server-side. The caller named a Session
+ * and Quote; it never names a booking number, price, tax line, relationship
  * id, or status.
  */
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -20,7 +20,7 @@ import type { FinanceServiceRuntime } from "./service.js"
 
 export interface SelfServiceCreateRuntimeDeps {
   /**
-   * Resolves and verifies the public draft + quote, and spends them.
+   * Resolves and verifies the Booking Session + Quote, and spends them.
    *
    * Resolved per call because the deployment supplies it as a runtime port,
    * whose value may still be a promise when this runtime is constructed.
@@ -49,16 +49,16 @@ export interface SelfServiceCreateRuntimeDeps {
 
 export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDeps) {
   return {
-    async createFromDraft(input: {
+    async createFromSession(input: {
       db: PostgresJsDatabase
-      draftId: string
+      sessionId: string
       quoteId: string
       caller: { personId?: string; verifiedEmail?: string; verifiedPhone?: string }
       /** Required by public callers; omitted by trusted staff workflows. */
       storefront?: { storefrontId: string; channelId: string }
       idempotencyKey: string
-      /** Proves the caller holds the draft; verified by the source provider. */
-      draftCapabilityToken?: string
+      /** Proves the caller holds the anonymous Session. */
+      sessionCapability?: string
       /**
        * The challenge that authorized a guest create. Absent for an
        * authenticated customer, who is identified by their account instead.
@@ -71,10 +71,10 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
       const source = await deps.resolveSource()
       const resolved = await source.resolveBookingSource({
         db: input.db,
-        draftId: input.draftId,
+        sessionId: input.sessionId,
         quoteId: input.quoteId,
         caller: input.caller,
-        ...(input.draftCapabilityToken ? { draftCapabilityToken: input.draftCapabilityToken } : {}),
+        ...(input.sessionCapability ? { sessionCapability: input.sessionCapability } : {}),
       })
       if (resolved.status !== "ok") {
         return { status: "rejected" as const, reason: resolved.reason }
@@ -109,7 +109,7 @@ export function createSelfServiceCreateRuntime(deps: SelfServiceCreateRuntimeDep
         ...(deps.runtime ? { runtime: deps.runtime } : {}),
         async consumeSources(tx, bookingId) {
           await source.consumeBookingSource(tx, {
-            draftId: input.draftId,
+            sessionId: input.sessionId,
             quoteId: input.quoteId,
             bookingId,
           })

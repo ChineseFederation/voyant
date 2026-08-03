@@ -7,30 +7,32 @@ export const bookingSessionActorKindV1 = z.enum(["anonymous", "customer", "staff
 export type BookingSessionActorKindV1 = z.infer<typeof bookingSessionActorKindV1>
 
 export const bookingSessionTargetV1 = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("product"),
-    productId: z.string().min(1),
-    catalogItemId: z.never().optional(),
-  }),
-  z.object({
-    kind: z.literal("catalog_item"),
-    catalogItemId: z.string().min(1),
-    productId: z.never().optional(),
-  }),
-  z.object({
-    kind: z.literal("owned_entity"),
-    entityModule: z.string().min(1),
-    entityId: z.string().min(1),
-    productId: z.never().optional(),
-    catalogItemId: z.never().optional(),
-  }),
-  z.object({
-    kind: z.literal("trip_snapshot"),
-    tripSnapshotId: z.string().min(1),
-    tripEnvelopeId: z.string().min(1),
-    productId: z.never().optional(),
-    catalogItemId: z.never().optional(),
-  }),
+  z
+    .object({
+      kind: z.literal("product"),
+      productId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("catalog_item"),
+      catalogItemId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("owned_entity"),
+      entityModule: z.string().min(1),
+      entityId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("trip_snapshot"),
+      tripSnapshotId: z.string().min(1),
+      tripEnvelopeId: z.string().min(1),
+    })
+    .strict(),
 ])
 export type BookingSessionTargetV1 = z.infer<typeof bookingSessionTargetV1>
 
@@ -87,16 +89,18 @@ export const bookingSessionViewV1 = bookingSessionRecordV1.extend({
 export type BookingSessionViewV1 = z.infer<typeof bookingSessionViewV1>
 
 export const createBookingSessionTargetV1 = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("product"),
-    productId: z.string().min(1),
-    catalogItemId: z.never().optional(),
-  }),
-  z.object({
-    kind: z.literal("catalog_item"),
-    catalogItemId: z.string().min(1),
-    productId: z.never().optional(),
-  }),
+  z
+    .object({
+      kind: z.literal("product"),
+      productId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("catalog_item"),
+      catalogItemId: z.string().min(1),
+    })
+    .strict(),
 ])
 
 export const createBookingSessionV1 = z.object({

@@ -31,6 +31,13 @@ const BASELINE_PATH = "scripts/agent-write-coverage-baseline.json"
  */
 const ALLOWLIST = new Map<string, { rationale: string }>([
   [
+    "@voyant-travel/catalog:catalog/booking-session/maintenance",
+    {
+      rationale:
+        "Booking Session expiry and PII purge are scheduler-owned retention controls; the admin endpoints are operational break-glass surfaces and are intentionally not agent Tools.",
+    },
+  ],
+  [
     "@voyant-travel/auth:storefront/channel-binding",
     {
       rationale:
