@@ -9,7 +9,7 @@
  * `docs/adr/0015-payment-adapter-transports-and-managed-connect.md`.
  */
 
-import { definePort } from "@voyant-travel/core/project"
+import { definePort } from "@voyant-travel/graph-contracts"
 
 import type { PaymentProviderRegistry } from "./provider-catalog.js"
 

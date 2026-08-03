@@ -21,6 +21,7 @@
     "@voyant-travel/charters-contracts",
     "@voyant-travel/cruises-contracts",
     "@voyant-travel/flights-contracts",
+    "@voyant-travel/payments",
     "@voyant-travel/products-contracts",
     "@voyant-travel/schema-kit"
   ],

@@ -42,7 +42,7 @@
     "types": "./dist/index.d.ts"
   },
   "dependencies": {
-    "@voyant-travel/core": "workspace:^"
+    "@voyant-travel/graph-contracts": "workspace:^"
   },
   "devDependencies": {
     "@voyant-travel/voyant-typescript-config": "workspace:^",

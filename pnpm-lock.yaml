@@ -4681,9 +4681,9 @@ importers:
 
   packages/payments:
     dependencies:
-      '@voyant-travel/core':
+      '@voyant-travel/graph-contracts':
         specifier: workspace:^
-        version: link:../core
+        version: link:../graph-contracts
     devDependencies:
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^

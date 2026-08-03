@@ -1,4 +1,4 @@
-import { definePort } from "@voyant-travel/core/project"
+import { definePort } from "@voyant-travel/graph-contracts"
 
 export const PAYMENT_ADAPTER_CONTRACT_VERSION = "voyant.payment-adapter.v1" as const
 export const PAYMENT_ADAPTER_RUNTIME_PORT_ID = "payments.adapter.runtime" as const
