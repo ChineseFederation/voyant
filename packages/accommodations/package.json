@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/accommodations",
-  "version": "0.197.1",
+  "version": "0.198.0",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {

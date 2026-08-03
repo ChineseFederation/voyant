@@ -1,5 +1,12 @@
 # @voyant-travel/charters
 
+## 0.234.2
+
+### Patch Changes
+
+- Updated dependencies [4c694f6]
+  - @voyant-travel/catalog@0.235.0
+
 ## 0.234.1
 
 ### Patch Changes
