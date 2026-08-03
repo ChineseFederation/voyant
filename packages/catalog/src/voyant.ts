@@ -37,6 +37,7 @@ import {
   catalogInventoryRuntimeExtensionPort,
   catalogOperationsRuntimeExtensionPort,
   catalogRuntimeServicesPort,
+  catalogSourcesRuntimeExtensionPort,
 } from "./runtime-contracts.js"
 import { catalogSourcesSyncJobRuntimePort } from "./sources-sync-job-runtime-port.js"
 import {
@@ -83,6 +84,7 @@ export const catalogVoyantModule = defineModule({
       requirePort(catalogCommerceRuntimeExtensionPort),
       requirePort(catalogDistributionRuntimeExtensionPort),
       requirePort(catalogCruisesRuntimeExtensionPort),
+      requirePort(catalogSourcesRuntimeExtensionPort, { optional: true }),
       requirePort(catalogInventoryRuntimeExtensionPort),
       requirePort(catalogOperationsRuntimeExtensionPort),
       requirePort(financeOperatorSettingsRuntimePort),

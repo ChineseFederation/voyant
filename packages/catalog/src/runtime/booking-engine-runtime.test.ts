@@ -6,28 +6,13 @@ import type { BookingEngineEnv } from "./booking-engine-runtime.js"
 // flake the suite. Give the file headroom — the assertions themselves are sync.
 vi.setConfig({ testTimeout: 20000 })
 
-// The plugin is mocked so the test exercises the runtime's warm/fallback wiring
-// (not the real Connect network calls). `registerVoyantConnectSources` mirrors
-// the real plugin: connection-scoped sources register by id, the default pair
-// registers by kind.
-const prepareVoyantConnectSources = vi.fn()
-const createVoyantConnectSources = vi.fn()
-const resolveVoyantConnectEnv = vi.fn()
+// A stub inventory channel. The catalog spine no longer imports Voyant Connect;
+// it resolves whatever channel the deployment bound to the sources port, so the
+// test provides one directly instead of mocking the plugin module.
+const registerFallback = vi.fn()
+const warm = vi.fn()
+const resolveDestinationNames = vi.fn()
 
-vi.mock("@voyant-travel/plugin-voyant-connect", () => ({
-  prepareVoyantConnectSources,
-  createVoyantConnectSources,
-  resolveVoyantConnectEnv,
-  registerVoyantConnectSources: (
-    registry: { register: (a: unknown, b?: unknown) => void },
-    sources: Array<{ connectionId?: string; adapter: unknown }>,
-  ) => {
-    for (const source of sources) {
-      if (source.connectionId) registry.register(source.connectionId, source.adapter)
-      else registry.register(source.adapter)
-    }
-  },
-}))
 vi.mock("./owned-booking-handlers.js", () => ({
   createOwnedBookingHandlersRegistry: vi.fn(),
 }))
@@ -41,7 +26,7 @@ function genericAdapter() {
   return { kind: "voyant-connect" } as never
 }
 
-async function loadRuntime() {
+async function loadRuntime({ withSources = true }: { withSources?: boolean } = {}) {
   vi.resetModules()
   const [runtime, host] = await Promise.all([
     import("./booking-engine-runtime.js"),
@@ -51,6 +36,7 @@ async function loadRuntime() {
     {} as never,
     {
       cruises: { registerAdapters: vi.fn(), syncRegistry: vi.fn() },
+      ...(withSources ? { sources: { registerFallback, warm, resolveDestinationNames } } : {}),
     } as never,
   )
   return runtime
@@ -58,21 +44,23 @@ async function loadRuntime() {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  // Default-pair fallback (synchronous): resolveVoyantConnectEnv returns a
-  // config, createVoyantConnectSources returns the un-scoped pair.
-  resolveVoyantConnectEnv.mockReturnValue({ apiKey: "k", operatorId: "op_1" })
-  createVoyantConnectSources.mockReturnValue([{ adapter: genericAdapter() }])
-  // Per-connection warm result.
-  prepareVoyantConnectSources.mockResolvedValue([
-    { connectionId: "conn_1", adapter: genericAdapter() },
-  ])
+  // A configured channel: the fallback registers an un-scoped adapter by kind,
+  // the warm registers one connection-scoped adapter.
+  registerFallback.mockImplementation((registry: { register: (a: unknown, b?: unknown) => void }) =>
+    registry.register(genericAdapter()),
+  )
+  warm.mockImplementation(async (registry: { register: (a: unknown, b?: unknown) => void }) => {
+    // Real enumeration is a network round-trip; yield so the synchronous
+    // fallback is observable before the per-connection adapters land.
+    await Promise.resolve()
+    registry.register("conn_1", genericAdapter())
+  })
 })
 
 describe("getBookingEngineRegistry", () => {
   it("registers the un-scoped default synchronously before the warm completes", async () => {
     const { getBookingEngineRegistry } = await loadRuntime()
     const registry = getBookingEngineRegistry(CONNECT_ENV)
-    // Fallback is registered by kind; the per-connection entry is not yet present.
     expect(registry.hasKind("voyant-connect")).toBe(true)
     expect(registry.resolveByConnection("conn_1")).toBeUndefined()
   })
@@ -82,7 +70,6 @@ describe("ensureBookingEngineRegistry", () => {
   it("registers per-connection adapters after the warm", async () => {
     const { ensureBookingEngineRegistry } = await loadRuntime()
     const registry = await ensureBookingEngineRegistry(CONNECT_ENV)
-    // The connection-scoped adapter is now resolvable by its connection id.
     expect(registry.resolveByConnection("conn_1")).toBeDefined()
     // The un-scoped fallback still coexists for cold-window / connection-less rows.
     expect(registry.hasKind("voyant-connect")).toBe(true)
@@ -92,27 +79,21 @@ describe("ensureBookingEngineRegistry", () => {
     const { ensureBookingEngineRegistry } = await loadRuntime()
     await ensureBookingEngineRegistry(CONNECT_ENV)
     await ensureBookingEngineRegistry(CONNECT_ENV)
-    expect(prepareVoyantConnectSources).toHaveBeenCalledTimes(1)
+    expect(warm).toHaveBeenCalledTimes(1)
   })
-})
 
-describe("Connect cruise memoize", () => {
-  it("passes cruise memoization to the warm", async () => {
+  it("retries a failed warm rather than caching the failure", async () => {
+    warm.mockRejectedValueOnce(new Error("enumeration failed"))
     const { ensureBookingEngineRegistry } = await loadRuntime()
     await ensureBookingEngineRegistry(CONNECT_ENV)
-    const opts = prepareVoyantConnectSources.mock.calls[0]![1]
-    expect(opts.cruise?.memoize?.ttlMs).toBeGreaterThan(0)
+    await ensureBookingEngineRegistry(CONNECT_ENV)
+    expect(warm).toHaveBeenCalledTimes(2)
   })
 })
 
-describe("when Connect is unconfigured", () => {
-  beforeEach(() => {
-    resolveVoyantConnectEnv.mockReturnValue(null)
-    prepareVoyantConnectSources.mockResolvedValue([])
-  })
-
-  it("registers no Connect adapters and does not throw", async () => {
-    const { ensureBookingEngineRegistry } = await loadRuntime()
+describe("when no inventory channel is bound", () => {
+  it("registers nothing, does not throw, and still resolves a registry", async () => {
+    const { ensureBookingEngineRegistry } = await loadRuntime({ withSources: false })
     const registry = await ensureBookingEngineRegistry({})
     expect(registry.hasKind("voyant-connect")).toBe(false)
     expect(registry.connections()).toEqual([])

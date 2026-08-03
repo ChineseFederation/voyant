@@ -9,12 +9,6 @@ import {
   type OwnedBookingHandlerRegistry,
   type SourceAdapterRegistry,
 } from "@voyant-travel/catalog/booking-engine"
-import {
-  createVoyantConnectSources,
-  prepareVoyantConnectSources,
-  registerVoyantConnectSources,
-  resolveVoyantConnectEnv,
-} from "@voyant-travel/plugin-voyant-connect"
 import type { Context } from "hono"
 import { catalogRuntimeExtensions } from "./host.js"
 import { createOwnedBookingHandlersRegistry } from "./owned-booking-handlers.js"
@@ -32,7 +26,10 @@ function ensureRegistry(env: BookingEngineEnv): SourceAdapterRegistry {
   if (!_registry) {
     const { cruises } = catalogRuntimeExtensions()
     const registry = createSourceAdapterRegistry()
-    registerVoyantConnectFallback(registry, env)
+    catalogRuntimeExtensions().sources?.registerFallback(
+      registry,
+      env as Record<string, string | undefined>,
+    )
     // Single activation point for cruise adapters: register deployment-owned
     // connectors into both planes and back-fill the vertical registry from the
     // un-scoped Connect cruise fallback registered just above. The per-connection
@@ -69,21 +66,22 @@ export function getBookingEngineRegistry(env: BookingEngineEnv): SourceAdapterRe
 function warmBookingEngineConnectSources(env: BookingEngineEnv): Promise<void> {
   if (_connectWarm) return _connectWarm
   const registry = ensureRegistry(env)
-  _connectWarm = prepareVoyantConnectSources(env, {
-    enumerate: true,
-    cruise: CONNECT_CRUISE_MEMOIZE,
-    warn: (message) => console.warn(`[booking-engine] ${message}`),
-  })
-    .then((sources) => {
-      registerConnectSources(registry, sources)
-      // Per-connection Connect cruise shims just landed — back-fill the vertical
-      // registry so admin/public external cruise reads resolve them too.
+  const sources = catalogRuntimeExtensions().sources
+  if (!sources) {
+    _connectWarm = Promise.resolve()
+    return _connectWarm
+  }
+  _connectWarm = sources
+    .warm(registry, env as Record<string, string | undefined>)
+    .then(() => {
+      // Per-connection shims just landed — back-fill the vertical registry so
+      // admin/public external cruise reads resolve them too.
       catalogRuntimeExtensions().cruises.syncRegistry(registry)
     })
     .catch((error) => {
       const message = error instanceof Error ? error.message : String(error)
       console.warn(
-        `[booking-engine] Connect connection warm failed; using un-scoped fallback: ${message}`,
+        `[booking-engine] channel source warm failed; using un-scoped fallback: ${message}`,
       )
       _connectWarm = undefined
     })
@@ -144,50 +142,9 @@ export interface BookingEngineEnv {
   VOYANT_CONNECT_SYNC_LIMIT?: string
 }
 
-/** Short-TTL read cache applied to Connect cruise reads on both the fallback and
- * per-connection warm paths (plugin >= 0.3.0). Shares the owned-adapter TTL. */
-const CONNECT_CRUISE_MEMOIZE = { memoize: { ttlMs: 60_000 } } as const
-
-/**
- * Connect is released independently and its registration helper is compiled
- * against the previous Catalog contract. Its adapters return a strict subset
- * of the current reserve outcomes, so the registry mutation remains compatible;
- * keep that version bridge isolated here until the next Connect release.
- */
-function registerConnectSources(
-  registry: SourceAdapterRegistry,
-  sources: Parameters<typeof registerVoyantConnectSources>[1],
-): void {
-  registerVoyantConnectSources(
-    registry as unknown as Parameters<typeof registerVoyantConnectSources>[0],
-    sources,
-  )
-}
-
-/**
- * Register the un-scoped Voyant Connect default adapter pair synchronously — the
- * cold-window fallback used until `warmBookingEngineConnectSources` registers the
- * per-connection adapters. Connect env resolution (key fallback, operator id,
- * market, sync limit, the incomplete-config warning) is shared with the
- * discovery-sync CLI via `resolveVoyantConnectEnv` so the two paths can't drift.
- */
-function registerVoyantConnectFallback(
-  registry: SourceAdapterRegistry,
-  env: BookingEngineEnv,
-): void {
-  const config = resolveVoyantConnectEnv(env, {
-    warn: (message) => console.warn(`[booking-engine] ${message}`),
-  })
-  if (!config) return
-  registerConnectSources(
-    registry,
-    createVoyantConnectSources({ ...config, cruise: CONNECT_CRUISE_MEMOIZE }),
-  )
-}
-
 /**
  * Convenience helper for route handlers — pulls env from the Hono context,
- * returns the cached source registry, and ties the per-connection Connect warm
+ * returns the cached source registry, and ties the per-connection channel warm
  * to the request via `ctx.waitUntil` so the enumeration isn't torn down when the
  * request ends. Non-blocking: the request proceeds on the un-scoped fallback
  * during the first per-isolate warm.

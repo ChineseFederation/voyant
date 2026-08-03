@@ -70,6 +70,7 @@ import {
   type CatalogInventoryRuntimeExtension,
   type CatalogOperationsRuntimeExtension,
   type CatalogRuntimeServices,
+  type CatalogSourcesRuntimeExtension,
   catalogAccommodationsRuntimeExtensionPort,
   catalogChartersRuntimeExtensionPort,
   catalogCommerceRuntimeExtensionPort,
@@ -78,6 +79,7 @@ import {
   catalogInventoryRuntimeExtensionPort,
   catalogOperationsRuntimeExtensionPort,
   catalogRuntimeServicesPort,
+  catalogSourcesRuntimeExtensionPort,
 } from "./runtime-contracts.js"
 import {
   type CatalogSourcesSyncJobRuntime,
@@ -109,6 +111,7 @@ export function createCatalogRuntimePortContribution(
   host: CatalogRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
   const hasIndexerPort = host.hasRuntimePort?.(catalogIndexerProviderPort) === true
+  const hasSourcesPort = host.hasRuntimePort?.(catalogSourcesRuntimeExtensionPort) === true
   const dependencies = Promise.resolve().then(() =>
     Promise.all([
       host.getRuntimePort<CatalogAccommodationsRuntimeExtension>(
@@ -124,6 +127,9 @@ export function createCatalogRuntimePortContribution(
       host.getRuntimePort<CatalogOperationsRuntimeExtension>(catalogOperationsRuntimeExtensionPort),
       host.getRuntimePort<FinanceOperatorSettingsRuntime>(financeOperatorSettingsRuntimePort),
       hasIndexerPort ? host.getRuntimePort<unknown>(catalogIndexerProviderPort) : undefined,
+      hasSourcesPort
+        ? host.getRuntimePort<CatalogSourcesRuntimeExtension>(catalogSourcesRuntimeExtensionPort)
+        : undefined,
     ]),
   )
   const contribution = dependencies.then(
@@ -137,6 +143,7 @@ export function createCatalogRuntimePortContribution(
       operations,
       settings,
       indexer,
+      sources,
     ]) => {
       let catalogIndexer: CatalogIndexer | undefined
       if (hasIndexerPort) {
@@ -153,6 +160,7 @@ export function createCatalogRuntimePortContribution(
           cruises,
           inventory,
           operations,
+          ...(sources ? { sources } : {}),
         },
         settings,
         {

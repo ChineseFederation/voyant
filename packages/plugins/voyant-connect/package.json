@@ -18,7 +18,10 @@
     "typescript"
   ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./catalog-sources": "./src/catalog-sources-extension.ts",
+    "./voyant": "./src/voyant.ts",
+    "./runtime-contributor": "./src/runtime-contributor.ts"
   },
   "files": [
     "dist"
@@ -35,7 +38,8 @@
     "@voyant-travel/connect-adapter": "^0.5.0",
     "@voyant-travel/connect-cruises": "^0.6.2",
     "@voyant-travel/connect-sdk": "^0.10.0",
-    "@voyant-travel/data-sdk": "^0.8.0"
+    "@voyant-travel/data-sdk": "^0.8.0",
+    "@voyant-travel/graph-contracts": "workspace:^"
   },
   "peerDependencies": {
     "@voyant-travel/catalog": "workspace:^",
@@ -52,6 +56,10 @@
     }
   },
   "devDependencies": {
+    "@voyant-travel/catalog": "workspace:^",
+    "@voyant-travel/catalog-contracts": "workspace:^",
+    "@voyant-travel/cruises": "workspace:^",
+    "@voyant-travel/cruises-contracts": "workspace:^",
     "@voyant-travel/voyant-typescript-config": "workspace:^",
     "typescript": "catalog:",
     "vitest": "catalog:"
@@ -63,9 +71,33 @@
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js",
         "default": "./dist/index.js"
+      },
+      "./catalog-sources": {
+        "types": "./dist/catalog-sources-extension.d.ts",
+        "import": "./dist/catalog-sources-extension.js",
+        "default": "./dist/catalog-sources-extension.js"
+      },
+      "./voyant": {
+        "types": "./dist/voyant.d.ts",
+        "import": "./dist/voyant.js",
+        "default": "./dist/voyant.js"
+      },
+      "./runtime-contributor": {
+        "types": "./dist/runtime-contributor.d.ts",
+        "import": "./dist/runtime-contributor.js",
+        "default": "./dist/runtime-contributor.js"
       }
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts"
+  },
+  "voyant": {
+    "schemaVersion": "voyant.package.v1",
+    "kind": "adapter",
+    "manifest": "./voyant",
+    "runtime": {
+      "entry": "./runtime-contributor",
+      "export": "createVoyantConnectRuntimePortContribution"
+    }
   }
 }

@@ -202,6 +202,37 @@ export interface CatalogOperationsRuntimeExtension {
   createDeparturesProjectionExtension(): CatalogProjectionExtension
 }
 
+/**
+ * A channel that sources inventory into the booking engine.
+ *
+ * Voyant Connect is one implementation; the catalog spine must not name it.
+ * Anything that can register `SourceAdapter`s — a self-hosted integration, a
+ * different vendor — provides this port instead.
+ */
+export type { SourceAdapterRegistry } from "./booking-engine/registry.js"
+
+export interface CatalogSourcesRuntimeExtension {
+  /**
+   * Register the un-scoped default adapters synchronously. This is the
+   * cold-window fallback that keeps sourced reads and quoting dispatching
+   * before {@link warm} completes. A channel with nothing to register, or with
+   * incomplete configuration, returns without touching the registry.
+   */
+  registerFallback(registry: SourceAdapterRegistry, env: Record<string, string | undefined>): void
+  /**
+   * Enumerate the operator's active connections and register one
+   * connection-scoped adapter set per connection, so the live book path
+   * resolves by connection id. Must be idempotent; the caller memoizes it and
+   * resets on failure so a later request retries.
+   */
+  warm(registry: SourceAdapterRegistry, env: Record<string, string | undefined>): Promise<void>
+  /** Human labels for destination codes; falls back to the code itself. */
+  resolveDestinationNames(
+    codes: readonly string[],
+    env: Record<string, string | undefined>,
+  ): Promise<ReadonlyArray<{ code: string; label: string }>>
+}
+
 export interface CatalogRuntimeExtensions {
   accommodations: CatalogAccommodationsRuntimeExtension
   charters: CatalogChartersRuntimeExtension
@@ -210,6 +241,8 @@ export interface CatalogRuntimeExtensions {
   cruises: CatalogCruisesRuntimeExtension
   inventory: CatalogInventoryRuntimeExtension
   operations: CatalogOperationsRuntimeExtension
+  /** Absent when the deployment binds no inventory channel. */
+  sources?: CatalogSourcesRuntimeExtension
 }
 
 function extensionPort<T extends object>(id: string) {
@@ -223,6 +256,9 @@ function extensionPort<T extends object>(id: string) {
   })
 }
 
+export const catalogSourcesRuntimeExtensionPort = extensionPort<CatalogSourcesRuntimeExtension>(
+  "catalog.extension.sources",
+)
 export const catalogAccommodationsRuntimeExtensionPort =
   extensionPort<CatalogAccommodationsRuntimeExtension>("catalog.extension.accommodations")
 export const catalogChartersRuntimeExtensionPort = extensionPort<CatalogChartersRuntimeExtension>(

@@ -1,3 +1,4 @@
+export { createVoyantConnectCatalogSourcesExtension } from "./catalog-sources-extension.js"
 export {
   type ConnectCruiseSourceAdapterExtras,
   createConnectCruiseSourceAdapter,

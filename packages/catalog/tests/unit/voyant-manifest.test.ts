@@ -42,6 +42,7 @@ describe("catalog deployment manifest", () => {
           { id: "catalog.extension.commerce" },
           { id: "catalog.extension.distribution" },
           { id: "catalog.extension.cruises" },
+          { id: "catalog.extension.sources", optional: true },
           { id: "catalog.extension.inventory" },
           { id: "catalog.extension.operations" },
           { id: "finance.operator-settings.runtime" },

@@ -1712,9 +1712,6 @@ importers:
       '@voyant-travel/hono':
         specifier: workspace:^
         version: link:../hono
-      '@voyant-travel/plugin-voyant-connect':
-        specifier: workspace:^
-        version: link:../plugins/voyant-connect
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools
@@ -4725,12 +4722,6 @@ importers:
 
   packages/plugins/voyant-connect:
     dependencies:
-      '@voyant-travel/catalog':
-        specifier: workspace:^
-        version: link:../../catalog
-      '@voyant-travel/catalog-contracts':
-        specifier: workspace:^
-        version: link:../../catalog-contracts
       '@voyant-travel/connect-adapter':
         specifier: ^0.5.0
         version: 0.5.0(@voyant-travel/catalog@packages+catalog)
@@ -4740,16 +4731,25 @@ importers:
       '@voyant-travel/connect-sdk':
         specifier: ^0.10.0
         version: 0.10.0
+      '@voyant-travel/data-sdk':
+        specifier: ^0.8.0
+        version: 0.8.0
+      '@voyant-travel/graph-contracts':
+        specifier: workspace:^
+        version: link:../../graph-contracts
+    devDependencies:
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../../catalog
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../../catalog-contracts
       '@voyant-travel/cruises':
         specifier: workspace:^
         version: link:../../cruises
       '@voyant-travel/cruises-contracts':
         specifier: workspace:^
         version: link:../../cruises-contracts
-      '@voyant-travel/data-sdk':
-        specifier: ^0.8.0
-        version: 0.8.0
-    devDependencies:
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../../typescript-config

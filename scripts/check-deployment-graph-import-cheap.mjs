@@ -30,6 +30,8 @@ const DEFAULT_ENTRY_SURFACES = [
 const ALLOWED_EXTERNAL_IMPORTS = new Set(["@voyant-travel/hono/composition"])
 const ALLOWED_PACKAGE_MANIFEST_IMPORTS = new Set([
   "@voyant-travel/core/project",
+  // The authoring helpers moved here; core/project re-exports them.
+  "@voyant-travel/graph-contracts",
   "@voyant-travel/framework/project",
 ])
 

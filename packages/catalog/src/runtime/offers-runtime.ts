@@ -9,8 +9,8 @@ import {
 } from "@voyant-travel/catalog/runtime-support"
 import type { IndexerAdapter } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { createVoyantConnectClient } from "@voyant-travel/connect-sdk"
-import { createDestinationNameResolver } from "@voyant-travel/plugin-voyant-connect"
 import type { Context } from "hono"
+import { catalogRuntimeExtensions } from "./host.js"
 
 interface PackageOffersEnv {
   VOYANT_API_KEY?: string
@@ -42,25 +42,19 @@ async function resolveAirportLabels(
 ): Promise<CatalogOffersAirportLabel[]> {
   const env = c.env as PackageOffersEnv
   const sorted = [...new Set(codes)].sort()
-  const apiKey = connectApiKey(env)
-  if (!apiKey || sorted.length === 0) return sorted.map((code) => ({ code, label: code }))
-  let resolver: ReturnType<typeof createDestinationNameResolver> | null = null
+  if (sorted.length === 0) return []
+  const sources = catalogRuntimeExtensions().sources
+  if (!sources) return sorted.map((code) => ({ code, label: code }))
   try {
-    resolver = createDestinationNameResolver({ apiKey })
+    const resolved = await sources.resolveDestinationNames(
+      sorted,
+      env as Record<string, string | undefined>,
+    )
+    const byCode = new Map(resolved.map((entry) => [entry.code, entry.label]))
+    return sorted.map((code) => ({ code, label: byCode.get(code) ?? code }))
   } catch {
-    resolver = null
+    return sorted.map((code) => ({ code, label: code }))
   }
-  return Promise.all(
-    sorted.map(async (code) => {
-      if (!resolver) return { code, label: code }
-      try {
-        const city = await resolver.resolve(code)
-        return { code, label: city && city !== code ? `${city} (${code})` : code }
-      } catch {
-        return { code, label: code }
-      }
-    }),
-  )
 }
 
 export function createOperatorCatalogOffersRouteModuleOptions(
