@@ -139,7 +139,9 @@ for (const [source, required] of [
   ],
   [
     movedRuntimeFactories[5],
-    ["createVoyantConnectClient", "createCatalogOffersSearchResolvers", "resolveAirportLabels"],
+    // The offers client comes from the bound channel; the channel package owns
+    // its construction. Still package-owned, which is what this asserts.
+    ["sources.createOffersClient", "createCatalogOffersSearchResolvers", "resolveAirportLabels"],
   ],
   [
     movedRuntimeFactories[6],

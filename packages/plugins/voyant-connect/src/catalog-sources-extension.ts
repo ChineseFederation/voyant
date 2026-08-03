@@ -3,6 +3,8 @@ import type {
   SourceAdapterRegistry,
 } from "@voyant-travel/catalog/runtime-contracts"
 
+import { createVoyantConnectClient } from "@voyant-travel/connect-sdk"
+
 import { prepareVoyantConnectSources, resolveVoyantConnectEnv } from "./env.js"
 import { createDestinationNameResolver } from "./geo-resolver.js"
 import { createVoyantConnectSources, registerVoyantConnectSources } from "./sources.js"
@@ -48,6 +50,17 @@ export function createVoyantConnectCatalogSourcesExtension(): CatalogSourcesRunt
         warn: (message) => console.warn(`[voyant-connect] ${message}`),
       })
       register(registry, sources)
+    },
+
+    createOffersClient(env) {
+      const apiKey = env.VOYANT_API_KEY ?? env.VOYANT_CONNECT_API_KEY ?? env.VOYANT_CLOUD_API_KEY
+      const operatorId = env.VOYANT_CONNECT_OPERATOR_ID
+      if (!apiKey || !operatorId) return null
+      return createVoyantConnectClient({
+        apiKey,
+        operatorId,
+        ...(env.VOYANT_CONNECT_API_URL ? { baseUrl: env.VOYANT_CONNECT_API_URL } : {}),
+      })
     },
 
     async resolveDestinationNames(codes, env) {

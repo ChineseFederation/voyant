@@ -226,6 +226,12 @@ export interface CatalogSourcesRuntimeExtension {
    * resets on failure so a later request retries.
    */
   warm(registry: SourceAdapterRegistry, env: Record<string, string | undefined>): Promise<void>
+  /**
+   * The channel's offers client, or null when it is unconfigured. Catalog
+   * declares the shape it needs (`CatalogOffersConnectClient`) and the channel
+   * constructs it, so the spine never imports a vendor SDK.
+   */
+  createOffersClient(env: Record<string, string | undefined>): unknown | null
   /** Human labels for destination codes; falls back to the code itself. */
   resolveDestinationNames(
     codes: readonly string[],

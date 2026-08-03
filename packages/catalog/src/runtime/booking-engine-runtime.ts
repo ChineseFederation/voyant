@@ -132,15 +132,13 @@ export function getOwnedBookingHandlerRegistry(env: BookingEngineEnv): OwnedBook
   return _ownedHandlers
 }
 
-export interface BookingEngineEnv {
-  VOYANT_API_KEY?: string
-  VOYANT_CLOUD_API_KEY?: string
-  VOYANT_CONNECT_API_KEY?: string
-  VOYANT_CONNECT_API_URL?: string
-  VOYANT_CONNECT_MARKET?: string
-  VOYANT_CONNECT_OPERATOR_ID?: string
-  VOYANT_CONNECT_SYNC_LIMIT?: string
-}
+/**
+ * Deployment environment as the booking engine sees it: an opaque record it
+ * passes to whichever inventory channel is bound. The spine reads none of these
+ * keys — naming a vendor's variables here would make the catalog know one
+ * channel, which is exactly what the sources port exists to avoid.
+ */
+export type BookingEngineEnv = Record<string, string | undefined>
 
 /**
  * Convenience helper for route handlers — pulls env from the Hono context,
