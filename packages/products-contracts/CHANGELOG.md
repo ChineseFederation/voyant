@@ -1,5 +1,19 @@
 # @voyant-travel/products-contracts
 
+## 0.108.4
+
+### Patch Changes
+
+- dcda88d: Describe every package on the public surface.
+
+  The npm assembly path is now private — the deployment ships as an image — so the
+  published surface is the fourteen packages an external adapter, connector, or
+  extension author builds against. Each now says what it is for.
+
+- Updated dependencies [dcda88d]
+  - @voyant-travel/catalog-contracts@0.115.2
+  - @voyant-travel/schema-kit@0.118.2
+
 ## 0.108.3
 
 ### Patch Changes
