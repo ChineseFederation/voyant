@@ -32,6 +32,11 @@ export function createExtrasTestContext() {
       c.set("userId" as never, "test-user-id")
       await next()
     })
+    // The Product-owned half of the surface lives in inventory: an Extra is
+    // authored there and only *selected* here, so the harness has to mount both
+    // to seed a Product Extra and then exercise the Booking/manifest side.
+    const { inventoryExtrasRoutes } = await import("../../../../inventory/src/extras.js")
+    app.route("/", inventoryExtrasRoutes as never)
     app.route("/", bookingsExtrasRoutes)
   })
 

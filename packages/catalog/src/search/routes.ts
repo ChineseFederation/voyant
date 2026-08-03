@@ -9,6 +9,7 @@ import type {
   SearchResults,
   SearchSortOption,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
+import { owningVerticalFor } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { openApiValidationHook } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import type { Context, Hono as HonoApp } from "hono"
@@ -91,7 +92,18 @@ export type CatalogSearchSort = SearchSortOption
 // `/v1/admin/catalog/*` AND `/v1/public/catalog/*` (dual-surface).
 // ─────────────────────────────────────────────────────────────────
 
-const errorResponseSchema = z.object({ error: z.string() })
+const errorResponseSchema = z.object({
+  error: z.string(),
+  /**
+   * Machine-readable discriminator so a client can render the right
+   * compatibility explanation instead of a bare error toast. Present today only
+   * for `not_independently_sellable`.
+   */
+  reason: z.literal("not_independently_sellable").optional(),
+  vertical: z.string().optional(),
+  /** The vertical that owns and sells the requested one. */
+  ownedBy: z.string().optional(),
+})
 
 const searchHitSchema = z.object({
   id: z.string(),
@@ -189,7 +201,8 @@ const searchRoute = createRoute({
       content: { "application/json": { schema: searchResponseSchema } },
     },
     400: {
-      description: "invalid_request — body failed validation, or `vertical` is missing",
+      description:
+        "invalid_request — body failed validation, `vertical` is missing, or `vertical` names a product-owned vertical that is never independently sellable",
       content: { "application/json": { schema: errorResponseSchema } },
     },
     403: {
@@ -372,6 +385,23 @@ async function handleSearch(
   body: CatalogSearchBody,
 ): Promise<Response> {
   if (!body.vertical) return c.json({ error: "vertical is required" }, 400)
+
+  // A product-owned vertical (today: `extras`) is lifecycle-dependent on the
+  // Product Booking that carries it. It has no collection, so a search would
+  // silently return nothing; answering with a typed refusal instead lets old
+  // deep links render a compatibility explanation pointing at the owner.
+  const ownedBy = owningVerticalFor(body.vertical)
+  if (ownedBy) {
+    return c.json(
+      {
+        error: `"${body.vertical}" is not independently sellable and is discovered through its owning ${ownedBy}.`,
+        reason: "not_independently_sellable" as const,
+        vertical: body.vertical,
+        ownedBy,
+      },
+      400,
+    )
+  }
 
   const runtime = options.resolveRuntime(c)
   const indexer = runtime.indexer

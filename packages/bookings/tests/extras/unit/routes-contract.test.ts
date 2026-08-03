@@ -23,6 +23,7 @@ const {
   manifestExtraSchema,
   manifestTravelerSchema,
   manifestSelectionSchema,
+  manifestSummarySchema,
 } = __test__
 
 /** Reproduce the wire form: JSON serialize then re-parse (Date → ISO string). */
@@ -158,6 +159,29 @@ const manifestSelectionRow = {
   notes: null,
   metadata: null,
   source: "selection" as const,
+  quantity: 1,
+}
+
+const manifestSummaryRow = {
+  productExtraId: "pex_1",
+  name: "Airport transfer",
+  code: null,
+  supplierId: null,
+  selectionType: "optional",
+  pricingMode: "per_booking",
+  pricedPerPerson: false,
+  collectionMode: "booking_total" as const,
+  eligibleTravelerCount: 1,
+  selectedTravelerCount: 1,
+  totalQuantity: 1,
+  fulfilledTravelerCount: 0,
+  cancelledTravelerCount: 0,
+  noShowTravelerCount: 0,
+  collection: { notRequired: 1, pending: 0, collected: 0, waived: 0, refunded: 0 },
+  collectionCurrency: "EUR",
+  collectionAmountCents: 2500,
+  outstandingCollectionCount: 0,
+  fulfillmentComplete: false,
 }
 
 describe("booking-extras admin contract", () => {
@@ -188,6 +212,11 @@ describe("booking-extras admin contract", () => {
     const sel = manifestSelectionSchema.parse(toWire(manifestSelectionRow))
     expect(sel.selected).toBe(true)
     expect(sel.source).toBe("selection")
+    expect(sel.quantity).toBe(1)
+    const summary = manifestSummarySchema.parse(toWire(manifestSummaryRow))
+    expect(summary.totalQuantity).toBe(1)
+    expect(summary.collection.notRequired).toBe(1)
+    expect(summary.fulfillmentComplete).toBe(false)
   })
 
   it("slot manifest composite schema accepts a full serialized manifest", () => {
@@ -197,12 +226,14 @@ describe("booking-extras admin contract", () => {
         extras: [manifestExtra],
         travelers: [manifestTraveler],
         selections: [manifestSelectionRow],
+        summaries: [manifestSummaryRow],
       }),
     )
     expect(parsed.slot.id).toBe("avs_1")
     expect(parsed.extras).toHaveLength(1)
     expect(parsed.travelers[0]?.fullName).toBe("Ada Lovelace")
     expect(parsed.selections[0]?.productExtraId).toBe("pex_1")
+    expect(parsed.summaries[0]?.selectedTravelerCount).toBe(1)
   })
 
   it("wraps booking-extra rows in the canonical listResponseSchema envelope", () => {

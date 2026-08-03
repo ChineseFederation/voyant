@@ -31,6 +31,79 @@ describe.skipIf(!DB_AVAILABLE)("Slot extras manifest routes", () => {
       collectionStatus: "pending",
       source: "empty",
     })
+    expect(data.summaries).toHaveLength(1)
+    expect(data.summaries[0]).toMatchObject({
+      productExtraId: extra.id,
+      name: "Bosfor cruise",
+      collectionMode: "cash_on_trip",
+      selectionType: "optional",
+      eligibleTravelerCount: 1,
+      selectedTravelerCount: 0,
+      totalQuantity: 0,
+      fulfilledTravelerCount: 0,
+      outstandingCollectionCount: 0,
+      fulfillmentComplete: false,
+    })
+  })
+
+  it("aggregates quantity, collection and fulfillment state once travelers take the extra", async () => {
+    const product = await ctx.seedProduct()
+    const slot = await ctx.seedAvailabilitySlot(product.id)
+    const { booking, traveler } = await ctx.seedBookingTravelerOnSlot(slot.id)
+    const extra = await ctx.seedProductExtra({
+      productId: product.id,
+      name: "Optional lunch",
+      collectionMode: "cash_on_trip",
+    })
+
+    await ctx.request(`/slot-manifests/${slot.id}/selections`, {
+      method: "PATCH",
+      ...json({
+        bookingId: booking.id,
+        travelerId: traveler.id,
+        productExtraId: extra.id,
+        status: "selected",
+        collectionCurrency: "USD",
+        collectionAmountCents: 1_500,
+      }),
+    })
+
+    const selected = await (
+      await ctx.request(`/slot-manifests/${slot.id}`, { method: "GET" })
+    ).json()
+    expect(selected.data.summaries[0]).toMatchObject({
+      selectedTravelerCount: 1,
+      totalQuantity: 1,
+      outstandingCollectionCount: 1,
+      collectionCurrency: "USD",
+      collectionAmountCents: 1_500,
+      fulfillmentComplete: false,
+    })
+
+    // Collect the cash and mark the traveler served — the rollup closes out.
+    await ctx.request(`/slot-manifests/${slot.id}/selections`, {
+      method: "PATCH",
+      ...json({
+        bookingId: booking.id,
+        travelerId: traveler.id,
+        productExtraId: extra.id,
+        status: "fulfilled",
+        collectionStatus: "collected",
+        collectionCurrency: "USD",
+        collectionAmountCents: 1_500,
+      }),
+    })
+
+    const fulfilled = await (
+      await ctx.request(`/slot-manifests/${slot.id}`, { method: "GET" })
+    ).json()
+    expect(fulfilled.data.summaries[0]).toMatchObject({
+      selectedTravelerCount: 1,
+      fulfilledTravelerCount: 1,
+      outstandingCollectionCount: 0,
+      fulfillmentComplete: true,
+    })
+    expect(fulfilled.data.summaries[0].collection).toMatchObject({ collected: 1, pending: 0 })
   })
 
   it("updates a cash-on-trip selection without requiring a booking item", async () => {

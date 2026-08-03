@@ -19,7 +19,7 @@ import type { SourceAdapterRequestScope } from "./booking-forwarding.js"
  * adapters validate it against `criteriaVersion` before searching.
  */
 export interface AvailabilitySearchRequest {
-  /** Vertical being searched (e.g. "accommodations", "extras", "flights"). */
+  /** Vertical being searched (e.g. "accommodations", "products", "flights"). */
   vertical: string
   /**
    * Vertical-specific search criteria. Free-form, but adapters recognize

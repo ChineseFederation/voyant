@@ -8,6 +8,34 @@
 
 import type { FieldPolicyRegistry, Visibility } from "../contract.js"
 
+/**
+ * Verticals that exist as catalog-plane field policies purely so their parent
+ * can freeze a provenance/booking snapshot — never as independently sellable
+ * inventory.
+ *
+ * An Extra is lifecycle-dependent on the Product Booking that carries it: it is
+ * authored on the Product Plan / Product Option, selected during Booking, and
+ * fulfilled on the Departure. It is therefore never indexed, never browsable,
+ * and never returned as a standalone search result. An addition that must be
+ * independently confirmed, cancelled, taxed, fulfilled, or supported is a
+ * Product / Component Booking under a Trip Envelope, not an Extra.
+ *
+ * Keyed by vertical, valued by the vertical that owns and sells it.
+ */
+export const PRODUCT_OWNED_VERTICALS: Readonly<Record<string, string>> = Object.freeze({
+  extras: "products",
+})
+
+/** True when the vertical is owned by a parent vertical and never sold on its own. */
+export function isProductOwnedVertical(vertical: string): boolean {
+  return Object.hasOwn(PRODUCT_OWNED_VERTICALS, vertical)
+}
+
+/** The vertical that owns and sells a product-owned vertical, if any. */
+export function owningVerticalFor(vertical: string): string | undefined {
+  return PRODUCT_OWNED_VERTICALS[vertical]
+}
+
 /** Identifies a single variant slice of an indexer collection. */
 export interface IndexerSlice {
   vertical: string

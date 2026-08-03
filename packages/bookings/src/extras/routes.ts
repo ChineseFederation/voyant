@@ -195,6 +195,37 @@ const manifestSelectionSchema = z.object({
   // to `string`; keep the wire schema permissive so the handler's inferred
   // composite stays assignable to the declared response.
   source: z.string(),
+  quantity: z.number().int(),
+})
+
+// Departure-level rollup per Extra — what the guide has to carry, who it
+// belongs to, what is still uncollected, and whether fulfillment is done.
+const manifestSummarySchema = z.object({
+  productExtraId: z.string(),
+  name: z.string(),
+  code: z.string().nullable(),
+  supplierId: z.string().nullable(),
+  selectionType: z.string(),
+  pricingMode: z.string(),
+  pricedPerPerson: z.boolean(),
+  collectionMode: extraCollectionModeSchema,
+  eligibleTravelerCount: z.number().int(),
+  selectedTravelerCount: z.number().int(),
+  totalQuantity: z.number().int(),
+  fulfilledTravelerCount: z.number().int(),
+  cancelledTravelerCount: z.number().int(),
+  noShowTravelerCount: z.number().int(),
+  collection: z.object({
+    notRequired: z.number().int(),
+    pending: z.number().int(),
+    collected: z.number().int(),
+    waived: z.number().int(),
+    refunded: z.number().int(),
+  }),
+  collectionCurrency: z.string().nullable(),
+  collectionAmountCents: z.number().int().nullable(),
+  outstandingCollectionCount: z.number().int(),
+  fulfillmentComplete: z.boolean(),
 })
 
 const slotExtraManifestSchema = z.object({
@@ -202,6 +233,7 @@ const slotExtraManifestSchema = z.object({
   extras: z.array(manifestExtraSchema),
   travelers: z.array(manifestTravelerSchema),
   selections: z.array(manifestSelectionSchema),
+  summaries: z.array(manifestSummarySchema),
 })
 
 // --- helpers ---------------------------------------------------------------
@@ -462,4 +494,5 @@ export const __test__ = {
   manifestExtraSchema,
   manifestTravelerSchema,
   manifestSelectionSchema,
+  manifestSummarySchema,
 }

@@ -482,9 +482,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       productExtraId: string
       optionExtraConfigId: string
       amountCents: number
+      costAmountCents?: number | null
       pricingMode: "included" | "per_person" | "per_booking" | "on_request" | "unavailable"
       pricedPerPerson?: boolean
       active?: boolean
+      collectionMode?: "booking_total" | "cash_on_trip" | "external" | "included" | "none"
+      selectionType?: "optional" | "required" | "default_selected" | "unavailable"
+      supplierId?: string | null
+      code?: string | null
+      maxQuantity?: number | null
     }
   }) {
     const catalogId = `pcat_bc_${productSeq}`
@@ -521,10 +527,15 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
         input.extra.pricedPerPerson ?? input.extra.pricingMode === "per_person"
       await db.execute(sql`
         INSERT INTO product_extras (
-          id, product_id, name, pricing_mode, priced_per_person, collection_mode, active
+          id, product_id, name, code, supplier_id, selection_type, pricing_mode,
+          priced_per_person, collection_mode, max_quantity, show_on_slot_manifest, active
         ) VALUES (
           ${input.extra.productExtraId}, ${input.productId}, 'Airport transfer',
-          ${legacyPricingMode}, ${pricedPerPerson}, 'booking_total', true
+          ${input.extra.code ?? null}, ${input.extra.supplierId ?? null},
+          ${input.extra.selectionType ?? "optional"},
+          ${legacyPricingMode}, ${pricedPerPerson},
+          ${input.extra.collectionMode ?? "booking_total"},
+          ${input.extra.maxQuantity ?? null}, true, true
         )
       `)
       await db.execute(sql`
@@ -538,11 +549,12 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       await db.execute(sql`
         INSERT INTO extra_price_rules (
           id, option_price_rule_id, option_id, product_extra_id, option_extra_config_id,
-          pricing_mode, sell_amount_cents, active
+          pricing_mode, sell_amount_cents, cost_amount_cents, active
         ) VALUES (
           ${`expr_bc_${productSeq}`}, ${optionPriceRuleId}, ${input.optionId},
           ${input.extra.productExtraId}, ${input.extra.optionExtraConfigId},
-          ${input.extra.pricingMode}, ${input.extra.amountCents}, ${input.extra.active ?? true}
+          ${input.extra.pricingMode}, ${input.extra.amountCents},
+          ${input.extra.costAmountCents ?? null}, ${input.extra.active ?? true}
         )
       `)
     }
@@ -1788,6 +1800,116 @@ describe.skipIf(!DB_AVAILABLE)("createBooking", () => {
       unitSellAmountCents: 1000,
       totalSellAmountCents: 4000,
     })
+  })
+
+  it("freezes the sell, cost and fulfillment shape of a selected extra onto the booking item", async () => {
+    const { productId, optionId, unitId } = await seedProduct()
+    await seedPersistedPricing({
+      productId,
+      optionId,
+      unitId,
+      unitAmountCents: 25_000,
+      extra: {
+        productExtraId: `pex_lunch_${productSeq}`,
+        optionExtraConfigId: `oexc_lunch_snap_${productSeq}`,
+        amountCents: 1_500,
+        costAmountCents: 900,
+        pricingMode: "per_person",
+        collectionMode: "cash_on_trip",
+        selectionType: "optional",
+        supplierId: "sup_taverna",
+        code: "LUNCH",
+        maxQuantity: 4,
+      },
+    })
+    const productExtraId = `pex_lunch_${productSeq}`
+
+    const outcome = await createBooking(db, {
+      productId,
+      bookingNumber: nextBookingNumber(),
+      ...bookingParty(),
+      travelers: [
+        {
+          clientTravelerKey: "trav:lead",
+          firstName: "Alice",
+          lastName: "Lead",
+          email: "alice@example.com",
+          participantType: "traveler",
+          isPrimary: true,
+        },
+      ],
+      itemLines: [
+        {
+          clientLineKey: `unit:${unitId}`,
+          optionUnitId: unitId,
+          quantity: 1,
+          title: "Adult",
+          travelerKeys: ["trav:lead"],
+        },
+      ],
+      extraLines: [
+        {
+          clientLineKey: "extra:lunch",
+          productExtraId,
+          name: "Lunch",
+          quantity: 1,
+          sellCurrency: "EUR",
+          travelerKeys: ["trav:lead"],
+        },
+      ],
+    })
+
+    expect(outcome.status).toBe("ok")
+    if (outcome.status !== "ok") return
+
+    const [extraItem] = await db
+      .select({
+        sellCurrency: bookingItems.sellCurrency,
+        unitSellAmountCents: bookingItems.unitSellAmountCents,
+        totalSellAmountCents: bookingItems.totalSellAmountCents,
+        costCurrency: bookingItems.costCurrency,
+        unitCostAmountCents: bookingItems.unitCostAmountCents,
+        totalCostAmountCents: bookingItems.totalCostAmountCents,
+        metadata: bookingItems.metadata,
+      })
+      .from(bookingItems)
+      .where(
+        and(
+          eq(bookingItems.bookingId, outcome.result.booking.id),
+          eq(bookingItems.itemType, "extra"),
+        ),
+      )
+
+    // Cost travels with the sale, so margin on the Extra stays knowable.
+    expect(extraItem).toMatchObject({
+      sellCurrency: "EUR",
+      unitSellAmountCents: 1_500,
+      totalSellAmountCents: 1_500,
+      costCurrency: "EUR",
+      unitCostAmountCents: 900,
+      totalCostAmountCents: 900,
+    })
+
+    // …as does the fulfillment configuration in force at the moment of sale,
+    // so re-authoring the Product later cannot rewrite what was sold.
+    const snapshot = (extraItem?.metadata as Record<string, unknown> | null)?.extraSnapshot as
+      | Record<string, unknown>
+      | undefined
+    expect(snapshot).toMatchObject({
+      productExtraId,
+      name: "Airport transfer",
+      code: "LUNCH",
+      supplierId: "sup_taverna",
+      pricingMode: "per_person",
+      selectionType: "optional",
+      collectionMode: "cash_on_trip",
+      showOnSlotManifest: true,
+      maxQuantity: 4,
+      unitSellAmountCents: 1_500,
+      unitCostAmountCents: 900,
+    })
+    expect(typeof snapshot?.extraPriceRuleId).toBe("string")
+    expect(typeof snapshot?.capturedAt).toBe("string")
   })
 
   it("links item and extra lines to reordered travelers through stable keys", async () => {

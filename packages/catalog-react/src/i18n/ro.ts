@@ -7,10 +7,17 @@ export const catalogUiRo = {
     searchPlaceholder: "Cauta in catalog...",
     tabs: {
       products: "Produse",
-      extras: "Extra",
       cruises: "Croaziere",
       charters: "Chartere",
       accommodations: "Cazari",
+    },
+    retiredVertical: {
+      title: "Serviciile extra nu se mai cauta separat",
+      description:
+        "Un serviciu extra - un pranz optional, un bilet la o atractie - apartine produsului care il vinde. Se configureaza in planul si optiunile produsului, se alege la crearea rezervarii de produs si se onoreaza pe plecare.",
+      guidance:
+        "Deschide produsul pe care il vinzi, apoi foloseste optiunile lui ca sa adaugi sau sa pui pret serviciului extra. Daca adaosul trebuie confirmat, anulat, taxat, onorat sau sustinut separat, vinde-l ca produs propriu sau ca rezervare de componenta in aceeasi calatorie, nu ca serviciu extra.",
+      action: "Mergi la produse",
     },
     actions: {
       bookThis: "Rezerva",
@@ -25,9 +32,6 @@ export const catalogUiRo = {
       bookingMode: "Mod rezervare",
       pax: "Calatori",
       price: "Pret",
-      selection: "Selectie",
-      pricing: "Preturi",
-      defaultQuantity: "Cant. implicita",
       type: "Tip",
       duration: "Durata",
       days: "Zile",
@@ -61,11 +65,6 @@ export const catalogUiRo = {
       pax: "Calatori",
       any: "Oricare",
       active: "Activ",
-      selection: "Selectie",
-      pricingMode: "Mod pret",
-      perPerson: "Per persoana",
-      minQuantity: "Cant. min",
-      maxQuantity: "Cant. max",
       ship: "Nava",
       embark: "Imbarcare",
       disembark: "Debarcare",
@@ -84,7 +83,6 @@ export const catalogUiRo = {
     },
     fallbacks: {
       productName: "Produs fara nume",
-      extraName: "Extra fara nume",
       cruiseName: "Croaziera fara nume",
       charterName: "Charter fara nume",
       roomName: "Camera fara nume",

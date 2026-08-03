@@ -1564,6 +1564,11 @@ async function reconcileBookingCreatePricing(
 
   let extrasCatalogTotal = 0
   const resolvedExtraOptionIds = new Map<string, string>()
+  // Durable per-extra record captured at selection time. Written onto the
+  // booking item once the pricing currency is known, so a later edit to the
+  // Product's Extra can never rewrite what the traveler actually bought.
+  const extraSnapshots = new Map<string, Record<string, unknown>>()
+  const extraCostLines = new Map<string, { unit: number; total: number }>()
   for (const item of extraItems) {
     const metadata = (item.metadata ?? {}) as Record<string, unknown>
     const productExtraId =
@@ -1649,6 +1654,39 @@ async function reconcileBookingCreatePricing(
       : unitAmount * chargeQuantity
     const persistedUnitAmount = Math.floor(total / quantity)
     pricedLines.set(item.id, { unit: persistedUnitAmount, total })
+    const costTotal =
+      extra.costAmountCents == null || ["included", "free", "on_request"].includes(pricingMode)
+        ? null
+        : extra.costAmountCents * chargeQuantity
+    if (costTotal != null) {
+      extraCostLines.set(item.id, { unit: Math.floor(costTotal / quantity), total: costTotal })
+    }
+    extraSnapshots.set(item.id, {
+      productExtraId,
+      optionExtraConfigId: extra.optionExtraConfigId,
+      extraPriceRuleId: extra.extraPriceRuleId,
+      optionPriceRuleId: resolvedExtra
+        ? (persistedPricingByOption.get(resolvedExtra.optionId)?.ruleId ?? null)
+        : null,
+      name: extra.productExtraName,
+      code: extra.productExtraCode,
+      supplierId: extra.supplierId,
+      // Commercial shape as sold.
+      pricingMode,
+      pricedPerPerson: extra.pricedPerPerson,
+      quantity,
+      chargeQuantity,
+      unitSellAmountCents: extra.sellAmountCents,
+      unitCostAmountCents: extra.costAmountCents,
+      // Fulfillment shape as configured when it was sold.
+      selectionType: extra.selectionType,
+      collectionMode: extra.collectionMode,
+      showOnSlotManifest: extra.showOnSlotManifest,
+      minQuantity: extra.minQuantity,
+      maxQuantity: extra.maxQuantity,
+      defaultQuantity: extra.defaultQuantity,
+      capturedAt: new Date().toISOString(),
+    })
     if (quantity !== item.quantity) {
       await tx
         .update(bookingItems)
@@ -1697,6 +1735,8 @@ async function reconcileBookingCreatePricing(
       ?.currencyCode ?? booking.sellCurrency
   for (const item of items) {
     const price = pricedLines.get(item.id) ?? { unit: 0, total: 0 }
+    const cost = extraCostLines.get(item.id)
+    const snapshot = extraSnapshots.get(item.id)
     await tx
       .update(bookingItems)
       .set({
@@ -1704,6 +1744,24 @@ async function reconcileBookingCreatePricing(
         sellCurrency: pricingCurrency,
         unitSellAmountCents: price.unit,
         totalSellAmountCents: price.total,
+        // Cost travels with the sale so margin on an Extra is knowable later
+        // even after the Product's price rules move on. `costCurrency` is only
+        // set alongside an amount — the column pair must stay consistent.
+        ...(cost
+          ? {
+              costCurrency: pricingCurrency,
+              unitCostAmountCents: cost.unit,
+              totalCostAmountCents: cost.total,
+            }
+          : {}),
+        ...(snapshot
+          ? {
+              metadata: {
+                ...((item.metadata ?? {}) as Record<string, unknown>),
+                extraSnapshot: snapshot,
+              },
+            }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(bookingItems.id, item.id))
@@ -2172,12 +2230,40 @@ async function loadPersistedExtraPricing(
     pricingMode: string
     pricedPerPerson: boolean
     sellAmountCents: number | null
+    costAmountCents: number | null
+    extraPriceRuleId: string
+    optionExtraConfigId: string | null
+    productExtraName: string
+    productExtraCode: string | null
+    supplierId: string | null
+    selectionType: string
+    collectionMode: string
+    showOnSlotManifest: boolean
+    minQuantity: number | null
+    maxQuantity: number | null
+    defaultQuantity: number | null
   }>(
+    // Selects the *whole* commercial + fulfillment shape in force right now, not
+    // just the sell price: the booking has to keep a durable record of what it
+    // sold, what it costs, and how the Extra is meant to be collected and
+    // fulfilled, because all of those can be re-authored on the Product later.
     await tx.execute(sql`
       SELECT
         coalesce(epr.pricing_mode::text, oec.pricing_mode::text, pe.pricing_mode::text) AS "pricingMode",
         coalesce(oec.priced_per_person, pe.priced_per_person, false) AS "pricedPerPerson",
-        epr.sell_amount_cents AS "sellAmountCents"
+        epr.sell_amount_cents AS "sellAmountCents",
+        epr.cost_amount_cents AS "costAmountCents",
+        epr.id AS "extraPriceRuleId",
+        oec.id AS "optionExtraConfigId",
+        pe.name AS "productExtraName",
+        pe.code AS "productExtraCode",
+        pe.supplier_id AS "supplierId",
+        coalesce(oec.selection_type::text, pe.selection_type::text) AS "selectionType",
+        pe.collection_mode::text AS "collectionMode",
+        pe.show_on_slot_manifest AS "showOnSlotManifest",
+        coalesce(oec.min_quantity, pe.min_quantity) AS "minQuantity",
+        coalesce(oec.max_quantity, pe.max_quantity) AS "maxQuantity",
+        coalesce(oec.default_quantity, pe.default_quantity) AS "defaultQuantity"
       FROM product_extras pe
       JOIN extra_price_rules epr
         ON epr.active = true

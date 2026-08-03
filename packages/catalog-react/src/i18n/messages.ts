@@ -5,10 +5,19 @@ export type CatalogUiMessages = {
     searchPlaceholder: string
     tabs: {
       products: string
-      extras: string
       cruises: string
       charters: string
       accommodations: string
+    }
+    /**
+     * Compatibility copy for a retired standalone vertical reached through an
+     * old deep link. `{vertical}` / `{owner}` are interpolated.
+     */
+    retiredVertical: {
+      title: string
+      description: string
+      guidance: string
+      action: string
     }
     actions: {
       bookThis: string
@@ -23,9 +32,6 @@ export type CatalogUiMessages = {
       | "bookingMode"
       | "pax"
       | "price"
-      | "selection"
-      | "pricing"
-      | "defaultQuantity"
       | "type"
       | "duration"
       | "days"
@@ -60,11 +66,6 @@ export type CatalogUiMessages = {
       | "pax"
       | "any"
       | "active"
-      | "selection"
-      | "pricingMode"
-      | "perPerson"
-      | "minQuantity"
-      | "maxQuantity"
       | "ship"
       | "embark"
       | "disembark"
@@ -84,7 +85,6 @@ export type CatalogUiMessages = {
     >
     fallbacks: {
       productName: string
-      extraName: string
       cruiseName: string
       charterName: string
       roomName: string

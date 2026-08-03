@@ -18,7 +18,6 @@
  */
 
 import {
-  buildIndexerDocument,
   buildSnapshotInputFromView,
   type CaptureSnapshotInput,
   createFieldPolicyRegistry,
@@ -34,11 +33,10 @@ import {
   resolveEntityView,
 } from "@voyant-travel/catalog"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import { and, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 
 import { extrasCatalogPolicy } from "./catalog-policy.js"
 import { productExtras } from "./schema.js"
-import { EXTRAS_CONTENT_MARKET_ANY, extrasSourcedContentTable } from "./schema-sourced-content.js"
 
 let _registry: FieldPolicyRegistry | undefined
 function getExtrasRegistry(): FieldPolicyRegistry {
@@ -171,87 +169,6 @@ export async function buildExtraSnapshotInput(
     sourceRef: context.sourceRef,
     pricingBasis: context.pricingBasis,
   })
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Indexer document emission
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Note: per architecture §3.3.1, extras are a partial-adoption vertical.
- * Most fields remain snapshot-oriented, but deployments may opt extras into
- * the index for ops-side keyword search and thumbnail rendering.
- */
-export function createExtraDocumentEmitter(context: {
-  sellerOperatorId: string
-  sourceKind?: string
-  sourceRef?: string
-}): DocumentEmitter<typeof productExtras.$inferSelect> {
-  const registry = getExtrasRegistry()
-  return {
-    vertical: "extras",
-    emit(source, slice) {
-      const projection = productExtraRowToProjection(source, {
-        sellerOperatorId: context.sellerOperatorId,
-        sourceKind: context.sourceKind,
-        sourceRef: context.sourceRef,
-      })
-      return buildIndexerDocument(registry, projection, slice, source.id)
-    },
-  }
-}
-
-export function createExtraDocumentBuilder(
-  db: AnyDrizzleDb,
-  context: { sellerOperatorId: string; sourceKind?: string; sourceRef?: string },
-): DocumentBuilder {
-  const registry = getExtrasRegistry()
-  return async (entityId: string, slice: IndexerSlice): Promise<IndexerDocument | null> => {
-    const rows = await db
-      .select()
-      .from(productExtras)
-      .where(eq(productExtras.id, entityId))
-      .limit(1)
-    const row = rows[0]
-    if (!row) return null
-    const projection = new Map(
-      productExtraRowToProjection(row, {
-        sellerOperatorId: context.sellerOperatorId,
-        sourceKind: context.sourceKind,
-        sourceRef: context.sourceRef,
-      }),
-    )
-    const sourcedThumbnailUrl = await fetchSourcedContentThumbnailUrl(db, entityId, slice)
-    if (sourcedThumbnailUrl) {
-      projection.set("thumbnailUrl", sourcedThumbnailUrl)
-    }
-    return buildIndexerDocument(registry, projection, slice, entityId)
-  }
-}
-
-async function fetchSourcedContentThumbnailUrl(
-  db: AnyDrizzleDb,
-  entityId: string,
-  slice: IndexerSlice,
-): Promise<string | null> {
-  const rows = await db
-    .select({
-      market: extrasSourcedContentTable.market,
-      payload: extrasSourcedContentTable.payload,
-    })
-    .from(extrasSourcedContentTable)
-    .where(
-      and(
-        eq(extrasSourcedContentTable.entity_id, entityId),
-        eq(extrasSourcedContentTable.locale, slice.locale),
-      ),
-    )
-
-  const row =
-    rows.find((candidate) => candidate.market === slice.market) ??
-    rows.find((candidate) => candidate.market === EXTRAS_CONTENT_MARKET_ANY) ??
-    rows[0]
-  return pickThumbnailUrl(row?.payload)
 }
 
 function pickThumbnailUrl(value: unknown): string | null {

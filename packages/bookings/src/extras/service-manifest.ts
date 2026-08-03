@@ -46,6 +46,85 @@ function metadataProductExtraId(metadata: Record<string, unknown> | null | undef
   return typeof metadata?.productExtraId === "string" ? metadata.productExtraId : null
 }
 
+/** One row of the per-traveler selection matrix, as projected by the manifest. */
+type SlotExtraSelectionRow = {
+  productExtraId: string
+  status: string
+  selected: boolean
+  quantity: number
+  collectionStatus: string
+  collectionCurrency: string | null
+  collectionAmountCents: number | null
+}
+
+/**
+ * Departure-level rollup for each Extra offered on the slot: how many units the
+ * guide has to carry, who they belong to, what still has to be collected, and
+ * whether fulfillment is finished.
+ *
+ * Kept derived rather than stored — the selection matrix is already the source
+ * of truth and a stored counter would only drift away from it.
+ */
+export function summarizeSlotExtras(
+  extras: ReadonlyArray<typeof productExtrasRef.$inferSelect>,
+  eligibleTravelerCount: number,
+  selections: ReadonlyArray<SlotExtraSelectionRow>,
+) {
+  return extras.map((extra) => {
+    const rows = selections.filter((selection) => selection.productExtraId === extra.id)
+    const selectedRows = rows.filter((selection) => selection.selected)
+    const currencies = new Set(
+      selectedRows.flatMap((selection) =>
+        selection.collectionCurrency ? [selection.collectionCurrency] : [],
+      ),
+    )
+    const countStatus = (status: string) =>
+      rows.filter((selection) => selection.status === status).length
+    const countCollection = (status: string) =>
+      selectedRows.filter((selection) => selection.collectionStatus === status).length
+    const pendingCollectionCount = countCollection("pending")
+    const fulfilledTravelerCount = countStatus("fulfilled")
+    // Only a single agreed currency can be summed; anything else has to stay
+    // null so a caller cannot add euros to lei.
+    const sharedCurrency = currencies.size === 1 ? ([...currencies][0] ?? null) : null
+
+    return {
+      productExtraId: extra.id,
+      name: extra.name,
+      code: extra.code,
+      supplierId: extra.supplierId,
+      // Applicability as configured on the Product / Option, carried through so
+      // the manifest explains *why* a traveler is or isn't on the list.
+      selectionType: extra.selectionType,
+      pricingMode: extra.pricingMode,
+      pricedPerPerson: extra.pricedPerPerson,
+      collectionMode: extra.collectionMode,
+      eligibleTravelerCount,
+      selectedTravelerCount: selectedRows.length,
+      totalQuantity: selectedRows.reduce((sum, selection) => sum + selection.quantity, 0),
+      fulfilledTravelerCount,
+      cancelledTravelerCount: countStatus("cancelled"),
+      noShowTravelerCount: countStatus("no_show"),
+      collection: {
+        notRequired: countCollection("not_required"),
+        pending: pendingCollectionCount,
+        collected: countCollection("collected"),
+        waived: countCollection("waived"),
+        refunded: countCollection("refunded"),
+      },
+      /** Null when selected travelers disagree on currency — the caller must not sum across them. */
+      collectionCurrency: sharedCurrency,
+      collectionAmountCents: sharedCurrency
+        ? selectedRows.reduce((sum, selection) => sum + (selection.collectionAmountCents ?? 0), 0)
+        : null,
+      outstandingCollectionCount: pendingCollectionCount,
+      /** True once every selected traveler has been marked fulfilled. */
+      fulfillmentComplete:
+        selectedRows.length > 0 && fulfilledTravelerCount === selectedRows.length,
+    }
+  })
+}
+
 export const bookingsExtrasManifestService = {
   async getSlotExtraManifest(
     db: PostgresJsDatabase,
@@ -180,6 +259,40 @@ export const bookingsExtrasManifestService = {
       ]),
     )
 
+    const selections = travelers.flatMap((traveler) =>
+      extras.map((extra) => {
+        const key = selectionKey(traveler.id, extra.id)
+        const persisted = persistedByKey.get(key)
+        const itemSelection = itemSelectionsByKey.get(key)
+        const status = persisted?.status ?? (itemSelection ? "selected" : "cancelled")
+        const collectionMode = persisted?.collectionMode ?? extra.collectionMode
+        const selected = status === "selected" || status === "fulfilled"
+        return {
+          bookingId: traveler.bookingId,
+          travelerId: traveler.id,
+          productExtraId: extra.id,
+          optionExtraConfigId: persisted?.optionExtraConfigId ?? null,
+          bookingItemId: persisted?.bookingItemId ?? itemSelection?.bookingItemId ?? null,
+          status,
+          selected,
+          // The quantity the traveler actually bought. Absent a priced booking
+          // item, a selected extra still counts as one unit so the guide's
+          // headcount is never short.
+          quantity: selected ? (itemSelection?.quantity ?? 1) : 0,
+          collectionMode,
+          collectionStatus: persisted?.collectionStatus ?? defaultCollectionStatus(collectionMode),
+          collectionCurrency: persisted?.collectionCurrency ?? itemSelection?.sellCurrency ?? null,
+          collectionAmountCents:
+            persisted?.collectionAmountCents ?? itemSelection?.totalSellAmountCents ?? null,
+          collectedAt: persisted?.collectedAt ?? null,
+          collectedBy: persisted?.collectedBy ?? null,
+          notes: persisted?.notes ?? null,
+          metadata: persisted?.metadata ?? null,
+          source: persisted ? "selection" : itemSelection ? "booking_item" : "empty",
+        }
+      }),
+    )
+
     return {
       status: "ok" as const,
       data: {
@@ -189,36 +302,8 @@ export const bookingsExtrasManifestService = {
           ...traveler,
           fullName: fullName(traveler.firstName, traveler.lastName),
         })),
-        selections: travelers.flatMap((traveler) =>
-          extras.map((extra) => {
-            const key = selectionKey(traveler.id, extra.id)
-            const persisted = persistedByKey.get(key)
-            const itemSelection = itemSelectionsByKey.get(key)
-            const status = persisted?.status ?? (itemSelection ? "selected" : "cancelled")
-            const collectionMode = persisted?.collectionMode ?? extra.collectionMode
-            return {
-              bookingId: traveler.bookingId,
-              travelerId: traveler.id,
-              productExtraId: extra.id,
-              optionExtraConfigId: persisted?.optionExtraConfigId ?? null,
-              bookingItemId: persisted?.bookingItemId ?? itemSelection?.bookingItemId ?? null,
-              status,
-              selected: status === "selected" || status === "fulfilled",
-              collectionMode,
-              collectionStatus:
-                persisted?.collectionStatus ?? defaultCollectionStatus(collectionMode),
-              collectionCurrency:
-                persisted?.collectionCurrency ?? itemSelection?.sellCurrency ?? null,
-              collectionAmountCents:
-                persisted?.collectionAmountCents ?? itemSelection?.totalSellAmountCents ?? null,
-              collectedAt: persisted?.collectedAt ?? null,
-              collectedBy: persisted?.collectedBy ?? null,
-              notes: persisted?.notes ?? null,
-              metadata: persisted?.metadata ?? null,
-              source: persisted ? "selection" : itemSelection ? "booking_item" : "empty",
-            }
-          }),
-        ),
+        selections,
+        summaries: summarizeSlotExtras(extras, travelers.length, selections),
       },
     }
   },

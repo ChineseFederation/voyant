@@ -92,6 +92,49 @@ describe("createCatalogSearchRoutes", () => {
     await expect(response.json()).resolves.toEqual({ error: "vertical is required" })
   })
 
+  it.each([
+    "admin",
+    "public",
+  ] as const)("refuses a product-owned vertical on the %s surface without touching the indexer", async (surface) => {
+    const executeSearch = vi.fn(
+      async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,
+    )
+    const app = new Hono()
+    app.onError(handleApiError)
+    if (surface === "public") {
+      app.use("*", async (c, next) => {
+        c.set("storefrontChannel" as never, activeStorefrontChannel as never)
+        await next()
+      })
+    }
+    app.route(
+      "/v1/admin/catalog",
+      createCatalogSearchRoutes({
+        surface,
+        resolveRuntime: () => ({
+          indexer: createIndexer(),
+          defaultScope: { locale: "en-GB", audience: "staff", market: "default" },
+        }),
+        executeSearch,
+      }),
+    )
+
+    const response = await app.request("/v1/admin/catalog/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vertical: "extras", query: "lunch" }),
+    })
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      reason: "not_independently_sellable",
+      vertical: "extras",
+      ownedBy: "products",
+    })
+    // An Extra is never searched for; the request must not reach the engine.
+    expect(executeSearch).not.toHaveBeenCalled()
+  })
+
   it("returns shared validation errors for invalid search bodies", async () => {
     const executeSearch = vi.fn(
       async (_input: CatalogSearchExecuteInput): Promise<SearchResults> => emptyResults,

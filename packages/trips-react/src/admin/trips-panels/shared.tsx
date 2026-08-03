@@ -30,7 +30,12 @@ import {
 } from "lucide-react"
 import type { ComponentType, ReactNode } from "react"
 
-export type CatalogVertical = "products" | "accommodations" | "cruises" | "extras" | "flights"
+/**
+ * Verticals a Trip component can be composed from. `extras` is deliberately
+ * absent — an Extra is Product-owned and selected inside a Product Booking, so
+ * it is never a component the composer can pick on its own.
+ */
+export type CatalogVertical = "products" | "accommodations" | "cruises" | "flights"
 export type PendingVerticalKind = "product" | "stay" | "flight" | "cruise" | "manual"
 
 export type PanelsMessages = ReturnType<typeof useAdminMessages>["trips"]["adminComposer"]["panels"]

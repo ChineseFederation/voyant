@@ -83,6 +83,39 @@ export const slotExtraManifestSelectionSchema = z.object({
   notes: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()).nullable(),
   source: z.enum(["selection", "booking_item", "empty"]),
+  quantity: z.number().int(),
+})
+
+/**
+ * Departure-level rollup per Extra. Derived server-side from the selection
+ * matrix so the operator sees one number per Extra instead of counting cells.
+ */
+export const slotExtraManifestSummarySchema = z.object({
+  productExtraId: z.string(),
+  name: z.string(),
+  code: z.string().nullable(),
+  supplierId: z.string().nullable(),
+  selectionType: z.string(),
+  pricingMode: z.string(),
+  pricedPerPerson: z.boolean(),
+  collectionMode: z.enum(["booking_total", "cash_on_trip", "external", "included", "none"]),
+  eligibleTravelerCount: z.number().int(),
+  selectedTravelerCount: z.number().int(),
+  totalQuantity: z.number().int(),
+  fulfilledTravelerCount: z.number().int(),
+  cancelledTravelerCount: z.number().int(),
+  noShowTravelerCount: z.number().int(),
+  collection: z.object({
+    notRequired: z.number().int(),
+    pending: z.number().int(),
+    collected: z.number().int(),
+    waived: z.number().int(),
+    refunded: z.number().int(),
+  }),
+  collectionCurrency: z.string().nullable(),
+  collectionAmountCents: z.number().int().nullable(),
+  outstandingCollectionCount: z.number().int(),
+  fulfillmentComplete: z.boolean(),
 })
 
 export const slotExtraManifestSchema = z.object({
@@ -90,6 +123,7 @@ export const slotExtraManifestSchema = z.object({
   extras: z.array(productExtraRecordSchema),
   travelers: z.array(slotExtraManifestTravelerSchema),
   selections: z.array(slotExtraManifestSelectionSchema),
+  summaries: z.array(slotExtraManifestSummarySchema).default([]),
 })
 
 export const slotExtraManifestResponse = singleEnvelope(slotExtraManifestSchema)
@@ -98,3 +132,4 @@ export const slotExtraManifestMutationResponse = singleEnvelope(z.unknown())
 export type SlotExtraManifest = z.infer<typeof slotExtraManifestSchema>
 export type SlotExtraManifestTraveler = z.infer<typeof slotExtraManifestTravelerSchema>
 export type SlotExtraManifestSelection = z.infer<typeof slotExtraManifestSelectionSchema>
+export type SlotExtraManifestSummary = z.infer<typeof slotExtraManifestSummarySchema>

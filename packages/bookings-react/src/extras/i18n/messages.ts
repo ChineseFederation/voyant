@@ -37,5 +37,21 @@ export type ExtrasUiMessages = {
     selectAll: string
     clearAll: string
     loading: string
+    /** Departure-level rollup strip. `{n}`-style placeholders are interpolated. */
+    summary: {
+      heading: string
+      quantity: string
+      travelers: string
+      applicability: string
+      toCollect: string
+      collectionSettled: string
+      fulfilled: string
+      fulfillmentComplete: string
+      nobodySelected: string
+      selectionTypeLabels: Record<
+        "optional" | "required" | "default_selected" | "unavailable",
+        string
+      >
+    }
   }
 }

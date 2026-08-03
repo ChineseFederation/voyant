@@ -7,10 +7,17 @@ export const catalogUiEn = {
     searchPlaceholder: "Search the catalog...",
     tabs: {
       products: "Products",
-      extras: "Extras",
       cruises: "Cruises",
       charters: "Charters",
       accommodations: "Accommodations",
+    },
+    retiredVertical: {
+      title: "Extras are no longer browsed on their own",
+      description:
+        "An Extra — an optional lunch, an attraction ticket — belongs to the Product that sells it. It is configured on the Product's Plan and Options, chosen while the Product Booking is made, and fulfilled on the Departure.",
+      guidance:
+        "Open the Product you sell, then use its Options to add or price the Extra. If the addition has to be confirmed, cancelled, taxed, fulfilled or supported on its own, sell it as its own Product or Component Booking under the same Trip instead of as an Extra.",
+      action: "Go to Products",
     },
     actions: {
       bookThis: "Book this",
@@ -25,9 +32,6 @@ export const catalogUiEn = {
       bookingMode: "Booking mode",
       pax: "Travelers",
       price: "Price",
-      selection: "Selection",
-      pricing: "Pricing",
-      defaultQuantity: "Default qty",
       type: "Type",
       duration: "Duration",
       days: "Days",
@@ -61,11 +65,6 @@ export const catalogUiEn = {
       pax: "Travelers",
       any: "Any",
       active: "Active",
-      selection: "Selection",
-      pricingMode: "Pricing mode",
-      perPerson: "Per person",
-      minQuantity: "Min qty",
-      maxQuantity: "Max qty",
       ship: "Ship",
       embark: "Embark",
       disembark: "Disembark",
@@ -84,7 +83,6 @@ export const catalogUiEn = {
     },
     fallbacks: {
       productName: "Untitled product",
-      extraName: "Untitled extra",
       cruiseName: "Untitled cruise",
       charterName: "Untitled charter",
       roomName: "Untitled room",

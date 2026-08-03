@@ -51,5 +51,22 @@ export const extrasUiEn = {
     selectAll: "Select all",
     clearAll: "Clear all",
     loading: "Loading extras...",
+    summary: {
+      heading: "On this departure",
+      quantity: "{count} to carry",
+      travelers: "{selected} of {eligible} travelers",
+      applicability: "Applies: {selectionType}",
+      toCollect: "{count} still to collect",
+      collectionSettled: "Nothing left to collect",
+      fulfilled: "{fulfilled} of {selected} fulfilled",
+      fulfillmentComplete: "All fulfilled",
+      nobodySelected: "Nobody has taken this yet",
+      selectionTypeLabels: {
+        optional: "optional",
+        required: "required",
+        default_selected: "selected by default",
+        unavailable: "unavailable",
+      },
+    },
   },
 } satisfies ExtrasUiMessages

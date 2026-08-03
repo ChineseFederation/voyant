@@ -1,5 +1,6 @@
 "use client"
 
+import { formatMessage } from "@voyant-travel/i18n"
 import { Badge, Button } from "@voyant-travel/ui/components"
 import {
   Table,
@@ -15,6 +16,7 @@ import { useExtrasUiMessagesOrDefault } from "../i18n/index.js"
 import {
   type ProductExtraRecord,
   type SlotExtraManifestSelection,
+  type SlotExtraManifestSummary,
   type SlotExtraManifestTraveler,
   useSlotExtraManifest,
   useSlotExtraManifestMutation,
@@ -135,6 +137,7 @@ export function SlotExtrasManifestPanel({ slotId, className }: SlotExtrasManifes
         <h2 className="text-sm font-semibold">{messages.title}</h2>
         <Badge variant="outline">{manifest.extras.length}</Badge>
       </div>
+      <SlotExtrasSummary summaries={manifest.summaries} />
       <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
@@ -230,6 +233,84 @@ export function SlotExtrasManifestPanel({ slotId, className }: SlotExtrasManifes
       </div>
     </div>
   )
+}
+
+/**
+ * Departure rollup: one card per Extra with the numbers an operator acts on —
+ * how many units to carry, who they belong to, what is still uncollected and
+ * whether fulfillment is done. The per-traveler grid below stays the place to
+ * change any single cell.
+ */
+function SlotExtrasSummary({ summaries }: { summaries: SlotExtraManifestSummary[] }) {
+  const messages = useExtrasUiMessagesOrDefault().slotManifest
+  const summaryMessages = messages.summary
+  if (summaries.length === 0) return null
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {summaries.map((summary) => (
+        <div key={summary.productExtraId} className="rounded-md border p-3 text-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="font-medium">{summary.name}</div>
+            <Badge variant="outline">
+              {formatMessage(summaryMessages.quantity, { count: summary.totalQuantity })}
+            </Badge>
+          </div>
+          <dl className="mt-2 flex flex-col gap-1 text-muted-foreground text-xs">
+            <div>
+              {summary.selectedTravelerCount === 0
+                ? summaryMessages.nobodySelected
+                : formatMessage(summaryMessages.travelers, {
+                    selected: summary.selectedTravelerCount,
+                    eligible: summary.eligibleTravelerCount,
+                  })}
+            </div>
+            <div>
+              {formatMessage(summaryMessages.applicability, {
+                selectionType: selectionTypeLabel(
+                  summary.selectionType,
+                  summaryMessages.selectionTypeLabels,
+                ),
+              })}
+              {" · "}
+              {collectionModeLabel(summary.collectionMode, messages.collectionModeLabels)}
+            </div>
+            <div>
+              {summary.outstandingCollectionCount > 0
+                ? formatMessage(summaryMessages.toCollect, {
+                    count: summary.outstandingCollectionCount,
+                  })
+                : summaryMessages.collectionSettled}
+            </div>
+            <div>
+              {summary.fulfillmentComplete
+                ? summaryMessages.fulfillmentComplete
+                : formatMessage(summaryMessages.fulfilled, {
+                    fulfilled: summary.fulfilledTravelerCount,
+                    selected: summary.selectedTravelerCount,
+                  })}
+            </div>
+          </dl>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function selectionTypeLabel(
+  selectionType: string,
+  labels: Record<"optional" | "required" | "default_selected" | "unavailable", string>,
+) {
+  switch (selectionType) {
+    case "required":
+      return labels.required
+    case "default_selected":
+      return labels.default_selected
+    case "unavailable":
+      return labels.unavailable
+    default:
+      return labels.optional
+  }
 }
 
 function CollectionBadge({ selection }: { selection: SlotExtraManifestSelection }) {

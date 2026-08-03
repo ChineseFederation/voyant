@@ -1,5 +1,6 @@
 "use client"
 
+import { owningVerticalFor } from "@voyant-travel/catalog-contracts/indexer/contract"
 import { cn } from "@voyant-travel/ui/lib/utils"
 import type { ReactNode } from "react"
 import { useMemo } from "react"
@@ -26,8 +27,6 @@ import {
   makeCharterFilters,
   makeCruiseColumns,
   makeCruiseFilters,
-  makeExtraColumns,
-  makeExtraFilters,
   makeProductColumns,
   makeProductFilters,
 } from "./catalog-page-config.js"
@@ -37,6 +36,7 @@ import {
   type CatalogSearchTab,
   type CatalogSortOption,
 } from "./catalog-search-page.js"
+import { RetiredVerticalNotice } from "./retired-vertical-notice.js"
 
 export interface CatalogPageSearchState {
   tab?: string
@@ -241,18 +241,6 @@ export function CatalogPage({
         : undefined,
     },
     {
-      id: "extras",
-      label: messages.tabs.extras,
-      vertical: "extras",
-      columns: makeExtraColumns(formatSupplier, messages),
-      filterFields: makeExtraFilters(formatSupplier, messages),
-      detailFormatters: {
-        supplierId: supplierFormatter,
-        "source.kind": sourceKindFormatter,
-      },
-      onLoadDetail: detailLoaderFor("extras"),
-    },
-    {
       id: "cruises",
       label: messages.tabs.cruises,
       vertical: "cruises",
@@ -307,6 +295,24 @@ export function CatalogPage({
     ? tabsWithDetail.filter((tab) => tab.id === vertical || tab.vertical === vertical)
     : tabsWithDetail
   const activeTab = vertical ? visibleTabs[0]?.id : (search.tab ?? tabs[0]?.id)
+
+  // Old standalone deep links (`?tab=extras`, or a host routing `vertical="extras"`)
+  // must not silently fall back to Products — they get an explanation of where
+  // the Extra now lives instead.
+  const requestedVertical = vertical ?? search.tab
+  const retiredOwner = requestedVertical ? owningVerticalFor(requestedVertical) : undefined
+  if (requestedVertical && retiredOwner) {
+    return (
+      <div className={cn("mx-auto w-full max-w-screen-2xl", className)}>
+        <RetiredVerticalNotice
+          vertical={requestedVertical}
+          onGoToOwner={
+            vertical || !onTabChange ? undefined : () => onTabChange(retiredOwner ?? "products")
+          }
+        />
+      </div>
+    )
+  }
 
   return (
     <div className={cn("mx-auto w-full max-w-screen-2xl", className)}>

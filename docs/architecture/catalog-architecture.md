@@ -212,20 +212,42 @@ helpers. Phase 3 (Flights, see `catalog-flights-architecture.md`) lives as
 
 Vertical packages depend on `packages/catalog` for the contract types and the shared infrastructure interfaces. `packages/catalog` does not depend on any vertical module - it knows nothing about cruises, accommodation resale, or charters specifically.
 
-#### 3.3.1. Adoption nuance for extras
+#### 3.3.1. Extras are Product-owned, never a standalone vertical
 
-Extras represent booking add-ons (optional line items on a booked parent), not
-independently-sellable inventory. They are exposed through
-`@voyant-travel/inventory/extras` for operated authoring/catalog projection and
-`@voyant-travel/bookings/extras` for booking-time selections. Extras are a
-borderline case for the catalog contract:
+An Extra is a lifecycle-dependent child of the Product Booking that carries it,
+not independently-sellable inventory. It is authored on the Product's Plan and
+Options, selected while the Booking is made, and fulfilled on the Departure. It
+is exposed through `@voyant-travel/inventory/extras` for authoring and catalog
+projection, and `@voyant-travel/bookings/extras` for booking-time selection and
+the Departure manifest.
 
-- It does need provenance (extras can be sourced from upstream alongside their parent product).
-- It does need snapshot capture (a refund needs to know the extra was a $50 spa credit, not just "a line item").
-- It does **not** need its own search index projection — extras are discovered through the parent's surface, not via standalone catalog browse.
-- It does **not** need full editorial overlay infrastructure unless a real case appears.
+Its participation in the catalog plane is therefore deliberately partial:
 
-Adoption strategy: extras participate in the snapshot and provenance shapes; full editorial-overlay and indexer adoption is deferred until a concrete case demands it. This is consistent with the design law "do not introduce shared abstractions until they pay for themselves" (cf. [`cross-module-indexing-and-projection-policy.md`](./cross-module-indexing-and-projection-policy.md)).
+- It **does** need provenance (extras can be sourced from upstream alongside their parent product).
+- It **does** need snapshot capture (a refund needs to know the extra was a $50 spa credit, not just "a line item"), including the cost and fulfillment configuration in force at the moment of sale.
+- It **never** gets a search index projection. Extras are discovered through the parent's surface; there is no standalone catalog browse.
+- It **does not** need editorial overlay infrastructure.
+
+This is not "deferred until a concrete case demands it" — it is a rule. It is
+enforced structurally rather than by convention:
+
+- `PRODUCT_OWNED_VERTICALS` in `@voyant-travel/catalog-contracts/indexer/contract`
+  names the verticals that exist only so their parent can freeze a snapshot, and
+  maps each to the vertical that owns and sells it.
+- `extras` is absent from `DEFAULT_CATALOG_VERTICALS`, so no slice and no
+  collection is ever provisioned for it, and every extras field policy is
+  `reindex: "none"`.
+- The catalog search route refuses a product-owned vertical with
+  `400 { reason: "not_independently_sellable", ownedBy }` rather than returning
+  an empty result, so an old deep link can render a compatibility explanation
+  instead of looking broken.
+- `verify:extras-lifecycle` holds all of the above, and additionally refuses any
+  migration that would promote an existing Extra into a Product or a Component
+  Booking.
+
+The escalation rule belongs with the authoring UI as well as here: **an addition
+that must be independently confirmed, cancelled, taxed, fulfilled, or supported
+is a Product / Component Booking under a Trip Envelope, not an Extra.**
 
 #### 3.3.2. Product family recast (`product_types`)
 

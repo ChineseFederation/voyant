@@ -246,6 +246,11 @@ export const operatorAdminProductsMessagesEnOperations = {
     newTitle: "New extra",
     dialogDescription:
       "Define an extra that can be priced and selected for this product's options.",
+    ownershipGuidanceTitle: "Extras belong to this product",
+    ownershipGuidance:
+      "An extra is part of the booking for this product. It is priced on the product's options, chosen when the booking is made, and ticked off on the departure. It is never sold or searched for on its own.",
+    ownershipGuidanceEscalation:
+      "If the addition has to be confirmed, cancelled, taxed, fulfilled or supported separately from this product, sell it as its own product or component booking under the same trip instead of as an extra.",
     nameLabel: "Name",
     codeLabel: "Code",
     descriptionLabel: "Description",

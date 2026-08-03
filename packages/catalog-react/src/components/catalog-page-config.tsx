@@ -37,21 +37,6 @@ export function makeProductColumns(
   ]
 }
 
-export function makeExtraColumns(
-  formatSupplier: (id: string | number) => string,
-  messages: CatalogPageMessages,
-): ColumnDef<CatalogSearchHit, unknown>[] {
-  return [
-    nameColumn(messages.fallbacks.extraName, messages),
-    activeColumn(messages),
-    sourceColumn(messages),
-    lookupColumn("supplierId", messages.columns.supplier, formatSupplier, messages),
-    textColumn("selectionType", messages.columns.selection, messages),
-    textColumn("pricingMode", messages.columns.pricing, messages),
-    textColumn("defaultQuantity", messages.columns.defaultQuantity, messages),
-  ]
-}
-
 export function makeCruiseColumns(
   formatSupplier: (id: string | number) => string,
   messages: CatalogPageMessages,
@@ -170,38 +155,6 @@ export function makeProductFilters(
       kind: "range",
       field: "pax",
       label: messages.filters.pax,
-      minPlaceholder: "0",
-      maxPlaceholder: messages.filters.any,
-    },
-  ]
-}
-
-export function makeExtraFilters(
-  formatSupplier: (id: string | number) => string,
-  messages: CatalogPageMessages,
-): CatalogFilterField[] {
-  return [
-    { field: "active", label: messages.filters.active },
-    {
-      field: "source.kind",
-      label: messages.filters.source,
-      formatValue: (value) => formatSourceKind(value, messages),
-    },
-    { field: "supplierId", label: messages.filters.supplier, formatValue: formatSupplier },
-    { field: "selectionType", label: messages.filters.selection },
-    { field: "pricingMode", label: messages.filters.pricingMode },
-    { field: "pricedPerPerson", label: messages.filters.perPerson },
-    {
-      kind: "range",
-      field: "minQuantity",
-      label: messages.filters.minQuantity,
-      minPlaceholder: "0",
-      maxPlaceholder: messages.filters.any,
-    },
-    {
-      kind: "range",
-      field: "maxQuantity",
-      label: messages.filters.maxQuantity,
       minPlaceholder: "0",
       maxPlaceholder: messages.filters.any,
     },

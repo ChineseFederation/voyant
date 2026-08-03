@@ -1272,6 +1272,9 @@
                               },
                               "source": {
                                 "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer"
                               }
                             },
                             "required": [
@@ -1290,12 +1293,130 @@
                               "collectedBy",
                               "notes",
                               "metadata",
-                              "source"
+                              "source",
+                              "quantity"
+                            ]
+                          }
+                        },
+                        "summaries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "productExtraId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": ["string", "null"]
+                              },
+                              "supplierId": {
+                                "type": ["string", "null"]
+                              },
+                              "selectionType": {
+                                "type": "string"
+                              },
+                              "pricingMode": {
+                                "type": "string"
+                              },
+                              "pricedPerPerson": {
+                                "type": "boolean"
+                              },
+                              "collectionMode": {
+                                "type": "string",
+                                "enum": [
+                                  "booking_total",
+                                  "cash_on_trip",
+                                  "external",
+                                  "included",
+                                  "none"
+                                ]
+                              },
+                              "eligibleTravelerCount": {
+                                "type": "integer"
+                              },
+                              "selectedTravelerCount": {
+                                "type": "integer"
+                              },
+                              "totalQuantity": {
+                                "type": "integer"
+                              },
+                              "fulfilledTravelerCount": {
+                                "type": "integer"
+                              },
+                              "cancelledTravelerCount": {
+                                "type": "integer"
+                              },
+                              "noShowTravelerCount": {
+                                "type": "integer"
+                              },
+                              "collection": {
+                                "type": "object",
+                                "properties": {
+                                  "notRequired": {
+                                    "type": "integer"
+                                  },
+                                  "pending": {
+                                    "type": "integer"
+                                  },
+                                  "collected": {
+                                    "type": "integer"
+                                  },
+                                  "waived": {
+                                    "type": "integer"
+                                  },
+                                  "refunded": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "notRequired",
+                                  "pending",
+                                  "collected",
+                                  "waived",
+                                  "refunded"
+                                ]
+                              },
+                              "collectionCurrency": {
+                                "type": ["string", "null"]
+                              },
+                              "collectionAmountCents": {
+                                "type": ["integer", "null"]
+                              },
+                              "outstandingCollectionCount": {
+                                "type": "integer"
+                              },
+                              "fulfillmentComplete": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "productExtraId",
+                              "name",
+                              "code",
+                              "supplierId",
+                              "selectionType",
+                              "pricingMode",
+                              "pricedPerPerson",
+                              "collectionMode",
+                              "eligibleTravelerCount",
+                              "selectedTravelerCount",
+                              "totalQuantity",
+                              "fulfilledTravelerCount",
+                              "cancelledTravelerCount",
+                              "noShowTravelerCount",
+                              "collection",
+                              "collectionCurrency",
+                              "collectionAmountCents",
+                              "outstandingCollectionCount",
+                              "fulfillmentComplete"
                             ]
                           }
                         }
                       },
-                      "required": ["slot", "extras", "travelers", "selections"]
+                      "required": ["slot", "extras", "travelers", "selections", "summaries"]
                     }
                   },
                   "required": ["data"]

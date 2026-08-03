@@ -27,9 +27,16 @@ import {
 } from "./projection-runtime.js"
 import { createIndexerService, type DocumentBuilder } from "./services/indexer-service.js"
 
+/**
+ * Verticals the catalog plane indexes and browses.
+ *
+ * `extras` is deliberately absent: an Extra is a Product-owned,
+ * lifecycle-dependent definition discovered through its parent Product, so it
+ * gets no collection, no slice, and no search result of its own. See
+ * `PRODUCT_OWNED_VERTICALS` in `@voyant-travel/catalog-contracts/indexer/contract`.
+ */
 export const DEFAULT_CATALOG_VERTICALS = [
   "products",
-  "extras",
   "cruises",
   "charters",
   "accommodations",

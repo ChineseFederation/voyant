@@ -44,11 +44,14 @@ export {
   productExtrasRelations,
   type SelectExtrasSourcedContent,
 } from "./extras/schema.js"
+// `createExtraDocumentBuilder` / `createExtraDocumentEmitter` were removed:
+// an Extra is Product-owned and never independently indexed or searchable, so
+// there is no extras slice for a document to be written into. Snapshot and
+// provenance helpers stay — they are how the owning Product freezes what it
+// sold.
 export {
   buildExtraSnapshotInput,
   type CaptureSnapshotInput,
-  createExtraDocumentBuilder,
-  createExtraDocumentEmitter,
   type DocumentBuilder,
   type DocumentEmitter,
   getResolvedExtraById,

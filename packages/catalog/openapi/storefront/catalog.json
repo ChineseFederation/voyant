@@ -501,13 +501,23 @@
             }
           },
           "400": {
-            "description": "invalid_request \u2014 body failed validation, or `vertical` is missing",
+            "description": "invalid_request — body failed validation, `vertical` is missing, or `vertical` names a product-owned vertical that is never independently sellable",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "error": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "const": "not_independently_sellable"
+                    },
+                    "vertical": {
+                      "type": "string"
+                    },
+                    "ownedBy": {
                       "type": "string"
                     }
                   },
@@ -525,6 +535,16 @@
                   "properties": {
                     "error": {
                       "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "const": "not_independently_sellable"
+                    },
+                    "vertical": {
+                      "type": "string"
+                    },
+                    "ownedBy": {
+                      "type": "string"
                     }
                   },
                   "required": ["error"]
@@ -540,6 +560,16 @@
                   "type": "object",
                   "properties": {
                     "error": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "const": "not_independently_sellable"
+                    },
+                    "vertical": {
+                      "type": "string"
+                    },
+                    "ownedBy": {
                       "type": "string"
                     }
                   },
@@ -628,7 +658,7 @@
         },
         "responses": {
           "200": {
-            "description": "Checkout started \u2014 card redirect, bank-transfer, inquiry, or hold outcome",
+            "description": "Checkout started — card redirect, bank-transfer, inquiry, or hold outcome",
             "content": {
               "application/json": {
                 "schema": {

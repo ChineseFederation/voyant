@@ -245,6 +245,11 @@ export const operatorAdminProductsMessagesRoOperations = {
     newTitle: "Extra nou",
     dialogDescription:
       "Defineste un extra care poate fi tarifat si selectat pentru optiunile acestui produs.",
+    ownershipGuidanceTitle: "Serviciile extra aparțin acestui produs",
+    ownershipGuidance:
+      "Un extra face parte din rezervarea acestui produs. Se tarifează pe opțiunile produsului, se alege la crearea rezervării și se bifează pe plecare. Nu se vinde și nu se caută niciodată separat.",
+    ownershipGuidanceEscalation:
+      "Dacă adaosul trebuie confirmat, anulat, taxat, onorat sau susținut separat de acest produs, vinde-l ca produs propriu sau ca rezervare de componentă în aceeași călătorie, nu ca extra.",
     nameLabel: "Nume",
     codeLabel: "Cod",
     descriptionLabel: "Descriere",

@@ -116,6 +116,21 @@ export function getExtraPricingModeLabel(
   }
 }
 
+/**
+ * Product Plan / Options is the only authoring entry point for an Extra, so the
+ * rule about what may *not* be an Extra belongs here, in front of the operator
+ * who is about to create one — not in a doc nobody opens.
+ */
+export function ProductExtraOwnershipGuidance({ messages }: { messages: ExtraMessages }) {
+  return (
+    <div className="rounded-md border bg-muted/40 p-3 text-sm">
+      <div className="font-medium">{messages.ownershipGuidanceTitle}</div>
+      <p className="mt-1 text-muted-foreground text-xs">{messages.ownershipGuidance}</p>
+      <p className="mt-2 text-muted-foreground text-xs">{messages.ownershipGuidanceEscalation}</p>
+    </div>
+  )
+}
+
 export interface ProductExtraDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -178,6 +193,7 @@ export function ProductExtraDialog({
           <SheetDescription>{extraMessages.dialogDescription}</SheetDescription>
         </SheetHeader>
         <SheetBody className="grid gap-4">
+          <ProductExtraOwnershipGuidance messages={extraMessages} />
           <div className="grid gap-3 md:grid-cols-2">
             <Field label={extraMessages.nameLabel}>
               <Input

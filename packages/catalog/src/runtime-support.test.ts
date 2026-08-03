@@ -2,9 +2,16 @@ import type {
   IndexerAdapter,
   SearchResults,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
+import {
+  isProductOwnedVertical,
+  owningVerticalFor,
+} from "@voyant-travel/catalog-contracts/indexer/contract"
 import { describe, expect, it, vi } from "vitest"
 import {
+  buildCatalogSlices,
   createCatalogOffersSearchResolvers,
+  DEFAULT_CATALOG_SLICES,
+  DEFAULT_CATALOG_VERTICALS,
   withCatalogEmbedding,
   withoutCatalogScopeChannel,
 } from "./runtime-support.js"
@@ -180,5 +187,26 @@ describe("withCatalogEmbedding", () => {
     await builder("product-1", slice, context)
 
     expect(inner).toHaveBeenCalledWith("product-1", slice, context)
+  })
+})
+
+describe("product-owned verticals", () => {
+  it("never indexes extras: no vertical, no slice, no collection", () => {
+    expect(DEFAULT_CATALOG_VERTICALS).not.toContain("extras")
+    expect(DEFAULT_CATALOG_SLICES.map((slice) => slice.vertical)).not.toContain("extras")
+
+    const slices = buildCatalogSlices({
+      markets: [{ id: "ro", defaultLanguageTag: "ro-RO" }],
+      locales: [{ marketId: "ro", languageTag: "en-GB" }],
+      channelIds: ["chan_website"],
+    })
+
+    // Every market/locale/channel permutation, and still nothing for an Extra —
+    // an Extra is discovered through the Product that sells it.
+    expect(slices.length).toBeGreaterThan(0)
+    expect(slices.some((slice) => slice.vertical === "extras")).toBe(false)
+    expect(isProductOwnedVertical("extras")).toBe(true)
+    expect(owningVerticalFor("extras")).toBe("products")
+    expect(isProductOwnedVertical("products")).toBe(false)
   })
 })

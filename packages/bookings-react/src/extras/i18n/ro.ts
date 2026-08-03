@@ -51,5 +51,22 @@ export const extrasUiRo = {
     selectAll: "Selecteaza tot",
     clearAll: "Sterge tot",
     loading: "Se incarca extra...",
+    summary: {
+      heading: "Pe aceasta plecare",
+      quantity: "{count} de dus",
+      travelers: "{selected} din {eligible} calatori",
+      applicability: "Se aplica: {selectionType}",
+      toCollect: "{count} de incasat",
+      collectionSettled: "Nu mai e nimic de incasat",
+      fulfilled: "{fulfilled} din {selected} onorate",
+      fulfillmentComplete: "Toate onorate",
+      nobodySelected: "Nimeni nu l-a luat inca",
+      selectionTypeLabels: {
+        optional: "optional",
+        required: "obligatoriu",
+        default_selected: "selectat implicit",
+        unavailable: "indisponibil",
+      },
+    },
   },
 } satisfies ExtrasUiMessages

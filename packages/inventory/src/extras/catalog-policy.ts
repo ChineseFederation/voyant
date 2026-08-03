@@ -1,9 +1,9 @@
 /**
- * Catalog plane field policy for `packages/extras`.
+ * Catalog plane field policy for Product-owned Extras.
  *
- * Extras are booking add-ons (optional line items layered on a booked
- * parent product) — **not independently sellable inventory**. Per
- * architecture §3.3.1, extras are a partial-adoption vertical:
+ * An Extra is a lifecycle-dependent child of the Product that sells it —
+ * **never independently sellable inventory**. Per architecture §3.3.1 it is a
+ * partial-adoption vertical:
  *
  *   - **Adopt:** provenance shape (§5.1), booking snapshot graph (§5.3),
  *     catalog event taxonomy for the cancellation/fulfillment lifecycle.
@@ -11,10 +11,11 @@
  *     (§5.2), embeddings / RAG (Phase 2). Extras are discovered through
  *     the parent's surface, not via standalone catalog browse.
  *
- * Most fields below have `reindex: "none"` because extras are primarily
- * discovered through their parent product. The `thumbnailUrl` card-image
- * projection is indexed for operator catalog search surfaces that opt
- * extras into the shared catalog index.
+ * Every field is therefore `reindex: "none"`. `extras` is absent from
+ * `DEFAULT_CATALOG_VERTICALS`, so no extras slice or collection exists for a
+ * document to be written into, and the catalog search route refuses the
+ * vertical outright (`PRODUCT_OWNED_VERTICALS`). The policy exists purely so
+ * the owning Product can freeze what it sold.
  *
  * Scope of this file:
  *   - The `product_extras` table (extra catalog definitions).
@@ -33,7 +34,7 @@ const EXTRAS_FIELD_POLICY: FieldPolicyInput[] = [
     class: "managed",
     merge: "source-only",
     drift: "critical",
-    reindex: "facet-affecting",
+    reindex: "none",
     snapshot: "on-book",
     query: "indexed-column",
     localized: false,
@@ -197,7 +198,7 @@ const EXTRAS_FIELD_POLICY: FieldPolicyInput[] = [
     class: "merchandisable",
     merge: "source-only",
     drift: "low",
-    reindex: "entry",
+    reindex: "none",
     snapshot: "on-book",
     query: "indexed-column",
     localized: false,
