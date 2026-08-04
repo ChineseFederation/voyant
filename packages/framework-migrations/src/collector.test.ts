@@ -8,6 +8,7 @@ import {
   compatibilityPreflightStatementsForMigration,
   type MigrationClient,
   MigrationImmutabilityError,
+  MigrationRenameCompanionMissingError,
   type MigrationSource,
   planMigrations,
 } from "./collector.js"
@@ -224,10 +225,13 @@ describe("migration hash compatibility", () => {
     "utf8",
   )
 
-  it("accepts the pre-rename relationships baseline recorded before quotes became proposals", async () => {
-    const client: MigrationClient = {
-      async query(sql: string) {
-        if (sql.includes(`SELECT "content_hash"`)) {
+  /** A client whose ledger holds the pre-#4004 bytes of the relationships baseline. */
+  function preRenameRelationshipsClient(): MigrationClient {
+    return {
+      async query(sql: string, params: unknown[] = []) {
+        // Only the baseline is in the ledger — the rename increment, if this
+        // deployment ships one, is still pending.
+        if (sql.includes(`SELECT "content_hash"`) && params[1] === "0000_relationships_baseline") {
           return {
             rows: [
               // the bytes this file shipped with before #4004 renamed
@@ -241,15 +245,82 @@ describe("migration hash compatibility", () => {
         return { rows: [] }
       },
     }
+  }
+
+  const RELATIONSHIPS_RENAME_COMPANION = {
+    tag: "20260804000100_proposal_entity_labels",
+    sql: "ALTER TYPE entity_type RENAME VALUE 'quote' TO 'proposal';",
+  }
+
+  it("accepts the pre-rename relationships baseline when the rename increment ships with it", async () => {
+    await expect(
+      applyMigrations(
+        preRenameRelationshipsClient(),
+        [
+          {
+            name: "relationships",
+            priority: 0,
+            migrations: [
+              { tag: "0000_relationships_baseline", sql: relationshipsBaseline },
+              RELATIONSHIPS_RENAME_COMPANION,
+            ],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).resolves.toEqual({
+      executed: ["relationships/20260804000100_proposal_entity_labels"],
+      baselined: [],
+    })
+  })
+
+  it("refuses the equivalence when the module predates the rename increment (voyant#4172)", async () => {
+    // A deployment that upgraded the framework alone: the equivalence table is
+    // present, but `@voyant-travel/relationships` still ships only the baseline.
+    // Accepting here would record it applied and never rename `quote_*`.
+    const error = await applyMigrations(
+      preRenameRelationshipsClient(),
+      [
+        {
+          name: "relationships",
+          priority: 0,
+          migrations: [{ tag: "0000_relationships_baseline", sql: relationshipsBaseline }],
+        },
+      ],
+      ledgerOpts,
+    ).catch((thrown: unknown) => thrown)
+
+    expect(error).toBeInstanceOf(MigrationRenameCompanionMissingError)
+    expect(error).toMatchObject({
+      acceptance: "equivalence",
+      companion: { source: "relationships", tag: "20260804000100_proposal_entity_labels" },
+    })
+  })
+
+  it("leaves the other equivalence families ungated — only the rename needs a companion", async () => {
+    // `action-ledger/0000` is a formatting-only rewrite: both generations describe
+    // the same schema, so there is no companion increment to require.
+    const client: MigrationClient = {
+      async query(sql: string) {
+        if (sql.includes(`SELECT "content_hash"`)) {
+          return {
+            rows: [
+              { content_hash: "d63e6a73b58f985888e258b318255eba5181db307438b25f3d262350f837b2ce" },
+            ],
+          }
+        }
+        return { rows: [] }
+      },
+    }
 
     await expect(
       applyMigrations(
         client,
         [
           {
-            name: "relationships",
+            name: "action-ledger",
             priority: 0,
-            migrations: [{ tag: "0000_relationships_baseline", sql: relationshipsBaseline }],
+            migrations: [{ tag: "0000_action_ledger_baseline", sql: currentActionLedgerBaseline }],
           },
         ],
         ledgerOpts,
@@ -324,17 +395,49 @@ const proposalsBaselineSource: MigrationSource = {
   ],
 }
 
+/** The increment that renames the adopted `quote_*` objects into the proposals shape. */
+const PROPOSALS_RENAME_COMPANION = {
+  tag: "20260804000000_adopt_legacy_quote_objects",
+  sql: `ALTER TABLE "quotes" RENAME TO "proposals";`,
+}
+
+const proposalsWithCompanionSource: MigrationSource = {
+  ...proposalsBaselineSource,
+  migrations: [...proposalsBaselineSource.migrations, PROPOSALS_RENAME_COMPANION],
+}
+
 describe("retired-source supersession", () => {
   it("records the proposals baseline without executing when the whole quotes ledger is present", async () => {
     const { client, queries, inserted } = supersessionClient(RETIRED_QUOTES_TAGS)
 
-    await expect(applyMigrations(client, [proposalsBaselineSource], ledgerOpts)).resolves.toEqual({
-      executed: [],
+    await expect(
+      applyMigrations(client, [proposalsWithCompanionSource], ledgerOpts),
+    ).resolves.toEqual({
+      executed: ["proposals/20260804000000_adopt_legacy_quote_objects"],
       baselined: ["proposals/0000_proposals_baseline"],
     })
-    expect(inserted).toEqual([{ source: "proposals", tag: "0000_proposals_baseline" }])
-    expect(queries).not.toContain("BEGIN")
+    expect(inserted).toEqual([
+      { source: "proposals", tag: "0000_proposals_baseline" },
+      { source: "proposals", tag: "20260804000000_adopt_legacy_quote_objects" },
+    ])
     expect(queries.some((sql) => sql.startsWith(`CREATE TABLE "proposals"`))).toBe(false)
+  })
+
+  it("refuses to adopt the quotes ledger when the rename increment is absent (voyant#4172)", async () => {
+    // `@voyant-travel/proposals` at a version that predates the rename increment:
+    // recording the baseline would leave `quote_*` objects behind for good.
+    const { client, inserted } = supersessionClient(RETIRED_QUOTES_TAGS)
+
+    const error = await applyMigrations(client, [proposalsBaselineSource], ledgerOpts).catch(
+      (thrown: unknown) => thrown,
+    )
+
+    expect(error).toBeInstanceOf(MigrationRenameCompanionMissingError)
+    expect(error).toMatchObject({
+      acceptance: "superseded-source",
+      companion: { source: "proposals", tag: "20260804000000_adopt_legacy_quote_objects" },
+    })
+    expect(inserted).toEqual([])
   })
 
   it("executes normally on a fresh database with no quotes ledger at all", async () => {

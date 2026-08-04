@@ -13,6 +13,7 @@ export {
   applyMigrations,
   type MigrationClient,
   MigrationImmutabilityError,
+  MigrationRenameCompanionMissingError,
   type MigrationSource,
   type MigrationStatement,
   type PlannedMigration,

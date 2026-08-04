@@ -169,6 +169,12 @@ describe("runDeploymentMigrations on a partially adopted database", () => {
               tag: "0000_proposals_baseline",
               sql: 'CREATE TABLE "proposals" ("id" text PRIMARY KEY);',
             },
+            // The increment that renames the legacy objects into this shape.
+            // Recording the baseline is only sound while it ships alongside.
+            {
+              tag: "20260804000000_adopt_legacy_quote_objects",
+              sql: 'ALTER TABLE "quotes" RENAME TO "proposals";',
+            },
           ],
         },
       ],
@@ -176,10 +182,13 @@ describe("runDeploymentMigrations on a partially adopted database", () => {
     )
 
     expect(result.existing).toBe(true)
-    expect(result.executed).toEqual([])
+    expect(result.executed).toEqual(["proposals/20260804000000_adopt_legacy_quote_objects"])
     expect(result.baselined).toEqual(["proposals/0000_proposals_baseline"])
     expect(executed).toEqual([])
-    expect(inserted).toEqual([{ source: "proposals", tag: "0000_proposals_baseline" }])
+    expect(inserted).toEqual([
+      { source: "proposals", tag: "0000_proposals_baseline" },
+      { source: "proposals", tag: "20260804000000_adopt_legacy_quote_objects" },
+    ])
   })
 
   function expansionClient(

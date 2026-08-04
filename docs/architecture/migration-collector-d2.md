@@ -232,6 +232,21 @@ The supported shape has three parts, and none of them may be used alone:
    Equivalence marks a migration applied, so on its own it would leave the
    database on the old names while the application queries the new ones.
 
+"None of them may be used alone" is enforced, not just documented (voyant#4172).
+(1) and (3) each declare the adoption increment they depend on, and the collector
+refuses to record a migration without executing it — by either route — when that
+increment is absent from the plan, raising `MigrationRenameCompanionMissingError`.
+
+The gap that makes this worth a guard is **version skew**: (1) and (3) live in
+`@voyant-travel/framework-migrations`, while (2) ships in each owning module
+package. A deployment that assembles its own graph rather than taking the image
+whole can upgrade the framework while its module packages still predate the
+rename. Nothing in the ledger distinguishes that from a healthy upgrade, so the
+collector would happily record the baselines and rename nothing — trading a loud,
+safe failure for silent divergence. Only the upgrade direction is gated; a
+rolled-back image verifying older SQL against a newer ledger is what the
+symmetric closure exists to serve, and those renames have already run.
+
 Append-only history that is deliberately left alone: `action_ledger_entries`
 records past `action_name`/`target_type` values under the vocabulary in force
 when they happened, and legacy delivery-request rows carry a `legacy.*` command

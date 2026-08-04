@@ -105,6 +105,38 @@ export class MigrationImmutabilityError extends Error {
   }
 }
 
+/**
+ * Thrown when a migration edited by the quotes → proposals rename would be
+ * accepted across that rename, but the increment that performs the rename is
+ * not in this deployment's plan — i.e. the module package predates the framework
+ * that carries the equivalence table.
+ */
+export class MigrationRenameCompanionMissingError extends Error {
+  constructor(
+    readonly source: string,
+    readonly tag: string,
+    readonly companion: { source: string; tag: string },
+    /** How this migration was about to be recorded without executing its SQL. */
+    readonly acceptance: "equivalence" | "superseded-source",
+  ) {
+    const because =
+      acceptance === "equivalence"
+        ? "is recorded at its pre-rename bytes and would be accepted as equivalent"
+        : "would be recorded without executing, because the retired `quotes` source it supersedes " +
+          "is fully applied"
+    super(
+      `migration rename companion missing: ${source}/${tag} ${because}, but its companion ` +
+        `increment ${companion.source}/${companion.tag} is not in this deployment's migration ` +
+        "plan. Recording it without that increment would leave the database holding its legacy " +
+        "`quote_*` objects while the application queries `proposal_*`. " +
+        `The \`${companion.source}\` migrations in this deployment predate the quotes → proposals ` +
+        "rename: align every module package with the framework that ships the rename support, " +
+        "rather than upgrading the framework alone.",
+    )
+    this.name = "MigrationRenameCompanionMissingError"
+  }
+}
+
 const contentHash = (sql: string) => createHash("sha256").update(sql).digest("hex")
 
 // `db/0001_db_baseline` originally shipped plain `ADD COLUMN` statements; both
@@ -229,6 +261,79 @@ const EQUIVALENT_MIGRATION_HASHES = new Map<string, ReadonlySet<string>>([
 ])
 
 /**
+ * The post-cutline increment that makes each rename equivalence SOUND.
+ *
+ * Accepting a pre-rename ledger hash against post-rename bytes marks the edited
+ * migration applied — so the objects it declares are never re-declared. That is
+ * only correct because the same release ships an increment that renames the
+ * legacy objects into the new shape. If a deployment assembles a graph where the
+ * framework carries the equivalence table but a module package predates the
+ * rename, the increment is absent: the baseline is recorded as applied, nothing
+ * renames anything, and the database keeps its `quote_*` objects while the
+ * application queries `proposal_*`.
+ *
+ * Silent divergence is strictly worse than the immutability error it replaces,
+ * so the equivalence is gated on its companion being present in the plan. See
+ * voyant#4143 and voyant#4172.
+ */
+const RENAME_COMPANION_INCREMENTS = new Map<string, { source: string; tag: string }>([
+  [
+    "bookings/0000_bookings_baseline",
+    { source: "bookings", tag: "20260804000300_booking_origin_proposal_version" },
+  ],
+  [
+    "legal/0000_legal_baseline",
+    { source: "legal", tag: "20260804000200_proposal_version_target_kind" },
+  ],
+  [
+    "mice/20260713000300_standard_links",
+    { source: "mice", tag: "20260804000400_proposal_mice_program_link" },
+  ],
+  [
+    "relationships/0000_relationships_baseline",
+    { source: "relationships", tag: "20260804000100_proposal_entity_labels" },
+  ],
+  [
+    "relationships/0003_add_booking_custom_field_target",
+    { source: "relationships", tag: "20260804000100_proposal_entity_labels" },
+  ],
+  [
+    "framework/0000_framework_baseline",
+    { source: "framework", tag: "0011_adopt_legacy_quote_objects" },
+  ],
+  [
+    "framework/0003_framework_baseline",
+    { source: "framework", tag: "0011_adopt_legacy_quote_objects" },
+  ],
+  [
+    "framework/0005_framework_baseline",
+    { source: "framework", tag: "0011_adopt_legacy_quote_objects" },
+  ],
+])
+
+/** Pre-rename bytes of each edited migration, keyed `source/tag`. */
+const PRE_RENAME_HASHES = new Map<string, string>(
+  PROPOSAL_RENAME_EDITED_HASHES.map(([key, [pre]]) => [key, pre]),
+)
+
+/**
+ * The companion increment this acceptance requires, or `undefined`.
+ *
+ * Only the UPGRADE direction needs one — ledger at pre-rename bytes, current SQL
+ * at post-rename bytes. The reverse (a rolled-back image shipping older SQL
+ * against a ledger a newer image wrote) is the case the symmetric closure exists
+ * to serve: those renames already ran, so there is nothing to gate.
+ */
+function renameCompanionRequiredFor(
+  migration: Pick<PlannedMigration, "source" | "tag" | "contentHash">,
+  ledgerHash: string,
+): { source: string; tag: string } | undefined {
+  const key = `${migration.source}/${migration.tag}`
+  if (PRE_RENAME_HASHES.get(key) !== ledgerHash) return undefined
+  return RENAME_COMPANION_INCREMENTS.get(key)
+}
+
+/**
  * Migrations that replace a RETIRED source's ledger history wholesale.
  *
  * A module rename produces a migration whose objects already exist under their
@@ -258,6 +363,18 @@ const SUPERSEDED_LEDGER_IDENTITIES = new Map<
       { source: "quotes", tag: "20260716000301_namespace_custom_field_values" },
       { source: "quotes", tag: "20260727200000_default_quote_pipeline" },
     ],
+  ],
+])
+
+/**
+ * The increment that renames a superseded source's legacy objects into the shape
+ * its superseding baseline declares. Recording that baseline without executing it
+ * is only sound while this ships alongside — see {@link RENAME_COMPANION_INCREMENTS}.
+ */
+const SUPERSEDING_COMPANION_INCREMENTS = new Map<string, { source: string; tag: string }>([
+  [
+    "proposals/0000_proposals_baseline",
+    { source: "proposals", tag: "20260804000000_adopt_legacy_quote_objects" },
   ],
 ])
 
@@ -439,7 +556,9 @@ async function applyMigrationsInternal(
 
   const executed: string[] = []
   const baselined: string[] = []
-  for (const m of planMigrations(sources)) {
+  const plan = planMigrations(sources)
+  const plannedIds = new Set(plan.map((m) => `${m.source}/${m.tag}`))
+  for (const m of plan) {
     const ledgerSources = [...new Set([m.source, ...(m.legacySources ?? [])])]
     const seen = await client.query(
       `SELECT "content_hash", "source" FROM ${ledger}
@@ -449,8 +568,19 @@ async function applyMigrationsInternal(
     if (seen.rows.length > 0) {
       for (const row of seen.rows) {
         const ledgerHash = String(row.content_hash ?? "")
-        if (ledgerHash !== m.contentHash && !isEquivalentMigrationHash(m, ledgerHash)) {
-          throw new MigrationImmutabilityError(m.source, m.tag, ledgerHash, m.contentHash)
+        if (ledgerHash !== m.contentHash) {
+          if (!isEquivalentMigrationHash(m, ledgerHash)) {
+            throw new MigrationImmutabilityError(m.source, m.tag, ledgerHash, m.contentHash)
+          }
+          const companion = renameCompanionRequiredFor(m, ledgerHash)
+          if (companion && !plannedIds.has(`${companion.source}/${companion.tag}`)) {
+            throw new MigrationRenameCompanionMissingError(
+              m.source,
+              m.tag,
+              companion,
+              "equivalence",
+            )
+          }
         }
       }
       const hasStableRow = seen.rows.some(
@@ -471,6 +601,15 @@ async function applyMigrationsInternal(
     if (await isSupersedingRetiredSource(client, ledger, m)) {
       // The objects exist under the retired source's identity → record without
       // executing; the source's own increment renames them into this shape.
+      const companion = SUPERSEDING_COMPANION_INCREMENTS.get(id)
+      if (companion && !plannedIds.has(`${companion.source}/${companion.tag}`)) {
+        throw new MigrationRenameCompanionMissingError(
+          m.source,
+          m.tag,
+          companion,
+          "superseded-source",
+        )
+      }
       await client.query(
         `INSERT INTO ${ledger} ("source", "tag", "content_hash") VALUES ($1, $2, $3)
          ON CONFLICT ("source", "tag") DO NOTHING`,
