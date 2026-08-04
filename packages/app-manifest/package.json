@@ -51,6 +51,7 @@
   "dependencies": {
     "@voyant-travel/admin-extension-sdk": "workspace:^",
     "@voyant-travel/custom-fields-contracts": "workspace:^",
+    "@voyant-travel/graph-contracts": "workspace:^",
     "@voyant-travel/webhook-delivery-contracts": "workspace:^",
     "zod": "catalog:"
   },

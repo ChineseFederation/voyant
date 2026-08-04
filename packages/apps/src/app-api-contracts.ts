@@ -15,7 +15,13 @@ import type {
 } from "@voyant-travel/finance-contracts/app-api"
 import { z } from "zod"
 
-export const APP_API_VERSION = "2026-07-01"
+/**
+ * Re-exported so every existing importer keeps its path. The value is defined
+ * in `@voyant-travel/app-manifest`, alongside the other contract versions a
+ * release declares — and, unlike this package, that one is published, so a
+ * publisher can read the version they are pinning to.
+ */
+export { APP_API_VERSION } from "@voyant-travel/app-manifest"
 
 export const appApiVersionHeader = "voyant-app-api-version"
 

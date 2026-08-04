@@ -14,7 +14,7 @@
     "kind": "module",
     "manifest": "./voyant",
     "compatibleWith": {
-      "framework": ">=0.65.0 <2.0.0",
+      "framework": ">=0.65.0",
       "targets": [
         "node"
       ],
@@ -78,7 +78,7 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@voyant-travel/framework": "workspace:>=0.65.0 <2.0.0"
+    "@voyant-travel/framework": "workspace:*"
   },
   "repository": {
     "type": "git",

@@ -158,7 +158,7 @@ const extension = createUiExtensionsAdminExtension({ client })
 ## Versioning policy
 
 `ADMIN_UI_EXTENSION_API_VERSION` is the semver the host implements (currently
-`1.0.0`). Extensions declare a compatible **range** in their manifest's
+`1.1.0`). Extensions declare a compatible **range** in their manifest's
 `extensionApi` field (`"^1"`, `"^1.2"`, `"1.x"`, or an exact `"1.2.3"`); the
 host evaluates it at render time and refuses incompatible descriptors.
 

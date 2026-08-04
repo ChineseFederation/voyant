@@ -45,6 +45,33 @@ for (const packageJsonFile of packageJsonFiles) {
         )
       }
     }
+
+    // A module declares its Framework compatibility once, in
+    // `voyant.compatibleWith.framework`, which the deployment graph evaluates
+    // when it composes the module into a build. A semver range in
+    // peerDependencies is a second copy of that statement that changesets
+    // rewrites on release — and it rewrote @voyant-travel/mcp's to a bare
+    // caret against a version npm did not have yet, so the release could not
+    // install and nothing published. Pin the workspace protocol instead: it is
+    // always satisfied inside the workspace, so there is nothing to rewrite.
+    const frameworkPeerRange = packageJson.peerDependencies?.["@voyant-travel/framework"]
+    if (frameworkPeerRange && frameworkPeerRange !== "workspace:*") {
+      violations.push(
+        `${packageJsonFile}: peerDependencies["@voyant-travel/framework"] must be workspace:* (found ${frameworkPeerRange}). ` +
+          "Express the supported Framework range in voyant.compatibleWith.framework, which is the declaration the deployment graph reads.",
+      )
+    }
+
+    // The graph check is a lower bound: it asks whether this module can be
+    // composed into the build in hand. An upper bound there cannot express
+    // anything true — the module is built from the very Framework it would be
+    // excluding — and mcp only carried one to mirror the peer range above.
+    const frameworkCompatRange = packageJson.voyant?.compatibleWith?.framework
+    if (typeof frameworkCompatRange === "string" && /[<~^]/.test(frameworkCompatRange)) {
+      violations.push(
+        `${packageJsonFile}: voyant.compatibleWith.framework must be an open lower bound such as ">=0.65.0" (found ${frameworkCompatRange}).`,
+      )
+    }
   }
 }
 
