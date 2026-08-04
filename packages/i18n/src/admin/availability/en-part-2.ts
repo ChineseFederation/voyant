@@ -97,6 +97,20 @@ export const adminAvailabilityMessagesEnPart2 = {
       kindCustomInputPlaceholder: "custom_kind",
       capacityLabel: "Guests per room/resource",
       capacityDerivedHint: "Capacity is derived from the seat map ({count} seats).",
+      occupancyMinLabel: "Minimum occupancy",
+      occupancyMinHint:
+        "The occupancy the room was contracted at. Leave blank when there is no floor; set 2 on a double so a solo traveler shows up as under-occupied.",
+      bedConfigurationLabel: "Bed configuration",
+      bedConfigurationPlaceholder: "1 double, or 2 twin",
+      bedConfigurationHint:
+        "What the supplier calls the beds. Bed preferences are checked against this text.",
+      accessibleLabel: "Accessible room",
+      accessibleHint: "Reserved for travelers who flagged accessibility needs.",
+      ageBandLabel: "Age band",
+      minAgeLabel: "Minimum age",
+      maxAgeLabel: "Maximum age",
+      ageBandHint:
+        "Leave blank unless the room is sold to one age group, for example a child-share.",
       defaultCountLabel: "How many per departure?",
       defaultCountHint:
         "Set 20 for twenty double rooms on each departure. Use 0 when inventory will be created manually.",

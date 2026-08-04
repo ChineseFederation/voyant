@@ -14,7 +14,9 @@ kind in `booking_traveler_travel_details.allocations`.
 
 The standard workspace kinds are:
 
-- `room`: a room, cabin-like unit, or other shared accommodation space.
+- `room`: a room, cabin-like unit, or other shared accommodation space. It
+  carries an occupancy band, a room type, a bed configuration and an
+  accessibility flag — see "A room position is checkable" below.
 - `vehicle`: a coach, minibus, aircraft, vessel, or other transport unit. It is
   a parent operational resource used to manage capacity and seats; travelers
   are not assigned directly to it.
@@ -149,6 +151,84 @@ resources, then materialise again.
 counts **vehicles**; the seat count comes from the template's layout. An
 operator can therefore draw a coach before the departure has sold a single seat.
 
+## A room position is checkable, not just sortable
+
+A `room` allocation resource carries the constraints it was contracted under,
+not only a capacity: `occupancy_min` (its floor), `room_type_id`,
+`bed_configuration`, `accessible` and an age band (`min_age` / `max_age`).
+`capacity` remains the maximum, because every existing reader and both seat
+invariants are written against it. The same columns exist on
+`product_option_resource_templates`, which is where they are authored, and
+materialisation copies them onto every position it creates.
+
+Those constraints are evaluated in exactly one place, `room-constraints.ts`. It
+is pure over already-loaded facts and has three callers:
+
+- `assignTravelerAllocation` rejects a **blocking** violation with 409;
+- `planRoomAllocation` uses the same predicates as *filters*;
+- `evaluateAllocationConflicts` re-runs them over the committed plan.
+
+One evaluator is the point. Before it, capacity was the only checked property
+and everything else was a sort key, which meant the auto-allocator could produce
+a plan the conflicts projection immediately flagged.
+
+Severity is a deliberate split. **Blocking** — room type, option, option unit,
+age band, unaccompanied minor, adult/child mixing — rejects the write.
+**Advisory** — bed preference, accessibility, the occupancy floor — is reported
+and never rejects. Accessibility is advisory because `hasAccessibilityNeeds` is
+derived from *any* accessibility note being present, not from a declared
+mobility requirement; blocking on it would make ordinary rooming impossible.
+
+The only age signal is `booking_travelers.traveler_category`. A date of birth
+exists, inside `booking_traveler_travel_details.identity_encrypted`, but it is a
+KMS envelope: decrypting traveler identity to lay out a rooming plan would widen
+who touches PII for a signal the category already carries.
+
+### Overriding a constraint
+
+`PATCH .../travelers/{travelerId}` accepts `override: { reason }`. A rooming
+plan that cannot be overridden is one operators route around — they will place
+the family through some other screen and the reason will be in nobody's head but
+theirs. The reason is mandatory, and it and the exact list of rules it waived
+are written into the audit entry's `after` payload inside the same transaction
+as the assignment.
+
+### Relax and report
+
+The auto-allocator applies every constraint, then gives them up one at a time in
+a fixed order — bed preference, room type, option, option unit, age band,
+accessibility — until a position with room appears, and reports what it gave up
+as a `compromise`. The order runs from request, to supplier label, to what the
+traveler actually bought, to duty of care.
+
+A **label prefix** ("DBL #1") is deliberately not a constraint. It is a name an
+operator typed, not something a customer bought or a supplier contracted, so it
+may steer a choice but never blocks one and is never reported as a compromise.
+
+Oversubscription is no longer an opaque `skipped` integer: `unplaced` names the
+group, its sharing group, the travelers, the reason (`no_resources` /
+`no_capacity`) and the largest free block on the departure.
+
+## Drawing rooms from a contracted block: which table is authoritative
+
+The fleet-resource split above repeats for accommodation, with the same shape:
+
+| Table | Authoritative for | Scope |
+|---|---|---|
+| `allocation_resources` (`ref_type = "room_block"`) | **what this departure operates** — the positions travelers are assigned against, their occupancy band, room type and bed configuration | one slot |
+| `room_block_nights` / `room_block_pickups` | **the contracted hold** — how many of the supplier's rooms are free on each night, and who took them | every departure, and every non-departure stay |
+
+There is exactly **one write path**
+(`service-allocation-room-block.ts`). Materialising creates the positions and
+takes the nightly pickup in one transaction; releasing removes them and reverses
+the pickup. Taking rooms without recording the pickup would let two departures
+sell the same twenty rooms, which is the failure the nightly counters exist to
+prevent. A block's usable size is its **tightest night**.
+
+Accommodations owns those tables and Operations does not depend on that package,
+so every statement is raw SQL and tolerates the tables being absent — an
+accommodations-less deployment gets a clean 400, not a missing-relation error.
+
 ## Allocation conflicts are a server projection
 
 "What is wrong with this plan" is answered once, server-side
@@ -157,8 +237,16 @@ printed manifest cannot disagree. The rules are pure over already-loaded facts
 and every conflict carries a stable machine code:
 `traveler_unassigned`, `resource_over_capacity`, `duplicate_assignment`,
 `inaccessible_assignment`, `incompatible_assignment`,
-`oversubscribed_sharing_group`, `split_sharing_group`. Never rename a code; add
-a new one. Detection only — nothing there repairs anything.
+`oversubscribed_sharing_group`, `split_sharing_group`,
+`under_occupied_resource`, `bed_preference_unmet`, `unaccompanied_minor`,
+`adult_child_mixing`. Never rename a code; add a new one. Detection only —
+nothing there repairs anything.
+
+The last four arrived with the room constraints above, and the room-level ones
+are evaluated by the *same* `room-constraints.ts` rules the assignment guard
+uses. That is what makes an overridden violation still visible: the override
+lets the write through, it does not make the problem go away, so the screen, the
+CSV and the printed sheet all keep reporting it.
 
 Departure-level drift (stale holds, oversold capacity, missing travelers) stays
 in `service-departure-issues.ts`. The two projections are complementary: one
@@ -171,6 +259,17 @@ This shared primitive supports real rooming, vehicle, and seat assignment now.
 Rich specialist planning remains additive UI over the same data:
 
 - drag-and-drop rooming and bulk family/group moves;
+- **bed positions**: a `bed` kind parented to a room, with the parent-capacity
+  invariant `assertVehicleChildCapacity` gives seats. Deliberately deferred: the
+  cheap part is generalising that invariant, and the expensive part is that a
+  traveler would then hold both a `room` and a `bed` key in
+  `booking_traveler_travel_details.allocations`, which every conflict rule,
+  export, print sheet and capacity counter would have to learn to read as one
+  two-level placement. No upstream data carries per-bed identity either —
+  `option_units`, `room_types` and `room_blocks` all stop at the room, and
+  `bed_configuration` is the level at which suppliers actually contract. Until a
+  supplier sells a named bed, a `bed` kind would be a second aggregate over the
+  same fact;
 - graphical multi-deck coach, aircraft, and vessel layouts;
 - staff and crew assignment. Crew are operational resources assigned to a
   departure or duty, not traveler positions, so they must not use the traveler

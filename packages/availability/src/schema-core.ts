@@ -2,6 +2,7 @@ import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
 import { sql } from "drizzle-orm"
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -209,7 +210,44 @@ export const allocationResources = pgTable(
     refType: text("ref_type"),
     refId: text("ref_id"),
     label: text("label"),
+    /**
+     * Maximum occupancy — how many travelers this position can physically
+     * hold. Kept as `capacity` because every existing reader, the capacity
+     * guard and the seat invariants are written against it; `occupancyMin`
+     * below is its lower counterpart, not a second maximum.
+     */
     capacity: integer("capacity").notNull(),
+    /**
+     * Minimum sold occupancy. A room let as a double but held by one traveler
+     * is not a capacity breach — it is an under-occupancy the operator either
+     * fills or pays a single supplement for, so it is a *reported* conflict
+     * rather than a rejected assignment. Null means the position declares no
+     * floor (every seat, and every room materialized before #4036).
+     */
+    occupancyMin: integer("occupancy_min"),
+    /**
+     * The accommodation room type this position was materialized for. A soft
+     * reference: `room_types` is owned by @voyant-travel/accommodations and a
+     * cross-domain foreign key would violate schema discipline, exactly like
+     * `availability_slots.product_id`.
+     */
+    roomTypeId: text("room_type_id"),
+    /** Free-form supplier bed layout ("1 king", "2 twin"), printed on the rooming list. */
+    bedConfiguration: text("bed_configuration"),
+    /**
+     * Promoted out of `flags` so accessibility is *checkable* rather than an
+     * untyped convention. The three historical flag keys
+     * (`accessible`, `accessibilityNeeded`, `wheelchairAccessible`) are still
+     * honoured by readers so rows written before #4036 keep their meaning.
+     */
+    accessible: boolean("accessible").notNull().default(false),
+    /**
+     * Age band this position may hold, mirroring `option_units.min_age` /
+     * `max_age`. Used to keep an adult out of a child-share room and vice
+     * versa; null on either side means unbounded.
+     */
+    minAge: integer("min_age"),
+    maxAge: integer("max_age"),
     flags: jsonb("flags").$type<Record<string, unknown>>().notNull().default({}),
     parentId: text("parent_id"),
     sortOrder: integer("sort_order").notNull().default(0),
@@ -220,6 +258,11 @@ export const allocationResources = pgTable(
     index("idx_allocation_resources_slot_kind").on(table.slotId, table.kind),
     index("idx_allocation_resources_parent").on(table.parentId),
     index("idx_allocation_resources_kind_sort").on(table.kind, table.sortOrder, table.createdAt),
+    index("idx_allocation_resources_room_type").on(table.roomTypeId),
+    check(
+      "ck_allocation_resources_occupancy_band",
+      sql`${table.occupancyMin} IS NULL OR ${table.occupancyMin} <= ${table.capacity}`,
+    ),
   ],
 )
 
@@ -259,7 +302,34 @@ export const productOptionResourceTemplates = pgTable(
     kind: text("kind").notNull(),
     refType: text("ref_type"),
     refId: text("ref_id"),
+    /**
+     * Maximum occupancy of one materialized position. Stays named `capacity`
+     * for the same reason `allocation_resources.capacity` does. When
+     * `occupancyMax` below is supplied the upsert keeps the two in step, so
+     * there is still exactly one number a materializer reads.
+     */
     capacity: integer("capacity").notNull(),
+    /**
+     * The declared occupancy band of the room this template stands for,
+     * carried over from `option_units.occupancy_min` / `occupancy_max`.
+     *
+     * Before #4036 the template held `capacity` alone, so `generateFromRooms`
+     * collapsed `occupancyMax ?? occupancyMin` into one number and the floor
+     * was lost: a triple sold to two people looked identical to a double sold
+     * to two, and no reader could tell that a bed had been paid for and left
+     * empty.
+     */
+    occupancyMin: integer("occupancy_min"),
+    occupancyMax: integer("occupancy_max"),
+    /** Age band of the buying unit (`option_units.min_age` / `max_age`). */
+    minAge: integer("min_age"),
+    maxAge: integer("max_age"),
+    /** Soft reference to an accommodations `room_types` row; see the resource column. */
+    roomTypeId: text("room_type_id"),
+    /** Supplier bed layout to stamp on every position this template materializes. */
+    bedConfiguration: text("bed_configuration"),
+    /** Whether positions materialized from this template are accessible. */
+    accessible: boolean("accessible").notNull().default(false),
     namePattern: text("name_pattern").notNull(),
     layout: text("layout"),
     /**

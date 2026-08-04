@@ -21,6 +21,15 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { isActiveBookingStatus } from "./booking-statuses.js"
 import {
+  type AllocationConstraintCode,
+  bedPreferenceSatisfied,
+  type ConstraintResource,
+  type ConstraintTraveler,
+  evaluateOccupancyConstraints,
+  isAccessibleResource,
+  isSeatShapedKind,
+} from "./room-constraints.js"
+import {
   type AllocationManifestTraveler,
   getSlotAllocationManifest,
   type SlotAllocationManifest,
@@ -44,6 +53,20 @@ export type AllocationConflictCode =
   | "oversubscribed_sharing_group"
   /** A sharing group's members are spread across more than one resource. */
   | "split_sharing_group"
+  /**
+   * A room is held by fewer travelers than the minimum occupancy it was let at
+   * — a bed the operator has paid for and left empty, or a single supplement
+   * nobody has billed. Only reportable since #4036 gave positions an
+   * `occupancy_min`; before that a triple sold to two looked exactly like a
+   * double sold to two.
+   */
+  | "under_occupied_resource"
+  /** A traveler's stated bed preference cannot be met by the room they hold. */
+  | "bed_preference_unmet"
+  /** A room would hold a child with no accompanying adult. */
+  | "unaccompanied_minor"
+  /** A child shares a room with adults from another booking and another sharing group. */
+  | "adult_child_mixing"
 
 export type AllocationConflictSubjectType =
   | "traveler"
@@ -72,18 +95,22 @@ export interface AllocationConflict {
 /** How many individually-named subjects one code emits before it rolls up. */
 const SUBJECT_SAMPLE_LIMIT = 100
 
-/** Flag keys that mark a resource as usable by a traveler with accessibility needs. */
-const ACCESSIBLE_FLAG_KEYS = ["accessible", "accessibilityNeeded", "wheelchairAccessible"] as const
-
 export interface AllocationConflictResource {
   id: string
   kind: string
+  /** Maximum occupancy. */
   capacity: number
   label: string | null
   refType: string | null
   refId: string | null
   parentId: string | null
   flags: Record<string, unknown>
+  occupancyMin?: number | null
+  roomTypeId?: string | null
+  bedConfiguration?: string | null
+  accessible?: boolean | null
+  minAge?: number | null
+  maxAge?: number | null
 }
 
 export interface AllocationConflictInput {
@@ -153,8 +180,10 @@ export function evaluateAllocationConflicts(input: AllocationConflictInput): All
 
   const inaccessible: AllocationManifestTraveler[] = []
   const incompatible: AllocationManifestTraveler[] = []
+  const bedPreferenceUnmet: AllocationManifestTraveler[] = []
   const inaccessibleResourceIds = new Set<string>()
   const incompatibleResourceIds = new Set<string>()
+  const bedPreferenceResourceIds = new Set<string>()
   for (const [resourceId, held] of occupants) {
     const resource = resourceById.get(resourceId)
     if (!resource) continue
@@ -167,6 +196,48 @@ export function evaluateAllocationConflicts(input: AllocationConflictInput): All
         incompatible.push(traveler)
         incompatibleResourceIds.add(resourceId)
       }
+      if (
+        !isSeatShapedKind(resource.kind) &&
+        !bedPreferenceSatisfied(
+          traveler.bedPreference,
+          resource.bedConfiguration ?? null,
+          resource.capacity,
+        )
+      ) {
+        bedPreferenceUnmet.push(traveler)
+        bedPreferenceResourceIds.add(resourceId)
+      }
+    }
+  }
+
+  // Room-level rules — the occupancy floor and the two child-supervision rules
+  // — come from the shared `room-constraints.ts` evaluator, so a violation an
+  // operator overrode on assignment still shows up here, on the CSV and on the
+  // printed sheet rather than disappearing with the override.
+  for (const resource of kindResources) {
+    if (isSeatShapedKind(resource.kind)) continue
+    const held = occupants.get(resource.id) ?? []
+    if (held.length === 0) continue
+    for (const roomViolation of evaluateOccupancyConstraints(
+      toConstraintResource(resource),
+      held.map(toConstraintTraveler),
+    )) {
+      const code = ROOM_VIOLATION_CODES[roomViolation.code]
+      if (!code) continue
+      conflicts.push({
+        code,
+        severity: roomViolation.severity === "blocking" ? "critical" : "warning",
+        kind,
+        subjectType: "allocation_resource",
+        subjectId: resource.id,
+        count:
+          roomViolation.code === "occupancy_below_minimum"
+            ? (resource.occupancyMin ?? 0) - held.length
+            : (roomViolation.travelerIds?.length ?? held.length),
+        travelerIds: (roomViolation.travelerIds ?? []).slice(0, SUBJECT_SAMPLE_LIMIT),
+        resourceIds: [resource.id],
+        message: roomViolation.message,
+      })
     }
   }
 
@@ -189,9 +260,20 @@ export function evaluateAllocationConflicts(input: AllocationConflictInput): All
     slotId,
     travelers: incompatible,
     resourceIds: [...incompatibleResourceIds],
-    message: "Traveler is placed in a resource belonging to an option or unit they did not buy.",
+    message:
+      "Traveler is placed in a resource belonging to an option, unit or room type they did not buy.",
     rollupMessage:
-      "Further travelers are placed in resources belonging to options or units they did not buy.",
+      "Further travelers are placed in resources belonging to options, units or room types they did not buy.",
+  })
+  pushTravelerConflicts(conflicts, {
+    code: "bed_preference_unmet",
+    severity: "warning",
+    kind,
+    slotId,
+    travelers: bedPreferenceUnmet,
+    resourceIds: [...bedPreferenceResourceIds],
+    message: "The room this traveler holds cannot meet their stated bed preference.",
+    rollupMessage: "Further travelers hold rooms that cannot meet their stated bed preference.",
   })
 
   const largestCapacity = kindResources.reduce(
@@ -325,10 +407,6 @@ function sharingGroups(
     .sort((a, b) => a.id.localeCompare(b.id))
 }
 
-function isAccessibleResource(resource: AllocationConflictResource): boolean {
-  return ACCESSIBLE_FLAG_KEYS.some((key) => resource.flags[key] === true)
-}
-
 /**
  * A resource that names the option unit or product option it was materialised
  * for may only hold travelers who bought that unit/option. Resources with no
@@ -345,7 +423,51 @@ function isIncompatibleAssignment(
   if (typeof templateOptionId === "string" && traveler.optionId) {
     if (templateOptionId !== traveler.optionId) return true
   }
+  // Room type joined the rule in #4036: a position materialized for a specific
+  // accommodations room type may only hold travelers who booked that type.
+  // Positions that name no room type still hold anyone.
+  if (resource.roomTypeId && traveler.roomTypeId && resource.roomTypeId !== traveler.roomTypeId) {
+    return true
+  }
   return false
+}
+
+/** Room-level constraint code -> the conflict code it is reported under. */
+const ROOM_VIOLATION_CODES: Partial<Record<AllocationConstraintCode, AllocationConflictCode>> = {
+  occupancy_below_minimum: "under_occupied_resource",
+  unaccompanied_minor: "unaccompanied_minor",
+  adult_child_mixing: "adult_child_mixing",
+}
+
+function toConstraintResource(resource: AllocationConflictResource): ConstraintResource {
+  return {
+    id: resource.id,
+    kind: resource.kind,
+    capacity: resource.capacity,
+    occupancyMin: resource.occupancyMin ?? null,
+    roomTypeId: resource.roomTypeId ?? null,
+    bedConfiguration: resource.bedConfiguration ?? null,
+    accessible: resource.accessible ?? false,
+    minAge: resource.minAge ?? null,
+    maxAge: resource.maxAge ?? null,
+    refType: resource.refType,
+    refId: resource.refId,
+    flags: resource.flags,
+  }
+}
+
+function toConstraintTraveler(traveler: AllocationManifestTraveler): ConstraintTraveler {
+  return {
+    id: traveler.id,
+    bookingId: traveler.bookingId,
+    sharingGroupId: traveler.sharingGroupId,
+    travelerCategory: traveler.travelerCategory,
+    optionId: traveler.optionId,
+    optionUnitId: traveler.optionUnitId,
+    roomTypeId: traveler.roomTypeId,
+    bedPreference: traveler.bedPreference,
+    hasAccessibilityNeeds: traveler.hasAccessibilityNeeds,
+  }
 }
 
 function severityRank(severity: AllocationConflictSeverity): number {
@@ -383,6 +505,12 @@ export async function getSlotAllocationConflicts(
       refId: resource.refId,
       parentId: resource.parentId,
       flags: resource.flags ?? {},
+      occupancyMin: resource.occupancyMin,
+      roomTypeId: resource.roomTypeId,
+      bedConfiguration: resource.bedConfiguration,
+      accessible: resource.accessible,
+      minAge: resource.minAge,
+      maxAge: resource.maxAge,
     })),
   })
 }

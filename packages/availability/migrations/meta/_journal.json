@@ -22,6 +22,13 @@
       "when": 1785777005358,
       "tag": "0002_slot_product_version",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785857706857,
+      "tag": "0003_room_occupancy",
+      "breakpoints": true
     }
   ]
 }

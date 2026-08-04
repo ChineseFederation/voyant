@@ -1,7 +1,19 @@
 "use client"
 
+// agent-quality: file-size exception -- owner: availability. This is the
+// departure workspace's composition root: it holds the queries, the mutations
+// and the selection state, and wires a dozen already-extracted children (the
+// resource views, the seat map, the bulk bar, the conflicts panel, the fleet
+// panel, the export menu, the preview, override and preferences dialogs, and
+// the print sheet). The body is that wiring. It was already near the limit
+// after #4034; #4036 added the override and rooming-preferences flows.
+// Splitting the container would relocate the wiring, not reduce it -- the
+// useful next step is moving more state into hooks like
+// `slot-allocation-planning-state.ts`, which is its own change.
+
 import { useQuery } from "@tanstack/react-query"
 import {
+  type AllocationConstraintViolation,
   type AllocationManifestTraveler,
   getSlotQueryOptions,
   type SlotAllocationManifest,
@@ -10,10 +22,11 @@ import {
   useAssignTravelerAllocationMutation,
   useProductResourceTemplates,
   useSlotAllocation,
+  useTravelerRoomingPreferencesMutation,
   useVoyantAvailabilityContext,
 } from "@voyant-travel/operations-react/availability"
 import { Button, cn, Tabs, TabsList, TabsTrigger } from "@voyant-travel/ui/components"
-import { Armchair, ArrowLeft, Bed, Bus, Users } from "lucide-react"
+import { Armchair, ArrowLeft, Bed, BedDouble, Bus, Users } from "lucide-react"
 import { type ReactNode, useMemo, useState } from "react"
 
 import { useAllocationUiI18nOrDefault } from "../i18n/index.js"
@@ -27,6 +40,7 @@ import {
   collectOccupants,
   collectVehicleOccupants,
   deriveAllocationKinds,
+  isSeatShapedKind,
   isTravelerAllocatableKind,
   kindDescription,
   kindLabel,
@@ -42,6 +56,11 @@ import { useSlotAllocationPlanning } from "./slot-allocation-planning-state.js"
 import { AllocationPreviewDialog } from "./slot-allocation-preview-dialog.js"
 import { AllocationPrintView } from "./slot-allocation-print-view.js"
 import { ResourceColumnsView } from "./slot-allocation-resource-view.js"
+import {
+  ConstraintOverrideDialog,
+  parseConstraintViolations,
+  RoomingPreferencesDialog,
+} from "./slot-allocation-rooming-dialogs.js"
 import { VehicleSeatsView } from "./slot-allocation-seat-view.js"
 import { AllocationToolbarActions } from "./slot-allocation-toolbar-actions.js"
 
@@ -111,10 +130,17 @@ export function SlotAllocationPage({
   const slotRow = slotRowQuery.data?.data
   const resourceMutation = useAllocationResourceMutation(slotId)
   const assignMutation = useAssignTravelerAllocationMutation(slotId)
+  const roomingPreferencesMutation = useTravelerRoomingPreferencesMutation(slotId)
   const automationMutation = useAllocationAutomationMutation(slotId)
   const [selectedKind, setSelectedKind] = useState(ROOM_KIND)
   const [addingResource, setAddingResource] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingOverride, setPendingOverride] = useState<{
+    travelerId: string
+    resourceId: string
+    violations: AllocationConstraintViolation[]
+  } | null>(null)
+  const [preferencesTravelerId, setPreferencesTravelerId] = useState<string | null>(null)
 
   const data = allocation.data?.data
   const templates = useProductResourceTemplates({
@@ -247,13 +273,35 @@ export function SlotAllocationPage({
     return map
   }, [data?.resources])
 
+  /**
+   * Place a traveler, and when the server rejects the placement on a *room
+   * rule* rather than on capacity, offer the override instead of a dead end.
+   * Anything else (a 404, a network failure) is still a plain error — an
+   * override cannot fix it and offering one would be misleading.
+   */
   async function assignTraveler(travelerId: string, resourceId: string | null) {
     setError(null)
     try {
       await assignMutation.mutateAsync({ travelerId, kind: activeKind, resourceId })
     } catch (err) {
+      const violations = parseConstraintViolations(err)
+      if (violations && resourceId) {
+        setPendingOverride({ travelerId, resourceId, violations })
+        return
+      }
       setError(err instanceof Error ? err.message : messages.allocationFailed)
     }
+  }
+
+  async function confirmOverride(reason: string) {
+    if (!pendingOverride) return
+    await assignMutation.mutateAsync({
+      travelerId: pendingOverride.travelerId,
+      kind: activeKind,
+      resourceId: pendingOverride.resourceId,
+      override: { reason },
+    })
+    setPendingOverride(null)
   }
 
   async function editResource(
@@ -325,6 +373,30 @@ export function SlotAllocationPage({
       </div>
     )
   }
+
+  /**
+   * The rooming-preferences affordance rides in front of whatever the host
+   * already renders for a traveler, so a consumer keeps its own actions and
+   * still gets the field the room rules check against. Room-shaped kinds only:
+   * a coach seat has no bed preference.
+   */
+  const renderTravelerActionsWithPreferences = (traveler: AllocationManifestTraveler) => (
+    <>
+      {isSeatShapedKind(activeKind) ? null : (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2"
+          aria-label={messages.roomingPreferences.editButton}
+          title={messages.roomingPreferences.editButton}
+          onClick={() => setPreferencesTravelerId(traveler.id)}
+        >
+          <BedDouble className="size-3.5" aria-hidden="true" />
+        </Button>
+      )}
+      {renderTravelerActions?.(traveler)}
+    </>
+  )
 
   const isSeatMap = activeKind === VEHICLE_SEAT_KIND
   const isTravelerAssignable = isTravelerAllocatableKind(activeKind)
@@ -441,7 +513,7 @@ export function SlotAllocationPage({
             bookings={data.bookings}
             sharingGroupLabels={data.sharingGroupLabels}
             onBookingOpen={onBookingOpen}
-            renderTravelerActions={renderTravelerActions}
+            renderTravelerActions={renderTravelerActionsWithPreferences}
             messages={messages}
           />
         ) : !hasAllocationView ? (
@@ -537,7 +609,7 @@ export function SlotAllocationPage({
                 onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
                 onRemoveResource={(resourceId) => void removeResource(resourceId)}
                 onBookingOpen={onBookingOpen}
-                renderTravelerActions={renderTravelerActions}
+                renderTravelerActions={renderTravelerActionsWithPreferences}
               />
             ) : (
               <ResourceColumnsView
@@ -564,6 +636,33 @@ export function SlotAllocationPage({
         {renderAfter?.(context)}
       </div>
 
+      <ConstraintOverrideDialog
+        open={pendingOverride !== null}
+        onOpenChange={(next) => {
+          if (!next) setPendingOverride(null)
+        }}
+        violations={pendingOverride?.violations ?? []}
+        messages={messages}
+        pending={assignMutation.isPending}
+        onConfirm={confirmOverride}
+      />
+
+      <RoomingPreferencesDialog
+        open={preferencesTravelerId !== null}
+        onOpenChange={(next) => {
+          if (!next) setPreferencesTravelerId(null)
+        }}
+        traveler={travelers.find((traveler) => traveler.id === preferencesTravelerId) ?? null}
+        messages={messages}
+        pending={roomingPreferencesMutation.isPending}
+        onSubmit={(input) =>
+          roomingPreferencesMutation.mutateAsync({
+            travelerId: preferencesTravelerId ?? "",
+            ...input,
+          })
+        }
+      />
+
       {hasAllocationView ? (
         <AllocationPrintView
           kind={activeKind}
@@ -573,6 +672,7 @@ export function SlotAllocationPage({
           travelers={travelers}
           conflicts={planning.conflicts}
           printedAt={formatDateTime(new Date().toISOString())}
+          sharingGroupLabels={data.sharingGroupLabels}
           messages={messages}
         />
       ) : null}

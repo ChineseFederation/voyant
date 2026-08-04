@@ -7,7 +7,19 @@ import { seatLayoutSpecSchema } from "./validation.js"
 export interface AutoMaterializeRow {
   option_id: string
   pax_count: number
+  /** Maximum occupancy of one materialized position. */
   capacity: number
+  /**
+   * Room constraints carried from the template onto every position it
+   * materializes, so a room position is *checkable* and not merely sortable.
+   * Null on every seat-shaped template; seats declare none of them.
+   */
+  occupancy_min?: number | null
+  min_age?: number | null
+  max_age?: number | null
+  room_type_id?: string | null
+  bed_configuration?: string | null
+  accessible?: boolean | null
   name_pattern: string
   ref_type: string | null
   ref_id: string | null

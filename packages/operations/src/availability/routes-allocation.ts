@@ -70,6 +70,11 @@ import {
   buildAllocationRoomingCsv,
 } from "./service-allocation-exports.js"
 import {
+  materializeDepartureRoomsFromBlock,
+  releaseDepartureRoomBlock,
+} from "./service-allocation-room-block.js"
+import { updateTravelerRoomingPreferences } from "./service-allocation-traveler-preferences.js"
+import {
   allocationAuditLogQuerySchema,
   allocationAutomationSchema,
   allocationKindQuerySchema,
@@ -77,10 +82,12 @@ import {
   assignTravelerAllocationSchema,
   deleteAllocationResourceQuerySchema,
   insertAllocationResourceSchema,
+  materializeFromRoomBlockSchema,
   materializeOpenSlotsSchema,
   pairSharingGroupSchema,
   updateAllocationResourceSchema,
   updateSharingGroupLabelSchema,
+  updateTravelerRoomingPreferencesSchema,
   updateTravelerSharingGroupSchema,
   upsertResourceTemplateSchema,
 } from "./validation.js"
@@ -174,10 +181,51 @@ const slotAllocationManifestSchema = z.object({
   }),
 })
 
+/** One room constraint the assignment breached. See `room-constraints.ts`. */
+const allocationConstraintViolationSchema = z.object({
+  code: z.string(),
+  severity: z.enum(["blocking", "advisory"]),
+  message: z.string(),
+  expected: z.union([z.string(), z.number()]).nullable().optional(),
+  actual: z.union([z.string(), z.number()]).nullable().optional(),
+  travelerIds: z.array(z.string()).optional(),
+})
+
 const assignTravelerResultSchema = z.object({
   travelerId: z.string(),
   kind: z.string(),
   resourceId: z.string().nullable(),
+  /**
+   * Every constraint the accepted assignment breached, advisory ones included.
+   * A blocking violation only reaches this response when the caller supplied an
+   * `override.reason`; without one the leg answers 409 with the same payload
+   * under `detail.violations`.
+   */
+  violations: z.array(allocationConstraintViolationSchema),
+})
+
+const travelerRoomingPreferencesResultSchema = z.object({
+  travelerId: z.string(),
+  bedPreference: z.string().nullable(),
+  roomTypeId: z.string().nullable(),
+})
+
+const roomBlockMaterializationResultSchema = z.object({
+  blockId: z.string(),
+  kind: z.string(),
+  created: z.number().int(),
+  skippedExisting: z.number().int(),
+  roomsPickedUp: z.number().int(),
+  pickupId: z.string().nullable(),
+  remainingAfter: z.number().int(),
+  resources: z.array(allocationResourceSchema),
+})
+
+const roomBlockReleaseResultSchema = z.object({
+  blockId: z.string(),
+  kind: z.string(),
+  removed: z.number().int(),
+  roomsReleased: z.number().int(),
 })
 
 const updateTravelerSharingGroupResultSchema = z.object({
@@ -214,6 +262,30 @@ const allocationAutomationResultSchema = z.object({
   kind: z.string(),
   assigned: z.number().int().optional(),
   skipped: z.number().int().optional(),
+  /** The groups behind `skipped`, each with its sharing group and a reason. */
+  unplaced: z
+    .array(
+      z.object({
+        groupKey: z.string(),
+        sharingGroupId: z.string().nullable(),
+        travelerIds: z.array(z.string()),
+        reason: z.enum(["no_resources", "no_capacity"]),
+        largestFreeCapacity: z.number().int(),
+      }),
+    )
+    .optional(),
+  /** Groups the planner could only place by relaxing a constraint. */
+  compromises: z
+    .array(
+      z.object({
+        groupKey: z.string(),
+        sharingGroupId: z.string().nullable(),
+        travelerIds: z.array(z.string()),
+        resourceId: z.string(),
+        relaxed: z.array(z.string()),
+      }),
+    )
+    .optional(),
   created: z.number().int().optional(),
   /** Template groups already materialised on this slot and left alone. */
   skippedExisting: z.number().int().optional(),
@@ -226,7 +298,15 @@ const resourceTemplateSchema = z.object({
   kind: z.string(),
   refType: z.string().nullable(),
   refId: z.string().nullable(),
+  /** Maximum occupancy; kept in step with `occupancyMax` when that is set. */
   capacity: z.number().int(),
+  occupancyMin: z.number().int().nullable(),
+  occupancyMax: z.number().int().nullable(),
+  minAge: z.number().int().nullable(),
+  maxAge: z.number().int().nullable(),
+  roomTypeId: z.string().nullable(),
+  bedConfiguration: z.string().nullable(),
+  accessible: z.boolean(),
   namePattern: z.string(),
   layout: z.string().nullable(),
   defaultCount: z.number().int().nullable(),
@@ -413,6 +493,38 @@ const assignTravelerRoute = createRoute({
   },
 })
 
+/**
+ * The rooming preferences the constraint evaluator reads. Before #4036 these
+ * were writable only through the admin travel-details API, so the departure
+ * workspace could enforce a bed preference it gave no way to enter.
+ */
+const updateTravelerRoomingPreferencesRoute = createRoute({
+  method: "patch",
+  path: "/slots/{id}/allocation/travelers/{travelerId}/rooming-preferences",
+  description:
+    "Set the traveler's bed preference and booked room type. A field the caller " +
+    "omits keeps its stored value; an explicit `null` clears it.",
+  request: {
+    params: slotTravelerParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: updateTravelerRoomingPreferencesSchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "The traveler's resolved rooming preferences",
+      content: {
+        "application/json": { schema: z.object({ data: travelerRoomingPreferencesResultSchema }) },
+      },
+    },
+    400: allocationErrorResponses[400],
+    404: allocationErrorResponses[404],
+    409: allocationErrorResponses[409],
+    500: allocationErrorResponses[500],
+  },
+})
+
 const updateTravelerSharingGroupRoute = createRoute({
   method: "patch",
   path: "/slots/{id}/allocation/travelers/{travelerId}/sharing-group",
@@ -499,6 +611,21 @@ const slotTravelerRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
     try {
       const params = c.req.valid("param")
       const result = await assignTravelerAllocation(
+        c.get("db"),
+        params.id,
+        params.travelerId,
+        c.req.valid("json"),
+        { actorId: c.get("userId") ?? null },
+      )
+      return c.json({ data: result }, 200)
+    } catch (error) {
+      return handleAllocationRouteError(c, error)
+    }
+  })
+  .openapi(updateTravelerRoomingPreferencesRoute, async (c) => {
+    try {
+      const params = c.req.valid("param")
+      const result = await updateTravelerRoomingPreferences(
         c.get("db"),
         params.id,
         params.travelerId,
@@ -729,6 +856,69 @@ const autoAllocateRoute = createRoute({
   },
 })
 
+/**
+ * Draw a departure's room inventory from a contracted accommodation block.
+ *
+ * The one write path: it creates the positions **and** takes the nightly pickup
+ * in one transaction, so `room_block_nights` can never disagree with what the
+ * departure operates. See `service-allocation-room-block.ts`.
+ */
+const materializeFromRoomBlockRoute = createRoute({
+  method: "post",
+  path: "/slots/{id}/allocation/room-blocks/materialize",
+  description:
+    "Materialise room positions from a contracted room block and take the matching " +
+    "nightly pickup. Idempotent at (kind, block) granularity: a repeat creates nothing " +
+    "and takes no second pickup. Omit `rooms` to take the block's whole remaining hold " +
+    "for the departure's nights.",
+  request: {
+    params: slotIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: materializeFromRoomBlockSchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "The positions created and the rooms taken off the block",
+      content: {
+        "application/json": {
+          schema: z.object({ data: roomBlockMaterializationResultSchema }),
+        },
+      },
+    },
+    400: allocationErrorResponses[400],
+    404: allocationErrorResponses[404],
+    409: allocationErrorResponses[409],
+    500: allocationErrorResponses[500],
+  },
+})
+
+const releaseRoomBlockRoute = createRoute({
+  method: "delete",
+  path: "/slots/{id}/allocation/room-blocks/{blockId}",
+  description:
+    "Give the departure's block rooms back: remove the positions, clear the traveler " +
+    "allocations that pointed at them, and reverse the pickup so another departure can " +
+    "draw the same rooms.",
+  request: {
+    params: z.object({ id: z.string(), blockId: z.string() }),
+    query: allocationKindQuerySchema,
+  },
+  responses: {
+    200: {
+      description: "The positions removed and the rooms handed back",
+      content: {
+        "application/json": { schema: z.object({ data: roomBlockReleaseResultSchema }) },
+      },
+    },
+    400: allocationErrorResponses[400],
+    404: allocationErrorResponses[404],
+    409: allocationErrorResponses[409],
+    500: allocationErrorResponses[500],
+  },
+})
+
 const slotAutomationRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
 
 // Auto-allocate re-plans from live state, so a retry after a dropped connection
@@ -741,6 +931,14 @@ slotAutomationRoutes.use(
 slotAutomationRoutes.use(
   "/slots/:id/allocation/auto-materialize",
   idempotencyKey({ scope: "operations.allocation.auto-materialize" }),
+)
+// Drawing down a supplier's block is the one materialisation with an
+// irreversible side effect outside this module, so a retried request must not
+// take the rooms twice. The (kind, block) skip rule already makes it a no-op;
+// the key makes the *response* the same too.
+slotAutomationRoutes.use(
+  "/slots/:id/allocation/room-blocks/materialize",
+  idempotencyKey({ scope: "operations.allocation.room-block-materialize" }),
 )
 
 slotAutomationRoutes
@@ -777,6 +975,34 @@ slotAutomationRoutes
         c.get("db"),
         c.req.valid("param").id,
         c.req.valid("json"),
+        { actorId: c.get("userId") ?? null },
+      )
+      return c.json({ data }, 200)
+    } catch (error) {
+      return handleAllocationRouteError(c, error)
+    }
+  })
+  .openapi(materializeFromRoomBlockRoute, async (c) => {
+    try {
+      const data = await materializeDepartureRoomsFromBlock(
+        c.get("db"),
+        c.req.valid("param").id,
+        c.req.valid("json"),
+        { actorId: c.get("userId") ?? null },
+      )
+      return c.json({ data }, 200)
+    } catch (error) {
+      return handleAllocationRouteError(c, error)
+    }
+  })
+  .openapi(releaseRoomBlockRoute, async (c) => {
+    try {
+      const params = c.req.valid("param")
+      const data = await releaseDepartureRoomBlock(
+        c.get("db"),
+        params.id,
+        params.blockId,
+        { kind: c.req.valid("query").kind },
         { actorId: c.get("userId") ?? null },
       )
       return c.json({ data }, 200)

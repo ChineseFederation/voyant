@@ -16,7 +16,11 @@ import {
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
-import { allocationResourceSchema } from "./allocation-schemas.js"
+import {
+  allocationCompromiseSchema,
+  allocationResourceSchema,
+  allocationUnplacedGroupSchema,
+} from "./allocation-schemas.js"
 
 export const paginatedEnvelope = listResponseSchema
 
@@ -349,7 +353,15 @@ export const resourceTemplateSchema = z.object({
   kind: z.string(),
   refType: z.string().nullable(),
   refId: z.string().nullable(),
+  /** Maximum occupancy; the service keeps it in step with `occupancyMax`. */
   capacity: z.number().int(),
+  occupancyMin: z.number().int().nullable().default(null),
+  occupancyMax: z.number().int().nullable().default(null),
+  minAge: z.number().int().nullable().default(null),
+  maxAge: z.number().int().nullable().default(null),
+  roomTypeId: z.string().nullable().default(null),
+  bedConfiguration: z.string().nullable().default(null),
+  accessible: z.boolean().default(false),
   namePattern: z.string(),
   layout: z.string().nullable(),
   defaultCount: z.number().int().nullable(),
@@ -382,6 +394,10 @@ export const allocationAutomationResponse = singleEnvelope(
     kind: z.string(),
     assigned: z.number().int().optional(),
     skipped: z.number().int().optional(),
+    /** The groups behind `skipped`, each with its sharing group and a reason. */
+    unplaced: z.array(allocationUnplacedGroupSchema).optional(),
+    /** Groups the planner could only place by relaxing a constraint. */
+    compromises: z.array(allocationCompromiseSchema).optional(),
     created: z.number().int().optional(),
     skippedExisting: z.number().int().optional(),
     resources: z.array(allocationResourceSchema).optional(),

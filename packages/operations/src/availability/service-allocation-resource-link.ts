@@ -92,7 +92,21 @@ export interface DepartureResourceRow {
   refType: string | null
   refId: string | null
   label: string | null
+  /** Maximum occupancy. */
   capacity: number
+  /**
+   * The room constraints a position carries (#4036). A fleet resource is a
+   * coach, not a room, so these are null/false on everything this module
+   * writes — they are projected anyway because the wire shape is the shared
+   * `allocationResourceSchema`, and a resource that omitted them would be a
+   * second, subtly different resource type on the same endpoint.
+   */
+  occupancyMin: number | null
+  roomTypeId: string | null
+  bedConfiguration: string | null
+  accessible: boolean
+  minAge: number | null
+  maxAge: number | null
   flags: Record<string, unknown>
   parentId: string | null
   sortOrder: number
@@ -108,6 +122,12 @@ interface AllocationResourceSqlRow {
   ref_id: string | null
   label: string | null
   capacity: number
+  occupancy_min: number | null
+  room_type_id: string | null
+  bed_configuration: string | null
+  accessible: boolean
+  min_age: number | null
+  max_age: number | null
   flags: Record<string, unknown> | null
   parent_id: string | null
   sort_order: number
@@ -124,6 +144,12 @@ function toDepartureResourceRow(row: AllocationResourceSqlRow): DepartureResourc
     refId: row.ref_id,
     label: row.label,
     capacity: row.capacity,
+    occupancyMin: row.occupancy_min,
+    roomTypeId: row.room_type_id,
+    bedConfiguration: row.bed_configuration,
+    accessible: row.accessible ?? false,
+    minAge: row.min_age,
+    maxAge: row.max_age,
     flags: row.flags ?? {},
     parentId: row.parent_id,
     sortOrder: row.sort_order,
@@ -133,7 +159,8 @@ function toDepartureResourceRow(row: AllocationResourceSqlRow): DepartureResourc
 }
 
 const ALLOCATION_RESOURCE_COLUMNS = sql`
-  id, slot_id, kind, ref_type, ref_id, label, capacity, flags, parent_id, sort_order,
+  id, slot_id, kind, ref_type, ref_id, label, capacity, occupancy_min, room_type_id,
+  bed_configuration, accessible, min_age, max_age, flags, parent_id, sort_order,
   created_at, updated_at
 `
 

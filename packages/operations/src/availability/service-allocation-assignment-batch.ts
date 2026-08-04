@@ -18,8 +18,17 @@ import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
+import {
+  type AllocationConstraintViolation,
+  evaluateAssignmentConstraints,
+} from "./room-constraints.js"
 import type { AllocationMutationOptions } from "./service-allocation.js"
 import { recordAllocationAudit } from "./service-allocation-audit.js"
+import {
+  type AllocationOverride,
+  loadResourceOccupantFacts,
+  lockConstraintResource,
+} from "./service-allocation-constraint-checks.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"
 import {
   type PlannedAllocation,
@@ -42,6 +51,14 @@ export interface BatchAllocationAssignment {
 export interface AssignTravelerAllocationsBatchInput {
   kind: string
   assignments: BatchAllocationAssignment[]
+  /**
+   * Deliberate waiver of the room constraints for this whole batch, with the
+   * same contract as the single-traveler leg. The bulk bar is how operators
+   * actually move a family, so leaving it unguarded would have made the room
+   * rules theatre — an operator who hit a 409 on one traveler could have moved
+   * the same party through here instead.
+   */
+  override?: AllocationOverride | null
 }
 
 export interface AssignTravelerAllocationsBatchResult {
@@ -51,6 +68,8 @@ export interface AssignTravelerAllocationsBatchResult {
   /** Assignments whose target already matched — written anyway, counted here. */
   unchanged: number
   travelerIds: string[]
+  /** Every room constraint the accepted batch breached, advisory ones included. */
+  violations: AllocationConstraintViolation[]
 }
 
 export async function assignTravelerAllocationsBatch(
@@ -137,9 +156,32 @@ export async function assignTravelerAllocationsBatch(
       kind,
       resourceId: assignment.resourceId,
     }))
-    const violations = await validateSlotAllocationCapacity(scoped, slotId, planned)
-    if (violations.length > 0) {
-      throw new AllocationServiceError("Resource over capacity", 409, { kind, violations })
+    const capacityViolations = await validateSlotAllocationCapacity(scoped, slotId, planned)
+    if (capacityViolations.length > 0) {
+      throw new AllocationServiceError("Resource over capacity", 409, {
+        kind,
+        violations: capacityViolations,
+      })
+    }
+
+    // Room constraints are evaluated **after** the writes, over the resulting
+    // occupant set of every resource the batch touched. Evaluating each move in
+    // isolation against the pre-batch state would reject exactly the case this
+    // leg exists for: a batch that puts a parent and a child in a room together
+    // would see the child arrive alone and raise `unaccompanied_minor`.
+    const constraintViolations = await evaluateBatchConstraints(
+      scoped,
+      slotId,
+      kind,
+      assigned.map((assignment) => assignment.resourceId),
+      new Set(travelerIds),
+    )
+    const blocking = constraintViolations.filter((entry) => entry.severity === "blocking")
+    if (blocking.length > 0 && !input.override) {
+      throw new AllocationServiceError("Assignment violates a room constraint", 409, {
+        kind,
+        violations: constraintViolations,
+      })
     }
 
     // Audit inside the transaction: a rolled-back batch must not leave an entry
@@ -161,6 +203,15 @@ export async function assignTravelerAllocationsBatch(
           travelerId: assignment.travelerId,
           resourceId: assignment.resourceId,
         })),
+        ...(constraintViolations.length > 0 ? { violations: constraintViolations } : {}),
+        ...(input.override
+          ? {
+              override: {
+                reason: input.override.reason,
+                overrode: blocking.map((entry) => entry.code),
+              },
+            }
+          : {}),
       },
     })
 
@@ -174,7 +225,52 @@ export async function assignTravelerAllocationsBatch(
       unassigned: cleared.length,
       unchanged,
       travelerIds,
+      violations: constraintViolations,
     }
+  })
+}
+
+/**
+ * Every room constraint the committed batch leaves behind, evaluated over each
+ * touched resource's post-write occupant set.
+ *
+ * Per-traveler rules are only raised for travelers the batch actually moved —
+ * a pre-existing violation on a room the batch happened to touch is the
+ * conflicts projection's business, not a reason to reject this operator's move.
+ * Room-level rules (the occupancy floor, the two child-supervision rules) are
+ * whole-room by nature and are raised for every touched resource.
+ */
+async function evaluateBatchConstraints(
+  db: PostgresJsDatabase,
+  slotId: string,
+  kind: string,
+  resourceIds: readonly string[],
+  movedTravelerIds: ReadonlySet<string>,
+): Promise<AllocationConstraintViolation[]> {
+  const unique = [...new Set(resourceIds)]
+  const violations: AllocationConstraintViolation[] = []
+  for (const resourceId of unique) {
+    const resource = await lockConstraintResource(db, slotId, kind, resourceId)
+    if (!resource) continue
+    const occupants = await loadResourceOccupantFacts(db, slotId, kind, resourceId, null)
+    for (const occupant of occupants) {
+      if (!movedTravelerIds.has(occupant.id)) continue
+      violations.push(
+        ...evaluateAssignmentConstraints({
+          traveler: occupant,
+          resource,
+          otherOccupants: occupants.filter((other) => other.id !== occupant.id),
+        }),
+      )
+    }
+  }
+  // The same rule can fire for several occupants of one room; report it once.
+  const seen = new Set<string>()
+  return violations.filter((entry) => {
+    const key = `${entry.code}:${String(entry.expected ?? "")}:${String(entry.actual ?? "")}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
   })
 }
 

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { z } from "zod"
-
+import { allocationConstraintViolationSchema } from "../allocation-schemas.js"
 import { fetchWithValidation } from "../client.js"
 import { useVoyantAvailabilityContext } from "../provider.js"
 import { availabilityQueryKeys } from "../query-keys.js"
@@ -27,6 +27,20 @@ const assignTravelerAllocationResponse = singleEnvelope(
     travelerId: z.string(),
     kind: z.string(),
     resourceId: z.string().nullable(),
+    /**
+     * Every room constraint the accepted assignment breached. Blocking ones
+     * only appear here when the caller supplied an `override.reason`; without
+     * one the server answers 409 and this hook rejects.
+     */
+    violations: z.array(allocationConstraintViolationSchema).default([]),
+  }),
+)
+
+const travelerRoomingPreferencesResponse = singleEnvelope(
+  z.object({
+    travelerId: z.string(),
+    bedPreference: z.string().nullable(),
+    roomTypeId: z.string().nullable(),
   }),
 )
 
@@ -281,14 +295,68 @@ export function useAssignTravelerAllocationMutation(slotId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: { travelerId: string; kind: string; resourceId: string | null }) =>
+    mutationFn: (input: {
+      travelerId: string
+      kind: string
+      resourceId: string | null
+      /**
+       * Deliberate waiver of a blocking room constraint. The reason is written
+       * into the departure's audit trail alongside the rules it waived, so an
+       * override is answerable six months later.
+       */
+      override?: { reason: string }
+    }) =>
       fetchWithValidation(
         `${slotAvailabilityPath(slotId)}/allocation/travelers/${input.travelerId}`,
         assignTravelerAllocationResponse,
         { baseUrl, fetcher },
         {
           method: "PATCH",
-          body: JSON.stringify({ kind: input.kind, resourceId: input.resourceId }),
+          body: JSON.stringify({
+            kind: input.kind,
+            resourceId: input.resourceId,
+            ...(input.override ? { override: input.override } : {}),
+          }),
+        },
+      ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: availabilityQueryKeys.slotAllocation(slotId),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: availabilityQueryKeys.slotAllocationAuditLog(slotId),
+      })
+    },
+  })
+}
+
+/**
+ * Write the rooming preferences the room rules check against.
+ *
+ * Before #4036 `bed_preference` and `room_type_id` were writable only through
+ * the admin travel-details API, so the departure workspace enforced a
+ * preference it gave the operator no way to enter.
+ */
+export function useTravelerRoomingPreferencesMutation(slotId: string) {
+  const { baseUrl, fetcher } = useVoyantAvailabilityContext()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: {
+      travelerId: string
+      bedPreference?: string | null
+      roomTypeId?: string | null
+    }) =>
+      fetchWithValidation(
+        `${slotAvailabilityPath(slotId)}/allocation/travelers/${input.travelerId}/rooming-preferences`,
+        travelerRoomingPreferencesResponse,
+        { baseUrl, fetcher },
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            ...(input.bedPreference === undefined ? {} : { bedPreference: input.bedPreference }),
+            ...(input.roomTypeId === undefined ? {} : { roomTypeId: input.roomTypeId }),
+          }),
         },
       ),
     onSuccess: async () => {

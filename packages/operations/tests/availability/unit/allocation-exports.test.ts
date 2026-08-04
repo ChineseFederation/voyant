@@ -18,6 +18,10 @@ function manifest(): SlotAllocationManifest {
         id: "book_1",
         bookingNumber: "B-001",
         status: "confirmed",
+        bookingSequence: 1,
+        paymentStatus: "paid",
+        sellAmountCents: 20000,
+        paidAmountCents: 20000,
         contactFirstName: "Ana",
         contactLastName: "Pop",
         contactEmail: "ana@example.com",
@@ -30,6 +34,11 @@ function manifest(): SlotAllocationManifest {
             bookingId: "book_1",
             bookingNumber: "B-001",
             bookingStatus: "confirmed",
+            bookingSequence: 1,
+            paymentStatus: "paid",
+            optionId: null,
+            optionUnitId: null,
+            optionUnitCode: null,
             firstName: "Ana",
             lastName: "Pop",
             fullName: "Ana Pop",
@@ -51,6 +60,11 @@ function manifest(): SlotAllocationManifest {
             bookingId: "book_1",
             bookingNumber: "B-001",
             bookingStatus: "confirmed",
+            bookingSequence: 1,
+            paymentStatus: "paid",
+            optionId: null,
+            optionUnitId: null,
+            optionUnitCode: null,
             firstName: "Bo",
             lastName: "Pop",
             fullName: "Bo Pop",
@@ -79,6 +93,12 @@ function manifest(): SlotAllocationManifest {
         refId: null,
         label: "Room 1",
         capacity: 2,
+        occupancyMin: 2,
+        roomTypeId: "hrmt_dbl",
+        bedConfiguration: "1 double",
+        accessible: false,
+        minAge: null,
+        maxAge: null,
         flags: {},
         parentId: null,
         sortOrder: 1,
@@ -89,6 +109,7 @@ function manifest(): SlotAllocationManifest {
     sharingGroupLabels: {
       sg_1: "Friends",
     },
+    pagination: { limit: null, offset: 0, total: 1 },
     summary: {
       bookingCount: 1,
       travelerCount: 2,
@@ -109,12 +130,41 @@ describe("allocation CSV exports", () => {
     expect(csv).toContain("B-001,confirmed,Bo Pop,no,no,,,child,child,,no,no")
   })
 
-  it("builds a rooming list with unallocated travelers and totals", () => {
+  it("builds a supplier rooming list with one row per occupant", () => {
     const csv = buildAllocationRoomingCsv(manifest())
 
-    expect(csv).toContain("Room 1,2,Ana Pop,1")
-    expect(csv).toContain("Unallocated,,Bo Pop,1")
-    expect(csv).toContain("Total,,,2")
+    // Room facts first, then the traveler facts a hotel needs per key card.
+    // Ana holds Room 1; the room is let at a minimum occupancy of 2 and holds
+    // one, which the operator sees here and as an `under_occupied_resource`
+    // conflict on the screen.
+    expect(csv).toContain(
+      "Room,Room type,Bed configuration,Occupancy,Capacity,Minimum occupancy,Accessible room," +
+        "Traveler,Booking,Sharing group,Bed preference,Accessibility flagged",
+    )
+    expect(csv).toContain("Room 1,hrmt_dbl,1 double,1,2,2,no,Ana Pop,B-001,Friends,,no")
+    expect(csv).toContain("Unallocated,,,,,,,Bo Pop,B-001,,,no")
+    expect(csv).toContain("Total,,,2,")
+  })
+
+  it("carries each traveler's bed preference and accessibility flag", () => {
+    const data = manifest()
+    const lead = data.bookings[0]?.travelers[0]
+    if (lead) {
+      lead.bedPreference = "twin"
+      lead.hasAccessibilityNeeds = true
+    }
+    const csv = buildAllocationRoomingCsv(data)
+
+    expect(csv).toContain("Ana Pop,B-001,Friends,twin,yes")
+  })
+
+  it("emits a row for a room nobody holds so an empty bed is visible", () => {
+    const data = manifest()
+    const lead = data.bookings[0]?.travelers[0]
+    if (lead) lead.allocations = {}
+    const csv = buildAllocationRoomingCsv(data)
+
+    expect(csv).toContain("Room 1,hrmt_dbl,1 double,0,2,2,no,,,,,")
   })
 
   it("omits expired bookings from the rooming list", () => {
@@ -124,7 +174,7 @@ describe("allocation CSV exports", () => {
 
     expect(csv).not.toContain("Ana Pop")
     expect(csv).not.toContain("Bo Pop")
-    expect(csv).toContain("Total,,,0")
+    expect(csv).toContain("Total,,,0,")
   })
 
   it("omits draft bookings from the rooming list", () => {
@@ -134,6 +184,6 @@ describe("allocation CSV exports", () => {
 
     expect(csv).not.toContain("Ana Pop")
     expect(csv).not.toContain("Bo Pop")
-    expect(csv).toContain("Total,,,0")
+    expect(csv).toContain("Total,,,0,")
   })
 })

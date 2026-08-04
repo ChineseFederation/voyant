@@ -1,4 +1,13 @@
 import { isActiveBookingStatus } from "./booking-statuses.js"
+import {
+  bedPreferenceSatisfied,
+  type ConstraintResource,
+  isAccessibleResource,
+  isAdultCategory,
+  isChildCategory,
+  resourceAdmitsAdults,
+  resourceAdmitsChildren,
+} from "./room-constraints.js"
 
 export interface AllocatorTraveler {
   id: string
@@ -11,6 +20,11 @@ export interface AllocatorTraveler {
   optionId?: string | null
   optionUnitId?: string | null
   optionUnitCode?: string | null
+  /** `single` | `twin` | `double` | `no-preference`. */
+  bedPreference?: string | null
+  roomTypeId?: string | null
+  /** `adult` | `child` | `infant` | `senior` | `other`. */
+  travelerCategory?: string | null
 }
 
 export interface AllocatorResource {
@@ -25,11 +39,85 @@ export interface AllocatorResource {
   row?: number
   column?: string
   position?: "window" | "aisle" | "middle"
+  occupancyMin?: number | null
+  roomTypeId?: string | null
+  bedConfiguration?: string | null
+  accessible?: boolean
+  minAge?: number | null
+  maxAge?: number | null
+}
+
+/**
+ * A constraint the planner gave up in order to place a group at all.
+ *
+ * Reported rather than silently applied. Before #4036 accessibility and
+ * option/unit matching were only *sort keys*, so a group whose preferred room
+ * was full quietly landed somewhere incompatible and nothing said so — the
+ * conflicts projection then reported a conflict the planner had itself created.
+ */
+export type AllocationRelaxation =
+  | "bed_preference"
+  | "room_type"
+  | "option"
+  | "option_unit"
+  | "age_band"
+  | "accessibility"
+
+/**
+ * The order the planner gives constraints up in, least costly first.
+ *
+ * A bed preference is a request. A room type is a supplier-side label. The
+ * option and the option unit are what the traveler actually bought and paid
+ * for. The age band and accessibility are duty-of-care, so they are the last
+ * two the planner will trade away — and when it does, it says so.
+ */
+const RELAXATION_ORDER: readonly AllocationRelaxation[] = [
+  "bed_preference",
+  "room_type",
+  "option",
+  "option_unit",
+  "age_band",
+  "accessibility",
+]
+
+/** Why a group could not be placed at all. */
+export type AllocationUnplacedReason =
+  /** No position of this kind exists on the departure. */
+  | "no_resources"
+  /** Every position is full, or none is large enough for the group. */
+  | "no_capacity"
+
+export interface AllocationUnplacedGroup {
+  /** Stable planner-local group key (`r:`/`sg:`/`b:` prefixed). */
+  groupKey: string
+  /** The sharing group the members belong to, when they were grouped by one. */
+  sharingGroupId: string | null
+  travelerIds: string[]
+  reason: AllocationUnplacedReason
+  /** Largest free block of capacity the planner could find, for the operator's benefit. */
+  largestFreeCapacity: number
+}
+
+export interface AllocationCompromise {
+  groupKey: string
+  sharingGroupId: string | null
+  travelerIds: string[]
+  resourceId: string
+  relaxed: AllocationRelaxation[]
 }
 
 export interface AllocationPlan {
   assignments: Array<{ travelerId: string; resourceId: string }>
   skipped: number
+  /**
+   * Groups the planner could not place, each with a reason. `skipped` stays the
+   * traveler count for callers that only render a number; this is the same fact
+   * with the sharing group and the reason attached, so "12 skipped" can finally
+   * be read as "this party of 3 needs a triple and none is free".
+   */
+  unplaced: AllocationUnplacedGroup[]
+  /** Groups placed only after a constraint was relaxed. */
+  compromises: AllocationCompromise[]
 }
 
 interface InternalGroup {
@@ -37,9 +125,14 @@ interface InternalGroup {
   travelerIds: string[]
   needsAccessibility: boolean
   leadTravelerId: string | null
+  sharingGroupId: string | null
   optionIds: Set<string>
   optionUnitIds: Set<string>
   optionUnitCodes: Set<string>
+  roomTypeIds: Set<string>
+  bedPreferences: Set<string>
+  hasChildren: boolean
+  hasAdults: boolean
 }
 
 function activeTravelers(travelers: AllocatorTraveler[]): AllocatorTraveler[] {
@@ -60,9 +153,14 @@ function groupTravelers(travelers: AllocatorTraveler[]): Map<string, InternalGro
       travelerIds: [],
       needsAccessibility: false,
       leadTravelerId: null,
+      sharingGroupId: traveler.sharingGroupId,
       optionIds: new Set<string>(),
       optionUnitIds: new Set<string>(),
       optionUnitCodes: new Set<string>(),
+      roomTypeIds: new Set<string>(),
+      bedPreferences: new Set<string>(),
+      hasChildren: false,
+      hasAdults: false,
     }
     group.travelerIds.push(traveler.id)
     if (traveler.hasAccessibilityNeeds) group.needsAccessibility = true
@@ -70,6 +168,12 @@ function groupTravelers(travelers: AllocatorTraveler[]): Map<string, InternalGro
     if (traveler.optionId) group.optionIds.add(traveler.optionId)
     if (traveler.optionUnitId) group.optionUnitIds.add(traveler.optionUnitId)
     if (traveler.optionUnitCode) group.optionUnitCodes.add(traveler.optionUnitCode)
+    if (traveler.roomTypeId) group.roomTypeIds.add(traveler.roomTypeId)
+    if (traveler.bedPreference && traveler.bedPreference !== "no-preference") {
+      group.bedPreferences.add(traveler.bedPreference)
+    }
+    if (isChildCategory(traveler.travelerCategory)) group.hasChildren = true
+    if (isAdultCategory(traveler.travelerCategory)) group.hasAdults = true
     groups.set(group.key, group)
   }
 
@@ -88,6 +192,9 @@ function groupUnitMatchScore(resource: AllocatorResource, group: InternalGroup):
 
   const optionUnitCode = singleSetValue(group.optionUnitCodes)
   if (optionUnitCode && labelStartsWithUnitCode(resource.label, optionUnitCode)) score += 1
+
+  const roomTypeId = singleSetValue(group.roomTypeIds)
+  if (roomTypeId && resource.roomTypeId === roomTypeId) score += 3
 
   return score
 }
@@ -115,6 +222,78 @@ function normalizeUnitCodePrefix(code: string): string | null {
   )
 }
 
+/**
+ * Does this position satisfy one constraint for this group?
+ *
+ * Each predicate mirrors the corresponding rule in `room-constraints.ts`, so the
+ * planner never proposes a placement the conflicts projection would immediately
+ * flag. Positions that declare nothing (no unit ref, no room type, no bed
+ * configuration) satisfy every constraint — most departures never key their
+ * rooms that finely, and reading "unspecified" as "incompatible" would leave
+ * every one of them unplaceable.
+ *
+ * The **label prefix** heuristic in `groupUnitMatchScore` is deliberately NOT a
+ * constraint. "DBL #1" is a name an operator typed, not something anyone
+ * contracted, so it may steer a choice but must never block one or be reported
+ * as a compromise.
+ */
+function satisfies(
+  constraint: AllocationRelaxation,
+  resource: AllocatorResource,
+  group: InternalGroup,
+): boolean {
+  switch (constraint) {
+    case "accessibility":
+      return !group.needsAccessibility || isAccessibleResource(resource)
+    case "option_unit": {
+      const optionUnitId = singleSetValue(group.optionUnitIds)
+      if (!optionUnitId) return true
+      if (resource.refType !== "option_unit" || !resource.refId) return true
+      return resource.refId === optionUnitId
+    }
+    case "option": {
+      const optionId = singleSetValue(group.optionIds)
+      if (!optionId) return true
+      const templateOptionId = resource.flags.templateOptionId
+      if (typeof templateOptionId !== "string") return true
+      return templateOptionId === optionId
+    }
+    case "room_type": {
+      const roomTypeId = singleSetValue(group.roomTypeIds)
+      if (!roomTypeId || !resource.roomTypeId) return true
+      return resource.roomTypeId === roomTypeId
+    }
+    case "age_band": {
+      const asConstraint = toConstraintResource(resource)
+      if (group.hasChildren && !resourceAdmitsChildren(asConstraint)) return false
+      if (group.hasAdults && !resourceAdmitsAdults(asConstraint)) return false
+      return true
+    }
+    case "bed_preference": {
+      const preference = singleSetValue(group.bedPreferences)
+      if (!preference) return true
+      return bedPreferenceSatisfied(preference, resource.bedConfiguration, resource.capacity)
+    }
+  }
+}
+
+function toConstraintResource(resource: AllocatorResource): ConstraintResource {
+  return {
+    id: resource.id,
+    kind: resource.kind,
+    capacity: resource.capacity,
+    occupancyMin: resource.occupancyMin ?? null,
+    roomTypeId: resource.roomTypeId ?? null,
+    bedConfiguration: resource.bedConfiguration ?? null,
+    accessible: resource.accessible ?? false,
+    minAge: resource.minAge ?? null,
+    maxAge: resource.maxAge ?? null,
+    refType: resource.refType ?? null,
+    refId: resource.refId ?? null,
+    flags: resource.flags,
+  }
+}
+
 export function planRoomAllocation(
   travelers: AllocatorTraveler[],
   resources: AllocatorResource[],
@@ -139,6 +318,9 @@ export function planRoomAllocation(
   )
 
   let skipped = 0
+  const unplaced: AllocationUnplacedGroup[] = []
+  const compromises: AllocationCompromise[] = []
+
   for (const group of sortedGroups) {
     const allInOne = group.travelerIds.every(
       (travelerId) =>
@@ -149,12 +331,15 @@ export function planRoomAllocation(
     )
     if (allInOne) continue
 
+    const freeCapacity = (resource: AllocatorResource) =>
+      resource.capacity - (occupancy.get(resource.id) ?? 0)
+
     const sortedResources = [...resources].sort((left, right) => {
-      const leftAccessible = left.flags.accessibilityNeeded === true
-      const rightAccessible = right.flags.accessibilityNeeded === true
-      if (group.needsAccessibility) {
-        if (leftAccessible !== rightAccessible) return leftAccessible ? -1 : 1
-      } else if (leftAccessible !== rightAccessible) {
+      // Accessibility is a *filter* below now; the sort only keeps accessible
+      // rooms out of the hands of groups that do not need them.
+      const leftAccessible = isAccessibleResource(left)
+      const rightAccessible = isAccessibleResource(right)
+      if (!group.needsAccessibility && leftAccessible !== rightAccessible) {
         return leftAccessible ? 1 : -1
       }
 
@@ -162,21 +347,54 @@ export function planRoomAllocation(
       const rightUnitMatch = groupUnitMatchScore(right, group)
       if (leftUnitMatch !== rightUnitMatch) return rightUnitMatch - leftUnitMatch
 
-      const leftFree = left.capacity - (occupancy.get(left.id) ?? 0)
-      const rightFree = right.capacity - (occupancy.get(right.id) ?? 0)
+      const leftFree = freeCapacity(left)
+      const rightFree = freeCapacity(right)
       const leftExact = leftFree === group.travelerIds.length ? 1 : 0
       const rightExact = rightFree === group.travelerIds.length ? 1 : 0
       if (leftExact !== rightExact) return rightExact - leftExact
       return rightFree - leftFree
     })
 
-    const target = sortedResources.find(
-      (resource) =>
-        resource.capacity - (occupancy.get(resource.id) ?? 0) >= group.travelerIds.length,
-    )
+    // Relax-and-report: start with every constraint applied, then give them up
+    // one at a time in RELAXATION_ORDER until a position with room appears.
+    let applied = [...RELAXATION_ORDER]
+    const relaxed: AllocationRelaxation[] = []
+    let target: AllocatorResource | undefined
+    for (;;) {
+      target = sortedResources.find(
+        (resource) =>
+          freeCapacity(resource) >= group.travelerIds.length &&
+          applied.every((constraint) => satisfies(constraint, resource, group)),
+      )
+      if (target || applied.length === 0) break
+      const dropped = applied[0]
+      applied = applied.slice(1)
+      if (dropped) relaxed.push(dropped)
+    }
+
     if (!target) {
       skipped += group.travelerIds.length
+      unplaced.push({
+        groupKey: group.key,
+        sharingGroupId: group.sharingGroupId,
+        travelerIds: [...group.travelerIds],
+        reason: resources.length === 0 ? "no_resources" : "no_capacity",
+        largestFreeCapacity: resources.reduce(
+          (largest, resource) => Math.max(largest, freeCapacity(resource)),
+          0,
+        ),
+      })
       continue
+    }
+
+    if (relaxed.length > 0) {
+      compromises.push({
+        groupKey: group.key,
+        sharingGroupId: group.sharingGroupId,
+        travelerIds: [...group.travelerIds],
+        resourceId: target.id,
+        relaxed,
+      })
     }
 
     for (const travelerId of group.travelerIds) {
@@ -188,16 +406,29 @@ export function planRoomAllocation(
     }
   }
 
-  return plannedAssignments(active, assignmentMap, skipped)
+  return plannedAssignments(active, assignmentMap, skipped, unplaced, compromises)
 }
 
 export function planVehicleSeatAllocation(
   travelers: AllocatorTraveler[],
   seats: AllocatorResource[],
 ): AllocationPlan {
-  if (seats.length === 0) return { assignments: [], skipped: 0 }
-
   const active = activeTravelers(travelers)
+  if (seats.length === 0) {
+    return {
+      assignments: [],
+      skipped: 0,
+      unplaced: [...groupTravelers(active).values()].map((group) => ({
+        groupKey: group.key,
+        sharingGroupId: group.sharingGroupId,
+        travelerIds: [...group.travelerIds],
+        reason: "no_resources" as const,
+        largestFreeCapacity: 0,
+      })),
+      compromises: [],
+    }
+  }
+
   const groups = groupTravelers(active)
   const seatsByParent = groupSeatsByParent(seats)
 
@@ -217,6 +448,7 @@ export function planVehicleSeatAllocation(
   )
 
   let skipped = 0
+  const unplaced: AllocationUnplacedGroup[] = []
   for (const group of sortedGroups) {
     const unassigned = group.travelerIds.filter((travelerId) => !assignmentMap.has(travelerId))
     if (unassigned.length === 0) continue
@@ -224,6 +456,13 @@ export function planVehicleSeatAllocation(
     const seatIds = findContiguousFreeSeats(seatsByParent, occupant, unassigned.length)
     if (seatIds.length === 0) {
       skipped += unassigned.length
+      unplaced.push({
+        groupKey: group.key,
+        sharingGroupId: group.sharingGroupId,
+        travelerIds: unassigned,
+        reason: "no_capacity",
+        largestFreeCapacity: [...occupant.values()].filter((value) => value === null).length,
+      })
       continue
     }
 
@@ -239,13 +478,15 @@ export function planVehicleSeatAllocation(
     }
   }
 
-  return plannedAssignments(active, assignmentMap, skipped)
+  return plannedAssignments(active, assignmentMap, skipped, unplaced, [])
 }
 
 function plannedAssignments(
   active: AllocatorTraveler[],
   assignmentMap: Map<string, string>,
   skipped: number,
+  unplaced: AllocationUnplacedGroup[],
+  compromises: AllocationCompromise[],
 ): AllocationPlan {
   const assignments: Array<{ travelerId: string; resourceId: string }> = []
   for (const traveler of active) {
@@ -254,7 +495,7 @@ function plannedAssignments(
     if (planned === traveler.existingAllocationId) continue
     assignments.push({ travelerId: traveler.id, resourceId: planned })
   }
-  return { assignments, skipped }
+  return { assignments, skipped, unplaced, compromises }
 }
 
 function groupSeatsByParent(seats: AllocatorResource[]) {

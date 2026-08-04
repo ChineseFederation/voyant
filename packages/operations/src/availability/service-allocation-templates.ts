@@ -14,7 +14,15 @@ export interface ResourceTemplate {
   kind: string
   refType: string | null
   refId: string | null
+  /** Maximum occupancy. */
   capacity: number
+  occupancyMin: number | null
+  occupancyMax: number | null
+  minAge: number | null
+  maxAge: number | null
+  roomTypeId: string | null
+  bedConfiguration: string | null
+  accessible: boolean
   namePattern: string
   layout: string | null
   defaultCount: number | null
@@ -54,7 +62,9 @@ export async function listProductOptionResourceTemplates(
   const templateRows = await executeRows<ResourceTemplateRow>(
     db,
     sql`
-      SELECT id, product_option_id, kind, ref_type, ref_id, capacity, name_pattern, layout, default_count, flags, created_at, updated_at
+      SELECT id, product_option_id, kind, ref_type, ref_id, capacity, occupancy_min, occupancy_max,
+             min_age, max_age, room_type_id, bed_configuration, accessible,
+             name_pattern, layout, default_count, flags, created_at, updated_at
       FROM product_option_resource_templates
       WHERE product_option_id = ANY(${sqlTextArray(optionIds)})
       ORDER BY kind, created_at
@@ -90,10 +100,19 @@ export async function upsertProductOptionResourceTemplate(
   await assertProductOptionBelongsToProduct(db, productId, productOptionId)
 
   const refId = input.refId ?? null
+  // `occupancyMax` is the authoritative maximum when supplied; `capacity` is
+  // kept in step with it so every materializer still reads one number.
   const values = {
     refType: input.refType ?? null,
     refId,
-    capacity: input.capacity,
+    capacity: input.occupancyMax ?? input.capacity,
+    occupancyMin: input.occupancyMin ?? null,
+    occupancyMax: input.occupancyMax ?? null,
+    minAge: input.minAge ?? null,
+    maxAge: input.maxAge ?? null,
+    roomTypeId: input.roomTypeId ?? null,
+    bedConfiguration: input.bedConfiguration ?? null,
+    accessible: input.accessible ?? false,
     namePattern: input.namePattern,
     layout: input.layout ?? null,
     defaultCount: input.defaultCount ?? null,
@@ -139,6 +158,13 @@ export async function upsertProductOptionResourceTemplate(
     ref_type: row.refType,
     ref_id: row.refId,
     capacity: row.capacity,
+    occupancy_min: row.occupancyMin,
+    occupancy_max: row.occupancyMax,
+    min_age: row.minAge,
+    max_age: row.maxAge,
+    room_type_id: row.roomTypeId,
+    bed_configuration: row.bedConfiguration,
+    accessible: row.accessible,
     name_pattern: row.namePattern,
     layout: row.layout,
     default_count: row.defaultCount,
@@ -203,6 +229,13 @@ function toResourceTemplate(row: ResourceTemplateRow): ResourceTemplate {
     refType: row.ref_type,
     refId: row.ref_id,
     capacity: row.capacity,
+    occupancyMin: row.occupancy_min ?? null,
+    occupancyMax: row.occupancy_max ?? null,
+    minAge: row.min_age ?? null,
+    maxAge: row.max_age ?? null,
+    roomTypeId: row.room_type_id ?? null,
+    bedConfiguration: row.bed_configuration ?? null,
+    accessible: row.accessible ?? false,
     namePattern: row.name_pattern,
     layout: row.layout,
     defaultCount: row.default_count ?? null,
@@ -229,6 +262,13 @@ interface ResourceTemplateRow {
   ref_type: string | null
   ref_id: string | null
   capacity: number
+  occupancy_min: number | null
+  occupancy_max: number | null
+  min_age: number | null
+  max_age: number | null
+  room_type_id: string | null
+  bed_configuration: string | null
+  accessible: boolean
   name_pattern: string
   layout: string | null
   default_count: number | null

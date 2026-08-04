@@ -16,7 +16,33 @@ const PASSENGER_HEADERS = [
   "Dietary flagged",
 ] as const
 
-const ROOMING_HEADERS = ["Resource", "Capacity", "Occupants", "Traveler count"] as const
+/**
+ * The supplier-facing rooming list.
+ *
+ * One row per **occupant**, not per room: a hotel needs the name that goes on
+ * each key card, and the four columns this export used to have (resource,
+ * capacity, a semicolon-joined name blob, a count) could not carry a bed
+ * preference or an accessibility flag at all, because those are per traveler.
+ * Rooms with no occupant still emit one row so the operator can see the empty
+ * bed they are paying for.
+ *
+ * Column order follows how a rooming list is read: find the room, then who is
+ * in it, then what the room has to be.
+ */
+const ROOMING_HEADERS = [
+  "Room",
+  "Room type",
+  "Bed configuration",
+  "Occupancy",
+  "Capacity",
+  "Minimum occupancy",
+  "Accessible room",
+  "Traveler",
+  "Booking",
+  "Sharing group",
+  "Bed preference",
+  "Accessibility flagged",
+] as const
 
 export function buildAllocationPassengersCsv(manifest: SlotAllocationManifest): string {
   const rows: Array<Array<string | number | boolean | null>> = [[...PASSENGER_HEADERS]]
@@ -64,32 +90,56 @@ export function buildAllocationRoomingCsv(manifest: SlotAllocationManifest, kind
     travelersByResource.set(resourceId, list)
   }
 
+  const sharingGroupLabel = (traveler: AllocationManifestTraveler) =>
+    traveler.sharingGroupId
+      ? (manifest.sharingGroupLabels[traveler.sharingGroupId] ?? traveler.sharingGroupId)
+      : null
+
   for (const resource of manifest.resources.filter((row) => row.kind === kind)) {
     const occupants = travelersByResource.get(resource.id) ?? []
-    rows.push([
+    const roomColumns = [
       resource.label ?? resource.id,
-      resource.capacity,
-      occupants
-        .map((traveler) => traveler.fullName)
-        .filter(Boolean)
-        .join("; "),
+      resource.roomTypeId,
+      resource.bedConfiguration,
       occupants.length,
-    ])
+      resource.capacity,
+      resource.occupancyMin,
+      resource.accessible ? "yes" : "no",
+    ]
+    if (occupants.length === 0) {
+      rows.push([...roomColumns, null, null, null, null, null])
+      continue
+    }
+    for (const traveler of occupants) {
+      rows.push([
+        ...roomColumns,
+        traveler.fullName,
+        traveler.bookingNumber,
+        sharingGroupLabel(traveler),
+        traveler.bedPreference,
+        traveler.hasAccessibilityNeeds ? "yes" : "no",
+      ])
+    }
   }
 
-  if (unallocated.length > 0) {
+  for (const traveler of unallocated) {
     rows.push([
       "Unallocated",
       null,
-      unallocated
-        .map((traveler) => traveler.fullName)
-        .filter(Boolean)
-        .join("; "),
-      unallocated.length,
+      null,
+      null,
+      null,
+      null,
+      null,
+      traveler.fullName,
+      traveler.bookingNumber,
+      sharingGroupLabel(traveler),
+      traveler.bedPreference,
+      traveler.hasAccessibilityNeeds ? "yes" : "no",
     ])
   }
 
-  rows.push(["Total", null, null, travelers.length])
+  rows.push(["Total", null, null, travelers.length, null, null, null, null, null, null, null, null])
 
   return csvDocument(rows)
 }

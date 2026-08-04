@@ -35,6 +35,7 @@ export {
   useSharingGroupLabelMutation,
   useSlotAllocation,
   useSlotAllocationAuditLog,
+  useTravelerRoomingPreferencesMutation,
   useTravelerSharingGroupMutation,
 } from "./use-slot-allocation.js"
 export {

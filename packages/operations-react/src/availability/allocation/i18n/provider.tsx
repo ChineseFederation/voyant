@@ -185,6 +185,18 @@ export type AllocationUiMessages = Record<string, unknown> & {
     summary: string
     violationsTitle: string
     violationsDescription: string
+    /** Groups the planner could only place by relaxing a constraint. */
+    compromisesTitle: string
+    compromisesDescription: string
+    compromiseRow: string
+    relaxations: Record<
+      "bed_preference" | "room_type" | "option" | "option_unit" | "age_band" | "accessibility",
+      string
+    >
+    /** Groups the planner could not place, and why. */
+    unplacedTitle: string
+    unplacedNoCapacity: string
+    unplacedNoResources: string
     confirm: string
     confirming: string
     previewFailed: string
@@ -196,6 +208,10 @@ export type AllocationUiMessages = Record<string, unknown> & {
     downloading: string
     failed: string
   }
+  /**
+   * The printed rooming list. #4036 widened it from the four columns a screen
+   * summary needs to the ones a hotel needs to make up the rooms.
+   */
   print: {
     heading: string
     departureLabel: string
@@ -203,9 +219,52 @@ export type AllocationUiMessages = Record<string, unknown> & {
     resourceColumn: string
     capacityColumn: string
     occupantsColumn: string
+    roomTypeColumn: string
+    bedConfigurationColumn: string
+    accessibleColumn: string
+    bookingColumn: string
+    sharingGroupColumn: string
+    bedPreferenceColumn: string
+    notesColumn: string
+    accessibilityNote: string
+    yes: string
+    no: string
     unallocatedRow: string
     totalRow: string
     conflictsHeading: string
+  }
+  /** The admin affordance for the preferences the room rules check against. */
+  roomingPreferences: {
+    title: string
+    description: string
+    editButton: string
+    bedPreferenceLabel: string
+    bedPreferenceNone: string
+    bedPreferences: Record<"single" | "twin" | "double" | "no-preference", string>
+    roomTypeLabel: string
+    roomTypePlaceholder: string
+    roomTypeHint: string
+    save: string
+    saving: string
+    cancel: string
+    saveFailed: string
+  }
+  /**
+   * Waiving a blocking room constraint. The reason is mandatory and is written
+   * into the departure's audit trail alongside the rules it waived.
+   */
+  override: {
+    title: string
+    description: string
+    violationsHeading: string
+    reasonLabel: string
+    reasonPlaceholder: string
+    reasonRequired: string
+    confirm: string
+    confirming: string
+    cancel: string
+    severities: Record<"blocking" | "advisory", string>
+    codes: Record<string, string>
   }
   allocationFailed: string
   createRoomFailed: string

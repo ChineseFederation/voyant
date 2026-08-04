@@ -51,6 +51,13 @@ export {
   type AllocationPrintViewProps,
 } from "./components/slot-allocation-print-view.js"
 export {
+  ConstraintOverrideDialog,
+  type ConstraintOverrideDialogProps,
+  parseConstraintViolations,
+  RoomingPreferencesDialog,
+  type RoomingPreferencesDialogProps,
+} from "./components/slot-allocation-rooming-dialogs.js"
+export {
   AllocationToolbarActions,
   type AllocationToolbarActionsProps,
 } from "./components/slot-allocation-toolbar-actions.js"

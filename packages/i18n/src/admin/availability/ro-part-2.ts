@@ -96,8 +96,22 @@ export const adminAvailabilityMessagesRoPart2 = {
       kindPlaceholder: "Alege un tip…",
       kindCustomOption: "Personalizat…",
       kindCustomInputPlaceholder: "tip_personalizat",
-      capacityLabel: "Oaspeti per camera/resursa",
-      capacityDerivedHint: "Capacitatea este calculata din harta locurilor ({count} scaune).",
+      capacityLabel: "Persoane per camera/resursa",
+      capacityDerivedHint: "Capacitatea este dedusa din harta locurilor ({count} locuri).",
+      occupancyMinLabel: "Ocupare minima",
+      occupancyMinHint:
+        "Ocuparea la care a fost contractata camera. Lasa gol cand nu exista un minim; pune 2 la o dubla ca sa vezi cand ramane un singur calator in ea.",
+      bedConfigurationLabel: "Configuratie paturi",
+      bedConfigurationPlaceholder: "1 matrimonial sau 2 twin",
+      bedConfigurationHint:
+        "Cum numeste furnizorul paturile. Preferintele de pat sunt verificate fata de acest text.",
+      accessibleLabel: "Camera accesibila",
+      accessibleHint: "Rezervata calatorilor care au semnalat nevoi de accesibilitate.",
+      ageBandLabel: "Interval de varsta",
+      minAgeLabel: "Varsta minima",
+      maxAgeLabel: "Varsta maxima",
+      ageBandHint:
+        "Lasa gol daca camera nu este vanduta unei singure grupe de varsta, de exemplu camera de copii.",
       defaultCountLabel: "Cate per plecare?",
       defaultCountHint:
         "Seteaza 20 pentru douazeci de camere duble pe fiecare plecare. Foloseste 0 cand inventarul se creeaza manual.",

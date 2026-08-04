@@ -12,6 +12,8 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 
 import {
+  type AllocationCompromise,
+  type AllocationUnplacedGroup,
   type AllocatorResource,
   type AllocatorTraveler,
   planRoomAllocation,
@@ -37,7 +39,16 @@ export type AllocationAutomationInput = z.infer<typeof allocationAutomationSchem
 export interface AllocationAutomationResult {
   kind: string
   assigned?: number
+  /** Traveler count the planner could not place. See `unplaced` for the reason. */
   skipped?: number
+  /**
+   * The groups behind `skipped`, each with its sharing group and a reason.
+   * Before #4036 oversubscription surfaced only as an opaque integer, so the
+   * operator was told "12 skipped" and had to work out which twelve, and why.
+   */
+  unplaced?: AllocationUnplacedGroup[]
+  /** Groups the planner could only place by relaxing a constraint. */
+  compromises?: AllocationCompromise[]
   created?: number
   /**
    * Template groups that already had resources on this slot and were left
@@ -68,6 +79,10 @@ export interface AllocationPlanPreview {
   skipped: number
   /** Entries the plan would write, in allocator order. */
   entries: AllocationPlanEntry[]
+  /** Groups the plan cannot place, with the reason. */
+  unplaced: AllocationUnplacedGroup[]
+  /** Groups the plan can only place by relaxing a constraint. */
+  compromises: AllocationCompromise[]
   /**
    * Capacity violations the plan would create. Always empty in practice — the
    * plan is computed under the same lock the writer takes — but returned so a
@@ -144,6 +159,8 @@ export async function previewAutoAllocateSlotResources(
       assigned: planned.assignments.length,
       skipped: planned.skipped,
       entries,
+      unplaced: planned.unplaced,
+      compromises: planned.compromises,
       violations,
     }
   })
@@ -214,13 +231,25 @@ export async function autoAllocateSlotResources(
       slotId,
       action: "auto-allocate",
       actorId: options.actorId ?? null,
-      after: { kind, assigned: planned.assignments.length, skipped: planned.skipped },
+      after: {
+        kind,
+        assigned: planned.assignments.length,
+        skipped: planned.skipped,
+        unplaced: planned.unplaced,
+        compromises: planned.compromises,
+      },
     })
 
     return planned
   })
 
-  return { kind, assigned: plan.assignments.length, skipped: plan.skipped }
+  return {
+    kind,
+    assigned: plan.assignments.length,
+    skipped: plan.skipped,
+    unplaced: plan.unplaced,
+    compromises: plan.compromises,
+  }
 }
 
 /**
@@ -294,6 +323,12 @@ function toAllocatorTravelers(manifest: SlotAllocationManifest, kind: string): A
         optionId: traveler.optionId,
         optionUnitId: traveler.optionUnitId,
         optionUnitCode: traveler.optionUnitCode,
+        // The manifest has carried these three since it was written; the
+        // allocator simply never received them, so a bed preference, a booked
+        // room type and a child's category could not influence the plan.
+        bedPreference: traveler.bedPreference,
+        roomTypeId: traveler.roomTypeId,
+        travelerCategory: traveler.travelerCategory,
       })
     }
   }
@@ -310,6 +345,12 @@ function toAllocatorResource(resource: AllocationResource): AllocatorResource {
     refType: resource.refType,
     refId: resource.refId,
     label: resource.label,
+    occupancyMin: resource.occupancyMin,
+    roomTypeId: resource.roomTypeId,
+    bedConfiguration: resource.bedConfiguration,
+    accessible: resource.accessible,
+    minAge: resource.minAge,
+    maxAge: resource.maxAge,
     row: typeof resource.flags?.row === "number" ? resource.flags.row : undefined,
     column: typeof resource.flags?.column === "string" ? resource.flags.column : undefined,
     position:

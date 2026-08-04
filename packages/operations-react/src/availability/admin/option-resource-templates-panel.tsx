@@ -1,5 +1,15 @@
 "use client"
 
+// agent-quality: file-size exception -- owner: availability. This panel is a
+// collapsible list plus the single create/edit form that writes its rows, and
+// the two share one block of form state (kind, occupancy band, bed
+// configuration, age band, seat map, naming). #4036 pushed it past the limit by
+// adding the room-constraint fields to that form. Splitting the form out would
+// mean threading twenty setters through props, or lifting the state into a hook
+// whose only consumer is the component it came from -- neither makes this
+// easier to review. Extracting the form together with its state is a worthwhile
+// refactor; it is its own change.
+
 import { useOperatorAdminMessages } from "@voyant-travel/admin"
 import { formatMessage } from "@voyant-travel/i18n"
 import { useOptionUnits } from "@voyant-travel/inventory-react"
@@ -85,6 +95,14 @@ const COMMON_KINDS: ReadonlyArray<{ value: ResourceTemplateKind; defaultPattern:
   { value: "flight_seat", defaultPattern: "Seat {sequence}" },
 ]
 
+/** An optional integer field: blank clears it, anything unparseable is ignored. */
+function optionalInteger(value: string): number | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number.parseInt(trimmed, 10)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 export function OptionResourceTemplatesPanel({
   productId,
   optionId,
@@ -123,6 +141,11 @@ export function OptionResourceTemplatesPanel({
   const [editingRefId, setEditingRefId] = useState<string | null>(null)
   const [kindValue, setKindValue] = useState<string>("room")
   const [capacityValue, setCapacityValue] = useState<number>(2)
+  const [occupancyMinValue, setOccupancyMinValue] = useState<string>("")
+  const [bedConfigurationValue, setBedConfigurationValue] = useState<string>("")
+  const [accessibleValue, setAccessibleValue] = useState<boolean>(false)
+  const [minAgeValue, setMinAgeValue] = useState<string>("")
+  const [maxAgeValue, setMaxAgeValue] = useState<string>("")
   const [defaultCountValue, setDefaultCountValue] = useState<number>(1)
   const [namePatternValue, setNamePatternValue] = useState<string>("Room {sequence}")
   const [layoutSpec, setLayoutSpec] = useState<SeatLayoutSpec | null>(null)
@@ -138,6 +161,11 @@ export function OptionResourceTemplatesPanel({
     setEditingRefId(null)
     setKindValue("room")
     setCapacityValue(2)
+    setOccupancyMinValue("")
+    setBedConfigurationValue("")
+    setAccessibleValue(false)
+    setMinAgeValue("")
+    setMaxAgeValue("")
     setDefaultCountValue(1)
     setNamePatternValue("Room {sequence}")
     setLayoutSpec(null)
@@ -150,6 +178,11 @@ export function OptionResourceTemplatesPanel({
     refType: string | null
     refId: string | null
     capacity: number
+    occupancyMin: number | null
+    bedConfiguration: string | null
+    accessible: boolean
+    minAge: number | null
+    maxAge: number | null
     defaultCount: number | null
     namePattern: string
     flags: Record<string, unknown>
@@ -159,6 +192,11 @@ export function OptionResourceTemplatesPanel({
     setEditingRefId(template.refId)
     setKindValue(template.kind)
     setCapacityValue(template.capacity)
+    setOccupancyMinValue(template.occupancyMin == null ? "" : String(template.occupancyMin))
+    setBedConfigurationValue(template.bedConfiguration ?? "")
+    setAccessibleValue(template.accessible)
+    setMinAgeValue(template.minAge == null ? "" : String(template.minAge))
+    setMaxAgeValue(template.maxAge == null ? "" : String(template.maxAge))
     setDefaultCountValue(template.defaultCount ?? 0)
     setNamePatternValue(template.namePattern)
     setLayoutSpec(extractLayoutSpec(template.flags))
@@ -186,6 +224,12 @@ export function OptionResourceTemplatesPanel({
         kind: trimmedKind,
         input: {
           capacity: effectiveCapacity,
+          occupancyMin: optionalInteger(occupancyMinValue),
+          occupancyMax: usingSeatMap ? null : effectiveCapacity,
+          bedConfiguration: bedConfigurationValue.trim() || null,
+          accessible: accessibleValue,
+          minAge: optionalInteger(minAgeValue),
+          maxAge: optionalInteger(maxAgeValue),
           defaultCount: defaultCountValue > 0 ? defaultCountValue : null,
           namePattern: trimmedPattern,
           // Preserve the edited template's ref so the upsert targets its exact
@@ -223,7 +267,18 @@ export function OptionResourceTemplatesPanel({
           // index lets one option carry a "room" template per unit.
           kind: "room",
           input: {
+            // `capacity` is the maximum; `occupancyMin` is its floor. Collapsing
+            // the two into one number (the old `occupancyMax ?? occupancyMin`)
+            // threw the floor away, so a triple sold to two people was
+            // indistinguishable from a double sold to two, and the empty bed
+            // nobody was billing for could not be reported.
             capacity: unit.occupancyMax ?? unit.occupancyMin ?? 1,
+            occupancyMin: unit.occupancyMin ?? null,
+            occupancyMax: unit.occupancyMax ?? unit.occupancyMin ?? null,
+            // The age band the unit is sold under travels with it, so a
+            // child-share room stops accepting adults.
+            minAge: unit.minAge ?? null,
+            maxAge: unit.maxAge ?? null,
             defaultCount: unit.maxQuantity ?? null,
             // {index} numbers each room type from 1 (Double 1…20), not the
             // global {sequence}, so the shared "room" pool reads cleanly.
@@ -377,6 +432,11 @@ export function OptionResourceTemplatesPanel({
                               refType: template.refType,
                               refId: template.refId,
                               capacity: template.capacity,
+                              occupancyMin: template.occupancyMin,
+                              bedConfiguration: template.bedConfiguration,
+                              accessible: template.accessible,
+                              minAge: template.minAge,
+                              maxAge: template.maxAge,
                               defaultCount: template.defaultCount,
                               namePattern: template.namePattern,
                               flags: template.flags,
@@ -507,6 +567,71 @@ export function OptionResourceTemplatesPanel({
                   </p>
                 ) : null}
               </div>
+              {kindValue === "vehicle_seat" || kindValue === "flight_seat" ? null : (
+                <>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="resource-template-occupancy-min">{t.occupancyMinLabel}</Label>
+                    <Input
+                      id="resource-template-occupancy-min"
+                      type="number"
+                      min={1}
+                      max={capacityValue}
+                      value={occupancyMinValue}
+                      onChange={(event) => setOccupancyMinValue(event.target.value)}
+                    />
+                    <p className="text-muted-foreground text-xs">{t.occupancyMinHint}</p>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="resource-template-bed-configuration">
+                      {t.bedConfigurationLabel}
+                    </Label>
+                    <Input
+                      id="resource-template-bed-configuration"
+                      value={bedConfigurationValue}
+                      onChange={(event) => setBedConfigurationValue(event.target.value)}
+                      placeholder={t.bedConfigurationPlaceholder}
+                    />
+                    <p className="text-muted-foreground text-xs">{t.bedConfigurationHint}</p>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>{t.ageBandLabel}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        aria-label={t.minAgeLabel}
+                        type="number"
+                        min={0}
+                        max={120}
+                        value={minAgeValue}
+                        placeholder={t.minAgeLabel}
+                        onChange={(event) => setMinAgeValue(event.target.value)}
+                      />
+                      <Input
+                        aria-label={t.maxAgeLabel}
+                        type="number"
+                        min={0}
+                        max={120}
+                        value={maxAgeValue}
+                        placeholder={t.maxAgeLabel}
+                        onChange={(event) => setMaxAgeValue(event.target.value)}
+                      />
+                    </div>
+                    <p className="text-muted-foreground text-xs">{t.ageBandHint}</p>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <input
+                      id="resource-template-accessible"
+                      type="checkbox"
+                      className="mt-1"
+                      checked={accessibleValue}
+                      onChange={(event) => setAccessibleValue(event.target.checked)}
+                    />
+                    <div className="grid gap-0.5">
+                      <Label htmlFor="resource-template-accessible">{t.accessibleLabel}</Label>
+                      <p className="text-muted-foreground text-xs">{t.accessibleHint}</p>
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="grid gap-1.5">
                 <Label htmlFor="resource-template-count">{t.defaultCountLabel}</Label>
                 <Input

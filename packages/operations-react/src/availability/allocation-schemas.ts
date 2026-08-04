@@ -24,7 +24,15 @@ export const allocationResourceSchema = z.object({
   refType: z.string().nullable(),
   refId: z.string().nullable(),
   label: z.string().nullable(),
+  /** Maximum occupancy. */
   capacity: z.number().int(),
+  /** Minimum sold occupancy; `null` when the position declares no floor. */
+  occupancyMin: z.number().int().nullable().default(null),
+  roomTypeId: z.string().nullable().default(null),
+  bedConfiguration: z.string().nullable().default(null),
+  accessible: z.boolean().default(false),
+  minAge: z.number().int().nullable().default(null),
+  maxAge: z.number().int().nullable().default(null),
   flags: z.record(z.string(), z.unknown()),
   parentId: z.string().nullable(),
   sortOrder: z.number().int(),
@@ -50,6 +58,10 @@ export const ALLOCATION_CONFLICT_CODES = [
   "incompatible_assignment",
   "oversubscribed_sharing_group",
   "split_sharing_group",
+  "under_occupied_resource",
+  "bed_preference_unmet",
+  "unaccompanied_minor",
+  "adult_child_mixing",
 ] as const
 
 /** The codes this client release knows how to localize. */
@@ -97,6 +109,40 @@ export const allocationCapacityViolationSchema = z.object({
 
 export type AllocationCapacityViolation = z.infer<typeof allocationCapacityViolationSchema>
 
+/** One room constraint an assignment breached (`room-constraints.ts`). */
+export const allocationConstraintViolationSchema = z.object({
+  code: z.string(),
+  severity: z.enum(["blocking", "advisory"]),
+  message: z.string(),
+  expected: z.union([z.string(), z.number()]).nullable().optional(),
+  actual: z.union([z.string(), z.number()]).nullable().optional(),
+  travelerIds: z.array(z.string()).optional(),
+})
+
+export type AllocationConstraintViolation = z.infer<typeof allocationConstraintViolationSchema>
+
+/** A group the planner could not place, with the reason. */
+export const allocationUnplacedGroupSchema = z.object({
+  groupKey: z.string(),
+  sharingGroupId: z.string().nullable(),
+  travelerIds: z.array(z.string()),
+  reason: z.enum(["no_resources", "no_capacity"]),
+  largestFreeCapacity: z.number().int(),
+})
+
+export type AllocationUnplacedGroup = z.infer<typeof allocationUnplacedGroupSchema>
+
+/** A group the planner could only place by relaxing a constraint. */
+export const allocationCompromiseSchema = z.object({
+  groupKey: z.string(),
+  sharingGroupId: z.string().nullable(),
+  travelerIds: z.array(z.string()),
+  resourceId: z.string(),
+  relaxed: z.array(z.string()),
+})
+
+export type AllocationCompromise = z.infer<typeof allocationCompromiseSchema>
+
 export const allocationPlanEntrySchema = z.object({
   travelerId: z.string(),
   travelerName: z.string(),
@@ -117,6 +163,10 @@ export const allocationPlanPreviewSchema = z.object({
   assigned: z.number().int(),
   skipped: z.number().int(),
   entries: z.array(allocationPlanEntrySchema),
+  /** Groups the plan cannot place, with the reason. */
+  unplaced: z.array(allocationUnplacedGroupSchema).default([]),
+  /** Groups the plan can only place by relaxing a constraint. */
+  compromises: z.array(allocationCompromiseSchema).default([]),
   violations: z.array(allocationCapacityViolationSchema),
 })
 
@@ -140,6 +190,8 @@ export const batchAssignAllocationsResultSchema = z.object({
   unassigned: z.number().int(),
   unchanged: z.number().int(),
   travelerIds: z.array(z.string()),
+  /** Room constraints the accepted batch leaves behind. */
+  violations: z.array(allocationConstraintViolationSchema).default([]),
 })
 
 export type BatchAssignAllocationsResult = z.infer<typeof batchAssignAllocationsResultSchema>

@@ -287,6 +287,18 @@ export function isTravelerAllocatableKind(kind: string) {
   return kind !== VEHICLE_KIND
 }
 
+export const FLIGHT_SEAT_KIND = "flight_seat"
+
+/**
+ * Seat-shaped kinds hold one person and carry no bed, room type or occupancy
+ * floor, so the room-specific surfaces (the rooming list, the preferences form)
+ * are meaningless for them. Mirrors `isSeatShapedKind` in the server's
+ * `room-constraints.ts` so the two halves classify a kind the same way.
+ */
+export function isSeatShapedKind(kind: string) {
+  return kind === VEHICLE_SEAT_KIND || kind === FLIGHT_SEAT_KIND
+}
+
 export function kindLabel(kind: string, messages: AllocationUiMessages) {
   if (kind === ROOM_KIND) return messages.rooms
   if (kind === VEHICLE_KIND) return messages.vehicles

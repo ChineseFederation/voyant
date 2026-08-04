@@ -12,10 +12,16 @@ export const availabilitySlotStatusSchema = z.enum(["open", "closed", "sold_out"
 export const meetingModeSchema = z.enum(["meeting_only", "pickup_only", "meet_or_pickup"])
 export const pickupGroupKindSchema = z.enum(["pickup", "dropoff", "meeting"])
 export const pickupTimingModeSchema = z.enum(["fixed_time", "offset_from_start"])
-export const allocationResourceKindSchema = z.string().trim().min(1).max(80)
 export const operatedDepartureResourceKindSchema = z.enum(["room", "vehicle", "vehicle_seat"])
-export const allocationResourceFlagsSchema = z.record(z.string(), z.unknown())
 export const travelerAllocationMapSchema = z.record(z.string(), z.string())
+
+// The allocation half of this module's request schemas lives next door; it is
+// re-exported here so every existing `validation.js` importer is unaffected.
+export * from "./validation-allocation.js"
+export {
+  allocationResourceFlagsSchema,
+  allocationResourceKindSchema,
+} from "./validation-primitives.js"
 
 /**
  * Explicit 2D seat layout for vehicle_seat templates. Each row is a list of
@@ -251,174 +257,6 @@ export const availabilityCloseoutListQuerySchema = paginationSchema.extend({
   productId: z.string().optional(),
   slotId: z.string().optional(),
   dateLocal: isoDateSchema.optional(),
-})
-
-export const allocationResourceCoreSchema = z.object({
-  kind: allocationResourceKindSchema,
-  refType: z.string().nullable().optional(),
-  refId: z.string().nullable().optional(),
-  label: z.string().nullable().optional(),
-  capacity: z.number().int().min(1),
-  flags: allocationResourceFlagsSchema.default({}),
-  parentId: z.string().nullable().optional(),
-  sortOrder: z.number().int().default(0),
-})
-
-export const insertAllocationResourceSchema = allocationResourceCoreSchema.superRefine(
-  (value, ctx) => {
-    if (value.kind !== "vehicle_seat") return
-    if (value.capacity !== 1) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["capacity"],
-        message: "A vehicle seat must have capacity 1",
-      })
-    }
-    if (!value.parentId) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["parentId"],
-        message: "A vehicle seat must belong to a vehicle",
-      })
-    }
-    if (!value.label?.trim()) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["label"],
-        message: "A vehicle seat must have a designation",
-      })
-    }
-  },
-)
-/**
- * `expectedUpdatedAt` is the optimistic-concurrency precondition: the
- * `updatedAt` the caller read. Supplying it rejects a patch computed against a
- * resource somebody else has since re-shaped (a coach whose capacity was
- * lowered under you) with 409 instead of silently overwriting.
- */
-export const updateAllocationResourceSchema = allocationResourceCoreSchema
-  .omit({ kind: true })
-  .partial()
-  .extend({ expectedUpdatedAt: isoDateTimeSchema.optional() })
-  .strict()
-  .refine((value) => Object.keys(value).some((key) => key !== "expectedUpdatedAt"), {
-    message: "Patch payload is required",
-  })
-
-export const deleteAllocationResourceQuerySchema = z.object({
-  expectedUpdatedAt: isoDateTimeSchema.optional(),
-})
-
-/**
- * Attach an existing fleet `resources` record to a departure. `kind` and
- * `capacity` default from the fleet record; name them when it does not carry
- * one (a `guide`/`equipment` resource, or a coach with no declared capacity).
- */
-export const attachDepartureResourceSchema = z.object({
-  resourceId: z.string().trim().min(1),
-  kind: allocationResourceKindSchema.optional(),
-  capacity: z.number().int().min(1).optional(),
-  label: z.string().trim().min(1).max(160).nullable().optional(),
-  flags: allocationResourceFlagsSchema.default({}),
-  sortOrder: z.number().int().default(0),
-  notes: z.string().trim().max(500).nullable().optional(),
-})
-
-export const detachDepartureResourceQuerySchema = z.object({
-  expectedUpdatedAt: isoDateTimeSchema.optional(),
-  /** Remove the attached resource's children (a coach's seats) with it. */
-  cascade: booleanQueryParam.optional(),
-})
-
-/**
- * Place a whole set of travelers in one transaction. `expectedResourceId` is
- * the per-traveler optimistic-concurrency precondition — omit it to write
- * unconditionally, pass `null` to require the traveler to be unassigned.
- */
-export const batchAssignTravelerAllocationsSchema = z
-  .object({
-    kind: allocationResourceKindSchema,
-    assignments: z
-      .array(
-        z.object({
-          travelerId: z.string().trim().min(1),
-          resourceId: z.string().trim().min(1).nullable(),
-          expectedResourceId: z.string().trim().min(1).nullable().optional(),
-        }),
-      )
-      .min(1)
-      .max(200),
-  })
-  .refine(
-    (value) =>
-      value.kind !== "vehicle" ||
-      value.assignments.every((assignment) => assignment.resourceId === null),
-    {
-      path: ["kind"],
-      message: "Vehicles are parent resources; assign travelers to vehicle seats instead",
-    },
-  )
-
-export const allocationKindQuerySchema = z.object({
-  kind: allocationResourceKindSchema.default("room"),
-})
-
-export const assignTravelerAllocationSchema = z
-  .object({
-    kind: allocationResourceKindSchema,
-    resourceId: z.string().nullable(),
-  })
-  .refine((value) => value.kind !== "vehicle" || value.resourceId === null, {
-    path: ["kind"],
-    message: "Vehicles are parent resources; assign travelers to vehicle seats instead",
-  })
-
-export const updateTravelerSharingGroupSchema = z.object({
-  sharingGroupId: z.string().trim().min(1).nullable(),
-})
-
-export const pairSharingGroupSchema = z.object({
-  travelerIds: z.array(z.string().min(1)).min(2).max(20),
-  sharingGroupId: z.string().trim().min(1).optional(),
-})
-
-export const updateSharingGroupLabelSchema = z.object({
-  label: z.string().trim().min(1).max(120),
-})
-
-export const upsertResourceTemplateSchema = z.object({
-  capacity: z.number().int().min(1),
-  namePattern: z.string().trim().min(1).max(160).default("Room {sequence}"),
-  refType: z.string().trim().min(1).nullable().optional(),
-  refId: z.string().trim().min(1).nullable().optional(),
-  layout: z.string().trim().min(1).nullable().optional(),
-  defaultCount: z.number().int().min(0).nullable().optional(),
-  flags: allocationResourceFlagsSchema.default({}),
-})
-
-export const allocationAutomationSchema = z.object({
-  kind: allocationResourceKindSchema.default("room"),
-})
-
-export const materializeOpenSlotsSchema = z.object({
-  optionId: z.string().optional(),
-})
-
-/**
- * Paging for the slot allocation manifest's **booking** axis.
- *
- * `limit` is optional on purpose: omitting it returns every booking, which is
- * what this route did before it could page, so no existing caller changes
- * behaviour. The manifest's `summary` counters are whole-departure regardless
- * of the page — see `SlotAllocationManifestPagination`.
- */
-export const allocationManifestQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(200).optional(),
-  offset: z.coerce.number().int().min(0).default(0),
-})
-
-export const allocationAuditLogQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(50),
 })
 
 export const availabilityPickupPointCoreSchema = z.object({

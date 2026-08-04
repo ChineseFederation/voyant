@@ -72,10 +72,31 @@ const allocationConflictSchema = z.object({
   message: z.string(),
 })
 
+/** A group the planner could not place, or could only place by compromising. */
+const allocationUnplacedGroupSchema = z.object({
+  groupKey: z.string(),
+  sharingGroupId: z.string().nullable(),
+  travelerIds: z.array(z.string()),
+  reason: z.enum(["no_resources", "no_capacity"]),
+  largestFreeCapacity: z.number().int(),
+})
+
+const allocationCompromiseSchema = z.object({
+  groupKey: z.string(),
+  sharingGroupId: z.string().nullable(),
+  travelerIds: z.array(z.string()),
+  resourceId: z.string(),
+  relaxed: z.array(
+    z.enum(["bed_preference", "room_type", "option", "option_unit", "age_band", "accessibility"]),
+  ),
+})
+
 const allocationPlanPreviewSchema = z.object({
   kind: z.string(),
   assigned: z.number().int(),
   skipped: z.number().int(),
+  unplaced: z.array(allocationUnplacedGroupSchema),
+  compromises: z.array(allocationCompromiseSchema),
   entries: z.array(
     z.object({
       travelerId: z.string(),
@@ -107,6 +128,21 @@ const batchAssignResultSchema = z.object({
   unassigned: z.number().int(),
   unchanged: z.number().int(),
   travelerIds: z.array(z.string()),
+  /**
+   * Room constraints the accepted batch leaves behind. Blocking ones only
+   * appear here when the caller supplied an `override.reason`; without one the
+   * leg answers 409 with the same payload under `detail.violations`.
+   */
+  violations: z.array(
+    z.object({
+      code: z.string(),
+      severity: z.enum(["blocking", "advisory"]),
+      message: z.string(),
+      expected: z.union([z.string(), z.number()]).nullable().optional(),
+      actual: z.union([z.string(), z.number()]).nullable().optional(),
+      travelerIds: z.array(z.string()).optional(),
+    }),
+  ),
 })
 
 // --- route definitions ------------------------------------------------------

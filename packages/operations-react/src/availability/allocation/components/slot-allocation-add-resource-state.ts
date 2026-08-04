@@ -102,6 +102,17 @@ export function useAddResourceForm({
           refType: null,
           refId: null,
           capacity: capacityNumber,
+          // The draft carries no room constraints: this projection exists only
+          // to answer "would creating this oversell the departure", and
+          // `summarizeResourceCapacity` reads capacity and parentage alone.
+          // The occupancy fields are what the real row will inherit from its
+          // template once it is created.
+          occupancyMin: null,
+          roomTypeId: null,
+          bedConfiguration: null,
+          accessible: false,
+          minAge: null,
+          maxAge: null,
           flags: {},
           parentId: null,
           sortOrder: 0,

@@ -61,6 +61,11 @@ export function AllocationPreviewDialog({
 }: AllocationPreviewDialogProps) {
   const copy = messages.preview
   const hasViolations = (plan?.violations.length ?? 0) > 0
+  // Defaulted rather than read straight off `plan`: a server one release behind
+  // this client sends neither field, and a preview that throws is worse than a
+  // preview that omits the compromise list.
+  const compromises = plan?.compromises ?? []
+  const unplaced = plan?.unplaced ?? []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,6 +103,61 @@ export function AllocationPreviewDialog({
                     <strong className="font-medium">{copy.violationsTitle}</strong>{" "}
                     {copy.violationsDescription}
                   </span>
+                </div>
+              ) : null}
+
+              {compromises.length > 0 ? (
+                <div
+                  data-slot="allocation-preview-compromises"
+                  className="flex flex-col gap-1 rounded-md border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-sm"
+                >
+                  <strong className="font-medium">{copy.compromisesTitle}</strong>
+                  <p className="text-muted-foreground text-xs">{copy.compromisesDescription}</p>
+                  <ul className="text-xs">
+                    {compromises.map((compromise) => (
+                      <li key={compromise.groupKey}>
+                        {copy.compromiseRow
+                          .replace("{count}", String(compromise.travelerIds.length))
+                          .replace(
+                            "{relaxed}",
+                            compromise.relaxed
+                              // `relaxed` is typed `string` on the wire on
+                              // purpose, so a newer server's code renders as
+                              // itself rather than being dropped — the same
+                              // open-union contract the conflict codes use.
+                              // The catalogue is a closed Record, so the lookup
+                              // has to be widened rather than the wire narrowed.
+                              .map(
+                                (code) =>
+                                  (copy.relaxations as Record<string, string | undefined>)[code] ??
+                                  code,
+                              )
+                              .join(", "),
+                          )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {unplaced.length > 0 ? (
+                <div
+                  data-slot="allocation-preview-unplaced"
+                  className="flex flex-col gap-1 rounded-md border px-3 py-2 text-sm"
+                >
+                  <strong className="font-medium">{copy.unplacedTitle}</strong>
+                  <ul className="text-xs text-muted-foreground">
+                    {unplaced.map((group) => (
+                      <li key={group.groupKey}>
+                        {(group.reason === "no_resources"
+                          ? copy.unplacedNoResources
+                          : copy.unplacedNoCapacity
+                        )
+                          .replace("{count}", String(group.travelerIds.length))
+                          .replace("{largest}", String(group.largestFreeCapacity))}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
 

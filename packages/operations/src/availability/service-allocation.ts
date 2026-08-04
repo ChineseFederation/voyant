@@ -14,6 +14,11 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import { recordAllocationAudit } from "./service-allocation-audit.js"
+import {
+  type AssignmentConstraintDecision,
+  decideAssignmentConstraints,
+  lockConstraintResource,
+} from "./service-allocation-constraint-checks.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"
 import type { AllocationPaymentStatus } from "./service-allocation-manifest-queries.js"
 import {
@@ -344,78 +349,107 @@ export async function assignTravelerAllocation(
       400,
     )
   }
-  await db.transaction(async (tx) => {
-    await assertTravelerBelongsToSlot(tx, slotId, travelerId)
-    const beforeResourceId = await getTravelerAllocation(tx, travelerId, input.kind)
+  // Returned out of the transaction rather than assigned to an outer `let`:
+  // TypeScript cannot see an assignment made inside a callback, so the outer
+  // binding narrows to `null` and every later read is an error.
+  const decision = await db.transaction(
+    async (tx): Promise<AssignmentConstraintDecision | null> => {
+      await assertTravelerBelongsToSlot(tx, slotId, travelerId)
+      const beforeResourceId = await getTravelerAllocation(tx, travelerId, input.kind)
 
-    if (input.resourceId) {
-      const [resource] = await executeRows<{
-        id: string
-        kind: string
-        capacity: number
-      }>(
-        tx,
-        sql`
-          SELECT id, kind, capacity
-          FROM allocation_resources
-          WHERE id = ${input.resourceId}
-            AND slot_id = ${slotId}
-            AND kind = ${input.kind}
-          FOR UPDATE
-        `,
-      )
+      let verdict: AssignmentConstraintDecision | null = null
 
-      if (!resource) {
-        throw new AllocationServiceError("Resource not found for this slot/kind", 404)
-      }
+      if (input.resourceId) {
+        const resource = await lockConstraintResource(tx, slotId, input.kind, input.resourceId)
 
-      const current = await countResourceOccupants(
-        tx,
-        slotId,
-        input.kind,
-        input.resourceId,
-        travelerId,
-      )
-      if (current + 1 > resource.capacity) {
-        throw new AllocationServiceError("Resource over capacity", 409, {
-          capacity: resource.capacity,
-          current,
+        if (!resource) {
+          throw new AllocationServiceError("Resource not found for this slot/kind", 404)
+        }
+
+        const current = await countResourceOccupants(
+          tx,
+          slotId,
+          input.kind,
+          input.resourceId,
+          travelerId,
+        )
+        if (current + 1 > resource.capacity) {
+          throw new AllocationServiceError("Resource over capacity", 409, {
+            capacity: resource.capacity,
+            current,
+          })
+        }
+
+        // Everything past capacity: room type, bed configuration, accessibility,
+        // the unit that was sold, and the age/supervision rules. Blocking
+        // violations reject with 409 unless the operator supplied
+        // `override.reason`, which is then recorded in the audit entry below.
+        verdict = await decideAssignmentConstraints(tx, {
+          slotId,
+          kind: input.kind,
+          travelerId,
+          resource,
+          override: input.override ?? null,
         })
       }
-    }
 
-    await ensureTravelerTravelDetailsRow(tx, travelerId)
+      await ensureTravelerTravelDetailsRow(tx, travelerId)
 
-    if (input.resourceId) {
-      await tx.execute(sql`
+      if (input.resourceId) {
+        await tx.execute(sql`
         UPDATE booking_traveler_travel_details
         SET allocations = COALESCE(allocations, '{}'::jsonb) || jsonb_build_object(${input.kind}::text, ${input.resourceId}::text),
             updated_at = now()
         WHERE traveler_id = ${travelerId}
       `)
-    } else {
-      await tx.execute(sql`
+      } else {
+        await tx.execute(sql`
         UPDATE booking_traveler_travel_details
         SET allocations = COALESCE(allocations, '{}'::jsonb) - ${input.kind}::text,
             updated_at = now()
         WHERE traveler_id = ${travelerId}
       `)
-    }
+      }
 
-    // Audit inside the transaction so a failed audit insert rolls the
-    // assignment back rather than committing an unrecorded move.
-    // `beforeResourceId` was captured above, before the write.
-    await recordAllocationAudit(tx, {
-      slotId,
-      action: input.resourceId ? "traveler.assign" : "traveler.unassign",
-      actorId: options.actorId ?? null,
-      travelerId,
-      before: { kind: input.kind, resourceId: beforeResourceId },
-      after: { kind: input.kind, resourceId: input.resourceId },
-    })
-  })
+      // Audit inside the transaction so a failed audit insert rolls the
+      // assignment back rather than committing an unrecorded move.
+      // `beforeResourceId` was captured above, before the write.
+      //
+      // The `after` payload carries the constraint verdict as well as the target:
+      // enforcing a rule the operator can wave through is only defensible if the
+      // waiver, its stated reason, and exactly which rules it waived are all on
+      // the record.
+      await recordAllocationAudit(tx, {
+        slotId,
+        action: input.resourceId ? "traveler.assign" : "traveler.unassign",
+        actorId: options.actorId ?? null,
+        travelerId,
+        before: { kind: input.kind, resourceId: beforeResourceId },
+        after: {
+          kind: input.kind,
+          resourceId: input.resourceId,
+          ...(verdict && verdict.violations.length > 0 ? { violations: verdict.violations } : {}),
+          ...(input.override
+            ? {
+                override: {
+                  reason: input.override.reason,
+                  overrode: verdict?.overridden.map((entry) => entry.code) ?? [],
+                },
+              }
+            : {}),
+        },
+      })
 
-  return { travelerId, kind: input.kind, resourceId: input.resourceId }
+      return verdict
+    },
+  )
+
+  return {
+    travelerId,
+    kind: input.kind,
+    resourceId: input.resourceId,
+    violations: decision?.violations ?? [],
+  }
 }
 
 export async function updateTravelerSharingGroup(

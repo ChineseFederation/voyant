@@ -66,6 +66,12 @@ export {
   productOptionResourceTemplates,
   sharingGroupLabels,
 } from "@voyant-travel/availability/schema"
+export type {
+  AllocationCompromise,
+  AllocationRelaxation,
+  AllocationUnplacedGroup,
+  AllocationUnplacedReason,
+} from "./auto-allocator.js"
 export {
   assertDepartureServiceOperationTransition,
   canTransitionDepartureServiceOperation,
@@ -86,6 +92,18 @@ export {
   type MaterializeDepartureServiceOperationsResult,
   materializeDepartureServiceOperations,
 } from "./materialize-departure-operations.js"
+export {
+  type AllocationConstraintCode,
+  type AllocationConstraintSeverity,
+  type AllocationConstraintViolation,
+  bedPreferenceSatisfied,
+  type ConstraintResource,
+  type ConstraintTraveler,
+  evaluateAssignmentConstraints,
+  evaluateOccupancyConstraints,
+  isAccessibleResource,
+  isSeatShapedKind,
+} from "./room-constraints.js"
 export {
   type DepartureServiceOperation,
   type DepartureServiceOperationStatus,
@@ -153,6 +171,18 @@ export {
   detachDepartureResource,
   listDepartureResourceLinks,
 } from "./service-allocation-resource-link.js"
+export {
+  type MaterializeFromRoomBlockInput,
+  materializeDepartureRoomsFromBlock,
+  type RoomBlockMaterializationResult,
+  type RoomBlockReleaseResult,
+  releaseDepartureRoomBlock,
+} from "./service-allocation-room-block.js"
+export {
+  type TravelerRoomingPreferences,
+  type UpdateTravelerRoomingPreferencesInput,
+  updateTravelerRoomingPreferences,
+} from "./service-allocation-traveler-preferences.js"
 export {
   type DepartureAllocationCounters,
   type DepartureBookingCounters,
