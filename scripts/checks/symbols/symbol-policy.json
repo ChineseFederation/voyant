@@ -6,6 +6,62 @@
     "See docs/adr/0016-modules-as-components-of-one-deployable.md and issue #3898."
   ],
   "policies": {
+    "booking-create-authority": {
+      "$comment": [
+        "A Booking is created by exactly one durable command: Finance's",
+        "booking-create command. Commit is its only cross-module caller, and",
+        "everything else — every vertical, every route, every hook — is a client",
+        "of that command rather than a second implementation of it. See",
+        "issue #3747, which removed the parallel implementations, and #4188.",
+        "",
+        "This was previously guarded by listing the deleted files in",
+        "retired-paths.json. A path list fails both ways: it false-positives when",
+        "a legitimately different module reuses a retired filename, and it can",
+        "never see a NEW file at an unlisted path calling the command directly.",
+        "onlyIn is default-deny over identifiers, so both go away.",
+        "",
+        "The allowlists are derived from what the code does today. Widening one",
+        "is a decision about who may create a Booking, not a formality.",
+        "",
+        "The absentFrom globs restate what the allowlists already imply: a client",
+        "package must never name the command, whatever gets added to an allowlist",
+        "later. The empty onlyIn lists are the parallel implementations #3747",
+        "deleted, pinned by identifier so they cannot return under a new path."
+      ],
+      "onlyIn": {
+        "executeBookingCreateCommand": ["packages/finance/src/booking-create-command.ts"],
+        "executeFinanceStaffBookingCreateCommand": [
+          "packages/finance/src/booking-create-command.ts",
+          "packages/finance/src/mcp-booking-runtime.ts"
+        ],
+        "executeFinanceBookProductCommand": [
+          "packages/finance/src/booking-create-command.ts",
+          "packages/finance/src/mcp-booking-runtime.ts"
+        ],
+        "executeFinanceSelfServiceBookingCreateCommand": [
+          "packages/finance/src/booking-create-command.ts",
+          "packages/finance/src/self-service-create-runtime.ts"
+        ],
+        "createSelfServiceCreateRuntime": [
+          "packages/finance/src/self-service-create-runtime.ts",
+          "packages/finance/src/index.ts",
+          "packages/catalog/src/booking-engine/sessions-production.ts"
+        ],
+        "chartersBookingService": [],
+        "cruisesBookingService": [],
+        "composeSnapshotContentCapturer": [],
+        "SnapshotContentCapturer": [],
+        "useBookingConvertMutation": [],
+        "buildStorefrontBookBody": []
+      },
+      "absentFrom": {
+        "executeBookingCreateCommand": ["packages/*-react/**"],
+        "executeFinanceStaffBookingCreateCommand": ["packages/*-react/**"],
+        "executeFinanceBookProductCommand": ["packages/*-react/**"],
+        "executeFinanceSelfServiceBookingCreateCommand": ["packages/*-react/**"],
+        "createSelfServiceCreateRuntime": ["packages/*-react/**"]
+      }
+    },
     "flights-runtime-authority": {
       "absentFrom": {
         "operatorGraphRuntimeBindings": ["packages/runtime/src/deployment-resources.ts"],

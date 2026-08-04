@@ -27,40 +27,28 @@
       "retiredBy": ["node-runtime-product-authority"]
     },
     {
-      "path": "packages/bookings-react/src/hooks/use-booking-convert-mutation.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
-      "path": "packages/bookings-react/src/storefront/storefront-checkout-bodies.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
       "path": "packages/catalog-node",
       "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
     },
     {
-      "path": "packages/catalog-react/src/booking-engine/use-booking-commit.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
       "path": "packages/catalog/src/booking-engine/book.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
-      "path": "packages/catalog/src/booking-engine/snapshot-content.ts",
-      "retiredBy": ["booking-create-authority"]
+      "retiredBy": ["booking-create-authority"],
+      "$comment": [
+        "Kept deliberately. This was a whole route module, and a route is",
+        "registered by shape rather than by naming an owned identifier, so the",
+        "booking-create-authority symbol policy cannot police it. Its sibling",
+        "entries moved to that policy in voyant#4188."
+      ]
     },
     {
       "path": "packages/charters/src/service-bookings-local.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
-      "path": "packages/charters/src/service-bookings.ts",
-      "retiredBy": ["booking-create-authority"]
-    },
-    {
-      "path": "packages/cruises/src/service-bookings.ts",
-      "retiredBy": ["booking-create-authority"]
+      "retiredBy": ["booking-create-authority"],
+      "$comment": [
+        "Kept deliberately. Its exports were `createPerSuiteBooking` and",
+        "`createWholeYachtBooking`, which are still legitimate CharterAdapter",
+        "contract methods in packages/charters/src/adapters — so neither name can",
+        "be pinned to nowhere. The path is the only thing left to hold."
+      ]
     },
     {
       "path": "packages/finance/src/standard-node-runtime.ts",

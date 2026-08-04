@@ -68,6 +68,73 @@ test("a presentIn rule naming a file that does not exist is caught", () => {
   assert.match(violations[0], /expected to exist/)
 })
 
+test("a symbol confined to its allowed path produces no onlyIn violation", () => {
+  assert.deepEqual(
+    checkSymbolPolicy(sources, { onlyIn: { secretThing: ["packages/a/src/allowed.ts"] } }),
+    [],
+  )
+})
+
+test("a symbol named outside its onlyIn patterns is caught", () => {
+  const violations = checkSymbolPolicy(sources, {
+    onlyIn: { secretThing: ["packages/b/src/other.ts"] },
+  })
+  assert.match(
+    violations.join("\n"),
+    /packages\/a\/src\/allowed\.ts: secretThing is owned by this authority and may only be named in packages\/b\/src\/other\.ts/,
+  )
+})
+
+test("an onlyIn pattern that matches nothing is caught as stale", () => {
+  // The failure mode a path list cannot report: the rule still reads as a
+  // guard, but nothing it names exists any more, so it can never go red.
+  const violations = checkSymbolPolicy(sources, {
+    onlyIn: { secretThing: ["packages/a/src/allowed.ts", "packages/gone/src/index.ts"] },
+  })
+  assert.deepEqual(violations, [
+    "packages/gone/src/index.ts: stale onlyIn entry — no source here references secretThing",
+  ])
+})
+
+test("an empty onlyIn list means the symbol must not exist anywhere", () => {
+  const violations = checkSymbolPolicy(sources, { onlyIn: { secretThing: [] } })
+  assert.match(violations[0], /must not exist anywhere/)
+})
+
+test("onlyIn patterns support * within a segment and ** across segments", () => {
+  const reactSources = new Map([
+    [
+      "packages/bookings-react/src/hooks/use-x.ts",
+      parse("packages/bookings-react/src/hooks/use-x.ts", "export const owned = 1"),
+    ],
+  ])
+  assert.deepEqual(
+    checkSymbolPolicy(reactSources, { onlyIn: { owned: ["packages/*-react/**"] } }),
+    [],
+  )
+  // `*` must not cross a separator, so the same pattern without `**` misses.
+  assert.match(
+    checkSymbolPolicy(reactSources, { onlyIn: { owned: ["packages/*-react/*"] } }).join("\n"),
+    /may only be named in/,
+  )
+})
+
+test("absentFrom accepts a glob, so a whole package family can be denied", () => {
+  const reactSources = new Map([
+    [
+      "packages/bookings-react/src/hooks/use-x.ts",
+      parse("packages/bookings-react/src/hooks/use-x.ts", "executeCreate()"),
+    ],
+    ["packages/finance/src/ok.ts", parse("packages/finance/src/ok.ts", "executeCreate()")],
+  ])
+  const violations = checkSymbolPolicy(reactSources, {
+    absentFrom: { executeCreate: ["packages/*-react/**"] },
+  })
+  assert.deepEqual(violations, [
+    "packages/bookings-react/src/hooks/use-x.ts: executeCreate must not be referenced here",
+  ])
+})
+
 test("identifiers are matched, not substrings", () => {
   // `loadLegacyExtra` contains `loadLegacy` as a substring; the old
   // `.includes()` pins could not tell them apart, and an AST rule must.

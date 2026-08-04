@@ -12578,6 +12578,76 @@
                     "properties": {
                       "kind": {
                         "type": "string",
+                        "enum": ["selection_incomplete"]
+                      },
+                      "unsatisfied": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "requirementKey": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "pax_band_below_min",
+                                "pax_band_above_max",
+                                "pax_total_below_min",
+                                "pax_total_above_max",
+                                "pax_band_master_required",
+                                "pax_band_excluded",
+                                "pax_band_per_master_exceeded",
+                                "pax_band_sum_exceeded",
+                                "departure_required",
+                                "option_units_required",
+                                "cabin_category_required",
+                                "cabin_number_required",
+                                "date_range_required",
+                                "date_range_too_short",
+                                "date_range_too_long",
+                                "occupancy_required",
+                                "air_arrangement_required",
+                                "traveler_field_required",
+                                "booking_field_required"
+                              ]
+                            }
+                          },
+                          "required": ["requirementKey", "reason"]
+                        },
+                        "minItems": 1
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["update_selection"]
+                      }
+                    },
+                    "required": ["kind", "unsatisfied", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["requirements_changed"]
+                      },
+                      "requirementsFingerprint": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["request_fresh_quote"]
+                      }
+                    },
+                    "required": ["kind", "requirementsFingerprint", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
                         "enum": ["invalid_selection"]
                       },
                       "reason": {

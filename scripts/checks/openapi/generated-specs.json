@@ -1,0 +1,20 @@
+{
+  "$comment": [
+    "Checked-in OpenAPI documents that are generated from route modules, and the",
+    "command that generates them. Nothing regenerated-and-diffed them before, so",
+    "three PRs merged green with stale specs (voyant#4193, #4204, #4210).",
+    "",
+    "A spec belongs here as soon as it is generated rather than hand-written.",
+    "Adding one costs a few seconds of check time; leaving one out costs a",
+    "published contract that silently stops describing the deployment."
+  ],
+  "generators": [
+    {
+      "command": "pnpm --filter @voyant-travel/catalog generate:openapi",
+      "files": [
+        "packages/catalog/openapi/admin/catalog-booking.json",
+        "packages/catalog/openapi/storefront/catalog-booking.json"
+      ]
+    }
+  ]
+}

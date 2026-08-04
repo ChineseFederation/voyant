@@ -1,0 +1,22 @@
+{
+  "$comment": [
+    "Mounted route sets that a document claims to describe, and the document",
+    "that claims it. Nothing else keeps the two in step: voyant#4188 was caused",
+    "by docs/architecture/booking-journey-architecture.md still describing a",
+    "`/quote` bootstrap route long after it was deleted, and by the same block",
+    "never gaining `/adopt`, `/renew`, `/offers/preview` or the `slots` read.",
+    "",
+    "The doc side is parsed from the fenced block that follows the marker",
+    "comment, not scraped from prose. `{admin,public}` expands to both surfaces",
+    "and `{param}` normalises to the `:param` form the code array uses, so the",
+    "document stays readable as an API listing while comparing exactly."
+  ],
+  "routeSets": [
+    {
+      "source": "packages/catalog/src/booking-engine/operator-routes.ts",
+      "export": "catalogBookingRoutePaths",
+      "doc": "docs/architecture/booking-journey-architecture.md",
+      "marker": "mounted-routes: catalogBookingRoutePaths"
+    }
+  ]
+}

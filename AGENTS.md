@@ -38,7 +38,7 @@ checker when a rule is mechanical enough to enforce.
 
 ## Architecture Checkers
 
-`verify:architecture` runs a chain of checks. Six are declarative and take new
+`verify:architecture` runs a chain of checks. Eight are declarative and take new
 rules as data rather than code:
 
 | Check | Enforces | Where rules live |
@@ -49,6 +49,15 @@ rules as data rather than code:
 | `verify:retired-surfaces` | deleted paths stay deleted | `scripts/checks/regression/retired-paths.json` |
 | `verify:public-surface` | what may be published, who outside this repo depends on it, and what a withdrawn package's successor is | `scripts/checks/manifests/public-surface.json` |
 | `verify:supply-chain` | no tracked lockfile resolves a known-compromised release | `scripts/checks/supply-chain/compromised-packages.json` |
+| `verify:route-conformance` | a mounted route array matches the doc that describes it | `scripts/checks/routes/route-sets.json` |
+| `verify:openapi-drift` | a generated OpenAPI document matches the routes it came from | `scripts/checks/openapi/generated-specs.json` |
+
+`verify:symbol-policy` takes rules in two polarities. `absentFrom` is
+default-allow — it names the files a symbol may not appear in, and every new
+file is permitted until someone remembers to add it. `onlyIn` is default-deny —
+it names the only paths (globs allowed) that may reference the symbol, so a new
+file anywhere else fails on its own. An authority wants `onlyIn`: it is the
+difference between guarding the meaning and guarding a list of filenames.
 
 Two run as ratchets, holding a line rather than demanding it be clean today:
 `verify:table-privacy` (cross-module table reach-ins) and

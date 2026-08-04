@@ -41,27 +41,13 @@ for (const [file, path, method] of [
 assertPackageExportAbsent("packages/finance/package.json", "./booking-create-command")
 assertPackageExportAbsent("packages/catalog/package.json", "./booking-engine/book")
 
-// Two explicit entrypoints over one private core. Each pins exactly one static
-// policy expectation, so neither can be driven by the other's admission.
-assertReferencesWithin(
-  "executeFinanceStaffBookingCreateCommand",
-  new Set([
-    "packages/finance/src/booking-create-command.ts",
-    "packages/finance/src/mcp-booking-runtime.ts",
-  ]),
-)
-assertReferencesWithin(
-  "executeFinanceSelfServiceBookingCreateCommand",
-  new Set([
-    "packages/finance/src/booking-create-command.ts",
-    "packages/finance/src/self-service-create-runtime.ts",
-  ]),
-)
-// The shared core must stay private to its own module.
-assertReferencesWithin(
-  "executeBookingCreateCommand",
-  new Set(["packages/finance/src/booking-create-command.ts"]),
-)
+// Who may name the command entrypoints — the staff one, the `book_product`
+// one, the self-service one, the private shared core, and the Commit-facing
+// runtime factory — now lives in the declarative `booking-create-authority`
+// policy in scripts/checks/symbols/symbol-policy.json, which additionally
+// rejects a stale allowlist entry and denies the whole `packages/*-react/**`
+// family. Do not restate those allowlists here.
+
 // The route module is composed into the public API bundle, never exported.
 assertPackageExportAbsent("packages/finance/package.json", "./self-service-create-runtime")
 

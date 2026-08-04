@@ -31,17 +31,43 @@ or Hold state never becomes Booking status.
 
 ## Canonical API
 
-Catalog owns the Booking Session API on both staff and storefront surfaces:
+Catalog owns the Booking Session API on both staff and storefront surfaces, and
+the staff-only order, supplier-operation, and maintenance legs alongside it.
+This is the complete mounted surface: `verify:route-conformance` compares the
+block below against `catalogBookingRoutePaths` in
+`packages/catalog/src/booking-engine/operator-routes.ts`, so a route added,
+renamed, or removed in code fails the build until this block says so.
+
+<!-- mounted-routes: catalogBookingRoutePaths -->
 
 ```text
 POST   /v1/{admin,public}/catalog/booking-sessions
 GET    /v1/{admin,public}/catalog/booking-sessions/{sessionId}
 PATCH  /v1/{admin,public}/catalog/booking-sessions/{sessionId}
+POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/adopt
+POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/renew
 POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/quote
 POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/hold
 POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/commit
 POST   /v1/{admin,public}/catalog/booking-sessions/{sessionId}/abandon
+POST   /v1/{admin,public}/catalog/offers/preview
+GET    /v1/{admin,public}/catalog/slots
+POST   /v1/admin/catalog/booking-sessions/maintenance/expire
+POST   /v1/admin/catalog/booking-sessions/maintenance/purge
+GET    /v1/admin/catalog/supplier-operations
+GET    /v1/admin/catalog/supplier-operations/{operationId}
+POST   /v1/admin/catalog/supplier-operations/{operationId}/reconcile
+POST   /v1/admin/catalog/supplier-operations/{operationId}/resolve
+GET    /v1/admin/catalog/orders
+GET    /v1/admin/catalog/orders/{id}
+POST   /v1/admin/catalog/orders/{id}/cancel
+GET    /v1/admin/bookings/{id}/catalog-snapshot
 ```
+
+`/adopt` binds an anonymous Session to an authenticated customer; `/renew`
+extends a live Session's capability. `/offers/preview` is a non-binding price
+read that creates no Session, Quote, or Hold, so a detail page can show a price
+without entering the lifecycle.
 
 There is no parallel `/catalog/drafts`, `/catalog/quote`, or
 `/catalog/holds/place` bootstrap lifecycle. Tools and SDKs compose the same

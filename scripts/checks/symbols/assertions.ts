@@ -25,10 +25,40 @@ export type SourceMap = ReadonlyMap<string, ts.SourceFile>
 export interface SymbolPolicy {
   /** identifier -> the only files allowed to reference it. Empty means nowhere. */
   referencesWithin?: Record<string, readonly string[]>
-  /** identifier -> files it must not appear in. */
+  /**
+   * identifier -> the only paths allowed to reference it, as globs or exact
+   * paths. Empty means nowhere.
+   *
+   * The default-deny complement of `absentFrom`. An authority needs this
+   * polarity: `absentFrom` permits every new file until someone remembers to
+   * deny it, so a symbol the authority owns can be named from a path nobody
+   * listed and nothing complains.
+   *
+   * Unlike `referencesWithin`, a non-empty rule also fails when one of its own
+   * patterns matches nothing. A pin that has quietly stopped matching is
+   * indistinguishable from one that holds, and that is how a path-shaped guard
+   * rots into a permanent false negative.
+   */
+  onlyIn?: Record<string, readonly string[]>
+  /** identifier -> globs or exact paths it must not appear in. */
   absentFrom?: Record<string, readonly string[]>
   /** file -> identifiers that must be referenced in it. */
   presentIn?: Record<string, readonly string[]>
+}
+
+/**
+ * `*` matches inside one path segment, `**` crosses segments. A pattern without
+ * a wildcard is an exact path, so exact-path rules keep their prior meaning.
+ */
+function globToRegExp(pattern: string): RegExp {
+  // One pass over the pattern, so a wildcard is never re-read as literal text
+  // and no placeholder character has to be reserved.
+  const source = pattern.replaceAll(/\*\*|\*|[^*]+/g, (token) => {
+    if (token === "**") return ".*"
+    if (token === "*") return "[^/]*"
+    return token.replaceAll(/[.+^${}()|[\]\\?]/g, (character) => `\\${character}`)
+  })
+  return new RegExp(`^${source}$`)
 }
 
 function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
@@ -63,13 +93,37 @@ export function checkSymbolPolicy(sources: SourceMap, policy: SymbolPolicy): str
     }
   }
 
-  for (const [identifier, files] of Object.entries(policy.absentFrom ?? {})) {
-    for (const file of files) {
-      const source = sources.get(file)
-      // A missing file cannot reference anything. Absence checks are about a
-      // symbol not appearing, so a deleted file satisfies them trivially — the
-      // file's own existence is retired-paths.json's job, not this one's.
-      if (!source) continue
+  for (const [identifier, patterns] of Object.entries(policy.onlyIn ?? {})) {
+    const matchers = patterns.map(globToRegExp)
+    const matched = new Set<number>()
+    for (const [file, source] of sources) {
+      if (!referencesIdentifier(source, identifier)) continue
+      const index = matchers.findIndex((matcher) => matcher.test(file))
+      if (index === -1) {
+        violations.push(
+          patterns.length === 0
+            ? `${file}: ${identifier} must not exist anywhere, but is referenced here`
+            : `${file}: ${identifier} is owned by this authority and may only be named in ${patterns.join(", ")}`,
+        )
+        continue
+      }
+      matched.add(index)
+    }
+    // A pattern nobody matches is a rule that no longer says anything. Reject it
+    // here rather than let it keep passing as a guard that still holds.
+    for (const [index, pattern] of patterns.entries()) {
+      if (matched.has(index)) continue
+      violations.push(`${pattern}: stale onlyIn entry — no source here references ${identifier}`)
+    }
+  }
+
+  for (const [identifier, patterns] of Object.entries(policy.absentFrom ?? {})) {
+    const matchers = patterns.map(globToRegExp)
+    // A missing file cannot reference anything. Absence checks are about a
+    // symbol not appearing, so a deleted file — or a glob matching none —
+    // satisfies them trivially; file existence is retired-paths.json's job.
+    for (const [file, source] of sources) {
+      if (!matchers.some((matcher) => matcher.test(file))) continue
       if (referencesIdentifier(source, identifier)) {
         violations.push(`${file}: ${identifier} must not be referenced here`)
       }
