@@ -158,7 +158,10 @@ gcloud run deploy operator \
 The GHCR package is the sole public operator image. Cloud Run can pull a public
 GHCR image directly, so this path does not require copying or retagging the base
 into another registry. Resolve a release tag to its accepted digest before
-deployment; never place `latest` in a service specification.
+deployment; never place `latest` in a service specification. Release tags are
+bare semver such as `0.1.1`; the `sha-<git-sha>` tag published for every
+image-impacting main commit is a build snapshot, not a release, and its
+`org.opencontainers.image.version` says so.
 
 The image uses the providers compiled from `voyant.config.ts` by default. To
 boot that same image with different infrastructure, set

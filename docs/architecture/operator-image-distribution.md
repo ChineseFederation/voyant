@@ -28,6 +28,27 @@ versioned client or extension protocols.
 - all `promote-latest` dispatches share one version-independent concurrency
   group, so two release promotions can never move `latest` concurrently.
 
+### Releases and main snapshots
+
+Both publication paths produce equally accepted, equally attested digests, and
+neither is a draft. They differ in what they claim:
+
+- a **release** is dispatched deliberately and carries a bare semver in both its
+  tag and `org.opencontainers.image.version`. It is the only artifact with
+  release lineage, because the version label is what ties a pinned digest back
+  to a published version;
+- a **main snapshot** is published automatically for every image-impacting
+  commit and carries `sha-<git-sha>` in both its tag and version label. It
+  records which commit was built, not which version was released. A commit that
+  releases npm packages is still an ordinary commit here; it produces a snapshot
+  like any other.
+
+A downstream that admits the base by digest and asserts a released version must
+resolve a semver tag to its digest, not a `sha-` tag. A snapshot failing that
+assertion is the contract working: the snapshot never claimed to be a release.
+When main carries a fix that a deployment needs, the unblocking step is
+dispatching **publish-release** for it, not admitting the snapshot.
+
 The `linux/amd64` and `linux/arm64` variants build concurrently on matching
 native GitHub runners. The workflow deliberately does not use QEMU: the
 production deploy tree includes architecture-specific native modules, so each
@@ -111,7 +132,9 @@ Each platform-specific runtime image configuration carries these OCI labels:
 
 The digest, rather than any label or tag, is the deployment identity. A semver
 release and a SHA build from the same revision may have different digests
-because the version label is part of the image configuration.
+because the version label is part of the image configuration. The two version
+shapes are the release/snapshot distinction above; the label never carries a
+version the workflow was not asked to publish.
 
 ## Compatibility boundaries
 

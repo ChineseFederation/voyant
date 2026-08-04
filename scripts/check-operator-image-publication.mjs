@@ -185,6 +185,10 @@ requireFragments(OPERATOR_README, operatorReadme, [
     "operator deployment guidance must pin the sole public GHCR image by digest",
   ],
   ["sole public operator image", "operator deployment guidance must identify one public image"],
+  [
+    "a build snapshot, not a release",
+    "operator deployment guidance must separate release tags from main snapshots",
+  ],
 ])
 requireFragments(SMOKE, smoke, [
   ["node run-generated-migrations.mjs", "image acceptance must run embedded migrations"],
@@ -298,6 +302,14 @@ requireFragments(CONTRACT, contract, [
   ],
   ["canonical base for downstream private products", "contract must define private derivatives"],
   ["@sha256:<digest>", "distribution contract must require digest pinning"],
+  [
+    "resolve a semver tag to its digest",
+    "distribution contract must tell downstreams to admit releases by semver tag",
+  ],
+  [
+    "not admitting the snapshot",
+    "distribution contract must route a needed main fix through a release dispatch",
+  ],
   ["ADMIN_UI_EXTENSION_API_VERSION", "contract must separate extension API versioning"],
   ["APP_API_VERSION", "contract must separate Apps API versioning"],
   ["deployment.providers", "contract must define provider selection authority"],
