@@ -50,6 +50,7 @@ function hostWithAuthProvider(
       database: {} as VoyantRuntimeHostPrimitives["database"],
       storage: {} as VoyantRuntimeHostPrimitives["storage"],
       events: {} as VoyantRuntimeHostPrimitives["events"],
+      jobs: {} as VoyantRuntimeHostPrimitives["jobs"],
       config: {
         read: (_bindings, key) => {
           if (key === "deployment.providers.adminAuth") return provider

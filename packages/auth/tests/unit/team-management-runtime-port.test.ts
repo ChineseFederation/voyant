@@ -37,6 +37,7 @@ function hostWithAuthProvider(provider: "better-auth" | "voyant-cloud") {
       database: {} as VoyantRuntimeHostPrimitives["database"],
       storage: {} as VoyantRuntimeHostPrimitives["storage"],
       events: {} as VoyantRuntimeHostPrimitives["events"],
+      jobs: {} as VoyantRuntimeHostPrimitives["jobs"],
       config: {
         read: (_bindings, key) => (key === "deployment.providers.adminAuth" ? provider : undefined),
       },

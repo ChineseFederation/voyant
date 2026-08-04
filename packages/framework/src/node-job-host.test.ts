@@ -18,6 +18,7 @@ function jobRuntime(
     every: "5m",
     overlap: "queue",
   },
+  wakeup = true,
 ): VoyantGraphRuntime {
   return createVoyantGraphRuntime({
     graphHash: "sha256:job-host",
@@ -43,7 +44,7 @@ function jobRuntime(
             unitId,
             declaration: {
               id: jobId,
-              wakeup: true,
+              ...(wakeup ? { wakeup: true as const } : {}),
               schedule,
               runtime: { entry: "./jobs", export: "runJob" },
             },
@@ -65,6 +66,7 @@ function inventory(
     every: "5m",
     overlap: "queue",
   },
+  wakeup = true,
 ) {
   return [
     {
@@ -72,7 +74,7 @@ function inventory(
       unitId,
       packageName: unitId,
       schedule,
-      wakeup: true,
+      wakeup,
     },
   ]
 }
@@ -383,6 +385,89 @@ describe("Voyant Node product job host", () => {
       })
       expect(() => host.start()).toThrow(/unsupported every cadence/)
     }
+  })
+
+  it("arms a deferred wake and lets the earliest request win", async () => {
+    vi.useFakeTimers()
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({ runtime: jobRuntime(handler), jobs: inventory() })
+    const start = Date.now()
+
+    expect(host.wakeAt(jobId, new Date(start + 600_000))).toBe("armed")
+    // A later instant must not push the pending wake out.
+    expect(host.wakeAt(jobId, new Date(start + 900_000))).toBe("pending-earlier")
+    // An earlier one must.
+    expect(host.wakeAt(jobId, new Date(start + 120_000))).toBe("armed")
+
+    await vi.advanceTimersByTimeAsync(119_000)
+    expect(handler).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2_000)
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1))
+    expect(host.health()[0]?.lastSource).toBe("wakeup")
+
+    // The armed wake is spent, so the next request arms afresh.
+    expect(host.wakeAt(jobId, new Date(Date.now() + 60_000))).toBe("armed")
+    host.stop()
+    vi.useRealTimers()
+  })
+
+  it("floors an already-due wake instead of spinning against its own clock", async () => {
+    vi.useFakeTimers()
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      minimumWakeDelayMs: 1_000,
+    })
+
+    expect(host.wakeAt(jobId, new Date(Date.now() - 60_000))).toBe("armed")
+    await vi.advanceTimersByTimeAsync(999)
+    expect(handler).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2)
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1))
+    host.stop()
+    vi.useRealTimers()
+  })
+
+  it("declines a wake past the horizon and leaves it to the declared cadence", () => {
+    vi.useFakeTimers()
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(handler),
+      jobs: inventory(),
+      maximumWakeHorizonMs: 60_000,
+    })
+
+    expect(host.wakeAt(jobId, new Date(Date.now() + 60_001))).toBe("beyond-horizon")
+    host.stop()
+    vi.useRealTimers()
+  })
+
+  it("drops armed wakes when the host stops", async () => {
+    vi.useFakeTimers()
+    const handler = vi.fn(async () => {})
+    const host = createVoyantNodeJobHost({ runtime: jobRuntime(handler), jobs: inventory() })
+
+    expect(host.wakeAt(jobId, new Date(Date.now() + 30_000))).toBe("armed")
+    host.stop()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(handler).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it("refuses to wake a job the graph did not declare wakeable", () => {
+    const schedule = { every: "5m", overlap: "queue" } as const
+    const host = createVoyantNodeJobHost({
+      runtime: jobRuntime(() => {}, schedule, false),
+      jobs: inventory(schedule, false),
+    })
+
+    expect(() => host.wakeAt(jobId, new Date(Date.now() + 30_000))).toThrow(
+      /is not declared wakeup: true/,
+    )
+    expect(() => host.wakeAt("notifications.absent", new Date())).toThrow(
+      /is not selected by the graph/,
+    )
   })
 
   it("uses standard cron OR semantics for restricted day-of-month and day-of-week", async () => {

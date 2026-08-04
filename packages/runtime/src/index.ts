@@ -330,6 +330,11 @@ export async function loadVoyantProject(
       deploymentResources.primitives.events.deliver = (event) => deliver(event as EventEnvelope)
     },
   }
+  const jobWakeups = {
+    bind(wakeAt: (jobId: string, at: Date) => void) {
+      deploymentResources.primitives.jobs.wakeAt = wakeAt
+    },
+  }
   const customerBusinessAccountOnboarding = deploymentResources.ports[
     customerBusinessAccountOnboardingRuntimePort.id
   ] as CustomerBusinessAccountOnboardingRuntimeProvider | undefined
@@ -410,6 +415,7 @@ export async function loadVoyantProject(
     deploymentRequirements,
     runtimePorts: deploymentResources.ports,
     eventDelivery,
+    jobWakeups,
     resources: deploymentResources.capabilities,
     outboundWebhooks: deploymentResources.outboundWebhooks,
     appWebhooks,

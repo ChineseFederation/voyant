@@ -25,6 +25,7 @@ import {
   extendAvailabilityHold,
   placeAvailabilityHold,
   releaseAvailabilityHold,
+  requestAvailabilityHoldExpiryWake,
 } from "@voyant-travel/operations"
 import { resolveBookingTaxSettings } from "@voyant-travel/operator-settings"
 import { and, asc, eq, inArray, or } from "drizzle-orm"
@@ -106,6 +107,10 @@ export function registerProductBookingHandler(
           const db = asPostgresDb(ctx.db)
           const result = await placeAvailabilityHold(db, input)
           if (result.status === "ok") {
+            // The seats are decremented now and only the reaper gives them
+            // back, so tell the host when to run it rather than leaving the
+            // capacity to a poll.
+            requestAvailabilityHoldExpiryWake(result.hold.expiresAt)
             return {
               status: "ok",
               holdToken: result.hold.holdToken,
@@ -113,6 +118,7 @@ export function registerProductBookingHandler(
             }
           }
           if (result.status === "slot_unlimited") {
+            requestAvailabilityHoldExpiryWake(result.expiresAt)
             return {
               status: "ok",
               holdToken: result.holdToken,
@@ -131,7 +137,10 @@ export function registerProductBookingHandler(
         async extend(ctx, input) {
           const db = asPostgresDb(ctx.db)
           const result = await extendAvailabilityHold(db, input)
-          if (result.status === "ok") return { status: "ok", expiresAt: result.expiresAt }
+          if (result.status === "ok") {
+            requestAvailabilityHoldExpiryWake(result.expiresAt)
+            return { status: "ok", expiresAt: result.expiresAt }
+          }
           return { status: "not_found" }
         },
         async release(ctx, holdToken) {

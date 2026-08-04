@@ -40,6 +40,12 @@ export const createOperationsVoyantRuntime = defineGraphRuntimeFactory(
   }),
 )
 
+// Only the request side is package API. Binding the channel is deployment
+// wiring and stays with the runtime contributor.
+export {
+  OPERATIONS_EXPIRED_HOLDS_JOB_ID,
+  requestAvailabilityHoldExpiryWake,
+} from "./availability/hold-expiry-wake.js"
 export * from "./availability/index.js"
 export * from "./availability/rrule.js"
 export * from "./availability/service-catalog-plane-departures.js"

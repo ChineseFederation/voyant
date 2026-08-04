@@ -180,6 +180,25 @@ another scheduler. Package code never imports a vendor SDK or assumes which
 control plane requested the wake. The declared cadence remains the recovery
 authority when a wake is lost or coalesced.
 
+A package may also ask for a wake itself, through
+`VoyantRuntimeHostPrimitives.jobs.wakeAt(jobId, at)`. This is the same signal
+arriving from inside the process rather than over HTTP, and it carries the same
+weight: the Node host arms one in-process timer per job, keeps the earliest
+pending instant, declines anything past its horizon, and forgets every armed
+wake on restart. A Worker host accepts the call and does nothing, because a
+Worker invocation ends with its response. Nothing about a requested wake is
+durable, so a package may only use it to make work *timelier* than its declared
+cadence — never to replace the cadence, and never for work the cadence would
+not eventually do anyway.
+
+This is what lets a job whose due time is written down be wake-driven instead
+of polled. `operations.release-expired-availability-holds` is the worked
+example: a hold records the instant it becomes reapable, so the runtime arms
+the reaper for that instant and its cron falls back to a six-hourly backstop. A
+tenant holding nothing arms nothing and stops touching its database, which on a
+managed deployment is the difference between an idle database that stays
+suspended and one billed for a five-minute minimum four times an hour.
+
 The optional `scale-to-zero` scheduling profile aligns frequent recovery work
 on a 15-minute floor, leaving enough idle time for a five-minute database
 autosuspend window while bounding recovery when a wake is lost. Longer-running

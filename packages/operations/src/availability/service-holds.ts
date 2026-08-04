@@ -359,6 +359,28 @@ export async function releaseExpiredHolds(
 }
 
 /**
+ * When the oldest live hold becomes reapable, or `undefined` when nothing is
+ * outstanding.
+ *
+ * This is what lets the reaper be woken instead of polled: the instant is
+ * already recorded at write time, so the job can arm its own next run rather
+ * than have a cadence rediscover it. A tenant with no live holds returns
+ * `undefined` and stops touching its database entirely.
+ */
+export async function earliestOutstandingHoldExpiry(
+  db: PostgresJsDatabase,
+): Promise<Date | undefined> {
+  const [row] = await db
+    .select({ expiresAt: availabilityHolds.expiresAt })
+    .from(availabilityHolds)
+    .where(and(isNull(availabilityHolds.releasedAt), isNull(availabilityHolds.convertedAt)))
+    .orderBy(asc(availabilityHolds.expiresAt))
+    .limit(1)
+
+  return row?.expiresAt
+}
+
+/**
  * Looks up the hold(s) for a draft id. Multiple holds per draft
  * are possible (e.g. a multi-day product touching several slots);
  * the journey reaper releases them all at once.

@@ -936,15 +936,14 @@ if (isMainModule) {
     process.env,
     resolveVoyantNodeProviderPlan(deployment.providers),
   )
-  const runtimePorts = createGeneratedGraphRuntimePorts({
-    primitives: createVoyantNodeRuntimeHostPrimitives({
-      env,
-      config: {
-        "deployment.providers.adminAuth": deployment.providers.adminAuth,
-        "deployment.providers.customerAuth": deployment.providers.customerAuth,
-      },
-    }),
+  const primitives = createVoyantNodeRuntimeHostPrimitives({
+    env,
+    config: {
+      "deployment.providers.adminAuth": deployment.providers.adminAuth,
+      "deployment.providers.customerAuth": deployment.providers.customerAuth,
+    },
   })
+  const runtimePorts = createGeneratedGraphRuntimePorts({ primitives })
   const handle = await startVoyantNodeRuntime({
     deployment,
     deploymentRequirements: resolveGeneratedDeploymentRequirements(),
@@ -952,6 +951,11 @@ if (isMainModule) {
     graphRuntime: createGeneratedGraphRuntime(),
     jobs: GENERATED_PRODUCT_JOBS,
     runtimePorts,
+    jobWakeups: {
+      bind: (wakeAt) => {
+        primitives.jobs.wakeAt = wakeAt
+      },
+    },
   })
   console.info(
     \`[node-runtime] Node runtime listening on :\${handle.port} (\${GENERATED_DEPLOYMENT_GRAPH_HASH})\`,

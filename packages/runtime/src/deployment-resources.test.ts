@@ -22,6 +22,7 @@ function primitives(): VoyantRuntimeHostPrimitives {
       downloadUrl: async () => null,
     },
     events: { deliver: vi.fn(async () => ["queued"]) },
+    jobs: { wakeAt: vi.fn() },
     config: { read: () => undefined },
   }
 }

@@ -176,6 +176,12 @@ export function createVoyantNodeRuntimeHostPrimitives(
         return options.deliverEvent(event, bindings)
       },
     },
+    // Left inert until a deployment binds it through
+    // `loadVoyantNodeRuntime({ jobWakeups })`. Contributors are composed before
+    // the job host exists, and a package that asks for a wake it cannot get is
+    // no worse off than one whose wake was dropped in flight — its declared
+    // cadence still runs the work.
+    jobs: { wakeAt: () => {} },
     config: {
       read: (bindings, key) =>
         Object.hasOwn(options.config ?? {}, key)
@@ -235,6 +241,15 @@ export interface VoyantNodeRuntimeOptions {
   eventDelivery?: {
     bind(deliver: (event: EventEnvelope) => Promise<unknown>): void
   }
+  /**
+   * Routes package wake requests into this process's job host after boot, the
+   * same way `eventDelivery` routes durable event delivery. Without it a
+   * package's `primitives.jobs.wakeAt` stays inert and every job runs purely
+   * on its declared cadence.
+   */
+  jobWakeups?: {
+    bind(wakeAt: (jobId: string, at: Date) => void): void
+  }
   /** Node-owned durable boundary for graph-selected outbound webhook events. */
   outboundWebhooks?: {
     enqueue: (event: EventEnvelope, bindings: unknown) => Promise<unknown>
@@ -268,6 +283,7 @@ export interface VoyantNodeRuntime {
     inventory: readonly VoyantGraphProvisionedJob[]
     health: () => readonly VoyantNodeJobHealth[]
     invoke: VoyantNodeJobHost["invoke"]
+    wakeAt: VoyantNodeJobHost["wakeAt"]
   }
   fetch: (
     request: Request,
@@ -414,6 +430,19 @@ export async function loadVoyantNodeRuntime(
     ),
   })
 
+  // A package asks for a wake on the request path that wrote the work — a
+  // checkout placing a hold, say. `wakeAt` rejects a job the graph did not
+  // select or declare wakeable, which is a real manifest bug, but failing the
+  // customer's request over a timeliness hint is the wrong trade: report it and
+  // let the job's declared cadence do the work.
+  options.jobWakeups?.bind((jobId, at) => {
+    try {
+      jobHost.wakeAt(jobId, at)
+    } catch (error) {
+      console.warn(`[node-runtime] job wake request rejected: ${errorMessage(error)}`)
+    }
+  })
+
   options.eventDelivery?.bind(async (envelope) => {
     await app.ready(env)
     if (app.eventBus.deliver) return app.eventBus.deliver(envelope)
@@ -448,6 +477,7 @@ export async function loadVoyantNodeRuntime(
       inventory: jobHost.inventory,
       health: jobHost.health,
       invoke: jobHost.invoke,
+      wakeAt: jobHost.wakeAt,
     },
     fetch,
     start: (serverOptions = {}) =>
@@ -815,6 +845,10 @@ function nodeRuntimeEnvIssues(
 
 function formatIssues(issues: readonly string[]): string {
   return issues.map((issue) => `- ${issue}`).join("\n")
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function getEnvValue(env: VoyantNodeRuntimeEnv, name: string): unknown {

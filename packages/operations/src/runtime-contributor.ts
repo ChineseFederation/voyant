@@ -5,6 +5,7 @@ import {
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/runtime-contracts"
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { configureAvailabilityHoldExpiryWake } from "./availability/hold-expiry-wake.js"
 import { createBookingActionProjectionService } from "./booking-actions/service.js"
 import { catalogOperationsRuntimeExtension } from "./catalog-runtime-extension.js"
 import {
@@ -19,6 +20,10 @@ export interface OperationsRuntimeContributorHost {
 export function createOperationsRuntimePortContribution(
   host: OperationsRuntimeContributorHost,
 ): Readonly<Record<string, unknown>> {
+  // Hold expiry is known at write time, so the reaper is woken rather than
+  // polled. The host owns the timer; this only hands the domain a way to ask.
+  configureAvailabilityHoldExpiryWake((jobId, at) => host.primitives.jobs.wakeAt(jobId, at))
+
   const bookingActions: BookingActionProjectionRuntime = {
     create: createBookingActionProjectionService,
     async synchronize(sources, mode) {

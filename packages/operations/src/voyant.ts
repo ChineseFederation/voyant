@@ -55,14 +55,21 @@ export const operationsVoyantModule = defineModule({
   ],
   jobs: [
     {
+      // Wake-driven (#4067). A hold's expiry is known when it is written, so
+      // the runtime arms the reaper for that instant instead of rediscovering
+      // it on a poll — more timely than a fifteen-minute sweep, and free for a
+      // tenant holding nothing. The cron here is the recovery backstop for a
+      // wake lost to a restart, which is why it can sit at six hours: on a
+      // managed deployment every tick resumes a database that scaled to zero.
       id: "operations.release-expired-availability-holds",
-      schedule: { cron: "*/5 * * * *", overlap: "skip" },
+      wakeup: true,
+      schedule: { cron: "*/15 * * * *", overlap: "skip" },
       scheduling: {
         required: true,
         profiles: {
-          eager: { cron: "* * * * *", overlap: "skip" },
-          economical: { cron: "*/15 * * * *", overlap: "skip" },
-          "scale-to-zero": { cron: "*/15 * * * *", overlap: "skip" },
+          eager: { cron: "*/5 * * * *", overlap: "skip" },
+          economical: { cron: "40 */6 * * *", overlap: "skip" },
+          "scale-to-zero": { cron: "40 */6 * * *", overlap: "skip" },
         },
       },
       runtime: {

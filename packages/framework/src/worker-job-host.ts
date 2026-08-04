@@ -152,6 +152,11 @@ export function createVoyantWorkerRuntimeHostPrimitives<TBindings extends object
       deliver: (event, bindings) =>
         options.deliverEvent?.(event, bindingsFor(bindings)) ?? missing("events.deliver"),
     },
+    // A Worker invocation ends when its response does, so there is no resident
+    // timer to arm. Wakes for a Worker deployment arrive over
+    // `POST /__voyant/jobs/:id` from whichever scheduler the deployment
+    // selected; the declared cadence covers everything else.
+    jobs: { wakeAt: () => {} },
     config: {
       read: (bindings, key) =>
         options.readConfig?.(bindingsFor(bindings), key) ?? Reflect.get(bindingsFor(bindings), key),

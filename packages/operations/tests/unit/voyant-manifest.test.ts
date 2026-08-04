@@ -28,6 +28,16 @@ describe("operations deployment manifest", () => {
       jobs: [
         {
           id: "operations.release-expired-availability-holds",
+          // Wake-driven: expiry is known at write time, so the cron is only the
+          // backstop for a wake lost to a restart (#4067).
+          wakeup: true,
+          schedule: { cron: "*/15 * * * *", overlap: "skip" },
+          scheduling: {
+            profiles: {
+              economical: { cron: "40 */6 * * *", overlap: "skip" },
+              "scale-to-zero": { cron: "40 */6 * * *", overlap: "skip" },
+            },
+          },
           runtime: {
             entry: "@voyant-travel/operations/expired-holds-job",
             export: "runOperationsReleaseExpiredHoldsJob",

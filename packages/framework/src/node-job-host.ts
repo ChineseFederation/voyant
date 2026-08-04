@@ -59,6 +59,17 @@ export interface CreateVoyantNodeJobHostOptions {
   now?: () => Date
   sleep?: (milliseconds: number) => Promise<void>
   schedulerPollMs?: number
+  /**
+   * Floor applied to a deferred wake. Keeps a job that re-arms itself from a
+   * timestamp it just acted on from spinning against its own clock.
+   */
+  minimumWakeDelayMs?: number
+  /**
+   * Furthest ahead a deferred wake is armed. Beyond it the declared cadence is
+   * the cheaper recovery: a resident timer that far out survives nothing a
+   * cron tick would not also repair.
+   */
+  maximumWakeHorizonMs?: number
   /** Required for the fixed internal HTTP invocation surface. */
   originTrustSecret?: string
   /** Best-effort terminal execution reporting; failures never repeat domain work. */
@@ -81,6 +92,15 @@ export interface VoyantNodeJobHost {
     correlation?: VoyantProductJobExecutionCorrelation,
   ) => Promise<"started" | "queued" | "skipped">
   dispatchSchedule: (event: { scheduleId?: string; cron?: string }) => Promise<void>
+  /**
+   * Arm an in-process wake for a `wakeup: true` job at `at`.
+   *
+   * Earliest request wins: a job holds at most one armed wake, and a later
+   * instant never displaces an earlier one. Returns what the host did so a
+   * caller can log it; no caller should branch on delivery, because the
+   * declared cadence is what actually guarantees the work runs.
+   */
+  wakeAt: (jobId: string, at: Date) => "armed" | "pending-earlier" | "beyond-horizon"
   handleRequest: (request: Request, originTrustSecret?: string) => Promise<Response | undefined>
   health: () => readonly VoyantNodeJobHealth[]
   /** Resolve after the current invocation and any coalesced follow-up are idle. */
@@ -122,6 +142,14 @@ export function createVoyantNodeJobHost(
   const sleep =
     options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)))
   const schedulerPollMs = positiveInteger(options.schedulerPollMs ?? 1_000, "schedulerPollMs")
+  const minimumWakeDelayMs = nonNegativeNumber(
+    options.minimumWakeDelayMs ?? 1_000,
+    "minimumWakeDelayMs",
+  )
+  const maximumWakeHorizonMs = positiveInteger(
+    options.maximumWakeHorizonMs ?? 6 * 60 * 60 * 1_000,
+    "maximumWakeHorizonMs",
+  )
   const states = new Map<string, JobExecutionState>(
     inventory.map((job) => [job.id, { pending: false } satisfies JobExecutionState]),
   )
@@ -133,6 +161,7 @@ export function createVoyantNodeJobHost(
   )
   const lastCronTick = new Map<string, string>()
   const nextEveryTick = new Map<string, number>()
+  const armedWakes = new Map<string, { at: number; timer: ReturnType<typeof setTimeout> }>()
   let timer: ReturnType<typeof setInterval> | undefined
 
   const run = async (
@@ -267,6 +296,36 @@ export function createVoyantNodeJobHost(
     await invoke(job.id, "schedule")
   }
 
+  const wakeAt = (jobId: string, at: Date): "armed" | "pending-earlier" | "beyond-horizon" => {
+    const job = jobsById.get(jobId)
+    if (!job) {
+      throw new Error(`Voyant Node job host: job "${jobId}" is not selected by the graph.`)
+    }
+    if (!job.wakeup) {
+      throw new Error(`Voyant Node job host: job "${jobId}" is not declared wakeup: true.`)
+    }
+    const requestedAt = at.getTime()
+    if (!Number.isFinite(requestedAt)) {
+      throw new TypeError(`Voyant Node job host: job "${jobId}" was woken at an invalid date.`)
+    }
+    const current = now().getTime()
+    const delayMs = Math.max(requestedAt - current, minimumWakeDelayMs)
+    if (delayMs > maximumWakeHorizonMs) return "beyond-horizon"
+
+    const armAt = current + delayMs
+    const armed = armedWakes.get(jobId)
+    if (armed && armed.at <= armAt) return "pending-earlier"
+    if (armed) clearTimeout(armed.timer)
+
+    const wakeTimer = setTimeout(() => {
+      armedWakes.delete(jobId)
+      void invoke(jobId, "wakeup")
+    }, delayMs)
+    wakeTimer.unref?.()
+    armedWakes.set(jobId, { at: armAt, timer: wakeTimer })
+    return "armed"
+  }
+
   const handleRequest = async (
     request: Request,
     requestOriginTrustSecret?: string,
@@ -358,6 +417,7 @@ export function createVoyantNodeJobHost(
     inventory,
     invoke,
     dispatchSchedule,
+    wakeAt,
     handleRequest,
     health: () => inventory.map((job) => ({ ...requireMapValue(healthById, job.id) })),
     settled: async (jobId) => {
@@ -372,6 +432,8 @@ export function createVoyantNodeJobHost(
     stop: () => {
       if (timer) clearInterval(timer)
       timer = undefined
+      for (const { timer: wakeTimer } of armedWakes.values()) clearTimeout(wakeTimer)
+      armedWakes.clear()
     },
   }
 }

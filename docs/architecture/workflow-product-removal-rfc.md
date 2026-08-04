@@ -163,6 +163,7 @@ Domain packages retain the durable records that make a job safe to retry:
 | Notification reminders | reminder and delivery records | Sweep due records; make delivery idempotent at the record level. |
 | Promotion boundaries | promotion state and product index state | Idempotent time-based sweep; reindex affected products. |
 | Booking draft expiry | booking draft and hold state | Idempotent expiry sweep; release a hold before deleting the draft. |
+| Availability hold expiry | `availability_holds.expires_at` | Wake at the earliest outstanding expiry and re-arm from the same column after every run; the declared cadence recovers a wake lost to a restart. |
 
 The event outbox is particularly important: an immediate wakeup improves
 latency, but a scheduled drain remains mandatory so a missed wakeup cannot lose
@@ -187,6 +188,7 @@ The current first-party workflow definitions move as follows:
 | `promotions.reindex-all-products` | Wakeable job with scheduled recovery | A domain-owned reindex intent or checkpoint, added before cutover. |
 | `catalog.reap-expired-booking-drafts` | Scheduled job | Booking draft and hold state; reconcile ownership with stale-hold expiry before migration. |
 | `bookings.expire-stale-holds` | Scheduled job | Booking hold and payment-session state; reconcile ownership with draft reaping before migration. |
+| `operations.release-expired-availability-holds` | Wakeable job with scheduled recovery | `availability_holds.expires_at` is the dispatcher: it records when the work becomes due, so nothing has to poll to find it (#4067). |
 | `cruises.external-catalog-refresh` | Scheduled job | Selected cruises capability state and refresh checkpoint. |
 | `products.generate-pdf` | Domain command, not a job | Generate synchronously or persist a document-generation intent consumed by a package job. |
 
