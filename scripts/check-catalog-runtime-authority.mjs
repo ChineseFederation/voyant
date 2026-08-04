@@ -109,7 +109,7 @@ const runtimeComposition = [
   .join("\n")
   // This integration is resolved while executing a package hold, not while
   // composing the selected graph. Keep arbitrary composition imports forbidden.
-  .replace('await import("@voyant-travel/plugin-voyant-connect")', "")
+  .replace('await import("@voyant-travel/voyant-connect-adapter")', "")
 for (const [pattern, label] of [
   [/\bimport\s*\(/, "dynamic import"],
   [/\brequire\s*\(/, "runtime require"],

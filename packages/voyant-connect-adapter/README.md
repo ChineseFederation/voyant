@@ -1,6 +1,6 @@
-# `@voyant-travel/plugin-voyant-connect`
+# `@voyant-travel/voyant-connect-adapter`
 
-Voyant Connect sources plugin for Voyant deployments.
+Voyant Connect sources adapter for Voyant deployments.
 
 Use this package in a Voyant deployment to turn Connect credentials into the
 catalog `SourceAdapter`s that source generic inventory, structured cruises, and
@@ -9,13 +9,13 @@ provider package products — without wiring each adapter by hand.
 ## Install
 
 ```sh
-pnpm add @voyant-travel/plugin-voyant-connect @voyant-travel/connect-sdk
+pnpm add @voyant-travel/voyant-connect-adapter @voyant-travel/connect-sdk
 ```
 
 ## Usage
 
 ```ts
-import { prepareVoyantConnectSources } from "@voyant-travel/plugin-voyant-connect";
+import { prepareVoyantConnectSources } from "@voyant-travel/voyant-connect-adapter";
 
 // Reads VOYANT_API_KEY / VOYANT_CONNECT_* from the environment and returns the
 // catalog source adapters to register, or [] when Connect is unconfigured.
@@ -65,4 +65,6 @@ registry.
   `@voyant-travel/data-sdk` are peer dependencies provided by the host Voyant
   deployment.
 
-For repo-level context, see [../../docs/connect-plugin.md](../../docs/connect-plugin.md).
+For repo-level context, see
+[ADR-0022](../../docs/adr/0022-connector-compatibility-axis.md) and the
+[module/provider/adapter taxonomy](../../docs/architecture/module-provider-plugin-taxonomy.md).

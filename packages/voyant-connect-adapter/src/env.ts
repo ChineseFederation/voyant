@@ -18,7 +18,7 @@ import {
   type VoyantConnectSourcesOptions,
 } from "./sources.js"
 
-/** The `VOYANT_*` variables this plugin reads. */
+/** The `VOYANT_*` variables this adapter reads. */
 export interface VoyantConnectEnv {
   /** Primary Voyant API key. */
   VOYANT_API_KEY?: string

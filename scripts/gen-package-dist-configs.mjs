@@ -49,7 +49,7 @@ function sourceTarget(value) {
 // Collect every buildable package's dist declaration entries.
 const entries = []
 const pkgDirs = []
-for (const base of ["packages", "packages/plugins"]) {
+for (const base of ["packages"]) {
   const baseAbs = join(ROOT, base)
   if (!existsSync(baseAbs)) continue
   for (const entry of readdirSync(baseAbs, { withFileTypes: true })) {

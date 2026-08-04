@@ -1,21 +1,21 @@
 {
-  "name": "@voyant-travel/plugin-voyant-connect",
+  "name": "@voyant-travel/voyant-connect-adapter",
   "version": "0.10.1",
-  "description": "Voyant Connect sources plugin for Voyant deployments.",
+  "description": "Voyant Connect sources adapter for Voyant deployments.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/voyant-travel/voyant.git",
-    "directory": "packages/plugins/voyant-connect"
+    "directory": "packages/voyant-connect-adapter"
   },
   "type": "module",
   "keywords": [
     "voyant",
     "voyant-connect",
-    "plugin",
     "sources",
     "sdk",
-    "typescript"
+    "typescript",
+    "adapter"
   ],
   "exports": {
     ".": "./src/index.ts",
@@ -32,7 +32,7 @@
     "test": "vitest run --passWithNoTests",
     "build": "pnpm run clean && NODE_OPTIONS=--max-old-space-size=8192 tsc -p tsconfig.build.json",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
-    "prepack": "pnpm --workspace-concurrency=1 --filter @voyant-travel/plugin-voyant-connect... run build"
+    "prepack": "pnpm --workspace-concurrency=1 --filter @voyant-travel/voyant-connect-adapter... run build"
   },
   "dependencies": {
     "@voyant-travel/connect-adapter": "^0.5.0",

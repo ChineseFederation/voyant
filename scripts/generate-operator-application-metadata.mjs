@@ -293,7 +293,7 @@ export default defineConfig({
     server: {
       deps: {
         inline: [
-          /@voyant-travel\\/(catalog|connect-adapter|connect-cruises|connect-sdk|cruises|plugin-smartbill|plugin-voyant-connect)(\\/.*)?/,
+          /@voyant-travel\\/(catalog|connect-adapter|connect-cruises|connect-sdk|cruises|plugin-smartbill|voyant-connect-adapter)(\\/.*)?/,
         ],
       },
     },

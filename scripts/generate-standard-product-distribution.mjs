@@ -66,7 +66,7 @@ const distributionRuntimeEntryDeps = {
   "@voyant-travel/framework-migrations": "workspace:*",
   "@voyant-travel/identity-react": "workspace:*",
   "@voyant-travel/mcp": "workspace:*",
-  "@voyant-travel/plugin-voyant-connect": "workspace:*",
+  "@voyant-travel/voyant-connect-adapter": "workspace:*",
   "@voyant-travel/runtime-core": "workspace:*",
   "@voyant-travel/storage": "workspace:*",
   "@voyant-travel/tools": "workspace:*",
@@ -94,7 +94,7 @@ const frameworkDependencies = {
   "@voyant-travel/framework-migrations": "workspace:^",
   "@voyant-travel/hono": "workspace:^",
   "@voyant-travel/operator-standard": "workspace:^",
-  "@voyant-travel/plugin-voyant-connect": "workspace:^",
+  "@voyant-travel/voyant-connect-adapter": "workspace:^",
   "@voyant-travel/runtime-core": "workspace:^",
   "@voyant-travel/storage": "workspace:^",
   "@voyant-travel/tools": "workspace:^",
@@ -158,7 +158,7 @@ if (EMIT) {
 
 function readWorkspacePackages() {
   const packages = new Map()
-  for (const root of [join(ROOT, "packages"), join(ROOT, "packages", "plugins")]) {
+  for (const root of [join(ROOT, "packages")]) {
     for (const entry of readdirSync(root)) {
       const directory = join(root, entry)
       if (!statSync(directory).isDirectory()) continue

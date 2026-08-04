@@ -60,7 +60,7 @@
     "@voyant-travel/framework-migrations": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/operator-standard": "workspace:^",
-    "@voyant-travel/plugin-voyant-connect": "workspace:^",
+    "@voyant-travel/voyant-connect-adapter": "workspace:^",
     "@voyant-travel/runtime-core": "workspace:^",
     "@voyant-travel/storage": "workspace:^",
     "@voyant-travel/tools": "workspace:^",

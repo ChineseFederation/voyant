@@ -475,9 +475,6 @@ importers:
       '@voyant-travel/payments':
         specifier: workspace:^
         version: link:../../packages/payments
-      '@voyant-travel/plugin-voyant-connect':
-        specifier: workspace:^
-        version: link:../../packages/plugins/voyant-connect
       '@voyant-travel/proposals':
         specifier: workspace:^
         version: link:../../packages/proposals
@@ -556,6 +553,9 @@ importers:
       '@voyant-travel/vite-config':
         specifier: workspace:^
         version: link:../../packages/vite-config
+      '@voyant-travel/voyant-connect-adapter':
+        specifier: workspace:^
+        version: link:../../packages/voyant-connect-adapter
       '@voyant-travel/webhook-delivery':
         specifier: workspace:^
         version: link:../../packages/webhook-delivery
@@ -2970,9 +2970,6 @@ importers:
       '@voyant-travel/operator-standard':
         specifier: workspace:^
         version: link:../operator-standard
-      '@voyant-travel/plugin-voyant-connect':
-        specifier: workspace:^
-        version: link:../plugins/voyant-connect
       '@voyant-travel/runtime-core':
         specifier: workspace:^
         version: link:../runtime-core
@@ -2988,6 +2985,9 @@ importers:
       '@voyant-travel/utils':
         specifier: workspace:^
         version: link:../utils
+      '@voyant-travel/voyant-connect-adapter':
+        specifier: workspace:^
+        version: link:../voyant-connect-adapter
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@cloudflare/workers-types@4.20260702.1)(@electric-sql/pglite@0.5.4)(@neondatabase/serverless@1.1.0)(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(@upstash/redis@1.38.0)(kysely@0.29.2)(pg@8.22.0)(postgres@3.4.9)
@@ -4566,9 +4566,6 @@ importers:
       '@voyant-travel/payments':
         specifier: workspace:*
         version: link:../payments
-      '@voyant-travel/plugin-voyant-connect':
-        specifier: workspace:*
-        version: link:../plugins/voyant-connect
       '@voyant-travel/proposals':
         specifier: workspace:*
         version: link:../proposals
@@ -4641,6 +4638,9 @@ importers:
       '@voyant-travel/vite-config':
         specifier: workspace:*
         version: link:../vite-config
+      '@voyant-travel/voyant-connect-adapter':
+        specifier: workspace:*
+        version: link:../voyant-connect-adapter
       '@voyant-travel/webhook-delivery':
         specifier: workspace:*
         version: link:../webhook-delivery
@@ -4691,46 +4691,6 @@ importers:
       '@voyant-travel/voyant-typescript-config':
         specifier: workspace:^
         version: link:../typescript-config
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
-
-  packages/plugins/voyant-connect:
-    dependencies:
-      '@voyant-travel/connect-adapter':
-        specifier: ^0.5.0
-        version: 0.5.0(@voyant-travel/catalog@packages+catalog)
-      '@voyant-travel/connect-cruises':
-        specifier: ^0.6.2
-        version: 0.6.2(@voyant-travel/cruises@packages+cruises)
-      '@voyant-travel/connect-sdk':
-        specifier: ^0.10.0
-        version: 0.10.0
-      '@voyant-travel/data-sdk':
-        specifier: ^0.8.0
-        version: 0.8.0
-      '@voyant-travel/graph-contracts':
-        specifier: workspace:^
-        version: link:../../graph-contracts
-    devDependencies:
-      '@voyant-travel/catalog':
-        specifier: workspace:^
-        version: link:../../catalog
-      '@voyant-travel/catalog-contracts':
-        specifier: workspace:^
-        version: link:../../catalog-contracts
-      '@voyant-travel/cruises':
-        specifier: workspace:^
-        version: link:../../cruises
-      '@voyant-travel/cruises-contracts':
-        specifier: workspace:^
-        version: link:../../cruises-contracts
-      '@voyant-travel/voyant-typescript-config':
-        specifier: workspace:^
-        version: link:../../typescript-config
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -6151,6 +6111,46 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))
+
+  packages/voyant-connect-adapter:
+    dependencies:
+      '@voyant-travel/connect-adapter':
+        specifier: ^0.5.0
+        version: 0.5.0(@voyant-travel/catalog@packages+catalog)
+      '@voyant-travel/connect-cruises':
+        specifier: ^0.6.2
+        version: 0.6.2(@voyant-travel/cruises@packages+cruises)
+      '@voyant-travel/connect-sdk':
+        specifier: ^0.10.0
+        version: 0.10.0
+      '@voyant-travel/data-sdk':
+        specifier: ^0.8.0
+        version: 0.8.0
+      '@voyant-travel/graph-contracts':
+        specifier: workspace:^
+        version: link:../graph-contracts
+    devDependencies:
+      '@voyant-travel/catalog':
+        specifier: workspace:^
+        version: link:../catalog
+      '@voyant-travel/catalog-contracts':
+        specifier: workspace:^
+        version: link:../catalog-contracts
+      '@voyant-travel/cruises':
+        specifier: workspace:^
+        version: link:../cruises
+      '@voyant-travel/cruises-contracts':
+        specifier: workspace:^
+        version: link:../cruises-contracts
+      '@voyant-travel/voyant-typescript-config':
+        specifier: workspace:^
+        version: link:../typescript-config
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
       vitest:
         specifier: 'catalog:'
         version: 4.1.9(@opentelemetry/api@1.9.0)(@types/node@25.5.2)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.12.14(@types/node@25.5.2)(typescript@6.0.3))(vite@8.1.3(@types/node@25.5.2)(esbuild@0.28.1)(jiti@2.7.0)(sass@1.77.4)(terser@5.16.9)(tsx@4.22.4)(yaml@2.8.3))

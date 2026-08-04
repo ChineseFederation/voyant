@@ -76,7 +76,7 @@ function stripJsonComments(text) {
   return out
 }
 
-const PKG_GLOBS = ["packages", "packages/plugins"]
+const PKG_GLOBS = ["packages"]
 
 /** Collect every workspace package dir that has a package.json with a name. */
 function collectPackages() {

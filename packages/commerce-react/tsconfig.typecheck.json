@@ -1598,14 +1598,6 @@
       "@voyant-travel/payments": ["../payments/dist/index.d.ts"],
       "@voyant-travel/payments/conformance": ["../payments/dist/conformance.d.ts"],
       "@voyant-travel/payments/runtime-port": ["../payments/dist/runtime-port.d.ts"],
-      "@voyant-travel/plugin-voyant-connect": ["../plugins/voyant-connect/dist/index.d.ts"],
-      "@voyant-travel/plugin-voyant-connect/catalog-sources": [
-        "../plugins/voyant-connect/dist/catalog-sources-extension.d.ts"
-      ],
-      "@voyant-travel/plugin-voyant-connect/runtime-contributor": [
-        "../plugins/voyant-connect/dist/runtime-contributor.d.ts"
-      ],
-      "@voyant-travel/plugin-voyant-connect/voyant": ["../plugins/voyant-connect/dist/voyant.d.ts"],
       "@voyant-travel/products-contracts": ["../products-contracts/dist/index.d.ts"],
       "@voyant-travel/products-contracts/content-shape": [
         "../products-contracts/dist/content-shape.d.ts"
@@ -1957,6 +1949,16 @@
       "@voyant-travel/utils/tiered-kv": ["../utils/dist/tiered-kv.d.ts"],
       "@voyant-travel/utils/timezones": ["../utils/dist/timezones.d.ts"],
       "@voyant-travel/vite-config": ["../vite-config/dist/index.d.ts"],
+      "@voyant-travel/voyant-connect-adapter": ["../voyant-connect-adapter/dist/index.d.ts"],
+      "@voyant-travel/voyant-connect-adapter/catalog-sources": [
+        "../voyant-connect-adapter/dist/catalog-sources-extension.d.ts"
+      ],
+      "@voyant-travel/voyant-connect-adapter/runtime-contributor": [
+        "../voyant-connect-adapter/dist/runtime-contributor.d.ts"
+      ],
+      "@voyant-travel/voyant-connect-adapter/voyant": [
+        "../voyant-connect-adapter/dist/voyant.d.ts"
+      ],
       "@voyant-travel/webhook-delivery": ["../webhook-delivery/dist/index.d.ts"],
       "@voyant-travel/webhook-delivery-contracts": [
         "../webhook-delivery-contracts/dist/index.d.ts"

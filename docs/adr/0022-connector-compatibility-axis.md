@@ -1,6 +1,7 @@
 # ADR-0022: A third-party Connect connector declares compatibility against the worker protocol, not against packages
 
-- **Status:** Proposed (2026-08-04)
+- **Status:** Proposed (2026-08-04). **Amended 2026-08-04** — Decision 4 held only for managed
+  deployments; see [Amendment](#amendment-managed-and-self-hosted-differ).
 - **Relates to:** [#4062](https://github.com/voyant-travel/voyant/issues/4062) (the question this
   ADR answers), [#4059](https://github.com/voyant-travel/voyant/issues/4059) (public npm surface),
   [#3976](https://github.com/voyant-travel/voyant/issues/3976) (deploy-and-use pivot),
@@ -41,7 +42,7 @@ Connect API  (voyant-cloud)
       ▲
       │  connect-sdk client, over HTTP
       │
-plugin-voyant-connect → connect-adapter / connect-cruises   ← in-process, FIRST-PARTY
+voyant-connect-adapter → connect-adapter / connect-cruises  ← in-process, FIRST-PARTY
       ▼
 operator image
 ```
@@ -68,7 +69,7 @@ The two peer ranges the issue is built around live on packages that run *inside*
 
 ```
 apps/operator, packages/framework, packages/operator-standard
-  └── @voyant-travel/plugin-voyant-connect        (packages/plugins/voyant-connect, private)
+  └── @voyant-travel/voyant-connect-adapter        (packages/voyant-connect-adapter, private)
         └── @voyant-travel/connect-adapter ^0.5.0     ← peer: catalog-contracts ^0.112.2
         └── @voyant-travel/connect-cruises  ^0.6.2
 ```
@@ -77,7 +78,9 @@ No third party is in that chain. Whatever those ranges assert, they assert it to
 
 ### Evidence: those versions already do not mean anything
 
-`@voyant-travel/plugin-voyant-connect` exists three times, under one npm name:
+At the time this ADR was written, `@voyant-travel/plugin-voyant-connect` existed three times
+under one npm name (the voyant copy has since been renamed to
+`@voyant-travel/voyant-connect-adapter` — see the Amendment):
 
 | Where | Version | Peers |
 | --- | --- | --- |
@@ -224,7 +227,11 @@ that is wrong — not an unmet peer warning at install time on a machine Voyant 
 
 ### 4. In-process adapter registration is a first-party mechanism
 
-`SourceAdapter`, `CruiseAdapter`, `registerCruiseAdapter`, `plugin-voyant-connect`,
+> **Amended 2026-08-04.** This decision was written as an absolute and is not one. It holds for
+> managed deployments and not for self-hosted ones — see
+> [Amendment: managed and self-hosted differ](#amendment-managed-and-self-hosted-differ).
+
+`SourceAdapter`, `CruiseAdapter`, `registerCruiseAdapter`, `voyant-connect-adapter`,
 `connect-adapter` and `connect-cruises` are internal composition — how Voyant wires *Connect itself*
 into the operator as one source among others. They are not a third-party extension point, and
 documentation must stop describing them as one.
@@ -280,6 +287,45 @@ them.
 - **Release hygiene debt is now explicit**: connect#107's manifests need a version bump and a
   release, and npm currently serves un-failable ranges for `connect-adapter` and
   `plugin-voyant-connect`. That is maintenance, not compatibility design.
+
+## Amendment: managed and self-hosted differ
+
+**Added 2026-08-04, after review.** Decision 4 said in-process adapter registration is a first-party
+mechanism, and justified it with "the operator is a sealed image digest, so there is no install step
+through which external code enters the runtime". That reasoning describes the *managed* platform and
+was wrongly generalised to every deployment.
+
+The rule is a product boundary, not a packaging consequence:
+
+| | Managed platform | Self-hosted |
+| --- | --- | --- |
+| Third-party Connect networks | **Not installable.** All sourcing goes through Voyant Connect. | Operator's choice |
+| Custom in-process adapters | No | **Yes** — they build and run their own deployment |
+| Third-party connector integration | Connector worker protocol, admitted by Connect | Either path |
+
+This mirrors payments, where a managed deployment does not get an arbitrary third-party payment
+provider wired into the runtime.
+
+What this changes, and what it does not:
+
+- **Decision 4 stands for managed deployments** and is the reason the peer ranges on the in-process
+  packages have a first-party blast radius: on the managed platform nobody else is in that chain.
+- **It does not hold for self-hosted deployments.** A self-hoster composing their own operator may
+  register a custom `SourceAdapter` in process, and that is supported. Documentation should say
+  "first-party composition, plus self-hosted deployments that build their own operator" rather than
+  "first-party only".
+- **Decisions 1, 2, 3, 5 and 6 are unaffected.** The connector worker protocol remains the axis for
+  a third party integrating with the managed platform, which is the case #4062 was opened about.
+  A self-hoster who writes an in-process adapter has no compatibility axis to declare against
+  because there is no admission boundary between them and their own deployment — they pin whatever
+  their build resolves.
+
+This is also why Connect is classified as an **adapter**. It is a vendor integration that connects
+the operator to an external system, in the taxonomy's sense, and on the managed platform it is the
+*only* such connection to Connect that exists. The package was renamed from
+`@voyant-travel/plugin-voyant-connect` to `@voyant-travel/voyant-connect-adapter` and moved out of
+`packages/plugins/` accordingly; "plugin" was retired as a classification by RFC #3395 and the
+package already declared `voyant.kind: "adapter"` while its name did not.
 
 ## What this ADR does not decide
 

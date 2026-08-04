@@ -9,8 +9,8 @@ import { defineAdapter, providePort } from "@voyant-travel/graph-contracts"
  * so a self-hosted channel can provide the same contract.
  */
 export const voyantConnectAdapter = defineAdapter({
-  id: "@voyant-travel/plugin-voyant-connect",
-  packageName: "@voyant-travel/plugin-voyant-connect",
+  id: "@voyant-travel/voyant-connect-adapter",
+  packageName: "@voyant-travel/voyant-connect-adapter",
   localId: "voyant-connect",
   provides: {
     ports: [providePort(catalogSourcesRuntimeExtensionPort)],

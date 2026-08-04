@@ -1,8 +1,9 @@
 # Cruise Adapter Contract
 
 Status: active architecture note
-Audience: **first-party** developers composing a cruise adapter into the
-operator. This is not the third-party integration path — see the note below.
+Audience: first-party developers composing a cruise adapter into the operator,
+and self-hosters composing their own deployment. This is not how a third party
+integrates with the managed platform — see the note below.
 
 This contract keeps the cruises framework provider-neutral. The framework owns
 the normalized cruise shapes, route behavior, SourceRef encoding, search-index
@@ -10,21 +11,29 @@ projection shape, booking snapshot shape, and compatibility tests. Adapter
 packages own upstream clients, credentials, polling, retries, throttling, and
 provider-specific mappings.
 
-## This is not the third-party path
+## Who this is for
 
 This note originally addressed *"developers implementing an external adapter
-package"*, and predates the deploy-and-use pivot. In-process registration is
-not reachable for a third party: the operator ships as a sealed image digest,
-so there is no install step through which external code enters the runtime. The
-only registrations in the tree come from
-`packages/cruises/src/catalog-runtime-extension.ts`.
+package"*, and predates the deploy-and-use pivot. Two things changed.
 
-A third party integrating a cruise source builds a **connector** — a separately
-deployed Worker speaking the connector worker protocol, declaring compatibility
-against the protocol version rather than against any package. See
-[ADR-0022](../adr/0022-connector-compatibility-axis.md).
+**On the managed platform, in-process registration is not available at all.**
+All sourcing goes through Voyant Connect; a third-party Connect network cannot
+be installed, the same way an arbitrary third-party payment provider cannot.
+The operator ships as a sealed image digest, so there is no install step
+through which external code enters the runtime. The only registrations in the
+tree come from `packages/cruises/src/catalog-runtime-extension.ts`.
 
-Everything below governs first-party composition.
+**Self-hosters build their own deployment, so this path is theirs.** A
+self-hosted operator may implement `CruiseAdapter` and register it at startup,
+and everything below applies. There is no compatibility axis to declare in that
+case: the deployment resolves its own versions at build time, with no admission
+boundary in between.
+
+A third party integrating a cruise source **with the managed platform** builds a
+**connector** instead — a separately deployed Worker speaking the connector
+worker protocol, declaring compatibility against the protocol version rather
+than against any package. See
+[ADR-0022](../adr/0022-connector-compatibility-axis.md) and its amendment.
 
 ## Boundary
 

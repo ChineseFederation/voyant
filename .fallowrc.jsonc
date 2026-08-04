@@ -36,6 +36,6 @@
     "apps/agent-control-plane/**",
     "apps/agent-runner/**",
     "apps/registry/**",
-    "packages/plugins/voyant-connect/**"
+    "packages/voyant-connect-adapter/**"
   ]
 }
