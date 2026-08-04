@@ -4,6 +4,13 @@ import { Badge, Card, CardContent, cn } from "@voyant-travel/ui/components"
 import type { ReactNode } from "react"
 import type { AllocationManifestBooking, AvailabilitySlotRow } from "../index.js"
 
+/**
+ * @deprecated Superseded by `DepartureHeadline`
+ * (`./departure-workspace-headline.js`), which reads the composed departure
+ * summary instead of re-summing the allocation manifest in the browser. Kept
+ * as a published export for consumers that already mount it; the departure
+ * workspace no longer uses it.
+ */
 export function KpiStrip({
   slot,
   rollup,
@@ -134,6 +141,15 @@ export interface SlotFinancialRollup {
 
 const FINANCIAL_BOOKING_STATUSES = new Set(["confirmed", "in_progress", "completed"])
 
+/**
+ * @deprecated Client-side settlement roll-up over whatever page of the
+ * allocation manifest happened to be loaded, using a paid-amount rule of its
+ * own. The departure summary (`GET /slots/{id}/summary`) now carries
+ * whole-departure figures computed with `derivePaidAmountCents` — the same
+ * rule the allocation chips colour themselves with — and Finance's own P&L
+ * next to them. Read `summary.bookings` / `summary.finance` instead. Kept as a
+ * published export only for consumers that already call it.
+ */
 export function aggregateSlotFinancials(
   bookings: ReadonlyArray<AllocationManifestBooking>,
   productCurrency: string | null,

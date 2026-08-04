@@ -15,6 +15,7 @@ export function MetaTab({
   slot,
   productName,
   statusLabel,
+  productVersionId,
   onOpenProduct,
   onOpenStartTime,
   i18n: msg,
@@ -22,6 +23,14 @@ export function MetaTab({
   slot: AvailabilitySlotDetail
   productName: string | null
   statusLabel: string
+  /**
+   * The immutable Product Version this departure was materialized from
+   * (`availability_slots.product_version_id`, surfaced by the departure
+   * summary). `undefined` when the caller has no summary loaded; `null` on a
+   * departure that was never bound to a published version — which the issue
+   * list also reports as `departure_not_version_bound`.
+   */
+  productVersionId?: string | null
   onOpenProduct?: (productId: string) => void
   onOpenStartTime?: (startTimeId: string) => void
   i18n: {
@@ -33,6 +42,8 @@ export function MetaTab({
     createdLabel: string
     updatedLabel: string
     productLabel: string
+    productVersionLabel?: string
+    notVersionBoundLabel?: string
     statusLabel: string
     timezoneLabel: string
     noValue: string
@@ -81,6 +92,16 @@ export function MetaTab({
       ),
     },
   ]
+  if (productVersionId !== undefined && msg.productVersionLabel) {
+    rows.push({
+      label: msg.productVersionLabel,
+      value: productVersionId ? (
+        <span className="font-mono text-xs">{productVersionId}</span>
+      ) : (
+        <span className="text-muted-foreground">{msg.notVersionBoundLabel ?? msg.noValue}</span>
+      ),
+    })
+  }
   if (slot.availabilityRuleId) {
     rows.push({
       label: msg.ruleLabel,

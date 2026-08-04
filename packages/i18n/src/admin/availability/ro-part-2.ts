@@ -164,6 +164,207 @@ export const adminAvailabilityMessagesRoPart2 = {
         "auto-allocate": "Auto-alocare",
       },
     },
+    departure: {
+      tabs: {
+        overview: "Sumar",
+        travelers: "Calatori",
+        allocation: "Alocare",
+        operations: "Operatiuni",
+        financials: "Financiar",
+        activity: "Activitate",
+      },
+      overview: {
+        capacityTitle: "Capacitate",
+        authoredPaxLabel: "Pax configurati",
+        effectivePaxLabel: "Pax care pot fi cazati",
+        storedRemainingLabel: "Ramasi (stocat)",
+        derivedRemainingLabel: "Ramasi (calculat)",
+        consumedPaxLabel: "Pax consumati",
+        unlimitedLabel: "Nelimitat",
+        driftHint:
+          "Contorul stocat difera de cel calculat. Reconciliaza rezervarile si rezervarile temporare de mai jos.",
+        bookingsTitle: "Rezervari",
+        activeBookingsLabel: "Rezervari active",
+        soldPaxLabel: "Pax vanduti",
+        cancelledWithAllocationLabel: "Anulate, inca alocate",
+        holdsTitle: "Rezervari temporare",
+        holdsActiveLabel: "Active",
+        holdsExpiredLabel: "Expirate",
+        holdsPaxLabel: "Pax blocati",
+        identityTitle: "Identitate",
+        productVersionLabel: "Versiune produs",
+        notVersionBound: "Nelegata de o versiune publicata",
+        extrasTitle: "Extra",
+        extrasOfferedLabel: "Oferite",
+        extrasSelectedLabel: "Alese de calatori",
+        extrasOutstandingLabel: "De colectat",
+        extrasUnavailable: "Modulul Extra nu este instalat la acest operator.",
+        editAction: "Editeaza plecarea",
+      },
+      travelers: {
+        title: "Lista calatorilor",
+        enteredLabel: "Nume introduse",
+        leadLabel: "Calatori principali",
+        seatedLabel: "Cazati",
+        unseatedLabel: "Necazati",
+        missingLabel: "Nume lipsa",
+        excessLabel: "Nume peste pax vanduti",
+        columnTraveler: "Calator",
+        columnBooking: "Rezervare",
+        columnStatus: "Status",
+        columnSeat: "Loc / camera",
+        seatedBadge: "Cazat",
+        unseatedBadge: "Necazat",
+        leadBadge: "Principal",
+        emptyTitle: "Nimeni nu este rezervat pe aceasta plecare",
+        emptyDescription:
+          "Calatorii apar aici imediat ce o rezervare este alocata acestei plecari.",
+        emptyAction: "Creeaza o rezervare",
+        openBookingAction: "Deschide rezervarea",
+      },
+      operations: {
+        title: "Operatiuni",
+        description: "Tot ce trebuie rezolvat inainte ca aceasta plecare sa aiba loc.",
+        pickupTitle: "Pickup",
+        pickupEmptyTitle: "Niciun punct de pickup pe aceasta plecare",
+        pickupEmptyDescription:
+          "Adauga un punct de pickup ca soferul sa stie de unde ia calatorii.",
+        pickupEmptyAction: "Adauga un punct de pickup",
+        pickupPointUnknown: "Punctul de pickup nu mai este disponibil",
+        closeoutsTitle: "Closeout-uri",
+        closeoutsEmptyTitle: "Aceasta plecare este deschisa la vanzare",
+        closeoutsEmptyDescription:
+          "Inchide data cand trebuie oprita vanzarea — ghidul nu este disponibil sau furnizorul a retras alotmentul.",
+        closeoutsEmptyAction: "Inchide aceasta data",
+        extrasTitle: "Extra",
+        extrasEmptyTitle: "Nu sunt oferite extra pe aceasta plecare",
+        extrasEmptyDescription:
+          "Serviciile extra se configureaza pe produs, apoi se vand pe fiecare plecare a lui.",
+        extrasEmptyAction: "Configureaza extra pe produs",
+      },
+      financials: {
+        title: "Profitabilitate",
+        description: "Cifrele proprii ale modulului Financiar. Operatiunile nu le recalculeaza.",
+        columnCurrency: "Moneda",
+        columnRevenue: "Venit",
+        columnPlannedCost: "Cost planificat",
+        columnActualCost: "Cost real",
+        columnVariance: "Diferenta",
+        columnProfit: "Profit",
+        columnMargin: "Marja",
+        baseTitle: "Moneda contabila",
+        unconvertibleTitle: "Neconvertite in moneda contabila",
+        unconvertibleDescription:
+          "Modulul Financiar nu a avut curs pentru aceste monede, deci liniile lor lipsesc din total: {currencies}",
+        settlementTitle: "Incasari",
+        settlementSoldLabel: "Vandut",
+        settlementPaidLabel: "Incasat",
+        settlementOutstandingLabel: "De incasat",
+        mixedCurrenciesHint:
+          "Rezervarile de pe aceasta plecare au monede diferite — totalurile raman pe rezervare.",
+        emptyTitle: "Modulul Financiar nu are inca linii pentru aceasta plecare",
+        emptyDescription:
+          "Venitul si costul apar dupa ce facturile si costurile de la furnizori sunt atribuite plecarii.",
+        unavailableTitle: "Profitabilitatea nu este disponibila",
+        unavailableDescription:
+          "Niciun furnizor Financiar nu este conectat la acest deployment, deci plecarea nu are cifre de venit sau cost. Incasarile de mai jos vin din rezervari.",
+        openReportAction: "Deschide raportul de profitabilitate",
+      },
+      activity: {
+        emptyTitle: "Nu s-a intamplat nimic inca pe aceasta plecare",
+        emptyDescription:
+          "Modificarile de resurse si alocarile de calatori se inregistreaza aici pe masura ce sunt facute.",
+        emptyAction: "Mergi la Alocare",
+      },
+      resources: {
+        title: "Resurse",
+        description: "Fiecare camera, loc sau cabina pregatita pe aceasta plecare.",
+        columnResource: "Resursa",
+        columnCapacity: "Capacitate",
+        columnAssigned: "Alocate",
+        columnAvailable: "Disponibile",
+        overCapacityBadge: "Peste capacitate",
+        emptyTitle: "Nicio camera sau loc nu este pregatit inca",
+        emptyDescription: "Genereaza inventarul configurat pe produs sau adauga o resursa manual.",
+      },
+      links: {
+        openResource: "Deschide resursa",
+        openSupplier: "Deschide furnizorul",
+        openProduct: "Deschide produsul",
+        openBooking: "Deschide rezervarea",
+        openFinanceReport: "Deschide raportul de profitabilitate",
+        goToSection: "Mergi la {section}",
+      },
+      issues: {
+        title: "Necesita atentie",
+        summary: "{critical} critice · {warning} de reconciliat",
+        criticalGroup: "Critic — rezolva inainte ca plecarea sa aiba loc",
+        warningGroup: "De reconciliat",
+        criticalBadge: "Critic",
+        warningBadge: "Avertisment",
+        affectedLabel: "{count} afectate",
+        clearTitle: "Nimic nu necesita atentie",
+        clearDescription: "Capacitatea, rezervarile si calatorii sunt in acord pe aceasta plecare.",
+        clearAction: "Vezi lista calatorilor",
+        codes: {
+          stale_held_allocation: {
+            title: "Alocare blocata dupa expirare",
+            description:
+              "O alocare temporara a depasit termenul de expirare si inca ocupa un loc care nu apartine nimanui. Confirma rezervarea sau elibereaza alocarea.",
+          },
+          allocation_on_cancelled_booking: {
+            title: "Rezervare anulata inca alocata",
+            description:
+              "O rezervare anulata inca detine o alocare activa pe aceasta plecare, deci locul nu a fost eliberat. Elibereaza alocarea.",
+          },
+          expired_hold_not_released: {
+            title: "Rezervare temporara expirata, neeliberata",
+            description:
+              "O rezervare temporara a expirat fara sa fie eliberata, deci pax-ii ei sunt in continuare scazuti din ce se poate vinde.",
+          },
+          travelers_missing_for_booked_pax: {
+            title: "Lipsesc nume de calatori",
+            description:
+              "S-au introdus mai putini calatori decat pax-ii vanduti de rezervari. Completeaza numele lipsa pe rezervarile lor.",
+          },
+          travelers_exceed_booked_pax: {
+            title: "Mai multi calatori decat pax vanduti",
+            description:
+              "S-au introdus mai multi calatori decat pax-ii vanduti de rezervari. Corecteaza numarul de pax sau sterge calatorii in plus.",
+          },
+          remaining_pax_drift: {
+            title: "Contorul de pax ramasi a derivat",
+            description:
+              "Contorul stocat de pax ramasi difera de ce consuma efectiv rezervarile si rezervarile temporare active.",
+          },
+          capacity_oversold: {
+            title: "Plecare suprarezervata",
+            description:
+              "Rezervarile si rezervarile temporare active consuma mai multi pax decat capacitatea configurata. Creste capacitatea sau muta o rezervare.",
+          },
+          resource_over_capacity: {
+            title: "Resursa peste capacitate",
+            description:
+              "Sunt alocati mai multi calatori acestei resurse decat poate primi. Realoca surplusul sau creste capacitatea resursei.",
+          },
+          travelers_unassigned: {
+            title: "Calatori necazati",
+            description:
+              "Calatori de pe aceasta plecare nu au fost alocati unei camere sau unui loc. Aloca-i in Alocare.",
+          },
+          allocation_resources_missing: {
+            title: "Nicio camera sau loc pregatit",
+            description:
+              "Exista calatori rezervati pe aceasta plecare, dar nu s-a pregatit nimic pentru a-i caza. Genereaza inventarul in Alocare.",
+          },
+          departure_not_version_bound: {
+            title: "Plecare nelegata de o versiune",
+            description:
+              "Aceasta plecare nu este legata de o versiune publicata a produsului, deci ce vinde poate devia de la ce a fost configurat.",
+          },
+        },
+      },
+    },
     duration: {
       nightSingular: "1 noapte",
       nightsPlural: "{count} nopti",

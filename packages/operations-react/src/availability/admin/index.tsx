@@ -25,6 +25,8 @@ import {
   AvailabilitySlotDetailSkeleton,
   AvailabilityStartTimeDetailSkeleton,
 } from "../components/availability-skeletons.js"
+// Lean static: a zod object literal, no page or data-layer module behind it.
+import { departureWorkspaceSearchSchema } from "../departure-search-params.js"
 
 /**
  * Semantic destinations the availability admin surfaces navigate to
@@ -40,6 +42,13 @@ declare module "@voyant-travel/admin" {
     "availabilitySlot.list": Record<string, never>
     /** An availability start time's detail page. */
     "availabilityStartTime.detail": { startTimeId: string }
+    /**
+     * Finance's departure profitability report. Declared here (and bound to
+     * its route by `@voyant-travel/finance-react/admin`) because the departure
+     * workspace's Financials section links out to it — Operations renders
+     * Finance's figures but never owns the report.
+     */
+    "financeProfitability.report": Record<string, never>
   }
 }
 
@@ -94,10 +103,11 @@ export interface CreateAvailabilityAdminExtensionOptions {
  * `AdminRoutePageProps` via the default-exported wrappers in `./pages/`.
  * The index host's SSR loader binding is no longer app-side:
  * {@link ensureAvailabilityPageData} runs in the contribution's own loader
- * against the host runtime's cookie-forwarding fetcher. The pages keep
- * their filter state component-local, so there are no URL search contracts,
- * and every cross-route link resolves through the semantic destinations
- * declared above.
+ * against the host runtime's cookie-forwarding fetcher. The list pages keep
+ * their filter state component-local; the one URL search contract is the
+ * departure workspace's `?tab=` (see `departure-search-params.ts`), which
+ * makes a section of the slot detail page linkable. Every cross-route link
+ * resolves through the semantic destinations declared above.
  *
  * WIDGETS: none. {@link OptionResourceTemplatesPanel} (the per-option
  * resource templates editor the product editor embeds) ships from this
@@ -144,6 +154,11 @@ export function createAvailabilityAdminExtension(
         // Key declared by @voyant-travel/bookings-react/admin (bound type-only above).
         destination: "availabilitySlot.detail",
         destinationParams: { id: "slotId" },
+        // The departure workspace's six sections are URL-addressable
+        // (`?tab=financials`): the section survives a reload and is linkable
+        // into a ticket. Parsed here, so the page receives an already-narrowed
+        // value on `AdminRoutePageProps.search`.
+        validateSearch: (search) => departureWorkspaceSearchSchema.parse(search),
         page: () => import("./pages/availability-slot-detail-page.js"),
         loader: async ({ queryClient, runtime, params }: AdminRouteLoaderContext) => {
           const id = params.id

@@ -22,6 +22,7 @@ import {
   availabilitySlotSingleResponse,
   availabilityStartTimeListResponse,
   bookingSummaryListResponse,
+  departureSummaryResponse,
   productListResponse,
   productOptionResourceTemplatesListResponse,
   productSingleResponse,
@@ -222,6 +223,29 @@ export function getSlotUnitAvailabilityQueryOptions(
       return fetchWithValidation(
         `/v1/admin/operations/availability/slots/${slotId}/unit-availability`,
         slotUnitAvailabilityListResponse,
+        client,
+      )
+    },
+  })
+}
+
+/**
+ * The departure workspace's one headline read. Every counter in the envelope
+ * is computed by aggregate over the whole departure, so the workspace never
+ * has to reassemble a headline from the paginated detail lists (pickups,
+ * closeouts, resources, manifests) — those stay separate fetches.
+ */
+export function getDepartureSummaryQueryOptions(
+  client: FetchWithValidationOptions,
+  slotId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: availabilityQueryKeys.departureSummary(slotId ?? ""),
+    queryFn: async () => {
+      if (!slotId) throw new Error("getDepartureSummaryQueryOptions requires a slotId")
+      return fetchWithValidation(
+        `/v1/admin/operations/availability/slots/${slotId}/summary`,
+        departureSummaryResponse,
         client,
       )
     },

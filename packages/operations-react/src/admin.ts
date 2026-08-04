@@ -78,6 +78,8 @@ declare module "@voyant-travel/admin" {
     "product.detail": { productId: string }
     /** An availability slot's detail page. */
     "availabilitySlot.detail": { slotId: string }
+    /** Finance's departure profitability report (bound by finance-react). */
+    "financeProfitability.report": Record<string, never>
   }
 }
 

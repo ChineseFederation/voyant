@@ -127,6 +127,13 @@ declare module "@voyant-travel/admin" {
     "supplierInvoice.list": Record<string, never>
     /** A supplier invoice's detail page. */
     "supplierInvoice.detail": { supplierInvoiceId: string }
+    /**
+     * The departure/product profitability report. Declared here because this
+     * package owns the route, and also declared by
+     * `@voyant-travel/operations-react` — the departure workspace links out to
+     * it rather than recomputing revenue.
+     */
+    "financeProfitability.report": Record<string, never>
   }
 }
 
@@ -370,6 +377,9 @@ export function createFinanceAdminExtension(
         id: "finance-profitability",
         path: `${basePath}/profitability`,
         title: profitability,
+        // Route-backed destination (RFC §4.7): the key resolves by pure path
+        // interpolation of this route, so the host's resolver is generated.
+        destination: "financeProfitability.report",
         ssr: "data-only",
         page: () => import("./pages/profitability.js"),
         // Dynamic import on purpose — see the invoices index loader above.

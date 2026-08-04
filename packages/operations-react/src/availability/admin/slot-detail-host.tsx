@@ -14,15 +14,24 @@ import {
 import { ProductQuickViewSheet } from "@voyant-travel/inventory-react/ui"
 import { lazy, Suspense, useState } from "react"
 import { SlotAllocationPage } from "../allocation/index.js"
-import { AvailabilitySlotDialog } from "../components/availability-dialogs.js"
+import {
+  AvailabilityCloseoutDialog,
+  AvailabilityPickupPointDialog,
+  AvailabilitySlotDialog,
+} from "../components/availability-dialogs.js"
 import {
   AvailabilitySlotDetailPage,
   getAvailabilitySlotDetailQueryOptions,
   getAvailabilitySlotProductQueryOptions,
 } from "../components/availability-slot-detail-page.js"
 import {
+  type CreateAvailabilityCloseoutInput,
+  type CreateAvailabilityPickupPointInput,
   type CreateAvailabilitySlotInput,
+  type DepartureWorkspaceTab,
   type UpdateAvailabilitySlotInput,
+  useAvailabilityCloseoutMutation,
+  useAvailabilityPickupPointMutation,
   useAvailabilitySlotMutation,
   useRules,
   useStartTimes,
@@ -38,6 +47,13 @@ const BookingQuickViewSheet = lazy(() =>
 export interface AvailabilitySlotDetailHostProps {
   /** The availability slot id (route param, bound by the host route file). */
   slotId: string
+  /**
+   * The workspace section, read from the route's `?tab=` search param. When
+   * omitted the workspace keeps the selection in component state.
+   */
+  tab?: DepartureWorkspaceTab
+  /** Patches `?tab=` in place (the route page passes `updateSearch`). */
+  onTabChange?: (tab: DepartureWorkspaceTab) => void
 }
 
 /**
@@ -63,13 +79,19 @@ export interface AvailabilitySlotDetailHostProps {
  * The SSR prefetch loader stays in the host route file (it runs outside the
  * React tree with the app's cookie-forwarding fetcher).
  */
-export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHostProps) {
+export function AvailabilitySlotDetailHost({
+  slotId,
+  tab,
+  onTabChange,
+}: AvailabilitySlotDetailHostProps) {
   const messages = useOperatorAdminMessages()
   const extrasMessages = useExtrasUiMessagesOrDefault()
   const resolveHref = useAdminHref()
   const navigateTo = useAdminNavigate()
   const client = useVoyantAvailabilityContext()
   const slotMutation = useAvailabilitySlotMutation()
+  const pickupPointMutation = useAvailabilityPickupPointMutation()
+  const closeoutMutation = useAvailabilityCloseoutMutation()
   const slotQuery = useQuery(getAvailabilitySlotDetailQueryOptions(client, slotId))
   const slot = slotQuery.data?.data
   const productQuery = useQuery({
@@ -80,6 +102,11 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
   const [bookingPreviewId, setBookingPreviewId] = useState<string | null>(null)
   const [productPreviewId, setProductPreviewId] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  // The next authorized action behind the Operations section's empty states
+  // (AC7): a departure with no pickup point and one with no closeout must both
+  // offer the way to create one, not just say they have none.
+  const [pickupDialogOpen, setPickupDialogOpen] = useState(false)
+  const [closeoutDialogOpen, setCloseoutDialogOpen] = useState(false)
   // Lazy-load rules + start times only when the edit dialog opens —
   // the slot detail view itself doesn't need them. Scope to the slot's
   // product so the dialog only suggests recurring rules / start times
@@ -105,12 +132,25 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
     <>
       <AvailabilitySlotDetailPage
         id={slotId}
+        tab={tab}
+        onTabChange={onTabChange}
         onBack={() => navigateTo("availabilitySlot.list", {})}
         onDeleted={() => navigateTo("availabilitySlot.list", {})}
         onOpenProduct={(productId) => setProductPreviewId(productId)}
         onOpenStartTime={(startTimeId) =>
           navigateTo("availabilityStartTime.detail", { startTimeId })
         }
+        onOpenBooking={(bookingId) => setBookingPreviewId(bookingId)}
+        // AC8: the destinations an allocation resource's persisted
+        // `ref_type`/`ref_id` can point at, plus Finance's own report. All
+        // resolve through semantic keys — a packaged page never imports a host
+        // route tree.
+        onOpenResource={(resourceId) => navigateTo("resource.detail", { resourceId })}
+        onOpenSupplier={(supplierId) => navigateTo("supplier.detail", { supplierId })}
+        onOpenFinanceReport={() => navigateTo("financeProfitability.report", {})}
+        onCreateBooking={() => navigateTo("booking.create", { productId: slot?.productId, slotId })}
+        onAddPickupPoint={() => setPickupDialogOpen(true)}
+        onAddCloseout={() => setCloseoutDialogOpen(true)}
         onEdit={() => setEditDialogOpen(true)}
         renderAllocation={({ slotId: allocationSlotId }) => (
           <SlotAllocationPage
@@ -176,6 +216,41 @@ export function AvailabilitySlotDetailHost({ slotId }: AvailabilitySlotDetailHos
             void slotQuery.refetch()
           }}
         />
+      ) : null}
+
+      {slot && productQuery.data?.data ? (
+        <>
+          <AvailabilityPickupPointDialog
+            messages={messages.availability}
+            open={pickupDialogOpen}
+            onOpenChange={setPickupDialogOpen}
+            products={[productQuery.data.data]}
+            onSubmit={async (payload) => {
+              await pickupPointMutation.create.mutateAsync(
+                payload as CreateAvailabilityPickupPointInput,
+              )
+            }}
+            onSuccess={() => setPickupDialogOpen(false)}
+          />
+          <AvailabilityCloseoutDialog
+            messages={messages.availability}
+            open={closeoutDialogOpen}
+            onOpenChange={setCloseoutDialogOpen}
+            products={[productQuery.data.data]}
+            slots={[slot]}
+            onSubmit={async (payload) => {
+              // Default the closeout onto THIS departure: the operator opened
+              // it from the departure's own empty state, so the date and slot
+              // are not something they should have to re-pick.
+              await closeoutMutation.create.mutateAsync({
+                ...payload,
+                slotId: payload.slotId ?? slot.id,
+                dateLocal: payload.dateLocal || slot.dateLocal,
+              } as CreateAvailabilityCloseoutInput)
+            }}
+            onSuccess={() => setCloseoutDialogOpen(false)}
+          />
+        </>
       ) : null}
     </>
   )

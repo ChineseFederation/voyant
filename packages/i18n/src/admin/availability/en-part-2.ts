@@ -162,6 +162,220 @@ export const adminAvailabilityMessagesEnPart2 = {
         "auto-allocate": "Auto-allocate",
       },
     },
+    /**
+     * The departure workspace (issue #4033): one screen where capacity,
+     * Bookings and Travelers are reconciled against each other. Six sections,
+     * each addressable by `?tab=`.
+     */
+    departure: {
+      tabs: {
+        overview: "Overview",
+        travelers: "Travelers",
+        allocation: "Allocation",
+        operations: "Operations",
+        financials: "Financials",
+        activity: "Activity",
+      },
+      overview: {
+        capacityTitle: "Capacity",
+        authoredPaxLabel: "Authored pax",
+        effectivePaxLabel: "Seatable pax",
+        storedRemainingLabel: "Stored remaining",
+        derivedRemainingLabel: "Derived remaining",
+        consumedPaxLabel: "Consumed pax",
+        unlimitedLabel: "Unlimited",
+        driftHint:
+          "The stored counter and the derived one disagree. Reconcile the bookings and holds below.",
+        bookingsTitle: "Bookings",
+        activeBookingsLabel: "Active bookings",
+        soldPaxLabel: "Sold pax",
+        cancelledWithAllocationLabel: "Cancelled, still allocated",
+        holdsTitle: "Checkout holds",
+        holdsActiveLabel: "Live",
+        holdsExpiredLabel: "Expired",
+        holdsPaxLabel: "Pax held",
+        identityTitle: "Identity",
+        productVersionLabel: "Product version",
+        notVersionBound: "Not bound to a published version",
+        extrasTitle: "Extras",
+        extrasOfferedLabel: "Offered",
+        extrasSelectedLabel: "Selected by travelers",
+        extrasOutstandingLabel: "Still to collect",
+        extrasUnavailable: "Extras are not deployed on this operator.",
+        editAction: "Edit departure",
+      },
+      travelers: {
+        title: "Traveler roster",
+        enteredLabel: "Names entered",
+        leadLabel: "Lead travelers",
+        seatedLabel: "Seated",
+        unseatedLabel: "Not seated",
+        missingLabel: "Names still missing",
+        excessLabel: "Names beyond sold pax",
+        columnTraveler: "Traveler",
+        columnBooking: "Booking",
+        columnStatus: "Status",
+        columnSeat: "Seat / room",
+        seatedBadge: "Seated",
+        unseatedBadge: "Not seated",
+        leadBadge: "Lead",
+        emptyTitle: "Nobody is booked on this departure yet",
+        emptyDescription:
+          "Travelers appear here the moment a booking is allocated to this departure.",
+        emptyAction: "Create a booking",
+        openBookingAction: "Open booking",
+      },
+      operations: {
+        title: "Operations",
+        description: "Everything that has to be squared away before this departure runs.",
+        pickupTitle: "Pickup",
+        pickupEmptyTitle: "No pickup points on this departure",
+        pickupEmptyDescription:
+          "Add a pickup point so the driver knows where to collect travelers.",
+        pickupEmptyAction: "Add a pickup point",
+        pickupPointUnknown: "Pickup point no longer available",
+        closeoutsTitle: "Closeouts",
+        closeoutsEmptyTitle: "This departure is open for sale",
+        closeoutsEmptyDescription:
+          "Close the date when it must stop selling — a guide is unavailable, or the supplier pulled the allotment.",
+        closeoutsEmptyAction: "Close this date",
+        extrasTitle: "Extras",
+        extrasEmptyTitle: "No extras are offered on this departure",
+        extrasEmptyDescription:
+          "Extras are configured on the product, then sold against every departure of it.",
+        extrasEmptyAction: "Configure extras on the product",
+      },
+      financials: {
+        title: "Profitability",
+        description: "Finance's own figures for this departure. Operations never recomputes them.",
+        columnCurrency: "Currency",
+        columnRevenue: "Revenue",
+        columnPlannedCost: "Planned cost",
+        columnActualCost: "Actual cost",
+        columnVariance: "Variance",
+        columnProfit: "Profit",
+        columnMargin: "Margin",
+        baseTitle: "Accounting base",
+        unconvertibleTitle: "Not converted into the base",
+        unconvertibleDescription:
+          "Finance had no rate for these currencies, so their lines are missing from the base rollup: {currencies}",
+        settlementTitle: "Settlement",
+        settlementSoldLabel: "Sold",
+        settlementPaidLabel: "Paid",
+        settlementOutstandingLabel: "Outstanding",
+        mixedCurrenciesHint:
+          "Bookings on this departure disagree on currency — totals are per booking.",
+        emptyTitle: "Finance has no lines for this departure yet",
+        emptyDescription:
+          "Revenue and cost appear once invoices and supplier costs are attributed to it.",
+        unavailableTitle: "Profitability is unavailable",
+        unavailableDescription:
+          "No Finance provider is bound to this deployment, so this departure has no revenue or cost figures. The settlement below comes from the bookings themselves.",
+        openReportAction: "Open the profitability report",
+      },
+      activity: {
+        emptyTitle: "Nothing has happened on this departure yet",
+        emptyDescription:
+          "Resource changes and traveler assignments are recorded here as they are made.",
+        emptyAction: "Go to Allocation",
+      },
+      resources: {
+        title: "Resources",
+        description: "Every room, seat or cabin laid out on this departure.",
+        columnResource: "Resource",
+        columnCapacity: "Capacity",
+        columnAssigned: "Assigned",
+        columnAvailable: "Available",
+        overCapacityBadge: "Over capacity",
+        emptyTitle: "No rooms or seats are laid out yet",
+        emptyDescription:
+          "Generate the inventory this product configures, or add a resource by hand.",
+      },
+      links: {
+        openResource: "Open resource",
+        openSupplier: "Open supplier",
+        openProduct: "Open product",
+        openBooking: "Open booking",
+        openFinanceReport: "Open the profitability report",
+        goToSection: "Go to {section}",
+      },
+      issues: {
+        title: "Needs attention",
+        summary: "{critical} critical · {warning} to reconcile",
+        criticalGroup: "Critical — fix before this departure runs",
+        warningGroup: "To reconcile",
+        criticalBadge: "Critical",
+        warningBadge: "Warning",
+        affectedLabel: "{count} affected",
+        clearTitle: "Nothing needs attention",
+        clearDescription:
+          "Capacity, bookings and travelers agree with each other on this departure.",
+        clearAction: "Review the roster",
+        /**
+         * One entry per `DepartureIssueCode`. The server also ships an English
+         * `message`, but that is a fallback for consumers with no catalogue —
+         * the workspace renders these, and falls back only for a code it does
+         * not know yet.
+         */
+        codes: {
+          stale_held_allocation: {
+            title: "Allocation held past its expiry",
+            description:
+              "A held allocation is past its hold expiry and is still consuming a seat nobody owns. Confirm the booking or release the allocation.",
+          },
+          allocation_on_cancelled_booking: {
+            title: "Cancelled booking still allocated",
+            description:
+              "A cancelled booking still holds a live allocation on this departure, so its seat never came back. Release the allocation.",
+          },
+          expired_hold_not_released: {
+            title: "Expired checkout hold not released",
+            description:
+              "A checkout hold expired without being released, so its pax are still deducted from what can be sold.",
+          },
+          travelers_missing_for_booked_pax: {
+            title: "Traveler names missing",
+            description:
+              "Fewer traveler records have been entered than the bookings sold pax for. Enter the missing names on their bookings.",
+          },
+          travelers_exceed_booked_pax: {
+            title: "More travelers than pax sold",
+            description:
+              "More traveler records have been entered than the bookings sold pax for. Correct the pax count or remove the extra travelers.",
+          },
+          remaining_pax_drift: {
+            title: "Remaining-pax counter has drifted",
+            description:
+              "The stored remaining-pax counter disagrees with what the bookings and live holds actually consume.",
+          },
+          capacity_oversold: {
+            title: "Departure is oversold",
+            description:
+              "Bookings and live holds consume more pax than this departure's authored capacity. Raise the capacity or move a booking.",
+          },
+          resource_over_capacity: {
+            title: "Resource is over capacity",
+            description:
+              "More travelers are assigned to this resource than it can hold. Reseat the overflow or raise the resource's capacity.",
+          },
+          travelers_unassigned: {
+            title: "Travelers are not seated",
+            description:
+              "Travelers on this departure have not been assigned to a room or seat. Assign them in Allocation.",
+          },
+          allocation_resources_missing: {
+            title: "No rooms or seats laid out",
+            description:
+              "Travelers are booked on this departure but nothing has been laid out to seat them. Generate the inventory in Allocation.",
+          },
+          departure_not_version_bound: {
+            title: "Departure is not version-bound",
+            description:
+              "This departure is not bound to a published Product Version, so what it sells can drift from what was authored.",
+          },
+        },
+      },
+    },
     duration: {
       nightSingular: "1 night",
       nightsPlural: "{count} nights",

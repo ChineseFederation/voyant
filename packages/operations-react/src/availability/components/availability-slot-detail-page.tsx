@@ -1,18 +1,8 @@
 "use client"
 
-import type { QueryClient } from "@tanstack/react-query"
 import { useQuery } from "@tanstack/react-query"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
   Badge,
-  Button,
   Card,
   CardContent,
   CardHeader,
@@ -23,34 +13,47 @@ import {
   TabsList,
   TabsTrigger,
 } from "@voyant-travel/ui/components"
-import { CalendarDays, Package, Pencil, Truck } from "lucide-react"
 import { type ReactNode, useState } from "react"
 import { useAvailabilityUiI18nOrDefault } from "../i18n/index.js"
 import {
-  getPickupPointsQueryOptions,
-  getProductQueryOptions,
-  getSlotAllocationQueryOptions,
-  getSlotAssignmentsQueryOptions,
-  getSlotCloseoutsQueryOptions,
-  getSlotPickupsQueryOptions,
-  getSlotQueryOptions,
-  getSlotResourcesQueryOptions,
-  slotStatusTone,
+  type DepartureIssue,
+  type DepartureWorkspaceTab,
+  defaultDepartureWorkspaceTab,
   useAvailabilitySlotMutation,
   useSlotAllocationAuditLog,
   useVoyantAvailabilityContext,
-  type VoyantAvailabilityContextValue,
 } from "../index.js"
 import { getSlotStatusLabel } from "./availability-columns.js"
 import { AvailabilitySlotDetailSkeleton } from "./availability-skeletons.js"
 import { ActivityTimeline } from "./availability-slot-detail-activity.js"
-import { aggregateSlotFinancials, KpiStrip } from "./availability-slot-detail-financials.js"
 import {
-  computeSlotNightsLabel,
-  formatSlotDateRange,
-  MetaTab,
-} from "./availability-slot-detail-meta.js"
-import { slotStatusToneClass } from "./slot-status-tone.js"
+  getAvailabilitySlotAllocationQueryOptions,
+  getAvailabilitySlotAssignmentsQueryOptions,
+  getAvailabilitySlotCloseoutsQueryOptions,
+  getAvailabilitySlotDetailQueryOptions,
+  getAvailabilitySlotPickupPointsQueryOptions,
+  getAvailabilitySlotPickupsQueryOptions,
+  getAvailabilitySlotProductQueryOptions,
+  getAvailabilitySlotResourcesQueryOptions,
+  getAvailabilitySlotSummaryQueryOptions,
+} from "./availability-slot-detail-data.js"
+import { computeSlotNightsLabel, formatSlotDateRange } from "./availability-slot-detail-meta.js"
+import {
+  type DepartureLinkTarget,
+  resolveAllocationResourceTarget,
+} from "./departure-deep-links.js"
+import type { DepartureIssueAction } from "./departure-issues.js"
+import { DepartureFinancialsSection } from "./departure-workspace-financials.js"
+import { DepartureWorkspaceHeader } from "./departure-workspace-header.js"
+import { DepartureHeadline } from "./departure-workspace-headline.js"
+import { DepartureOperationsSection } from "./departure-workspace-operations.js"
+import { DepartureOverviewSection } from "./departure-workspace-overview.js"
+import {
+  DepartureResourcesSection,
+  departureResourceLabel,
+  linkTargetLabel,
+} from "./departure-workspace-resources.js"
+import { DepartureTravelersSection } from "./departure-workspace-travelers.js"
 
 export interface AvailabilitySlotDetailPageProps {
   id: string
@@ -79,103 +82,80 @@ export interface AvailabilitySlotDetailPageProps {
    */
   headerActions?: ReactNode
   /**
-   * Content for the Allocation tab. Hosts mount their allocation
+   * Content for the Allocation section. Hosts mount their allocation
    * manager here (for example, `SlotAllocationPage` from
    * `@voyant-travel/operations-react/availability/allocation` in `embed` mode).
-   * When omitted, the tab shows a stub message instead.
+   * When omitted, the section shows a stub message instead.
    */
   renderAllocation?: (context: { slotId: string; productId: string | null }) => ReactNode
   /**
-   * Content for the Extras tab. Hosts that mount `@voyant-travel/bookings/extras` can
-   * render a slot-level operations manifest here without making
-   * availability-ui depend on booking extras UI.
+   * Content for the Extras section inside Operations. Hosts that mount
+   * `@voyant-travel/bookings/extras` can render a slot-level operations
+   * manifest here without making this package depend on booking extras UI.
    */
   renderExtras?: (context: { slotId: string; productId: string | null }) => ReactNode
+  /** Overrides the Extras section heading (Bookings owns that vocabulary). */
   extrasTabLabel?: ReactNode
+  /**
+   * The workspace section to show. Controlled by the host so the section is
+   * URL-addressable (`?tab=financials`); when omitted the workspace keeps the
+   * selection in component state and a reload lands back on Overview.
+   */
+  tab?: DepartureWorkspaceTab
+  onTabChange?: (tab: DepartureWorkspaceTab) => void
+  /** Opens a booking (quick view or detail). */
+  onOpenBooking?: (bookingId: string) => void
+  /** Opens a row in the operations resource pool. */
+  onOpenResource?: (resourceId: string) => void
+  /** Opens a supplier a resource is sourced from. */
+  onOpenSupplier?: (supplierId: string) => void
+  /** Opens Finance's departure profitability report. */
+  onOpenFinanceReport?: () => void
+  /** Next action for an empty roster: start a booking on this departure. */
+  onCreateBooking?: () => void
+  /** Next action for an empty Pickup section. */
+  onAddPickupPoint?: () => void
+  /** Next action for an empty Closeouts section. */
+  onAddCloseout?: () => void
 }
 
-export function getAvailabilitySlotDetailQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  id: string | null | undefined,
-) {
-  return getSlotQueryOptions(client, id)
+export {
+  getAvailabilitySlotAllocationQueryOptions,
+  getAvailabilitySlotAssignmentsQueryOptions,
+  getAvailabilitySlotCloseoutsQueryOptions,
+  getAvailabilitySlotDetailQueryOptions,
+  getAvailabilitySlotPickupPointsQueryOptions,
+  getAvailabilitySlotPickupsQueryOptions,
+  getAvailabilitySlotProductQueryOptions,
+  getAvailabilitySlotResourcesQueryOptions,
+  getAvailabilitySlotSummaryQueryOptions,
+  loadAvailabilitySlotDetailPage,
+} from "./availability-slot-detail-data.js"
+
+/**
+ * Which section repairs which issue. Departure-level codes name no row, so the
+ * only useful navigation is the section that owns the fix; subject-bearing
+ * codes prefer the subject's own destination and fall back to this.
+ */
+const ISSUE_REPAIR_TAB: Record<string, DepartureWorkspaceTab> = {
+  allocation_on_cancelled_booking: "travelers",
+  allocation_resources_missing: "allocation",
+  resource_over_capacity: "allocation",
+  stale_held_allocation: "travelers",
+  travelers_exceed_booked_pax: "travelers",
+  travelers_missing_for_booked_pax: "travelers",
+  travelers_unassigned: "allocation",
 }
 
-export function getAvailabilitySlotProductQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  productId: string | null | undefined,
-) {
-  return getProductQueryOptions(client, productId)
-}
-
-export function getAvailabilitySlotPickupsQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  id: string | null | undefined,
-) {
-  return getSlotPickupsQueryOptions(client, id, { limit: 25, offset: 0 })
-}
-
-export function getAvailabilitySlotPickupPointsQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  productId: string | null | undefined,
-) {
-  return getPickupPointsQueryOptions(client, {
-    productId: productId ?? undefined,
-    limit: 25,
-    offset: 0,
-  })
-}
-
-export function getAvailabilitySlotCloseoutsQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  id: string | null | undefined,
-) {
-  return getSlotCloseoutsQueryOptions(client, id, { limit: 25, offset: 0 })
-}
-
-export function getAvailabilitySlotAssignmentsQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  id: string | null | undefined,
-) {
-  return getSlotAssignmentsQueryOptions(client, id, { limit: 25, offset: 0 })
-}
-
-export function getAvailabilitySlotResourcesQueryOptions(client: VoyantAvailabilityContextValue) {
-  return getSlotResourcesQueryOptions(client, { limit: 25, offset: 0 })
-}
-
-export function getAvailabilitySlotAllocationQueryOptions(
-  client: VoyantAvailabilityContextValue,
-  id: string | null | undefined,
-) {
-  return getSlotAllocationQueryOptions(client, id)
-}
-
-export async function loadAvailabilitySlotDetailPage(
-  queryClient: QueryClient,
-  client: VoyantAvailabilityContextValue,
-  id: string,
-) {
-  const slotData = await queryClient.ensureQueryData(
-    getAvailabilitySlotDetailQueryOptions(client, id),
-  )
-
-  return Promise.all([
-    Promise.resolve(slotData),
-    queryClient.ensureQueryData(getAvailabilitySlotPickupsQueryOptions(client, id)),
-    queryClient.ensureQueryData(getAvailabilitySlotCloseoutsQueryOptions(client, id)),
-    queryClient.ensureQueryData(getAvailabilitySlotAssignmentsQueryOptions(client, id)),
-    queryClient.ensureQueryData(getAvailabilitySlotResourcesQueryOptions(client)),
-    queryClient.ensureQueryData(getAvailabilitySlotAllocationQueryOptions(client, id)),
-    queryClient.ensureQueryData(
-      getAvailabilitySlotProductQueryOptions(client, slotData.data.productId),
-    ),
-    queryClient.ensureQueryData(
-      getAvailabilitySlotPickupPointsQueryOptions(client, slotData.data.productId),
-    ),
-  ])
-}
-
+/**
+ * The departure workspace: capacity, Bookings and Travelers reconciled in one
+ * place (issue #4033).
+ *
+ * Six sections, every one of them rendered whether or not it has rows —
+ * Pickup and Closeouts used to disappear entirely when empty, which made "not
+ * set up" indistinguishable from "not applicable" and left the operator no way
+ * to act. Each empty section now carries its next authorized action instead.
+ */
 export function AvailabilitySlotDetailPage({
   id,
   className,
@@ -189,16 +169,36 @@ export function AvailabilitySlotDetailPage({
   renderAllocation,
   renderExtras,
   extrasTabLabel,
+  tab,
+  onTabChange,
+  onOpenBooking,
+  onOpenResource,
+  onOpenSupplier,
+  onOpenFinanceReport,
+  onCreateBooking,
+  onAddPickupPoint,
+  onAddCloseout,
 }: AvailabilitySlotDetailPageProps) {
   const client = useVoyantAvailabilityContext()
   const i18n = useAvailabilityUiI18nOrDefault()
   const messages = i18n.messages
   const detailMessages = messages.details
+  const departureMessages = detailMessages.departure
   const noValue = detailMessages.noValue
   const slotMutation = useAvailabilitySlotMutation()
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [uncontrolledTab, setUncontrolledTab] = useState<DepartureWorkspaceTab>(
+    defaultDepartureWorkspaceTab,
+  )
+  const activeTab = tab ?? uncontrolledTab
+  const selectTab = (next: DepartureWorkspaceTab) => {
+    setUncontrolledTab(next)
+    onTabChange?.(next)
+  }
+
   const { data: slotData, isPending } = useQuery(getAvailabilitySlotDetailQueryOptions(client, id))
   const slot = slotData?.data
+  const summaryQuery = useQuery(getAvailabilitySlotSummaryQueryOptions(client, id))
+  const summary = summaryQuery.data?.data ?? null
   const productQuery = useQuery({
     ...getAvailabilitySlotProductQueryOptions(client, slot?.productId ?? ""),
     enabled: Boolean(slot?.productId),
@@ -229,8 +229,35 @@ export function AvailabilitySlotDetailPage({
   const pickupPointById = new Map(
     (pickupPointsQuery.data?.data ?? []).map((item) => [item.id, item]),
   )
-  const resourceById = new Map((resourcesQuery.data?.data ?? []).map((item) => [item.id, item]))
+  // The operations RESOURCE POOL (`/v1/admin/operations/resources`). Slot
+  // assignments reference these rows.
+  const poolResourceById = new Map((resourcesQuery.data?.data ?? []).map((item) => [item.id, item]))
   const allocationBookings = allocationQuery.data?.data.bookings ?? []
+  // This departure's own `allocation_resources`. The allocation AUDIT LOG
+  // references these — a different table from the pool above, which is why
+  // resolving audit entries against the pool always missed and rendered a raw
+  // id. The manifest is the primary source; the summary's breakdown backfills
+  // any row the manifest page did not carry.
+  const allocationResourceById = new Map<string, { id: string; name: string }>()
+  for (const resource of summary?.capacity.resourceBreakdown ?? []) {
+    allocationResourceById.set(resource.id, {
+      id: resource.id,
+      name: departureResourceLabel(resource),
+    })
+  }
+  for (const resource of allocationQuery.data?.data.resources ?? []) {
+    allocationResourceById.set(resource.id, {
+      id: resource.id,
+      name: departureResourceLabel(resource),
+    })
+  }
+  const resourceLabelById = new Map<string, string>()
+  for (const [resourceId, resource] of allocationResourceById) {
+    resourceLabelById.set(resourceId, resource.name)
+  }
+  const resourceBreakdownById = new Map(
+    (summary?.capacity.resourceBreakdown ?? []).map((resource) => [resource.id, resource]),
+  )
   const bookingById = new Map(allocationBookings.map((item) => [item.id, item]))
   const travelerById = new Map<
     string,
@@ -245,8 +272,6 @@ export function AvailabilitySlotDetailPage({
       })
     }
   }
-  const productSellCurrency = productQuery.data?.data.sellCurrency ?? null
-  const financialRollup = aggregateSlotFinancials(allocationBookings, productSellCurrency)
 
   const productName = productQuery.data?.data.name ?? null
   const productTypeName = productQuery.data?.data.productType?.name ?? null
@@ -264,135 +289,178 @@ export function AvailabilitySlotDetailPage({
   const closeoutRows = closeoutsQuery.data?.data ?? []
   const auditEntries = auditLogQuery.data?.data ?? []
 
+  const openLink = (target: DepartureLinkTarget) => {
+    switch (target.kind) {
+      case "resource":
+        onOpenResource?.(target.resourceId)
+        return
+      case "supplier":
+        onOpenSupplier?.(target.supplierId)
+        return
+      case "product":
+        onOpenProduct?.(target.productId)
+        return
+      case "booking":
+        onOpenBooking?.(target.bookingId)
+    }
+  }
+  const canOpenLink = (target: DepartureLinkTarget): boolean => {
+    switch (target.kind) {
+      case "resource":
+        return Boolean(onOpenResource)
+      case "supplier":
+        return Boolean(onOpenSupplier)
+      case "product":
+        return Boolean(onOpenProduct)
+      case "booking":
+        return Boolean(onOpenBooking)
+    }
+  }
+
+  const tabLabels: Record<DepartureWorkspaceTab, string> = departureMessages.tabs
+  const goToSection = (target: DepartureWorkspaceTab): DepartureIssueAction => ({
+    label: departureMessages.links.goToSection.replace("{section}", tabLabels[target]),
+    onSelect: () => selectTab(target),
+  })
+
+  const resolveIssueAction = (issue: DepartureIssue): DepartureIssueAction | null => {
+    if (issue.subjectType === "booking" && onOpenBooking) {
+      return {
+        label: departureMessages.links.openBooking,
+        onSelect: () => onOpenBooking(issue.subjectId),
+      }
+    }
+    if (issue.subjectType === "allocation_resource") {
+      const resource = resourceBreakdownById.get(issue.subjectId)
+      const target = resource
+        ? resolveAllocationResourceTarget(resource, { productId: slot.productId })
+        : null
+      if (target && canOpenLink(target)) {
+        return {
+          label: linkTargetLabel(target, departureMessages.links),
+          onSelect: () => openLink(target),
+        }
+      }
+    }
+    if (issue.code === "departure_not_version_bound" && onOpenProduct) {
+      return {
+        label: departureMessages.links.openProduct,
+        onSelect: () => onOpenProduct(slot.productId),
+      }
+    }
+    const repairTab = ISSUE_REPAIR_TAB[issue.code]
+    return repairTab ? goToSection(repairTab) : null
+  }
+
   const handleDelete = async () => {
     await slotMutation.remove.mutateAsync(slot.id)
-    setDeleteDialogOpen(false)
     onDeleted?.()
   }
 
-  const fallbackActions = headerActions ?? (
-    <div className="flex flex-wrap items-center gap-2">
-      {onEdit ? (
-        <Button variant="outline" onClick={onEdit}>
-          <Pencil data-icon="inline-start" aria-hidden="true" />
-          {detailMessages.editSlot}
-        </Button>
-      ) : null}
-      {slot.productId && onOpenProduct ? (
-        <Button variant="outline" onClick={() => onOpenProduct(slot.productId)}>
-          <Package data-icon="inline-start" aria-hidden="true" />
-          {detailMessages.openProduct}
-        </Button>
-      ) : null}
-      <Button
-        variant="destructive"
-        onClick={() => setDeleteDialogOpen(true)}
-        disabled={slotMutation.remove.isPending}
-      >
-        {detailMessages.delete}
-      </Button>
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{detailMessages.slot.deleteConfirm}</AlertDialogTitle>
-            <AlertDialogDescription>{detailMessages.slot.deleteDescription}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{detailMessages.slot.deleteCancel}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void handleDelete()}
-              disabled={slotMutation.remove.isPending}
-            >
-              {detailMessages.slot.deleteConfirmAction}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
+  const attentionCount =
+    (summary?.operations.criticalCount ?? 0) + (summary?.operations.warningCount ?? 0)
+  const logisticsCount = pickupRows.length + closeoutRows.length
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       {breadcrumb ? <div className="text-sm">{breadcrumb}</div> : null}
 
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{titleText}</h1>
-            <Badge variant="outline" className={slotStatusToneClass[slotStatusTone[slot.status]]}>
-              {getSlotStatusLabel(slot.status, messages)}
-            </Badge>
-            {productTypeName ? <Badge variant="outline">{productTypeName}</Badge> : null}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              {dateRangeLabel}
-              {nightsLabel ? ` · ${nightsLabel}` : null}
-            </span>
-            <Badge variant="outline">{slot.timezone}</Badge>
-          </div>
-          {flagBadges.length > 0 ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              {flagBadges.map((label) => (
-                <Badge key={label} variant="secondary">
-                  {label}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        {fallbackActions}
-      </div>
-
-      <KpiStrip
+      <DepartureWorkspaceHeader
         slot={slot}
-        rollup={financialRollup}
-        formatCurrency={i18n.formatCurrency}
-        i18nLabels={{
-          pax: detailMessages.slot.paxKpiLabel,
-          total: detailMessages.slot.totalKpiLabel,
-          paid: detailMessages.slot.paidKpiLabel,
-          outstanding: detailMessages.slot.outstandingKpiLabel,
-          mixedHint: detailMessages.slot.mixedCurrenciesHint,
-          noValue,
-        }}
+        titleText={titleText}
+        productTypeName={productTypeName}
+        dateRangeLabel={dateRangeLabel}
+        nightsLabel={nightsLabel}
+        flagBadges={flagBadges}
+        messages={messages}
+        headerActions={headerActions}
+        onEdit={onEdit}
+        onOpenProduct={onOpenProduct}
+        onDelete={handleDelete}
+        deletePending={slotMutation.remove.isPending}
       />
 
-      <Tabs defaultValue="allocation">
+      {summary ? (
+        <DepartureHeadline
+          summary={summary}
+          formatCurrency={i18n.formatCurrency}
+          messages={{
+            pax: detailMessages.slot.paxKpiLabel,
+            total: detailMessages.slot.totalKpiLabel,
+            paid: detailMessages.slot.paidKpiLabel,
+            outstanding: detailMessages.slot.outstandingKpiLabel,
+            mixedHint: detailMessages.slot.mixedCurrenciesHint,
+            noValue,
+          }}
+        />
+      ) : null}
+
+      <Tabs value={activeTab} onValueChange={(next) => selectTab(next as DepartureWorkspaceTab)}>
         <TabsList className="flex h-auto w-fit flex-wrap justify-start">
-          <TabsTrigger value="allocation">{detailMessages.tabs.allocation}</TabsTrigger>
-          {renderExtras ? (
-            <TabsTrigger value="extras">{extrasTabLabel ?? detailMessages.tabs.extras}</TabsTrigger>
-          ) : null}
-          {pickupRows.length > 0 ? (
-            <TabsTrigger value="pickup">
-              {detailMessages.tabs.pickup}
+          <TabsTrigger value="overview">
+            {tabLabels.overview}
+            {attentionCount > 0 ? (
               <Badge variant="outline" className="ml-1.5">
-                {pickupRows.length}
+                {attentionCount}
               </Badge>
-            </TabsTrigger>
-          ) : null}
-          {closeoutRows.length > 0 ? (
-            <TabsTrigger value="closeouts">
-              {detailMessages.tabs.closeouts}
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="travelers">
+            {tabLabels.travelers}
+            {summary && summary.travelers.entered > 0 ? (
               <Badge variant="outline" className="ml-1.5">
-                {closeoutRows.length}
+                {summary.travelers.entered}
               </Badge>
-            </TabsTrigger>
-          ) : null}
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="allocation">{tabLabels.allocation}</TabsTrigger>
+          <TabsTrigger value="operations">
+            {tabLabels.operations}
+            {logisticsCount > 0 ? (
+              <Badge variant="outline" className="ml-1.5">
+                {logisticsCount}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
+          <TabsTrigger value="financials">{tabLabels.financials}</TabsTrigger>
           <TabsTrigger value="activity">
-            {detailMessages.tabs.activity}
+            {tabLabels.activity}
             {auditEntries.length > 0 ? (
               <Badge variant="outline" className="ml-1.5">
                 {auditEntries.length}
               </Badge>
             ) : null}
           </TabsTrigger>
-          <TabsTrigger value="meta">{detailMessages.tabs.meta}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="allocation" className="mt-4">
+        <TabsContent value="overview" className="mt-4">
+          <DepartureOverviewSection
+            summary={summary}
+            slot={slot}
+            productName={productName}
+            statusLabel={getSlotStatusLabel(slot.status, messages)}
+            messages={messages}
+            formatDateTime={i18n.formatDateTime}
+            onEdit={onEdit}
+            onClearIssues={() => selectTab("travelers")}
+            resolveIssueAction={resolveIssueAction}
+            onOpenProduct={onOpenProduct}
+            onOpenStartTime={onOpenStartTime}
+          />
+        </TabsContent>
+
+        <TabsContent value="travelers" className="mt-4">
+          <DepartureTravelersSection
+            summary={summary}
+            bookings={allocationBookings}
+            resourceLabelById={resourceLabelById}
+            messages={messages}
+            onCreateBooking={onCreateBooking}
+            onOpenBooking={onOpenBooking}
+          />
+        </TabsContent>
+
+        <TabsContent value="allocation" className="mt-4 flex flex-col gap-8">
           {renderAllocation ? (
             renderAllocation({ slotId: id, productId: slot.productId })
           ) : (
@@ -400,59 +468,43 @@ export function AvailabilitySlotDetailPage({
               {detailMessages.tabs.allocationUnwired}
             </p>
           )}
+          <DepartureResourcesSection
+            summary={summary}
+            messages={messages}
+            productId={slot.productId}
+            onOpenLink={openLink}
+          />
         </TabsContent>
 
-        {renderExtras ? (
-          <TabsContent value="extras" className="mt-4">
-            {renderExtras({ slotId: id, productId: slot.productId })}
-          </TabsContent>
-        ) : null}
+        <TabsContent value="operations" className="mt-4">
+          <DepartureOperationsSection
+            summary={summary}
+            pickupRows={pickupRows}
+            pickupPointById={pickupPointById}
+            closeoutRows={closeoutRows}
+            messages={messages}
+            renderExtras={
+              renderExtras
+                ? () => renderExtras({ slotId: id, productId: slot.productId })
+                : undefined
+            }
+            extrasTitle={extrasTabLabel}
+            onAddPickupPoint={onAddPickupPoint}
+            onAddCloseout={onAddCloseout}
+            onOpenProduct={onOpenProduct}
+            productId={slot.productId}
+          />
+        </TabsContent>
 
-        {pickupRows.length > 0 ? (
-          <TabsContent value="pickup" className="mt-4">
-            <div className="flex flex-col gap-3 text-sm">
-              {pickupRows.map((pickup) => {
-                const point = pickupPointById.get(pickup.pickupPointId)
-                return (
-                  <div key={pickup.id} className="rounded-md border p-3">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Truck className="size-4" aria-hidden="true" />
-                      {point?.name ?? pickup.pickupPointId}
-                    </div>
-                    <div className="mt-1 text-muted-foreground">
-                      {point?.locationText ?? detailMessages.slot.noLocationText}
-                    </div>
-                    <div className="mt-2">
-                      {detailMessages.slot.initialLabel}: {pickup.initialCapacity ?? noValue} ·{" "}
-                      {detailMessages.slot.remainingLabel}: {pickup.remainingCapacity ?? noValue}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </TabsContent>
-        ) : null}
-
-        {closeoutRows.length > 0 ? (
-          <TabsContent value="closeouts" className="mt-4">
-            <div className="flex flex-col gap-3 text-sm">
-              {closeoutRows.map((closeout) => (
-                <div key={closeout.id} className="rounded-md border p-3">
-                  <div className="flex items-center gap-2 font-medium">
-                    <CalendarDays className="size-4" aria-hidden="true" />
-                    {closeout.dateLocal}
-                  </div>
-                  <div className="mt-1 text-muted-foreground">
-                    {detailMessages.slot.createdByLabel}: {closeout.createdBy ?? noValue}
-                  </div>
-                  {closeout.reason ? (
-                    <div className="mt-2 whitespace-pre-wrap">{closeout.reason}</div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-        ) : null}
+        <TabsContent value="financials" className="mt-4">
+          <DepartureFinancialsSection
+            summary={summary}
+            messages={messages}
+            formatCurrency={i18n.formatCurrency}
+            formatNumber={i18n.formatNumber}
+            onOpenFinanceReport={onOpenFinanceReport}
+          />
+        </TabsContent>
 
         <TabsContent value="activity" className="mt-4 flex flex-col gap-4">
           {slot.notes ? (
@@ -468,10 +520,17 @@ export function AvailabilitySlotDetailPage({
           <ActivityTimeline
             assignments={assignmentRows}
             auditEntries={auditEntries}
-            resourceById={resourceById}
+            resourceById={poolResourceById}
+            allocationResourceById={allocationResourceById}
             bookingById={bookingById}
             travelerById={travelerById}
             formatDateTime={i18n.formatDateTime}
+            emptyAction={{
+              title: departureMessages.activity.emptyTitle,
+              description: departureMessages.activity.emptyDescription,
+              actionLabel: departureMessages.activity.emptyAction,
+              onAction: () => selectTab("allocation"),
+            }}
             i18n={{
               title: detailMessages.tabs.activity,
               empty: detailMessages.tabs.activityEmpty,
@@ -484,30 +543,6 @@ export function AvailabilitySlotDetailPage({
               auditActionLabels: detailMessages.tabs.auditActionLabels,
               ongoing: detailMessages.tabs.activityOngoing,
               noValue,
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="meta" className="mt-4">
-          <MetaTab
-            slot={slot}
-            productName={productName}
-            statusLabel={getSlotStatusLabel(slot.status, messages)}
-            onOpenProduct={onOpenProduct}
-            onOpenStartTime={onOpenStartTime}
-            i18n={{
-              title: detailMessages.tabs.metaTitle,
-              slotIdLabel: detailMessages.tabs.metaSlotId,
-              ruleLabel: detailMessages.slot.ruleLabel,
-              startTimeLabel: detailMessages.slot.startTimeIdLabel,
-              endsAtLabel: detailMessages.slot.endsAtLabel,
-              createdLabel: detailMessages.createdLabel,
-              updatedLabel: detailMessages.updatedLabel,
-              productLabel: messages.productLabel,
-              statusLabel: messages.statusLabel,
-              timezoneLabel: messages.timezoneLabel,
-              noValue,
-              format: i18n.formatDateTime,
             }}
           />
         </TabsContent>

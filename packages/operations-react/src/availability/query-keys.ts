@@ -78,6 +78,9 @@ export const availabilityQueryKeys = {
     [...availabilityQueryKeys.pickupPoints(), "list", filters] as const,
 
   slotDetail: (id: string) => [...availabilityQueryKeys.slots(), "detail", id] as const,
+  /** The composed departure envelope (`GET /slots/{id}/summary`). */
+  departureSummary: (id: string) =>
+    [...availabilityQueryKeys.slots(), "departure-summary", id] as const,
   slotUnitAvailability: (id: string) =>
     [...availabilityQueryKeys.slots(), "unit-availability", id] as const,
   slotPickupsList: (filters: AvailabilitySlotDetailFilters) =>

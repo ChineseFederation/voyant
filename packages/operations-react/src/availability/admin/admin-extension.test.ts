@@ -41,11 +41,26 @@ describe("createAvailabilityAdminExtension", () => {
     expect(slotDetail?.title).toBe("Disponibilitate")
   })
 
-  it("carries no search contracts (the pages keep their filters local)", () => {
+  it("carries a search contract only on the departure workspace", () => {
+    // The list pages keep their filters component-local. The slot detail page
+    // is the one route with a URL contract: its six workspace sections are
+    // addressable, so `?tab=` survives a reload and is linkable.
     const extension = createAvailabilityAdminExtension()
     for (const route of extension.routes ?? []) {
+      if (route.id === "availability-slot-detail") continue
       expect(route.validateSearch).toBeUndefined()
     }
+  })
+
+  it("round-trips the departure workspace tab through the route search contract", () => {
+    const extension = createAvailabilityAdminExtension()
+    const slotDetail = extension.routes?.find((route) => route.id === "availability-slot-detail")
+
+    expect(slotDetail?.validateSearch?.({ tab: "financials" })).toEqual({ tab: "financials" })
+    // Absent and unrecognized values both land on the overview rather than
+    // failing the route — a hand-edited or stale URL must still render.
+    expect(slotDetail?.validateSearch?.({})).toEqual({ tab: "overview" })
+    expect(slotDetail?.validateSearch?.({ tab: "not-a-section" })).toEqual({ tab: "overview" })
   })
 
   it("carries lazy page loaders instead of eager components", async () => {

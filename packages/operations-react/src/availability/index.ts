@@ -15,6 +15,14 @@ export {
   type VoyantFetcher,
 } from "./client.js"
 export * from "./constants.js"
+export {
+  type DepartureWorkspaceSearchParams,
+  type DepartureWorkspaceTab,
+  defaultDepartureWorkspaceTab,
+  departureWorkspaceSearchSchema,
+  departureWorkspaceTabs,
+  parseDepartureWorkspaceTab,
+} from "./departure-search-params.js"
 export * from "./hooks/index.js"
 export {
   useVoyantAvailabilityContext,
@@ -26,6 +34,7 @@ export { availabilityQueryKeys } from "./query-keys.js"
 export {
   getAvailabilityOverviewQueryOptions,
   getCloseoutsQueryOptions,
+  getDepartureSummaryQueryOptions,
   getPickupPointsQueryOptions,
   getProductQueryOptions,
   getProductResourceTemplatesQueryOptions,

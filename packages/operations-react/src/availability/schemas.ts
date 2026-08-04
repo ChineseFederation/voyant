@@ -429,6 +429,8 @@ export const allocationAuditLogResponse = z.object({
   data: z.array(allocationAuditLogEntrySchema),
 })
 
+export * from "./departure-summary-schemas.js"
+
 export const slotUnitAvailabilityRecordSchema = z.object({
   optionUnitId: z.string(),
   unitName: z.string(),

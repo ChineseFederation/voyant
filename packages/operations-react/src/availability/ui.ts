@@ -73,6 +73,7 @@ export {
   getAvailabilitySlotPickupsQueryOptions,
   getAvailabilitySlotProductQueryOptions,
   getAvailabilitySlotResourcesQueryOptions,
+  getAvailabilitySlotSummaryQueryOptions,
   loadAvailabilitySlotDetailPage,
 } from "./components/availability-slot-detail-page.js"
 export {
@@ -92,6 +93,18 @@ export {
   AvailabilityStartTimesTab,
   type AvailabilityTabMessages,
 } from "./components/availability-tabs.js"
+export {
+  type AllocationResourceRef,
+  type DepartureLinkTarget,
+  resolveAllocationResourceTarget,
+} from "./components/departure-deep-links.js"
+export {
+  type DepartureIssueAction,
+  type DepartureIssueCodeMessage,
+  DepartureIssueList,
+  type DepartureIssueMessages,
+  DepartureIssueSummary,
+} from "./components/departure-issues.js"
 export {
   type AvailabilityUiMessageOverrides,
   type AvailabilityUiMessages,
