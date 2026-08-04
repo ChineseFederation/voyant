@@ -64,6 +64,13 @@
       "when": 1785700800000,
       "tag": "20260802200000_booking_v1_status_cutover",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785801780000,
+      "tag": "20260804000300_booking_origin_proposal_version",
+      "breakpoints": true
     }
   ]
 }

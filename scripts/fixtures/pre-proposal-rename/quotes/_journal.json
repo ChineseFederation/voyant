@@ -5,36 +5,36 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1781947493896,
-      "tag": "0000_legal_baseline",
+      "when": 1781947484866,
+      "tag": "0000_quotes_baseline",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1783900800000,
-      "tag": "20260713000400_standard_links",
+      "when": 1784116800000,
+      "tag": "0001_proposal_delivery_requests",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1784876748180,
-      "tag": "20260724070548_contract_lifecycle_command_results",
+      "when": 1784192581000,
+      "tag": "20260716000301_namespace_custom_field_values",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1784908800000,
-      "tag": "20260724160000_durable_contract_document_operations",
+      "when": 1784970000000,
+      "tag": "0002_durable_quote_delivery",
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "7",
-      "when": 1785801720000,
-      "tag": "20260804000200_proposal_version_target_kind",
+      "when": 1785182400000,
+      "tag": "20260727200000_default_quote_pipeline",
       "breakpoints": true
     }
   ]

@@ -142,6 +142,77 @@ const ACTION_LEDGER_0000_HASHES = [
   "d63e6a73b58f985888e258b318255eba5181db307438b25f3d262350f837b2ce",
   "2c1f05738aedd395ffdecc7d5000144a41e6af7e7a85b85563302e89bb1f4f6c",
 ] as const
+// The quotes → proposals module rename (#4004) followed the new vocabulary into
+// eight already-shipped migrations owned by OTHER sources, renaming the shared
+// objects they declare: `booking_origins.proposal_version_id` and its index and
+// CHECK, the `entity_type` / `custom_field_target` / `legal_target_kind` enum
+// members, and the MICE link table. Each pair below is (pre-rename bytes,
+// post-rename bytes) of one such file.
+//
+// Equivalence alone would be WRONG here — it marks a migration applied, so the
+// renames would never run and the database would keep `quote_*` objects while
+// the application queries `proposal_*`. It is sound only BECAUSE each of these
+// sources also ships a post-cutline increment that performs the rename
+// idempotently (`20260804*` in proposals/relationships/legal/bookings/mice, and
+// `0011_adopt_legacy_quote_objects` in the framework bundle). See voyant#4143.
+const PROPOSAL_RENAME_EDITED_HASHES: ReadonlyArray<readonly [string, readonly [string, string]]> = [
+  [
+    "bookings/0000_bookings_baseline",
+    [
+      "cefee9e00d97fa1697c76da2330349e65bd54685ab2da2752efdb842beda7502",
+      "bc05323cc5cffb85ab200161e02974cc2725114d451f9f6fadbd02a5cdf9d445",
+    ],
+  ],
+  [
+    "legal/0000_legal_baseline",
+    [
+      "b30b6a23309ca4a8a5e80296c0d7de43c582aed47146f81ada1d829f351e55e6",
+      "e540418ac73cc4cac1c9f9b3a7be231094c4e899e2097b63070d1aeab1b20ca6",
+    ],
+  ],
+  [
+    "mice/20260713000300_standard_links",
+    [
+      "9f23e3505c4497324b75ce8002b6fec7665b414389a5268bbf7f9c6fdd1c1c84",
+      "d14b57455a2c87882ab1550f5074d1adc4a6c785c12dbe77b2b86ca330725377",
+    ],
+  ],
+  [
+    "relationships/0000_relationships_baseline",
+    [
+      "2660a70a27fed3157299303cf022af08d5bc2f1628acc27d74f0465e1f82e198",
+      "46b4c7170bee83715e2a426cc00edea03942f56c929163c6911ec0af5f23c6bf",
+    ],
+  ],
+  [
+    "relationships/0003_add_booking_custom_field_target",
+    [
+      "a47443332658c35f8bc1c2b8b8e18439be0c689a37dc8c3b07be49ff29acd2d0",
+      "003b6f7c8ee8d144839f674c3077d7403f9dfb3d09a7a481748ce114232e3191",
+    ],
+  ],
+  [
+    "framework/0000_framework_baseline",
+    [
+      "bcc871dce21fd64eac2facf9c86e477753d725733ffa8c2190e9d2d38e396382",
+      "494817097cca7018d5caec1cf6a44242aa62f45c7b438ae1022a552e478c64f1",
+    ],
+  ],
+  [
+    "framework/0003_framework_baseline",
+    [
+      "39de0659dfdf51ba3849679966a9573f7dd157d506ed5dc887bc14724471bfa5",
+      "492dacb13425ec0eefe3141e9530a9d4f995c508aeeac8f8133f9742623b028d",
+    ],
+  ],
+  [
+    "framework/0005_framework_baseline",
+    [
+      "18d4917e9d8f414db6947a780fcba5f729ce41131eef3bce74332635165d4d16",
+      "5028360f0cc33c47da8e9cbbf5ce4881f68259382e935ece943329009ee43524",
+    ],
+  ],
+]
 
 function equivalenceClosure(
   key: string,
@@ -154,7 +225,69 @@ const EQUIVALENT_MIGRATION_HASHES = new Map<string, ReadonlySet<string>>([
   ...equivalenceClosure("db/0001_db_baseline", DB_0001_HASHES),
   ...equivalenceClosure("framework/0004_framework_baseline", FRAMEWORK_0004_HASHES),
   ...equivalenceClosure("action-ledger/0000_action_ledger_baseline", ACTION_LEDGER_0000_HASHES),
+  ...PROPOSAL_RENAME_EDITED_HASHES.flatMap(([key, hashes]) => equivalenceClosure(key, hashes)),
 ])
+
+/**
+ * Migrations that replace a RETIRED source's ledger history wholesale.
+ *
+ * A module rename produces a migration whose objects already exist under their
+ * legacy identity: `proposals/0000_proposals_baseline` declares exactly the
+ * tables the retired `quotes` source built across its five tags. Executing it
+ * against such a database fails (the tables exist); skipping it silently would
+ * be worse. So when EVERY superseded `(source, tag)` is present in the ledger
+ * the migration is RECORDED without executing, and the source's own post-cutline
+ * increment renames the legacy objects into the new shape.
+ *
+ * The condition is all-or-nothing on purpose. A partially-migrated legacy source
+ * means the legacy objects are NOT at the shape the superseding migration
+ * declares, and the run must fail loudly rather than record a false baseline.
+ *
+ * See `docs/architecture/migration-collector-d2.md` and voyant#4143.
+ */
+const SUPERSEDED_LEDGER_IDENTITIES = new Map<
+  string,
+  ReadonlyArray<{ source: string; tag: string }>
+>([
+  [
+    "proposals/0000_proposals_baseline",
+    [
+      { source: "quotes", tag: "0000_quotes_baseline" },
+      { source: "quotes", tag: "0001_proposal_delivery_requests" },
+      { source: "quotes", tag: "0002_durable_quote_delivery" },
+      { source: "quotes", tag: "20260716000301_namespace_custom_field_values" },
+      { source: "quotes", tag: "20260727200000_default_quote_pipeline" },
+    ],
+  ],
+])
+
+/** The retired ledger identities `source/tag` replaces, or an empty list. */
+export function supersededLedgerIdentities(
+  source: string,
+  tag: string,
+): ReadonlyArray<{ source: string; tag: string }> {
+  return SUPERSEDED_LEDGER_IDENTITIES.get(`${source}/${tag}`) ?? []
+}
+
+/**
+ * True when `migration` supersedes a retired source whose history is FULLY
+ * recorded in the ledger — i.e. its objects exist under their legacy identity
+ * and it must be recorded rather than executed.
+ */
+async function isSupersedingRetiredSource(
+  client: MigrationClient,
+  ledger: string,
+  migration: Pick<PlannedMigration, "source" | "tag">,
+): Promise<boolean> {
+  const superseded = supersededLedgerIdentities(migration.source, migration.tag)
+  if (superseded.length === 0) return false
+  const recorded = await client.query(
+    `SELECT "source", "tag" FROM ${ledger}
+      WHERE ("source", "tag") IN (SELECT * FROM unnest($1::text[], $2::text[]))`,
+    [superseded.map((identity) => identity.source), superseded.map((identity) => identity.tag)],
+  )
+  return recorded.rows.length === superseded.length
+}
 
 function isEquivalentMigrationHash(
   migration: Pick<PlannedMigration, "source" | "tag" | "contentHash">,
@@ -334,6 +467,19 @@ async function applyMigrationsInternal(
     }
 
     const id = `${m.source}/${m.tag}`
+
+    if (await isSupersedingRetiredSource(client, ledger, m)) {
+      // The objects exist under the retired source's identity → record without
+      // executing; the source's own increment renames them into this shape.
+      await client.query(
+        `INSERT INTO ${ledger} ("source", "tag", "content_hash") VALUES ($1, $2, $3)
+         ON CONFLICT ("source", "tag") DO NOTHING`,
+        [m.source, m.tag, m.contentHash],
+      )
+      baselined.push(id)
+      options?.onBaselined?.(id)
+      continue
+    }
 
     if (existing && covered.get(m.source)?.has(m.tag)) {
       // Cutline-covered on an existing DB → record without executing.

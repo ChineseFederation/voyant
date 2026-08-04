@@ -29,6 +29,13 @@
       "when": 1784192582000,
       "tag": "20260716000302_namespace_custom_field_values",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785801660000,
+      "tag": "20260804000100_proposal_entity_labels",
+      "breakpoints": true
     }
   ]
 }

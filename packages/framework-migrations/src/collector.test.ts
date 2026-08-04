@@ -218,6 +218,155 @@ describe("migration hash compatibility", () => {
       ),
     ).rejects.toBeInstanceOf(MigrationImmutabilityError)
   })
+
+  const relationshipsBaseline = readFileSync(
+    new URL("../../relationships/migrations/0000_relationships_baseline.sql", import.meta.url),
+    "utf8",
+  )
+
+  it("accepts the pre-rename relationships baseline recorded before quotes became proposals", async () => {
+    const client: MigrationClient = {
+      async query(sql: string) {
+        if (sql.includes(`SELECT "content_hash"`)) {
+          return {
+            rows: [
+              // the bytes this file shipped with before #4004 renamed
+              // `entity_type.quote` to `entity_type.proposal` in place.
+              {
+                content_hash: "2660a70a27fed3157299303cf022af08d5bc2f1628acc27d74f0465e1f82e198",
+              },
+            ],
+          }
+        }
+        return { rows: [] }
+      },
+    }
+
+    await expect(
+      applyMigrations(
+        client,
+        [
+          {
+            name: "relationships",
+            priority: 0,
+            migrations: [{ tag: "0000_relationships_baseline", sql: relationshipsBaseline }],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).resolves.toEqual({ executed: [], baselined: [] })
+  })
+
+  it("still rejects an unrelated hash for the relationships baseline", async () => {
+    const client: MigrationClient = {
+      async query(sql: string) {
+        if (sql.includes(`SELECT "content_hash"`)) {
+          return { rows: [{ content_hash: "unrelated-hash" }] }
+        }
+        return { rows: [] }
+      },
+    }
+
+    await expect(
+      applyMigrations(
+        client,
+        [
+          {
+            name: "relationships",
+            priority: 0,
+            migrations: [{ tag: "0000_relationships_baseline", sql: relationshipsBaseline }],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).rejects.toBeInstanceOf(MigrationImmutabilityError)
+  })
+})
+
+/** The retired `quotes` ledger identities `proposals/0000_proposals_baseline` replaces. */
+const RETIRED_QUOTES_TAGS = [
+  "0000_quotes_baseline",
+  "0001_proposal_delivery_requests",
+  "0002_durable_quote_delivery",
+  "20260716000301_namespace_custom_field_values",
+  "20260727200000_default_quote_pipeline",
+] as const
+
+function supersessionClient(recordedQuotesTags: readonly string[]) {
+  const queries: string[] = []
+  const inserted: Array<{ source: string; tag: string }> = []
+  const client: MigrationClient = {
+    async query(sql, params = []) {
+      queries.push(sql)
+      if (sql.includes(`SELECT "content_hash", "source"`)) return { rows: [] }
+      if (sql.includes("unnest($1::text[], $2::text[])")) {
+        const tags = params[1] as string[]
+        return {
+          rows: tags
+            .filter((tag) => recordedQuotesTags.includes(tag))
+            .map((tag) => ({ source: "quotes", tag })),
+        }
+      }
+      if (sql.startsWith("INSERT INTO")) {
+        inserted.push({ source: params[0] as string, tag: params[1] as string })
+      }
+      return { rows: [] }
+    },
+  }
+  return { client, queries, inserted }
+}
+
+const proposalsBaselineSource: MigrationSource = {
+  name: "proposals",
+  priority: 0,
+  migrations: [
+    { tag: "0000_proposals_baseline", sql: `CREATE TABLE "proposals" (\n\t"id" text\n);` },
+  ],
+}
+
+describe("retired-source supersession", () => {
+  it("records the proposals baseline without executing when the whole quotes ledger is present", async () => {
+    const { client, queries, inserted } = supersessionClient(RETIRED_QUOTES_TAGS)
+
+    await expect(applyMigrations(client, [proposalsBaselineSource], ledgerOpts)).resolves.toEqual({
+      executed: [],
+      baselined: ["proposals/0000_proposals_baseline"],
+    })
+    expect(inserted).toEqual([{ source: "proposals", tag: "0000_proposals_baseline" }])
+    expect(queries).not.toContain("BEGIN")
+    expect(queries.some((sql) => sql.startsWith(`CREATE TABLE "proposals"`))).toBe(false)
+  })
+
+  it("executes normally on a fresh database with no quotes ledger at all", async () => {
+    const { client, queries } = supersessionClient([])
+
+    await expect(applyMigrations(client, [proposalsBaselineSource], ledgerOpts)).resolves.toEqual({
+      executed: ["proposals/0000_proposals_baseline"],
+      baselined: [],
+    })
+    expect(queries).toContain("BEGIN")
+  })
+
+  it("does NOT adopt a partially-migrated quotes ledger — the legacy objects are not at the superseding shape", async () => {
+    const { client, queries } = supersessionClient(RETIRED_QUOTES_TAGS.slice(0, 3))
+
+    await expect(applyMigrations(client, [proposalsBaselineSource], ledgerOpts)).resolves.toEqual({
+      executed: ["proposals/0000_proposals_baseline"],
+      baselined: [],
+    })
+    // On a real database the CREATE TABLE then fails loudly, which is the point:
+    // a half-migrated legacy source must never be recorded as adopted.
+    expect(queries).toContain("BEGIN")
+  })
+
+  it("leaves an unrelated source's baseline on the ordinary execute path", async () => {
+    const { client, queries } = supersessionClient(RETIRED_QUOTES_TAGS)
+
+    await expect(
+      applyMigrations(client, [{ ...proposalsBaselineSource, name: "trips" }], ledgerOpts),
+    ).resolves.toEqual({ executed: ["trips/0000_proposals_baseline"], baselined: [] })
+    expect(queries.some((sql) => sql.includes("unnest($1::text[], $2::text[])"))).toBe(false)
+  })
 })
 
 describe("migration source aliases", () => {

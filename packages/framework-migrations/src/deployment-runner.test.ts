@@ -119,6 +119,69 @@ describe("runDeploymentMigrations on a partially adopted database", () => {
     expect(result.existing).toBe(true)
   })
 
+  it("records a superseding baseline instead of parity-gating it against the retired source's objects", async () => {
+    // A deployment provisioned before the quotes → proposals rename: the retired
+    // `quotes` source is fully recorded and its objects are live under their
+    // legacy names, so `proposals/0000_proposals_baseline` must be RECORDED
+    // rather than parity-gated (its tables do not yet exist under the new names)
+    // or executed (that would collide with the legacy objects).
+    const retiredQuotesTags = [
+      "0000_quotes_baseline",
+      "0001_proposal_delivery_requests",
+      "0002_durable_quote_delivery",
+      "20260716000301_namespace_custom_field_values",
+      "20260727200000_default_quote_pipeline",
+    ]
+    const executed: string[] = []
+    const inserted: Array<{ source: string; tag: string }> = []
+    const client: MigrationClient = {
+      async query(sql: string, params: unknown[] = []) {
+        if (sql.startsWith("SELECT to_regclass")) return { rows: [{ reg: String(params[0]) }] }
+        if (sql.includes("count(*)")) {
+          return { rows: [{ n: sql.includes(`"source" = 'framework'`) ? "1" : "0" }] }
+        }
+        if (sql.includes('SELECT "source", "tag" FROM') && sql.includes("unnest")) {
+          return { rows: retiredQuotesTags.map((tag) => ({ source: "quotes", tag })) }
+        }
+        if (sql.includes('SELECT "source", "tag" FROM')) {
+          return { rows: retiredQuotesTags.map((tag) => ({ source: "quotes", tag })) }
+        }
+        if (sql.includes('SELECT "content_hash", "source" FROM')) return { rows: [] }
+        if (sql.includes('SELECT DISTINCT "source"')) return { rows: [{ source: "quotes" }] }
+        if (sql.includes("information_schema")) return { rows: [] } // no proposal_* objects yet
+        if (sql.includes("pg_constraint")) return { rows: [] }
+        if (sql.startsWith('CREATE TABLE "')) executed.push(sql)
+        if (sql.startsWith("INSERT INTO") && params.length === 3) {
+          inserted.push({ source: String(params[0]), tag: String(params[1]) })
+        }
+        return { rows: [] }
+      },
+    }
+
+    const result = await runDeploymentMigrations(
+      client,
+      [
+        {
+          name: "proposals",
+          priority: 1,
+          migrations: [
+            {
+              tag: "0000_proposals_baseline",
+              sql: 'CREATE TABLE "proposals" ("id" text PRIMARY KEY);',
+            },
+          ],
+        },
+      ],
+      { proposals: ["0000_proposals_baseline"] },
+    )
+
+    expect(result.existing).toBe(true)
+    expect(result.executed).toEqual([])
+    expect(result.baselined).toEqual(["proposals/0000_proposals_baseline"])
+    expect(executed).toEqual([])
+    expect(inserted).toEqual([{ source: "proposals", tag: "0000_proposals_baseline" }])
+  })
+
   function expansionClient(
     options: {
       existing?: boolean

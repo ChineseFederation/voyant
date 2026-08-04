@@ -15,6 +15,13 @@
       "when": 1784192460000,
       "tag": "20260716000100_custom_field_namespace_ownership",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785801900000,
+      "tag": "20260804000500_proposal_custom_field_entity",
+      "breakpoints": true
     }
   ]
 }

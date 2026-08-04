@@ -193,6 +193,57 @@ allowlist are never considered for materialized adoption. The verifier supports
 only DDL forms it can prove from PostgreSQL catalogs and fails closed for an
 unsupported allowlisted migration.
 
+## Renaming a schema-owning module (voyant#4143)
+
+A module rename is not a source rename. When `quotes` became `proposals` its
+five `quotes/*` tags were replaced by one `proposals/0000_proposals_baseline`
+declaring the same tables under new names — and the rename was additionally
+applied by **editing** already-shipped migrations owned by other sources in
+place. On a database provisioned before the rename that produces two distinct
+failures, and both guards were doing their job:
+
+- the edited files trip `MigrationImmutabilityError`;
+- `proposals/0000_proposals_baseline` is unknown to the ledger, so it is either
+  parity-gated (its tables do not exist under the new names) or executed (which
+  collides with the live legacy tables).
+
+`legacySources` does not solve this. It maps a **source name** onto the same
+tag, and a rename changes the tags too.
+
+The supported shape has three parts, and none of them may be used alone:
+
+1. **Supersession.** `SUPERSEDED_LEDGER_IDENTITIES` in the collector declares
+   that a migration replaces an exact set of retired `(source, tag)` rows. When
+   **every** one is present in the ledger the migration is RECORDED without
+   executing, and `withoutUngatedMigrations` keeps it out of the parity gate.
+   The condition is all-or-nothing: a partially-migrated legacy source is not at
+   the shape the superseding migration declares, so the run must fail loudly
+   rather than record a false baseline.
+2. **An adoption increment per owning source.** Each source that owns renamed
+   objects ships a post-cutline migration that RENAMES them in place — tables,
+   columns, constraints, indexes, enum types and enum labels — guarded on the
+   legacy name being present and the new name being free, so it is a no-op on a
+   database provisioned after the rename and on a re-run. Renaming preserves
+   rows, foreign keys and enum-label OIDs (so column defaults follow); creating
+   and copying would not. Values stored as plain TEXT (a discriminator column, a
+   permissions map key) are NOT reached by an enum relabelling and need their
+   own guarded `UPDATE` in the owning package.
+3. **Hash equivalence for the edited files.** Only sound *because* (2) exists.
+   Equivalence marks a migration applied, so on its own it would leave the
+   database on the old names while the application queries the new ones.
+
+Append-only history that is deliberately left alone: `action_ledger_entries`
+records past `action_name`/`target_type` values under the vocabulary in force
+when they happened, and legacy delivery-request rows carry a `legacy.*` command
+scope no live command looks up. Rewriting either would falsify a record rather
+than migrate state.
+
+`scripts/verify-migration-replay-parity.mjs` proves the whole thing: its
+pre-rename lane replays the package history as it shipped before the rename
+(fixtures under `scripts/fixtures/pre-proposal-rename/`) plus the adoption
+increments, and fails unless the result matches a fresh replay column-,
+enum-, index- and constraint-for-constraint.
+
 ## References
 
 - `docs/architecture/migration-collector-d1.md` — the collector primitive + ledger D.2 reuses; the `assertSchemaAtBaseline` parity pattern.

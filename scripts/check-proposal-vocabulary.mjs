@@ -22,6 +22,18 @@ const skippedFiles = new Set([
   "scripts/tests/check-proposal-vocabulary.test.mjs",
 ])
 
+// Retiring the legacy vocabulary from a LIVE database requires naming it: an
+// adoption migration has to say `ALTER TABLE quotes RENAME TO proposals`, and
+// the parity fixtures ARE the pre-rename history byte for byte (voyant#4143).
+// Scoped to the exact artifacts that carry out or verify the rename, so the ban
+// stays exact everywhere else. Nothing may be added here to make new code pass —
+// only frozen history and the migrations that retire it.
+const legacyRenameAdoptionPaths = [
+  /^packages\/framework-migrations\/migrations\/0011_adopt_legacy_quote_objects\.sql$/,
+  /^packages\/(?:bookings|custom-fields|db|legal|mice|proposals|relationships)\/migrations\/20260804\d{6}_[a-z_]+\.sql$/,
+  /^scripts\/fixtures\/pre-proposal-rename\//,
+]
+
 const skippedExtensions = new Set([
   ".avif",
   ".bin",
@@ -131,6 +143,7 @@ function normalizePath(path) {
 function shouldSkipPath(path) {
   const normalized = normalizePath(relative(root, path))
   if (skippedFiles.has(normalized)) return true
+  if (legacyRenameAdoptionPaths.some((pattern) => pattern.test(normalized))) return true
   if (normalized.endsWith("/CHANGELOG.md")) return true
   if (normalized === "pnpm-lock.yaml") return false
   if (skippedExtensions.has(path.slice(path.lastIndexOf(".")).toLowerCase())) return true

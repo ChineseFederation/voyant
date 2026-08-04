@@ -24,6 +24,7 @@ import {
   MigrationImmutabilityError,
   type PlannedMigration,
   planMigrations,
+  supersededLedgerIdentities,
   VOYANT_MIGRATION_JOURNAL_LINEAGE,
 } from "./collector.js"
 import type { Cutline } from "./cutline.js"
@@ -464,15 +465,21 @@ function withoutCutlineMigrationIds(cutline: Cutline, excluded: ReadonlySet<stri
 }
 
 /**
- * Drop migrations already recorded in the ledger (under the source's stable OR
- * legacy names). The baseline parity gate must only assert the schema of
- * cutline entries it is ABOUT to import-baseline: once an entry is recorded,
- * later post-cutline migrations may legitimately have altered or dropped its
- * objects (e.g. a recorded source's outbox table retired by its own
- * increment), so re-asserting the cutline-era schema on every run would wedge
- * a partially-adopted database forever.
+ * Drop migrations the parity gate must not assert:
+ *
+ *   • already recorded in the ledger (under the source's stable OR legacy
+ *     names). The gate must only assert the schema of cutline entries it is
+ *     ABOUT to import-baseline: once an entry is recorded, later post-cutline
+ *     migrations may legitimately have altered or dropped its objects (e.g. a
+ *     recorded source's outbox table retired by its own increment), so
+ *     re-asserting the cutline-era schema on every run would wedge a
+ *     partially-adopted database forever;
+ *   • superseding a RETIRED source whose history is fully recorded. Its objects
+ *     exist under their legacy names, so the new names the gate would demand are
+ *     correctly absent — {@link applyMigrations} records the entry and the
+ *     source's own increment renames the objects.
  */
-async function withoutRecordedMigrations(
+async function withoutUngatedMigrations(
   client: MigrationClient,
   sources: MigrationSource[],
 ): Promise<MigrationSource[]> {
@@ -487,9 +494,21 @@ async function withoutRecordedMigrations(
   )
   const isRecorded = (source: MigrationSource, tag: string) =>
     [source.name, ...(source.legacyNames ?? [])].some((name) => recorded.has(`${name}\0${tag}`))
+  const supersedesRecordedRetiredSource = (source: MigrationSource, tag: string) => {
+    const superseded = supersededLedgerIdentities(source.name, tag)
+    return (
+      superseded.length > 0 &&
+      superseded.every((identity) => recorded.has(`${identity.source}\0${identity.tag}`))
+    )
+  }
 
   return sources
-    .map((s) => ({ ...s, migrations: s.migrations.filter((m) => !isRecorded(s, m.tag)) }))
+    .map((s) => ({
+      ...s,
+      migrations: s.migrations.filter(
+        (m) => !isRecorded(s, m.tag) && !supersedesRecordedRetiredSource(s, m.tag),
+      ),
+    }))
     .filter((s) => s.migrations.length > 0)
 }
 
@@ -543,7 +562,7 @@ export async function runDeploymentMigrations(
       // already-recorded entries' objects may have been legitimately reshaped by
       // applied post-cutline migrations.
       const pending = withoutMigrationIds(
-        await withoutRecordedMigrations(client, cutlineCovered(sources, cutline)),
+        await withoutUngatedMigrations(client, cutlineCovered(sources, cutline)),
         partiallyAdoptedIds,
       )
       if (pending.length > 0) {

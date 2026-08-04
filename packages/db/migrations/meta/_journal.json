@@ -85,6 +85,13 @@
       "when": 1785605400000,
       "tag": "20260801173000_storefront_channel_binding_cutover",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785801960000,
+      "tag": "20260804000600_proposal_permission_resource",
+      "breakpoints": true
     }
   ]
 }

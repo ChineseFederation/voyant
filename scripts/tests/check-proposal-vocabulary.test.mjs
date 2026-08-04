@@ -138,3 +138,33 @@ test("rejects active bespoke quote residues from proposal migration", (t) => {
   assert.match(output, /quotes: \\"Quotes\\"/)
   assert.match(output, /quote\.accepted/)
 })
+
+test("allows the rename adoption migrations and parity fixtures, and nothing beside them", (t) => {
+  const root = fixture(t)
+  // The migrations that retire the vocabulary from a live database, and the
+  // frozen pre-rename history the parity oracle replays.
+  write(
+    root,
+    "packages/proposals/migrations/20260804000000_adopt_legacy_quote_objects.sql",
+    'ALTER TABLE "quotes" RENAME TO "proposals";\n',
+  )
+  write(
+    root,
+    "packages/framework-migrations/migrations/0011_adopt_legacy_quote_objects.sql",
+    'ALTER TABLE "quote_versions" RENAME TO "proposal_versions";\n',
+  )
+  write(
+    root,
+    "scripts/fixtures/pre-proposal-rename/quotes/0000_quotes_baseline.sql",
+    'CREATE TABLE "quote_participants" ("id" text);\n',
+  )
+  assert.match(run(root), /OK proposal vocabulary/)
+
+  // A neighbouring migration in the same package is NOT covered.
+  write(
+    root,
+    "packages/proposals/migrations/20260901000000_something_else.sql",
+    'ALTER TABLE "quote_media" ADD COLUMN "x" text;\n',
+  )
+  assert.match(failure(root), /20260901000000_something_else\.sql/)
+})

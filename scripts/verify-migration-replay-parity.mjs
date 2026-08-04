@@ -1,11 +1,19 @@
 /**
  * Replay-parity oracle for retiring the Operator deployment migration source.
- * Proves that the legacy upgrade path reconstitutes exactly the same schema as
- * a fresh replay of the selected packages:
+ * Proves that every upgrade path reconstitutes exactly the same schema as a
+ * fresh replay of the selected packages:
  *
- *   frozen framework bundle + retired deployment migrations
- *   + package post-cutline increments
+ *   (1) frozen framework bundle + retired deployment migrations
+ *       + package post-cutline increments
+ *   (2) the package history AS IT SHIPPED BEFORE the quotes → proposals rename
+ *       + package post-cutline increments
  *   === all current package-owned migrations
+ *
+ * Lane 2 is what a deployment provisioned before #4004 actually holds: the
+ * retired `quotes` source plus the pre-rename bytes of the migrations that
+ * rename touched in place (voyant#4143). It fails if the adoption increments
+ * miss an object, which is the whole point — the rename is only safe if the
+ * legacy shape converges on the current one exactly.
  *
  * The D.2 cutline and framework bundle remain frozen transition fixtures. The
  * retired deployment history is retained only under scripts/fixtures so this
@@ -39,6 +47,21 @@ const LEGACY_DEPLOYMENT_MIGRATIONS = join(
 )
 const OPERATOR_DIR = join(ROOT, "apps/operator")
 const OPERATOR_ARTIFACTS = join(OPERATOR_DIR, ".voyant")
+
+// The package history as it shipped BEFORE the quotes → proposals rename.
+const PRE_RENAME_FIXTURES = join(ROOT, "scripts/fixtures/pre-proposal-rename")
+// `proposals/0000_proposals_baseline` stands in for the whole retired `quotes`
+// source: a pre-rename deployment ran these five tags instead of it.
+const RETIRED_QUOTES_SOURCE = { source: "proposals", tag: "0000_proposals_baseline" }
+// `{source}/{tag}` whose shipped bytes the rename edited in place. A pre-rename
+// deployment holds the fixture bytes, not the ones in the package today.
+const PRE_RENAME_EDITED_TAGS = new Set([
+  "bookings/0000_bookings_baseline",
+  "legal/0000_legal_baseline",
+  "mice/20260713000300_standard_links",
+  "relationships/0000_relationships_baseline",
+  "relationships/0003_add_booking_custom_field_target",
+])
 
 execFileSync("pnpm", ["exec", "voyant", "build", "--json"], {
   cwd: OPERATOR_DIR,
@@ -107,6 +130,34 @@ async function applyFolders(client, folders) {
       await client.query(stmt)
     }
   }
+}
+
+/**
+ * A source's journal replayed as a PRE-RENAME deployment holds it: the retired
+ * `quotes` tags in place of the proposals baseline, the fixture bytes for the
+ * tags the rename edited, and the current bytes for everything else (including
+ * the adoption increments, which is what this lane exercises).
+ */
+function loadFolderPreRename(folder, sourceName) {
+  const journal = JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"))
+  return [...journal.entries]
+    .sort((a, b) => a.when - b.when)
+    .flatMap((entry) => {
+      const id = `${sourceName}/${entry.tag}`
+      if (sourceName === RETIRED_QUOTES_SOURCE.source && entry.tag === RETIRED_QUOTES_SOURCE.tag) {
+        const retired = join(PRE_RENAME_FIXTURES, "quotes")
+        const retiredJournal = JSON.parse(readFileSync(join(retired, "_journal.json"), "utf8"))
+        return [...retiredJournal.entries]
+          .sort((a, b) => a.when - b.when)
+          .flatMap((e) => splitStatements(readFileSync(join(retired, `${e.tag}.sql`), "utf8")))
+      }
+      if (PRE_RENAME_EDITED_TAGS.has(id)) {
+        return splitStatements(
+          readFileSync(join(PRE_RENAME_FIXTURES, "edited", sourceName, `${entry.tag}.sql`), "utf8"),
+        )
+      }
+      return splitStatements(readFileSync(join(folder, `${entry.tag}.sql`), "utf8"))
+    })
 }
 
 /** Canonical, order-independent fingerprint of the public schema. */
@@ -202,32 +253,56 @@ async function main() {
       })
     })
 
+    // Pre-rename package history: what a deployment provisioned before #4004
+    // holds, brought forward by the quotes → proposals adoption increments.
+    const preRenameFp = await withFreshDb(admin, "voyant_replay_pre_rename", async () => {
+      console.log("  sources: pre-rename package history (retired quotes source)")
+      return onDb("voyant_replay_pre_rename", async (c) => {
+        for (const ext of SEED_EXTENSIONS) await c.query(ext)
+        for (const source of packageSources) {
+          if (!source.hasMigrations) {
+            throw new Error(`schema source ${source.name} has no migrations folder`)
+          }
+          for (const stmt of loadFolderPreRename(source.migrationsDir, source.name)) {
+            await c.query(stmt)
+          }
+        }
+        return fingerprint(c)
+      })
+    })
+
     const sections = ["columns", "enums", "indexes", "constraints"]
+    const lanes = [
+      { label: "upgrade path", fingerprint: newFp },
+      { label: "pre-rename history", fingerprint: preRenameFp },
+    ]
     let ok = true
-    for (const s of sections) {
-      const a = hashOf(newFp[s])
-      const b = hashOf(packageFp[s])
-      if (a !== b) {
-        ok = false
-        console.error(`  MISMATCH  ${s}: upgrade=${a.slice(0, 12)} packages=${b.slice(0, 12)}`)
-        const aSet = new Set(newFp[s].map((r) => JSON.stringify(r)))
-        const bSet = new Set(packageFp[s].map((r) => JSON.stringify(r)))
-        const onlyNew = [...aSet].filter((r) => !bSet.has(r)).slice(0, 5)
-        const onlyPush = [...bSet].filter((r) => !aSet.has(r)).slice(0, 5)
-        for (const r of onlyNew) console.error(`    only in upgrade path: ${r}`)
-        for (const r of onlyPush) console.error(`    only in package replay: ${r}`)
-      } else {
-        console.log(`  OK  ${s} (${newFp[s].length} rows)`)
+    for (const lane of lanes) {
+      for (const s of sections) {
+        const a = hashOf(lane.fingerprint[s])
+        const b = hashOf(packageFp[s])
+        if (a !== b) {
+          ok = false
+          console.error(
+            `  MISMATCH  ${lane.label} ${s}: lane=${a.slice(0, 12)} packages=${b.slice(0, 12)}`,
+          )
+          const aSet = new Set(lane.fingerprint[s].map((r) => JSON.stringify(r)))
+          const bSet = new Set(packageFp[s].map((r) => JSON.stringify(r)))
+          const onlyLane = [...aSet].filter((r) => !bSet.has(r)).slice(0, 5)
+          const onlyPackages = [...bSet].filter((r) => !aSet.has(r)).slice(0, 5)
+          for (const r of onlyLane) console.error(`    only in ${lane.label}: ${r}`)
+          for (const r of onlyPackages) console.error(`    only in package replay: ${r}`)
+        } else {
+          console.log(`  OK  ${lane.label} ${s} (${lane.fingerprint[s].length} rows)`)
+        }
       }
     }
 
     if (!ok) {
-      console.error(
-        "\nreplay-parity FAIL — the legacy upgrade path and package-owned replay differ.",
-      )
+      console.error("\nreplay-parity FAIL — an upgrade path and the package-owned replay differ.")
       process.exit(1)
     }
-    console.log("\nverify-migration-replay-parity: OK — legacy upgrade == package-owned replay")
+    console.log("\nverify-migration-replay-parity: OK — every upgrade path == package-owned replay")
   } finally {
     await admin.end()
   }
