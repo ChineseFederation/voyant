@@ -22,6 +22,8 @@ import {
   formatImportFailure,
   formatMissingVersion,
   importProbeSpecifiers,
+  REGISTRY,
+  registryHasVersion,
   selectPublishedPackages,
   unappliedPublishConfigViolations,
   unresolvedProtocolViolations,
@@ -53,15 +55,6 @@ function workspaceManifests() {
   return manifests
 }
 
-async function registryHasVersion(name, version) {
-  try {
-    await execFileAsync("npm", ["view", `${name}@${version}`, "version"], { encoding: "utf8" })
-    return true
-  } catch {
-    return false
-  }
-}
-
 /**
  * Wait for every version to appear rather than failing the first one that has
  * not propagated. A missing version and a slow CDN look identical for a few
@@ -71,11 +64,21 @@ async function awaitRegistry(packages) {
   let pending = packages
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
     const results = await Promise.all(
-      pending.map(async (entry) => ({
-        entry,
-        published: await registryHasVersion(entry.name, entry.version),
-      })),
+      pending.map(async (entry) => {
+        try {
+          return { entry, published: await registryHasVersion(entry.name, entry.version) }
+        } catch (error) {
+          return { entry, published: false, error }
+        }
+      }),
     )
+
+    // A transient failure is worth another attempt, but it must never be
+    // reported as an unpublished version. If it is still failing on the last
+    // attempt, surface the registry's own error instead of a verdict.
+    const failure = results.find((result) => result.error)
+    if (failure && attempt === ATTEMPTS) throw failure.error
+
     pending = results.filter((result) => !result.published).map((result) => result.entry)
     if (pending.length === 0) return []
     if (attempt === ATTEMPTS) break
@@ -97,6 +100,18 @@ async function installSurface(packages, installDir) {
   }
   fs.writeFileSync(path.join(installDir, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`)
 
+  // Install as a stranger would. The scratch project's own `.npmrc` names the
+  // public registry, and the user and global configs are pointed at empty files
+  // so the release job's credentials and any developer's `~/.npmrc` drop out.
+  // That is what an external consumer has, and it is the only way to notice a
+  // package published `restricted` by accident. npm refuses to load one file
+  // under two config scopes, so these are three distinct paths.
+  fs.writeFileSync(path.join(installDir, ".npmrc"), `registry=${REGISTRY}/\n`)
+  const userConfig = path.join(installDir, "npmrc-user")
+  const globalConfig = path.join(installDir, "npmrc-global")
+  fs.writeFileSync(userConfig, "")
+  fs.writeFileSync(globalConfig, "")
+
   // `--no-legacy-peer-deps` pins the modern resolver explicitly. A developer
   // whose ~/.npmrc sets `legacy-peer-deps=true` would otherwise skip peer
   // installation and see entry points fail here that resolve fine for a
@@ -113,7 +128,16 @@ async function installSurface(packages, installDir) {
       "--loglevel",
       "error",
     ],
-    { cwd: installDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: process.env },
+    {
+      cwd: installDir,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+      env: {
+        ...process.env,
+        NPM_CONFIG_USERCONFIG: userConfig,
+        NPM_CONFIG_GLOBALCONFIG: globalConfig,
+      },
+    },
   )
 }
 

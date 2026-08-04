@@ -4,10 +4,66 @@ import { test } from "node:test"
 import {
   expandExportPattern,
   importProbeSpecifiers,
+  registryHasVersion,
   selectPublishedPackages,
   unappliedPublishConfigViolations,
   unresolvedProtocolViolations,
 } from "../lib/published-surface.mjs"
+
+function registryResponse({ status = 200, statusText = "OK", body = {} }) {
+  return async () => ({
+    status,
+    statusText,
+    ok: status >= 200 && status < 300,
+    json: async () => body,
+  })
+}
+
+test("reads a published version out of the packument", async () => {
+  const published = await registryHasVersion("@voyant-travel/payments", "0.9.2", {
+    fetch: registryResponse({ body: { versions: { "0.9.1": {}, "0.9.2": {} } } }),
+  })
+
+  assert.equal(published, true)
+})
+
+test("reports a version the packument does not carry", async () => {
+  const published = await registryHasVersion("@voyant-travel/graph-contracts", "0.2.0", {
+    fetch: registryResponse({ body: { versions: { "0.1.0": {} } } }),
+  })
+
+  assert.equal(published, false)
+})
+
+test("reports a package name that has never been published", async () => {
+  const published = await registryHasVersion("@voyant-travel/nothing", "1.0.0", {
+    fetch: registryResponse({ status: 404, statusText: "Not Found" }),
+  })
+
+  assert.equal(published, false)
+})
+
+test("refuses to call a registry failure an unpublished version", async () => {
+  // The whole gate reported all fourteen packages missing because `npm view`
+  // failed on a placeholder auth token and the failure was read as a verdict.
+  // An unauthorised or unavailable registry has told us nothing, and saying
+  // otherwise is worse than saying nothing.
+  await assert.rejects(
+    registryHasVersion("@voyant-travel/payments", "0.9.2", {
+      fetch: registryResponse({ status: 401, statusText: "Unauthorized" }),
+    }),
+    /registry returned 401 Unauthorized/,
+  )
+
+  await assert.rejects(
+    registryHasVersion("@voyant-travel/payments", "0.9.2", {
+      fetch: async () => {
+        throw new Error("ECONNRESET")
+      },
+    }),
+    /ECONNRESET/,
+  )
+})
 
 test("selects the publishable packages in a stable order", () => {
   const selected = selectPublishedPackages([

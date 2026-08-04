@@ -22,6 +22,38 @@
  * beside them installs from the registry and exercises it.
  */
 
+export const REGISTRY = "https://registry.npmjs.org"
+
+/**
+ * Ask the registry directly, over anonymous HTTP.
+ *
+ * Not `npm view`. The release job points `NPM_CONFIG_USERCONFIG` at an npmrc
+ * carrying `NODE_AUTH_TOKEN`, which is a placeholder unless a secret is set, so
+ * every npm call there fails on auth in under a millisecond. Reading that as
+ * "the version is not published" reported all fourteen packages missing when
+ * all fourteen were fine — a confident, specific, wrong diagnosis, which is
+ * worse than no check at all. A raw fetch has no credentials to get wrong, and
+ * it asks the truer question: this gate is about what a stranger can install.
+ *
+ * Only a clean 200 or a clean 404 is an answer. Anything else throws, because a
+ * registry outage must never be indistinguishable from an unpublished package.
+ */
+export async function registryHasVersion(name, version, options = {}) {
+  const { fetch: fetchImpl = fetch, registry = REGISTRY } = options
+
+  const response = await fetchImpl(`${registry}/${name.replace("/", "%2f")}`, {
+    headers: { accept: "application/vnd.npm.install-v1+json" },
+  })
+
+  if (response.status === 404) return false
+  if (!response.ok) {
+    throw new Error(`registry returned ${response.status} ${response.statusText} for ${name}`)
+  }
+
+  const packument = await response.json()
+  return Object.hasOwn(packument.versions ?? {}, version)
+}
+
 /** publishConfig keys whose survival proves publishConfig was never applied. */
 const OVERRIDE_KEYS = ["exports", "main", "module", "types", "typings", "files", "bin"]
 
