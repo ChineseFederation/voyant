@@ -47,6 +47,7 @@ rules as data rather than code:
 | `verify:graph-conformance` | what a package contributes to the resolved graph | `scripts/checks/graph/graph-conformance.json` |
 | `verify:symbol-policy` | where a symbol may and may not appear | `scripts/checks/symbols/symbol-policy.json` |
 | `verify:retired-surfaces` | deleted paths stay deleted | `scripts/checks/regression/retired-paths.json` |
+| `verify:public-surface` | what may be published, who outside this repo depends on it, and what a withdrawn package's successor is | `scripts/checks/manifests/public-surface.json` |
 
 Two run as ratchets, holding a line rather than demanding it be clean today:
 `verify:table-privacy` (cross-module table reach-ins) and

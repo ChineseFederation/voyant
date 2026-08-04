@@ -5,7 +5,11 @@
     "The dependency closure of this list must EQUAL this list; verify:public-surface enforces that.",
     "Adding an entry widens what external developers may depend on. Do it deliberately.",
     "This is not yet a publish gate: ~95 other packages are still published until the",
-    "first-party repos have a build path (#4059 item 4)."
+    "first-party repos have a build path (#4059 item 4).",
+    "",
+    "`consumers` and `withdrawn` are the other half — who is standing on this surface,",
+    "and what a reader should move to when something leaves it. See #4159 and the",
+    "header of public-surface.ts."
   ],
   "extensionSurface": [
     "@voyant-travel/admin-extension-sdk",
@@ -32,5 +36,228 @@
     "supplier; a supplier-sold tour or package is a Product. The Connect source",
     "verticals are accommodations, charters, cruises, flights, and products.",
     "See connect#106."
-  ]
+  ],
+  "$consumers": [
+    "Repositories outside this one that install packages this one publishes,",
+    "audited 2026-08-04 for #4159. `consumes` is what each declares in the",
+    "@voyant-travel scope, including names this repository does not own —",
+    "connect-provider-sdk, connect-sdk, data-sdk, cloud-sdk, cli and max-embed",
+    "live in sibling repos and are recorded for inventory, not checked here.",
+    "",
+    "Taking a package named here off the allowlist fails the check, naming the",
+    "repository whose build it breaks. Record it under `withdrawn` to proceed."
+  ],
+  "consumers": {
+    "voyant-travel/hisky-connector": {
+      "consumes": ["@voyant-travel/connect-provider-sdk", "@voyant-travel/flights-contracts"]
+    },
+    "voyant-travel/tui-connector": {
+      "consumes": [
+        "@voyant-travel/connect-provider-sdk",
+        "@voyant-travel/connect-sdk",
+        "@voyant-travel/data-sdk"
+      ]
+    },
+    "voyant-travel/uniworld-connector": {
+      "consumes": ["@voyant-travel/connect-provider-sdk", "@voyant-travel/data-sdk"]
+    },
+    "voyant-travel/viking-connector": {
+      "consumes": ["@voyant-travel/connect-provider-sdk", "@voyant-travel/data-sdk"]
+    },
+    "voyant-travel/silversea-connector": {
+      "consumes": ["@voyant-travel/connect-provider-sdk", "@voyant-travel/data-sdk"]
+    },
+    "voyant-travel/connect": {
+      "consumes": ["@voyant-travel/catalog-contracts", "@voyant-travel/flights-contracts"]
+    },
+    "voyant-travel/algolia-adapter": {
+      "consumes": ["@voyant-travel/catalog-contracts", "@voyant-travel/graph-contracts"]
+    },
+    "voyant-travel/netopia-adapter": {
+      "consumes": [
+        "@voyant-travel/core",
+        "@voyant-travel/finance",
+        "@voyant-travel/hono",
+        "@voyant-travel/notifications",
+        "@voyant-travel/payments",
+        "@voyant-travel/utils"
+      ]
+    },
+    "voyant-travel/plugin-smartbill": {
+      "consumes": [
+        "@voyant-travel/bookings",
+        "@voyant-travel/core",
+        "@voyant-travel/finance",
+        "@voyant-travel/finance-react",
+        "@voyant-travel/hono",
+        "@voyant-travel/identity",
+        "@voyant-travel/operator-settings",
+        "@voyant-travel/relationships",
+        "@voyant-travel/storage",
+        "@voyant-travel/ui",
+        "@voyant-travel/utils"
+      ]
+    },
+    "voyant-travel/plugin-payload-cms": {
+      "consumes": ["@voyant-travel/core", "@voyant-travel/utils"]
+    },
+    "voyant-travel/cli": {
+      "consumes": ["@voyant-travel/cloud-sdk", "@voyant-travel/core", "@voyant-travel/framework"]
+    },
+    "voyant-travel/platform": {
+      "consumes": [
+        "@voyant-travel/admin-extension-sdk",
+        "@voyant-travel/app-manifest",
+        "@voyant-travel/apps",
+        "@voyant-travel/cloud-sdk",
+        "@voyant-travel/flights",
+        "@voyant-travel/i18n",
+        "@voyant-travel/max-embed",
+        "@voyant-travel/notifications",
+        "@voyant-travel/storefront",
+        "@voyant-travel/storefront-react",
+        "@voyant-travel/tools",
+        "@voyant-travel/trips",
+        "@voyant-travel/types",
+        "@voyant-travel/ui",
+        "@voyant-travel/vite-config"
+      ]
+    },
+    "pxmstudio/voyant-smartbill-app": {
+      "consumes": [
+        "@voyant-travel/admin-extension-sdk",
+        "@voyant-travel/app-manifest",
+        "@voyant-travel/ui"
+      ]
+    }
+  },
+  "$withdrawn": [
+    "Packages that were on the public surface and are not any more. Marking a",
+    "package private here does not unpublish it — the last version keeps",
+    "resolving forever — so the failure is silent and lands on whoever pinned it.",
+    "This is what those readers have instead of an npm deprecation notice.",
+    "",
+    "An entry must stay true: the package must really be private, must not also",
+    "be on the allowlist, and a successor this repository owns must really be",
+    "published. `successor: null` is allowed and requires a reason.",
+    "",
+    "There is deliberately no `pms` consumer — that product was cancelled",
+    "2026-07-30 and its pins are not a build to migrate."
+  ],
+  "withdrawn": {
+    "@voyant-travel/flights": {
+      "successor": "@voyant-travel/flights-contracts",
+      "consumers": ["voyant-travel/hisky-connector", "voyant-travel/platform"],
+      "reason": "A connector needs the payload types, not the runtime module. ADR-0022 section 3: contracts packages are an authoring convenience, and a connector's compatibility axis is the worker protocol date. hisky-connector migrated 2026-08-01."
+    },
+    "@voyant-travel/apps": {
+      "successor": "@voyant-travel/app-manifest",
+      "consumers": ["pxmstudio/voyant-smartbill-app", "voyant-travel/platform"],
+      "reason": "#4059 split the publisher-facing manifest contract out of the host-side runtime module. compileAppManifest, appManifestSchema and canonicalJsonStringify moved verbatim; the release digest is unchanged."
+    },
+    "@voyant-travel/bookings": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. plugin-smartbill builds in process against the operator's runtime modules and needs a build path — #4059 item 4."
+    },
+    "@voyant-travel/core": {
+      "successor": null,
+      "consumers": [
+        "voyant-travel/cli",
+        "voyant-travel/netopia-adapter",
+        "voyant-travel/plugin-payload-cms",
+        "voyant-travel/plugin-smartbill"
+      ],
+      "reason": "No successor. Four repos build in process against it and need a build path — #4059 item 4."
+    },
+    "@voyant-travel/finance": {
+      "successor": null,
+      "consumers": ["voyant-travel/netopia-adapter", "voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/finance-react": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/framework": {
+      "successor": null,
+      "consumers": ["voyant-travel/cli"],
+      "reason": "No successor. The CLI resolves the framework to scaffold and inspect a deployment; under the image model that relationship is unsettled — #4059 item 4."
+    },
+    "@voyant-travel/hono": {
+      "successor": null,
+      "consumers": ["voyant-travel/netopia-adapter", "voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/i18n": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party and still resolves an npm copy of the framework; platform#1622 is the fix."
+    },
+    "@voyant-travel/identity": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/notifications": {
+      "successor": null,
+      "consumers": ["voyant-travel/netopia-adapter", "voyant-travel/platform"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/operator-settings": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/relationships": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/storage": {
+      "successor": null,
+      "consumers": ["voyant-travel/plugin-smartbill"],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/storefront": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    },
+    "@voyant-travel/storefront-react": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    },
+    "@voyant-travel/tools": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    },
+    "@voyant-travel/trips": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    },
+    "@voyant-travel/types": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    },
+    "@voyant-travel/utils": {
+      "successor": null,
+      "consumers": [
+        "voyant-travel/netopia-adapter",
+        "voyant-travel/plugin-payload-cms",
+        "voyant-travel/plugin-smartbill"
+      ],
+      "reason": "No successor. See #4059 item 4."
+    },
+    "@voyant-travel/vite-config": {
+      "successor": null,
+      "consumers": ["voyant-travel/platform"],
+      "reason": "No successor. Platform is first-party; see platform#1622."
+    }
+  }
 }

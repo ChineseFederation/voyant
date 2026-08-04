@@ -98,3 +98,106 @@ test("a dependency cycle inside the allowlist terminates", () => {
   assert.deepEqual(report.escapes, [])
   assert.equal(report.closureSize, 2)
 })
+
+// Withdrawal — #4159. Marking a package private does not unpublish it, so a
+// consumer outside this repository keeps resolving a frozen version forever.
+
+const flights = { name: "@voyant-travel/flights", private: true }
+const flightsContracts = { name: "@voyant-travel/flights-contracts" }
+const hisky = { "voyant-travel/hisky-connector": { consumes: [flightsContracts.name] } }
+
+test("withdrawing a package a recorded consumer depends on is a violation", () => {
+  const report = checkPublicSurface([flights, flightsContracts], [], { consumers: hisky })
+  assert.deepEqual(report.stranded, [
+    { repository: "voyant-travel/hisky-connector", dependency: flightsContracts.name },
+  ])
+  assert.match(
+    formatSurfaceViolations(report).find((v) => v.includes("hisky-connector")),
+    /keeps resolving a frozen version/,
+  )
+})
+
+test("a consumer whose dependencies are all allowlisted is fine", () => {
+  const report = checkPublicSurface([flightsContracts], [flightsContracts.name], {
+    consumers: hisky,
+  })
+  assert.deepEqual(report.stranded, [])
+  assert.deepEqual(formatSurfaceViolations(report), [])
+})
+
+test("a consumer's dependency on a sibling repo's package is not ours to check", () => {
+  // connect-provider-sdk lives in the connect repo; no manifest for it here.
+  const report = checkPublicSurface([], [], {
+    consumers: {
+      "voyant-travel/hisky-connector": { consumes: ["@voyant-travel/connect-provider-sdk"] },
+    },
+  })
+  assert.deepEqual(report.stranded, [])
+})
+
+test("recording the withdrawal is how a package a consumer names may leave", () => {
+  const report = checkPublicSurface([flights, flightsContracts], [flightsContracts.name], {
+    consumers: { "voyant-travel/hisky-connector": { consumes: [flights.name] } },
+    withdrawn: { [flights.name]: { successor: flightsContracts.name } },
+  })
+  assert.deepEqual(report.stranded, [])
+  assert.deepEqual(formatSurfaceViolations(report), [])
+})
+
+test("a withdrawal pointing at a successor that is not published is a violation", () => {
+  const report = checkPublicSurface([flights, { ...flightsContracts, private: true }], [], {
+    withdrawn: { [flights.name]: { successor: flightsContracts.name } },
+  })
+  assert.deepEqual(report.danglingSuccessors, [
+    { package: flights.name, successor: flightsContracts.name },
+  ])
+  assert.match(formatSurfaceViolations(report).at(-1), /not on the public surface either/)
+})
+
+test("a withdrawal with no successor must say why", () => {
+  const bare = checkPublicSurface([flights], [], {
+    withdrawn: { [flights.name]: { successor: null } },
+  })
+  assert.deepEqual(bare.staleWithdrawals, [
+    { package: flights.name, why: "no successor and no reason given" },
+  ])
+
+  const explained = checkPublicSurface([flights], [], {
+    withdrawn: { [flights.name]: { successor: null, reason: "#4059 item 4" } },
+  })
+  assert.deepEqual(explained.staleWithdrawals, [])
+})
+
+test("a withdrawal record that stopped being true is a violation", () => {
+  const republished = checkPublicSurface([{ name: flights.name }], [], {
+    withdrawn: { [flights.name]: { successor: flightsContracts.name } },
+  })
+  assert.deepEqual(republished.staleWithdrawals, [
+    { package: flights.name, why: "the package is publishable again" },
+  ])
+
+  const absent = checkPublicSurface([], [], {
+    withdrawn: { "@voyant-travel/gone": { successor: null, reason: "x" } },
+  })
+  assert.deepEqual(absent.staleWithdrawals, [
+    { package: "@voyant-travel/gone", why: "no such package in this repository" },
+  ])
+})
+
+test("a package cannot be both withdrawn and on the allowlist", () => {
+  const report = checkPublicSurface([flightsContracts], [flightsContracts.name], {
+    withdrawn: { [flightsContracts.name]: { successor: null, reason: "x" } },
+  })
+  assert.ok(
+    report.staleWithdrawals.some((entry) => entry.why === "it is also on the allowlist"),
+    "expected the contradiction to be reported",
+  )
+})
+
+test("no registry means no new violations — the check is additive", () => {
+  const report = checkPublicSurface([flightsContracts], [flightsContracts.name])
+  assert.deepEqual(report.stranded, [])
+  assert.deepEqual(report.staleWithdrawals, [])
+  assert.deepEqual(report.danglingSuccessors, [])
+  assert.deepEqual(formatSurfaceViolations(report), [])
+})
