@@ -135,6 +135,8 @@ export const bookingSessionQuotesTable = pgTable(
       .references(() => bookingSessionsTable.id, { onDelete: "cascade" }),
     sessionRevision: integer("session_revision").notNull(),
     state: text("state").notNull(),
+    /** Booking Requirements this price was computed against. */
+    requirements: jsonb("requirements").$type<Record<string, unknown>>().notNull(),
     pricing: jsonb("pricing").$type<Record<string, unknown>>().notNull(),
     priceFingerprint: text("price_fingerprint").notNull(),
     quotedAt: timestamp("quoted_at", { withTimezone: true }).notNull(),

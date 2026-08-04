@@ -2,11 +2,20 @@ import { bookingsService, setAcceptedProposalBookingOrigin } from "@voyant-trave
 import type {
   BookingHoldInternalRecord,
   BookingQuoteInternalRecord,
+  BookingRequirementsV1,
   BookingSessionCompositeHandler,
   BookingSessionInternalRecord,
   CompositeBookingCommitment,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog/booking-engine"
+import {
+  DEFAULT_PAX_BANDS,
+  DEFAULT_PAYMENT_INTENTS,
+  defaultBookingFields,
+  defaultRequirementsFlags,
+  defaultTravelerFields,
+  paxBandsAllowedTotalFrom,
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { BookingSessionTargetV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -51,18 +60,83 @@ export function createTripBookingSessionCompositeHandler(
     recordComponentCommit: (input) => recordComponentCommit(input),
     ...overrides,
   }
+  const composeRequirements: BookingSessionCompositeHandler["composeRequirements"] = async (
+    input,
+  ) => {
+    {
+      const database = input.tx as PostgresJsDatabase
+      const snapshot = await loadTargetSnapshot(database, input.session, persistence.loadSnapshot)
+      const components = frozenComponents(snapshot)
+
+      // A Trip Snapshot froze its own configuration when the proposal was
+      // accepted, so the trip-level wizard has nothing left to configure or
+      // to add on to. What it still needs is the union of the components'
+      // traveler and booking field requirements, which is what the Travelers
+      // and Billing steps render. Component requirements come from the same
+      // leaf derivation the components' own quotes use.
+      const travelerFields = new Map<string, BookingRequirementsV1["travelerFields"][number]>()
+      const bookingFields = new Map<string, BookingRequirementsV1["bookingFields"][number]>()
+      let paxBands: BookingRequirementsV1["paxBands"] | undefined
+      let paxBandsAllowedTotal: BookingRequirementsV1["paxBandsAllowedTotal"] | undefined
+
+      for (const component of components.values()) {
+        if (!isCatalogBackedTripComponent(component)) continue
+        const resolved = await input.leaf.composeRequirements({
+          session: childSession(input.session, component),
+          now: input.now,
+          tx: input.tx,
+        })
+        if (resolved.status === "unavailable") return resolved
+        for (const field of resolved.requirements.travelerFields) {
+          if (!travelerFields.has(field.key)) travelerFields.set(field.key, field)
+        }
+        for (const field of resolved.requirements.bookingFields) {
+          if (!bookingFields.has(field.key)) bookingFields.set(field.key, field)
+        }
+        // Party size is one decision across the whole trip. The first
+        // catalog-backed component's bands stand for it; a per-component
+        // reconciliation belongs with selection validation, not here.
+        paxBands ??= resolved.requirements.paxBands
+        paxBandsAllowedTotal ??= resolved.requirements.paxBandsAllowedTotal
+      }
+
+      return {
+        status: "available",
+        requirements: {
+          ...defaultRequirementsFlags(),
+          showsConfigure: false,
+          showsAccommodation: false,
+          showsAddons: false,
+          paxBands: paxBands ?? [...DEFAULT_PAX_BANDS],
+          paxBandsAllowedTotal: paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(DEFAULT_PAX_BANDS),
+          travelerFields:
+            travelerFields.size > 0 ? [...travelerFields.values()] : defaultTravelerFields(),
+          bookingFields:
+            bookingFields.size > 0 ? [...bookingFields.values()] : defaultBookingFields(),
+          paymentIntents: [...DEFAULT_PAYMENT_INTENTS],
+        } as BookingRequirementsV1,
+      }
+    }
+  }
+
   return {
+    composeRequirements,
+
     async composeQuote(input) {
       const database = input.tx as PostgresJsDatabase
       const snapshot = await loadTargetSnapshot(database, input.session, persistence.loadSnapshot)
       const components = frozenComponents(snapshot)
+      // Derived up front so every exit below — priced or not — publishes the
+      // trip's own requirements rather than a component's or none at all.
+      const derived = await composeRequirements(input)
+      const requirements = derived.status === "available" ? derived.requirements : undefined
       const lines: PricingBreakdownV1["lines"] = []
       const taxes: PricingBreakdownV1["taxes"] = []
       const componentPolicies: NonNullable<PricingBreakdownV1["componentPolicies"]> = []
 
       for (const proposalLine of snapshot.proposal.lines) {
         const component = components.get(proposalLine.componentId)
-        if (!component) return unavailable("selection_unavailable")
+        if (!component) return { ...unavailable("selection_unavailable"), requirements }
         if (!isCatalogBackedTripComponent(component)) {
           lines.push({
             kind: "base",
@@ -93,10 +167,19 @@ export function createTripBookingSessionCompositeHandler(
           now: input.now,
           tx: input.tx,
         })
-        if (quoted.status === "unavailable") return quoted
+        // The component's own descriptor is not the trip's; republish the
+        // trip-level one so the host renders the journey it is actually in.
+        if (quoted.status === "unavailable") {
+          return {
+            status: "unavailable",
+            requirements,
+            reason: quoted.reason,
+            nextAction: quoted.nextAction,
+          }
+        }
         const acceptedPolicy = acceptedPolicyEvidence(component)
         if (!hasRequiredPolicyEvidence(acceptedPolicy, quoted.pricing.policyEvidence)) {
-          return unavailable("policy_unavailable")
+          return { ...unavailable("policy_unavailable"), requirements }
         }
         if (quoted.pricing.policyEvidence) {
           componentPolicies.push({ componentId: component.id, ...quoted.pricing.policyEvidence })
@@ -117,7 +200,8 @@ export function createTripBookingSessionCompositeHandler(
       }
 
       const pricing = aggregatePricing(snapshot.currency, lines, taxes, componentPolicies)
-      return { status: "quoted", pricing }
+      if (!requirements) return unavailable("selection_unavailable")
+      return { status: "quoted", requirements, pricing }
     },
 
     async placeCapacityHold(input) {

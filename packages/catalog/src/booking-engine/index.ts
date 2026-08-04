@@ -144,6 +144,7 @@ export {
   type ComputeQuoteRequest,
   type ComputeQuoteResult,
   type ComputeQuotesRequest,
+  type ComputeRequirementsResult,
   createOwnedBookingHandlerRegistry,
   type DeriveSelfServiceCommandRequest,
   type DeriveSelfServiceCommandResult,
@@ -243,6 +244,8 @@ export {
   type CommitSourcedBookingInput,
   type CommitSourcedBookingResult,
   type ComposeBookingQuoteInput,
+  type ComposeBookingQuoteResult,
+  type ComposeBookingRequirementsResult,
   type CompositeBookingCommitment,
   createBookingSessionModule,
 } from "./sessions-service.js"

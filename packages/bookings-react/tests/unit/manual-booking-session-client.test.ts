@@ -5,6 +5,21 @@ import {
   type ManualBookingSessionContinuation,
 } from "../../src/manual-booking-session-client.js"
 
+const REQUIREMENTS = {
+  showsConfigure: true,
+  showsBilling: true,
+  showsTravelers: true,
+  showsAccommodation: false,
+  showsAddons: false,
+  showsPayment: true,
+  showsReview: true,
+  paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 8 }],
+  paxBandsAllowedTotal: { min: 1, max: 8 },
+  travelerFields: [],
+  bookingFields: [],
+  paymentIntents: ["card"],
+}
+
 function json(body: unknown) {
   return Response.json(body)
 }
@@ -231,6 +246,7 @@ function quote() {
       sessionId: "bses_1",
       sessionRevision: 1,
       state: "active",
+      requirements: REQUIREMENTS,
       pricing: {
         currency: "EUR",
         lines: [],

@@ -38,6 +38,8 @@ vi.mock("@voyant-travel/finance", async (importOriginal) => ({
   },
 }))
 
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import { defaultRequirementsFlags } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
 import { createSourceAdapterRegistry } from "./registry.js"
@@ -53,6 +55,19 @@ const STOREFRONT_ACCESS = {
   storefront: { storefrontId: "sf_public", channelId: "chan_public" },
 } as const
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
+
+/** Stand-in for a vertical's derivation; only its identity matters here. */
+const HANDLER_REQUIREMENTS: BookingRequirements = {
+  ...defaultRequirementsFlags(),
+  paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 8 }],
+  paxBandsAllowedTotal: { min: 1, max: 8 },
+  travelerFields: [],
+  bookingFields: [],
+  paymentIntents: ["card"],
+}
+const HANDLER_REQUIREMENTS_PORT: OwnedBookingHandler["computeRequirements"] = async () => ({
+  requirements: HANDLER_REQUIREMENTS,
+})
 
 function createProductionHarness(handler: OwnedBookingHandler) {
   const repository = createInMemoryBookingSessionRepository()
@@ -500,6 +515,7 @@ describe("production Booking Session ports", () => {
     }
     const { module } = createProductionHarness({
       entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
       async computeQuote() {
         return {
           available: true,
@@ -528,6 +544,7 @@ describe("production Booking Session ports", () => {
   it("returns a typed rejection when an owned target cannot be quoted", async () => {
     const { module } = createProductionHarness({
       entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
       async computeQuote() {
         return { available: false, invalidReason: "product_not_found" }
       },
@@ -550,10 +567,58 @@ describe("production Booking Session ports", () => {
     })
   })
 
+  it("still returns renderable Requirements when a resolvable target cannot be priced", async () => {
+    // The load-bearing case: the target resolved and the wizard is correct,
+    // only the price is missing. Dropping the descriptor here is what forced
+    // hosts to invent one (voyant#4113).
+    const { module } = createProductionHarness({
+      entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
+      async computeQuote() {
+        return {
+          available: false,
+          invalidReason: "no_sell_amount_configured",
+          requirements: HANDLER_REQUIREMENTS,
+        }
+      },
+    })
+    const { created, access } = await createAnonymousSession(module)
+
+    const quoted = await module.quoteSession(
+      created.session.id,
+      { expectedRevision: created.session.revision, idempotencyKey: "quote_unpriceable" },
+      access,
+    )
+
+    expect(quoted).toEqual({
+      kind: "rejected",
+      error: {
+        kind: "quote_unavailable",
+        requirements: HANDLER_REQUIREMENTS,
+        reason: "price_unavailable",
+        nextAction: "contact_operator",
+      },
+    })
+  })
+
+  it("publishes Requirements on the Session record before any Quote exists", async () => {
+    const { module } = createProductionHarness({
+      entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
+      async computeQuote() {
+        return { available: false, invalidReason: "no_sell_amount_configured" }
+      },
+    })
+    const { created } = await createAnonymousSession(module)
+
+    expect(created.session.requirements).toEqual(HANDLER_REQUIREMENTS)
+  })
+
   it("rejects a hold quantity that disagrees with the normalized selection", async () => {
     let placeHoldCalls = 0
     const { module } = createProductionHarness({
       entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
       async computeQuote() {
         return {
           available: true,
@@ -607,6 +672,7 @@ describe("production Booking Session ports", () => {
   it("returns a typed actionable rejection for an incomplete commit", async () => {
     const { module } = createProductionHarness({
       entityModule: "products",
+      computeRequirements: HANDLER_REQUIREMENTS_PORT,
       async computeQuote() {
         return {
           available: true,
@@ -674,6 +740,7 @@ function createCommittableProductionModule(command: Record<string, unknown> = {}
   const handlers = createOwnedBookingHandlerRegistry()
   handlers.register({
     entityModule: "products",
+    computeRequirements: HANDLER_REQUIREMENTS_PORT,
     async computeQuote() {
       return {
         available: true,

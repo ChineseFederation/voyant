@@ -1,5 +1,14 @@
+import {
+  DEFAULT_PAX_BANDS,
+  DEFAULT_PAYMENT_INTENTS,
+  defaultBookingFields,
+  defaultRequirementsFlags,
+  defaultTravelerFields,
+  paxBandsAllowedTotalFrom,
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import { newId } from "@voyant-travel/db/lib/typeid"
 
+import type { BookingRequirementsV1 } from "./contracts.js"
 import type {
   BookingCommitInternalRecord,
   BookingHoldInternalRecord,
@@ -220,10 +229,26 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
   return repository
 }
 
+/**
+ * A minimal renderable descriptor for in-memory fixtures. It stands in for a
+ * vertical's derivation so the Session plane can be exercised without one — it
+ * is not a fallback any production path may use.
+ */
+export function inMemoryBookingRequirements(): BookingRequirementsV1 {
+  return {
+    ...defaultRequirementsFlags(),
+    paxBands: [...DEFAULT_PAX_BANDS],
+    paxBandsAllowedTotal: paxBandsAllowedTotalFrom(DEFAULT_PAX_BANDS),
+    travelerFields: [...defaultTravelerFields()],
+    bookingFields: [...defaultBookingFields()],
+    paymentIntents: [...DEFAULT_PAYMENT_INTENTS],
+  } as BookingRequirementsV1
+}
+
 export interface InMemoryOwnedInventoryPorts
   extends Pick<
     BookingSessionModulePorts,
-    "placeCapacityHold" | "releaseCapacityHold" | "commitOwnedBooking"
+    "composeRequirements" | "placeCapacityHold" | "releaseCapacityHold" | "commitOwnedBooking"
   > {
   setCapacity(capacityKey: string, quantity: number): void
   hasActiveHold(holdId: string): boolean
@@ -242,6 +267,9 @@ export function createInMemoryOwnedInventoryPorts(): InMemoryOwnedInventoryPorts
     allocationIds,
     setCapacity(capacityKey, quantity) {
       capacities.set(capacityKey, quantity)
+    },
+    async composeRequirements() {
+      return { status: "available", requirements: inMemoryBookingRequirements() }
     },
     hasActiveHold(holdId) {
       return activeHolds.has(holdId)
@@ -306,6 +334,7 @@ function cloneAudit(record: BookingSessionAuditRecord): BookingSessionAuditRecor
 function cloneQuote(record: BookingQuoteInternalRecord): BookingQuoteInternalRecord {
   return {
     ...record,
+    requirements: structuredClone(record.requirements),
     pricing: structuredClone(record.pricing),
     quotedAt: new Date(record.quotedAt),
     expiresAt: new Date(record.expiresAt),

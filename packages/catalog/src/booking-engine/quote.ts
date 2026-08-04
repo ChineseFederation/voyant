@@ -326,7 +326,7 @@ async function computeRawQuote(
     failedReason = result.invalidReason
     pricing = result.pricing
     upstreamPayload = result.upstreamPayload
-    ownedShape = result.shape
+    ownedShape = result.requirements
   } else {
     const adapter = request.sourceConnectionId
       ? (deps.registry.resolveByConnection(request.sourceConnectionId) ??
@@ -503,7 +503,7 @@ function rawFromOwnedResult(result: ComputeQuoteResult): RawQuoteComputation {
     failedReason: result.invalidReason,
     pricing: result.pricing,
     upstreamPayload: result.upstreamPayload,
-    ownedShape: result.shape,
+    ownedShape: result.requirements,
   }
 }
 

@@ -2,6 +2,21 @@ import { describe, expect, it } from "vitest"
 
 import { createVoyantStorefrontClient } from "../../src/index.js"
 
+const REQUIREMENTS = {
+  showsConfigure: true,
+  showsBilling: true,
+  showsTravelers: true,
+  showsAccommodation: false,
+  showsAddons: false,
+  showsPayment: true,
+  showsReview: true,
+  paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 8 }],
+  paxBandsAllowedTotal: { min: 1, max: 8 },
+  travelerFields: [],
+  bookingFields: [],
+  paymentIntents: ["card"],
+}
+
 describe("Booking Session v1 SDK", () => {
   it("returns a payment continuation and resumes Commit on the same typed route", async () => {
     let commitAttempts = 0
@@ -23,6 +38,7 @@ describe("Booking Session v1 SDK", () => {
             sessionId: "bses_demo",
             sessionRevision: 1,
             state: "active",
+            requirements: REQUIREMENTS,
             pricing: {
               currency: "EUR",
               lines: [],
@@ -169,6 +185,7 @@ describe("Booking Session v1 SDK", () => {
             sessionId: "bses_demo",
             sessionRevision: 2,
             state: "active",
+            requirements: REQUIREMENTS,
             pricing: {
               currency: "EUR",
               lines: [],

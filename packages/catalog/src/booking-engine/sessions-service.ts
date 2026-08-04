@@ -20,7 +20,11 @@ import type {
   UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { newId } from "@voyant-travel/db/lib/typeid"
-import type { BookingLifecycleCommitOutcomeV1, PricingBreakdownV1 } from "./contracts.js"
+import type {
+  BookingLifecycleCommitOutcomeV1,
+  BookingRequirementsV1,
+  PricingBreakdownV1,
+} from "./contracts.js"
 
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_QUOTE_TTL_MS = 10 * 60 * 1000
@@ -65,6 +69,8 @@ export interface BookingQuoteInternalRecord {
   sessionId: string
   sessionRevision: number
   state: "active" | "superseded" | "consumed" | "expired"
+  /** The descriptor this price was computed against. See `composeRequirements`. */
+  requirements: BookingRequirementsV1
   pricing: PricingBreakdownV1
   priceFingerprint: string
   quotedAt: Date
@@ -193,12 +199,46 @@ export type BookingSessionQuoteUnavailableReason =
   | "policy_unavailable"
   | "selection_unavailable"
 
+export type BookingSessionQuoteUnavailableNextAction =
+  | "select_alternative_inventory"
+  | "contact_operator"
+  | "update_selection"
+
 export type ComposeBookingQuoteResult =
-  | { status: "quoted"; pricing: PricingBreakdownV1 }
+  | {
+      status: "quoted"
+      /**
+       * The descriptor the price was computed against. Required on the quoted
+       * branch — a target that priced necessarily resolved.
+       */
+      requirements: BookingRequirementsV1
+      pricing: PricingBreakdownV1
+    }
+  | {
+      status: "unavailable"
+      /**
+       * Carried through unavailability so a priced-out or sold-out target
+       * still renders a correct wizard. Absent only when the target itself
+       * did not resolve.
+       */
+      requirements?: BookingRequirementsV1
+      reason: BookingSessionQuoteUnavailableReason
+      nextAction: BookingSessionQuoteUnavailableNextAction
+    }
+
+/**
+ * Requirements derivation, split out of quoting so a host can render the
+ * Configure step before it has a price. Implementations must delegate to the
+ * same per-vertical derivation `composeQuote` uses — one code path, so the
+ * requirements a host renders and the requirements a Commit validates against
+ * cannot drift (voyant#4113).
+ */
+export type ComposeBookingRequirementsResult =
+  | { status: "available"; requirements: BookingRequirementsV1 }
   | {
       status: "unavailable"
       reason: BookingSessionQuoteUnavailableReason
-      nextAction: "select_alternative_inventory" | "contact_operator" | "update_selection"
+      nextAction: BookingSessionQuoteUnavailableNextAction
     }
 
 export type PlaceBookingCapacityHoldResult =
@@ -275,6 +315,7 @@ export type CommitCompositeBookingResult =
     >
 
 export interface BookingSessionCompositeLeafRuntime {
+  composeRequirements(input: ComposeBookingQuoteInput): Promise<ComposeBookingRequirementsResult>
   composeQuote(input: ComposeBookingQuoteInput): Promise<ComposeBookingQuoteResult>
   placeCapacityHold(input: {
     session: BookingSessionInternalRecord
@@ -302,6 +343,9 @@ export interface BookingSessionCompositeLeafRuntime {
 }
 
 export interface BookingSessionCompositeHandler {
+  composeRequirements(
+    input: ComposeBookingQuoteInput & { leaf: BookingSessionCompositeLeafRuntime },
+  ): Promise<ComposeBookingRequirementsResult>
   composeQuote(
     input: ComposeBookingQuoteInput & { leaf: BookingSessionCompositeLeafRuntime },
   ): Promise<ComposeBookingQuoteResult>
@@ -395,6 +439,17 @@ export interface BookingSessionModulePorts {
     access: BookingSessionAccessContext
     now: Date
   }): Promise<Record<string, unknown>>
+  /**
+   * Derive the target's Booking Requirements without pricing it. Called on
+   * every outcome that publishes a Session record, so a host can render the
+   * Configure step before it quotes.
+   *
+   * `tx` is the caller's Session transaction where one is open; Session
+   * creation runs before a Session row exists, so implementations must accept
+   * a nullish `tx` and fall back to their own read connection. The derivation
+   * is read-only either way.
+   */
+  composeRequirements(input: ComposeBookingQuoteInput): Promise<ComposeBookingRequirementsResult>
   composeQuote(input: ComposeBookingQuoteInput): Promise<ComposeBookingQuoteResult>
   placeCapacityHold(input: {
     session: BookingSessionInternalRecord
@@ -520,6 +575,22 @@ export function createBookingSessionModule(
 
   const loadSession = (sessionId: string) => repository.getSession(sessionId)
 
+  /**
+   * Resolve the descriptor a host renders this Session from. Terminal and
+   * purged Sessions have no target left to re-derive, and an unresolvable
+   * target is not a reason to fail the Session operation itself — both omit
+   * the field rather than rejecting.
+   */
+  async function sessionRequirements(
+    session: BookingSessionInternalRecord,
+    at: Date,
+    tx?: unknown,
+  ): Promise<BookingRequirementsV1 | undefined> {
+    if (session.state !== "active" || session.purgedAt) return undefined
+    const resolved = await options.ports.composeRequirements({ session, now: at, tx })
+    return resolved.status === "available" ? resolved.requirements : undefined
+  }
+
   function rejectRevision(
     expectedRevision: number,
     session: BookingSessionInternalRecord,
@@ -580,7 +651,10 @@ export function createBookingSessionModule(
       if (existing.createRequestFingerprint !== createRequestFingerprint) {
         return idempotencyConflict()
       }
-      return { kind: "session_created", session: serializeSession(existing) }
+      return {
+        kind: "session_created",
+        session: serializeSession(existing, await sessionRequirements(existing, at)),
+      }
     }
     let statePayload: Record<string, unknown>
     try {
@@ -619,9 +693,15 @@ export function createBookingSessionModule(
       if (created.createRequestFingerprint !== createRequestFingerprint) {
         return idempotencyConflict()
       }
-      return { kind: "session_created", session: serializeSession(created) }
+      return {
+        kind: "session_created",
+        session: serializeSession(created, await sessionRequirements(created, at)),
+      }
     }
-    return { kind: "session_created", session: serializeSession(session) }
+    return {
+      kind: "session_created",
+      session: serializeSession(session, await sessionRequirements(session, at)),
+    }
   }
 
   return {
@@ -665,7 +745,11 @@ export function createBookingSessionModule(
         })
         return {
           kind: "session_resumed",
-          session: serializeSessionView(session, access),
+          session: serializeSessionView(
+            session,
+            access,
+            await sessionRequirements(session, at, tx),
+          ),
         }
       })
     },
@@ -719,7 +803,11 @@ export function createBookingSessionModule(
         await appendSessionAudit(repository, session, "adopt", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_adopted",
-          session: serializeSessionView(session, access),
+          session: serializeSessionView(
+            session,
+            access,
+            await sessionRequirements(session, at, tx),
+          ),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -829,7 +917,7 @@ export function createBookingSessionModule(
         await appendSessionAudit(repository, session, "update", access, at)
         const outcome: BookingSessionOutcomeV1 = {
           kind: "session_updated",
-          session: serializeSession(session),
+          session: serializeSession(session, await sessionRequirements(session, at, tx)),
         }
         await repository.completeOperation({ id: claim.id, outcome })
         return outcome
@@ -867,12 +955,13 @@ export function createBookingSessionModule(
         if (composed.status === "unavailable") {
           return completeAndReturn(repository, claim.id, quoteUnavailable(composed))
         }
-        const { pricing } = composed
+        const { pricing, requirements } = composed
         const quote: BookingQuoteInternalRecord = {
           id: newId("booking_session_quotes"),
           sessionId,
           sessionRevision: session.revision,
           state: "active",
+          requirements,
           pricing,
           priceFingerprint: await stableFingerprint(pricing),
           quotedAt: at,
@@ -884,7 +973,9 @@ export function createBookingSessionModule(
         })
         const outcome: BookingSessionOutcomeV1 = {
           kind: "quote_created",
-          session: serializeSession(session),
+          // The compose call already derived requirements for this target;
+          // publish those rather than re-deriving them for the record.
+          session: serializeSession(session, requirements),
           quote: serializeQuote(quote),
         }
         await repository.completeOperation({ id: claim.id, outcome })
@@ -1824,6 +1915,9 @@ function quoteUnavailable(
     kind: "rejected",
     error: {
       kind: "quote_unavailable",
+      // A target that priced out or sold out still has a renderable wizard.
+      // Dropping the descriptor here is what forced hosts to invent one.
+      ...(result.requirements ? { requirements: result.requirements } : {}),
       reason: result.reason,
       nextAction: result.nextAction,
     },
@@ -2092,7 +2186,10 @@ function capacityKeyForTarget(target: BookingSessionTargetV1): string {
   throw new Error("Booking Session target does not identify capacity")
 }
 
-function serializeSession(session: BookingSessionInternalRecord): BookingSessionRecordV1 {
+function serializeSession(
+  session: BookingSessionInternalRecord,
+  requirements?: BookingRequirementsV1,
+): BookingSessionRecordV1 {
   return {
     id: session.id,
     target: session.target,
@@ -2100,6 +2197,7 @@ function serializeSession(session: BookingSessionInternalRecord): BookingSession
     actorKind: session.actorKind,
     state: session.state,
     revision: session.revision,
+    ...(requirements ? { requirements } : {}),
     expiresAt: session.expiresAt.toISOString(),
     createdAt: session.createdAt.toISOString(),
     updatedAt: session.updatedAt.toISOString(),
@@ -2109,8 +2207,9 @@ function serializeSession(session: BookingSessionInternalRecord): BookingSession
 function serializeSessionView(
   session: BookingSessionInternalRecord,
   access: BookingSessionAccessContext,
+  requirements?: BookingRequirementsV1,
 ): BookingSessionViewV1 {
-  const record = serializeSession(session)
+  const record = serializeSession(session, requirements)
   if (access.actorKind === "staff") {
     return { ...record, redaction: "selection_omitted" }
   }
@@ -2123,6 +2222,7 @@ function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1
     sessionId: quote.sessionId,
     sessionRevision: quote.sessionRevision,
     state: quote.state,
+    requirements: quote.requirements,
     pricing: quote.pricing,
     quotedAt: quote.quotedAt.toISOString(),
     expiresAt: quote.expiresAt.toISOString(),

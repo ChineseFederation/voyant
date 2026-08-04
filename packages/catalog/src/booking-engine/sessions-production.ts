@@ -3,7 +3,16 @@ import {
   createSourcedBookingCommitment,
   type SourcedBookingTravelerInput,
 } from "@voyant-travel/bookings/service-sourced-commitment"
-import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import {
+  DEFAULT_PAX_BANDS,
+  DEFAULT_PAYMENT_INTENTS,
+  defaultBookingFields,
+  defaultRequirementsFlags,
+  defaultTravelerFields,
+  paxBandBaseCode,
+  paxBandsAllowedTotalFrom,
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   allocateBookingNumber,
@@ -20,8 +29,13 @@ import { catalogSourcedEntriesTable } from "../schema-sourced-entries.js"
 import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
+import type { BookingRequirementsV1 } from "./contracts.js"
 import { pricingBreakdownV1 } from "./contracts.js"
-import type { OwnedBookingHandlerRegistry, SelfServiceBillingParty } from "./owned-handler.js"
+import type {
+  ComputeQuoteRequest,
+  OwnedBookingHandlerRegistry,
+  SelfServiceBillingParty,
+} from "./owned-handler.js"
 import { engineParametersFromSelection } from "./quote-support.js"
 import type { SourceAdapterRegistry } from "./registry.js"
 import type { ProductionBookingSessionPaymentDeps } from "./sessions-payment-production.js"
@@ -34,6 +48,7 @@ import {
   type BookingSessionRepository,
   type CommitOwnedBookingInput,
   type CommitSourcedBookingInput,
+  type ComposeBookingRequirementsResult,
   createBookingSessionModule,
   InvalidBookingSessionSelectionError,
 } from "./sessions-service.js"
@@ -76,6 +91,20 @@ export function createProductionBookingSessionModule(
       repository: deps.repository,
       normalizeSelection: async ({ selection, target, access }) =>
         normalizeBookingSelection(target, selection, access),
+      composeRequirements: async (input) => {
+        const { session } = input
+        if (session.target.kind === "trip_snapshot") {
+          const handler = await deps.resolveCompositeHandler?.()
+          return (
+            (handler ? await handler.composeRequirements({ ...input, leaf }) : undefined) ?? {
+              status: "unavailable",
+              reason: "target_not_bookable",
+              nextAction: "contact_operator",
+            }
+          )
+        }
+        return leaf.composeRequirements(input)
+      },
       composeQuote: async (input) => {
         const { session } = input
         if (session.target.kind === "trip_snapshot") {
@@ -129,8 +158,44 @@ export function createProductionBookingSessionModule(
 function createProductionCompositeLeafRuntime(
   deps: ProductionBookingSessionModuleDeps,
 ): BookingSessionCompositeLeafRuntime {
+  const composeRequirements: BookingSessionCompositeLeafRuntime["composeRequirements"] = async ({
+    session,
+    tx,
+  }) => {
+    // Session creation runs before a Session row exists, so there is no
+    // open Session transaction to borrow. Requirements derivation only
+    // reads, so falling back to the module's connection is safe.
+    const db = (tx as PostgresJsDatabase | undefined) ?? deps.db
+    if (session.target.kind === "catalog_item") {
+      const sourced = await resolveSourcedTarget(db, session)
+      return sourced
+        ? { status: "available", requirements: sourcedBookingRequirements() }
+        : unavailableRequirementsResult("product_not_found")
+    }
+    if (session.target.kind === "trip_snapshot") {
+      return unavailableRequirementsResult("unsupported_target")
+    }
+    const handlers = await deps.resolveOwnedHandlers()
+    const handler = handlers.resolve(entityModuleForSession(session.target))
+    if (!handler) {
+      return {
+        status: "unavailable",
+        reason: "target_not_bookable",
+        nextAction: "select_alternative_inventory",
+      }
+    }
+    const result = await handler.computeRequirements(
+      { db, adapterContext: {} as never },
+      ownedComputeRequest(handler.entityModule, session),
+    )
+    return "requirements" in result
+      ? { status: "available", requirements: requirementsForSession(result.requirements) }
+      : unavailableRequirementsResult(result.reason)
+  }
+
   return {
-    async composeQuote({ session, tx }) {
+    composeRequirements,
+    async composeQuote({ session, now, tx }) {
       if (session.target.kind === "catalog_item") {
         return composeSourcedQuote(deps, session, tx as PostgresJsDatabase)
       }
@@ -148,22 +213,28 @@ function createProductionCompositeLeafRuntime(
       }
       const result = await handler.computeQuote(
         { db: tx as PostgresJsDatabase, adapterContext: {} as never },
-        {
-          entityModule: handler.entityModule,
-          entityId: entityIdForSession(session.target),
-          draft: session.statePayload,
-          parameters: engineParametersFromSelection(undefined, session.statePayload, {
-            entityModule: handler.entityModule,
-            sourceKind: "owned",
-          }),
-          scope: { locale: "en", audience: "customer", market: "default" },
-        },
+        ownedComputeRequest(handler.entityModule, session),
       )
+      // The handler builds the descriptor unconditionally, precisely so a
+      // pricing failure cannot collapse it. Carry it through both exits.
+      const requirements = result.requirements
+        ? requirementsForSession(result.requirements)
+        : undefined
       if (!result.available || !result.pricing) {
-        return unavailableQuoteResult(result.invalidReason)
+        return { ...unavailableQuoteResult(result.invalidReason), requirements }
       }
+      // A priced target always has a resolvable descriptor. Ask the same
+      // derivation directly rather than dropping a good quote if a handler
+      // omitted it from its quote result.
+      let quoted = requirements
+      if (!quoted) {
+        const resolved = await composeRequirements({ session, now, tx })
+        if (resolved.status === "available") quoted = resolved.requirements
+      }
+      if (!quoted) return unavailableQuoteResult(result.invalidReason)
       return {
         status: "quoted",
+        requirements: quoted,
         pricing: pricingBreakdownFromBasis(result.pricing, result.upstreamPayload),
       }
     },
@@ -216,10 +287,12 @@ async function composeSourcedQuote(
 ) {
   const sourced = await resolveSourcedTarget(tx, session)
   if (!sourced) return unavailableQuoteResult("product_not_found")
+  // The target resolved, so every exit below can still render a wizard.
+  const requirements = sourcedBookingRequirements()
   const registry = await deps.resolveSourceRegistry()
   const adapter = registry.resolveByConnection(sourced.sourceConnectionId)
   if (!adapter?.capabilities.supportsLiveResolution || !adapter.liveResolve) {
-    return unavailableQuoteResult("no_sell_amount_configured")
+    return { ...unavailableQuoteResult("no_sell_amount_configured"), requirements }
   }
   const result = await adapter.liveResolve(
     { connection_id: sourced.sourceConnectionId },
@@ -232,12 +305,12 @@ async function composeSourcedQuote(
   )
   const liveValues = result.values[sourced.entityId]
   if (result.failed?.[sourced.entityId] || !liveValues) {
-    return unavailableQuoteResult("selection_unavailable")
+    return { ...unavailableQuoteResult("selection_unavailable"), requirements }
   }
   const pricing = pricingBreakdownFromLiveValues(liveValues)
   return pricing
-    ? { status: "quoted" as const, pricing }
-    : unavailableQuoteResult("no_sell_amount_configured")
+    ? { status: "quoted" as const, requirements, pricing }
+    : { ...unavailableQuoteResult("no_sell_amount_configured"), requirements }
 }
 
 async function commitSourcedBooking(
@@ -728,6 +801,59 @@ function policyEvidenceFromValues(values?: Record<string, unknown>) {
     ...(cancellation !== undefined ? { cancellation } : {}),
     ...(bookingTerms !== undefined ? { bookingTerms } : {}),
   }
+}
+
+function ownedComputeRequest(
+  entityModule: string,
+  session: CommitOwnedBookingInput["session"],
+): ComputeQuoteRequest {
+  return {
+    entityModule,
+    entityId: entityIdForSession(session.target),
+    draft: session.statePayload,
+    parameters: engineParametersFromSelection(undefined, session.statePayload, {
+      entityModule,
+      sourceKind: "owned",
+    }),
+    scope: { locale: "en", audience: "customer", market: "default" },
+  }
+}
+
+/**
+ * The hand-written `BookingRequirements` interface and the Zod-inferred
+ * `BookingRequirementsV1` describe the same descriptor; the interface declares
+ * `ReadonlyArray` where the schema infers mutable arrays. Narrow once here,
+ * where vertical output crosses into the Session plane, rather than at every
+ * point that publishes a descriptor.
+ */
+function requirementsForSession(requirements: BookingRequirements): BookingRequirementsV1 {
+  return requirements as unknown as BookingRequirementsV1
+}
+
+/**
+ * Baseline descriptor for a sourced (`catalog_item`) target. The source
+ * adapter contract has no requirements primitive yet, so a sourced row gets
+ * the engine defaults: one Configure occupancy sub-step over the canonical
+ * pax bands, the standard traveler + billing fields, and the full payment
+ * intent set the deployment's capabilities then narrow.
+ */
+function sourcedBookingRequirements(): BookingRequirementsV1 {
+  return requirementsForSession({
+    ...defaultRequirementsFlags(),
+    configureSubSteps: [{ kind: "occupancy", bands: DEFAULT_PAX_BANDS }],
+    paxBands: DEFAULT_PAX_BANDS,
+    paxBandsAllowedTotal: paxBandsAllowedTotalFrom(DEFAULT_PAX_BANDS),
+    travelerFields: defaultTravelerFields(),
+    bookingFields: defaultBookingFields(),
+    paymentIntents: DEFAULT_PAYMENT_INTENTS,
+  })
+}
+
+function unavailableRequirementsResult(
+  invalidReason: string | undefined,
+): ComposeBookingRequirementsResult {
+  const { reason, nextAction } = unavailableQuoteResult(invalidReason)
+  return { status: "unavailable", reason, nextAction }
 }
 
 function unavailableQuoteResult(invalidReason: string | undefined) {

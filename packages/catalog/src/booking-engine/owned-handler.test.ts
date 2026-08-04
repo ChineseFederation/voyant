@@ -15,6 +15,9 @@ function stubHandler(entityModule: string): OwnedBookingHandler {
     async computeQuote(_ctx: OwnedHandlerContext, _req: ComputeQuoteRequest) {
       return { available: true }
     },
+    async computeRequirements(_ctx: OwnedHandlerContext, _req: ComputeQuoteRequest) {
+      return { unavailable: true as const }
+    },
   }
 }
 
@@ -57,6 +60,9 @@ describe("OwnedBookingHandlerRegistry", () => {
       async computeQuote(_ctx, req) {
         captured.push(req)
         return { available: true, pricing: undefined }
+      },
+      async computeRequirements() {
+        return { unavailable: true as const }
       },
     })
 

@@ -17,6 +17,7 @@ import {
 } from "../../src/booking-engine/bookings-ref.js"
 import { createSourceAdapterRegistry } from "../../src/booking-engine/registry.js"
 import { createDrizzleBookingSessionRepository } from "../../src/booking-engine/sessions-drizzle.js"
+import { inMemoryBookingRequirements } from "../../src/booking-engine/sessions-memory.js"
 import {
   bookingSessionAuditEventsTable,
   bookingSessionCommitsTable,
@@ -40,6 +41,7 @@ const ACCESS = {
   capability: "bcap_postgres_booking_session_capability_1234567890",
   storefront: { storefrontId: "sf_pg", channelId: "chan_pg" },
 }
+const REQUIREMENTS = inMemoryBookingRequirements()
 const PRICING = {
   currency: "EUR",
   lines: [],
@@ -206,7 +208,12 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
       ports: {
         repository: sessions,
         normalizeSelection: async ({ selection }) => selection,
-        composeQuote: async () => ({ status: "quoted", pricing: PRICING }),
+        composeRequirements: async () => ({ status: "available", requirements: REQUIREMENTS }),
+        composeQuote: async () => ({
+          status: "quoted",
+          requirements: REQUIREMENTS,
+          pricing: PRICING,
+        }),
         placeCapacityHold: async () => "unavailable",
         releaseCapacityHold: async () => {},
         commitOwnedBooking: async () => {
@@ -457,7 +464,12 @@ function createModule(
     ports: {
       repository,
       normalizeSelection: async ({ selection }) => structuredClone(selection),
-      composeQuote: async () => ({ status: "quoted", pricing: PRICING }),
+      composeRequirements: async () => ({ status: "available", requirements: REQUIREMENTS }),
+      composeQuote: async () => ({
+        status: "quoted",
+        requirements: REQUIREMENTS,
+        pricing: PRICING,
+      }),
       placeCapacityHold: async () => "held",
       releaseCapacityHold: async () => {},
       commitOwnedBooking,

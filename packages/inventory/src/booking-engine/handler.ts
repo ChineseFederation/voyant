@@ -24,6 +24,7 @@ import {
   type BookingRequirements,
   type ComputeQuoteRequest,
   type ComputeQuoteResult,
+  type ComputeRequirementsResult,
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
   defaultBookingFields,
@@ -510,41 +511,23 @@ function bookingTravelerCategory(band: string | undefined): "adult" | "child" | 
 export function createProductsBookingHandler(
   options: CreateProductsBookingHandlerOptions,
 ): OwnedBookingHandler {
-  return {
-    entityModule: "products",
-
-    async computeQuote(
-      ctx: OwnedHandlerContext,
-      request: ComputeQuoteRequest,
-    ): Promise<ComputeQuoteResult> {
-      const product = await loadProduct(ctx.db, request.entityId)
-      if (!product) {
-        return { available: false, invalidReason: "product_not_found" }
-      }
-      if (product.status !== "active" && product.status !== "draft") {
-        return {
-          available: false,
-          invalidReason: `product_status_${product.status}`,
-        }
-      }
-
-      const draft = (request.draft ?? {}) as DraftLike
-      const optionId = draft.configure?.variantId
-      const optionSelections = normalizeOptionSelections(draft.configure?.optionSelections)
-      const slotId = draft.configure?.departureSlotId
-
-      // Concurrent enrichment + slot-date lookup. The slot date is
-      // needed before we can call loadResolvedOptionPrice, so it
-      // joins this batch.
-      const [
-        travelerFields,
-        addonCatalog,
-        productOptionCatalog,
-        paxBands,
-        paxBandDependencies,
-        taxRate,
-        slotDate,
-      ] = await Promise.all([
+  /**
+   * The single derivation of a product's Booking Requirements. Both
+   * `computeRequirements` and `computeQuote` come through here, so the
+   * descriptor a host renders is the descriptor a Commit later validates
+   * against — one code path, not two (voyant#4113).
+   *
+   * The raw catalogs come back alongside it because pricing needs the same
+   * addon and option rows and must not read them a second time.
+   */
+  async function deriveRequirements(ctx: OwnedHandlerContext, request: ComputeQuoteRequest) {
+    const product = await loadProduct(ctx.db, request.entityId)
+    if (!product) return { status: "unavailable" as const, reason: "product_not_found" }
+    if (product.status !== "active" && product.status !== "draft") {
+      return { status: "unavailable" as const, reason: `product_status_${product.status}` }
+    }
+    const [travelerFields, addonCatalog, productOptions, paxBands, paxBandDependencies] =
+      await Promise.all([
         safeLoad("loadTravelerFields", options.loadTravelerFields?.(ctx, request.entityId)),
         safeLoad("loadAddonCatalog", options.loadAddonCatalog?.(ctx, request.entityId)),
         safeLoad("loadProductOptions", options.loadProductOptions?.(ctx, request.entityId)),
@@ -553,6 +536,59 @@ export function createProductsBookingHandler(
           "loadPaxBandDependencies",
           options.loadPaxBandDependencies?.(ctx, request.entityId),
         ),
+      ])
+    return {
+      status: "available" as const,
+      product,
+      addonCatalog,
+      productOptions,
+      requirements: buildOwnedProductRequirements({
+        travelerFields,
+        addonCatalog,
+        productOptions,
+        paxBands,
+        paxBandDependencies,
+      }),
+    }
+  }
+
+  return {
+    entityModule: "products",
+
+    async computeRequirements(
+      ctx: OwnedHandlerContext,
+      request: ComputeQuoteRequest,
+    ): Promise<ComputeRequirementsResult> {
+      const derived = await deriveRequirements(ctx, request)
+      return derived.status === "available"
+        ? { requirements: derived.requirements }
+        : { unavailable: true, reason: derived.reason }
+    },
+
+    async computeQuote(
+      ctx: OwnedHandlerContext,
+      request: ComputeQuoteRequest,
+    ): Promise<ComputeQuoteResult> {
+      // The journey descriptor never depends on pricing — derive it first
+      // so the wizard always renders the right steps, bands, options, extras
+      // and units. Pricing is best-effort below: a failure returns the
+      // requirements with no price rather than 500ing the quote (which would
+      // collapse them to the bare default).
+      const derived = await deriveRequirements(ctx, request)
+      if (derived.status === "unavailable") {
+        return { available: false, invalidReason: derived.reason }
+      }
+      const { product, addonCatalog, productOptions: productOptionCatalog } = derived
+      const shape = derived.requirements
+
+      const draft = (request.draft ?? {}) as DraftLike
+      const optionId = draft.configure?.variantId
+      const optionSelections = normalizeOptionSelections(draft.configure?.optionSelections)
+      const slotId = draft.configure?.departureSlotId
+
+      // The slot date is needed before we can call loadResolvedOptionPrice,
+      // so it shares this batch with the tax-rate lookup.
+      const [taxRate, slotDate] = await Promise.all([
         safeLoad(
           "loadTaxRate",
           options.loadTaxRate?.(ctx, {
@@ -567,19 +603,6 @@ export function createProductsBookingHandler(
             )
           : Promise.resolve(draft.configure?.departureDate ?? null),
       ])
-
-      // The journey descriptor never depends on pricing — build it
-      // unconditionally so the wizard always renders the right steps,
-      // bands, options, extras and units. Pricing is best-effort: a
-      // failure here returns the shape with no price rather than 500ing
-      // the quote (which would collapse the shape to the bare default).
-      const shape = buildOwnedProductRequirements({
-        travelerFields,
-        addonCatalog,
-        productOptions: productOptionCatalog,
-        paxBands,
-        paxBandDependencies,
-      })
 
       let available = false
       let pricing: ComputeQuoteResult["pricing"]
@@ -691,7 +714,7 @@ export function createProductsBookingHandler(
           : undefined
       } catch (error) {
         console.warn(
-          "[products/booking-engine] pricing failed; returning shape without a price",
+          "[products/booking-engine] pricing failed; returning requirements without a price",
           error,
         )
         available = false
@@ -702,7 +725,7 @@ export function createProductsBookingHandler(
         available,
         invalidReason: available ? undefined : "no_sell_amount_configured",
         pricing,
-        shape,
+        requirements: shape,
       }
     },
 

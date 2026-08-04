@@ -1,10 +1,19 @@
 import type {
   BookingHoldInternalRecord,
   BookingQuoteInternalRecord,
+  BookingRequirementsV1,
   BookingSessionCompositeLeafRuntime,
   BookingSessionInternalRecord,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog/booking-engine"
+import {
+  DEFAULT_PAX_BANDS,
+  DEFAULT_PAYMENT_INTENTS,
+  defaultBookingFields,
+  defaultRequirementsFlags,
+  defaultTravelerFields,
+  paxBandsAllowedTotalFrom,
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { describe, expect, it, vi } from "vitest"
 
@@ -15,6 +24,14 @@ import {
 import type { TripComponent, TripSnapshot } from "../src/schema.js"
 
 const NOW = new Date("2026-08-02T10:00:00.000Z")
+const LEAF_REQUIREMENTS = {
+  ...defaultRequirementsFlags(),
+  paxBands: [...DEFAULT_PAX_BANDS],
+  paxBandsAllowedTotal: paxBandsAllowedTotalFrom(DEFAULT_PAX_BANDS),
+  travelerFields: [...defaultTravelerFields()],
+  bookingFields: [...defaultBookingFields()],
+  paymentIntents: [...DEFAULT_PAYMENT_INTENTS],
+} as BookingRequirementsV1
 const ACCESS = {
   actorKind: "staff" as const,
   principalId: "staff_1",
@@ -198,6 +215,7 @@ describe("accepted Proposal Version Booking Session composite", () => {
     const leaf = leafRuntime()
     leaf.composeQuote = async ({ session }) => ({
       status: "quoted",
+      requirements: LEAF_REQUIREMENTS,
       pricing: pricing(entityId(session) === "prod_first" ? 12_000 : 10_000),
     })
     const quote = await createQuote(handler, state.session, leaf, state.db)
@@ -261,6 +279,9 @@ describe("accepted Proposal Version Booking Session composite", () => {
       }),
     ).resolves.toEqual({
       status: "unavailable",
+      // The trip's own descriptor survives the policy failure so the host
+      // still renders the journey it is in.
+      requirements: expect.objectContaining({ showsConfigure: false }),
       reason: "policy_unavailable",
       nextAction: "contact_operator",
     })
@@ -336,11 +357,16 @@ function leafRuntime(
   } = {},
 ): BookingSessionCompositeLeafRuntime {
   return {
+    composeRequirements: async () =>
+      options.unavailable
+        ? { status: "unavailable", reason: "selection_unavailable", nextAction: "update_selection" }
+        : { status: "available", requirements: LEAF_REQUIREMENTS },
     composeQuote: async () =>
       options.unavailable
         ? { status: "unavailable", reason: "selection_unavailable", nextAction: "update_selection" }
         : {
             status: "quoted",
+            requirements: LEAF_REQUIREMENTS,
             pricing: pricing(options.quoteTotal ?? 11_000, options.policyEvidence),
           },
     placeCapacityHold: options.placeCapacityHold ?? (async () => "held"),
@@ -383,6 +409,7 @@ async function createQuote(
     sessionId: session.id,
     sessionRevision: session.revision,
     state: "active",
+    requirements: result.requirements,
     pricing: result.pricing,
     priceFingerprint: "aggregate_quote",
     quotedAt: NOW,

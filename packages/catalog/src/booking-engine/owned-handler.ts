@@ -72,14 +72,25 @@ export interface ComputeQuoteResult {
   invalidReason?: string
   pricing?: PricingBasis
   /**
-   * Per-quote journey descriptor. Owned handlers return this when
-   * they have enough context (always, for products in Phase A; the
-   * journey falls back to defaults when omitted).
+   * Per-quote journey descriptor, produced by this handler's
+   * `computeRequirements`. Present whenever the target resolved —
+   * including when pricing failed, so an unavailable target still
+   * renders a correct wizard. Absent only when the target itself
+   * could not be resolved.
    */
-  shape?: BookingRequirements
+  requirements?: BookingRequirements
   /** Echoed back into `catalog_quotes.upstream_payload` for audit. */
   upstreamPayload?: Record<string, unknown>
 }
+
+/**
+ * Outcome of the requirements-only derivation. Either the target resolved and
+ * has a renderable descriptor, or it did not resolve at all — `reason` mirrors
+ * `ComputeQuoteResult.invalidReason` so callers classify both the same way.
+ */
+export type ComputeRequirementsResult =
+  | { requirements: BookingRequirements }
+  | { unavailable: true; reason?: string }
 
 export interface ComputeQuoteBatchSelection {
   selectionId: string
@@ -185,8 +196,22 @@ export interface OwnedBookingHandler {
   readonly holdReleaseGraceMs?: number
 
   /**
+   * Derive what a booking of this row requires, without pricing it.
+   *
+   * The engine calls this on every outcome that publishes a Session record,
+   * so a host can render the Configure step before it can quote. `computeQuote`
+   * must call this same method rather than building its own descriptor: the
+   * requirements a host renders and the requirements a Commit later validates
+   * against have to be one derivation, not two (voyant#4113).
+   */
+  computeRequirements(
+    ctx: OwnedHandlerContext,
+    request: ComputeQuoteRequest,
+  ): Promise<ComputeRequirementsResult>
+
+  /**
    * Live-quote an owned row for a draft. The engine calls this on
-   * every meaningful input change. Returns shape + pricing +
+   * every meaningful input change. Returns requirements + pricing +
    * availability.
    *
    * Implementations should be idempotent — the same input must

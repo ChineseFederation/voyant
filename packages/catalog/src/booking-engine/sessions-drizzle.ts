@@ -3,7 +3,7 @@ import { newId } from "@voyant-travel/db/lib/typeid"
 import { and, eq, inArray, isNull, lte, notExists, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import type { PricingBreakdownV1 } from "./contracts.js"
+import type { BookingRequirementsV1, PricingBreakdownV1 } from "./contracts.js"
 import {
   bookingSessionAuditEventsTable,
   bookingSessionCommitsTable,
@@ -227,6 +227,7 @@ export function createDrizzleBookingSessionRepository(
           sessionId: record.sessionId,
           sessionRevision: record.sessionRevision,
           state: record.state,
+          requirements: record.requirements,
           pricing: record.pricing,
           priceFingerprint: record.priceFingerprint,
           quotedAt: record.quotedAt,
@@ -237,6 +238,7 @@ export function createDrizzleBookingSessionRepository(
           target: bookingSessionQuotesTable.id,
           set: {
             state: record.state,
+            requirements: record.requirements,
             pricing: record.pricing,
             priceFingerprint: record.priceFingerprint,
             expiresAt: record.expiresAt,
@@ -491,6 +493,7 @@ function mapQuote(row: SelectBookingSessionQuote): BookingQuoteInternalRecord {
     sessionId: row.sessionId,
     sessionRevision: row.sessionRevision,
     state: row.state as BookingQuoteInternalRecord["state"],
+    requirements: row.requirements as BookingRequirementsV1,
     pricing: row.pricing as PricingBreakdownV1,
     priceFingerprint: row.priceFingerprint,
     quotedAt: row.quotedAt,

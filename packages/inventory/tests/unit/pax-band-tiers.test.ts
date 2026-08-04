@@ -103,7 +103,7 @@ describe("quoting and committing a product with two child tiers", () => {
 
     const quote = await computeQuote(handler, draft({ adult: 1 }))
 
-    expect(quote.shape?.paxBands.map((band) => band.code)).toEqual([
+    expect(quote.requirements?.paxBands.map((band) => band.code)).toEqual([
       "adult",
       "child",
       "child:pc_c2",

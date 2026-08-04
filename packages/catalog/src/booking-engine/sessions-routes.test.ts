@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,
+  inMemoryBookingRequirements,
 } from "./sessions-memory.js"
 import { createBookingSessionRoutes } from "./sessions-routes.js"
 import { createBookingSessionModule } from "./sessions-service.js"
@@ -70,8 +71,10 @@ function createApp(
     ports: {
       repository,
       normalizeSelection: async ({ selection }) => selection,
+      composeRequirements: inventory.composeRequirements,
       composeQuote: async () => ({
         status: "quoted",
+        requirements: inMemoryBookingRequirements(),
         pricing: {
           currency: "EUR",
           lines: [],

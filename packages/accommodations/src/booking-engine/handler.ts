@@ -20,6 +20,7 @@ import type {
   ComputeQuoteRequest,
   ComputeQuoteResult,
   ComputeQuotesRequest,
+  ComputeRequirementsResult,
   OwnedBookingHandler,
   OwnedHandlerContext,
 } from "@voyant-travel/catalog/booking-engine"
@@ -88,22 +89,44 @@ export interface CreateAccommodationBookingHandlerOptions {
 export function createAccommodationBookingHandler(
   options: CreateAccommodationBookingHandlerOptions,
 ): OwnedBookingHandler {
+  /**
+   * The single derivation of a property's Booking Requirements. Both
+   * `computeRequirements` and `computeQuote` come through here, so the
+   * descriptor a host renders is the descriptor a Commit later validates
+   * against — one code path, not two (voyant#4113).
+   */
+  async function deriveRequirements(ctx: OwnedHandlerContext, request: ComputeQuoteRequest) {
+    const content = await options.loadContent(ctx, request.entityId)
+    if (!content) return { status: "unavailable" as const, reason: "property_not_found" }
+    const requirements: BookingRequirements = buildAccommodationRequirements(content, {
+      minNights: options.defaultMinNights,
+      maxNights: options.defaultMaxNights,
+    })
+    return { status: "available" as const, content, requirements }
+  }
+
   return {
     entityModule: "accommodations",
+
+    async computeRequirements(
+      ctx: OwnedHandlerContext,
+      request: ComputeQuoteRequest,
+    ): Promise<ComputeRequirementsResult> {
+      const derived = await deriveRequirements(ctx, request)
+      return derived.status === "available"
+        ? { requirements: derived.requirements }
+        : { unavailable: true, reason: derived.reason }
+    },
 
     async computeQuote(
       ctx: OwnedHandlerContext,
       request: ComputeQuoteRequest,
     ): Promise<ComputeQuoteResult> {
-      const content = await options.loadContent(ctx, request.entityId)
-      if (!content) {
-        return { available: false, invalidReason: "property_not_found" }
+      const derived = await deriveRequirements(ctx, request)
+      if (derived.status === "unavailable") {
+        return { available: false, invalidReason: derived.reason }
       }
-
-      const shape: BookingRequirements = buildAccommodationRequirements(content, {
-        minNights: options.defaultMinNights,
-        maxNights: options.defaultMaxNights,
-      })
+      const shape = derived.requirements
 
       const draft = (request.draft ?? {}) as DraftLike
       const quoteInput = quoteInputFromDraft(draft, request.scope.currency)
@@ -114,7 +137,7 @@ export function createAccommodationBookingHandler(
         available: quote?.status === "ok" ? quote.available : true,
         invalidReason: quoteInvalidReason(quote),
         pricing,
-        shape,
+        requirements: shape,
       }
     },
 
@@ -163,7 +186,7 @@ export function createAccommodationBookingHandler(
             available: quote?.status === "ok" ? quote.available : !invalidReason,
             invalidReason: invalidReason ?? quoteInvalidReason(quote),
             pricing: quote?.status === "ok" ? pricingFromOwnedStayQuote(quote) : undefined,
-            shape,
+            requirements: shape,
           },
         }
       })

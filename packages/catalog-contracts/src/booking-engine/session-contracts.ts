@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { pricingBreakdownV1 } from "./draft-contracts.js"
+import { bookingRequirementsV1, pricingBreakdownV1 } from "./draft-contracts.js"
 import { bookingLifecycleCommitOutcomeV1 } from "./lifecycle-conformance.js"
 
 export const bookingSessionActorKindV1 = z.enum(["anonymous", "customer", "staff", "partner"])
@@ -76,6 +76,19 @@ export const bookingSessionRecordV1 = z.object({
   actorKind: bookingSessionActorKindV1,
   state: bookingSessionStateV1,
   revision: z.number().int().positive(),
+  /**
+   * Server-owned Booking Requirements for this Session's target — what a
+   * booking of it requires, and therefore which wizard steps a host renders.
+   *
+   * It rides the Session and not only the Quote because a host must draw the
+   * Configure step *before* it can quote: requirements on the Quote alone
+   * would leave it needing a price to render its first screen.
+   *
+   * Rule: present whenever the Session is `active` and its target resolves;
+   * absent for terminal (`consumed` / `expired` / `abandoned`) or purged
+   * Sessions, whose target is no longer re-derived.
+   */
+  requirements: bookingRequirementsV1.optional(),
   expiresAt: z.string().datetime(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
@@ -151,6 +164,12 @@ export const bookingQuoteRecordV1 = z.object({
   sessionId: z.string().min(1),
   sessionRevision: z.number().int().positive(),
   state: bookingSessionQuoteLifecycleStateV1,
+  /**
+   * The Booking Requirements this price was computed against. Required —
+   * a Quote always has a resolvable target, and the requirements a host
+   * renders must be the same derivation the Commit later validates.
+   */
+  requirements: bookingRequirementsV1,
   pricing: pricingBreakdownV1,
   quotedAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
@@ -236,6 +255,13 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("quote_unavailable"),
+    /**
+     * Requirements survive unavailability: a priced-out or sold-out target
+     * must still render a correct wizard so the buyer can change the
+     * selection that made it unavailable. Absent only when the target
+     * itself failed to resolve.
+     */
+    requirements: bookingRequirementsV1.optional(),
     reason: z.enum([
       "target_not_found",
       "target_not_bookable",

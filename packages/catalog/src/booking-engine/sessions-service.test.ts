@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest"
 import {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,
+  inMemoryBookingRequirements,
 } from "./sessions-memory.js"
 import {
   type BookingSessionPaymentPorts,
@@ -68,7 +69,12 @@ function createHarness(
     ports: {
       repository,
       normalizeSelection: async ({ selection }) => selection,
-      composeQuote: async () => ({ status: "quoted", pricing: price }),
+      composeRequirements: inventory.composeRequirements,
+      composeQuote: async () => ({
+        status: "quoted",
+        requirements: inMemoryBookingRequirements(),
+        pricing: price,
+      }),
       placeCapacityHold: inventory.placeCapacityHold,
       releaseCapacityHold: inventory.releaseCapacityHold,
       commitOwnedBooking: inventory.commitOwnedBooking,
@@ -1011,7 +1017,12 @@ describe("Booking Session v1 owned tracer", () => {
       ports: {
         repository,
         normalizeSelection: async ({ selection }) => selection,
-        composeQuote: async () => ({ status: "quoted", pricing: BASE_PRICING }),
+        composeRequirements: inventory.composeRequirements,
+        composeQuote: async () => ({
+          status: "quoted",
+          requirements: inMemoryBookingRequirements(),
+          pricing: BASE_PRICING,
+        }),
         placeCapacityHold: inventory.placeCapacityHold,
         releaseCapacityHold: inventory.releaseCapacityHold,
         commitOwnedBooking: async (input) =>
@@ -1407,7 +1418,15 @@ describe("Booking Session v1 sourced continuation", () => {
       ports: {
         repository,
         normalizeSelection: async ({ selection }) => selection,
-        composeQuote: async () => ({ status: "quoted", pricing: BASE_PRICING }),
+        composeRequirements: async () => ({
+          status: "available",
+          requirements: inMemoryBookingRequirements(),
+        }),
+        composeQuote: async () => ({
+          status: "quoted",
+          requirements: inMemoryBookingRequirements(),
+          pricing: BASE_PRICING,
+        }),
         placeCapacityHold: async () => "unavailable",
         releaseCapacityHold: async () => {},
         commitOwnedBooking: async () => {
