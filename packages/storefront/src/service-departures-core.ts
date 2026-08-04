@@ -41,6 +41,35 @@ export function normalizeLocalDate(value: Date | string | null | undefined) {
   return String(value).slice(0, 10)
 }
 
+/**
+ * Customer-facing capacity/remaining pair for one departure slot.
+ *
+ * `remaining_pax` is the only remaining-capacity projection the platform
+ * actually maintains: booking, hold, amendment and refund flows update it
+ * atomically, and `updateSlot` recomputes it on capacity changes.
+ *
+ * `remaining_resources` is NOT maintained. It can be seeded once when a slot
+ * is created and is then explicitly stripped on every update, with no writer
+ * anywhere that decrements it as bookings land. Using it as a fallback for
+ * `remaining_pax` therefore advertises a number that can only ever be equal to
+ * or higher than the truth — an overselling path (#4161). It is deliberately
+ * not read here.
+ *
+ * When `remaining_pax` is unset the remaining capacity is genuinely *unknown*,
+ * and we surface `null` for it. Downstream, `buildAvailabilityState` only
+ * derives `sold_out` from an explicit `remaining === 0`, so unknown degrades to
+ * "not known to be sold out" rather than a fabricated count, and storefront UI
+ * renders it as a placeholder rather than a number of seats left.
+ */
+export function resolveDepartureCapacity(
+  slot: Pick<SlotRow, "unlimited" | "initialPax" | "remainingPax">,
+): { capacity: number | null; remaining: number | null } {
+  return {
+    capacity: slot.unlimited ? null : (slot.initialPax ?? slot.remainingPax ?? null),
+    remaining: slot.remainingPax ?? null,
+  }
+}
+
 export function buildResourceManifest(resources: SlotResourceAvailability[]) {
   if (resources.length === 0) return null
   const totals = new Map<string, { capacity: number; assigned: number; available: number }>()

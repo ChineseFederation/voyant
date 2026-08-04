@@ -10,6 +10,7 @@ import {
   listSlots,
   normalizeIso,
   normalizeLocalDate,
+  resolveDepartureCapacity,
 } from "./service-departures-core.js"
 import {
   buildOfferPreview,
@@ -472,6 +473,7 @@ export async function previewStorefrontDeparturePrice(
   const basePrice = Number((subtotal - extrasTotal).toFixed(2))
   const slotResources = await getStorefrontSlotResourceAvailability(db, slot.id)
   const resourceManifest = buildResourceManifest(slotResources)
+  const { capacity: slotCapacity, remaining: slotRemaining } = resolveDepartureCapacity(slot)
 
   return {
     departureId: slot.id,
@@ -495,13 +497,13 @@ export async function previewStorefrontDeparturePrice(
         status: buildDepartureStatus(slot, context),
         availabilityState: buildAvailabilityState({
           status: buildDepartureStatus(slot, context),
-          remaining: slot.remainingPax ?? slot.remainingResources ?? null,
-          capacity: slot.unlimited ? null : (slot.initialPax ?? slot.remainingPax ?? null),
+          remaining: slotRemaining,
+          capacity: slotCapacity,
           pastCutoff: slot.pastCutoff,
           tooEarly: slot.tooEarly,
         }),
-        capacity: slot.unlimited ? null : (slot.initialPax ?? slot.remainingPax ?? null),
-        remaining: slot.remainingPax ?? slot.remainingResources ?? null,
+        capacity: slotCapacity,
+        remaining: slotRemaining,
         pastCutoff: slot.pastCutoff,
         tooEarly: slot.tooEarly,
         resourceManifest,

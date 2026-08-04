@@ -23,7 +23,6 @@ export interface StorefrontSlotRow {
   unlimited: boolean
   initialPax: number | null
   remainingPax: number | null
-  remainingResources: number | null
   pastCutoff: boolean
   tooEarly: boolean
   nights: number | null
@@ -94,7 +93,6 @@ type StorefrontSlotDbRow = {
   unlimited: boolean
   initial_pax: number | string | null
   remaining_pax: number | string | null
-  remaining_resources: number | string | null
   past_cutoff: boolean
   too_early: boolean
   nights: number | string | null
@@ -184,7 +182,6 @@ function mapSlot(row: StorefrontSlotDbRow): StorefrontSlotRow {
     unlimited: row.unlimited,
     initialPax: toNumber(row.initial_pax),
     remainingPax: toNumber(row.remaining_pax),
-    remainingResources: toNumber(row.remaining_resources),
     pastCutoff: row.past_cutoff,
     tooEarly: row.too_early,
     nights: toNumber(row.nights),
@@ -277,7 +274,6 @@ export async function listStorefrontSlots(
         s.unlimited,
         s.initial_pax,
         s.remaining_pax,
-        s.remaining_resources,
         s.past_cutoff,
         s.too_early,
         s.nights,

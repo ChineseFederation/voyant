@@ -15,6 +15,7 @@ import {
   listSlots,
   normalizeIso,
   normalizeLocalDate,
+  resolveDepartureCapacity,
   type SlotResourceAvailability,
   type SlotRow,
   summarizeProductAvailability,
@@ -46,6 +47,7 @@ async function buildDeparture(
   const context = await resolvePricingContext(db, slot.productId, slot.optionId, slot.id)
   const itineraryId = slot.itineraryId ?? defaultItineraryByProduct.get(slot.productId) ?? null
   const resources = resourceAvailability ?? []
+  const { capacity, remaining } = resolveDepartureCapacity(slot)
 
   return {
     id: slot.id,
@@ -66,8 +68,8 @@ async function buildDeparture(
             durationMinutes: slot.durationMinutes,
           },
     meetingPoint: meetingPointByProduct?.get(slot.productId) ?? null,
-    capacity: slot.unlimited ? null : (slot.initialPax ?? slot.remainingPax ?? null),
-    remaining: slot.remainingPax ?? slot.remainingResources ?? null,
+    capacity,
+    remaining,
     departureStatus: buildDepartureStatus(slot, context),
     nights: slot.nights,
     days: slot.days,

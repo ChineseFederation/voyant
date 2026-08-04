@@ -141,6 +141,17 @@ export const availabilitySlots = pgTable(
     remainingPax: integer("remaining_pax"),
     initialPickups: integer("initial_pickups"),
     remainingPickups: integer("remaining_pickups"),
+    /**
+     * @deprecated Never maintained — do not read as availability (#4161).
+     *
+     * This column can be seeded once when a slot is created and is then
+     * explicitly stripped on every update. No booking, hold, amendment or
+     * refund flow decrements it, so its value only ever drifts upward relative
+     * to the truth. `remainingPax` is the maintained remaining-capacity
+     * projection; use that (and treat its absence as *unknown*, not as a
+     * number of seats). Retained for now so existing rows and admin read
+     * models keep working; slated for removal.
+     */
     remainingResources: integer("remaining_resources"),
     pastCutoff: boolean("past_cutoff").notNull().default(false),
     tooEarly: boolean("too_early").notNull().default(false),
