@@ -2,6 +2,7 @@ import { z } from "zod"
 import { bookingLifecycleCommitOutcomeV1 } from "./lifecycle-conformance.js"
 import { pricingBreakdownV1 } from "./pricing-contracts.js"
 import { bookingRequirementsV1 } from "./requirements-contracts.js"
+import { unsatisfiedRequirementV1 } from "./requirements-validation.js"
 
 export const bookingSessionActorKindV1 = z.enum(["anonymous", "customer", "staff", "partner"])
 export type BookingSessionActorKindV1 = z.infer<typeof bookingSessionActorKindV1>
@@ -233,6 +234,13 @@ export const bookingQuoteRecordV1 = z.object({
    * renders must be the same derivation the Commit later validates.
    */
   requirements: bookingRequirementsV1,
+  /**
+   * Fingerprint of `requirements`, computed the same way `priceFingerprint`
+   * is. The client echoes it back on Commit and the server re-derives and
+   * compares, so a Commit collected against a stale descriptor is rejected
+   * instead of silently booking the wrong field set.
+   */
+  requirementsFingerprint: z.string().min(1),
   pricing: pricingBreakdownV1,
   quotedAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
@@ -265,6 +273,13 @@ export type BookingHoldRecordV1 = z.infer<typeof bookingHoldRecordV1>
 export const commitBookingSessionV1 = z.object({
   expectedRevision: z.number().int().positive(),
   quoteId: z.string().min(1),
+  /**
+   * The `requirementsFingerprint` of the Quote the client actually rendered
+   * against. Required, not optional: a Commit that cannot say which descriptor
+   * it collected is a Commit nobody can validate, which is how a host ends up
+   * booking a field set the server never published (voyant#4113).
+   */
+  requirementsFingerprint: z.string().min(1),
   /** Required for owned inventory; sourced targets may commit without a Hold. */
   holdId: z.string().min(1).optional(),
   idempotencyKey: z.string().min(8).max(128),
@@ -352,6 +367,27 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
       "price_changed",
     ]),
     nextAction: z.enum(["select_alternative_inventory", "update_selection", "request_fresh_quote"]),
+  }),
+  z.object({
+    /**
+     * The selection does not answer the Booking Requirements the server
+     * published. Recoverable: `unsatisfied` names every declared requirement
+     * the selection misses, so the host can fix all of them in one pass
+     * instead of round-tripping per field.
+     */
+    kind: z.literal("selection_incomplete"),
+    unsatisfied: z.array(unsatisfiedRequirementV1).min(1),
+    nextAction: z.literal("update_selection"),
+  }),
+  z.object({
+    /**
+     * The Booking Requirements re-derived at Commit are not the ones the
+     * client rendered against. Recoverable the same way a changed price is:
+     * take a fresh Quote, which carries the current descriptor.
+     */
+    kind: z.literal("requirements_changed"),
+    requirementsFingerprint: z.string().min(1),
+    nextAction: z.literal("request_fresh_quote"),
   }),
   z.object({
     kind: z.literal("invalid_selection"),

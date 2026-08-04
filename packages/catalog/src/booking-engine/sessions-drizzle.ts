@@ -236,6 +236,7 @@ export function createDrizzleBookingSessionRepository(
           requirements: record.requirements,
           pricing: record.pricing,
           priceFingerprint: record.priceFingerprint,
+          requirementsFingerprint: record.requirementsFingerprint,
           quotedAt: record.quotedAt,
           expiresAt: record.expiresAt,
           consumedAt: record.state === "consumed" ? new Date() : null,
@@ -247,6 +248,7 @@ export function createDrizzleBookingSessionRepository(
             requirements: record.requirements,
             pricing: record.pricing,
             priceFingerprint: record.priceFingerprint,
+            requirementsFingerprint: record.requirementsFingerprint,
             expiresAt: record.expiresAt,
             consumedAt: record.state === "consumed" ? new Date() : null,
           },
@@ -507,6 +509,7 @@ function mapQuote(row: SelectBookingSessionQuote): BookingQuoteInternalRecord {
     requirements: row.requirements as BookingRequirementsV1,
     pricing: row.pricing as PricingBreakdownV1,
     priceFingerprint: row.priceFingerprint,
+    requirementsFingerprint: row.requirementsFingerprint,
     quotedAt: row.quotedAt,
     expiresAt: row.expiresAt,
   }

@@ -116,6 +116,7 @@ describe("manual Booking Session v1 client", () => {
       sessionId: "bses_1",
       revision: 1,
       quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements-fingerprint-1",
       holdId: "bshd_1",
       commitIdempotencyKey: "manual-booking:payment:commit",
       redirectUrl: "https://payments.test/pays_1",
@@ -151,6 +152,7 @@ describe("manual Booking Session v1 client", () => {
       sessionId: "bses_1",
       revision: 1,
       quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements-fingerprint-1",
       holdId: "bshd_1",
       commitIdempotencyKey: "manual-booking:retry:commit",
     })
@@ -248,6 +250,7 @@ function quote() {
       sessionRevision: 1,
       state: "active",
       requirements: REQUIREMENTS,
+      requirementsFingerprint: "requirements-fingerprint-1",
       pricing: {
         currency: "EUR",
         lines: [],

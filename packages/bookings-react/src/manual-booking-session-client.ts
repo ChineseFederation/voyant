@@ -14,6 +14,8 @@ export interface ManualBookingSessionContinuation {
   sessionId: string
   revision: number
   quoteId: string
+  /** The descriptor the Quote was published with; the Commit echoes it back. */
+  requirementsFingerprint: string
   holdId: string
   commitIdempotencyKey: string
 }
@@ -36,6 +38,7 @@ export type ManualBookingSessionCommitResult =
       sessionId: string
       revision: number
       quoteId: string
+      requirementsFingerprint: string
       holdId: string
       commitIdempotencyKey: string
       redirectUrl: string | null
@@ -85,6 +88,7 @@ export async function commitManualBookingSessionV1(
     sessionId: session.id,
     revision: session.revision,
     quoteId: quoted.quote.id,
+    requirementsFingerprint: quoted.quote.requirementsFingerprint,
     holdId: held.hold.id,
     commitIdempotencyKey,
   }
@@ -103,6 +107,7 @@ async function commitContinuation(
       body: JSON.stringify({
         expectedRevision: continuation.revision,
         quoteId: continuation.quoteId,
+        requirementsFingerprint: continuation.requirementsFingerprint,
         holdId: continuation.holdId,
         idempotencyKey: continuation.commitIdempotencyKey,
         ...(payment ? { payment } : {}),

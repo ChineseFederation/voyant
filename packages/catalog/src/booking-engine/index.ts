@@ -102,12 +102,18 @@ export {
   type RatePlanOptionV1,
   type RoomOptionV1,
   ratePlanOptionV1,
+  requiredRequirementKeysV1,
   roomOptionV1,
   type TravelerEntryV1,
   type TravelerFieldRequirementV1,
   travelerBandCodeSchema,
   travelerEntryV1,
   travelerFieldRequirementV1,
+  type UnsatisfiedRequirementReasonV1,
+  type UnsatisfiedRequirementV1,
+  unsatisfiedRequirementReasonV1,
+  unsatisfiedRequirementV1,
+  validateSelectionAgainstRequirements,
 } from "./contracts.js"
 export {
   BookingEngineError,

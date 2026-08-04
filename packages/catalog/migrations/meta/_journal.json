@@ -113,6 +113,13 @@
       "when": 1785848400000,
       "tag": "20260804160000_booking_session_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1785859200000,
+      "tag": "20260804190000_booking_session_quote_requirements_fingerprint",
+      "breakpoints": true
     }
   ]
 }

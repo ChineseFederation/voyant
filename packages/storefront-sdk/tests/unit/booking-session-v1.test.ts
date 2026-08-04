@@ -39,6 +39,7 @@ describe("Booking Session v1 SDK", () => {
             sessionRevision: 1,
             state: "active",
             requirements: REQUIREMENTS,
+            requirementsFingerprint: "requirements-fingerprint-demo",
             pricing: {
               currency: "EUR",
               lines: [],
@@ -131,6 +132,7 @@ describe("Booking Session v1 SDK", () => {
       {
         expectedRevision: 1,
         quoteId: "bsqu_demo",
+        requirementsFingerprint: "requirements-fingerprint-demo",
         holdId: "bshd_demo",
         idempotencyKey: "payment-journey:commit",
       },
@@ -186,6 +188,7 @@ describe("Booking Session v1 SDK", () => {
             sessionRevision: 2,
             state: "active",
             requirements: REQUIREMENTS,
+            requirementsFingerprint: "requirements-fingerprint-demo",
             pricing: {
               currency: "EUR",
               lines: [],

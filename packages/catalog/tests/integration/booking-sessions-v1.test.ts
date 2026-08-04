@@ -142,6 +142,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
     const commitInput = (idempotencyKey: string) => ({
       expectedRevision: prepared.session.revision,
       quoteId: prepared.quote.id,
+      requirementsFingerprint: prepared.quote.requirementsFingerprint,
       holdId: prepared.hold.id,
       idempotencyKey,
     })
@@ -180,6 +181,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
         {
           expectedRevision: prepared.session.revision,
           quoteId: prepared.quote.id,
+          requirementsFingerprint: prepared.quote.requirementsFingerprint,
           holdId: prepared.hold.id,
           idempotencyKey: "postgres_commit_fault",
         },
@@ -361,6 +363,7 @@ describe.skipIf(!DB_AVAILABLE)("Booking Session v1 PostgreSQL invariants", () =>
     const input = {
       expectedRevision: prepared.session.revision,
       quoteId: prepared.quote.id,
+      requirementsFingerprint: prepared.quote.requirementsFingerprint,
       holdId: prepared.hold.id,
       idempotencyKey: "postgres_paid_commit",
     }

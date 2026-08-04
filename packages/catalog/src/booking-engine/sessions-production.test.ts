@@ -86,7 +86,10 @@ function createProductionHarness(handler: OwnedBookingHandler) {
 
 async function createAnonymousSession(
   module: ReturnType<typeof createProductionBookingSessionModule>,
-  selection: Record<string, unknown> = {},
+  // The handler's descriptor asks for at least one adult, and a Quote now
+  // refuses a selection that does not answer what was published — so the
+  // baseline selection answers it.
+  selection: Record<string, unknown> = { configure: { pax: { adult: 1 } } },
 ) {
   const created = await module.createSession(
     {
@@ -320,6 +323,7 @@ describe("production Booking Session ports", () => {
       {
         expectedRevision: 1,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         holdId: held.hold.id,
         idempotencyKey: `commit_${access.actorKind}`,
       },
@@ -393,6 +397,7 @@ describe("production Booking Session ports", () => {
       {
         expectedRevision: created.session.revision,
         quoteId: prepared.quoteId,
+        requirementsFingerprint: prepared.requirementsFingerprint,
         holdId: prepared.holdId,
         idempotencyKey: "commit_staff_details",
       },
@@ -444,6 +449,7 @@ describe("production Booking Session ports", () => {
       {
         expectedRevision: adopted.session.revision,
         quoteId: prepared.quoteId,
+        requirementsFingerprint: prepared.requirementsFingerprint,
         holdId: prepared.holdId,
         idempotencyKey: "commit_adopted_customer",
       },
@@ -480,6 +486,7 @@ describe("production Booking Session ports", () => {
       {
         expectedRevision: created.session.revision,
         quoteId: prepared.quoteId,
+        requirementsFingerprint: prepared.requirementsFingerprint,
         holdId: prepared.holdId,
         idempotencyKey: "commit_staff_support",
       },
@@ -728,6 +735,7 @@ describe("production Booking Session ports", () => {
       {
         expectedRevision: created.session.revision,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         holdId: held.hold.id,
         idempotencyKey: "commit_incomplete",
       },
@@ -825,5 +833,9 @@ async function quoteAndHoldForCommit(
     access,
   )
   if (held.kind !== "hold_created") throw new Error("hold not created")
-  return { quoteId: quoted.quote.id, holdId: held.hold.id }
+  return {
+    quoteId: quoted.quote.id,
+    requirementsFingerprint: quoted.quote.requirementsFingerprint,
+    holdId: held.hold.id,
+  }
 }

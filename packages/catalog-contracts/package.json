@@ -20,6 +20,7 @@
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
     "./booking-engine/requirements-contracts": "./src/booking-engine/requirements-contracts.ts",
     "./booking-engine/requirements-defaults": "./src/booking-engine/requirements-defaults.ts",
+    "./booking-engine/requirements-validation": "./src/booking-engine/requirements-validation.ts",
     "./booking-engine/selection-contracts": "./src/booking-engine/selection-contracts.ts",
     "./booking-engine/preview-contracts": "./src/booking-engine/preview-contracts.ts",
     "./booking-engine/pricing-contracts": "./src/booking-engine/pricing-contracts.ts",
@@ -117,6 +118,11 @@
         "types": "./dist/booking-engine/requirements-defaults.d.ts",
         "import": "./dist/booking-engine/requirements-defaults.js",
         "default": "./dist/booking-engine/requirements-defaults.js"
+      },
+      "./booking-engine/requirements-validation": {
+        "types": "./dist/booking-engine/requirements-validation.d.ts",
+        "import": "./dist/booking-engine/requirements-validation.js",
+        "default": "./dist/booking-engine/requirements-validation.js"
       },
       "./booking-engine/selection-contracts": {
         "types": "./dist/booking-engine/selection-contracts.d.ts",

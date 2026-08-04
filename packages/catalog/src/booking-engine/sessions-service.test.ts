@@ -4,6 +4,7 @@ import {
 } from "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance"
 import { describe, expect, it } from "vitest"
 
+import type { BookingRequirementsV1 } from "./contracts.js"
 import {
   createInMemoryBookingSessionRepository,
   createInMemoryOwnedInventoryPorts,
@@ -50,9 +51,11 @@ function createHarness(
   commitCompositeBooking?: (
     input: CommitCompositeBookingInput,
   ) => Promise<CommitCompositeBookingResult>,
+  requirements?: BookingRequirementsV1,
 ) {
   let currentNow = new Date("2026-08-01T12:00:00.000Z")
   let price = BASE_PRICING
+  let published = requirements ?? inMemoryBookingRequirements()
   const repository = createInMemoryBookingSessionRepository()
   const inventory = createInMemoryOwnedInventoryPorts()
   inventory.setCapacity("product:prod_owned_1", 1)
@@ -69,10 +72,10 @@ function createHarness(
     ports: {
       repository,
       normalizeSelection: async ({ selection }) => selection,
-      composeRequirements: inventory.composeRequirements,
+      composeRequirements: async () => ({ status: "available", requirements: published }),
       composeQuote: async () => ({
         status: "quoted",
-        requirements: inMemoryBookingRequirements(),
+        requirements: published,
         pricing: price,
       }),
       placeCapacityHold: inventory.placeCapacityHold,
@@ -91,6 +94,9 @@ function createHarness(
     },
     setPrice(next: typeof BASE_PRICING) {
       price = next
+    },
+    setRequirements(next: BookingRequirementsV1) {
+      published = next
     },
   }
 }
@@ -140,6 +146,7 @@ describe("Booking Session v1 owned tracer", () => {
     const input = {
       expectedRevision: session.revision,
       quoteId: quote.id,
+      requirementsFingerprint: quote.requirementsFingerprint,
       holdId: hold.id,
       idempotencyKey: "commit_payment_required",
     }
@@ -171,6 +178,7 @@ describe("Booking Session v1 owned tracer", () => {
     const input = {
       expectedRevision: session.revision,
       quoteId: quote.id,
+      requirementsFingerprint: quote.requirementsFingerprint,
       holdId: hold.id,
       idempotencyKey: "commit_after_payment",
     }
@@ -204,6 +212,7 @@ describe("Booking Session v1 owned tracer", () => {
         {
           expectedRevision: session.revision,
           quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
           holdId: hold.id,
           idempotencyKey: "commit_changed_payment_requirement",
         },
@@ -484,6 +493,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: 1,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         holdId: held.hold.id,
         idempotencyKey: "commit_components",
       },
@@ -494,6 +504,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: 1,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         holdId: held.hold.id,
         idempotencyKey: "commit_components",
       },
@@ -562,6 +573,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: 1,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         idempotencyKey: "commit_pending_components",
       },
       ANONYMOUS_ACCESS,
@@ -610,6 +622,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: 1,
         quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
         idempotencyKey: "commit_manual_pending",
       },
       ANONYMOUS_ACCESS,
@@ -629,6 +642,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: session.revision,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: hold.id,
         idempotencyKey: "commit_key",
       },
@@ -667,6 +681,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: 2,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: "missing_hold",
         idempotencyKey: "commit_stale_quote",
       },
@@ -688,6 +703,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: session.revision,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: hold.id,
         idempotencyKey: "commit_expired_hold",
       },
@@ -713,6 +729,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: session.revision,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: hold.id,
         idempotencyKey: "commit_expired_quote",
       },
@@ -783,6 +800,7 @@ describe("Booking Session v1 owned tracer", () => {
     const input = {
       expectedRevision: session.revision,
       quoteId: quote.id,
+      requirementsFingerprint: quote.requirementsFingerprint,
       holdId: hold.id,
       idempotencyKey: "commit_replay_key",
     }
@@ -840,6 +858,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: session.revision,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: hold.id,
         idempotencyKey: "commit_once",
       },
@@ -850,6 +869,7 @@ describe("Booking Session v1 owned tracer", () => {
       {
         expectedRevision: session.revision,
         quoteId: quote.id,
+        requirementsFingerprint: quote.requirementsFingerprint,
         holdId: hold.id,
         idempotencyKey: "commit_twice",
       },
@@ -870,6 +890,7 @@ describe("Booking Session v1 owned tracer", () => {
         {
           expectedRevision: session.revision,
           quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
           holdId: hold.id,
           idempotencyKey: "commit_concurrent_a",
         },
@@ -880,6 +901,7 @@ describe("Booking Session v1 owned tracer", () => {
         {
           expectedRevision: session.revision,
           quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
           holdId: hold.id,
           idempotencyKey: "commit_concurrent_b",
         },
@@ -1039,7 +1061,11 @@ describe("Booking Session v1 owned tracer", () => {
       advance(ms: number) {
         currentNow = new Date(currentNow.getTime() + ms)
       },
-      setPrice() {},
+      // Same shape as `createHarness()` so `createQuoteAndHold` infers the real
+      // quote record here; a narrower stub degrades it to `{ id }` and the
+      // fingerprint read below stops typechecking.
+      setPrice(_next: typeof BASE_PRICING) {},
+      setRequirements(_next: BookingRequirementsV1) {},
     }
     const { session, capability, quote, hold } = await createQuoteAndHold(harness)
 
@@ -1049,6 +1075,7 @@ describe("Booking Session v1 owned tracer", () => {
         {
           expectedRevision: session.revision,
           quoteId: quote.id,
+          requirementsFingerprint: quote.requirementsFingerprint,
           holdId: hold.id,
           idempotencyKey: "commit_fault_key",
         },
@@ -1081,6 +1108,7 @@ describe("Booking Session v1 owned tracer", () => {
               {
                 expectedRevision: session.revision,
                 quoteId: quote.id,
+                requirementsFingerprint: quote.requirementsFingerprint,
                 holdId: hold.id,
                 idempotencyKey: input.idempotencyKey,
               },
@@ -1476,6 +1504,7 @@ describe("Booking Session v1 sourced continuation", () => {
     const commit = {
       expectedRevision: created.session.revision,
       quoteId: quoted.quote.id,
+      requirementsFingerprint: quoted.quote.requirementsFingerprint,
       idempotencyKey: "commit_sourced",
     }
 
@@ -1497,6 +1526,265 @@ describe("Booking Session v1 sourced continuation", () => {
       },
     })
     expect(commitCalls).toBe(2)
+  })
+})
+
+/**
+ * A per-person product that also sells optional units — the exact shape that
+ * was unbookable for nine days in voyant#4113. The descriptor publishes a
+ * product option carrying person-priced units, a required departure, and the
+ * occupancy bands. It deliberately does NOT publish an `option-units` sub-step:
+ * the units are optional, and a booking of this product is complete without
+ * one. Anything that demanded a unit pick here would make 13 of 39 options
+ * unbookable all over again.
+ */
+function perPersonProductRequirements(): BookingRequirementsV1 {
+  const bands = [
+    { code: "adult", label: "Adult", minCount: 1, maxCount: 8 },
+    { code: "child", label: "Child", minCount: 0, maxCount: 6 },
+  ]
+  return {
+    ...inMemoryBookingRequirements(),
+    paxBands: bands,
+    paxBandsAllowedTotal: { min: 1, max: 8 },
+    travelerFields: [
+      { key: "firstName", label: "First name", type: "text", required: true },
+      { key: "lastName", label: "Last name", type: "text", required: true },
+    ],
+    bookingFields: [
+      { key: "buyerType", label: "Buyer type", type: "select", required: true, group: "billing" },
+    ],
+    configureSubSteps: [
+      {
+        kind: "product-option",
+        options: [
+          {
+            id: "opt_guided",
+            name: "Guided departure",
+            units: [
+              { id: "unit_adult", name: "Adult seat", unitType: "person" },
+              { id: "unit_lunch", name: "Lunch", unitType: "service" },
+            ],
+          },
+        ],
+      },
+      { kind: "departure", required: true },
+      { kind: "occupancy", bands },
+    ],
+  }
+}
+
+const SATISFYING_SELECTION = {
+  configure: { pax: { adult: 2 }, departureSlotId: "slot_1", variantId: "opt_guided" },
+  billing: { buyerType: "B2C" },
+  travelers: [
+    { firstName: "Ada", lastName: "Lovelace", band: "adult" },
+    { firstName: "Grace", lastName: "Hopper", band: "adult" },
+  ],
+}
+
+describe("Booking Session v1 requirements enforcement", () => {
+  async function prepare(selection: Record<string, unknown>) {
+    const harness = createHarness({}, undefined, undefined, perPersonProductRequirements())
+    const created = await harness.module.createSession(
+      {
+        idempotencyKey: nextCreateKey("create_requirements"),
+        target: { kind: "product", productId: "prod_owned_1" },
+        selection,
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (created.kind !== "session_created") throw new Error("session not created")
+    return { harness, session: created.session }
+  }
+
+  it("quotes and commits a per-person product configured only through the published requirements", async () => {
+    const { harness, session } = await prepare(SATISFYING_SELECTION)
+
+    const quoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "quote_4113" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error(`quote not created: ${quoted.kind}`)
+    const held = await harness.module.placeHold(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "hold_4113",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
+        holdId: held.hold.id,
+        idempotencyKey: "commit_4113",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({ kind: "commit_result", outcome: { kind: "committed" } })
+    expect(harness.inventory.bookingIds).toHaveLength(1)
+  })
+
+  it("names every unsatisfied requirement at quote time instead of pricing an incomplete selection", async () => {
+    const { harness, session } = await prepare({ configure: { pax: {} } })
+
+    const quoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "quote_incomplete" },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(quoted).toEqual({
+      kind: "rejected",
+      error: {
+        kind: "selection_incomplete",
+        nextAction: "update_selection",
+        unsatisfied: [
+          { requirementKey: "paxBands.adult", reason: "pax_band_below_min" },
+          { requirementKey: "paxBandsAllowedTotal", reason: "pax_total_below_min" },
+          { requirementKey: "configureSubSteps.departure", reason: "departure_required" },
+          { requirementKey: "configureSubSteps.occupancy", reason: "occupancy_required" },
+          { requirementKey: "bookingFields.buyerType", reason: "booking_field_required" },
+        ],
+      },
+    })
+    expect(harness.repository.quotes.size).toBe(0)
+  })
+
+  it("refuses to commit when the selection stopped satisfying the descriptor after the Quote", async () => {
+    const { harness, session } = await prepare(SATISFYING_SELECTION)
+    const quoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "quote_drifted" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const held = await harness.module.placeHold(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "hold_drifted",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+    // The Session's own selection is rewritten underneath the Quote, the way a
+    // second tab or a stale client would do it.
+    const stored = harness.repository.sessions.get(session.id)
+    if (!stored) throw new Error("session not stored")
+    stored.statePayload = { configure: { pax: {} } }
+
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
+        holdId: held.hold.id,
+        idempotencyKey: "commit_drifted",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "rejected",
+      error: { kind: "selection_incomplete", nextAction: "update_selection" },
+    })
+    expect(harness.inventory.bookingIds).toEqual([])
+    expect(harness.repository.commits.size).toBe(0)
+  })
+
+  it("rejects a Commit collected against a descriptor the server has since changed", async () => {
+    const { harness, session } = await prepare(SATISFYING_SELECTION)
+    const quoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "quote_changed" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const held = await harness.module.placeHold(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        idempotencyKey: "hold_changed",
+      },
+      ANONYMOUS_ACCESS,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+    harness.setRequirements({
+      ...perPersonProductRequirements(),
+      travelerFields: [
+        { key: "firstName", label: "First name", type: "text", required: true },
+        { key: "lastName", label: "Last name", type: "text", required: true },
+        { key: "passport", label: "Passport", type: "text", required: true },
+      ],
+    })
+
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
+        holdId: held.hold.id,
+        idempotencyKey: "commit_changed",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "rejected",
+      error: { kind: "requirements_changed", nextAction: "request_fresh_quote" },
+    })
+    expect(harness.inventory.bookingIds).toEqual([])
+  })
+
+  it("rejects a Commit that echoes a requirements fingerprint it never quoted", async () => {
+    const { harness, session } = await prepare(SATISFYING_SELECTION)
+    const quoted = await harness.module.quoteSession(
+      session.id,
+      { expectedRevision: session.revision, idempotencyKey: "quote_echo" },
+      ANONYMOUS_ACCESS,
+    )
+    if (quoted.kind !== "quote_created") throw new Error("quote not created")
+    const held = await harness.module.placeHold(
+      session.id,
+      { expectedRevision: session.revision, quoteId: quoted.quote.id, idempotencyKey: "hold_echo" },
+      ANONYMOUS_ACCESS,
+    )
+    if (held.kind !== "hold_created") throw new Error("hold not created")
+
+    const committed = await harness.module.commitSession(
+      session.id,
+      {
+        expectedRevision: session.revision,
+        quoteId: quoted.quote.id,
+        requirementsFingerprint: "a-descriptor-the-server-never-published",
+        holdId: held.hold.id,
+        idempotencyKey: "commit_echo",
+      },
+      ANONYMOUS_ACCESS,
+    )
+
+    expect(committed).toMatchObject({
+      kind: "rejected",
+      error: {
+        kind: "requirements_changed",
+        requirementsFingerprint: quoted.quote.requirementsFingerprint,
+      },
+    })
+    expect(harness.inventory.bookingIds).toEqual([])
   })
 })
 

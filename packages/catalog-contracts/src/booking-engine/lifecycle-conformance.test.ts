@@ -380,6 +380,80 @@ describe("booking lifecycle conformance contract", () => {
   })
 })
 
+describe("published requirements are enforced, not advisory", () => {
+  const published = {
+    showsConfigure: true,
+    showsBilling: true,
+    showsTravelers: true,
+    showsAccommodation: false,
+    showsAddons: false,
+    showsPayment: true,
+    showsReview: true as const,
+    paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 4 }],
+    paxBandsAllowedTotal: { min: 1, max: 4 },
+    configureSubSteps: [{ kind: "departure" as const, required: true as const }],
+    travelerFields: [],
+    bookingFields: [],
+    paymentIntents: ["card" as const],
+  }
+  const satisfying = { configure: { pax: { adult: 2 }, departureSlotId: "slot_1" } }
+
+  function committedScenario(
+    requirements: BookingLifecycleConformanceScenarioV1["input"]["requirements"],
+  ): BookingLifecycleConformanceScenarioV1 {
+    const base = bookingLifecycleConformanceScenariosV1.find(
+      (scenario) => scenario.id === "owned-atomic-commit",
+    )!
+    return { ...base, input: { ...base.input, requirements } }
+  }
+
+  it("accepts a Commit whose selection satisfies the published requirements", async () => {
+    const scenario = committedScenario({ published, selection: satisfying })
+
+    const [result] = await runBookingLifecycleConformanceV1(
+      { commit: () => observationForScenario(scenario) },
+      [scenario],
+    )
+
+    expect(result?.passed).toBe(true)
+  })
+
+  it("refuses a Booking built on a selection the requirements do not admit", async () => {
+    const scenario = committedScenario({ published, selection: { configure: { pax: {} } } })
+
+    const [result] = await runBookingLifecycleConformanceV1(
+      { commit: () => observationForScenario(scenario) },
+      [scenario],
+    )
+
+    expect(result?.passed).toBe(false)
+    expect(String(result?.error)).toContain(
+      "must not create a Booking, Allocation, or supplier operation",
+    )
+  })
+
+  it("refuses a descriptor whose required entry nothing validates", async () => {
+    const scenario = committedScenario({
+      published: {
+        ...published,
+        // A dependency with no limit is unenforceable: nothing can break it.
+        paxBandDependencies: [
+          { dependentCode: "child", masterCode: "adult", type: "limits_sum" as const },
+        ],
+      },
+      selection: satisfying,
+    })
+
+    const [result] = await runBookingLifecycleConformanceV1(
+      { commit: () => observationForScenario(scenario) },
+      [scenario],
+    )
+
+    expect(result?.passed).toBe(false)
+    expect(String(result?.error)).toContain("is declared but nothing validates it")
+  })
+})
+
 function observationForScenario(
   scenario: BookingLifecycleConformanceScenarioV1,
 ): BookingLifecycleObservationV1 {

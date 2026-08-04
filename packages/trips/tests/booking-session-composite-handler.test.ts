@@ -412,6 +412,7 @@ async function createQuote(
     requirements: result.requirements,
     pricing: result.pricing,
     priceFingerprint: "aggregate_quote",
+    requirementsFingerprint: "aggregate_requirements",
     quotedAt: NOW,
     expiresAt: new Date("2026-08-02T10:10:00.000Z"),
   }

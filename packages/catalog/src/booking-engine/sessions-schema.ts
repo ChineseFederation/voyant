@@ -148,6 +148,8 @@ export const bookingSessionQuotesTable = pgTable(
     requirements: jsonb("requirements").$type<Record<string, unknown>>().notNull(),
     pricing: jsonb("pricing").$type<Record<string, unknown>>().notNull(),
     priceFingerprint: text("price_fingerprint").notNull(),
+    /** Fingerprint of `requirements`, compared at commit like the price is. */
+    requirementsFingerprint: text("requirements_fingerprint").notNull(),
     quotedAt: timestamp("quoted_at", { withTimezone: true }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),

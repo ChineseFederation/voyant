@@ -1,4 +1,11 @@
 import { z } from "zod"
+import type { BookingRequirementsV1, PaxBandDependencyV1 } from "./requirements-contracts.js"
+import { bookingRequirementsV1 } from "./requirements-contracts.js"
+import {
+  requiredRequirementKeysV1,
+  unsatisfiableRequiredRequirementsV1,
+  validateSelectionAgainstRequirements,
+} from "./requirements-validation.js"
 
 export {
   BOOKING_LIFECYCLE_CONFORMANCE_V1_REQUIRED_SCENARIO_IDS,
@@ -133,6 +140,20 @@ export const bookingLifecycleCommitInputV1 = z
       operationId: z.string().min(1).optional(),
       intentPersistedBeforeDispatch: z.boolean().default(false),
     }),
+    /**
+     * The Booking Requirements this Commit was collected against and the
+     * selection collected against them. Optional so the lifecycle scenarios
+     * that say nothing about requirements keep parsing, but a vertical that
+     * publishes requirements is held to them: see `assertScenarioObservation`,
+     * which refuses a Booking built on an unsatisfied selection and refuses a
+     * descriptor whose required entries nothing can check.
+     */
+    requirements: z
+      .object({
+        published: bookingRequirementsV1,
+        selection: z.record(z.string(), z.unknown()),
+      })
+      .optional(),
     proposalAcceptance: z
       .object({
         proposalVersionId: z.string().min(1),
@@ -598,6 +619,8 @@ function assertScenarioObservation(
     }
   }
 
+  assertRequirementsEnforced(scenario, observation)
+
   if (observation.outcome.kind === "committed") {
     if (
       scenario.input.policy.paymentGuarantee === "required_before_commit" &&
@@ -649,6 +672,137 @@ function assertScenarioObservation(
       throw new Error(`${scenario.id}: owned atomic Commit must run in one transaction`)
     }
   }
+}
+
+/**
+ * Hold a vertical to the Booking Requirements it published.
+ *
+ * Two rules, both aimed at the voyant#4113 failure — a descriptor and a
+ * commit derivation that disagree, quietly:
+ *
+ *  1. A selection that satisfies the published requirements must commit when
+ *     nothing else stands in the way. A vertical that withholds a Booking on
+ *     grounds the descriptor never expressed has a rule its host cannot see.
+ *  2. A selection that does not satisfy them must not produce a Booking, an
+ *     Allocation, or a supplier operation. Enforcement that runs after the
+ *     side effects is not enforcement.
+ *
+ * Plus the precondition both depend on: every entry the descriptor marks
+ * required must be something the validator actually checks. A requirement
+ * nothing checks is the advisory state this phase removes.
+ */
+function assertRequirementsEnforced(
+  scenario: BookingLifecycleConformanceScenarioV1,
+  observation: BookingLifecycleObservationV1,
+): void {
+  const declared = scenario.input.requirements
+  if (!declared) return
+  assertRequirementsCheckable(scenario.id, declared.published)
+
+  const unsatisfied = validateSelectionAgainstRequirements(declared.published, declared.selection)
+  if (unsatisfied.length > 0) {
+    const effects = observation.effects
+    if (
+      effects.bookingCreated ||
+      effects.allocationCreated ||
+      effects.supplierOperationPersisted ||
+      effects.supplierDispatched
+    ) {
+      throw new Error(
+        `${scenario.id}: a selection that does not satisfy the published requirements (${unsatisfied
+          .map((entry) => `${entry.requirementKey}:${entry.reason}`)
+          .join(", ")}) must not create a Booking, Allocation, or supplier operation`,
+      )
+    }
+    return
+  }
+
+  if (!commitPathIsOtherwiseClear(scenario.input)) return
+  if (
+    observation.outcome.kind !== "committed" &&
+    observation.outcome.kind !== "component_bookings_committed"
+  ) {
+    throw new Error(
+      `${scenario.id}: a selection satisfying the published requirements must commit on an otherwise clear path, got ${observation.outcome.kind}`,
+    )
+  }
+}
+
+/** Nothing outside the selection is blocking this Commit. */
+function commitPathIsOtherwiseClear(input: BookingLifecycleCommitInputV1): boolean {
+  return (
+    input.session.state === "active" &&
+    input.session.expectedRevision === input.session.revision &&
+    input.quote.state === "fresh" &&
+    (input.hold.required ? input.hold.state === "live" : input.hold.state !== "expired") &&
+    (input.paymentGuarantee === "established" ||
+      input.paymentGuarantee === "not_required" ||
+      input.paymentGuarantee === "post_commit_authorized") &&
+    (input.supplier.state === "secured" || input.supplier.state === "not_applicable") &&
+    !input.proposalAcceptance &&
+    !input.replayOfCommitId
+  )
+}
+
+/**
+ * Every required entry in the descriptor must be nameable by the validator.
+ *
+ * Probes rather than trusting the walk: an empty selection with one blank
+ * traveler per declared band must be reported as missing everything the
+ * descriptor marks required, and each cross-band dependency must fire against
+ * counts that break it. A descriptor entry no probe can surface is a
+ * requirement the server publishes and never enforces.
+ */
+function assertRequirementsCheckable(
+  scenarioId: string,
+  requirements: BookingRequirementsV1,
+): void {
+  const probe = {
+    travelers: requirements.paxBands.map((band) => ({ band: band.code })),
+  }
+  const unsatisfiable = unsatisfiableRequiredRequirementsV1(requirements)
+  if (unsatisfiable.length > 0) {
+    // Checkable is not the same as satisfiable. The Booking Session projects a
+    // traveler down to a fixed set of fields, so a descriptor marking anything
+    // outside it required publishes a demand the buyer can never meet — the
+    // shape of voyant#4113, arriving through the enforcement added to stop it.
+    throw new Error(
+      `${scenarioId}: ${unsatisfiable
+        .map((entry) => entry.requirementKey)
+        .join(", ")} marked required but the Booking Session cannot carry it`,
+    )
+  }
+
+  const named = new Set(
+    validateSelectionAgainstRequirements(requirements, probe).map((entry) => entry.requirementKey),
+  )
+  for (const key of requiredRequirementKeysV1(requirements)) {
+    const covered = [...named].some((name) => name === key || name.startsWith(`${key}.`))
+    if (!covered) {
+      throw new Error(
+        `${scenarioId}: requirement ${key} is marked required but nothing validates it`,
+      )
+    }
+  }
+  for (const dependency of requirements.paxBandDependencies ?? []) {
+    const pax: Record<string, number> = {
+      [dependency.dependentCode]: breakingDependentCount(dependency),
+    }
+    if (dependency.type === "excludes") pax[dependency.masterCode] = 1
+    const violated = validateSelectionAgainstRequirements(requirements, { configure: { pax } })
+    const key = `paxBandDependencies.${dependency.type}.${dependency.dependentCode}.${dependency.masterCode}`
+    if (!violated.some((entry) => entry.requirementKey === key)) {
+      throw new Error(
+        `${scenarioId}: pax band dependency ${key} is declared but nothing validates it`,
+      )
+    }
+  }
+}
+
+/** The smallest dependent count that breaks a dependency with no master present. */
+function breakingDependentCount(dependency: PaxBandDependencyV1): number {
+  if (dependency.type === "limits_sum") return (dependency.maxDependentSum ?? 0) + 1
+  return 1
 }
 
 function outcomeBookingId(outcome: BookingLifecycleCommitOutcomeV1): string | undefined {

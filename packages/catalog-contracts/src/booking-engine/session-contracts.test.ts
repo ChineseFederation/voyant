@@ -57,6 +57,7 @@ describe("Booking Session v1 contracts", () => {
       commitBookingSessionV1.safeParse({
         expectedRevision: 1,
         quoteId: "bsqu_1",
+        requirementsFingerprint: "requirements_fingerprint_1",
         holdId: "bshd_1",
         idempotencyKey: "stable_commit_key",
       }).success,
@@ -67,6 +68,7 @@ describe("Booking Session v1 contracts", () => {
     const parsed = commitBookingSessionV1.parse({
       expectedRevision: 1,
       quoteId: "bsqu_1",
+      requirementsFingerprint: "requirements_fingerprint_1",
       holdId: "bshd_1",
       idempotencyKey: "stable_commit_key",
       status: "draft",

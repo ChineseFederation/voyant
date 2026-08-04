@@ -30,7 +30,9 @@ import type {
   BookingLifecycleCommitOutcomeV1,
   BookingRequirementsV1,
   PricingBreakdownV1,
+  UnsatisfiedRequirementV1,
 } from "./contracts.js"
+import { validateSelectionAgainstRequirements } from "./contracts.js"
 import { InvalidBookingSessionSelectionError } from "./errors.js"
 import { previewOffer } from "./offer-preview.js"
 
@@ -87,6 +89,13 @@ export interface BookingQuoteInternalRecord {
   requirements: BookingRequirementsV1
   pricing: PricingBreakdownV1
   priceFingerprint: string
+  /**
+   * Fingerprint of `requirements`, computed exactly the way `priceFingerprint`
+   * is computed over `pricing`. The Commit re-derives requirements and compares,
+   * so a descriptor that moved under the buyer is caught the same way a price
+   * that moved is.
+   */
+  requirementsFingerprint: string
   quotedAt: Date
   expiresAt: Date
 }
@@ -1006,6 +1015,13 @@ export function createBookingSessionModule(
           return completeAndReturn(repository, claim.id, quoteUnavailable(composed))
         }
         const { pricing, requirements } = composed
+        // Validate before persisting a Quote: an incomplete selection is the
+        // host's to fix, and it learns here rather than at commit, when the
+        // buyer has already paid attention to a price.
+        const unsatisfied = validateSelectionAgainstRequirements(requirements, session.statePayload)
+        if (unsatisfied.length > 0) {
+          return completeAndReturn(repository, claim.id, selectionIncomplete(unsatisfied))
+        }
         const quote: BookingQuoteInternalRecord = {
           id: newId("booking_session_quotes"),
           sessionId,
@@ -1014,6 +1030,7 @@ export function createBookingSessionModule(
           requirements,
           pricing,
           priceFingerprint: await stableFingerprint(pricing),
+          requirementsFingerprint: await stableFingerprint(requirements),
           quotedAt: at,
           expiresAt: new Date(at.getTime() + quoteTtlMs),
         }
@@ -1335,6 +1352,40 @@ export function createBookingSessionModule(
               },
             } as const,
           }
+        }
+        // Requirements are checked exactly the way the price is: re-derive,
+        // compare against what the client rendered, and refuse rather than
+        // book something collected against a descriptor that has moved.
+        const freshRequirementsFingerprint = await stableFingerprint(freshQuote.requirements)
+        if (
+          freshRequirementsFingerprint !== quote.requirementsFingerprint ||
+          freshRequirementsFingerprint !== input.requirementsFingerprint
+        ) {
+          quote.state = "superseded"
+          await repository.saveQuote(quote)
+          await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+          return {
+            status: "outcome" as const,
+            outcome: {
+              kind: "rejected",
+              error: {
+                kind: "requirements_changed",
+                requirementsFingerprint: freshRequirementsFingerprint,
+                nextAction: "request_fresh_quote",
+              },
+            } as const,
+          }
+        }
+        // Server-authoritative: never trust that the client quoted first, and
+        // never let a Booking, Allocation, or supplier operation exist on the
+        // far side of a selection that does not answer the descriptor.
+        const unsatisfied = validateSelectionAgainstRequirements(
+          freshQuote.requirements,
+          session.statePayload,
+        )
+        if (unsatisfied.length > 0) {
+          await releaseLiveHolds(repository, options.ports, session, access, at, tx)
+          return { status: "outcome" as const, outcome: selectionIncomplete(unsatisfied) }
         }
         return { status: "ready" as const, session, quote, hold, at }
       })
@@ -1770,9 +1821,15 @@ async function consumeCommittedSources(input: {
         now: currentAt,
         tx: input.tx,
       })
+      // Both fingerprints are re-checked inside the commit transaction, not
+      // only in the preflight: the descriptor can move between the two the
+      // same way the price can, and a Quote whose requirements changed is as
+      // superseded as one whose price did.
       if (
         currentQuoteResult.status === "unavailable" ||
-        (await stableFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint
+        (await stableFingerprint(currentQuoteResult.pricing)) !== currentQuote.priceFingerprint ||
+        (await stableFingerprint(currentQuoteResult.requirements)) !==
+          currentQuote.requirementsFingerprint
       ) {
         currentQuote.state = "superseded"
         await input.repository.saveQuote(currentQuote)
@@ -1974,6 +2031,24 @@ function quoteUnavailable(
   }
 }
 
+/**
+ * One rejection shape for both call sites. The quote path and the commit path
+ * run the same validator and return the same typed outcome — two of either
+ * would recreate the drift #4188 closes.
+ */
+function selectionIncomplete(
+  unsatisfied: readonly UnsatisfiedRequirementV1[],
+): BookingSessionOutcomeV1 {
+  return {
+    kind: "rejected",
+    error: {
+      kind: "selection_incomplete",
+      unsatisfied: [...unsatisfied],
+      nextAction: "update_selection",
+    },
+  }
+}
+
 function commitRejectionNextAction(
   reason: BookingSessionCommitRejectionReason,
 ): "select_alternative_inventory" | "update_selection" | "request_fresh_quote" {
@@ -2103,6 +2178,9 @@ async function commitRequestFingerprint(input: CommitBookingSessionV1): Promise<
     expectedRevision: input.expectedRevision,
     quoteId: input.quoteId,
     holdId: input.holdId,
+    // Part of what the request asked for: replaying an idempotency key against
+    // a different descriptor is a different Commit, not a replay of the first.
+    requirementsFingerprint: input.requirementsFingerprint,
   })
 }
 
@@ -2290,6 +2368,7 @@ function serializeQuote(quote: BookingQuoteInternalRecord): BookingQuoteRecordV1
     sessionRevision: quote.sessionRevision,
     state: quote.state,
     requirements: quote.requirements,
+    requirementsFingerprint: quote.requirementsFingerprint,
     pricing: quote.pricing,
     quotedAt: quote.quotedAt.toISOString(),
     expiresAt: quote.expiresAt.toISOString(),

@@ -305,6 +305,7 @@ export async function runOwnedProductBookingTracerV1(
     {
       expectedRevision: session.revision,
       quoteId: quoteOutcome.quote.id,
+      requirementsFingerprint: quoteOutcome.quote.requirementsFingerprint,
       holdId: holdOutcome.hold.id,
       idempotencyKey: `${input.journeyKey}:commit`,
       ...(input.payment ? { payment: input.payment } : {}),

@@ -234,13 +234,29 @@ export function createInMemoryBookingSessionRepository(): InMemoryBookingSession
  * vertical's derivation so the Session plane can be exercised without one — it
  * is not a fallback any production path may use.
  */
+/**
+ * The descriptor the in-memory harness publishes.
+ *
+ * It deliberately declares nothing an empty selection fails: the harness
+ * exercises the Session lifecycle — revisions, idempotency, holds, expiry —
+ * against sessions that carry no selection at all, and a descriptor that
+ * demanded one would turn every lifecycle test into a selection test.
+ * Enforcement of a demanding descriptor is covered where it belongs, by tests
+ * that publish one and hand it a selection.
+ *
+ * Concretely: the canonical bands with their count floors removed, and the
+ * standard booking fields with `buyerType` no longer required. The traveler
+ * fields keep their real `required` flags — with no travelers there is nothing
+ * for them to apply to.
+ */
 export function inMemoryBookingRequirements(): BookingRequirementsV1 {
+  const paxBands = DEFAULT_PAX_BANDS.map((band) => ({ ...band, minCount: 0 }))
   return {
     ...defaultRequirementsFlags(),
-    paxBands: [...DEFAULT_PAX_BANDS],
-    paxBandsAllowedTotal: paxBandsAllowedTotalFrom(DEFAULT_PAX_BANDS),
+    paxBands,
+    paxBandsAllowedTotal: { ...paxBandsAllowedTotalFrom(paxBands), min: 0 },
     travelerFields: [...defaultTravelerFields()],
-    bookingFields: [...defaultBookingFields()],
+    bookingFields: defaultBookingFields().map((field) => ({ ...field, required: false })),
     paymentIntents: [...DEFAULT_PAYMENT_INTENTS],
   }
 }
