@@ -19,6 +19,14 @@ export const availabilitySlotsRef = pgTable("availability_slots", {
   facilityId: text("facility_id"),
   availabilityRuleId: typeIdRef("availability_rule_id"),
   startTimeId: typeIdRef("start_time_id"),
+  /**
+   * The immutable Product Version this departure was materialized against
+   * (RFC #4027). Null for legacy departures and for slots generated before a
+   * product was ever published. Bookings reads it so proposal→booking
+   * conversion seeds supplier commitments from the frozen snapshot rather than
+   * the live, mutable product (voyant#4189).
+   */
+  productVersionId: text("product_version_id"),
   dateLocal: date("date_local").notNull(),
   startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
   endsAt: timestamp("ends_at", { withTimezone: true }),

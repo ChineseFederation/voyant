@@ -44,6 +44,12 @@ import {
   assertMonthlyBookingLimitAvailable,
   BookingMonthlyLimitReachedError,
 } from "./booking-plan-limit.js"
+import {
+  type ConvertDayService,
+  type ConvertDayServiceProvenance,
+  type ConvertDeparture,
+  resolveConvertDayServices,
+} from "./convert-day-services.js"
 import { exchangeRatesRef } from "./markets-ref.js"
 import {
   applyTravelDetailSnapshot,
@@ -56,9 +62,6 @@ import {
   bookingProductDetailsRef,
   optionUnitsRef,
   productCategoryProductsRef,
-  productDayServicesRef,
-  productDaysRef,
-  productItinerariesRef,
   productOptionsRef,
   productsRef,
   productTicketSettingsRef,
@@ -321,12 +324,16 @@ export interface ConvertProductData {
     endsAt: Date | null
     timezone: string
   } | null
-  dayServices: Array<{
-    supplierServiceId: string | null
-    name: string
-    costCurrency: string
-    costAmountCents: number
-  }>
+  dayServices: ConvertDayService[]
+  /**
+   * Where `dayServices` came from — the frozen Product Version the departure was
+   * sold against, or the live product as a reported fallback (voyant#4189).
+   * Optional so the existing callers that hand-build `ConvertProductData` (tests
+   * and the sourced-commitment path) are unchanged; when absent the converter
+   * records the commitments as being of unknown provenance rather than assuming
+   * they were frozen.
+   */
+  dayServiceProvenance?: ConvertDayServiceProvenance
   units: Array<{
     id: string
     optionId: string
@@ -902,39 +909,6 @@ async function getConvertProductData(
     option = defaultOption ?? null
   }
 
-  // product_days is keyed by itinerary_id (products re-parented days onto
-  // product_itineraries); getConvertProductData joins through the itinerary
-  // ref so the per-product day lookup still works for converts that want to
-  // seed booking supplier statuses from the product's day services.
-  const days = await db
-    .select({ id: productDaysRef.id, dayNumber: productDaysRef.dayNumber })
-    .from(productDaysRef)
-    .innerJoin(productItinerariesRef, eq(productDaysRef.itineraryId, productItinerariesRef.id))
-    .where(eq(productItinerariesRef.productId, product.id))
-    .orderBy(asc(productDaysRef.dayNumber))
-
-  const dayServices = days.length
-    ? await db
-        .select({
-          supplierServiceId: productDayServicesRef.supplierServiceId,
-          name: productDayServicesRef.name,
-          costCurrency: productDayServicesRef.costCurrency,
-          costAmountCents: productDayServicesRef.costAmountCents,
-        })
-        .from(productDayServicesRef)
-        .where(
-          // agent-quality: raw-sql reviewed -- owner: bookings; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-          sql`${productDayServicesRef.dayId} IN (
-            SELECT ${productDaysRef.id}
-            FROM ${productDaysRef}
-            INNER JOIN ${productItinerariesRef}
-              ON ${productDaysRef.itineraryId} = ${productItinerariesRef.id}
-            WHERE ${productItinerariesRef.productId} = ${product.id}
-          )`,
-        )
-        .orderBy(asc(productDayServicesRef.sortOrder), asc(productDayServicesRef.id))
-    : []
-
   let units: OptionUnitReference[] = []
   if (requestedUnitIds.length > 0) {
     const unitRows = await db
@@ -958,7 +932,12 @@ async function getConvertProductData(
       .orderBy(asc(optionUnitsRef.sortOrder), asc(optionUnitsRef.createdAt))
   }
 
+  // The departure is resolved BEFORE the day services, because it is what
+  // carries the frozen Product Version the commitments must come from
+  // (voyant#4189). Ordering matters: the day-service read is now a function of
+  // the selected departure, not of the live product alone.
   let slot: ConvertProductData["slot"] = null
+  let departure: ConvertDeparture | null = null
   if (data.slotId) {
     const [selectedSlot] = await db
       .select()
@@ -995,7 +974,18 @@ async function getConvertProductData(
       endsAt: selectedSlot.endsAt,
       timezone: selectedSlot.timezone,
     }
+    departure = {
+      id: selectedSlot.id,
+      productVersionId: selectedSlot.productVersionId,
+    }
   }
+
+  // Supplier commitments come from the frozen Version the departure was sold
+  // against wherever there is one; the live product is only a reported fallback.
+  const { dayServices, provenance: dayServiceProvenance } = await resolveConvertDayServices(db, {
+    productId: product.id,
+    departure,
+  })
 
   return {
     product: {
@@ -1013,6 +1003,7 @@ async function getConvertProductData(
     option: option ? { id: option.id, name: option.name } : null,
     slot,
     dayServices,
+    dayServiceProvenance,
     units: units.map((unit) => ({
       id: unit.id,
       optionId: unit.optionId,
@@ -2384,7 +2375,7 @@ const bookingsServiceInternal = {
     userId?: string,
     options: { availabilityHoldToken?: string; monthlyBookingLimit?: number | null } = {},
   ) {
-    const { product, option, slot, dayServices, units } = productData
+    const { product, option, slot, dayServices, dayServiceProvenance, units } = productData
 
     // Slot dates win over product dates so scheduled/recurring products don't
     // land with null dates. endsAt is a timestamp; fall back to the slot's
@@ -2811,6 +2802,22 @@ const bookingsServiceInternal = {
         productName: product.name,
         optionId: option?.id ?? null,
         slotId: slot?.id ?? null,
+        // Where this booking's supplier commitments came from (voyant#4189).
+        // Recorded on the conversion audit row so a reviewer can tell, after the
+        // fact, whether a booking's `booking_supplier_statuses` are backed by a
+        // frozen Product Version or by the live product — and, when they are
+        // not, exactly why. A silent fallback would be indistinguishable from a
+        // version-backed commitment, which is the failure mode RFC #4027 exists
+        // to prevent. `unknown` covers callers that build `ConvertProductData`
+        // themselves and therefore vouch for nothing.
+        supplierCommitmentProvenance: dayServiceProvenance ?? {
+          source: "unknown",
+          productVersionId: null,
+          availabilitySlotId: slot?.id ?? null,
+          fallbackReason: "provenance_not_supplied",
+          serviceCount: dayServices.length,
+          servicesMissingCost: 0,
+        },
         ...(convertedHold
           ? {
               availabilityHoldId: convertedHold.id,

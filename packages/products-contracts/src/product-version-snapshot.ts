@@ -100,13 +100,20 @@ export const snapshotPlannedCostSchema = z
 export type SnapshotPlannedCost = z.infer<typeof snapshotPlannedCostSchema>
 
 /**
- * One day service as frozen in a version snapshot. Costing columns
- * (`costCurrency`, `costAmountCents`, …) are tolerated but not required here;
- * the tracer reads the operational columns. `inclusionRole` / `travelerScope`
- * default so a snapshot taken before those columns existed still parses.
- * `plannedCost` is the voyant#4037 declared cost block; it is `nullish` so a
- * snapshot minted before the block existed still parses (the reader treats a
- * missing block as "no version-based planned cost" and falls back).
+ * One day service as frozen in a version snapshot. `inclusionRole` /
+ * `travelerScope` default so a snapshot taken before those columns existed still
+ * parses. `plannedCost` is the voyant#4037 declared cost block; it is `nullish`
+ * so a snapshot minted before the block existed still parses (the reader treats
+ * a missing block as "no version-based planned cost" and falls back).
+ *
+ * `costCurrency` / `costAmountCents` are the day service's OWN cost columns,
+ * frozen verbatim from `product_day_services`. They are deliberately distinct
+ * from `plannedCost`: these are the flat, unscaled commitment figures the
+ * booking converter (voyant#4189) writes onto `booking_supplier_statuses`,
+ * whereas `plannedCost` is the driver-scaled budget block Finance restates
+ * against a departure's own quantities. Both are declared because they answer
+ * different questions and a reader must not silently substitute one for the
+ * other. They are `nullish` so a snapshot predating either still parses.
  */
 export const snapshotDayServiceSchema = z
   .object({
@@ -123,6 +130,8 @@ export const snapshotDayServiceSchema = z
     inclusionRole: dayServiceInclusionRoleSchema.default("included"),
     travelerScope: dayServiceTravelerScopeSchema.default("all"),
     sortOrder: z.number().int().nullish(),
+    costCurrency: z.string().nullish(),
+    costAmountCents: z.number().int().nullish(),
     plannedCost: snapshotPlannedCostSchema.nullish(),
   })
   .passthrough()

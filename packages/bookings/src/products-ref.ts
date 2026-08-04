@@ -1,5 +1,14 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
-import { boolean, date, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  date,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core"
 
 export const productsRef = pgTable("products", {
   id: typeId("products").primaryKey(),
@@ -96,6 +105,24 @@ export const productDayServicesRef = pgTable("product_day_services", {
   sortOrder: integer("sort_order"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+/**
+ * DELIBERATE local mirror of `product_versions` (owned by
+ * `@voyant-travel/inventory`). Bookings reads only the frozen `snapshot` blob,
+ * and only to seed supplier commitments at conversion (voyant#4189) — the
+ * immutable Product Version, not the live product, is what a sold departure
+ * committed to. Mirrored rather than imported because bookings is a retail-spine
+ * package and must not take a runtime dependency on the Inventory authoring
+ * runtime (enforced by scripts/check-retail-spine-closure.mjs). The blob is
+ * decoded through the shared `@voyant-travel/products-contracts` reader, so the
+ * SHAPE of the snapshot is still a contract, not a local guess.
+ */
+export const productVersionsRef = pgTable("product_versions", {
+  id: typeId("product_versions").primaryKey(),
+  productId: typeIdRef("product_id").notNull(),
+  versionNumber: integer("version_number").notNull(),
+  snapshot: jsonb("snapshot").notNull(),
 })
 
 export const productTicketSettingsRef = pgTable("product_ticket_settings", {

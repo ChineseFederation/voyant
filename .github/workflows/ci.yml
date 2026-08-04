@@ -368,6 +368,8 @@ jobs:
                 tests/integration/profitability.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/booking-amendments.test.ts
+              pnpm --filter @voyant-travel/bookings exec vitest run \
+                tests/integration/frozen-supplier-statuses.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/auto-allocate-concurrency.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
