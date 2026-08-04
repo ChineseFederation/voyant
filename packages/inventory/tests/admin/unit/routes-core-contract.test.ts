@@ -87,6 +87,17 @@ const productWithTypeSchema = productSchema.extend({
   productType: z.object({ id: z.string(), name: z.string(), code: z.string() }).nullable(),
 })
 
+// Mirrors `recalculateResultSchema` in `routes-maintenance.ts`. The total and
+// margin are nullable because a source currency with no resolvable FX rate is
+// named in `unconvertibleCurrencies` instead of being folded in (voyant#4162).
+const recalculateResultSchema = z.object({
+  currency: z.string(),
+  costAmountCents: z.number().int().nullable(),
+  marginPercent: z.number().int().nullable(),
+  byCurrency: z.array(z.object({ currency: z.string(), amountCents: z.number().int() })),
+  unconvertibleCurrencies: z.array(z.string()),
+})
+
 const productCategorySchema = z.object({
   id: z.string(),
   parentId: z.string().nullable(),
@@ -224,12 +235,32 @@ describe("inventory core single-entity response contracts", () => {
   })
 
   it("the recalculate { data } envelope satisfies the declared OpenAPI schema", () => {
-    const parsed = z
-      .object({
-        data: z.object({ costAmountCents: z.number().int(), marginPercent: z.number().int() }),
-      })
-      .safeParse({ data: { costAmountCents: 80000, marginPercent: 33 } })
-    expect(parsed.success).toBe(true)
+    const parsed = z.object({ data: recalculateResultSchema }).safeParse({
+      data: {
+        currency: "EUR",
+        costAmountCents: 80000,
+        marginPercent: 33,
+        byCurrency: [{ currency: "EUR", amountCents: 80000 }],
+        unconvertibleCurrencies: [],
+      },
+    })
+    expect(parsed.success ? null : parsed.error.toString()).toBeNull()
+  })
+
+  it("the recalculate { data } envelope carries a withheld total for an unconvertible currency", () => {
+    const parsed = z.object({ data: recalculateResultSchema }).safeParse({
+      data: {
+        currency: "EUR",
+        costAmountCents: null,
+        marginPercent: null,
+        byCurrency: [
+          { currency: "EUR", amountCents: 30000 },
+          { currency: "TRY", amountCents: 500000 },
+        ],
+        unconvertibleCurrencies: ["TRY"],
+      },
+    })
+    expect(parsed.success ? null : parsed.error.toString()).toBeNull()
   })
 
   it("the success envelope satisfies the declared OpenAPI schema", () => {

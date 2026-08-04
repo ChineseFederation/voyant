@@ -4,10 +4,14 @@
  * parent app's middleware chain).
  *
  * Migrated to `@hono/zod-openapi` for the OpenAPI admin backfill (voyant#2114 —
- * inventory core sub-batch). The recalculate response is the rolled-up
- * `{ costAmountCents, marginPercent }` (both integer cents/percent — §17). Its
- * `.openapi()` operation propagates up through the parent `productRoutes`
- * registry.
+ * inventory core sub-batch). Its `.openapi()` operation propagates up through
+ * the parent `productRoutes` registry.
+ *
+ * The response reports the roll-up in the product's sell `currency` (integer
+ * cents/percent — §17) alongside the per-source-currency subtotals it was built
+ * from. `costAmountCents` and `marginPercent` are null when a source currency
+ * had no resolvable FX rate; the currencies concerned are named in
+ * `unconvertibleCurrencies` rather than folded in at a guessed rate (#4162).
  */
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
@@ -19,8 +23,11 @@ import { productsService } from "./service.js"
 const errorResponseSchema = z.object({ error: z.string() })
 
 const recalculateResultSchema = z.object({
-  costAmountCents: z.number().int(),
-  marginPercent: z.number().int(),
+  currency: z.string(),
+  costAmountCents: z.number().int().nullable(),
+  marginPercent: z.number().int().nullable(),
+  byCurrency: z.array(z.object({ currency: z.string(), amountCents: z.number().int() })),
+  unconvertibleCurrencies: z.array(z.string()),
 })
 
 const recalculateProductRoute = createRoute({

@@ -11,42 +11,11 @@ import {
   products,
   productVersions,
 } from "./schema.js"
+import { type ProductCostFxOptions, recalculateProductCost } from "./service-product-cost.js"
 import type { insertProductNoteSchema, insertVersionSchema } from "./validation.js"
 
 type CreateVersionInput = z.infer<typeof insertVersionSchema>
 type CreateProductNoteInput = z.infer<typeof insertProductNoteSchema>
-
-async function recalculateProductCost(db: PostgresJsDatabase, productId: string) {
-  const [result] = await db
-    .select({
-      totalCost: sql<number>`coalesce(sum(${productDayServices.costAmountCents} * ${productDayServices.quantity}), 0)::int`,
-    })
-    .from(productDayServices)
-    .innerJoin(productDays, eq(productDayServices.dayId, productDays.id))
-    .innerJoin(productItineraries, eq(productDays.itineraryId, productItineraries.id))
-    .where(eq(productItineraries.productId, productId))
-
-  const costAmountCents = result?.totalCost ?? 0
-
-  const [product] = await db
-    .select({ sellAmountCents: products.sellAmountCents })
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1)
-
-  const sellAmountCents = product?.sellAmountCents ?? 0
-  const marginPercent =
-    sellAmountCents > 0
-      ? Math.round(((sellAmountCents - costAmountCents) / sellAmountCents) * 100)
-      : 0
-
-  await db
-    .update(products)
-    .set({ costAmountCents, marginPercent, updatedAt: new Date() })
-    .where(eq(products.id, productId))
-
-  return { costAmountCents, marginPercent }
-}
 
 /**
  * The frozen shape a Product Version stores: the product row plus the options,
@@ -208,17 +177,12 @@ export const itineraryHistoryProductsService = {
     return row
   },
 
-  async recalculate(db: PostgresJsDatabase, productId: string) {
-    const [product] = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.id, productId))
-      .limit(1)
-
-    if (!product) {
-      return null
-    }
-
-    return recalculateProductCost(db, productId)
+  /**
+   * Recompute the product's rolled-up itinerary cost and margin. `options`
+   * carries the FX runtime used to restate non-sell-currency service costs; with
+   * none supplied the roll-up falls back to persisted `exchange_rates`.
+   */
+  recalculate(db: PostgresJsDatabase, productId: string, options: ProductCostFxOptions = {}) {
+    return recalculateProductCost(db, productId, options)
   },
 }

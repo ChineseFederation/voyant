@@ -320,6 +320,80 @@ describe.skipIf(!DB_AVAILABLE)("Product routes", () => {
     const { data } = await recalcRes.json()
     expect(data.costAmountCents).toBe(0)
     expect(data.marginPercent).toBe(100)
+    expect(data.currency).toBe("EUR")
+    expect(data.byCurrency).toEqual([])
+    expect(data.unconvertibleCurrencies).toEqual([])
+  })
+
+  it("totals a mixed-currency itinerary per currency instead of adding minor units", async () => {
+    const createRes = await app.request("/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Turkey Grand Tour",
+        sellCurrency: "EUR",
+        sellAmountCents: 200000,
+      }),
+    })
+    const { data: product } = await createRes.json()
+
+    const itineraryRes = await app.request(`/${product.id}/itineraries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Main" }),
+    })
+    const { data: itinerary } = await itineraryRes.json()
+
+    const dayRes = await app.request(`/${product.id}/itineraries/${itinerary.id}/days`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dayNumber: 1, title: "Istanbul", location: "Istanbul" }),
+    })
+    const { data: day } = await dayRes.json()
+
+    // EUR coach hire (2 × 150.00) alongside TRY hotel nights (3 × 5,000.00).
+    for (const service of [
+      { serviceType: "transfer", name: "Coach", costCurrency: "EUR", cost: 15000, quantity: 2 },
+      {
+        serviceType: "accommodation",
+        name: "Hotel",
+        costCurrency: "TRY",
+        cost: 500000,
+        quantity: 3,
+      },
+    ]) {
+      await app.request(`/${product.id}/days/${day.id}/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceType: service.serviceType,
+          name: service.name,
+          costCurrency: service.costCurrency,
+          costAmountCents: service.cost,
+          quantity: service.quantity,
+        }),
+      })
+    }
+
+    const recalcRes = await app.request(`/${product.id}/recalculate`, { method: "POST" })
+    expect(recalcRes.status).toBe(200)
+    const { data } = await recalcRes.json()
+
+    // Grouped by source currency by the database, not flattened into one integer.
+    expect(data.currency).toBe("EUR")
+    expect(data.byCurrency).toEqual([
+      { currency: "EUR", amountCents: 30000 },
+      { currency: "TRY", amountCents: 1500000 },
+    ])
+    // Whatever the deployment's FX data allows, the answer is never the naive
+    // sum of euro cents and kuruş.
+    expect(data.costAmountCents).not.toBe(1530000)
+    if (data.unconvertibleCurrencies.includes("TRY")) {
+      expect(data.costAmountCents).toBeNull()
+      expect(data.marginPercent).toBeNull()
+    } else {
+      expect(data.costAmountCents).toBeGreaterThan(30000)
+    }
   })
 
   it("creates and lists structured product features", async () => {

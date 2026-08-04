@@ -1,51 +1,74 @@
 import { describe, expect, it } from "vitest"
 
+import { computeMarginPercent, sumCostByCurrency } from "../../src/service-product-cost.js"
+
 /**
- * Unit tests for the margin computation logic.
- * The formula is: marginPercent = round(((sell - cost) / sell) * 100)
+ * Unit tests for the two pure halves of the product cost roll-up: totalling
+ * service costs per source currency, and deriving the margin once the cost is
+ * known in the sell currency. These used to re-implement both formulas locally,
+ * which let the real ones drift (voyant#4162) — they now drive the exported
+ * helpers.
  */
 
-function computeMarginPercent(sellAmountCents: number, costAmountCents: number): number {
-  if (sellAmountCents <= 0) return 0
-  return Math.round(((sellAmountCents - costAmountCents) / sellAmountCents) * 100)
-}
-
-function sumServiceCosts(services: { costAmountCents: number; quantity: number }[]): number {
-  return services.reduce((sum, s) => sum + s.costAmountCents * s.quantity, 0)
-}
-
 describe("Product cost recalculation", () => {
-  describe("sumServiceCosts", () => {
-    it("returns 0 for empty services", () => {
-      expect(sumServiceCosts([])).toBe(0)
+  describe("sumCostByCurrency", () => {
+    it("returns no subtotals for empty services", () => {
+      expect(sumCostByCurrency([])).toEqual([])
     })
 
-    it("sums single service cost", () => {
-      expect(sumServiceCosts([{ costAmountCents: 5000, quantity: 1 }])).toBe(5000)
+    it("sums a single service cost", () => {
+      expect(sumCostByCurrency([{ currency: "EUR", amountCents: 5000 }])).toEqual([
+        { currency: "EUR", amountCents: 5000 },
+      ])
     })
 
-    it("multiplies cost by quantity", () => {
-      expect(sumServiceCosts([{ costAmountCents: 5000, quantity: 3 }])).toBe(15000)
-    })
-
-    it("sums multiple services", () => {
+    it("sums multiple services in the same currency", () => {
       expect(
-        sumServiceCosts([
-          { costAmountCents: 5000, quantity: 1 },
-          { costAmountCents: 3000, quantity: 2 },
-          { costAmountCents: 1000, quantity: 1 },
+        sumCostByCurrency([
+          { currency: "EUR", amountCents: 5000 },
+          { currency: "EUR", amountCents: 6000 },
+          { currency: "EUR", amountCents: 1000 },
         ]),
-      ).toBe(12000)
+      ).toEqual([{ currency: "EUR", amountCents: 12000 }])
+    })
+
+    it("keeps different currencies apart instead of adding their minor units", () => {
+      expect(
+        sumCostByCurrency([
+          { currency: "EUR", amountCents: 5000 },
+          { currency: "TRY", amountCents: 500_000 },
+        ]),
+      ).toEqual([
+        { currency: "EUR", amountCents: 5000 },
+        { currency: "TRY", amountCents: 500_000 },
+      ])
+    })
+
+    it("normalizes currency codes so one currency is not counted as two", () => {
+      expect(
+        sumCostByCurrency([
+          { currency: "eur", amountCents: 5000 },
+          { currency: " EUR ", amountCents: 3000 },
+        ]),
+      ).toEqual([{ currency: "EUR", amountCents: 8000 }])
     })
   })
 
   describe("computeMarginPercent", () => {
-    it("returns 0 when sell amount is 0", () => {
-      expect(computeMarginPercent(0, 5000)).toBe(0)
+    it("has no margin when the sell amount is 0", () => {
+      expect(computeMarginPercent(0, 5000)).toBeNull()
     })
 
-    it("returns 0 when sell amount is negative", () => {
-      expect(computeMarginPercent(-1000, 5000)).toBe(0)
+    it("has no margin when the sell amount is negative", () => {
+      expect(computeMarginPercent(-1000, 5000)).toBeNull()
+    })
+
+    it("has no margin when the product carries no sell amount", () => {
+      expect(computeMarginPercent(null, 5000)).toBeNull()
+    })
+
+    it("has no margin when the cost could not be resolved", () => {
+      expect(computeMarginPercent(10000, null)).toBeNull()
     })
 
     it("computes 100% margin when cost is 0", () => {

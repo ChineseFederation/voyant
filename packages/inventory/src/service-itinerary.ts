@@ -12,6 +12,7 @@ import {
   assertItineraryDayNumberAvailable,
   mapItineraryDayNumberWriteError,
 } from "./service-itinerary-validation.js"
+import { recalculateProductCost } from "./service-product-cost.js"
 import type {
   insertDaySchema,
   insertDayServiceSchema,
@@ -27,38 +28,6 @@ type CreateDayInput = z.infer<typeof insertDaySchema>
 type UpdateDayInput = z.infer<typeof updateDaySchema>
 type CreateDayServiceInput = z.infer<typeof insertDayServiceSchema>
 type UpdateDayServiceInput = z.infer<typeof updateDayServiceSchema>
-
-async function recalculateProductCost(db: PostgresJsDatabase, productId: string) {
-  const [result] = await db
-    .select({
-      totalCost: sql<number>`coalesce(sum(${productDayServices.costAmountCents} * ${productDayServices.quantity}), 0)::int`,
-    })
-    .from(productDayServices)
-    .innerJoin(productDays, eq(productDayServices.dayId, productDays.id))
-    .innerJoin(productItineraries, eq(productDays.itineraryId, productItineraries.id))
-    .where(eq(productItineraries.productId, productId))
-
-  const costAmountCents = result?.totalCost ?? 0
-
-  const [product] = await db
-    .select({ sellAmountCents: products.sellAmountCents })
-    .from(products)
-    .where(eq(products.id, productId))
-    .limit(1)
-
-  const sellAmountCents = product?.sellAmountCents ?? 0
-  const marginPercent =
-    sellAmountCents > 0
-      ? Math.round(((sellAmountCents - costAmountCents) / sellAmountCents) * 100)
-      : 0
-
-  await db
-    .update(products)
-    .set({ costAmountCents, marginPercent, updatedAt: new Date() })
-    .where(eq(products.id, productId))
-
-  return { costAmountCents, marginPercent }
-}
 
 async function ensureProductExists(db: PostgresJsDatabase, productId: string) {
   const [product] = await db

@@ -18145,14 +18145,44 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "currency": {
+                          "type": "string"
+                        },
                         "costAmountCents": {
-                          "type": "integer"
+                          "type": ["integer", "null"]
                         },
                         "marginPercent": {
-                          "type": "integer"
+                          "type": ["integer", "null"]
+                        },
+                        "byCurrency": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["currency", "amountCents"]
+                          }
+                        },
+                        "unconvertibleCurrencies": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
-                      "required": ["costAmountCents", "marginPercent"]
+                      "required": [
+                        "currency",
+                        "costAmountCents",
+                        "marginPercent",
+                        "byCurrency",
+                        "unconvertibleCurrencies"
+                      ]
                     }
                   },
                   "required": ["data"]

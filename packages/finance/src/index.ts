@@ -344,6 +344,11 @@ export {
   type StoredDocumentReference,
 } from "./document-download.js"
 export {
+  type FxMoneyInput,
+  type ResolveFxMoneyBaseAmountOptions,
+  resolveFxMoneyBaseAmount,
+} from "./fx-money.js"
+export {
   createInvoiceFxApiExtension,
   createInvoiceFxRoutes,
   createVoyantDataFxExchangeRateResolver,
