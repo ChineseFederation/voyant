@@ -1,0 +1,37 @@
+{
+  "$comment": [
+    "Known-compromised npm releases that must never appear in a tracked lockfile.",
+    "",
+    "This is an incident ledger, not a vulnerability scanner. Entries are exact",
+    "name@version pairs published by an attacker who held a maintainer's",
+    "credentials — not versions with a CVE. A registry unpublish removes the",
+    "tarball from npm, but it does not remove a resolved entry from a lockfile",
+    "that was committed during the window, and a warm content-addressable store",
+    "can still restore one. This check is what makes that state loud.",
+    "",
+    "A package name may be an exact match ('keyv') or a whole scope ('@keyv/*'),",
+    "which is how advisories usually describe a scope-wide compromise."
+  ],
+  "advisories": [
+    {
+      "id": "keyv-cacheable-2026-08-04",
+      "published": "2026-08-04",
+      "url": "https://socket.dev/blog/popular-npm-packages-in-the-keyv-and-cacheable-namespaces-compromised-in-active-supply-chain",
+      "summary": "Trojanized releases in the keyv and cacheable namespaces. A preinstall hook fetched a standalone Bun runtime and ran an obfuscated second stage that harvested cloud, Kubernetes, GitHub Actions OIDC and npm credentials, then republished other packages using the stolen tokens.",
+      "packages": {
+        "keyv": ["6.0.0"],
+        "@keyv/*": ["6.0.0"],
+        "cacheable": ["2.5.1"],
+        "cacheable-request": ["13.0.20"],
+        "cache-manager": ["7.2.10"],
+        "flat-cache": ["6.1.24"],
+        "file-entry-cache": ["11.1.7"],
+        "@cacheable/net": ["2.1.1"],
+        "@cacheable/node-cache": ["3.1.2"],
+        "@cacheable/memory": ["2.2.1"],
+        "@cacheable/utils": ["2.5.1"],
+        "@thiennq/docs-viewer": ["1.6.2"]
+      }
+    }
+  ]
+}

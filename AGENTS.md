@@ -38,7 +38,7 @@ checker when a rule is mechanical enough to enforce.
 
 ## Architecture Checkers
 
-`verify:architecture` runs a chain of checks. Four are declarative and take new
+`verify:architecture` runs a chain of checks. Six are declarative and take new
 rules as data rather than code:
 
 | Check | Enforces | Where rules live |
@@ -48,6 +48,7 @@ rules as data rather than code:
 | `verify:symbol-policy` | where a symbol may and may not appear | `scripts/checks/symbols/symbol-policy.json` |
 | `verify:retired-surfaces` | deleted paths stay deleted | `scripts/checks/regression/retired-paths.json` |
 | `verify:public-surface` | what may be published, who outside this repo depends on it, and what a withdrawn package's successor is | `scripts/checks/manifests/public-surface.json` |
+| `verify:supply-chain` | no tracked lockfile resolves a known-compromised release | `scripts/checks/supply-chain/compromised-packages.json` |
 
 Two run as ratchets, holding a line rather than demanding it be clean today:
 `verify:table-privacy` (cross-module table reach-ins) and
