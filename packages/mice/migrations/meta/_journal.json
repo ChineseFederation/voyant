@@ -43,6 +43,13 @@
       "when": 1785801840000,
       "tag": "20260804000400_proposal_mice_program_link",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785888060000,
+      "tag": "20260805000100_align_proposal_link_constraint_names",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,13 @@
       "when": 1785801600000,
       "tag": "20260804000000_adopt_legacy_quote_objects",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785888000000,
+      "tag": "20260805000000_align_proposal_constraint_names",
+      "breakpoints": true
     }
   ]
 }

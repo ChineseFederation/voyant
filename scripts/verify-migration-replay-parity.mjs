@@ -175,13 +175,18 @@ async function fingerprint(client) {
   const indexes = await q(`
     SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname='public'
     ORDER BY tablename, indexname`)
+  // Read from pg_constraint, not information_schema.table_constraints: the
+  // catalogue carries the constraint NAME, and on PostgreSQL 18+ it carries the
+  // NOT NULL constraints too. A rename that moves tables and columns but leaves
+  // constraint names on the old vocabulary is exactly the drift this oracle has
+  // to see (voyant#4148) — `ALTER TABLE ... RENAME` does not rename them.
   const constraints = await q(`
-    SELECT tc.table_name, tc.constraint_type, cc.column_name
-    FROM information_schema.table_constraints tc
-    LEFT JOIN information_schema.key_column_usage cc
-      ON cc.constraint_name=tc.constraint_name AND cc.table_schema=tc.table_schema
-    WHERE tc.table_schema='public'
-    ORDER BY tc.table_name, tc.constraint_type, cc.column_name`)
+    SELECT rel.relname AS table_name, c.conname, c.contype, pg_get_constraintdef(c.oid) AS definition
+    FROM pg_constraint c
+    JOIN pg_namespace n ON n.oid = c.connamespace
+    LEFT JOIN pg_class rel ON rel.oid = c.conrelid
+    WHERE n.nspname='public'
+    ORDER BY 1, 2, 3`)
   return { columns, enums, indexes, constraints }
 }
 
@@ -217,6 +222,19 @@ async function main() {
   const admin = new Client({ connectionString: urlFor("postgres") })
   await admin.connect()
   try {
+    // NOT NULL constraints only reach `pg_constraint` from PostgreSQL 18 on, so
+    // on anything older this run cannot see that class of name drift at all
+    // (voyant#4148). Say so rather than let a green run read as full coverage.
+    const serverVersion = Number(
+      (await admin.query("SHOW server_version_num")).rows[0].server_version_num,
+    )
+    console.log(
+      `  server: PostgreSQL ${Math.floor(serverVersion / 10000)}` +
+        (serverVersion < 180000
+          ? " — NOT NULL constraint names are not catalogued here and go unchecked"
+          : " — NOT NULL constraint names included"),
+    )
+
     const packageSources = discoverPackageSources()
 
     // Canonical current schema: every selected package migration from an empty DB.

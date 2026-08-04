@@ -238,11 +238,41 @@ when they happened, and legacy delivery-request rows carry a `legacy.*` command
 scope no live command looks up. Rewriting either would falsify a record rather
 than migrate state.
 
+### Constraint names do not follow a rename (voyant#4148)
+
+`ALTER TABLE ... RENAME` moves the table, its columns and its indexes. It never
+moves a **constraint name**, and from PostgreSQL 18 on the catalogue holds one
+constraint per NOT NULL column — so an adoption increment that enumerates only
+its primary and foreign keys leaves dozens of names on the retired vocabulary.
+Nothing resolves a constraint by name at runtime, so this is not a live fault;
+it is two populations whose schemas are equivalent but **not identical**, which
+is the condition a rename must not leave behind. The next `DROP CONSTRAINT`
+written against a freshly provisioned deployment is what breaks on a repaired
+one.
+
+Two rules follow, and both are worth more than the object list itself:
+
+- **Derive the target name, do not enumerate it.** PostgreSQL builds an implicit
+  constraint name as `makeObjectName(table, column, label)`: join with an
+  underscore, append the label, then shave a character off whichever of the two
+  is longer until the result fits 63 bytes. An increment that reproduces that
+  lands exactly the name a fresh provision holds — including the truncated ones,
+  which is also where a hand-written rename goes wrong: address a constraint by
+  a name longer than an identifier can be and it matches nothing and silently
+  does nothing.
+- **Assert names, not just shapes.** Read the fingerprint from `pg_constraint`
+  and `pg_indexes` with the NAME included.
+  `information_schema.table_constraints` reports type and columns without a
+  name, so a lane can be constraint-for-constraint equal and still be drifted.
+
 `scripts/verify-migration-replay-parity.mjs` proves the whole thing: its
 pre-rename lane replays the package history as it shipped before the rename
 (fixtures under `scripts/fixtures/pre-proposal-rename/`) plus the adoption
 increments, and fails unless the result matches a fresh replay column-,
-enum-, index- and constraint-for-constraint.
+enum-, index- and constraint-for-constraint, names included. It runs on
+PostgreSQL 18 as well as 16 — 18 is the only version on which the NOT NULL
+constraint names exist to be compared — and reports which of the two it saw so a
+green run is not read as coverage it does not have.
 
 ## References
 

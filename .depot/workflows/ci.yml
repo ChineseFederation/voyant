@@ -180,12 +180,21 @@ jobs:
         include:
           - lane: replay
             size: 4x16
+            postgres_image: postgres:16
+          # PostgreSQL 18 catalogues a named constraint per NOT NULL column, so
+          # it is the only version on which the replay oracle can see that class
+          # of name drift at all (voyant#4148).
+          - lane: replay-pg18
+            size: 4x16
+            postgres_image: postgres:18
           - lane: union
             size: 4x16
+            postgres_image: postgres:16
           # The migration process can reserve 8 GB; leave enough headroom for
           # Postgres and the package-manager/runtime processes around it.
           - lane: integration
             size: 8x32
+            postgres_image: postgres:16
     runs-on:
       size: ${{ matrix.size }}
       image: 5ctgrq9prr.registry.depot.dev/voyant/ci:node24-pnpm10-playwright1.61.1-workspace
@@ -196,7 +205,7 @@ jobs:
       DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_test
     services:
       postgres:
-        image: postgres:16
+        image: ${{ matrix.postgres_image }}
         env:
           POSTGRES_USER: voyant
           POSTGRES_PASSWORD: voyant
@@ -219,7 +228,7 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.lane }}" in
-            replay)
+            replay | replay-pg18)
               node scripts/verify-migration-replay-parity.mjs
               ;;
             union)

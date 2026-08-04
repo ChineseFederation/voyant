@@ -289,10 +289,19 @@ jobs:
         include:
           - lane: replay
             runner: ubuntu-24.04
+            postgres_image: postgres:16
+          # PostgreSQL 18 catalogues a named constraint per NOT NULL column, so
+          # it is the only version on which the replay oracle can see that class
+          # of name drift at all (voyant#4148).
+          - lane: replay-pg18
+            runner: ubuntu-24.04
+            postgres_image: postgres:18
           - lane: union
             runner: ubuntu-24.04
+            postgres_image: postgres:16
           - lane: integration
             runner: ubuntu-24.04
+            postgres_image: postgres:16
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     env:
@@ -305,7 +314,7 @@ jobs:
       DATABASE_URL: postgresql://voyant:voyant@localhost:5432/voyant_test
     services:
       postgres:
-        image: postgres:16
+        image: ${{ matrix.postgres_image }}
         env:
           POSTGRES_USER: voyant
           POSTGRES_PASSWORD: voyant
@@ -328,7 +337,7 @@ jobs:
         shell: bash
         run: |
           case "${{ matrix.lane }}" in
-            replay)
+            replay | replay-pg18)
               node scripts/verify-migration-replay-parity.mjs
               ;;
             union)
