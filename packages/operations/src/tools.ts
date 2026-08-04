@@ -10,6 +10,7 @@ import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
 import {
+  attachDepartureResourceSchema,
   availabilityAggregatesQuerySchema,
   availabilityCloseoutListQuerySchema,
   availabilityOverviewQuerySchema,
@@ -18,6 +19,8 @@ import {
   availabilitySlotListQuerySchema,
   availabilitySlotStatusSchema,
   availabilityStartTimeListQuerySchema,
+  batchAssignTravelerAllocationsSchema,
+  detachDepartureResourceQuerySchema,
 } from "./availability/validation.js"
 import { getOperatorDashboardSummaryDefinition } from "./dashboard-tool.js"
 import type { OperationsToolContext, OperationsToolServices } from "./tool-services.js"
@@ -164,6 +167,50 @@ const availabilityOverviewSchema = z.object({
   ),
 })
 
+/**
+ * One `allocation_resources` container the departure operates. `id` is the
+ * departure-scoped container (`alrs_*`); `refId` is the fleet `resources` record
+ * (`res_*`) it stands for, which is what `detach_departure_fleet_resource`
+ * takes.
+ */
+const departureFleetResourceSchema = z.object({
+  id: z.string(),
+  slotId: z.string(),
+  kind: z.string(),
+  refType: z.string().nullable(),
+  refId: z.string().nullable(),
+  label: z.string().nullable(),
+  capacity: z.number().int(),
+  flags: z.record(z.string(), z.unknown()),
+  parentId: z.string().nullable(),
+  sortOrder: z.number().int(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+})
+
+const departureFleetResourceListOutputSchema = z.object({
+  resources: z.array(departureFleetResourceSchema),
+})
+
+const attachDepartureFleetResourceOutputSchema = z.object({
+  resource: departureFleetResourceSchema,
+  assignmentId: z.string(),
+  created: z.boolean(),
+})
+
+const detachDepartureFleetResourceOutputSchema = z.object({
+  removedResourceIds: z.array(z.string()),
+  assignmentId: z.string().nullable(),
+})
+
+const departureTravelerAssignmentsOutputSchema = z.object({
+  kind: z.string(),
+  assigned: z.number().int(),
+  unassigned: z.number().int(),
+  unchanged: z.number().int(),
+  travelerIds: z.array(z.string()),
+})
+
 const availabilityRuleListOutputSchema = listResponseSchema(availabilityRuleListRowSchema)
 const availabilityRuleOutputSchema = z.object({ rule: availabilityRuleSchema.nullable() })
 const availabilityStartTimeListOutputSchema = listResponseSchema(availabilityStartTimeListRowSchema)
@@ -205,6 +252,21 @@ const DEPARTURE_WRITE_RISK = {
   dryRunSupported: false,
   confirmationRequired: true,
   sideEffects: ["data-write"],
+} as const
+
+/**
+ * Detaching is the one departure-planning write that removes rows. It deletes
+ * the departure's container for the coach — with `cascade`, its seats too — and
+ * clears every traveler allocation that pointed at them. Re-attaching brings the
+ * coach back but not the seating plan, so it is irreversible in the way that
+ * matters to an operator.
+ */
+const DEPARTURE_FLEET_DETACH_RISK = {
+  destructive: true,
+  reversible: false,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write", "data-delete"],
 } as const
 
 const BOOKING_ACTION_REBUILD_RISK = {
@@ -317,6 +379,132 @@ export const updateDepartureTool = defineTool<
     return parseJsonResult(departureOutputSchema, {
       departure: await operations(ctx).updateDeparture(id, patch),
     })
+  },
+})
+
+const departureIdArgSchema = z
+  .string()
+  .min(1)
+  .describe("The departure id (`avsl_*`) whose plan is being changed.")
+
+// The HTTP legs carry the departure in the path and the rest in the body or
+// query string; a Tool has one flat argument object, so `departureId` is the
+// only field added to the route's own validation schemas.
+const attachDepartureFleetResourceArgs = attachDepartureResourceSchema.extend({
+  departureId: departureIdArgSchema,
+})
+
+const detachDepartureFleetResourceArgs = detachDepartureResourceQuerySchema.extend({
+  departureId: departureIdArgSchema,
+  fleetResourceId: z
+    .string()
+    .min(1)
+    .describe(
+      "The fleet resource id (`res_*`) to detach — the `refId` reported by " +
+        "`list_departure_fleet_resources`, not the departure container's own `alrs_*` id.",
+    ),
+  // The HTTP leg reads `cascade` from the query string, so its schema accepts
+  // only `"true"`/`"false"`. A Tool caller sends a real boolean.
+  cascade: z
+    .boolean()
+    .optional()
+    .describe(
+      "Detach the resource's children too (a coach's seats). Without it a resource that has " +
+        "been laid out is refused.",
+    ),
+})
+
+const setDepartureTravelerAssignmentsArgs = batchAssignTravelerAllocationsSchema.extend({
+  departureId: departureIdArgSchema,
+})
+
+export const attachDepartureFleetResourceTool = defineTool<
+  z.infer<typeof attachDepartureFleetResourceArgs>,
+  z.infer<typeof attachDepartureFleetResourceOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.attach-departure-fleet-resource`,
+  name: "attach_departure_fleet_resource",
+  description:
+    "Attach a fleet resource — the coach, boat, or room that operates this departure — so " +
+    "travelers can be placed in it. `kind` and `capacity` default from the fleet record; supply " +
+    "them for a resource that declares neither. A resource already committed to an overlapping " +
+    "departure is rejected, and re-attaching the same resource returns the existing link with " +
+    "`created: false` rather than duplicating it.",
+  inputSchema: attachDepartureFleetResourceArgs,
+  outputSchema: attachDepartureFleetResourceOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: DEPARTURE_WRITE_RISK,
+  annotations: { idempotentHint: true },
+  async handler({ departureId, ...input }, ctx) {
+    return parseJsonResult(
+      attachDepartureFleetResourceOutputSchema,
+      await operations(ctx).attachDepartureFleetResource(departureId, input),
+    )
+  },
+})
+
+export const detachDepartureFleetResourceTool = defineTool<
+  z.infer<typeof detachDepartureFleetResourceArgs>,
+  z.infer<typeof detachDepartureFleetResourceOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.detach-departure-fleet-resource`,
+  name: "detach_departure_fleet_resource",
+  description:
+    "Detach a fleet resource from a departure: remove the departure's container for it, clear " +
+    "the traveler placements that pointed at it, and release the fleet commitment so the " +
+    "resource is free for another departure. Pass `expectedUpdatedAt` from " +
+    "`list_departure_fleet_resources` to be rejected rather than overwrite a container someone " +
+    "else has since reconfigured.",
+  inputSchema: detachDepartureFleetResourceArgs,
+  outputSchema: detachDepartureFleetResourceOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "destructive",
+  riskPolicy: DEPARTURE_FLEET_DETACH_RISK,
+  async handler({ departureId, fleetResourceId, ...options }, ctx) {
+    return parseJsonResult(
+      detachDepartureFleetResourceOutputSchema,
+      await operations(ctx).detachDepartureFleetResource(departureId, fleetResourceId, options),
+    )
+  },
+})
+
+export const setDepartureTravelerAssignmentsTool = defineTool<
+  z.infer<typeof setDepartureTravelerAssignmentsArgs>,
+  z.infer<typeof departureTravelerAssignmentsOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.set-departure-traveler-assignments`,
+  name: "set_departure_traveler_assignments",
+  description:
+    "Place a set of travelers on a departure in one transaction — either every assignment lands " +
+    "or none does, so a family or sharing group can never end up half-placed. Set a traveler's " +
+    "`resourceId` to the departure container (`alrs_*`) they should occupy, or to null to clear " +
+    "their placement for this `kind`. Because vehicles are parent resources, a `vehicle` batch " +
+    "may only clear placements; assign travelers to `vehicle_seat` resources instead. Per " +
+    "traveler, `expectedResourceId` rejects the whole batch if that traveler has moved since it " +
+    "was read.",
+  inputSchema: setDepartureTravelerAssignmentsArgs,
+  outputSchema: departureTravelerAssignmentsOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: DEPARTURE_WRITE_RISK,
+  async handler({ departureId, ...input }, ctx) {
+    return parseJsonResult(
+      departureTravelerAssignmentsOutputSchema,
+      await operations(ctx).setDepartureTravelerAssignments(departureId, input),
+    )
   },
 })
 
@@ -489,6 +677,28 @@ export const getDepartureTool = defineTool<
   },
 })
 
+export const listDepartureFleetResourcesTool = defineTool<
+  { departureId: string },
+  z.infer<typeof departureFleetResourceListOutputSchema>,
+  OperationsToolContext
+>({
+  ...commonMetadata,
+  capabilityId: `${OWNER}#tool.list-departure-fleet-resources`,
+  name: "list_departure_fleet_resources",
+  description:
+    "List the fleet resources attached to one departure — the coaches, boats, and rooms it " +
+    "operates — with the capacity travelers are placed against. Read this to resolve the " +
+    "`refId` that `detach_departure_fleet_resource` takes and the container ids " +
+    "`set_departure_traveler_assignments` places travelers into.",
+  inputSchema: z.object({ departureId: departureIdArgSchema }),
+  outputSchema: departureFleetResourceListOutputSchema,
+  async handler({ departureId }, ctx) {
+    return parseJsonResult(departureFleetResourceListOutputSchema, {
+      resources: await operations(ctx).listDepartureFleetResources(departureId),
+    })
+  },
+})
+
 export const listAvailabilityCloseoutsTool = defineTool<
   CloseoutListQuery,
   z.infer<typeof availabilityCloseoutListOutputSchema>,
@@ -512,6 +722,9 @@ export const listAvailabilityCloseoutsTool = defineTool<
 export const operationsWriteTools = [
   createDepartureTool,
   updateDepartureTool,
+  attachDepartureFleetResourceTool,
+  detachDepartureFleetResourceTool,
+  setDepartureTravelerAssignmentsTool,
   rebuildBookingActionsTool,
 ] as const
 
@@ -523,6 +736,7 @@ export const operationsTools = [
   listAvailabilityStartTimesTool,
   listDeparturesTool,
   getDepartureTool,
+  listDepartureFleetResourcesTool,
   listAvailabilityCloseoutsTool,
 ] as const
 

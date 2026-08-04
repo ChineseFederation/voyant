@@ -171,8 +171,8 @@ describe("operations deployment manifest", () => {
     const tools = operationsVoyantModule.tools ?? []
     const actions = operationsVoyantModule.actions ?? []
     const readTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:read"))
-    expect(readTools).toHaveLength(8)
-    expect(actions).toHaveLength(11)
+    expect(readTools).toHaveLength(9)
+    expect(actions).toHaveLength(15)
     for (const tool of readTools) {
       expect(tool).toMatchObject({
         requiredScopes: ["operations:read"],
@@ -198,14 +198,68 @@ describe("operations deployment manifest", () => {
     const actions = operationsVoyantModule.actions ?? []
     const writeTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:write"))
 
-    expect(writeTools.map((tool) => tool.name).sort()).toEqual([
-      "create_departure",
-      "rebuild_booking_actions",
-      "update_departure",
-    ])
+    // Keyed by Tool name so a new write Tool has to declare its own posture
+    // here rather than falling through to whatever the last branch asserted.
+    const expectedActions: Record<string, Record<string, unknown>> = {
+      create_departure: {
+        approval: "never",
+        reversible: false,
+        targetLifecycle: "created",
+        createdTarget: {
+          commandTargetType: "departure-create-command",
+          resultReferenceType: "departure",
+          durability: "handler-command-claim-v1",
+          parentAnchor: { targetType: "product", targetIdField: "productId" },
+        },
+      },
+      update_departure: {
+        approval: "required",
+        targetLifecycle: "existing",
+        commandTargetField: "id",
+        reversible: true,
+      },
+      attach_departure_fleet_resource: {
+        approval: "required",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "medium",
+        reversible: true,
+      },
+      // Detaching removes the departure's container and the traveler placements
+      // that pointed at it, so it is the one departure-planning write declared
+      // irreversible and high risk.
+      detach_departure_fleet_resource: {
+        approval: "required",
+        action: "delete",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "high",
+        reversible: false,
+      },
+      set_departure_traveler_assignments: {
+        approval: "required",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "medium",
+        reversible: true,
+      },
+      rebuild_booking_actions: {
+        id: "@voyant-travel/operations#action.rebuild-booking-actions",
+        approval: "required",
+        targetType: "booking-action-projection",
+        targetLifecycle: "existing",
+        reversible: false,
+      },
+    }
+
+    expect(writeTools.map((tool) => tool.name).sort()).toEqual(Object.keys(expectedActions).sort())
 
     for (const tool of writeTools) {
-      expect(tool).toMatchObject({ context: ["operations"], risk: "medium" })
+      expect(tool).toMatchObject({ context: ["operations"] })
+      expect(tool.risk).toBe(tool.name === "detach_departure_fleet_resource" ? "high" : "medium")
       const action = actions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toMatchObject({
         version: "v1",
@@ -213,34 +267,7 @@ describe("operations deployment manifest", () => {
         requiredScopes: ["operations:write"],
         ledger: "required",
       })
-      if (tool.name === "create_departure") {
-        expect(action).toMatchObject({
-          approval: "never",
-          reversible: false,
-          targetLifecycle: "created",
-          createdTarget: {
-            commandTargetType: "departure-create-command",
-            resultReferenceType: "departure",
-            durability: "handler-command-claim-v1",
-            parentAnchor: { targetType: "product", targetIdField: "productId" },
-          },
-        })
-      } else if (tool.name === "update_departure") {
-        expect(action).toMatchObject({
-          approval: "required",
-          targetLifecycle: "existing",
-          commandTargetField: "id",
-          reversible: true,
-        })
-      } else {
-        expect(action).toMatchObject({
-          id: "@voyant-travel/operations#action.rebuild-booking-actions",
-          approval: "required",
-          targetType: "booking-action-projection",
-          targetLifecycle: "existing",
-          reversible: false,
-        })
-      }
+      expect(action).toMatchObject(expectedActions[tool.name] ?? {})
     }
   })
 

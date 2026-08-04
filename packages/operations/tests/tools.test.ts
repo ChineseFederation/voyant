@@ -2,13 +2,16 @@ import { createToolRegistry, type ToolContext } from "@voyant-travel/tools"
 import { describe, expect, it } from "vitest"
 
 import {
+  attachDepartureFleetResourceTool,
   CREATE_DEPARTURE_HANDLER_POLICY,
   createDepartureTool,
+  detachDepartureFleetResourceTool,
   getOperatorDashboardSummaryTool,
   type OperationsToolServices,
   operationsTools,
   rebuildBookingActionsTool,
   resolveOperatorDashboardWindow,
+  setDepartureTravelerAssignmentsTool,
   updateDepartureTool,
 } from "../src/tools.js"
 
@@ -32,6 +35,10 @@ function contextWith(overrides: Partial<OperationsToolServices>): ToolContext & 
     operations: {
       createDeparture: unavailable,
       updateDeparture: unavailable,
+      attachDepartureFleetResource: unavailable,
+      detachDepartureFleetResource: unavailable,
+      listDepartureFleetResources: unavailable,
+      setDepartureTravelerAssignments: unavailable,
       rebuildBookingActions: unavailable,
       getAvailabilityOverview: unavailable,
       getAvailabilityAggregates: unavailable,
@@ -219,6 +226,133 @@ describe("Operations tools", () => {
     })
   })
 
+  it("attaches a fleet resource with the departure lifted out of the flat argument object", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(attachDepartureFleetResourceTool)
+    let forwarded: unknown
+    let forwardedDepartureId: string | undefined
+    const result = await writeRegistry.dispatch(
+      "attach_departure_fleet_resource",
+      { departureId: "avsl_1", resourceId: "res_coach_1", capacity: 48 },
+      contextWith({
+        async attachDepartureFleetResource(departureId, input) {
+          forwardedDepartureId = departureId
+          forwarded = input
+          return {
+            resource: {
+              id: "alrs_1",
+              slotId: departureId,
+              kind: "vehicle",
+              refType: "resource",
+              refId: "res_coach_1",
+              label: "Coach 1 (C1)",
+              capacity: 48,
+              flags: { resourceAssignmentId: "resa_1" },
+              parentId: null,
+              sortOrder: 0,
+              createdAt: new Date("2026-07-28T12:00:00.000Z"),
+              updatedAt: new Date("2026-07-28T12:00:00.000Z"),
+            },
+            assignmentId: "resa_1",
+            created: true,
+          }
+        },
+      }),
+    )
+
+    expect(forwardedDepartureId).toBe("avsl_1")
+    expect(forwarded).toMatchObject({ resourceId: "res_coach_1", capacity: 48 })
+    expect(forwarded).not.toHaveProperty("departureId")
+    expect(result).toMatchObject({
+      resource: { id: "alrs_1", refId: "res_coach_1", capacity: 48 },
+      assignmentId: "resa_1",
+      created: true,
+    })
+  })
+
+  it("detaches a fleet resource by its fleet id, taking cascade as a real boolean", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(detachDepartureFleetResourceTool)
+    let forwarded: unknown
+    const result = await writeRegistry.dispatch(
+      "detach_departure_fleet_resource",
+      { departureId: "avsl_1", fleetResourceId: "res_coach_1", cascade: true },
+      contextWith({
+        async detachDepartureFleetResource(_departureId, _fleetResourceId, options) {
+          forwarded = options
+          return { removedResourceIds: ["alrs_seat_1", "alrs_1"], assignmentId: "resa_1" }
+        },
+      }),
+    )
+
+    expect(forwarded).toEqual({ cascade: true })
+    expect(result).toEqual({
+      removedResourceIds: ["alrs_seat_1", "alrs_1"],
+      assignmentId: "resa_1",
+    })
+  })
+
+  it("refuses a vehicle batch that would place travelers on the parent resource", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(setDepartureTravelerAssignmentsTool)
+    let called = false
+    await expect(
+      writeRegistry.dispatch(
+        "set_departure_traveler_assignments",
+        {
+          departureId: "avsl_1",
+          kind: "vehicle",
+          assignments: [{ travelerId: "bkpt_1", resourceId: "alrs_1" }],
+        },
+        contextWith({
+          async setDepartureTravelerAssignments() {
+            called = true
+            return {}
+          },
+        }),
+      ),
+    ).rejects.toThrow(/vehicle seats/)
+    expect(called).toBe(false)
+  })
+
+  it("places a whole set of travelers in one call", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(setDepartureTravelerAssignmentsTool)
+    let forwarded: unknown
+    const result = await writeRegistry.dispatch(
+      "set_departure_traveler_assignments",
+      {
+        departureId: "avsl_1",
+        kind: "room",
+        assignments: [
+          { travelerId: "bkpt_1", resourceId: "alrs_room_1", expectedResourceId: null },
+          { travelerId: "bkpt_2", resourceId: null },
+        ],
+      },
+      contextWith({
+        async setDepartureTravelerAssignments(_departureId, input) {
+          forwarded = input
+          return {
+            kind: input.kind,
+            assigned: 1,
+            unassigned: 1,
+            unchanged: 0,
+            travelerIds: ["bkpt_1", "bkpt_2"],
+          }
+        },
+      }),
+    )
+
+    expect(forwarded).not.toHaveProperty("departureId")
+    expect(result).toEqual({
+      kind: "room",
+      assigned: 1,
+      unassigned: 1,
+      unchanged: 0,
+      travelerIds: ["bkpt_1", "bkpt_2"],
+    })
+  })
+
   it("rebuilds Booking actions through the authoritative projection service", async () => {
     const writeRegistry = createToolRegistry()
     writeRegistry.register(rebuildBookingActionsTool)
@@ -268,6 +402,7 @@ describe("Operations tools", () => {
       "list_availability_closeouts",
       "list_availability_rules",
       "list_availability_start_times",
+      "list_departure_fleet_resources",
       "list_departures",
     ])
     for (const tool of manifest) {

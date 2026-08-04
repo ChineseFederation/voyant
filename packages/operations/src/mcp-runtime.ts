@@ -8,11 +8,23 @@ import {
 } from "@voyant-travel/bookings/runtime-port"
 import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import type { ToolErrorCode, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
 import { availabilityService } from "./availability/service.js"
+import {
+  type AssignTravelerAllocationsBatchInput,
+  assignTravelerAllocationsBatch,
+} from "./availability/service-allocation-assignment-batch.js"
+import { AllocationServiceError } from "./availability/service-allocation-errors.js"
+import {
+  type AttachDepartureResourceInput,
+  attachDepartureResource,
+  type DetachDepartureResourceOptions,
+  detachDepartureResource,
+  listDepartureResourceLinks,
+} from "./availability/service-allocation-resource-link.js"
 import { AvailabilitySlotRevisionConflictError } from "./availability/service-core.js"
 
 export * from "./tools.js"
@@ -100,6 +112,45 @@ export const voyantToolContextContribution = defineToolContextContribution({
             throw error
           }
         },
+        attachDepartureFleetResource(departureId: string, input: AttachDepartureResourceInput) {
+          return withAllocationToolErrors(() =>
+            attachDepartureResource(db as PostgresJsDatabase, departureId, input, {
+              actorId: c.get("userId") ?? null,
+            }),
+          )
+        },
+        async detachDepartureFleetResource(
+          departureId: string,
+          fleetResourceId: string,
+          options: Omit<DetachDepartureResourceOptions, "actorId">,
+        ) {
+          const detached = await withAllocationToolErrors(() =>
+            detachDepartureResource(db as PostgresJsDatabase, departureId, fleetResourceId, {
+              actorId: c.get("userId") ?? null,
+              ...options,
+            }),
+          )
+          if (!detached) {
+            throw new ToolError(
+              "That fleet resource is not attached to this departure.",
+              "NOT_FOUND",
+              { departureId, fleetResourceId },
+            )
+          }
+          return detached
+        },
+        listDepartureFleetResources: (departureId: string) =>
+          listDepartureResourceLinks(db as PostgresJsDatabase, departureId),
+        setDepartureTravelerAssignments(
+          departureId: string,
+          input: AssignTravelerAllocationsBatchInput,
+        ) {
+          return withAllocationToolErrors(() =>
+            assignTravelerAllocationsBatch(db as PostgresJsDatabase, departureId, input, {
+              actorId: c.get("userId") ?? null,
+            }),
+          )
+        },
         async rebuildBookingActions() {
           const projection = requireService(
             resources[bookingActionProjectionRuntimePort.id] as
@@ -141,6 +192,36 @@ export const voyantToolContextContribution = defineToolContextContribution({
     }
   },
 })
+
+/**
+ * The allocation services signal failure with an HTTP status because their
+ * first caller was a route. A Tool caller has no status line to read, so the
+ * status becomes the Tool error code and the service's structured `detail` —
+ * the conflicting departure, the capacity violations, the travelers whose
+ * placement moved — is carried through as `meta` rather than flattened into
+ * prose.
+ */
+async function withAllocationToolErrors<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  } catch (error) {
+    if (!(error instanceof AllocationServiceError)) throw error
+    throw new ToolError(
+      error.message,
+      allocationToolErrorCode(error.status),
+      {
+        status: error.status,
+        ...(error.detail === undefined ? {} : { detail: jsonSafeValue(error.detail) }),
+      },
+      { cause: error },
+    )
+  }
+}
+
+function allocationToolErrorCode(status: number): ToolErrorCode {
+  if (status === 404) return "NOT_FOUND"
+  return status >= 400 && status < 500 ? "INVALID_INPUT" : "PROVIDER_ERROR"
+}
 
 function jsonSafeValue(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString()

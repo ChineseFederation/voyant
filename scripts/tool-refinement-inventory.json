@@ -113,6 +113,11 @@
       "note": "Not stated. The by-id-or-slug either/or requirement is enforced only by the refinement, though the description mentions both lookups exist."
     },
     {
+      "id": "@voyant-travel/operations:set_departure_traveler_assignments:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description states that a `vehicle` batch may only clear placements because vehicles are parent resources, and that travelers are assigned to `vehicle_seat` resources instead."
+    },
+    {
       "id": "@voyant-travel/operator-settings:update_operator_settings:<root>",
       "documented": true,
       "note": "Documented. The Tool description states that supportedLocales and defaultLocale must be updated together and that defaultLocale must be included in supportedLocales."

@@ -63,6 +63,13 @@ export function hasDepartureProfitabilityReader(): boolean {
  * the rest of the summary is operational truth the operator still needs at the
  * gate. The caller sees `undefined` and renders the money section as
  * unavailable.
+ *
+ * The failure is logged rather than swallowed. "No Finance provider bound" and
+ * "Finance is bound and threw" both render the same empty money section, so
+ * without a log the second is indistinguishable from the first — a departure
+ * would silently show no revenue and nothing would say why. `hasDeparture
+ * ProfitabilityReader()` already answers the first question, so reaching the
+ * catch always means a real fault worth surfacing.
  */
 export async function readDepartureProfitabilityReport(
   db: PostgresJsDatabase,
@@ -71,7 +78,8 @@ export async function readDepartureProfitabilityReport(
   if (!readDepartureProfitability) return undefined
   try {
     return await readDepartureProfitability(db, query)
-  } catch {
+  } catch (err) {
+    console.warn(`[operations] departure profitability read failed for ${query.departureId}:`, err)
     return undefined
   }
 }

@@ -3,6 +3,7 @@ import type { ToolContext, ToolHandlerActionPolicyContext } from "@voyant-travel
 import type { z } from "zod"
 
 import type {
+  attachDepartureResourceSchema,
   availabilityAggregatesQuerySchema,
   availabilityCloseoutListQuerySchema,
   availabilityOverviewQuerySchema,
@@ -10,6 +11,8 @@ import type {
   availabilitySlotCoreSchema,
   availabilitySlotListQuerySchema,
   availabilityStartTimeListQuerySchema,
+  batchAssignTravelerAllocationsSchema,
+  detachDepartureResourceQuerySchema,
 } from "./availability/validation.js"
 
 /** Availability services contributed by an Operations runtime. */
@@ -21,6 +24,27 @@ export interface OperationsToolServices {
   updateDeparture(
     id: string,
     patch: Partial<z.infer<typeof availabilitySlotCoreSchema>> & { updatedAt?: string },
+  ): Promise<unknown>
+  /**
+   * Departure-planning writes. Each mirrors one leg of
+   * `routes-allocation-planning.ts`; the runtime owns translating the
+   * allocation services' status-coded failures into Tool errors.
+   */
+  attachDepartureFleetResource(
+    departureId: string,
+    input: z.infer<typeof attachDepartureResourceSchema>,
+  ): Promise<unknown>
+  detachDepartureFleetResource(
+    departureId: string,
+    fleetResourceId: string,
+    options: Omit<z.infer<typeof detachDepartureResourceQuerySchema>, "cascade"> & {
+      cascade?: boolean
+    },
+  ): Promise<unknown>
+  listDepartureFleetResources(departureId: string): Promise<unknown>
+  setDepartureTravelerAssignments(
+    departureId: string,
+    input: z.infer<typeof batchAssignTravelerAllocationsSchema>,
   ): Promise<unknown>
   rebuildBookingActions(): Promise<BookingActionSyncSummary>
   getAvailabilityOverview(query: z.infer<typeof availabilityOverviewQuerySchema>): Promise<unknown>

@@ -12,145 +12,7 @@
     }
   ],
   "components": {
-    "schemas": {
-      "CatalogSearchFilter": {
-        "anyOf": [
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "eq"
-                ]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "value": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "number"
-                  },
-                  {
-                    "type": "boolean"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "kind",
-              "field",
-              "value"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "in"
-                ]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "values": {
-                "type": "array",
-                "items": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    }
-                  ]
-                }
-              }
-            },
-            "required": [
-              "kind",
-              "field",
-              "values"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "range"
-                ]
-              },
-              "field": {
-                "type": "string",
-                "minLength": 1
-              },
-              "gte": {
-                "type": "number"
-              },
-              "lte": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "kind",
-              "field"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "and"
-                ]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": [
-              "kind",
-              "clauses"
-            ]
-          },
-          {
-            "type": "object",
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "or"
-                ]
-              },
-              "clauses": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CatalogSearchFilter"
-                }
-              }
-            },
-            "required": [
-              "kind",
-              "clauses"
-            ]
-          }
-        ]
-      }
-    },
+    "schemas": {},
     "parameters": {}
   },
   "paths": {
@@ -263,8 +125,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/overview": {
@@ -345,6 +206,12 @@
                               },
                               "productId": {
                                 "type": "string"
+                              },
+                              "productVersionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               },
                               "itineraryId": {
                                 "type": [
@@ -473,6 +340,7 @@
                             "required": [
                               "id",
                               "productId",
+                              "productVersionId",
                               "itineraryId",
                               "optionId",
                               "facilityId",
@@ -526,8 +394,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/rules": {
@@ -721,8 +588,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -924,8 +790,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/rules/batch-update": {
@@ -1170,8 +1035,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/rules/batch-delete": {
@@ -1273,8 +1137,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/rules/{id}": {
@@ -1411,8 +1274,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -1636,8 +1498,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -1697,8 +1558,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/start-times": {
@@ -1874,8 +1734,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -2038,8 +1897,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/start-times/batch-update": {
@@ -2247,8 +2105,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/start-times/batch-delete": {
@@ -2350,8 +2207,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/start-times/{id}": {
@@ -2470,8 +2326,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -2658,8 +2513,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -2719,8 +2573,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots": {
@@ -2819,6 +2672,15 @@
           {
             "schema": {
               "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "startsAtUntil",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "enum": [
                 "open",
                 "closed",
@@ -2849,6 +2711,12 @@
                           },
                           "productId": {
                             "type": "string"
+                          },
+                          "productVersionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
                           },
                           "itineraryId": {
                             "type": [
@@ -2983,6 +2851,7 @@
                         "required": [
                           "id",
                           "productId",
+                          "productVersionId",
                           "itineraryId",
                           "optionId",
                           "facilityId",
@@ -3037,8 +2906,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -3050,6 +2918,12 @@
                 "properties": {
                   "productId": {
                     "type": "string"
+                  },
+                  "productVersionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "itineraryId": {
                     "type": [
@@ -3205,6 +3079,12 @@
                         "productId": {
                           "type": "string"
                         },
+                        "productVersionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "itineraryId": {
                           "type": [
                             "string",
@@ -3332,6 +3212,7 @@
                       "required": [
                         "id",
                         "productId",
+                        "productVersionId",
                         "itineraryId",
                         "optionId",
                         "facilityId",
@@ -3391,8 +3272,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/batch-update": {
@@ -3417,6 +3297,12 @@
                     "properties": {
                       "productId": {
                         "type": "string"
+                      },
+                      "productVersionId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       },
                       "itineraryId": {
                         "type": [
@@ -3574,6 +3460,12 @@
                           "productId": {
                             "type": "string"
                           },
+                          "productVersionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
                           "itineraryId": {
                             "type": [
                               "string",
@@ -3701,6 +3593,7 @@
                         "required": [
                           "id",
                           "productId",
+                          "productVersionId",
                           "itineraryId",
                           "optionId",
                           "facilityId",
@@ -3788,8 +3681,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/batch-delete": {
@@ -3891,8 +3783,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}": {
@@ -3923,6 +3814,12 @@
                         },
                         "productId": {
                           "type": "string"
+                        },
+                        "productVersionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         },
                         "itineraryId": {
                           "type": [
@@ -4051,6 +3948,7 @@
                       "required": [
                         "id",
                         "productId",
+                        "productVersionId",
                         "itineraryId",
                         "optionId",
                         "facilityId",
@@ -4110,8 +4008,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -4133,6 +4030,12 @@
                 "properties": {
                   "productId": {
                     "type": "string"
+                  },
+                  "productVersionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "itineraryId": {
                     "type": [
@@ -4282,6 +4185,12 @@
                         "productId": {
                           "type": "string"
                         },
+                        "productVersionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
                         "itineraryId": {
                           "type": [
                             "string",
@@ -4409,6 +4318,7 @@
                       "required": [
                         "id",
                         "productId",
+                        "productVersionId",
                         "itineraryId",
                         "optionId",
                         "facilityId",
@@ -4486,8 +4396,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -4547,8 +4456,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/unit-availability": {
@@ -4647,8 +4555,748 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/summary": {
+      "get": {
+        "description": "One bounded envelope for an operated Departure: slot + Product Version identity, capacity counters (holds, allocations, travelers, resources), booking quantities and settlement, typed attention issues, the extras rollup, and Finance's headline P&L. Composes existing truths — Finance remains the monetary authority and money is null when it is not deployed. Every counter is whole-departure, so paging the allocation manifest never changes a figure here.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The departure summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "departure": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "productId": {
+                              "type": "string"
+                            },
+                            "productVersionId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "itineraryId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "optionId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "facilityId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "open",
+                                "closed",
+                                "sold_out",
+                                "cancelled"
+                              ]
+                            },
+                            "dateLocal": {
+                              "type": "string"
+                            },
+                            "startsAt": {
+                              "type": "string"
+                            },
+                            "endsAt": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "timezone": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "productId",
+                            "productVersionId",
+                            "itineraryId",
+                            "optionId",
+                            "facilityId",
+                            "status",
+                            "dateLocal",
+                            "startsAt",
+                            "endsAt",
+                            "timezone",
+                            "notes"
+                          ]
+                        },
+                        "capacity": {
+                          "type": "object",
+                          "properties": {
+                            "slotId": {
+                              "type": "string"
+                            },
+                            "unlimited": {
+                              "type": "boolean"
+                            },
+                            "initialPax": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "effectivePax": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "remainingPax": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "derivedRemainingPax": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "derivedConsumedPax": {
+                              "type": "integer"
+                            },
+                            "holds": {
+                              "type": "object",
+                              "properties": {
+                                "active": {
+                                  "type": "integer"
+                                },
+                                "activePax": {
+                                  "type": "integer"
+                                },
+                                "expired": {
+                                  "type": "integer"
+                                },
+                                "expiredPax": {
+                                  "type": "integer"
+                                },
+                                "released": {
+                                  "type": "integer"
+                                },
+                                "converted": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "active",
+                                "activePax",
+                                "expired",
+                                "expiredPax",
+                                "released",
+                                "converted"
+                              ]
+                            },
+                            "allocations": {
+                              "type": "object",
+                              "properties": {
+                                "held": {
+                                  "type": "integer"
+                                },
+                                "confirmed": {
+                                  "type": "integer"
+                                },
+                                "fulfilled": {
+                                  "type": "integer"
+                                },
+                                "staleHeld": {
+                                  "type": "integer"
+                                },
+                                "released": {
+                                  "type": "integer"
+                                },
+                                "expired": {
+                                  "type": "integer"
+                                },
+                                "cancelled": {
+                                  "type": "integer"
+                                },
+                                "active": {
+                                  "type": "integer"
+                                },
+                                "inactive": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "held",
+                                "confirmed",
+                                "fulfilled",
+                                "staleHeld",
+                                "released",
+                                "expired",
+                                "cancelled",
+                                "active",
+                                "inactive"
+                              ]
+                            },
+                            "bookings": {
+                              "type": "object",
+                              "properties": {
+                                "active": {
+                                  "type": "integer"
+                                },
+                                "cancelledWithLiveAllocation": {
+                                  "type": "integer"
+                                },
+                                "expectedPax": {
+                                  "type": "integer"
+                                },
+                                "byStatus": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "integer"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "active",
+                                "cancelledWithLiveAllocation",
+                                "expectedPax",
+                                "byStatus"
+                              ]
+                            },
+                            "travelers": {
+                              "type": "object",
+                              "properties": {
+                                "entered": {
+                                  "type": "integer"
+                                },
+                                "lead": {
+                                  "type": "integer"
+                                },
+                                "assigned": {
+                                  "type": "integer"
+                                },
+                                "unassigned": {
+                                  "type": "integer"
+                                },
+                                "missing": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "entered",
+                                "lead",
+                                "assigned",
+                                "unassigned",
+                                "missing"
+                              ]
+                            },
+                            "resources": {
+                              "type": "object",
+                              "properties": {
+                                "total": {
+                                  "type": "integer"
+                                },
+                                "seating": {
+                                  "type": "integer"
+                                },
+                                "capacity": {
+                                  "type": "integer"
+                                },
+                                "assigned": {
+                                  "type": "integer"
+                                },
+                                "available": {
+                                  "type": "integer"
+                                },
+                                "overCapacity": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "total",
+                                "seating",
+                                "capacity",
+                                "assigned",
+                                "available",
+                                "overCapacity"
+                              ]
+                            },
+                            "resourceBreakdown": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "slotId": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "refType": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "refId": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "parentId": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "capacity": {
+                                    "type": "integer"
+                                  },
+                                  "assigned": {
+                                    "type": "integer"
+                                  },
+                                  "available": {
+                                    "type": "integer"
+                                  },
+                                  "flags": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                  },
+                                  "sortOrder": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "slotId",
+                                  "kind",
+                                  "label",
+                                  "refType",
+                                  "refId",
+                                  "parentId",
+                                  "capacity",
+                                  "assigned",
+                                  "available",
+                                  "flags",
+                                  "sortOrder"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "slotId",
+                            "unlimited",
+                            "initialPax",
+                            "effectivePax",
+                            "remainingPax",
+                            "derivedRemainingPax",
+                            "derivedConsumedPax",
+                            "holds",
+                            "allocations",
+                            "bookings",
+                            "travelers",
+                            "resources",
+                            "resourceBreakdown"
+                          ]
+                        },
+                        "bookings": {
+                          "type": "object",
+                          "properties": {
+                            "count": {
+                              "type": "integer"
+                            },
+                            "byStatus": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "integer"
+                              }
+                            },
+                            "expectedPax": {
+                              "type": "integer"
+                            },
+                            "currency": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "soldAmountCents": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "paidAmountCents": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "outstandingAmountCents": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "count",
+                            "byStatus",
+                            "expectedPax",
+                            "currency",
+                            "soldAmountCents",
+                            "paidAmountCents",
+                            "outstandingAmountCents"
+                          ]
+                        },
+                        "travelers": {
+                          "type": "object",
+                          "properties": {
+                            "entered": {
+                              "type": "integer"
+                            },
+                            "lead": {
+                              "type": "integer"
+                            },
+                            "assigned": {
+                              "type": "integer"
+                            },
+                            "unassigned": {
+                              "type": "integer"
+                            },
+                            "missing": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "entered",
+                            "lead",
+                            "assigned",
+                            "unassigned",
+                            "missing"
+                          ]
+                        },
+                        "allocation": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "integer"
+                            },
+                            "seating": {
+                              "type": "integer"
+                            },
+                            "capacity": {
+                              "type": "integer"
+                            },
+                            "assigned": {
+                              "type": "integer"
+                            },
+                            "available": {
+                              "type": "integer"
+                            },
+                            "overCapacity": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "seating",
+                            "capacity",
+                            "assigned",
+                            "available",
+                            "overCapacity"
+                          ]
+                        },
+                        "operations": {
+                          "type": "object",
+                          "properties": {
+                            "issues": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "severity": {
+                                    "type": "string",
+                                    "enum": [
+                                      "critical",
+                                      "warning"
+                                    ]
+                                  },
+                                  "subjectType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "departure",
+                                      "booking",
+                                      "booking_allocation",
+                                      "availability_hold",
+                                      "allocation_resource"
+                                    ]
+                                  },
+                                  "subjectId": {
+                                    "type": "string"
+                                  },
+                                  "count": {
+                                    "type": "integer"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "severity",
+                                  "subjectType",
+                                  "subjectId",
+                                  "count",
+                                  "message"
+                                ]
+                              }
+                            },
+                            "criticalCount": {
+                              "type": "integer"
+                            },
+                            "warningCount": {
+                              "type": "integer"
+                            },
+                            "clear": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "issues",
+                            "criticalCount",
+                            "warningCount",
+                            "clear"
+                          ]
+                        },
+                        "extras": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "offered": {
+                              "type": "integer"
+                            },
+                            "withSelections": {
+                              "type": "integer"
+                            },
+                            "selectedTravelerCount": {
+                              "type": "integer"
+                            },
+                            "totalQuantity": {
+                              "type": "integer"
+                            },
+                            "outstandingCollectionCount": {
+                              "type": "integer"
+                            },
+                            "fulfilledExtraCount": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "offered",
+                            "withSelections",
+                            "selectedTravelerCount",
+                            "totalQuantity",
+                            "outstandingCollectionCount",
+                            "fulfilledExtraCount"
+                          ]
+                        },
+                        "finance": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "perCurrency": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "currency": {
+                                    "type": "string"
+                                  },
+                                  "revenueCents": {
+                                    "type": "integer"
+                                  },
+                                  "actualCostCents": {
+                                    "type": "integer"
+                                  },
+                                  "plannedCostCents": {
+                                    "type": "integer"
+                                  },
+                                  "profitCents": {
+                                    "type": "integer"
+                                  },
+                                  "marginPercent": {
+                                    "type": [
+                                      "number",
+                                      "null"
+                                    ]
+                                  },
+                                  "varianceCents": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "currency",
+                                  "revenueCents",
+                                  "actualCostCents",
+                                  "plannedCostCents",
+                                  "profitCents",
+                                  "marginPercent",
+                                  "varianceCents"
+                                ]
+                              }
+                            },
+                            "base": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "currency": {
+                                  "type": "string"
+                                },
+                                "revenueCents": {
+                                  "type": "integer"
+                                },
+                                "actualCostCents": {
+                                  "type": "integer"
+                                },
+                                "plannedCostCents": {
+                                  "type": "integer"
+                                },
+                                "profitCents": {
+                                  "type": "integer"
+                                },
+                                "marginPercent": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "varianceCents": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "currency",
+                                "revenueCents",
+                                "actualCostCents",
+                                "plannedCostCents",
+                                "profitCents",
+                                "marginPercent",
+                                "varianceCents"
+                              ]
+                            },
+                            "unconvertibleCurrencies": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "perCurrency",
+                            "base",
+                            "unconvertibleCurrencies"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "departure",
+                        "capacity",
+                        "bookings",
+                        "travelers",
+                        "allocation",
+                        "operations",
+                        "extras",
+                        "finance"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Availability slot not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminOperationsAvailabilitySlotsByIdSummary",
+        "summary": "GET /v1/admin/operations/availability/slots/{id}/summary",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/closeouts": {
@@ -4793,8 +5441,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -4923,8 +5570,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/closeouts/batch-update": {
@@ -5098,8 +5744,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/closeouts/batch-delete": {
@@ -5201,8 +5846,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/closeouts/{id}": {
@@ -5302,8 +5946,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -5456,8 +6099,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -5517,12 +6159,12 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation": {
       "get": {
+        "description": "The slot's allocation manifest. `limit`/`offset` page the booking axis; omitting `limit` returns every booking. The `summary` counters are whole-departure and do not change with the page.",
         "parameters": [
           {
             "schema": {
@@ -5531,6 +6173,29 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5876,6 +6541,28 @@
                             "type": "string"
                           }
                         },
+                        "pagination": {
+                          "type": "object",
+                          "properties": {
+                            "limit": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "offset": {
+                              "type": "integer"
+                            },
+                            "total": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "limit",
+                            "offset",
+                            "total"
+                          ]
+                        },
                         "summary": {
                           "type": "object",
                           "properties": {
@@ -5908,6 +6595,7 @@
                         "bookings",
                         "resources",
                         "sharingGroupLabels",
+                        "pagination",
                         "summary"
                       ]
                     }
@@ -5944,8 +6632,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/resources": {
@@ -6103,7 +6790,7 @@
             }
           },
           "400": {
-            "description": "invalid_request: request body failed validation",
+            "description": "invalid_request, or an allocation invariant was violated",
             "content": {
               "application/json": {
                 "schema": {
@@ -6111,7 +6798,8 @@
                   "properties": {
                     "error": {
                       "type": "string"
-                    }
+                    },
+                    "detail": {}
                   },
                   "required": [
                     "error"
@@ -6121,7 +6809,7 @@
             }
           },
           "404": {
-            "description": "Availability slot not found",
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -6129,7 +6817,46 @@
                   "properties": {
                     "error": {
                       "type": "string"
-                    }
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
                   },
                   "required": [
                     "error"
@@ -6145,8 +6872,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/resources/{resourceId}": {
@@ -6212,6 +6938,10 @@
                   "sortOrder": {
                     "type": "integer",
                     "default": 0
+                  },
+                  "expectedUpdatedAt": {
+                    "type": "string",
+                    "format": "date-time"
                   }
                 },
                 "additionalProperties": false
@@ -6342,7 +7072,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -6386,8 +7116,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -6406,6 +7135,15 @@
             "required": true,
             "name": "resourceId",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "expectedUpdatedAt",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6450,8 +7188,8 @@
               }
             }
           },
-          "404": {
-            "description": "Allocation resource not found",
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
             "content": {
               "application/json": {
                 "schema": {
@@ -6459,7 +7197,65 @@
                   "properties": {
                     "error": {
                       "type": "string"
-                    }
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
                   },
                   "required": [
                     "error"
@@ -6475,8 +7271,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/travelers/{travelerId}": {
@@ -6603,7 +7398,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -6647,8 +7442,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/travelers/{travelerId}/sharing-group": {
@@ -6766,7 +7560,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -6810,8 +7604,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/sharing-groups/pair": {
@@ -6927,7 +7720,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -6971,8 +7764,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/sharing-groups/{groupId}/label": {
@@ -7093,7 +7885,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -7137,8 +7929,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -7237,7 +8028,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -7281,8 +8072,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/audit-log": {
@@ -7394,8 +8184,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/export-passengers": {
@@ -7446,12 +8235,12 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/export-rooming-list": {
       "get": {
+        "description": "Resource-occupancy CSV for one allocation kind. `kind=vehicle_seat` produces the coach seating manifest; the default `room` produces the rooming list. The CSV builder always took a kind — until now the route never let a caller name one.",
         "parameters": [
           {
             "schema": {
@@ -7460,11 +8249,22 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "default": "room"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Rooming-list CSV (text/csv attachment)",
+            "description": "Rooming-list or seating-manifest CSV (text/csv attachment)",
             "content": {
               "text/csv": {
                 "schema": {
@@ -7498,12 +8298,12 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/auto-materialize": {
       "post": {
+        "description": "Materialise resources for this kind from the option's templates, sized to the pax already booked. Idempotent: template groups that already have resources on this slot are skipped and reported in `skippedExisting`, so a retry is a no-op rather than a 409.",
         "parameters": [
           {
             "schema": {
@@ -7553,6 +8353,9 @@
                           "type": "integer"
                         },
                         "created": {
+                          "type": "integer"
+                        },
+                        "skippedExisting": {
                           "type": "integer"
                         },
                         "resources": {
@@ -7678,7 +8481,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -7722,12 +8525,12 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/materialize-templates": {
       "post": {
+        "description": "Lay this departure out from its option's template `default_count`s, before any sale. `vehicle_seat` templates count vehicles and draw each one's full seat map.",
         "parameters": [
           {
             "schema": {
@@ -7751,10 +8554,14 @@
                       "properties": {
                         "created": {
                           "type": "integer"
+                        },
+                        "skippedExisting": {
+                          "type": "integer"
                         }
                       },
                       "required": [
-                        "created"
+                        "created",
+                        "skippedExisting"
                       ]
                     }
                   },
@@ -7804,7 +8611,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -7848,8 +8655,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slots/{id}/allocation/auto-allocate": {
@@ -7905,6 +8711,9 @@
                         "created": {
                           "type": "integer"
                         },
+                        "skippedExisting": {
+                          "type": "integer"
+                        },
                         "resources": {
                           "type": "array",
                           "items": {
@@ -8028,7 +8837,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -8072,8 +8881,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/products/{productId}/allocation/resource-templates": {
@@ -8227,8 +9035,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/products/{productId}/options/{optionId}/allocation/resource-templates/{kind}": {
@@ -8440,7 +9247,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -8484,8 +9291,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -8592,7 +9398,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -8636,8 +9442,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/products/{id}/allocation/materialize-open-slots": {
@@ -8737,7 +9542,7 @@
             }
           },
           "409": {
-            "description": "Resource over capacity, or resources already exist for this kind",
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
             "content": {
               "application/json": {
                 "schema": {
@@ -8781,8 +9586,1104 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources": {
+      "get": {
+        "description": "Fleet `resources` records attached to this departure — the `allocation_resources` rows whose `refType` is `resource`.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The departure's attached fleet resources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "slotId": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "refType": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "refId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "label": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "capacity": {
+                            "type": "integer"
+                          },
+                          "flags": {
+                            "type": "object",
+                            "additionalProperties": {}
+                          },
+                          "parentId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "sortOrder": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slotId",
+                          "kind",
+                          "refType",
+                          "refId",
+                          "label",
+                          "capacity",
+                          "flags",
+                          "parentId",
+                          "sortOrder",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminOperationsAvailabilitySlotsByIdAllocationFleetResources",
+        "summary": "GET /v1/admin/operations/availability/slots/{id}/allocation/fleet-resources",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "description": "Attach a fleet `resources` record (a coach, a boat, a room) to this departure. Writes the departure's `allocation_resources` container and the cross-departure `resource_slot_assignments` commitment in one transaction, adopting an existing live assignment rather than duplicating it. Rejects a resource already committed to an overlapping departure. Re-attaching the same resource is a no-op.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "resourceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "capacity": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "flags": {
+                    "type": "object",
+                    "additionalProperties": {},
+                    "default": {}
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "default": 0
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "resourceId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The attached resource and its fleet commitment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "resource": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "slotId": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string"
+                            },
+                            "refType": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "refId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "label": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "capacity": {
+                              "type": "integer"
+                            },
+                            "flags": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "parentId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "sortOrder": {
+                              "type": "integer"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slotId",
+                            "kind",
+                            "refType",
+                            "refId",
+                            "label",
+                            "capacity",
+                            "flags",
+                            "parentId",
+                            "sortOrder",
+                            "createdAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "assignmentId": {
+                          "type": "string"
+                        },
+                        "created": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "resource",
+                        "assignmentId",
+                        "created"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminOperationsAvailabilitySlotsByIdAllocationFleetResources",
+        "summary": "POST /v1/admin/operations/availability/slots/{id}/allocation/fleet-resources",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources/{fleetResourceId}": {
+      "delete": {
+        "description": "Detach a fleet resource from this departure: remove its container (and, with `cascade`, its seats), clear the traveler allocations that pointed at them, and release the fleet commitment.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "fleetResourceId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "expectedUpdatedAt",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "cascade",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The removed allocation resources and the released assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "removedResourceIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "assignmentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "removedResourceIds",
+                        "assignmentId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminOperationsAvailabilitySlotsByIdAllocationFleetResourcesByFleetResourceId",
+        "summary": "DELETE /v1/admin/operations/availability/slots/{id}/allocation/fleet-resources/{fleetResourceId}",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/travelers/assignments": {
+      "post": {
+        "description": "Place a set of travelers in one transaction. Either every assignment lands or none does, so a sharing group can never end up half-placed. Per-traveler `expectedResourceId` is an optimistic-concurrency precondition.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "assignments": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "travelerId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "resourceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        },
+                        "expectedResourceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "travelerId",
+                        "resourceId"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "kind",
+                  "assignments"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Counts of what the batch assigned, unassigned, and left unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        },
+                        "assigned": {
+                          "type": "integer"
+                        },
+                        "unassigned": {
+                          "type": "integer"
+                        },
+                        "unchanged": {
+                          "type": "integer"
+                        },
+                        "travelerIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "assigned",
+                        "unassigned",
+                        "unchanged",
+                        "travelerIds"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminOperationsAvailabilitySlotsByIdAllocationTravelersAssignments",
+        "summary": "POST /v1/admin/operations/availability/slots/{id}/allocation/travelers/assignments",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/auto-allocate/preview": {
+      "post": {
+        "description": "Compute the auto-allocation plan without writing it. Returns the traveler→resource entries the commit would produce, which of them change anything, and any capacity violations the plan would create.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "default": "room"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The uncommitted allocation plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        },
+                        "assigned": {
+                          "type": "integer"
+                        },
+                        "skipped": {
+                          "type": "integer"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "travelerId": {
+                                "type": "string"
+                              },
+                              "travelerName": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": "string"
+                              },
+                              "bookingNumber": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "resourceId": {
+                                "type": "string"
+                              },
+                              "resourceLabel": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "currentResourceId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "unchanged": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "travelerId",
+                              "travelerName",
+                              "bookingId",
+                              "bookingNumber",
+                              "sharingGroupId",
+                              "resourceId",
+                              "resourceLabel",
+                              "currentResourceId",
+                              "unchanged"
+                            ]
+                          }
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slotId": {
+                                "type": "string"
+                              },
+                              "resourceId": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "capacity": {
+                                "type": "integer"
+                              },
+                              "existingAssigned": {
+                                "type": "integer"
+                              },
+                              "requested": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "slotId",
+                              "resourceId",
+                              "kind",
+                              "capacity",
+                              "existingAssigned",
+                              "requested"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "assigned",
+                        "skipped",
+                        "entries",
+                        "violations"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminOperationsAvailabilitySlotsByIdAllocationAutoAllocatePreview",
+        "summary": "POST /v1/admin/operations/availability/slots/{id}/allocation/auto-allocate/preview",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/conflicts": {
+      "get": {
+        "description": "The departure's allocation conflicts for one resource kind: unassigned travelers, over-capacity and duplicated resources, inaccessible and incompatible placements, and oversubscribed or split sharing groups. Codes are stable; the UI, the CSV export and the printed manifest all read this one projection.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "default": "room"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The departure's allocation conflicts, critical first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "type": "string",
+                            "enum": [
+                              "critical",
+                              "warning"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "subjectType": {
+                            "type": "string",
+                            "enum": [
+                              "traveler",
+                              "allocation_resource",
+                              "sharing_group",
+                              "departure"
+                            ]
+                          },
+                          "subjectId": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          },
+                          "travelerIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "resourceIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "severity",
+                          "kind",
+                          "subjectType",
+                          "subjectId",
+                          "count",
+                          "travelerIds",
+                          "resourceIds",
+                          "message"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Availability slot not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminOperationsAvailabilitySlotsByIdAllocationConflicts",
+        "summary": "GET /v1/admin/operations/availability/slots/{id}/allocation/conflicts",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-points": {
@@ -8939,8 +10840,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -9081,8 +10981,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-points/batch-update": {
@@ -9268,8 +11167,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-points/batch-delete": {
@@ -9371,8 +11269,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-points/{id}": {
@@ -9480,8 +11377,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -9646,8 +11542,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -9707,8 +11602,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slot-pickups": {
@@ -9834,8 +11728,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -9956,8 +11849,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slot-pickups/batch-update": {
@@ -10123,8 +12015,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slot-pickups/batch-delete": {
@@ -10226,8 +12117,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/slot-pickups/{id}": {
@@ -10324,8 +12214,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -10470,8 +12359,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -10531,8 +12419,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/meeting-configs": {
@@ -10749,8 +12636,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -10966,8 +12852,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/meeting-configs/batch-update": {
@@ -11229,8 +13114,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/meeting-configs/batch-delete": {
@@ -11332,8 +13216,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/meeting-configs/{id}": {
@@ -11480,8 +13363,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -11722,8 +13604,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -11783,8 +13664,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-groups": {
@@ -11939,8 +13819,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -12081,8 +13960,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-groups/batch-update": {
@@ -12267,8 +14145,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-groups/batch-delete": {
@@ -12370,8 +14247,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-groups/{id}": {
@@ -12478,8 +14354,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -12643,8 +14518,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -12704,8 +14578,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-locations": {
@@ -12867,8 +14740,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -13031,8 +14903,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-locations/batch-update": {
@@ -13240,8 +15111,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-locations/batch-delete": {
@@ -13343,8 +15213,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/pickup-locations/{id}": {
@@ -13463,8 +15332,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -13651,8 +15519,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -13712,8 +15579,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/location-pickup-times": {
@@ -13904,8 +15770,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -14107,8 +15972,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/location-pickup-times/batch-update": {
@@ -14356,8 +16220,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/location-pickup-times/batch-delete": {
@@ -14459,8 +16322,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/location-pickup-times/{id}": {
@@ -14600,8 +16462,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -14828,8 +16689,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -14889,8 +16749,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/custom-pickup-areas": {
@@ -15026,8 +16885,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -15155,8 +17013,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/custom-pickup-areas/batch-update": {
@@ -15329,8 +17186,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/custom-pickup-areas/batch-delete": {
@@ -15432,8 +17288,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/availability/custom-pickup-areas/{id}": {
@@ -15534,8 +17389,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -15687,8 +17541,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -15748,8 +17601,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/resources": {
@@ -15938,8 +17790,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -16123,8 +17974,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/resources/batch-update": {
@@ -16352,8 +18202,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/resources/batch-delete": {
@@ -16455,8 +18304,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/resources/{id}": {
@@ -16586,8 +18434,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -16794,8 +18641,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -16855,8 +18701,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pools": {
@@ -17023,8 +18868,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -17182,8 +19026,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pools/batch-update": {
@@ -17385,8 +19228,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pools/batch-delete": {
@@ -17488,8 +19330,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pools/{id}": {
@@ -17605,8 +19446,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -17787,8 +19627,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -17848,8 +19687,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pool-members": {
@@ -17957,8 +19795,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -18083,8 +19920,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/pool-members/{id}": {
@@ -18146,8 +19982,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/requirements": {
@@ -18305,8 +20140,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -18476,8 +20310,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/requirements/batch-update": {
@@ -18671,8 +20504,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/requirements/batch-delete": {
@@ -18774,8 +20606,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/requirements/{id}": {
@@ -18888,8 +20719,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -19062,8 +20892,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -19123,8 +20952,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/allocations": {
@@ -19282,8 +21110,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -19453,8 +21280,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/allocations/batch-update": {
@@ -19648,8 +21474,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/allocations/batch-delete": {
@@ -19751,8 +21576,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/allocations/{id}": {
@@ -19865,8 +21689,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -20039,8 +21862,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -20100,8 +21922,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/slot-assignments": {
@@ -20289,8 +22110,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -20494,8 +22314,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/slot-assignments/batch-update": {
@@ -20726,8 +22545,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/slot-assignments/batch-delete": {
@@ -20829,8 +22647,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/slot-assignments/{id}": {
@@ -20958,8 +22775,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -21169,8 +22985,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -21230,8 +23045,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/closeouts": {
@@ -21368,8 +23182,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -21549,8 +23362,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/closeouts/batch-update": {
@@ -21739,8 +23551,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/closeouts/batch-delete": {
@@ -21842,8 +23653,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/closeouts/{id}": {
@@ -21950,8 +23760,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -22137,8 +23946,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -22198,8 +24006,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/operators": {
@@ -22353,8 +24160,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -22502,8 +24308,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/operators/{id}": {
@@ -22614,8 +24419,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -22788,8 +24592,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -22849,8 +24652,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/vehicles": {
@@ -23075,8 +24877,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -23327,8 +25128,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/vehicles/{id}": {
@@ -23491,8 +25291,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -23768,8 +25567,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -23829,8 +25627,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/drivers": {
@@ -23992,8 +25789,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -24158,8 +25954,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/drivers/{id}": {
@@ -24278,8 +26073,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -24469,8 +26263,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -24530,8 +26323,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/transfer-preferences": {
@@ -24809,8 +26601,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -25194,8 +26985,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/transfer-preferences/{id}": {
@@ -25429,8 +27219,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -25839,8 +27628,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -25900,8 +27688,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatches": {
@@ -26179,8 +27966,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -26480,8 +28266,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatches/{id}": {
@@ -26670,8 +28455,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -26995,8 +28779,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -27056,8 +28839,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/execution-events": {
@@ -27220,8 +29002,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -27397,8 +29178,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/execution-events/{id}": {
@@ -27521,8 +29301,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -27723,8 +29502,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -27784,8 +29562,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-assignments": {
@@ -27978,8 +29755,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -28174,8 +29950,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-assignments/{id}": {
@@ -28310,8 +30085,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -28531,8 +30305,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -28592,8 +30365,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-legs": {
@@ -28764,8 +30536,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -28961,8 +30732,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-legs/{id}": {
@@ -29098,8 +30868,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -29320,8 +31089,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -29381,8 +31149,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-passengers": {
@@ -29518,8 +31285,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -29656,8 +31422,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-passengers/{id}": {
@@ -29764,8 +31529,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -29927,8 +31691,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -29988,8 +31751,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/driver-shifts": {
@@ -30168,8 +31930,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -30348,8 +32109,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/driver-shifts/{id}": {
@@ -30476,8 +32236,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -30679,8 +32438,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -30740,8 +32498,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/service-incidents": {
@@ -30917,8 +32674,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -31103,8 +32859,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/service-incidents/{id}": {
@@ -31232,8 +32987,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -31442,8 +33196,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -31503,8 +33256,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-checkpoints": {
@@ -31679,8 +33431,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -31885,8 +33636,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/dispatch-checkpoints/{id}": {
@@ -32026,8 +33776,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -32256,8 +34005,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -32317,8 +34065,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities": {
@@ -32643,8 +34390,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -33010,8 +34756,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}": {
@@ -33239,8 +34984,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -33630,8 +35374,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -33691,8 +35434,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}/contact-points": {
@@ -33812,8 +35554,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "parameters": [
@@ -34030,8 +35771,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/contact-points/{id}": {
@@ -34256,8 +35996,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -34317,8 +36056,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}/addresses": {
@@ -34489,8 +36227,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "parameters": [
@@ -34796,8 +36533,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/addresses/{id}": {
@@ -35115,8 +36851,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -35176,8 +36911,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-contacts": {
@@ -35358,8 +37092,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}/contacts": {
@@ -35577,8 +37310,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-contacts/{id}": {
@@ -35793,8 +37525,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -35854,8 +37585,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-features": {
@@ -36016,8 +37746,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}/features": {
@@ -36218,8 +37947,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-features/{id}": {
@@ -36417,8 +38145,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -36478,8 +38205,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-operation-schedules": {
@@ -36652,8 +38378,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facilities/{id}/operation-schedules": {
@@ -36870,8 +38595,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/facility-operation-schedules/{id}": {
@@ -37088,8 +38812,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -37149,8 +38872,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/properties": {
@@ -37354,8 +39076,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -37594,8 +39315,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/properties/{id}": {
@@ -37744,8 +39464,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -37991,8 +39710,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -38052,8 +39770,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/property-groups": {
@@ -38263,8 +39980,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -38490,8 +40206,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/property-groups/{id}": {
@@ -38642,8 +40357,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -38894,8 +40608,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -38955,8 +40668,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/property-group-members": {
@@ -39119,8 +40831,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -39302,8 +41013,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/property-group-members/{id}": {
@@ -39422,8 +41132,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -39611,8 +41320,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "delete": {
         "parameters": [
@@ -39672,8 +41380,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/function-spaces": {
@@ -39849,8 +41556,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "post": {
         "requestBody": {
@@ -40063,8 +41769,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/function-spaces/{id}": {
@@ -40250,8 +41955,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       },
       "patch": {
         "parameters": [
@@ -40473,8 +42177,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/function-spaces/{id}/capacities": {
@@ -40628,8 +42331,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks": {
@@ -40872,8 +42574,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks/{id}": {
@@ -41098,8 +42799,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks/{id}/slots": {
@@ -41260,8 +42960,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks/{id}/pickups": {
@@ -41536,8 +43235,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks/{id}/pickups/reverse": {
@@ -41687,8 +43385,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
+        "x-voyant-surface": "admin"
       }
     },
     "/v1/admin/operations/space-blocks/{id}/release": {
@@ -41873,384 +43570,7 @@
           "operations"
         ],
         "x-voyant-module": "operations",
-        "x-voyant-surface": "admin",
-        "x-voyant-api-id": "@voyant-travel/operations#api.admin"
-      }
-    },
-    "/v1/admin/operations/booking-actions": {
-      "get": {
-        "tags": [
-          "Booking actions"
-        ],
-        "summary": "List the operations booking-action work queue",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": false,
-            "name": "bookingId",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "minLength": 1
-            },
-            "required": false,
-            "name": "bookingSessionId",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "hold_expiry",
-                "deposit_due",
-                "balance_due",
-                "installment_due",
-                "supplier_response_due",
-                "supplier_reconciliation_due",
-                "legal_acceptance_due",
-                "legal_signature_due"
-              ]
-            },
-            "required": false,
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "enum": [
-                "scheduled",
-                "due",
-                "overdue",
-                "escalated",
-                "satisfied",
-                "cancelled",
-                "superseded",
-                "invalid_source"
-              ]
-            },
-            "required": false,
-            "name": "state",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "required": false,
-            "name": "dueFrom",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "format": "date-time"
-            },
-            "required": false,
-            "name": "dueTo",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200,
-              "default": 50
-            },
-            "required": false,
-            "name": "limit",
-            "in": "query"
-          },
-          {
-            "schema": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "minimum": 0,
-              "default": 0
-            },
-            "required": false,
-            "name": "offset",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Server-projected booking actions and deadlines",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "providerId": {
-                            "type": "string"
-                          },
-                          "sourceModule": {
-                            "type": "string"
-                          },
-                          "sourceType": {
-                            "type": "string"
-                          },
-                          "sourceId": {
-                            "type": "string"
-                          },
-                          "sourceUpdatedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "hold_expiry",
-                              "deposit_due",
-                              "balance_due",
-                              "installment_due",
-                              "supplier_response_due",
-                              "supplier_reconciliation_due",
-                              "legal_acceptance_due",
-                              "legal_signature_due"
-                            ]
-                          },
-                          "bookingId": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "bookingSessionId": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "dueAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          },
-                          "dueLocalDate": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "format": "date"
-                          },
-                          "timeZone": {
-                            "type": "string"
-                          },
-                          "deadlineSemantics": {
-                            "type": "string",
-                            "enum": [
-                              "instant",
-                              "local_date_end"
-                            ]
-                          },
-                          "state": {
-                            "type": "string",
-                            "enum": [
-                              "scheduled",
-                              "due",
-                              "overdue",
-                              "escalated",
-                              "satisfied",
-                              "cancelled",
-                              "superseded",
-                              "invalid_source"
-                            ]
-                          },
-                          "satisfiedAt": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "format": "date-time"
-                          },
-                          "escalationPolicy": {
-                            "type": "object",
-                            "properties": {
-                              "dueWindowSeconds": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "default": 86400
-                              },
-                              "escalateAfterSeconds": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "default": 259200
-                              }
-                            }
-                          },
-                          "operatorNextAction": {
-                            "type": "string",
-                            "enum": [
-                              "monitor_hold",
-                              "collect_payment",
-                              "contact_customer",
-                              "reconcile_supplier_operation",
-                              "review_supplier_operation",
-                              "obtain_legal_acceptance",
-                              "obtain_signature",
-                              "none"
-                            ]
-                          },
-                          "customerVisible": {
-                            "type": "boolean"
-                          },
-                          "customerNextAction": {
-                            "type": [
-                              "string",
-                              "null"
-                            ],
-                            "enum": [
-                              "complete_booking",
-                              "make_payment",
-                              "await_supplier_confirmation",
-                              "accept_terms",
-                              "sign_contract",
-                              "none",
-                              null
-                            ]
-                          },
-                          "safeMetadata": {
-                            "type": "object",
-                            "additionalProperties": {}
-                          },
-                          "projectedAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "providerId",
-                          "sourceModule",
-                          "sourceType",
-                          "sourceId",
-                          "sourceUpdatedAt",
-                          "kind",
-                          "bookingId",
-                          "bookingSessionId",
-                          "dueAt",
-                          "dueLocalDate",
-                          "timeZone",
-                          "deadlineSemantics",
-                          "state",
-                          "satisfiedAt",
-                          "escalationPolicy",
-                          "operatorNextAction",
-                          "customerVisible",
-                          "customerNextAction",
-                          "safeMetadata",
-                          "projectedAt"
-                        ]
-                      }
-                    },
-                    "count": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "limit": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0
-                    },
-                    "offset": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "asOf": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "count",
-                    "limit",
-                    "offset",
-                    "asOf"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/admin/operations/booking-actions/rebuild": {
-      "post": {
-        "tags": [
-          "Booking actions"
-        ],
-        "summary": "Deterministically rebuild booking actions from authoritative modules",
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {}
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Projection rebuild summary",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "mode": {
-                      "type": "string",
-                      "enum": [
-                        "incremental",
-                        "rebuild"
-                      ]
-                    },
-                    "providers": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "projected": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "unchanged": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "invalidated": {
-                      "type": "integer",
-                      "minimum": 0
-                    }
-                  },
-                  "required": [
-                    "mode",
-                    "providers",
-                    "projected",
-                    "unchanged",
-                    "invalidated"
-                  ]
-                }
-              }
-            }
-          }
-        }
+        "x-voyant-surface": "admin"
       }
     }
   },
