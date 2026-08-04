@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
-  type BookingDraftV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import { z } from "zod"
 
@@ -34,7 +34,7 @@ export interface UseBookingDraftOptions extends BookingJourneyApiOptions {
    *  sessionStorage. */
   draftId: string
   /** Initial entity pointer, required on first PUT. */
-  initialDraft?: BookingDraftV1
+  initialDraft?: BookingSelectionV1
   /** Disable the GET — useful when the draft was just minted client-side. */
   enableLoad?: boolean
 }
@@ -71,13 +71,13 @@ export function useBookingDraft(options: UseBookingDraftOptions) {
     DraftRow,
     Error,
     {
-      draft: BookingDraftV1
+      draft: BookingSelectionV1
       currentStep?: string
       currentQuoteId?: string
     }
   >({
     mutationFn: async ({ draft, currentStep, currentQuoteId }) => {
-      bookingDraftV1.parse(draft)
+      bookingSelectionV1.parse(draft)
       const body: Record<string, unknown> = {
         entityModule: draft.entity.module,
         entityId: draft.entity.id,

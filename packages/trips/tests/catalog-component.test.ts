@@ -8,7 +8,7 @@ const cancelEntity = vi.fn()
 vi.mock("@voyant-travel/catalog/booking-engine", () => ({
   quoteEntity: (...args: unknown[]) => quoteEntity(...args),
   cancelEntity: (...args: unknown[]) => cancelEntity(...args),
-  bookingDraftV1: { parse: (x: unknown) => x },
+  bookingSelectionV1: { parse: (x: unknown) => x },
   quoteResponseV1: { parse: (x: unknown) => x },
 }))
 

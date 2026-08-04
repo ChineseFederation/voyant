@@ -1,5 +1,5 @@
 /**
- * Project an `ExtraContent` payload into a `BookingRequirements`.
+ * Project an `ExtraContent` payload into a `BookingRequirementsV1`.
  *
  * Extras are booking add-ons (excursions, transfers, insurance) —
  * they're never standalone bookable on their own; they always layer
@@ -15,23 +15,23 @@
  *     supplier's extras).
  *
  * In practice templates rarely call this directly — the parent
- * product's `BookingRequirements` aggregates extras via the journey's
+ * product's `BookingRequirementsV1` aggregates extras via the journey's
  * cross-product composer. This function is the building block.
  */
 
 import {
-  type AddonOffer,
-  type BookingRequirements,
+  type AddonOfferV1,
+  type BookingRequirementsV1,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-  type PaxBandSpec,
+  type PaxBandSpecV1,
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog/booking-engine"
 
 import type { ExtraContent } from "./content-shape.js"
 
-const DEGENERATE_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
+const DEGENERATE_PAX_BANDS: PaxBandSpecV1[] = [
   { code: "adult", label: "Adult", minCount: 0, maxCount: 8 },
 ]
 
@@ -49,13 +49,13 @@ export interface BuildExtraRequirementsOptions {
 export function buildExtraRequirements(
   content: ExtraContent,
   options: BuildExtraRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   const flags = defaultRequirementsFlags()
   const standalone = options.standalone ?? false
 
   // Project the extra + its options as add-on offers. The extra
   // itself becomes the lead item; sub-options follow.
-  const items: AddonOffer[] = [
+  const items: AddonOfferV1[] = [
     {
       id: content.extra.id,
       name: content.extra.name,
@@ -64,7 +64,7 @@ export function buildExtraRequirements(
       pricingMode: content.extra.pricing_mode ?? null,
     },
     ...content.options.map(
-      (opt): AddonOffer => ({
+      (opt): AddonOfferV1 => ({
         id: opt.id,
         name: opt.name,
         description: opt.description ?? null,
@@ -89,7 +89,7 @@ export function buildExtraRequirements(
   }
 }
 
-function kindForExtraCategory(category: string | null): AddonOffer["kind"] {
+function kindForExtraCategory(category: string | null): AddonOfferV1["kind"] {
   if (!category) return "extras"
   const lower = category.toLowerCase()
   if (lower.includes("excursion") || lower.includes("tour")) return "excursions"

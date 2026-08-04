@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import {
-  type BookingDraftV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
 import { type ContentResolution, fetchContent } from "@voyant-travel/catalog-react/storefront"
@@ -48,9 +48,9 @@ export function CruiseDetailPage({ entityId }: { entityId: string }): React.Reac
     if (firstSailingId && !selectedSailingId) setSelectedSailingId(firstSailingId)
   }, [firstSailingId, selectedSailingId])
 
-  const probeDraft = useMemo<BookingDraftV1 | null>(() => {
+  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
     if (!selectedSailingId || !selectedCabinCategoryId) return null
-    return bookingDraftV1.parse({
+    return bookingSelectionV1.parse({
       entity: { module: "cruises", id: entityId, sourceKind: "" },
       configure: {
         departureSlotId: selectedSailingId,

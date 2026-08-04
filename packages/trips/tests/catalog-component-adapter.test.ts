@@ -3,7 +3,7 @@ import {
   assertCatalogComponentBookingDraftReady,
   bookingDraftFromComponent,
   isCatalogBackedTripComponent,
-  toBookingDraftV1,
+  toBookingSelectionV1,
 } from "../src/catalog-component-adapter.js"
 import type { TripComponent } from "../src/schema.js"
 import { TripsInvariantError } from "../src/service.js"
@@ -51,7 +51,7 @@ function component(overrides: Partial<TripComponent> = {}): TripComponent {
 
 describe("catalog component adapter", () => {
   it("maps a catalog-backed component into a booking draft", () => {
-    const draft = toBookingDraftV1(component(), {
+    const draft = toBookingSelectionV1(component(), {
       configure: { pax: { adult: 2 } },
       payment: { intent: "hold" },
     })
@@ -66,7 +66,7 @@ describe("catalog component adapter", () => {
   })
 
   it("passes through sourced refs when present", () => {
-    const draft = toBookingDraftV1(
+    const draft = toBookingSelectionV1(
       component({
         sourceKind: "sourced",
         sourceConnectionId: "conn_123",
@@ -144,10 +144,10 @@ describe("catalog component adapter", () => {
   })
 
   it("rejects placeholders and incomplete refs", () => {
-    expect(() => toBookingDraftV1(component({ kind: "manual_placeholder" }))).toThrowError(
+    expect(() => toBookingSelectionV1(component({ kind: "manual_placeholder" }))).toThrowError(
       TripsInvariantError,
     )
-    expect(() => toBookingDraftV1(component({ sourceKind: null }))).toThrowError(
+    expect(() => toBookingSelectionV1(component({ sourceKind: null }))).toThrowError(
       /catalog entity refs/,
     )
   })

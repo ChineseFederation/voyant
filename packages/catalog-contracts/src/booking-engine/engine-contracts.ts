@@ -2,7 +2,9 @@
 
 import { z } from "zod"
 
-import { bookingDraftV1, bookingRequirementsV1, pricingBreakdownV1 } from "./draft-contracts.js"
+import { pricingBreakdownV1 } from "./pricing-contracts.js"
+import { bookingRequirementsV1 } from "./requirements-contracts.js"
+import { bookingSelectionV1 } from "./selection-contracts.js"
 
 // ─────────────────────────────────────────────────────────────────
 // Engine request / response contracts
@@ -22,7 +24,7 @@ export const quoteRequestV1 = z.object({
   sourceConnectionId: z.string().optional(),
   sourceRef: z.string().optional(),
   scope: quoteScopeV1,
-  draft: bookingDraftV1.optional(),
+  draft: bookingSelectionV1.optional(),
   ttlMs: z.number().int().positive().optional(),
 })
 

@@ -1,9 +1,7 @@
 "use client"
 
-import {
-  type BookingRequirements,
-  paxBandBaseCode,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import { Separator } from "@voyant-travel/ui/components"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
@@ -42,7 +40,7 @@ type TravelerBand = Draft["travelers"][number]["band"]
  *  source of truth, so the quote always matches who's actually in the list. */
 function paxFromTravelers(
   travelers: Draft["travelers"],
-  bands: BookingRequirements["paxBands"],
+  bands: BookingRequirementsV1["paxBands"],
 ): Record<string, number> {
   const counts: Record<string, number> = {}
   for (const band of bands) counts[band.code] = 0
@@ -56,7 +54,7 @@ function paxFromTravelers(
 function applyTravelers(
   draft: Draft,
   next: Draft["travelers"],
-  bands: BookingRequirements["paxBands"],
+  bands: BookingRequirementsV1["paxBands"],
 ): Draft {
   return patchConfigure(setTravelers(draft, next), { pax: paxFromTravelers(next, bands) })
 }
@@ -201,7 +199,7 @@ function TravelerCard({
 }: {
   idx: number
   traveler: Draft["travelers"][number]
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
   draft: Draft
   setDraft: (next: Draft) => void
   /** Default country (ISO 3166-1 alpha-2) for the traveler's phone input. */
@@ -467,7 +465,7 @@ function TravelerCard({
 /** Band for a freshly-seeded row at `idx`, distributing across any pre-set
  *  band counts in order (so a detail-page hand-off of 1 adult + 1 child seeds
  *  the right two rows). Falls back to the first band. */
-function bandForSeedIndex(draft: Draft, idx: number, shape: BookingRequirements): TravelerBand {
+function bandForSeedIndex(draft: Draft, idx: number, shape: BookingRequirementsV1): TravelerBand {
   let cursor = 0
   for (const band of shape.paxBands) {
     const count = draft.configure.pax?.[band.code] ?? 0

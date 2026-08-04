@@ -36,7 +36,7 @@ for (const sourceRoot of sourceRoots) {
 }
 
 for (const path of [
-  "packages/catalog-contracts/src/booking-engine/draft-contracts.ts",
+  "packages/catalog-contracts/src/booking-engine/selection-contracts.ts",
   "packages/inventory/src/booking-engine/handler.ts",
 ]) {
   const source = readFileSync(resolve(root, path), "utf8")

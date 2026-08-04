@@ -1,10 +1,10 @@
 import { bookingRequirementsService } from "@voyant-travel/bookings/requirements"
 import type {
-  AddonOffer,
+  AddonOfferV1,
   OwnedBookingHandlerRegistry,
-  PaxBandDependency,
-  PaxBandSpec,
-  TravelerFieldRequirement,
+  PaxBandDependencyV1,
+  PaxBandSpecV1,
+  TravelerFieldRequirementV1,
 } from "@voyant-travel/catalog/booking-engine"
 import { paxBandBaseCode } from "@voyant-travel/catalog/booking-engine"
 import {
@@ -159,7 +159,7 @@ export function registerProductBookingHandler(
           limit: 100,
           offset: 0,
         })
-        const fields: TravelerFieldRequirement[] = []
+        const fields: TravelerFieldRequirementV1[] = []
         for (const row of result.data) {
           if (row.scope !== "traveler" && row.scope !== "lead_traveler") continue
           fields.push({
@@ -232,7 +232,7 @@ export function registerProductBookingHandler(
           ),
         )
 
-        return rows.map((row): AddonOffer => {
+        return rows.map((row): AddonOfferV1 => {
           const price = priceByExtraId.get(row.id)
           return {
             id: row.id,
@@ -336,7 +336,7 @@ export function registerProductBookingHandler(
           // single `child` band left the second tier unsellable at any pax
           // combination and its price unreachable (voyant#4121).
           const seenTypes = new Set<string>()
-          const bands: PaxBandSpec[] = []
+          const bands: PaxBandSpecV1[] = []
           for (const row of rows) {
             const code = codeByCategoryId.get(row.id)
             if (!code) continue
@@ -427,7 +427,7 @@ export function registerProductBookingHandler(
               ),
             )
 
-          const out: PaxBandDependency[] = []
+          const out: PaxBandDependencyV1[] = []
           for (const dep of deps) {
             const dependentCode = codeById.get(dep.dependentId)
             const masterCode = codeById.get(dep.masterId)

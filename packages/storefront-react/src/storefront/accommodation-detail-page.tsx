@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import type { AccommodationContent } from "@voyant-travel/accommodations/content-shape"
 import {
-  type BookingDraftV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
 import { type ContentResolution, fetchContent } from "@voyant-travel/catalog-react/storefront"
@@ -87,9 +87,9 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
     }
   }, [ratePlansForRoom, selectedRatePlanId, selectedRoomId])
 
-  const probeDraft = useMemo<BookingDraftV1 | null>(() => {
+  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
     if (!selectedRoomId || !selectedRatePlanId || !checkIn || !checkOut) return null
-    return bookingDraftV1.parse({
+    return bookingSelectionV1.parse({
       entity: { module: "accommodations", id: entityId, sourceKind: "" },
       configure: {
         dateRange: { checkIn, checkOut },

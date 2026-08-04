@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { bookingDraftV1, travelerEntryV1 } from "./draft-contracts.js"
+import { bookingSelectionV1, travelerEntryV1 } from "./selection-contracts.js"
 
 const ENTITY = {
   module: "products",
@@ -8,9 +8,9 @@ const ENTITY = {
   sourceKind: "owned",
 }
 
-describe("booking draft contracts", () => {
+describe("booking selection contracts", () => {
   it("rejects malformed billing contact emails", () => {
-    const parsed = bookingDraftV1.safeParse({
+    const parsed = bookingSelectionV1.safeParse({
       entity: ENTITY,
       billing: {
         contact: {
@@ -24,9 +24,9 @@ describe("booking draft contracts", () => {
     expect(parsed.success).toBe(false)
   })
 
-  it("accepts empty or syntactically valid draft contact emails", () => {
+  it("accepts empty or syntactically valid selection contact emails", () => {
     expect(
-      bookingDraftV1.safeParse({
+      bookingSelectionV1.safeParse({
         entity: ENTITY,
         billing: {
           contact: {
@@ -39,7 +39,7 @@ describe("booking draft contracts", () => {
     ).toBe(true)
 
     expect(
-      bookingDraftV1.safeParse({
+      bookingSelectionV1.safeParse({
         entity: ENTITY,
         billing: {
           contact: {
@@ -71,7 +71,7 @@ describe("booking draft contracts", () => {
   })
 
   it("accepts a Travel Credit redemption using the canonical wire fields", () => {
-    const parsed = bookingDraftV1.parse({
+    const parsed = bookingSelectionV1.parse({
       entity: ENTITY,
       travelCreditRedemption: {
         travelCreditId: "trc_123",

@@ -1,4 +1,4 @@
-import type { BookingRequirements } from "@voyant-travel/catalog/booking-engine"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog/booking-engine"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const getProductContent = vi.hoisted(() => vi.fn())
@@ -22,7 +22,7 @@ const productShape = {
   travelerFields: [],
   bookingFields: [],
   paymentIntents: ["hold", "card"],
-} satisfies BookingRequirements
+} satisfies BookingRequirementsV1
 
 const baseQuote = {
   quoteId: "cquo_1",

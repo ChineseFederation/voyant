@@ -26,7 +26,7 @@ export {
 export {
   type CatalogComponentBookingDraftOverrides,
   isCatalogBackedTripComponent,
-  toBookingDraftV1,
+  toBookingSelectionV1,
 } from "./catalog-component-adapter.js"
 export {
   CRUISE_EXTENSION_METADATA_KIND,

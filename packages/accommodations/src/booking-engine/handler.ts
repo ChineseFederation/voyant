@@ -5,7 +5,7 @@
  *
  * Phase B scope (deliberately narrow):
  *   - `computeQuote` projects the property's accommodation content
- *     into a `BookingRequirements` with date-range + occupancy
+ *     into a `BookingRequirementsV1` with date-range + occupancy
  *     sub-steps and a Rooms accommodation step. Pricing is resolved
  *     from first-party date-aware owned rates + inventory when the
  *     draft has a selected room and rate plan; otherwise no pricing
@@ -15,7 +15,7 @@
  */
 
 import type {
-  BookingRequirements,
+  BookingRequirementsV1,
   ComputeQuoteBatchResult,
   ComputeQuoteRequest,
   ComputeQuoteResult,
@@ -98,7 +98,7 @@ export function createAccommodationBookingHandler(
   async function deriveRequirements(ctx: OwnedHandlerContext, request: ComputeQuoteRequest) {
     const content = await options.loadContent(ctx, request.entityId)
     if (!content) return { status: "unavailable" as const, reason: "property_not_found" }
-    const requirements: BookingRequirements = buildAccommodationRequirements(content, {
+    const requirements: BookingRequirementsV1 = buildAccommodationRequirements(content, {
       minNights: options.defaultMinNights,
       maxNights: options.defaultMaxNights,
     })

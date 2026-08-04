@@ -18,7 +18,10 @@
     "./adapter/channel-push-contracts": "./src/adapter/channel-push-contracts.ts",
     "./adapter/provider-contracts": "./src/adapter/provider-contracts.ts",
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
-    "./booking-engine/requirements": "./src/booking-engine/requirements.ts",
+    "./booking-engine/requirements-contracts": "./src/booking-engine/requirements-contracts.ts",
+    "./booking-engine/requirements-defaults": "./src/booking-engine/requirements-defaults.ts",
+    "./booking-engine/selection-contracts": "./src/booking-engine/selection-contracts.ts",
+    "./booking-engine/pricing-contracts": "./src/booking-engine/pricing-contracts.ts",
     "./booking-engine/lifecycle-conformance": "./src/booking-engine/lifecycle-conformance.ts",
     "./booking-engine/session-contracts": "./src/booking-engine/session-contracts.ts",
     "./booking-engine/supplier-operations": "./src/booking-engine/supplier-operations.ts",
@@ -104,10 +107,25 @@
         "import": "./dist/booking-engine/contracts.js",
         "default": "./dist/booking-engine/contracts.js"
       },
-      "./booking-engine/requirements": {
-        "types": "./dist/booking-engine/requirements.d.ts",
-        "import": "./dist/booking-engine/requirements.js",
-        "default": "./dist/booking-engine/requirements.js"
+      "./booking-engine/requirements-contracts": {
+        "types": "./dist/booking-engine/requirements-contracts.d.ts",
+        "import": "./dist/booking-engine/requirements-contracts.js",
+        "default": "./dist/booking-engine/requirements-contracts.js"
+      },
+      "./booking-engine/requirements-defaults": {
+        "types": "./dist/booking-engine/requirements-defaults.d.ts",
+        "import": "./dist/booking-engine/requirements-defaults.js",
+        "default": "./dist/booking-engine/requirements-defaults.js"
+      },
+      "./booking-engine/selection-contracts": {
+        "types": "./dist/booking-engine/selection-contracts.d.ts",
+        "import": "./dist/booking-engine/selection-contracts.js",
+        "default": "./dist/booking-engine/selection-contracts.js"
+      },
+      "./booking-engine/pricing-contracts": {
+        "types": "./dist/booking-engine/pricing-contracts.d.ts",
+        "import": "./dist/booking-engine/pricing-contracts.js",
+        "default": "./dist/booking-engine/pricing-contracts.js"
       },
       "./booking-engine/lifecycle-conformance": {
         "types": "./dist/booking-engine/lifecycle-conformance.d.ts",

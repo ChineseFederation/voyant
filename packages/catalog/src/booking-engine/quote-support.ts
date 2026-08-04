@@ -1,4 +1,4 @@
-import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type { PricingBasis } from "../snapshot/schema.js"
 import { type PricingBreakdownV1, type QuoteResponseV1, quoteResponseV1 } from "./contracts.js"
 import type { QuoteEntityResult } from "./quote.js"

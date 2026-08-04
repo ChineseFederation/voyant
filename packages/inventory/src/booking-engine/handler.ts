@@ -20,8 +20,8 @@
  */
 
 import {
-  type AddonOffer,
-  type BookingRequirements,
+  type AddonOfferV1,
+  type BookingRequirementsV1,
   type ComputeQuoteRequest,
   type ComputeQuoteResult,
   type ComputeRequirementsResult,
@@ -32,12 +32,12 @@ import {
   defaultTravelerFields,
   type OwnedBookingHandler,
   type OwnedHandlerContext,
-  type PaxBandDependency,
-  type PaxBandSpec,
-  type ProductVariantOption,
+  type PaxBandDependencyV1,
+  type PaxBandSpecV1,
+  type ProductVariantOptionV1,
   paxBandBaseCode,
   paxBandsAllowedTotalFrom,
-  type TravelerFieldRequirement,
+  type TravelerFieldRequirementV1,
 } from "@voyant-travel/catalog/booking-engine"
 
 import {
@@ -102,19 +102,19 @@ export interface BuildOwnedProductRequirementsOptions {
    * `@voyant-travel/bookings/requirements` for this product. Caller-supplied
    * so the Inventory package doesn't depend on booking requirements.
    */
-  travelerFields?: ReadonlyArray<TravelerFieldRequirement>
+  travelerFields?: TravelerFieldRequirementV1[]
   /**
    * Add-on catalog projected from extras. Caller-supplied so products
    * doesn't depend on the Inventory/Bookings extras owner facades. When omitted,
    * `showsAddons` is false.
    */
-  addonCatalog?: ReadonlyArray<AddonOffer>
+  addonCatalog?: AddonOfferV1[]
   /**
    * Product options / variants. These select `draft.configure.variantId`
    * and are distinct from extras: one option changes the underlying
    * booking configuration, while extras add optional line items.
    */
-  productOptions?: ReadonlyArray<ProductVariantOption>
+  productOptions?: ProductVariantOptionV1[]
   /**
    * Traveler bands derived from the product's configured traveler types
    * (e.g. pricing categories like "Adult" / "Child under 6"). When
@@ -122,18 +122,18 @@ export interface BuildOwnedProductRequirementsOptions {
    * defaults. `code` must stay aligned with the pricing resolver's
    * traveler-category codes so per-band pricing keeps matching.
    */
-  paxBands?: ReadonlyArray<PaxBandSpec>
+  paxBands?: PaxBandSpecV1[]
   /**
    * Cross-band occupancy rules (e.g. "Child under 6 requires an Adult"),
    * derived from the product's pricing-category dependencies. Codes must
    * match the `paxBands` codes.
    */
-  paxBandDependencies?: ReadonlyArray<PaxBandDependency>
+  paxBandDependencies?: PaxBandDependencyV1[]
 }
 
 export function buildOwnedProductRequirements(
   options: BuildOwnedProductRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   // Use the product's configured traveler types when supplied; otherwise
   // the generic adult/child/infant defaults.
   const paxBands =
@@ -259,17 +259,14 @@ export interface OwnedProductsShapeLoaders {
   loadTravelerFields?: (
     ctx: OwnedHandlerContext,
     productId: string,
-  ) => Promise<ReadonlyArray<TravelerFieldRequirement>>
+  ) => Promise<TravelerFieldRequirementV1[]>
 
   /**
    * Resolve the addon catalog for the product (typically a projection
    * over `extras` + `option_extra_configs`). Caller-supplied to keep
    * the Inventory package free of an extras-owner dependency.
    */
-  loadAddonCatalog?: (
-    ctx: OwnedHandlerContext,
-    productId: string,
-  ) => Promise<ReadonlyArray<AddonOffer>>
+  loadAddonCatalog?: (ctx: OwnedHandlerContext, productId: string) => Promise<AddonOfferV1[]>
 
   /**
    * Resolve product options / variants from the owning products module.
@@ -279,7 +276,7 @@ export interface OwnedProductsShapeLoaders {
   loadProductOptions?: (
     ctx: OwnedHandlerContext,
     productId: string,
-  ) => Promise<ReadonlyArray<ProductVariantOption>>
+  ) => Promise<ProductVariantOptionV1[]>
 
   /**
    * Resolve the product's configured traveler types as pax bands
@@ -292,7 +289,7 @@ export interface OwnedProductsShapeLoaders {
   loadPaxBands?: (
     ctx: OwnedHandlerContext,
     productId: string,
-  ) => Promise<ReadonlyArray<PaxBandSpec> | undefined>
+  ) => Promise<PaxBandSpecV1[] | undefined>
 
   /**
    * Resolve cross-band occupancy rules (e.g. "Child requires an Adult")
@@ -303,7 +300,7 @@ export interface OwnedProductsShapeLoaders {
   loadPaxBandDependencies?: (
     ctx: OwnedHandlerContext,
     productId: string,
-  ) => Promise<ReadonlyArray<PaxBandDependency> | undefined>
+  ) => Promise<PaxBandDependencyV1[] | undefined>
 
   /**
    * Resolve the tax rate for a given (product, buyer country) pair.

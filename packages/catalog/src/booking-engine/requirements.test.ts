@@ -7,7 +7,7 @@ import {
   paxBandBaseCode,
   paxBandsAllowedTotalFrom,
   paxBandTierCode,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import { describe, expect, it } from "vitest"
 
 describe("pax band tier codes", () => {

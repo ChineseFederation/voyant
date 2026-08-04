@@ -1,4 +1,4 @@
-import type { PaxBandDependency } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { PaxBandDependencyV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 
 /**
  * A pax-band occupancy rule that the picked traveler counts violate.
@@ -6,7 +6,7 @@ import type { PaxBandDependency } from "@voyant-travel/catalog-contracts/booking
  * localized message without re-resolving codes.
  */
 export interface PaxBandDependencyViolation {
-  type: PaxBandDependency["type"]
+  type: PaxBandDependencyV1["type"]
   dependentCode: string
   masterCode: string
   dependentLabel: string
@@ -24,7 +24,7 @@ export interface PaxBandDependencyViolation {
  */
 export function evaluatePaxBandDependencies(
   pax: Record<string, number> | undefined,
-  dependencies: ReadonlyArray<PaxBandDependency> | undefined,
+  dependencies: ReadonlyArray<PaxBandDependencyV1> | undefined,
   bands: ReadonlyArray<{ code: string; label: string }>,
 ): PaxBandDependencyViolation[] {
   if (!dependencies || dependencies.length === 0) return []

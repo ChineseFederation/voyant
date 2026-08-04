@@ -10,7 +10,7 @@
  * shows every quote attempt.
  */
 
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import type { LiveResolveResult, SourceAdapterContext } from "../adapter/contract.js"
@@ -82,7 +82,7 @@ export interface QuoteEntityResult {
    * Undefined when no enricher is wired (today's behavior — the
    * journey hardcodes a minimal shape until templates wire content).
    */
-  shape?: BookingRequirements
+  shape?: BookingRequirementsV1
 }
 
 export interface QuoteEntityBatchRequest extends QuoteEntityRequest {
@@ -97,7 +97,7 @@ export interface QuoteEntityBatchResult {
 /**
  * Input the content enricher receives — quote + scope + parameters.
  * The enricher reads cached content for the entity and projects a
- * `BookingRequirements` that drives the wizard. Verticals compose their
+ * `BookingRequirementsV1` that drives the wizard. Verticals compose their
  * `build*Requirements` builders into one enricher routed by
  * `entity_module`.
  */
@@ -115,7 +115,7 @@ export interface QuoteContentEnrichmentInput {
 
 /**
  * Hook called by `quoteEntity` after the live-resolve step succeeds.
- * Receives entity identity + scope; returns a `BookingRequirements` (or
+ * Receives entity identity + scope; returns a `BookingRequirementsV1` (or
  * null when content is unavailable / the entity is owned and the
  * enricher chooses not to surface a shape).
  *
@@ -128,7 +128,7 @@ export interface QuoteContentEnrichmentInput {
  */
 export type QuoteContentEnricher = (
   input: QuoteContentEnrichmentInput,
-) => Promise<BookingRequirements | null>
+) => Promise<BookingRequirementsV1 | null>
 
 export interface QuoteEntityDeps {
   registry: SourceAdapterRegistry
@@ -146,7 +146,7 @@ export interface QuoteEntityDeps {
   /**
    * Optional content-aware enricher. When wired, called after the
    * adapter's `liveResolve` step succeeds; the returned
-   * `BookingRequirements` is attached to the quote result so the
+   * `BookingRequirementsV1` is attached to the quote result so the
    * journey wizard can render the correct shape without a follow-up
    * call.
    *
@@ -225,7 +225,7 @@ interface RawQuoteComputation {
   failedReason?: string
   pricing?: PricingBasis
   upstreamPayload?: Record<string, unknown>
-  ownedShape?: BookingRequirements
+  ownedShape?: BookingRequirementsV1
 }
 
 async function computeRawQuotes(
@@ -308,7 +308,7 @@ async function computeRawQuote(
   let failedReason: string | undefined
   let pricing: PricingBasis | undefined
   let upstreamPayload: Record<string, unknown> | undefined
-  let ownedShape: BookingRequirements | undefined
+  let ownedShape: BookingRequirementsV1 | undefined
 
   if (request.sourceKind === OWNED_SOURCE_KIND && deps.ownedHandlers) {
     const handler = deps.ownedHandlers.resolveOrThrow(request.entityModule)
@@ -454,14 +454,14 @@ async function persistComputedQuote(
   if (!inserted[0]) throw new Error("quoteEntity: insert returned no rows")
 
   // Optional content enrichment — per booking-journey-architecture
-  // §3, the quote response carries a BookingRequirements descriptor
+  // §3, the quote response carries a BookingRequirementsV1 descriptor
   // when the engine has the content in front of it. When the hook
   // throws, we swallow the error (the wizard's minimal-shape fallback
   // covers it) but surface via onEnricherError for diagnostics.
   //
   // Owned handlers are authoritative for their own products — when
   // they returned a shape, the enricher is not consulted.
-  let shape: BookingRequirements | undefined = ownedShape
+  let shape: BookingRequirementsV1 | undefined = ownedShape
   if (!shape && deps.contentEnricher && available) {
     try {
       const enriched = await deps.contentEnricher({

@@ -200,7 +200,7 @@ const FILE_CHECKS = [
     patterns: [/\bhospitality\b/i],
   },
   {
-    file: "packages/catalog-contracts/src/booking-engine/requirements.ts",
+    file: "packages/catalog-contracts/src/booking-engine/requirements-contracts.ts",
     patterns: [/\bhospitality\b/i],
   },
   {

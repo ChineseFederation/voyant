@@ -1,6 +1,6 @@
 import {
-  type BookingDraftV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
   type TravelerEntryV1,
 } from "@voyant-travel/catalog/booking-engine/contracts"
 
@@ -8,18 +8,18 @@ import type { TripComponent } from "./schema.js"
 import { TripsInvariantError } from "./service.js"
 
 export interface CatalogComponentBookingDraftOverrides {
-  configure?: Partial<BookingDraftV1["configure"]>
-  billing?: Partial<BookingDraftV1["billing"]>
+  configure?: Partial<BookingSelectionV1["configure"]>
+  billing?: Partial<BookingSelectionV1["billing"]>
   travelers?: TravelerEntryV1[]
-  accommodation?: BookingDraftV1["accommodation"]
-  addons?: BookingDraftV1["addons"]
-  payment?: Partial<BookingDraftV1["payment"]>
+  accommodation?: BookingSelectionV1["accommodation"]
+  addons?: BookingSelectionV1["addons"]
+  payment?: Partial<BookingSelectionV1["payment"]>
   promotionCode?: string
   internalNotes?: string
   customerNotes?: string
 }
 
-type CatalogDraftComponent = Parameters<typeof toBookingDraftV1>[0] & {
+type CatalogDraftComponent = Parameters<typeof toBookingSelectionV1>[0] & {
   id?: string
   metadata: Record<string, unknown>
 }
@@ -35,20 +35,20 @@ export function isCatalogBackedTripComponent(
   )
 }
 
-export function toBookingDraftV1(
+export function toBookingSelectionV1(
   component: Pick<
     TripComponent,
     "kind" | "entityModule" | "entityId" | "sourceKind" | "sourceConnectionId" | "sourceRef"
   >,
   overrides: CatalogComponentBookingDraftOverrides = {},
-): BookingDraftV1 {
+): BookingSelectionV1 {
   if (!isCatalogBackedTripComponent(component)) {
     throw new TripsInvariantError(
       "Trip component cannot be mapped to a booking draft without catalog entity refs",
     )
   }
 
-  return bookingDraftV1.parse({
+  return bookingSelectionV1.parse({
     entity: {
       module: component.entityModule,
       id: component.entityId,
@@ -74,14 +74,14 @@ export function toBookingDraftV1(
 export function bookingDraftFromComponent(
   component: CatalogDraftComponent,
   overrides: CatalogComponentBookingDraftOverrides = {},
-): BookingDraftV1 {
+): BookingSelectionV1 {
   const candidate = component.metadata.bookingDraftV1 ?? component.metadata.bookingDraft
   const base =
     candidate && typeof candidate === "object" && !Array.isArray(candidate)
-      ? bookingDraftV1.parse(candidate)
-      : toBookingDraftV1(component)
+      ? bookingSelectionV1.parse(candidate)
+      : toBookingSelectionV1(component)
 
-  return bookingDraftV1.parse({
+  return bookingSelectionV1.parse({
     ...base,
     configure: {
       ...base.configure,
@@ -100,7 +100,7 @@ export function bookingDraftFromComponent(
 
 export function assertCatalogComponentBookingDraftReady(
   component: CatalogDraftComponent,
-  draft: BookingDraftV1 = bookingDraftFromComponent(component),
+  draft: BookingSelectionV1 = bookingDraftFromComponent(component),
 ): void {
   if (component.entityModule !== "accommodations") return
 

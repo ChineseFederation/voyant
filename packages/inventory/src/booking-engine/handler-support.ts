@@ -1,10 +1,10 @@
 // agent-quality: file-size exception -- booking-engine pricing and draft helpers stay together until the owned products handler support layer is split.
 import type {
-  AddonOffer,
+  AddonOfferV1,
   OwnedHandlerContext,
-  PaxBandSpec,
+  PaxBandSpecV1,
   PricingBasis,
-  ProductVariantOption,
+  ProductVariantOptionV1,
 } from "@voyant-travel/catalog/booking-engine"
 import { paxBandBaseCode } from "@voyant-travel/catalog/booking-engine"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
@@ -110,7 +110,7 @@ export async function priceOptionSelections(input: {
   ctx: OwnedHandlerContext
   options: CreateProductsBookingHandlerOptions
   product: typeof products.$inferSelect
-  productOptions: ReadonlyArray<ProductVariantOption>
+  productOptions: ProductVariantOptionV1[]
   selections: ReadonlyArray<NormalizedOptionSelection>
   slotDate: string | null
   effectivePax: number
@@ -121,7 +121,7 @@ export async function priceOptionSelections(input: {
   /** Traveler band by draft row key, used to scope category pricing to assigned rooms. */
   travelerBands?: Record<string, string>
   /** The bands the shopper was offered, used to label the per-band lines. */
-  paxBands?: ReadonlyArray<PaxBandSpec> | undefined
+  paxBands?: PaxBandSpecV1[] | undefined
 }): Promise<PricedQuote> {
   const lines: PricedLine[] = []
   let totalCents = 0
@@ -399,7 +399,7 @@ function paxTierDatePredicates(date: string | null | undefined) {
 }
 
 function findProductOptionUnit(
-  productOptions: ReadonlyArray<ProductVariantOption>,
+  productOptions: ProductVariantOptionV1[],
   optionId: string,
   optionUnitId: string | undefined,
 ) {
@@ -410,7 +410,7 @@ function findProductOptionUnit(
 }
 
 function tierPaxForSelection(input: {
-  productOptions: ReadonlyArray<ProductVariantOption>
+  productOptions: ProductVariantOptionV1[]
   selection: NormalizedOptionSelection
   effectivePax: number
   totalInventoryUnits: number
@@ -430,7 +430,7 @@ function tierPaxForSelection(input: {
 }
 
 function unitAmountForPaxTier(input: {
-  productOptions: ReadonlyArray<ProductVariantOption>
+  productOptions: ProductVariantOptionV1[]
   selection: NormalizedOptionSelection
   tierPax: number
   pricePerPaxCents: number
@@ -448,7 +448,7 @@ function unitAmountForPaxTier(input: {
 export function applyAddonSelections(input: {
   priced: PricedQuote
   addons: DraftLike["addons"] | undefined
-  addonCatalog: ReadonlyArray<AddonOffer>
+  addonCatalog: AddonOfferV1[]
   effectivePax: number
 }): PricedQuote {
   const extraLines = bookingExtraLinesFromAddonSelections({
@@ -496,7 +496,7 @@ export interface BookingExtraLine {
 
 export function bookingExtraLinesFromAddonSelections(input: {
   addons: DraftLike["addons"] | undefined
-  addonCatalog: ReadonlyArray<AddonOffer> | undefined
+  addonCatalog: AddonOfferV1[] | undefined
   currency: string
   quantityMultiplier?: number
 }): BookingExtraLine[] | undefined {
@@ -545,7 +545,7 @@ export function bookingExtraLinesFromAddonSelections(input: {
  * booking item titles. Falls back to the raw code when the bands are not to
  * hand — legible for a canonical code, and never worse than not labelling.
  */
-export function paxBandLabel(code: string, bands: ReadonlyArray<PaxBandSpec> | undefined): string {
+export function paxBandLabel(code: string, bands: PaxBandSpecV1[] | undefined): string {
   return bands?.find((band) => band.code === code)?.label ?? code
 }
 
@@ -634,7 +634,7 @@ export function priceQuote(input: {
    *  quote provenance so the commit can match them back to its item lines. */
   optionId?: string | null
   /** The bands the shopper was offered, used to label the per-band lines. */
-  paxBands?: ReadonlyArray<PaxBandSpec> | undefined
+  paxBands?: PaxBandSpecV1[] | undefined
 }): PricedQuote {
   const { product, resolvedPrice, pax, effectivePax } = input
 
@@ -786,7 +786,7 @@ export function bookingItemLinesFromPaxBandUnits(input: {
   units: ReadonlyArray<OptionUnitBandCandidate>
   pax: Partial<Record<string, number>> | undefined
   /** The bands the shopper was offered, in the order the journey showed them. */
-  bands?: ReadonlyArray<PaxBandSpec> | undefined
+  bands?: PaxBandSpecV1[] | undefined
 }): SelfServiceItemLines | undefined {
   const claimedUnits = new Set<string>()
   const lines: SelfServiceItemLines = []
@@ -820,7 +820,7 @@ export function bookingItemLinesFromPaxBandUnits(input: {
  */
 function findUnitForBand(
   units: ReadonlyArray<OptionUnitBandCandidate>,
-  band: PaxBandSpec,
+  band: PaxBandSpecV1,
   claimedUnits: ReadonlySet<string>,
 ): OptionUnitBandCandidate | undefined {
   const base = paxBandBaseCode(band.code)

@@ -1,4 +1,4 @@
-import type { BookingDraftV1, QuoteResponseV1 } from "@voyant-travel/catalog/booking-engine"
+import type { BookingSelectionV1, QuoteResponseV1 } from "@voyant-travel/catalog/booking-engine"
 
 import type { CatalogComponentBookingDraftOverrides } from "./catalog-component-adapter.js"
 import type { TripComponent, TripEnvelope, TripReservationPlan } from "./schema.js"
@@ -34,7 +34,7 @@ export interface PriceTripResult {
 
 export interface CatalogComponentQuoteInput {
   component: TripComponent
-  bookingDraft: BookingDraftV1
+  bookingDraft: BookingSelectionV1
   scope: PriceTripInput["scope"]
   ttlMs?: number
 }

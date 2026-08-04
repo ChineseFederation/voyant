@@ -1,5 +1,5 @@
 /**
- * Project a `CruiseContent` payload into a `BookingRequirements` so the
+ * Project a `CruiseContent` payload into a `BookingRequirementsV1` so the
  * journey wizard can render the correct sub-steps for a sourced
  * cruise.
  *
@@ -22,13 +22,13 @@
  */
 
 import {
-  type BookingRequirements,
-  type CabinCategoryOption,
-  type ConfigureSubStep,
+  type BookingRequirementsV1,
+  type CabinCategoryOptionV1,
+  type ConfigureSubStepV1,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-  type PaxBandSpec,
+  type PaxBandSpecV1,
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog/booking-engine"
 
@@ -40,7 +40,7 @@ import type { CruiseContent } from "./content-shape.js"
  * available; this default is conservative (12+ implied — adult only,
  * 1-8 cabin cap).
  */
-export const DEFAULT_CRUISE_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
+export const DEFAULT_CRUISE_PAX_BANDS: PaxBandSpecV1[] = [
   { code: "adult", label: "Adult", minCount: 1, maxCount: 8 },
 ]
 
@@ -51,7 +51,7 @@ export interface BuildCruiseRequirementsOptions {
    * supplier's catalog metadata (e.g. `infant ≤ 2`, `child 3-11`,
    * `adult 12+` for major lines). Defaults to adult-only.
    */
-  paxBands?: ReadonlyArray<PaxBandSpec>
+  paxBands?: PaxBandSpecV1[]
   paxBandsAllowedTotal?: { min: number; max: number }
   /**
    * When true, render the cabin-number sub-step even if the
@@ -71,14 +71,14 @@ export interface BuildCruiseRequirementsOptions {
 export function buildCruiseRequirements(
   content: CruiseContent,
   options: BuildCruiseRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   const paxBands = options.paxBands ?? DEFAULT_CRUISE_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
 
   // Configure sub-steps — built only when the content carries the
   // relevant data. Order matters: departure → category → cabin-number
   // → occupancy mirrors the doc's §F.1 flow.
-  const configureSubSteps: ConfigureSubStep[] = []
+  const configureSubSteps: ConfigureSubStepV1[] = []
   if (content.sailings.length > 0) {
     configureSubSteps.push({ kind: "departure", required: true })
   }
@@ -132,7 +132,7 @@ export function buildCruiseRequirements(
 
 function toCabinCategoryOption(
   cat: CruiseContent["cabin_categories"][number],
-): CabinCategoryOption {
+): CabinCategoryOptionV1 {
   return {
     id: cat.id,
     code: cat.code ?? undefined,

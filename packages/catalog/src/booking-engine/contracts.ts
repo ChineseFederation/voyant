@@ -1,5 +1,6 @@
 /**
- * `BookingDraft` + V1 engine contract schemas now live in
+ * The V1 booking-engine contract schemas (requirements, selection,
+ * pricing, session) now live in
  * `@voyant-travel/catalog-contracts` so external consumers (Voyant Connect, adapter
  * authors, the Admin SDK) can validate booking-engine payloads without the
  * catalog runtime. Re-exported here to keep existing `@voyant-travel/catalog`

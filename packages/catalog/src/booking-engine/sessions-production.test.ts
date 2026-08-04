@@ -38,8 +38,8 @@ vi.mock("@voyant-travel/finance", async (importOriginal) => ({
   },
 }))
 
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
-import { defaultRequirementsFlags } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
+import { defaultRequirementsFlags } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type { OwnedBookingHandler } from "./owned-handler.js"
 import { createOwnedBookingHandlerRegistry } from "./owned-handler.js"
 import { createSourceAdapterRegistry } from "./registry.js"
@@ -57,7 +57,7 @@ const STOREFRONT_ACCESS = {
 const TEST_CAPABILITY = `bcap_${"a".repeat(43)}`
 
 /** Stand-in for a vertical's derivation; only its identity matters here. */
-const HANDLER_REQUIREMENTS: BookingRequirements = {
+const HANDLER_REQUIREMENTS: BookingRequirementsV1 = {
   ...defaultRequirementsFlags(),
   paxBands: [{ code: "adult", label: "Adult", minCount: 1, maxCount: 8 }],
   paxBandsAllowedTotal: { min: 1, max: 8 },

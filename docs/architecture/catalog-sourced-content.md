@@ -673,7 +673,7 @@ The journey's Configure / Accommodation / Add-ons steps need departure dates, ro
 
 After this lands:
 
-- The journey's `BookingDraftShape` is populated by reading `getContentForEntity` and projecting the relevant slices into the descriptor (departures → `configureSubSteps[].kind: "departure"`; room types → `accommodationSubSteps[].kind: "rooms"`; addons → `addonGroups[]`).
+- The journey's `BookingRequirementsV1` is populated by reading `getContentForEntity` and projecting the relevant slices into the descriptor (departures → `configureSubSteps[].kind: "departure"`; room types → `accommodationSubSteps[].kind: "rooms"`; addons → `addonGroups[]`).
 - Live pricing in `quoteEntity` reads the same content for option-pricing computations.
 - The owned-handler's existing pricing primitives apply unchanged; the sourced equivalent uses the adapter's content + adapter's `liveResolve` for prices.
 - Storefront detail pages (`/products/$id`, `/cruises/$id`, etc.) read the same content function and render the full page identically for owned and sourced rows.
@@ -805,7 +805,7 @@ Each vertical opts in. Verticals that don't yet have detail-page needs (extras, 
 - Adopt the pattern per vertical when first sourced integration ships. Each vertical defines its content aggregate boundary (which sub-fetches roll into one `getContent`, what stays in `liveResolve`).
 
 **Phase G — Booking journey integration** (parallel to journey Phase B):
-- Journey's `BookingDraftShape` builder reads from `getContentForEntity`.
+- Journey's `BookingRequirementsV1` builder reads from `getContentForEntity`.
 - Live pricing in `quoteEntity` consults content for option-pricing.
 - `bookEntity` gains the snapshot-content-capture path (§5).
 

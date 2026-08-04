@@ -9,13 +9,13 @@
  *   - Skipped when the entity is not available (failed live-resolve).
  */
 
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import {
   DEFAULT_PAX_BANDS,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import { describe, expect, it, vi } from "vitest"
 import type { LiveResolveResult, SourceAdapter } from "../adapter/contract.js"
 import { type QuoteContentEnricher, quoteEntity } from "./quote.js"
@@ -80,7 +80,7 @@ const failLiveResolve: SourceAdapter["liveResolve"] = async (
   failed: { prod_abc: "not_found" },
 })
 
-const sampleShape: BookingRequirements = {
+const sampleShape: BookingRequirementsV1 = {
   ...defaultRequirementsFlags(),
   paxBands: DEFAULT_PAX_BANDS,
   paxBandsAllowedTotal: { min: 1, max: 8 },
@@ -90,7 +90,7 @@ const sampleShape: BookingRequirements = {
 }
 
 describe("quoteEntity — contentEnricher hook", () => {
-  it("attaches the enricher's BookingRequirements to the quote result", async () => {
+  it("attaches the enricher's BookingRequirementsV1 to the quote result", async () => {
     const enricher: QuoteContentEnricher = vi.fn(async () => sampleShape)
     const registry = createSourceAdapterRegistry()
     registry.register(makeAdapter(okLiveResolve))

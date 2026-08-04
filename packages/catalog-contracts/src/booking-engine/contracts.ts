@@ -1,6 +1,8 @@
 /** Public booking-engine contract entry point. */
 
-export * from "./draft-contracts.js"
 export * from "./engine-contracts.js"
 export * from "./lifecycle-conformance.js"
+export * from "./pricing-contracts.js"
+export * from "./requirements-contracts.js"
+export * from "./selection-contracts.js"
 export * from "./session-contracts.js"

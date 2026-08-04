@@ -1,6 +1,6 @@
 // agent-quality: file-size exception -- owner: bookings-react; contract variables stay centralized and behavior-tested.
 /**
- * Default mapping from a `BookingDraftV1` (+ live quote pricing +
+ * Default mapping from a `BookingSelectionV1` (+ live quote pricing +
  * resolved entity summary + operator / acceptance context) to the
  * variable bag the operator's contract templates render against.
  *
@@ -40,10 +40,10 @@
  */
 
 import type {
-  BookingDraftV1,
+  BookingSelectionV1,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type {
   ComputedScheduleEntry,
   PaymentPolicySource,
@@ -141,7 +141,7 @@ export interface ResolveContractVariablesContext {
 }
 
 export function resolveContractVariables(
-  draft: BookingDraftV1,
+  draft: BookingSelectionV1,
   ctx: ResolveContractVariablesContext,
 ): Record<string, unknown> {
   const billing = draft.billing
@@ -539,7 +539,7 @@ function stringFromDoc(documents: Record<string, unknown> | undefined, key: stri
 // not rendered in the operator UI. Contract localization is driven by the
 // contract's `language` field on render and lives in the template body —
 // not the operator's UI locale — so these stay in English at this layer.
-function paymentMethodLabel(intent: BookingDraftV1["payment"]["intent"]): string {
+function paymentMethodLabel(intent: BookingSelectionV1["payment"]["intent"]): string {
   switch (intent) {
     case "card":
       // i18n-literal-ok
@@ -566,7 +566,7 @@ function paymentMethodLabel(intent: BookingDraftV1["payment"]["intent"]): string
  * rooms. Server-side renders override this with a richer summary
  * derived from the persisted booking_items.
  */
-function buildRoomsSummary(draft: BookingDraftV1): string {
+function buildRoomsSummary(draft: BookingSelectionV1): string {
   const rooms = draft.accommodation?.rooms ?? []
   if (rooms.length === 0) return ""
   return rooms
@@ -590,7 +590,7 @@ function computeNights(startDate: string, endDate: string): number {
 interface VerticalContext {
   vertical: string
   summary?: BookingEntitySummary
-  draft: BookingDraftV1
+  draft: BookingSelectionV1
   accommodationRooms: Array<{ optionUnitId: string; quantity: number; ratePlanId: string }>
   durationNights: number
   startDate: string

@@ -805,7 +805,7 @@ that component's supplier lifecycle.
 
 - Add `priceTrip`.
 - For catalog-backed items, call the booking-engine quote route/service with a
-  per-line `BookingDraftV1`.
+  per-line `BookingSelectionV1`.
 - For flights, use the flight adapter repricing path only if the deployment has
   customer-safe access to it; otherwise require a manual placeholder.
 - Return warnings, expiries, unavailable items, partial failures, and suggested

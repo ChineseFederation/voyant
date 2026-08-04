@@ -1,7 +1,7 @@
 import type {
   ComputeQuoteRequest,
   OwnedHandlerContext,
-  PaxBandSpec,
+  PaxBandSpecV1,
   PricingBasis,
 } from "@voyant-travel/catalog/booking-engine"
 import { paxBandBaseCode } from "@voyant-travel/catalog/booking-engine"
@@ -222,7 +222,7 @@ describe("quoting and committing a product with two child tiers", () => {
   })
 })
 
-const tieredBands: PaxBandSpec[] = [
+const tieredBands: PaxBandSpecV1[] = [
   { code: "adult", label: "Adult", minAge: 13, minCount: 1, maxCount: 8 },
   { code: "child", label: "Child 6-12", minAge: 6, maxAge: 12, minCount: 0, maxCount: 6 },
   { code: "child:pc_c2", label: "Child 0-5", maxAge: 5, minCount: 0, maxCount: 6 },

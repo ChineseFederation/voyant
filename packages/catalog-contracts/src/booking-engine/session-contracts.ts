@@ -1,7 +1,7 @@
 import { z } from "zod"
-
-import { bookingRequirementsV1, pricingBreakdownV1 } from "./draft-contracts.js"
 import { bookingLifecycleCommitOutcomeV1 } from "./lifecycle-conformance.js"
+import { pricingBreakdownV1 } from "./pricing-contracts.js"
+import { bookingRequirementsV1 } from "./requirements-contracts.js"
 
 export const bookingSessionActorKindV1 = z.enum(["anonymous", "customer", "staff", "partner"])
 export type BookingSessionActorKindV1 = z.infer<typeof bookingSessionActorKindV1>

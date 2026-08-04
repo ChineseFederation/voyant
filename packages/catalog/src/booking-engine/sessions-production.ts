@@ -3,7 +3,6 @@ import {
   createSourcedBookingCommitment,
   type SourcedBookingTravelerInput,
 } from "@voyant-travel/bookings/service-sourced-commitment"
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import {
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
@@ -12,7 +11,7 @@ import {
   defaultTravelerFields,
   paxBandBaseCode,
   paxBandsAllowedTotalFrom,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   allocateBookingNumber,
@@ -189,7 +188,7 @@ function createProductionCompositeLeafRuntime(
       ownedComputeRequest(handler.entityModule, session),
     )
     return "requirements" in result
-      ? { status: "available", requirements: requirementsForSession(result.requirements) }
+      ? { status: "available", requirements: result.requirements }
       : unavailableRequirementsResult(result.reason)
   }
 
@@ -218,8 +217,6 @@ function createProductionCompositeLeafRuntime(
       // The handler builds the descriptor unconditionally, precisely so a
       // pricing failure cannot collapse it. Carry it through both exits.
       const requirements = result.requirements
-        ? requirementsForSession(result.requirements)
-        : undefined
       if (!result.available || !result.pricing) {
         return { ...unavailableQuoteResult(result.invalidReason), requirements }
       }
@@ -820,17 +817,6 @@ function ownedComputeRequest(
 }
 
 /**
- * The hand-written `BookingRequirements` interface and the Zod-inferred
- * `BookingRequirementsV1` describe the same descriptor; the interface declares
- * `ReadonlyArray` where the schema infers mutable arrays. Narrow once here,
- * where vertical output crosses into the Session plane, rather than at every
- * point that publishes a descriptor.
- */
-function requirementsForSession(requirements: BookingRequirements): BookingRequirementsV1 {
-  return requirements as unknown as BookingRequirementsV1
-}
-
-/**
  * Baseline descriptor for a sourced (`catalog_item`) target. The source
  * adapter contract has no requirements primitive yet, so a sourced row gets
  * the engine defaults: one Configure occupancy sub-step over the canonical
@@ -838,7 +824,7 @@ function requirementsForSession(requirements: BookingRequirements): BookingRequi
  * intent set the deployment's capabilities then narrow.
  */
 function sourcedBookingRequirements(): BookingRequirementsV1 {
-  return requirementsForSession({
+  return {
     ...defaultRequirementsFlags(),
     configureSubSteps: [{ kind: "occupancy", bands: DEFAULT_PAX_BANDS }],
     paxBands: DEFAULT_PAX_BANDS,
@@ -846,7 +832,7 @@ function sourcedBookingRequirements(): BookingRequirementsV1 {
     travelerFields: defaultTravelerFields(),
     bookingFields: defaultBookingFields(),
     paymentIntents: DEFAULT_PAYMENT_INTENTS,
-  })
+  }
 }
 
 function unavailableRequirementsResult(

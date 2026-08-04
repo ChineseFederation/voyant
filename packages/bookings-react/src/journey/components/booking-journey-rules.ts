@@ -1,12 +1,12 @@
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import {
-  type BookingRequirements,
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
   paxBandsAllowedTotalFrom,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import { type BookingsUiMessages, formatMessage } from "../../i18n/index.js"
 import { type Draft, totalPax } from "../lib/draft-state.js"
 import { isValidOptionalEmail } from "../lib/email-validation.js"
@@ -14,7 +14,7 @@ import { evaluatePaxBandDependencies } from "../lib/pax-band-dependencies.js"
 import { findPaidScheduleRowsMissingPaymentDate } from "../lib/payment-schedule.js"
 import type { JourneyStep } from "../types.js"
 
-export function isStepVisible(step: JourneyStep, shape: BookingRequirements): boolean {
+export function isStepVisible(step: JourneyStep, shape: BookingRequirementsV1): boolean {
   const subSteps = shape.configureSubSteps ?? []
   switch (step) {
     case "departure":
@@ -51,7 +51,7 @@ export function isStepVisible(step: JourneyStep, shape: BookingRequirements): bo
 export function canAdvanceFromStep(
   step: JourneyStep,
   draft: Draft,
-  shape: BookingRequirements,
+  shape: BookingRequirementsV1,
   _available: boolean,
 ): boolean {
   switch (step) {
@@ -151,7 +151,7 @@ export function validationErrorsForStep(
 export function stackedStepComplete(
   step: JourneyStep,
   draft: Draft,
-  shape: BookingRequirements,
+  shape: BookingRequirementsV1,
   available: boolean,
 ): boolean {
   switch (step) {
@@ -182,7 +182,7 @@ export function stackedStepComplete(
 export function warningsForStep(
   step: JourneyStep,
   draft: Draft,
-  shape: BookingRequirements,
+  shape: BookingRequirementsV1,
   messages: BookingsUiMessages,
 ): ReadonlyArray<string> {
   const warnings: string[] = []
@@ -246,7 +246,7 @@ export function warningsForStep(
   return warnings
 }
 
-function labelForFieldKey(key: string, shape: BookingRequirements): string {
+function labelForFieldKey(key: string, shape: BookingRequirementsV1): string {
   return shape.travelerFields.find((f) => f.key === key)?.label ?? key
 }
 
@@ -268,7 +268,7 @@ export function makeHoldSignature(
   return `${entityModule}/${entityId}/${slot}/${pax}`
 }
 
-export function defaultMinimalShape(): BookingRequirements {
+export function defaultMinimalShape(): BookingRequirementsV1 {
   return {
     ...defaultRequirementsFlags(),
     paxBands: DEFAULT_PAX_BANDS,

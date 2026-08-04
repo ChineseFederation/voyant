@@ -13,7 +13,7 @@ import {
   defaultRequirementsFlags,
   defaultTravelerFields,
   paxBandsAllowedTotalFrom,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { describe, expect, it, vi } from "vitest"
 

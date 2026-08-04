@@ -1,7 +1,7 @@
 // agent-quality: file-size exception -- owner: bookings-react; existing UI surface stays co-located until a dedicated split preserves behavior and tests.
 "use client"
 
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { Separator } from "@voyant-travel/ui/components"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
@@ -219,7 +219,7 @@ export function PaxValidation({
   shape,
 }: {
   draft: Draft
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
 }): React.ReactNode {
   const messages = useBookingsUiMessagesOrDefault()
   const total = totalPax(draft)
@@ -286,7 +286,7 @@ export function PaxDependencyWarnings({
   shape,
 }: {
   draft: Draft
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
 }): React.ReactNode {
   const messages = useBookingsUiMessagesOrDefault()
   const violations = evaluatePaxBandDependencies(
@@ -316,7 +316,7 @@ export function PaxDependencyWarnings({
  * arrangement land here, in descriptor order.
  */
 function renderOtherConfigureSubStep(
-  sub: NonNullable<BookingRequirements["configureSubSteps"]>[number],
+  sub: NonNullable<BookingRequirementsV1["configureSubSteps"]>[number],
   draft: Draft,
   setDraft: (next: Draft) => void,
 ): React.ReactNode {

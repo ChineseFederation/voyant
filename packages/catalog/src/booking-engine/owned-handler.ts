@@ -23,7 +23,7 @@
  * the dispatch.
  */
 
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { SourceAdapterContext } from "../adapter/contract.js"
 import type { PricingBasis } from "../snapshot/schema.js"
@@ -62,7 +62,7 @@ export interface ComputeQuoteRequest {
    *
    * Typed as `unknown` here so Phase A doesn't pin the schema in the
    * catalog package; Phase B replaces with a Zod-validated
-   * `BookingDraftV1` (see §8.5 of the doc).
+   * `BookingSelectionV1` (see §8.5 of the doc).
    */
   draft?: unknown
 }
@@ -78,7 +78,7 @@ export interface ComputeQuoteResult {
    * renders a correct wizard. Absent only when the target itself
    * could not be resolved.
    */
-  requirements?: BookingRequirements
+  requirements?: BookingRequirementsV1
   /** Echoed back into `catalog_quotes.upstream_payload` for audit. */
   upstreamPayload?: Record<string, unknown>
 }
@@ -89,7 +89,7 @@ export interface ComputeQuoteResult {
  * `ComputeQuoteResult.invalidReason` so callers classify both the same way.
  */
 export type ComputeRequirementsResult =
-  | { requirements: BookingRequirements }
+  | { requirements: BookingRequirementsV1 }
   | { unavailable: true; reason?: string }
 
 export interface ComputeQuoteBatchSelection {

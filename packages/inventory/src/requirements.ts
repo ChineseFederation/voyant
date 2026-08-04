@@ -1,5 +1,5 @@
 /**
- * Project a `ProductContent` payload into a `BookingRequirements` so
+ * Project a `ProductContent` payload into a `BookingRequirementsV1` so
  * the journey wizard can render the correct sub-steps for a sourced
  * product.
  *
@@ -20,13 +20,13 @@
  */
 
 import {
-  type BookingRequirements,
+  type BookingRequirementsV1,
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-  type PaxBandSpec,
+  type PaxBandSpecV1,
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog/booking-engine"
 
@@ -40,7 +40,7 @@ export interface BuildProductRequirementsOptions {
    * specific age cutoffs (rare for tour products; common for cruises
    * and family-oriented packages).
    */
-  paxBands?: ReadonlyArray<PaxBandSpec>
+  paxBands?: PaxBandSpecV1[]
   /**
    * Override the maximum total pax. Defaults to `paxBands` sum.
    * Useful when supplier capacity is < combined band max (e.g. a
@@ -52,7 +52,7 @@ export interface BuildProductRequirementsOptions {
 export function buildProductRequirements(
   content: ProductContent,
   options: BuildProductRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   const paxBands = options.paxBands ?? DEFAULT_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
 

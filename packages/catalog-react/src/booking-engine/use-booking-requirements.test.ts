@@ -1,9 +1,9 @@
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { describe, expect, it } from "vitest"
 
 import { normalizeBookingRequirements } from "./use-booking-requirements.js"
 
-const fallbackShape: BookingRequirements = {
+const fallbackShape: BookingRequirementsV1 = {
   showsConfigure: true,
   showsBilling: true,
   showsTravelers: true,

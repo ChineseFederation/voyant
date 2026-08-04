@@ -190,7 +190,7 @@ Branch: `tc/04-catalog-component-adapter`
 Scope:
 
 - Add an internal adapter that maps a `trip_component` to a per-line
-  `BookingDraftV1`.
+  `BookingSelectionV1`.
 - Reuse `@voyant-travel/catalog/booking-engine` services/contracts for:
   - shape lookup
   - quote

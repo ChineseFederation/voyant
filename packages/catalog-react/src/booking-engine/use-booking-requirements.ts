@@ -1,18 +1,18 @@
 "use client"
 
 import { bookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 
 import type { BookingJourneyApiOptions } from "./use-booking-journey-api.js"
 
 export interface UseBookingRequirementsOptions extends BookingJourneyApiOptions {
   /** Quote response — typically passed in from the wrapping
    *  `useBookingQuote()`. */
-  quote: { shape?: BookingRequirements } | null
+  quote: { shape?: BookingRequirementsV1 } | null
   /** Fallback shape rendered when the quote hasn't loaded yet — the
    *  journey shell uses this so the wizard renders an empty Configure
    *  step on first paint. */
-  fallback: BookingRequirements
+  fallback: BookingRequirementsV1
 }
 
 /**
@@ -22,7 +22,7 @@ export interface UseBookingRequirementsOptions extends BookingJourneyApiOptions 
  */
 export function useBookingRequirements(
   options: UseBookingRequirementsOptions,
-): BookingRequirements {
+): BookingRequirementsV1 {
   return normalizeBookingRequirements(options.quote?.shape, options.fallback)
 }
 
@@ -33,8 +33,8 @@ export function useBookingRequirements(
  */
 export function normalizeBookingRequirements(
   shape: unknown,
-  fallback: BookingRequirements,
-): BookingRequirements {
+  fallback: BookingRequirementsV1,
+): BookingRequirementsV1 {
   const shapeRecord = asRecord(shape)
   if (!shapeRecord) return fallback
 

@@ -8,7 +8,7 @@
  * computeQuote scope:
  *   - Reads cruise content via the caller-supplied loader
  *     (`getCruiseContent`).
- *   - Projects to a `BookingRequirements` with cabin-category +
+ *   - Projects to a `BookingRequirementsV1` with cabin-category +
  *     occupancy sub-steps via `buildCruiseRequirements`.
  *   - When a sailing + cabin category + occupancy are picked,
  *     looks up the per-occupancy `cruise_prices` row and returns
@@ -17,7 +17,7 @@
  */
 
 import type {
-  BookingRequirements,
+  BookingRequirementsV1,
   ComputeQuoteRequest,
   ComputeQuoteResult,
   ComputeRequirementsResult,
@@ -108,7 +108,7 @@ export function createCruiseBookingHandler(
   async function deriveRequirements(ctx: OwnedHandlerContext, request: ComputeQuoteRequest) {
     const content = await options.loadContent(ctx, request.entityId)
     if (!content) return { status: "unavailable" as const, reason: "cruise_not_found" }
-    const requirements: BookingRequirements = buildCruiseRequirements(content, {
+    const requirements: BookingRequirementsV1 = buildCruiseRequirements(content, {
       forceCabinNumberSubStep: options.forceCabinNumberSubStep,
       includeInsurance: options.includeInsurance,
     })

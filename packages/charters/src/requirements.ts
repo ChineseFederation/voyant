@@ -1,5 +1,5 @@
 /**
- * Project a `CharterContent` payload into a `BookingRequirements`.
+ * Project a `CharterContent` payload into a `BookingRequirementsV1`.
  *
  * Charter products fall into two booking modes that require
  * different sub-steps:
@@ -16,32 +16,32 @@
  */
 
 import {
-  type BookingRequirements,
-  type CabinCategoryOption,
-  type ConfigureSubStep,
+  type BookingRequirementsV1,
+  type CabinCategoryOptionV1,
+  type ConfigureSubStepV1,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-  type PaxBandSpec,
+  type PaxBandSpecV1,
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog/booking-engine"
 
 import type { CharterContent } from "./content-shape.js"
 
-export const DEFAULT_CHARTER_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
+export const DEFAULT_CHARTER_PAX_BANDS: PaxBandSpecV1[] = [
   { code: "adult", label: "Adult", minCount: 1, maxCount: 12 },
 ]
 
 export interface BuildCharterRequirementsOptions {
   locale?: string
-  paxBands?: ReadonlyArray<PaxBandSpec>
+  paxBands?: PaxBandSpecV1[]
   paxBandsAllowedTotal?: { min: number; max: number }
 }
 
 export function buildCharterRequirements(
   content: CharterContent,
   options: BuildCharterRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   const paxBands =
     options.paxBands ??
     (content.yacht?.capacity_guests
@@ -51,7 +51,7 @@ export function buildCharterRequirements(
 
   const isPerSuite = content.charter.charter_type === "per_suite"
 
-  const configureSubSteps: ConfigureSubStep[] = []
+  const configureSubSteps: ConfigureSubStepV1[] = []
   if (content.voyages.length > 0) {
     configureSubSteps.push({ kind: "departure", required: true })
   }
@@ -78,7 +78,7 @@ export function buildCharterRequirements(
   }
 }
 
-function toSuiteOption(s: CharterContent["suites"][number]): CabinCategoryOption {
+function toSuiteOption(s: CharterContent["suites"][number]): CabinCategoryOptionV1 {
   return {
     id: s.id,
     code: s.code ?? undefined,

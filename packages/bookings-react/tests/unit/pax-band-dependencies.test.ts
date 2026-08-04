@@ -1,4 +1,4 @@
-import type { PaxBandDependency } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { PaxBandDependencyV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { describe, expect, it } from "vitest"
 
 import { evaluatePaxBandDependencies } from "../../src/journey/lib/pax-band-dependencies.js"
@@ -15,14 +15,14 @@ describe("evaluatePaxBandDependencies", () => {
   })
 
   it("does not fire a rule when no dependents are picked", () => {
-    const deps: PaxBandDependency[] = [
+    const deps: PaxBandDependencyV1[] = [
       { dependentCode: "child", masterCode: "adult", type: "requires" },
     ]
     expect(evaluatePaxBandDependencies({ adult: 0, child: 0 }, deps, bands)).toEqual([])
   })
 
   it("flags `requires` when a dependent is picked without its master", () => {
-    const deps: PaxBandDependency[] = [
+    const deps: PaxBandDependencyV1[] = [
       { dependentCode: "child", masterCode: "adult", type: "requires" },
     ]
     const out = evaluatePaxBandDependencies({ adult: 0, child: 1 }, deps, bands)
@@ -37,7 +37,7 @@ describe("evaluatePaxBandDependencies", () => {
   })
 
   it("flags `excludes` when both bands are present", () => {
-    const deps: PaxBandDependency[] = [
+    const deps: PaxBandDependencyV1[] = [
       { dependentCode: "child", masterCode: "adult", type: "excludes" },
     ]
     expect(evaluatePaxBandDependencies({ adult: 1, child: 1 }, deps, bands)).toHaveLength(1)
@@ -45,7 +45,7 @@ describe("evaluatePaxBandDependencies", () => {
   })
 
   it("enforces `limits_per_master`", () => {
-    const deps: PaxBandDependency[] = [
+    const deps: PaxBandDependencyV1[] = [
       { dependentCode: "child", masterCode: "adult", type: "limits_per_master", maxPerMaster: 2 },
     ]
     // 2 adults × 2 = up to 4 children allowed.
@@ -56,7 +56,7 @@ describe("evaluatePaxBandDependencies", () => {
   })
 
   it("enforces `limits_sum`", () => {
-    const deps: PaxBandDependency[] = [
+    const deps: PaxBandDependencyV1[] = [
       { dependentCode: "child", masterCode: "adult", type: "limits_sum", maxDependentSum: 3 },
     ]
     expect(evaluatePaxBandDependencies({ adult: 1, child: 3 }, deps, bands)).toEqual([])

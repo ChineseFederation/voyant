@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  bookingDraftV1,
+  bookingSelectionV1,
   bookRequestV1,
   pricingBreakdownV1,
   quoteBatchRequestV1,
@@ -11,9 +11,9 @@ import {
 } from "./contracts.js"
 
 describe("V1 contracts", () => {
-  describe("bookingDraftV1", () => {
+  describe("bookingSelectionV1", () => {
     it("accepts a minimal draft and applies defaults", () => {
-      const result = bookingDraftV1.parse({
+      const result = bookingSelectionV1.parse({
         entity: { module: "products", id: "prod_1", sourceKind: "owned" },
       })
       expect(result.configure.pax).toEqual({})
@@ -24,7 +24,7 @@ describe("V1 contracts", () => {
     })
 
     it("preserves explicit field values", () => {
-      const result = bookingDraftV1.parse({
+      const result = bookingSelectionV1.parse({
         entity: { module: "products", id: "prod_1", sourceKind: "owned" },
         configure: {
           pax: { adult: 2 },
@@ -49,7 +49,7 @@ describe("V1 contracts", () => {
     })
 
     it("rejects malformed entity reference", () => {
-      const result = bookingDraftV1.safeParse({})
+      const result = bookingSelectionV1.safeParse({})
       expect(result.success).toBe(false)
     })
   })

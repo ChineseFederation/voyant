@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query"
 import {
-  type BookingDraftV1,
+  type BookingSelectionV1,
   type QuoteResponseV1,
   quoteResponseV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { type BookingJourneyApiOptions, useBookingJourneyApi } from "./use-booking-journey-api.js"
 
 export interface UseBookingQuoteOptions extends BookingJourneyApiOptions {
-  draft: BookingDraftV1 | null
+  draft: BookingSelectionV1 | null
   /** Locale / audience / market scope — defaults sensible per surface. */
   scope?: {
     locale?: string
@@ -126,7 +126,7 @@ export function useBookingQuote(options: UseBookingQuoteOptions) {
 
 async function runQuote(
   api: ReturnType<typeof useBookingJourneyApi>,
-  draft: BookingDraftV1,
+  draft: BookingSelectionV1,
   scope: UseBookingQuoteOptions["scope"],
 ): Promise<QuoteResponseV1> {
   // Storefront callers don't surface `sourceKind` in URLs (the
@@ -161,7 +161,7 @@ function defaultAudience(apiBase: string): "staff" | "customer" | "partner" | "s
  * shape go in. Avoids re-quoting on cosmetic edits like phone
  * formatting or notes.
  */
-function signDraft(draft: BookingDraftV1): string {
+function signDraft(draft: BookingSelectionV1): string {
   return JSON.stringify({
     entity: draft.entity,
     pax: draft.configure?.pax,

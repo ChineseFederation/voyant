@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import {
-  type BookingDraftV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
 import {
@@ -90,9 +90,9 @@ export function ProductDetailPageProducts({
     }
   }, [slotRows, selectedSlotId])
 
-  const probeDraft = useMemo<BookingDraftV1 | null>(() => {
+  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
     if (!selectedSlotId) return null
-    return bookingDraftV1.parse({
+    return bookingSelectionV1.parse({
       entity: { module: entityModule, id: entityId, sourceKind: "" },
       configure: {
         departureSlotId: selectedSlotId,

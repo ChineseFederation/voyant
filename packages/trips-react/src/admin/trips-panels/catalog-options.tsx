@@ -2,7 +2,7 @@
 
 import { useOperatorAdminMessages as useAdminMessages } from "@voyant-travel/admin"
 import { type Draft, setAccommodation, setAddons } from "@voyant-travel/bookings-react/journey"
-import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { Badge } from "@voyant-travel/ui/components/badge"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Minus, Plus } from "lucide-react"
@@ -13,7 +13,7 @@ export function CatalogComponentOptions({
   onDraftChange,
 }: {
   draft: Draft | null
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
   onDraftChange(draft: Draft): void
 }) {
   if (!draft) return null
@@ -167,7 +167,7 @@ function CatalogAccommodationOptions({
   onDraftChange,
 }: {
   draft: Draft
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
   onDraftChange(draft: Draft): void
 }) {
   const t = useAdminMessages().trips.adminComposer.panels
@@ -273,7 +273,7 @@ function CatalogExtrasOptions({
   onDraftChange,
 }: {
   draft: Draft
-  shape: BookingRequirements
+  shape: BookingRequirementsV1
   onDraftChange(draft: Draft): void
 }) {
   const t = useAdminMessages().trips.adminComposer.panels

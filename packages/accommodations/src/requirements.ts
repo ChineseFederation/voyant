@@ -1,5 +1,5 @@
 /**
- * Project a `AccommodationContent` payload into a `BookingRequirements`.
+ * Project a `AccommodationContent` payload into a `BookingRequirementsV1`.
  *
  * Hotel / room-type bookings need:
  *   - Configure: date-range (check-in → check-out) + occupancy.
@@ -14,26 +14,26 @@
  */
 
 import {
-  type BookingRequirements,
+  type BookingRequirementsV1,
   defaultBookingFields,
   defaultRequirementsFlags,
   defaultTravelerFields,
-  type PaxBandSpec,
+  type PaxBandSpecV1,
   paxBandsAllowedTotalFrom,
-  type RatePlanOption,
-  type RoomOption,
+  type RatePlanOptionV1,
+  type RoomOptionV1,
 } from "@voyant-travel/catalog/booking-engine"
 
 import type { AccommodationContent } from "./content-shape.js"
 
-export const DEFAULT_ACCOMMODATION_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
+export const DEFAULT_ACCOMMODATION_PAX_BANDS: PaxBandSpecV1[] = [
   { code: "adult", label: "Adult", minCount: 1, maxCount: 6 },
   { code: "child", label: "Child", minAge: 0, maxAge: 17, minCount: 0, maxCount: 4 },
 ]
 
 export interface BuildAccommodationRequirementsOptions {
   locale?: string
-  paxBands?: ReadonlyArray<PaxBandSpec>
+  paxBands?: PaxBandSpecV1[]
   paxBandsAllowedTotal?: { min: number; max: number }
   /**
    * Default minimum-nights window. Most bedbanks accept 1–30 nights;
@@ -48,7 +48,7 @@ export interface BuildAccommodationRequirementsOptions {
 export function buildAccommodationRequirements(
   content: AccommodationContent,
   options: BuildAccommodationRequirementsOptions = {},
-): BookingRequirements {
+): BookingRequirementsV1 {
   const paxBands = options.paxBands ?? DEFAULT_ACCOMMODATION_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
   const minNights = options.minNights ?? 1
@@ -57,7 +57,7 @@ export function buildAccommodationRequirements(
 
   // Project each rate plan once. The journey filters per-room based
   // on `applies_to_room_type_ids` (empty = applies to all rooms).
-  const planByRoom = new Map<string, RatePlanOption[]>()
+  const planByRoom = new Map<string, RatePlanOptionV1[]>()
   for (const rt of content.room_types) {
     planByRoom.set(rt.id, [])
   }
@@ -66,7 +66,7 @@ export function buildAccommodationRequirements(
       plan.applies_to_room_type_ids.length === 0
         ? content.room_types.map((r) => r.id)
         : plan.applies_to_room_type_ids
-    const planOption: RatePlanOption = {
+    const planOption: RatePlanOptionV1 = {
       id: plan.id,
       name: plan.name,
       description: plan.description ?? null,
@@ -80,7 +80,7 @@ export function buildAccommodationRequirements(
     }
   }
 
-  const roomOptions: RoomOption[] = content.room_types.map((rt) => ({
+  const roomOptions: RoomOptionV1[] = content.room_types.map((rt) => ({
     id: rt.id,
     name: rt.name,
     description: rt.description ?? null,

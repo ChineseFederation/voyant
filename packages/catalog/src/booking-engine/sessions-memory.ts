@@ -5,7 +5,7 @@ import {
   defaultRequirementsFlags,
   defaultTravelerFields,
   paxBandsAllowedTotalFrom,
-} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
 import { newId } from "@voyant-travel/db/lib/typeid"
 
 import type { BookingRequirementsV1 } from "./contracts.js"
@@ -242,7 +242,7 @@ export function inMemoryBookingRequirements(): BookingRequirementsV1 {
     travelerFields: [...defaultTravelerFields()],
     bookingFields: [...defaultBookingFields()],
     paymentIntents: [...DEFAULT_PAYMENT_INTENTS],
-  } as BookingRequirementsV1
+  }
 }
 
 export interface InMemoryOwnedInventoryPorts

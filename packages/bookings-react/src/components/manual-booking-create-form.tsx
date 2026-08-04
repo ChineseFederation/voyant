@@ -9,9 +9,9 @@ import {
   travelersToRows,
 } from "@voyant-travel/bookings/pricing-assignment"
 import {
-  type BookingDraftV1,
   type BookingRequirementsV1,
-  bookingDraftV1,
+  type BookingSelectionV1,
+  bookingSelectionV1,
   type PaxBandCode,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
 import {
@@ -261,10 +261,10 @@ export function buildManualBookingQuoteDraft(input: {
   extraLines?: ReadonlyArray<BookingCreateExtraLineInput>
   promotionCode: string
   paymentSchedule: PaymentScheduleValue
-}): BookingDraftV1 | null {
+}): BookingSelectionV1 | null {
   if (!input.productId) return null
   const unitsById = new Map(input.units.map((unit) => [unit.optionUnitId, unit]))
-  return bookingDraftV1.parse({
+  return bookingSelectionV1.parse({
     entity: {
       module: "products",
       id: input.productId,
@@ -361,7 +361,7 @@ const BOOKING_SESSION_ENGINE_OWNED_FIELDS = new Set([
 ])
 
 export function buildManualBookingSessionSelection(input: {
-  quoteDraft: BookingDraftV1
+  quoteDraft: BookingSelectionV1
   booking: Record<string, unknown>
   catalogAmountCents: number | null
   confirmedAmountCents: number

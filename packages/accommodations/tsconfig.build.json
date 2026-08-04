@@ -371,11 +371,20 @@
       "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance": [
         "../catalog-contracts/dist/booking-engine/lifecycle-conformance.d.ts"
       ],
+      "@voyant-travel/catalog-contracts/booking-engine/pricing-contracts": [
+        "../catalog-contracts/dist/booking-engine/pricing-contracts.d.ts"
+      ],
       "@voyant-travel/catalog-contracts/booking-engine/promotions-contract": [
         "../catalog-contracts/dist/booking-engine/promotions-contract.d.ts"
       ],
-      "@voyant-travel/catalog-contracts/booking-engine/requirements": [
-        "../catalog-contracts/dist/booking-engine/requirements.d.ts"
+      "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts": [
+        "../catalog-contracts/dist/booking-engine/requirements-contracts.d.ts"
+      ],
+      "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults": [
+        "../catalog-contracts/dist/booking-engine/requirements-defaults.d.ts"
+      ],
+      "@voyant-travel/catalog-contracts/booking-engine/selection-contracts": [
+        "../catalog-contracts/dist/booking-engine/selection-contracts.d.ts"
       ],
       "@voyant-travel/catalog-contracts/booking-engine/session-contracts": [
         "../catalog-contracts/dist/booking-engine/session-contracts.d.ts"
