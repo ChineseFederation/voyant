@@ -7,6 +7,7 @@ import { createReferencedSubjectReindexFanout } from "@voyant-travel/catalog/ser
 import type { VoyantRuntimeHostPrimitives } from "@voyant-travel/core"
 import type { FinanceServiceRuntime, PaymentAdapter } from "@voyant-travel/finance"
 import type { FinanceOperatorSettingsRuntime } from "@voyant-travel/finance/runtime-port"
+import type { Context } from "hono"
 import type { BookingSessionCompositeHandler } from "./booking-engine/index.js"
 import {
   ensureBookingEngineRegistry,
@@ -14,10 +15,7 @@ import {
   getOwnedBookingHandlerRegistry,
   getOwnedBookingHandlerRegistryFromContext,
 } from "./runtime/booking-engine-runtime.js"
-import {
-  applyOperatorTaxToQuoteResult,
-  createOperatorCatalogBookingRouteModuleOptions,
-} from "./runtime/booking-runtime.js"
+import { createOperatorCatalogBookingRouteModuleOptions } from "./runtime/booking-runtime.js"
 import { isSourcedEntryStorefrontListable } from "./runtime/catalog-listability.js"
 import {
   buildEmbeddingProvider,
@@ -87,6 +85,15 @@ export function createCatalogRuntime(
   const ownedAvailabilitySearchHandlers = createOwnedAvailabilitySearchHandlerRegistry()
   let compositeBookingSessionHandler: BookingSessionCompositeHandler | undefined
   extensions.accommodations.registerOwnedAvailabilitySearchHandler(ownedAvailabilitySearchHandlers)
+  // Built before `services` because `services.previewOffer` resolves the same
+  // Booking Session module the mounted session routes use — one lifecycle, not
+  // a server-side copy of it.
+  const booking = createOperatorCatalogBookingRouteModuleOptions({
+    settings,
+    resolveBookingsRelationshipsRuntime: options.resolveBookingsRelationshipsRuntime,
+    resolveFinanceServiceRuntime: options.resolveFinanceServiceRuntime,
+    resolvePaymentAdapter: options.resolvePaymentAdapter,
+  })
   const services: CatalogRuntimeServices = {
     defaultSlices: DEFAULT_SLICES,
     ensureSourceRegistry: (env) => ensureBookingEngineRegistry(env as never),
@@ -150,27 +157,21 @@ export function createCatalogRuntime(
           extensions.distribution.hasEffectiveSourcePublication(db, provenance, slice.channel),
       }),
     withEmbedding,
-    applyTaxToQuoteResult: (db, result, entityModule, entityId, sourceKind) =>
-      applyOperatorTaxToQuoteResult(
-        db,
-        result,
-        entityModule,
-        entityId,
-        sourceKind,
-        settings.resolveBookingTaxSettings,
-      ),
+    previewOffer: (context, input) => {
+      const sessions = booking.bookingSessions
+      if (!sessions?.resolveAccess) {
+        throw new Error("catalog_booking_session_runtime_required")
+      }
+      const c = context as Context
+      return sessions.resolveModule(c).previewOffer(input, sessions.resolveAccess(c, "staff"))
+    },
   }
   installCatalogRuntimeServices(services)
   return {
     search: {
       resolveRuntime: (context) => createCatalogSearchRuntime(context, resolveIndexer),
     },
-    booking: createOperatorCatalogBookingRouteModuleOptions({
-      settings,
-      resolveBookingsRelationshipsRuntime: options.resolveBookingsRelationshipsRuntime,
-      resolveFinanceServiceRuntime: options.resolveFinanceServiceRuntime,
-      resolvePaymentAdapter: options.resolvePaymentAdapter,
-    }),
+    booking,
     offers: createOperatorCatalogOffersRouteModuleOptions(
       (context) => withoutCatalogScopeChannel(resolveCatalogDefaultScope(context)),
       (context) => {

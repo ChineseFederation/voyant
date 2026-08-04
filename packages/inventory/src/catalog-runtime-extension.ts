@@ -1,5 +1,4 @@
 import type { CatalogInventoryRuntimeExtension } from "@voyant-travel/catalog/runtime-contracts"
-import { createProductQuoteShapeEnricher } from "@voyant-travel/catalog/runtime-support"
 import type { PaymentPolicy } from "@voyant-travel/finance"
 import { and, asc, eq, gt, isNotNull } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -12,7 +11,6 @@ import { productPricingCatalogPolicy } from "./catalog-policy-pricing.js"
 import { productPromotionsCatalogPolicy } from "./catalog-policy-promotions.js"
 import { productTaxonomyCatalogPolicy } from "./catalog-policy-taxonomy.js"
 import { extrasCatalogPolicy } from "./extras.js"
-import { buildProductRequirements } from "./requirements.js"
 import { productCategories, productCategoryProducts, products } from "./schema.js"
 import { productsService } from "./service.js"
 import {
@@ -25,27 +23,6 @@ import { createProductDestinationsProjectionExtension } from "./service-catalog-
 import { createProductTaxonomyProjectionExtension } from "./service-catalog-plane-taxonomy.js"
 import { getProductContent } from "./service-content.js"
 import { listProductsReferencingAccommodationProperty } from "./service-presentation-references.js"
-
-export const enrichProductQuoteShape = createProductQuoteShapeEnricher({
-  resolveContent: ({
-    db,
-    entityId,
-    locales,
-    audience,
-    market,
-    currency,
-    registry,
-    adapterContext,
-  }) =>
-    getProductContent(
-      db as Parameters<typeof getProductContent>[0],
-      entityId,
-      { preferredLocales: locales, audience, market, currency },
-      { registry, buildAdapterContext: () => adapterContext },
-    ),
-  buildShape: (content, options) =>
-    buildProductRequirements(content as Parameters<typeof buildProductRequirements>[0], options),
-})
 
 export const catalogInventoryRuntimeExtension = {
   productFieldPolicy: [
@@ -133,6 +110,5 @@ export const catalogInventoryRuntimeExtension = {
       departureDate: product.departureDate,
     }
   },
-  enrichProductQuoteShape,
   buildSnapshotInput: (db, productId, options) => buildProductSnapshotInput(db, productId, options),
 } satisfies CatalogInventoryRuntimeExtension

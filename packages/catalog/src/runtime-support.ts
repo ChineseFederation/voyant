@@ -7,13 +7,11 @@ import type {
   IndexerSlice,
   SearchFilter,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
-import type { SourceAdapterContext } from "./adapter/contract.js"
-import type { QuoteEntityResult, SourceAdapterRegistry } from "./booking-engine/index.js"
 import type {
   CatalogBookingSnapshotExecutionContext,
   CatalogBookingSnapshotRuntime,
 } from "./booking-snapshot-subscriber-runtime.js"
-import type { FieldPolicyRegistry, Visibility } from "./contract.js"
+import type { FieldPolicyRegistry } from "./contract.js"
 import type { EmbeddingProvider } from "./embeddings/contract.js"
 import { createGeminiEmbeddingProvider } from "./embeddings/gemini.js"
 import { createOpenAIEmbeddingProvider } from "./embeddings/openai.js"
@@ -293,68 +291,6 @@ function stringArray(value: unknown): string[] | undefined {
   return value.filter((entry): entry is string => typeof entry === "string")
 }
 
-export function createProductQuoteShapeEnricher(dependencies: {
-  resolveContent(input: {
-    db: unknown
-    entityId: string
-    locales: string[]
-    audience: Visibility
-    market?: string
-    currency?: string
-    registry: SourceAdapterRegistry
-    adapterContext: SourceAdapterContext
-  }): Promise<{ content?: unknown } | null>
-  buildShape(
-    content: unknown,
-    options: { locale?: string },
-  ): NonNullable<QuoteEntityResult["shape"]>
-}) {
-  return async (input: {
-    db: unknown
-    result: QuoteEntityResult
-    entityModule: string
-    entityId: string
-    locale?: string
-    audience?: string
-    market?: string
-    currency?: string
-    registry: SourceAdapterRegistry
-    adapterContext?: SourceAdapterContext
-  }): Promise<QuoteEntityResult> => {
-    if (input.result.shape || !input.result.available || input.entityModule !== "products") {
-      return input.result
-    }
-    try {
-      const locales = [...new Set([input.locale, "en-GB", "en"].filter(Boolean))] as string[]
-      const resolved = await dependencies.resolveContent({
-        db: input.db,
-        entityId: input.entityId,
-        locales,
-        audience: narrowContentAudience(input.audience),
-        market: input.market,
-        currency: input.currency,
-        registry: input.registry,
-        adapterContext: input.adapterContext ?? { connection_id: "products" },
-      })
-      if (!resolved?.content) return input.result
-      return {
-        ...input.result,
-        shape: dependencies.buildShape(resolved.content, { locale: input.locale }),
-      }
-    } catch (error) {
-      console.warn("[catalog-booking] product quote shape enrichment failed:", error)
-      return input.result
-    }
-  }
-}
-
-const CONTENT_AUDIENCES = new Set<Visibility>(["staff", "customer", "partner", "supplier"])
-
-function narrowContentAudience(audience: string | undefined): Visibility {
-  if (audience === "staff-admin") return "staff"
-  return CONTENT_AUDIENCES.has(audience as Visibility) ? (audience as Visibility) : "customer"
-}
-
 export function createCatalogProjectionRuntimeAdapter<TBindings, TDb>(options: {
   bindings: TBindings
   withDb<R>(bindings: TBindings, operation: (db: TDb) => Promise<R>): Promise<R>
@@ -449,80 +385,4 @@ export async function resolveCatalogHoldTtlMs(options: {
 
 function positiveMinutes(value: number | null | undefined) {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null
-}
-
-export interface CatalogQuoteTaxLine {
-  amountCents: number
-  includedInPrice: boolean
-  code?: string | null
-  name: string
-  rateBasisPoints?: number | null
-  scope?: string | null
-}
-
-export async function applyCatalogTaxToQuoteResult(input: {
-  result: QuoteEntityResult
-  entityModule: string
-  entityId: string
-  sourceKind: string
-  ownedSourceKind: string
-  resolveTaxLine(input: {
-    productId: string | null
-    taxableCents: number
-    currency: string
-  }): Promise<CatalogQuoteTaxLine | null>
-  persistPricing(quoteId: string, pricing: NonNullable<QuoteEntityResult["pricing"]>): Promise<void>
-}): Promise<QuoteEntityResult> {
-  const pricing = input.result.pricing
-  if (!input.result.available || !pricing) return input.result
-  const hasAppliedOffers = (pricing.appliedOffers?.length ?? 0) > 0
-  if (input.sourceKind === input.ownedSourceKind && !hasAppliedOffers) return input.result
-  if (pricing.taxes > 0 && !hasAppliedOffers) return input.result
-
-  const taxableCents = pricing.base_amount
-  const taxLine = await input.resolveTaxLine({
-    productId: input.entityModule === "products" ? input.entityId : null,
-    taxableCents,
-    currency: pricing.currency,
-  })
-  if (!taxLine) return input.result
-
-  const subtotal = taxLine.includedInPrice
-    ? Math.max(0, taxableCents - taxLine.amountCents)
-    : taxableCents
-  const total = taxLine.includedInPrice ? taxableCents : taxableCents + taxLine.amountCents
-  const adjusted = {
-    ...pricing,
-    base_amount: subtotal,
-    taxes: taxLine.amountCents,
-    breakdown: {
-      currency: pricing.currency,
-      lines: [
-        {
-          kind: "base" as const,
-          label: "Base",
-          quantity: 1,
-          unitAmount: taxableCents,
-          totalAmount: taxableCents,
-          taxIncluded: taxLine.includedInPrice,
-        },
-      ],
-      taxes: [
-        {
-          code: taxLine.code ?? "tax",
-          label: taxLine.name,
-          rate: (taxLine.rateBasisPoints ?? 0) / 10_000,
-          amount: taxLine.amountCents,
-          base: subtotal,
-          includedInPrice: taxLine.includedInPrice,
-          scope: taxLine.scope,
-        },
-      ],
-      subtotal,
-      taxTotal: taxLine.amountCents,
-      total,
-    },
-  }
-  await input.persistPricing(input.result.quoteId, adjusted)
-  return { ...input.result, pricing: adjusted }
 }

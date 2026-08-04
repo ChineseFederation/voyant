@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  bookingSelectionV1,
-  bookRequestV1,
-  pricingBreakdownV1,
-  quoteBatchRequestV1,
-  quoteBatchResponseV1,
-  quoteRequestV1,
-  quoteResponseV1,
-} from "./contracts.js"
+import { bookingSelectionV1, bookRequestV1, pricingBreakdownV1 } from "./contracts.js"
 
 describe("V1 contracts", () => {
   describe("bookingSelectionV1", () => {
@@ -50,28 +42,6 @@ describe("V1 contracts", () => {
 
     it("rejects malformed entity reference", () => {
       const result = bookingSelectionV1.safeParse({})
-      expect(result.success).toBe(false)
-    })
-  })
-
-  describe("quoteRequestV1", () => {
-    it("validates a request without a draft", () => {
-      const result = quoteRequestV1.safeParse({
-        entityModule: "products",
-        entityId: "prod_1",
-        sourceKind: "owned",
-        scope: { locale: "en-GB", audience: "staff", market: "default" },
-      })
-      expect(result.success).toBe(true)
-    })
-
-    it("requires audience to be one of the recognized actors", () => {
-      const result = quoteRequestV1.safeParse({
-        entityModule: "products",
-        entityId: "prod_1",
-        sourceKind: "owned",
-        scope: { locale: "en-GB", audience: "robot", market: "default" },
-      })
       expect(result.success).toBe(false)
     })
   })
@@ -133,69 +103,6 @@ describe("V1 contracts", () => {
         total: 0,
       })
       expect(result.success).toBe(false)
-    })
-  })
-
-  describe("quoteResponseV1", () => {
-    it("validates a minimal availability=false response", () => {
-      const result = quoteResponseV1.safeParse({
-        quoteId: "q1",
-        quotedAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
-        available: false,
-        invalidReason: "out_of_stock",
-      })
-      expect(result.success).toBe(true)
-    })
-  })
-
-  describe("quoteBatchRequestV1", () => {
-    it("caps batch quote selections", () => {
-      const selection = {
-        entityModule: "accommodations",
-        entityId: "room_1",
-        ratePlanId: "rate_1",
-      }
-      expect(
-        quoteBatchRequestV1.safeParse({
-          criteria: { checkIn: "2026-09-01", checkOut: "2026-09-03" },
-          selections: [selection],
-        }).success,
-      ).toBe(true)
-      expect(
-        quoteBatchRequestV1.safeParse({
-          selections: Array.from({ length: 31 }, () => selection),
-        }).success,
-      ).toBe(false)
-    })
-  })
-
-  describe("quoteBatchResponseV1", () => {
-    it("validates per-selection quote results", () => {
-      const result = quoteBatchResponseV1.safeParse({
-        results: [
-          {
-            selection: {
-              entityModule: "accommodations",
-              entityId: "room_1",
-              ratePlanId: "rate_1",
-            },
-            quoteId: "q1",
-            quotedAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 60_000).toISOString(),
-            available: true,
-            pricing: {
-              currency: "USD",
-              lines: [],
-              taxes: [],
-              subtotal: 10000,
-              taxTotal: 0,
-              total: 10000,
-            },
-          },
-        ],
-      })
-      expect(result.success).toBe(true)
     })
   })
 })

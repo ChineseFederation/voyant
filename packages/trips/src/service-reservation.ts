@@ -572,13 +572,12 @@ async function refreshComponentsBeforeReserve(
       changed = true
 
       if (!quote.available || !quote.pricing) {
-        const reason = quote.invalidReason ?? "quote_unavailable"
+        const reason = quote.unavailableReason ?? "quote_unavailable"
         warnings.add(reason)
         failures.push({
           componentId: component.id,
           reason,
           code: "unavailable",
-          details: { quoteId: quote.quoteId },
         })
         continue
       }

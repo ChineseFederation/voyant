@@ -4,18 +4,25 @@
  * commits, by reading `pricing_applied_offers` from `catalog_quotes`
  * (joined to the booking via the existing `consumed_booking_id` column).
  *
- * Why a subscriber rather than a `BookEntityDeps` hook: `bookEntity`
- * does sequential writes without an enclosing `db.transaction(...)`,
- * and the owned `createBooking` path opens its own transaction in
- * `@voyant-travel/finance`. There is no single commit transaction to be
- * atomic with — claiming "atomic with commit" would be misleading.
+ * Why a subscriber rather than a commit-time hook: the owned `createBooking`
+ * path opens its own transaction in `@voyant-travel/finance`, so there is no
+ * single commit transaction to be atomic with — claiming "atomic with commit"
+ * would be misleading.
  *
  * Per docs/architecture/promotions-architecture.md §3.6 + §7.3.
  *
- * The recorder reads from `catalog_quotes` (the source of truth, written
- * by `quoteEntity`) NOT from `booking_catalog_snapshot` to avoid an
- * ordering race with the catalog-bridge's `captureSnapshotGraph`
- * subscriber (both fire on the same `booking.confirmed` event).
+ * The recorder reads from `catalog_quotes` NOT from
+ * `booking_catalog_snapshot`, to avoid an ordering race with the
+ * catalog-bridge's `captureSnapshotGraph` subscriber (both fire on the same
+ * `booking.confirmed` event).
+ *
+ * READS HISTORY ONLY (voyant#4188). Both writes this depends on are gone:
+ * `pricing_applied_offers` was written by the beta `quoteEntity`, and
+ * `consumed_booking_id` by `bookEntity` (#3747). New bookings therefore record
+ * no redemptions. This recorder is the reason `catalog_quotes` was kept rather
+ * than dropped — it is the read path for rows a shipped booking already
+ * consumed. Restoring redemption recording means evaluating promotions on the
+ * v1 Session `composeQuote` and reading `booking_session_quotes` here.
  *
  * Idempotent on retry: the unique `(offer_id, booking_id)` index on
  * `promotional_offer_redemptions` (per §4.3) lets the upsert refresh the

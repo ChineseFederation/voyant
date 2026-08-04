@@ -1,7 +1,4 @@
 import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
-import type { PricingBasis } from "../snapshot/schema.js"
-import { type PricingBreakdownV1, type QuoteResponseV1, quoteResponseV1 } from "./contracts.js"
-import type { QuoteEntityResult } from "./quote.js"
 
 /**
  * Translate canonical Booking Session selection state into adapter parameters.
@@ -197,63 +194,4 @@ function sumPax(value: unknown): number {
     if (typeof count === "number" && Number.isFinite(count) && count > 0) total += count
   }
   return total
-}
-
-export function serializeQuoteResult(result: QuoteEntityResult): QuoteResponseV1 {
-  return quoteResponseV1.parse({
-    ...result,
-    quotedAt: result.quotedAt.toISOString(),
-    expiresAt: result.expiresAt.toISOString(),
-    pricing: toPricingBreakdownV1(result.pricing),
-  })
-}
-
-function toPricingBreakdownV1(basis: PricingBasis | undefined): PricingBreakdownV1 | undefined {
-  if (!basis) return undefined
-  if (basis.breakdown) {
-    const breakdown = basis.breakdown as PricingBreakdownV1
-    if (breakdown.currency && Array.isArray(breakdown.lines) && Array.isArray(breakdown.taxes)) {
-      return breakdown
-    }
-  }
-  const lines: PricingBreakdownV1["lines"] = [
-    {
-      kind: "base",
-      label: "Base",
-      quantity: 1,
-      unitAmount: basis.base_amount,
-      totalAmount: basis.base_amount,
-    },
-  ]
-  if (basis.fees > 0) {
-    lines.push({ kind: "fee", label: "Fees", unitAmount: basis.fees, totalAmount: basis.fees })
-  }
-  if (basis.surcharges > 0) {
-    lines.push({
-      kind: "supplement",
-      label: "Surcharges",
-      unitAmount: basis.surcharges,
-      totalAmount: basis.surcharges,
-    })
-  }
-  const subtotal = basis.base_amount + basis.fees + basis.surcharges
-  return {
-    currency: basis.currency,
-    lines,
-    taxes:
-      basis.taxes > 0
-        ? [
-            {
-              code: "tax",
-              label: "Tax",
-              rate: 0,
-              amount: basis.taxes,
-              base: basis.base_amount,
-            },
-          ]
-        : [],
-    subtotal,
-    taxTotal: basis.taxes,
-    total: subtotal + basis.taxes,
-  }
 }

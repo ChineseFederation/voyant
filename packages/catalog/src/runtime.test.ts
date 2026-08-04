@@ -21,7 +21,6 @@ vi.mock("./runtime/booking-engine-runtime.js", () => ({
 }))
 
 vi.mock("./runtime/booking-runtime.js", () => ({
-  applyOperatorTaxToQuoteResult: vi.fn(),
   createOperatorCatalogBookingRouteModuleOptions: vi.fn(() => ({})),
 }))
 

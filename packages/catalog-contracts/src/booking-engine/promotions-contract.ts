@@ -3,8 +3,13 @@
  * and any promotion implementation.
  *
  * Catalog defines the input/output shape so it stays decoupled from
- * `@voyant-travel/commerce`: the implementation is wired in by templates as
- * an optional dependency on `QuoteEntityDeps.evaluatePromotions`.
+ * `@voyant-travel/commerce`.
+ *
+ * NOTE (voyant#4188): the only wiring this contract ever had was the beta
+ * `quoteEntity` hook, which is deleted. The shapes are kept because they are
+ * the published seam a promotion implementation is written against, but the v1
+ * Booking Session quote does not evaluate promotions yet — re-wiring it onto
+ * `composeQuote` is separate work.
  *
  * The shapes mirror Commerce's promotion evaluator
  * `EvaluationResult` subset that the catalog actually consumes — the

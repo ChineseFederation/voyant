@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// Mock the catalog read/cancel boundary so this suite can assert quote,
-// fail-closed reserve, and cancellation mapping without a live booking engine.
-const quoteEntity = vi.fn()
+// Mock the catalog read/cancel boundary so this suite can assert preview
+// pricing, fail-closed reserve, and cancellation mapping without a live
+// booking engine.
 const cancelEntity = vi.fn()
 
 vi.mock("@voyant-travel/catalog/booking-engine", () => ({
-  quoteEntity: (...args: unknown[]) => quoteEntity(...args),
   cancelEntity: (...args: unknown[]) => cancelEntity(...args),
   bookingSelectionV1: { parse: (x: unknown) => x },
-  quoteResponseV1: { parse: (x: unknown) => x },
+}))
+vi.mock("@voyant-travel/catalog/booking-engine/contracts", () => ({
+  bookingSelectionPublicV1: { parse: (x: unknown) => x },
 }))
 
 const { createCatalogComponentAdapter } = await import("../src/catalog-component.js")
@@ -49,9 +50,10 @@ function adapterFor(over: Partial<Parameters<typeof createCatalogComponentAdapte
   return createCatalogComponentAdapter({
     db: {} as never,
     registry: { tag: "registry" } as never,
-    ownedHandlers: { tag: "owned" } as never,
-    evaluatePromotions: undefined,
-    transformQuoteResult: vi.fn(async (result) => result),
+    previewOffer: vi.fn(async () => ({
+      kind: "offer_preview" as const,
+      preview: { binding: false as const, available: false, requirements: {} as never },
+    })),
     adapterContext: (connectionId) => ({
       connection_id: connectionId ?? "engine",
       correlation_id: "corr_1",
@@ -65,32 +67,67 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe("catalog component adapter — quote + tax recompute", () => {
-  it("calls the injected tax transform and serializes the quote result", async () => {
-    const quoted = {
-      quoteId: "cq_1",
+describe("catalog component adapter — quote through Offer Preview", () => {
+  const quoteInput = (): CatalogComponentQuoteInput => ({
+    component: component(),
+    bookingDraft: { configure: { pax: { adult: 2 } } } as never,
+    scope: { currency: "EUR" } as never,
+  })
+
+  it("names the component as an Offer Preview target and returns the preview", async () => {
+    const preview = {
+      binding: false as const,
       available: true,
-      quotedAt: new Date("2026-05-18T00:00:00.000Z"),
-      expiresAt: new Date("2026-05-18T00:30:00.000Z"),
-      pricing: { currency: "EUR", base_amount: 10000, fees: 0, surcharges: 0, taxes: 0 },
+      requirements: {} as never,
+      pricing: {
+        currency: "EUR",
+        lines: [],
+        taxes: [],
+        subtotal: 10000,
+        taxTotal: 1900,
+        total: 11900,
+      },
     }
-    quoteEntity.mockResolvedValue(quoted)
-    const transformQuoteResult = vi.fn(async (r: typeof quoted) => ({
-      ...r,
-      pricing: { ...r.pricing, taxes: 1900 },
+    const previewOffer = vi.fn(async () => ({ kind: "offer_preview" as const, preview }))
+    const api = adapterFor({ previewOffer })
+
+    const result = await api.quote(quoteInput())
+
+    expect(previewOffer).toHaveBeenCalledWith({
+      target: { kind: "product", productId: "prod_1" },
+      scope: { locale: "en-GB", market: "default", currency: "EUR" },
+      selection: { configure: { pax: { adult: 2 } } },
+    })
+    expect(result).toBe(preview)
+  })
+
+  it("names a sourced component as a catalog_item", async () => {
+    const previewOffer = vi.fn(async () => ({
+      kind: "offer_preview" as const,
+      preview: { binding: false as const, available: false, requirements: {} as never },
     }))
-    const api = adapterFor({ transformQuoteResult })
+    const api = adapterFor({ previewOffer })
 
-    const input: CatalogComponentQuoteInput = {
-      component: component(),
-      bookingDraft: { configure: { pax: { adult: 2 } } } as never,
-      scope: { currency: "EUR" } as never,
-    }
-    const result = (await api.quote(input)) as { pricing: { taxTotal: number } }
+    await api.quote({
+      ...quoteInput(),
+      component: component({ sourceKind: "voyant-connect", entityId: "cse_1" }),
+    })
 
-    expect(transformQuoteResult).toHaveBeenCalledWith(quoted, "products", "prod_1", "owned")
-    // serialized breakdown carries the recomputed tax through
-    expect(result.pricing.taxTotal).toBe(1900)
+    expect(previewOffer).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { kind: "catalog_item", catalogItemId: "cse_1" } }),
+    )
+  })
+
+  it("raises a rejected preview rather than reporting an unpriced component", async () => {
+    const previewOffer = vi.fn(async () => ({
+      kind: "rejected" as const,
+      error: { kind: "not_authorized" as const },
+    }))
+    const api = adapterFor({ previewOffer })
+
+    await expect(api.quote(quoteInput())).rejects.toThrow(
+      "catalog_component_preview_rejected:not_authorized",
+    )
   })
 })
 

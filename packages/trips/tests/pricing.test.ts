@@ -72,10 +72,9 @@ describe("trips pricing helpers", () => {
       events: [] as NewTripComponentEvent[],
     }
     const quoteCatalogComponent = vi.fn(async () => ({
-      quoteId: "cq_123",
-      quotedAt: "2026-06-01T10:00:00.000Z",
-      expiresAt: "2099-06-01T10:00:00.000Z",
+      binding: false as const,
       available: true,
+      requirements: {} as never,
       pricing: {
         currency: "EUR",
         lines: [{ kind: "base" as const, label: "Stay", unitAmount: 30000, totalAmount: 30000 }],

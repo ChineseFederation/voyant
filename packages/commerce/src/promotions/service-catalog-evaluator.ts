@@ -3,12 +3,10 @@
  * `PromotionEvaluationInput` / `PromotionEvaluationOutput` contract to
  * this package's internal evaluator.
  *
- * Wire via:
- *
- *   const deps: QuoteEntityDeps = {
- *     // ...
- *     evaluatePromotions: createCatalogPromotionEvaluator(db),
- *   }
+ * Currently unwired: the deployment hook it plugged into was the beta
+ * `QuoteEntityDeps.evaluatePromotions`, deleted with the beta quote path in
+ * voyant#4188. The bridge is kept because it is the published adapter a
+ * v1 Session `composeQuote` promotion hook would reuse verbatim.
  *
  * Per docs/architecture/promotions-architecture.md §3.6 + §7.1.
  */
@@ -22,8 +20,8 @@ import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { createDrizzleOfferDataSource, evaluateOffersForProduct } from "./service-evaluator.js"
 
 /**
- * Build the `evaluatePromotions` hook the catalog booking engine wires
- * onto `QuoteEntityDeps`. Closes over the request-scoped db.
+ * Build the `evaluatePromotions` hook a catalog quote path wires in. Closes
+ * over the request-scoped db.
  */
 export function createCatalogPromotionEvaluator(
   db: AnyDrizzleDb,

@@ -493,11 +493,10 @@ describe("trips reservation helpers", () => {
       { envelopeId: state.envelope.id, idempotencyKey: "attempt-3" },
       {
         quoteCatalogComponentBeforeReserve: async () => ({
-          quoteId: "quote_unavailable",
-          quotedAt: "2026-05-18T10:30:00.000Z",
-          expiresAt: "2099-05-20T12:00:00.000Z",
+          binding: false as const,
           available: false,
-          invalidReason: "sold_out",
+          requirements: {} as never,
+          unavailableReason: "target_not_bookable" as const,
         }),
         submitReservationPlan,
       },
@@ -509,7 +508,7 @@ describe("trips reservation helpers", () => {
     expect(result.failures).toEqual([
       expect.objectContaining({
         componentId: "trcp_1",
-        reason: "sold_out",
+        reason: "target_not_bookable",
         code: "unavailable",
       }),
     ])

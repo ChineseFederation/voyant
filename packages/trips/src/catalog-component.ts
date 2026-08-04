@@ -2,12 +2,26 @@
  * Catalog-backed trip-component orchestration — owned by `@voyant-travel/trips`.
  *
  * Trips owns the reserve/checkout flow for catalog-backed components, so the
- * orchestration that turns a `TripComponent` into a catalog booking-engine
- * quote / cancellation lives here rather than in any deployment:
- *   - offer validation (`quote`) + customer-facing tax recompute hand-off,
+ * orchestration that turns a `TripComponent` into a catalog price / cancellation
+ * lives here rather than in any deployment:
+ *   - non-binding pricing (`quote`) through the v1 Offer Preview,
  *   - fail-closed reservation while Catalog has no durable admitted command,
  *   - hold release (compensation) + cancellation preview + cancel,
  *   - checkout hand-off.
+ *
+ * PRICING RUNS ON THE V1 SESSION LIFECYCLE (voyant#4188)
+ *
+ * The beta `quoteEntity` path this used to call — which minted a `catalog_quotes`
+ * row per repricing pass and returned `quoteResponseV1` — is deleted. Composing a
+ * trip is browsing, not booking: a component being repriced has not yet been
+ * accepted onto a Proposal, so it must not open a Booking Session or burn a
+ * Quote. Offer Preview is exactly that read, and it reaches the SAME
+ * `composeRequirements` / `composeQuote` ports the Session lifecycle uses, so a
+ * composer price cannot disagree with the price the booking wizard later quotes.
+ *
+ * The binding price arrives later and elsewhere: when a Proposal version is
+ * accepted, `booking-session-composite-handler.ts` composes the frozen Trip
+ * Snapshot's components through those same ports inside a real Session.
  *
  * WHY SOME PIECES ARE INJECTED (not imported):
  *
@@ -15,17 +29,12 @@
  * `@voyant-travel/bookings` (origin upsert), so those are imported directly.
  * Three things stay deployment-supplied and are injected via `options`:
  *
- *   1. The `SourceAdapterRegistry` / `OwnedBookingHandlerRegistry` — these are
- *      process-local registries assembled from a deployment's installed source
- *      adapters + owned vertical handlers. They live in the deployment.
- *   2. The promotion evaluator — `createCatalogPromotionEvaluator` lives in
- *      `@voyant-travel/commerce`, and `commerce → quotes → trips` would make a
- *      package cycle. So the evaluator is injected.
- *   3. The customer-facing tax recompute (`transformQuoteResult`) — the operator
- *      resolves its own tax settings (a deployment reader) and the transform is
- *      shared with the catalog-booking route module, so it stays in the
- *      deployment and is injected.
- *   4. The checkout starter (`startCatalogCheckout`) — deployment-specific
+ *   1. The `SourceAdapterRegistry` — a process-local registry assembled from a
+ *      deployment's installed source adapters. It lives in the deployment.
+ *   2. The Offer Preview read — the Booking Session module is assembled by the
+ *      catalog runtime from the deployment's registries, repository and finance
+ *      wiring, so trips is handed the resolved read rather than reassembling it.
+ *   3. The checkout starter (`startCatalogCheckout`) — deployment-specific
  *      payment-provider wiring.
  *
  * Catalog booking creation is intentionally unavailable.
@@ -33,18 +42,18 @@
 import {
   type CancelEntityResult,
   cancelEntity,
-  type OwnedBookingHandlerRegistry,
-  type PricingBreakdownV1,
-  type QuoteEntityDeps,
-  type QuoteEntityResult,
-  type QuoteResponseV1,
-  quoteEntity,
-  quoteResponseV1,
   type SourceAdapterRegistry,
 } from "@voyant-travel/catalog/booking-engine"
-import type { PricingBasis } from "@voyant-travel/catalog/snapshot/schema"
+import { bookingSelectionPublicV1 } from "@voyant-travel/catalog/booking-engine/contracts"
+import type {
+  OfferPreviewOutcomeV1,
+  OfferPreviewRequestV1,
+  OfferPreviewResultV1,
+  OfferPreviewTargetV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
+import type { TripComponent } from "./schema.js"
 import type {
   CancelComponentInput,
   CancelComponentResult,
@@ -81,25 +90,13 @@ export interface CatalogComponentAdapterOptions {
   db: AnyDrizzleDb
   /** Process-local source-adapter registry (deployment-assembled). */
   registry: SourceAdapterRegistry
-  /** Process-local owned-handler registry (deployment-assembled). */
-  ownedHandlers: OwnedBookingHandlerRegistry
   /**
-   * Promotion evaluator for the quote path. Injected because
-   * `createCatalogPromotionEvaluator` lives in commerce, which transitively
-   * (optionally) depends on quotes → trips.
+   * The v1 Offer Preview read, bound to this request. Injected because the
+   * Booking Session module it runs on is assembled by the catalog runtime from
+   * the deployment's repository, registries and finance wiring — reassembling
+   * it here would be a second lifecycle.
    */
-  evaluatePromotions: QuoteEntityDeps["evaluatePromotions"]
-  /**
-   * Customer-facing tax recompute applied to a quote result. Injected because
-   * the deployment resolves its own tax settings (a deployment reader) and the
-   * transform is shared with the catalog-booking route module.
-   */
-  transformQuoteResult: (
-    result: QuoteEntityResult,
-    entityModule: string,
-    entityId: string,
-    sourceKind: string,
-  ) => Promise<QuoteEntityResult>
+  previewOffer: (input: OfferPreviewRequestV1) => Promise<OfferPreviewOutcomeV1>
   /** Builds the per-request adapter context (correlation id, connection id). */
   adapterContext: (connectionId: string | null | undefined) => CatalogAdapterContext
   /** Deployment-specific checkout hand-off (payment-provider wiring). */
@@ -108,7 +105,7 @@ export interface CatalogComponentAdapterOptions {
 
 /** The catalog component orchestration surface produced by the factory. */
 export interface CatalogComponentAdapter {
-  quote(input: CatalogComponentQuoteInput): Promise<QuoteResponseV1>
+  quote(input: CatalogComponentQuoteInput): Promise<OfferPreviewResultV1>
   reserve(input: ReserveComponentInput): Promise<ReserveComponentResult>
   release(input: ReleaseReservedComponentInput): Promise<ReleaseReservedComponentResult>
   previewCancellation(
@@ -125,40 +122,26 @@ export interface CatalogComponentAdapter {
 export function createCatalogComponentAdapter(
   options: CatalogComponentAdapterOptions,
 ): CatalogComponentAdapter {
-  const { db, registry, ownedHandlers, evaluatePromotions, transformQuoteResult, adapterContext } =
-    options
+  const { db, registry, adapterContext } = options
 
-  async function quote(input: CatalogComponentQuoteInput): Promise<QuoteResponseV1> {
+  async function quote(input: CatalogComponentQuoteInput): Promise<OfferPreviewResultV1> {
     const component = input.component
-    const entityModule = required(component.entityModule, "component.entityModule")
-    const entityId = required(component.entityId, "component.entityId")
-    const sourceKind = required(component.sourceKind, "component.sourceKind")
-    const result = await quoteEntity(
-      db,
-      {
-        registry,
-        ownedHandlers,
-        evaluatePromotions,
+    const outcome = await options.previewOffer({
+      target: catalogComponentPreviewTarget(component),
+      scope: {
+        locale: input.scope.locale ?? "en-GB",
+        market: input.scope.market ?? "default",
+        ...(input.scope.currency ? { currency: input.scope.currency } : {}),
       },
-      {
-        entityModule,
-        entityId,
-        sourceKind,
-        sourceConnectionId: component.sourceConnectionId ?? undefined,
-        sourceRef: component.sourceRef ?? undefined,
-        scope: {
-          locale: input.scope.locale ?? "en-GB",
-          audience: input.scope.audience ?? "staff",
-          market: input.scope.market ?? "default",
-          currency: input.scope.currency,
-        },
-        parameters: engineParametersFromBookingDraft(undefined, input.bookingDraft),
-        ttlMs: input.ttlMs,
-        adapterContext: adapterContext(component.sourceConnectionId ?? sourceKind),
-      },
-    )
-    const transformed = await transformQuoteResult(result, entityModule, entityId, sourceKind)
-    return serializeQuoteResult(transformed)
+      // Projected onto the public selection: the composer edits a full
+      // `bookingSelectionV1`, but the Session plane's normalizer rejects
+      // engine-owned and staff-only keys from any payload it did not admit
+      // through the staff booking authority. Preview must ask about the same
+      // selection a shopper could send, or it would price something unbuyable.
+      selection: bookingSelectionPublicV1.parse(input.bookingDraft),
+    })
+    if (outcome.kind === "offer_preview") return outcome.preview
+    throw new CatalogComponentPreviewError(outcome.error)
   }
 
   async function reserve(_input: ReserveComponentInput): Promise<ReserveComponentResult> {
@@ -287,122 +270,40 @@ export function previewCancellation(
 
 // ── Pure helpers (vertical-agnostic) ────────────────────────────────────────
 
-function serializeQuoteResult(result: QuoteEntityResult): QuoteResponseV1 {
-  return quoteResponseV1.parse({
-    ...result,
-    quotedAt: result.quotedAt.toISOString(),
-    expiresAt: result.expiresAt.toISOString(),
-    pricing: toPricingBreakdownV1(result.pricing),
-  })
-}
-
-function toPricingBreakdownV1(basis: PricingBasis | undefined): PricingBreakdownV1 | undefined {
-  if (!basis) return undefined
-  if (basis.breakdown) {
-    const breakdown = basis.breakdown as PricingBreakdownV1
-    if (breakdown.currency && Array.isArray(breakdown.lines) && Array.isArray(breakdown.taxes)) {
-      return breakdown
-    }
-  }
-
-  const lines: PricingBreakdownV1["lines"] = [
-    {
-      kind: "base",
-      label: "Base",
-      quantity: 1,
-      unitAmount: basis.base_amount,
-      totalAmount: basis.base_amount,
-    },
-  ]
-  if (basis.fees > 0) {
-    lines.push({ kind: "fee", label: "Fees", unitAmount: basis.fees, totalAmount: basis.fees })
-  }
-  if (basis.surcharges > 0) {
-    lines.push({
-      kind: "supplement",
-      label: "Surcharges",
-      unitAmount: basis.surcharges,
-      totalAmount: basis.surcharges,
-    })
-  }
-
-  const subtotal = basis.base_amount + basis.fees + basis.surcharges
-  return {
-    currency: basis.currency,
-    lines,
-    taxes:
-      basis.taxes > 0
-        ? [
-            {
-              code: "tax",
-              label: "Tax",
-              rate: 0,
-              amount: basis.taxes,
-              base: basis.base_amount,
-            },
-          ]
-        : [],
-    subtotal,
-    taxTotal: basis.taxes,
-    total: subtotal + basis.taxes,
-  }
-}
-
-function engineParametersFromBookingDraft(
-  parameters: Record<string, unknown> | undefined,
-  bookingDraftPayload: unknown,
-): Record<string, unknown> {
-  const bookingDraft = asRecord(bookingDraftPayload)
-  const configure = asRecord(bookingDraft?.configure)
-  const departureSlotId = stringValue(configure?.departureSlotId)
-  const paxCount = sumBookingDraftPax(configure?.pax)
-  const next: Record<string, unknown> = {
-    ...(parameters ?? {}),
-    ...(bookingDraft ? { draft: bookingDraft } : {}),
-  }
-
-  if (departureSlotId) {
-    if (next.departureSlotId == null) next.departureSlotId = departureSlotId
-    if (next.departure_id == null) next.departure_id = departureSlotId
-    if (next.slotId == null) next.slotId = departureSlotId
-  }
-  if (paxCount > 0 && next.paxCount == null) {
-    next.paxCount = paxCount
-  }
-
-  const promotionCode = stringValue(bookingDraft?.promotionCode)
-  if (promotionCode && next.promotionCode == null) {
-    next.promotionCode = promotionCode
-  }
-
-  return next
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined
-}
-
-function stringValue(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null
-}
-
-function sumBookingDraftPax(value: unknown): number {
-  const pax = asRecord(value)
-  if (!pax) return 0
-  let total = 0
-  for (const count of Object.values(pax)) {
-    if (typeof count === "number" && Number.isFinite(count) && count > 0) {
-      total += count
-    }
-  }
-  return total
+/**
+ * Name a catalog-backed component for Offer Preview.
+ *
+ * The same three-member mapping `booking-session-composite-handler.ts` uses to
+ * build a child Session target, so a component previewed in the composer and
+ * the same component quoted inside an accepted-Proposal Session resolve to the
+ * same target — a divergence here would price two different things.
+ */
+export function catalogComponentPreviewTarget(
+  component: Pick<TripComponent, "entityModule" | "entityId" | "sourceKind">,
+): OfferPreviewTargetV1 {
+  const entityId = required(component.entityId, "component.entityId")
+  if (component.sourceKind !== "owned") return { kind: "catalog_item", catalogItemId: entityId }
+  const entityModule = required(component.entityModule, "component.entityModule")
+  return entityModule === "products"
+    ? { kind: "product", productId: entityId }
+    : { kind: "owned_entity", entityModule, entityId }
 }
 
 function required(value: string | null | undefined, label: string): string {
   if (!value) throw new Error(`${label} is required`)
   return value
+}
+
+/**
+ * A preview the Session plane refused outright — an unauthorized caller or a
+ * selection it will not admit. Distinct from `available: false`, which is a
+ * *successful* preview of an unbookable target and still carries requirements.
+ */
+export class CatalogComponentPreviewError extends Error {
+  constructor(readonly error: Extract<OfferPreviewOutcomeV1, { kind: "rejected" }>["error"]) {
+    super(`catalog_component_preview_rejected:${error.kind}`)
+    this.name = "CatalogComponentPreviewError"
+  }
 }
 
 // Re-exported for the deployment's `CancelComponentResult` mapping symmetry.

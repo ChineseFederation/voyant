@@ -1,5 +1,4 @@
 import type { CatalogRuntimeServices } from "@voyant-travel/catalog/runtime-contracts"
-import { createCatalogPromotionEvaluator } from "@voyant-travel/commerce"
 import type {
   CatalogCheckoutApiRuntime,
   CatalogCheckoutStartResult,
@@ -38,16 +37,7 @@ export function createTripsRoutesRuntime(
       return createCatalogComponentAdapter({
         db,
         registry: dependencies.catalog.getSourceRegistryFromContext(context),
-        ownedHandlers: dependencies.catalog.getOwnedHandlersFromContext(context),
-        evaluatePromotions: createCatalogPromotionEvaluator(db),
-        transformQuoteResult: (result, entityModule, entityId, sourceKind) =>
-          dependencies.catalog.applyTaxToQuoteResult(
-            db,
-            result,
-            entityModule,
-            entityId,
-            sourceKind,
-          ),
+        previewOffer: (input) => dependencies.catalog.previewOffer(context, input),
         adapterContext: (connectionId) => ({
           connection_id: connectionId ?? "engine",
           correlation_id: context.req.header("x-request-id") ?? crypto.randomUUID(),

@@ -131,7 +131,9 @@ for (const [source, required] of [
   [
     movedRuntimeFactories[4],
     [
-      "applyOperatorTaxToQuoteResult",
+      // `applyOperatorTaxToQuoteResult` was pinned here until the beta quote
+      // path was deleted (#4188). The remaining two still assert that this
+      // runtime is package-owned.
       "inventory.getProductContent",
       "operations.listAvailabilitySlots",
     ],

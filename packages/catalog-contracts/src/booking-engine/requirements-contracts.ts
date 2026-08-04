@@ -25,8 +25,10 @@
  * Catalog plane stays neutral about per-vertical requirements
  * derivation. Each vertical exports a `build*Requirements(content, scope)`
  * function that projects its content payload into a
- * `BookingRequirementsV1`. The journey composes these via the
- * `contentEnricher` hook on `QuoteEntityDeps`.
+ * `BookingRequirementsV1`. The Booking Session lifecycle composes these
+ * through the owned handler's `computeRequirements`, which the stateless
+ * Offer Preview reuses; the beta `contentEnricher` hook that used to do it is
+ * deleted (voyant#4188).
  *
  * The Zod schemas below are the **single source of truth** for these
  * shapes — every exported type is inferred from one of them. Runtime

@@ -162,7 +162,7 @@ function stubServices(
     // stub publishes everything and one case below asserts the wiring.
     isSourcedEntryListable: async () => true,
     withEmbedding: (inner) => inner,
-    applyTaxToQuoteResult: async (_db, result) => result,
+    previewOffer: async () => ({ kind: "rejected", error: { kind: "not_authorized" } }),
     ...rest,
   }
   return services

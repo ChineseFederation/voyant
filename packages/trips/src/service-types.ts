@@ -1,4 +1,5 @@
-import type { BookingSelectionV1, QuoteResponseV1 } from "@voyant-travel/catalog/booking-engine"
+import type { BookingSelectionV1 } from "@voyant-travel/catalog/booking-engine"
+import type { OfferPreviewResultV1 } from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
 
 import type { CatalogComponentBookingDraftOverrides } from "./catalog-component-adapter.js"
 import type { TripComponent, TripEnvelope, TripReservationPlan } from "./schema.js"
@@ -36,11 +37,15 @@ export interface CatalogComponentQuoteInput {
   component: TripComponent
   bookingDraft: BookingSelectionV1
   scope: PriceTripInput["scope"]
-  ttlMs?: number
 }
 
 export interface PriceTripDeps {
-  quoteCatalogComponent: (input: CatalogComponentQuoteInput) => Promise<QuoteResponseV1>
+  /**
+   * Non-binding v1 Offer Preview for one catalog-backed component. It carries
+   * no id and no expiry by construction — a composer price is a read, and the
+   * binding price is minted later by the accepted-Proposal Booking Session.
+   */
+  quoteCatalogComponent: (input: CatalogComponentQuoteInput) => Promise<OfferPreviewResultV1>
   componentBookingDraftOverrides?: Record<string, CatalogComponentBookingDraftOverrides>
 }
 
@@ -122,7 +127,7 @@ export interface SubmitTripReservationPlanResult {
 export interface ReserveTripDeps {
   quoteCatalogComponentBeforeReserve?: (
     input: CatalogComponentQuoteInput,
-  ) => Promise<QuoteResponseV1>
+  ) => Promise<OfferPreviewResultV1>
   validateNonCatalogComponentBeforeReserve?: (
     input: ReserveComponentInput,
   ) => Promise<ReserveComponentPreflightResult | null | undefined>

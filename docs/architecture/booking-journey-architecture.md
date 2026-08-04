@@ -133,7 +133,7 @@ Catalog owns:
 - `booking_session_operations`
 - `booking_session_audit_events`
 - `supplier_operations`
-- immutable `catalog_quotes` and `booking_catalog_snapshot` records used by
+- immutable `booking_session_quotes` and `booking_catalog_snapshot` records used by
   quote computation and committed-order evidence
 
 Finance owns Booking settlement, payment sessions, guarantees, schedules,

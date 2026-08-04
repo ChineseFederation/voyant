@@ -5,8 +5,12 @@
  * See `docs/architecture/catalog-booking-engine.md` for the full design.
  *
  * Lifecycle:
- *   1. `quoteEntity` → write to `catalog_quotes`, return short-lived quote.
+ *   1. The v1 Booking Session (`sessions-service.ts`) owns quote → hold →
+ *      commit. `offer-preview.ts` is its stateless, non-binding read.
  *   2. `cancelEntity` → call `adapter.cancel`, snapshot stays for audit.
+ *
+ * The beta `quoteEntity` / `quoteEntitiesBatch` lifecycle that wrote
+ * `catalog_quotes` was deleted in voyant#4188 — not deprecated, not aliased.
  *
  * Catalog booking creation is intentionally unavailable until a durable
  * admitted vertical command owns the mutation.
@@ -94,11 +98,6 @@ export {
   pricingTaxV1,
   productVariantOptionV1,
   productVariantUnitOptionV1,
-  type QuoteRequestV1,
-  type QuoteResponseV1,
-  quoteRequestV1,
-  quoteResponseV1,
-  quoteScopeV1,
   type RatePlanOptionV1,
   type RoomOptionV1,
   ratePlanOptionV1,
@@ -176,20 +175,7 @@ export type {
   PromotionEvaluationInput,
   PromotionEvaluationOutput,
 } from "./promotions-contract.js"
-export {
-  DEFAULT_QUOTE_TTL_MS,
-  type QuoteContentEnricher,
-  type QuoteContentEnrichmentInput,
-  type QuoteEntityBatchRequest,
-  type QuoteEntityBatchResult,
-  type QuoteEntityDeps,
-  type QuoteEntityRequest,
-  type QuoteEntityResult,
-  type QuoteScope,
-  quoteEntitiesBatch,
-  quoteEntity,
-} from "./quote.js"
-export { engineParametersFromSelection, serializeQuoteResult } from "./quote-support.js"
+export { engineParametersFromSelection } from "./quote-support.js"
 export {
   createSourceAdapterRegistry,
   type SourceAdapterRegistry,

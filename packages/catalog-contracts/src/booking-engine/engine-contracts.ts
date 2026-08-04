@@ -3,77 +3,18 @@
 import { z } from "zod"
 
 import { pricingBreakdownV1 } from "./pricing-contracts.js"
-import { bookingRequirementsV1 } from "./requirements-contracts.js"
-import { bookingSelectionV1 } from "./selection-contracts.js"
 
 // ─────────────────────────────────────────────────────────────────
 // Engine request / response contracts
+//
+// The beta quote contracts that used to live here — `quoteScopeV1`,
+// `quoteRequestV1`, `quoteResponseV1` and the `quoteBatch*` family — are
+// deleted, not deprecated (voyant#4188). Their lifecycle was replaced by the
+// v1 Booking Session (`session-contracts.ts`) and the stateless Offer Preview
+// (`preview-contracts.ts`); a quote is now either a Session-bound
+// `bookingQuoteRecordV1` or a non-binding `offerPreviewResultV1`, and neither
+// is expressible in the beta shape.
 // ─────────────────────────────────────────────────────────────────
-
-export const quoteScopeV1 = z.object({
-  locale: z.string(),
-  audience: z.enum(["staff", "customer", "partner", "supplier"]),
-  market: z.string(),
-  currency: z.string().optional(),
-})
-
-export const quoteRequestV1 = z.object({
-  entityModule: z.string(),
-  entityId: z.string(),
-  sourceKind: z.string(),
-  sourceConnectionId: z.string().optional(),
-  sourceRef: z.string().optional(),
-  scope: quoteScopeV1,
-  draft: bookingSelectionV1.optional(),
-  ttlMs: z.number().int().positive().optional(),
-})
-
-export const quoteResponseV1 = z.object({
-  quoteId: z.string(),
-  quotedAt: z.string().datetime(),
-  expiresAt: z.string().datetime(),
-  available: z.boolean(),
-  invalidReason: z.string().optional(),
-  shape: bookingRequirementsV1.optional(),
-  pricing: pricingBreakdownV1.optional(),
-  upstreamPayload: z.record(z.string(), z.unknown()).optional(),
-})
-
-export const quoteBatchCriteriaV1 = z.object({
-  checkIn: z.string().min(1).optional(),
-  checkOut: z.string().min(1).optional(),
-  occupancy: z.record(z.string(), z.number().int().nonnegative()).optional(),
-  roomCount: z.number().int().positive().optional(),
-})
-
-export const quoteBatchSelectionV1 = z.object({
-  entityModule: z.string(),
-  entityId: z.string(),
-  ratePlanId: z.string().optional(),
-  sourceKind: z.string().optional(),
-  sourceProvider: z.string().optional(),
-  sourceConnectionId: z.string().optional(),
-  sourceRef: z.string().optional(),
-  parameters: z.record(z.string(), z.unknown()).optional(),
-  draft: z.record(z.string(), z.unknown()).optional(),
-})
-
-export const quoteBatchRequestV1 = z.object({
-  criteria: quoteBatchCriteriaV1.optional(),
-  scope: quoteScopeV1.partial().optional(),
-  parameters: z.record(z.string(), z.unknown()).optional(),
-  draft: z.record(z.string(), z.unknown()).optional(),
-  ttlMs: z.number().int().positive().optional(),
-  selections: z.array(quoteBatchSelectionV1).min(1).max(30),
-})
-
-export const quoteBatchResultV1 = quoteResponseV1.extend({
-  selection: quoteBatchSelectionV1,
-})
-
-export const quoteBatchResponseV1 = z.object({
-  results: z.array(quoteBatchResultV1),
-})
 
 /**
  * Mirrors flights' `paymentIntent` discriminated union from
@@ -112,13 +53,6 @@ export const bookResponseV1 = z.object({
   upstreamPayload: z.record(z.string(), z.unknown()).optional(),
 })
 
-export type QuoteRequestV1 = z.infer<typeof quoteRequestV1>
-export type QuoteResponseV1 = z.infer<typeof quoteResponseV1>
-export type QuoteBatchCriteriaV1 = z.infer<typeof quoteBatchCriteriaV1>
-export type QuoteBatchSelectionV1 = z.infer<typeof quoteBatchSelectionV1>
-export type QuoteBatchRequestV1 = z.infer<typeof quoteBatchRequestV1>
-export type QuoteBatchResultV1 = z.infer<typeof quoteBatchResultV1>
-export type QuoteBatchResponseV1 = z.infer<typeof quoteBatchResponseV1>
 export type BookRequestV1 = z.infer<typeof bookRequestV1>
 export type BookResponseV1 = z.infer<typeof bookResponseV1>
 

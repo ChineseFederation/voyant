@@ -1,11 +1,20 @@
 /**
- * `catalog_quotes` — short-lived quote records the booking engine writes
- * before an admitted vertical command validates and consumes them.
+ * `catalog_quotes` — historical booking-engine quote records.
  *
- * One quote = one (entity_module, entity_id, scope) combination at a
- * specific time, with an `expires_at` driven by the engine's quote TTL
- * (default 10 minutes). Re-quoting the same row produces a new row;
- * quotes are not de-duped.
+ * **This table has no writer.** Its writer was the beta `quoteEntity`
+ * lifecycle, deleted in voyant#4188; its consumer, `bookEntity`, went earlier
+ * with #3747. A quote is now either a Session-bound row in
+ * `booking_session_quotes` or a non-binding Offer Preview that persists
+ * nothing, and neither lands here.
+ *
+ * It is kept, and deliberately not dropped, because Commerce's
+ * `booking.confirmed` redemption recorder still reads
+ * `pricing_applied_offers` from it keyed by `consumed_booking_id`
+ * (`packages/commerce/src/promotions/service-booking-confirmed.ts`). That
+ * subscriber is mounted and outside the retired quote path, so dropping the
+ * table would delete the rows a shipped booking's redemption evidence is read
+ * from. Re-pointing it at the Session quote record retires the table; until
+ * then this is dormant evidence, not a live lifecycle.
  *
  * The structured columns mirror `booking_catalog_snapshot`'s pricing
  * layout so finance can read both shapes without parsing JSONB.
@@ -52,17 +61,12 @@ export const catalogQuotesTable = pgTable(
     pricing_currency: text("pricing_currency"),
     pricing_breakdown: jsonb("pricing_breakdown").$type<Record<string, unknown>>(),
     /**
-     * Promotional offers applied to this quote. Populated by the
-     * `evaluatePromotions` hook on `QuoteEntityDeps` (per
-     * `docs/architecture/promotions-architecture.md` §7.1.3). The
-     * post-commit redemption recorder reads this back via
-     * `consumed_booking_id` and aggregates into
-     * `promotional_offer_redemptions`.
-     *
-     * Dedicated column (vs. nesting in `pricing_breakdown`) so the
-     * dependency from the redemption recorder to this data is explicit
-     * at the schema level — anyone touching the quote writer sees the
-     * column and knows it has a downstream consumer.
+     * Promotional offers that applied to this quote. Written by the beta
+     * `evaluatePromotions` hook, deleted in voyant#4188; only historical rows
+     * carry a value. The post-commit redemption recorder still reads it back
+     * via `consumed_booking_id` and aggregates into
+     * `promotional_offer_redemptions`, which is why the column and its index
+     * survive the writer.
      */
     pricing_applied_offers: jsonb("pricing_applied_offers").$type<AppliedOffer[]>(),
 
@@ -70,8 +74,9 @@ export const catalogQuotesTable = pgTable(
     upstream_payload: jsonb("upstream_payload"),
 
     /**
-     * Set when an admitted vertical command consumes this quote. Consumed
-     * quotes are kept for audit.
+     * Set when an admitted vertical command consumed this quote. Nothing has
+     * written it since `bookEntity` was deleted (#3747); it is the join the
+     * redemption recorder reads historical rows by.
      */
     consumed_at: timestamp("consumed_at", { withTimezone: true }),
     consumed_booking_id: text("consumed_booking_id"),

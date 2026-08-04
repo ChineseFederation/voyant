@@ -51,25 +51,28 @@ The engine is intentionally a thin coordinator. It contains no transport logic, 
 
 ## 3. The lifecycle
 
-### 3.1. `quoteEntity`
+### 3.1. Quote — **`quoteEntity` is deleted** (voyant#4188)
 
-```ts
-quoteEntity(ctx, { entityModule, entityId, parameters }) → {
-  quoteId,
-  quotedAt,
-  expiresAt,
-  pricing: PricingBasis,
-  available: boolean,
-  invalidReason?: string,
-  upstreamPayload?: unknown,
-}
-```
+The beta `quoteEntity` / `quoteEntitiesBatch` lifecycle described by earlier
+revisions of this section is **gone**, not deprecated and not aliased. It minted
+a `catalog_quotes` row per call and returned `quoteResponseV1`.
 
-Owned rows: pull the resolved view via the vertical's `getResolvedXxxById` and compute `pricing` from configured defaults (`sellAmountCents` + `sellCurrency`). Always available unless the row is archived/inactive.
+Quoting now has exactly two shapes, and both derive from the same
+`composeRequirements` / `composeQuote` ports so they cannot disagree:
 
-Sourced rows: dispatch by `source.kind` to the registered adapter and call `liveResolve({ ids: [entityId], scope, parameters })`. The adapter's response populates `pricing` and `available`. Stash the upstream payload so the subsequent `bookEntity` call can re-use it without a round trip if the adapter accepts a quote token.
+- **Binding** — a Booking Session quote (`booking_session_quotes`), described in
+  [`booking-journey-architecture.md`](./booking-journey-architecture.md). It has
+  an id, an expiry and a price fingerprint, and it is what a commit accepts.
+- **Non-binding** — the stateless Offer Preview
+  (`POST /v1/{admin,public}/catalog/offers/preview`,
+  `packages/catalog/src/booking-engine/offer-preview.ts`). It mints no
+  identifier, persists nothing, and says `binding: false` explicitly, so it is
+  not assignable anywhere a `quoteId` is required. Storefront detail pages, the
+  Trips composer and managed-engine deep links read this.
 
-Quotes are short-lived (default TTL: 10 minutes) and persisted in `catalog_quotes` so the booking engine can validate the same quote at book time and reject expired quotes.
+`catalog_quotes` survives with no writer: Commerce's `booking.confirmed`
+redemption recorder still reads historical `pricing_applied_offers` from it. See
+`packages/catalog/src/booking-engine/schema.ts`.
 
 ### 3.2. Commit (`bookEntity` compatibility surface)
 
@@ -351,7 +354,7 @@ registry.register(voyantConnectAdapter({ ... }))    // source.kind: "voyant-conn
 registry.register(hotelbedsAdapter({ ... }))        // source.kind: "bedbank:hotelbeds"
 ```
 
-The booking engine's `quoteEntity` / `bookEntity` / `cancelEntity` look up `registry.resolveFor(sourceKind)` and call into the adapter. If no adapter is registered for the row's source kind, the call fails with `NO_ADAPTER_REGISTERED` (a stable error code analogous to `CAPABILITY_NOT_SUPPORTED`).
+The booking engine's Session compose/commit ports and `cancelEntity` look up `registry.resolveFor(sourceKind)` and call into the adapter. If no adapter is registered for the row's source kind, the call fails with `NO_ADAPTER_REGISTERED` (a stable error code analogous to `CAPABILITY_NOT_SUPPORTED`).
 
 The registry is intentionally not a dependency-injection container — it's a `Map<string, SourceAdapter>` with a fluent API. Adapters that need credentials, HTTP clients, or DB handles get them through their constructor; the registry just stores the wired instances.
 
@@ -395,11 +398,12 @@ This mirrors flights, where there is no "owned flight" code path — every fligh
 ```
 packages/catalog/src/booking-engine/
   registry.ts                    SourceAdapterRegistry
-  quote.ts                       quoteEntity (owned/sourced dispatch)
-  book.ts                        bookEntity (owned/sourced dispatch + snapshot capture)
+  sessions-service.ts            the v1 Booking Session lifecycle
+  sessions-production.ts         owned/sourced compose + commit ports
+  offer-preview.ts               stateless non-binding read (no persistence)
   cancel.ts                      cancelEntity (owned/sourced dispatch)
   orders.ts                      getOrder / listOrders (read-side)
-  schema.ts                      catalog_quotes table
+  schema.ts                      catalog_quotes table (historical; no writer)
   errors.ts                      NO_ADAPTER_REGISTERED, QUOTE_EXPIRED, etc.
   index.ts                       exports
 
@@ -444,7 +448,7 @@ Once that tracer is clickable end-to-end (an operator can open the Catalog page,
 
 ## 10. Glossary
 
-- **Booking engine** — the cross-vertical lifecycle layer (`quoteEntity`, `bookEntity`, `cancelEntity`) that sits on top of the `SourceAdapter` contract.
+- **Booking engine** — the cross-vertical lifecycle layer (Booking Session quote / hold / commit, Offer Preview, `cancelEntity`) that sits on top of the `SourceAdapter` contract.
 - **Owned inventory** — a catalog row with `source.kind: "owned"`. Lives in the operator's own DB; the engine dispatches the lifecycle to the vertical's local service layer.
 - **Sourced inventory** — a catalog row with any non-`owned` `source.kind`. The engine dispatches the lifecycle to the registered `SourceAdapter` for that kind.
 - **Demo adapter** — `@voyant-travel/catalog-demo-adapter`, the reference `SourceAdapter` implementation. Backs its data in its own Postgres tables. Operator starter registers it for the demo flow.

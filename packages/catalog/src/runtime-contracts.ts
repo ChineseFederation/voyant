@@ -1,4 +1,8 @@
 import type {
+  OfferPreviewOutcomeV1,
+  OfferPreviewRequestV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import type {
   IndexerAdapter,
   IndexerSlice,
 } from "@voyant-travel/catalog-contracts/indexer/contract"
@@ -6,11 +10,9 @@ import { definePort } from "@voyant-travel/core/project"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import type { PaymentPolicy } from "@voyant-travel/finance"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import type { SourceAdapterContext } from "./adapter/contract.js"
 import type {
   BookingSessionCompositeHandler,
   OwnedBookingHandlerRegistry,
-  QuoteEntityResult,
   SourceAdapterRegistry,
 } from "./booking-engine/index.js"
 import type { CatalogBookingRouteModuleOptions } from "./booking-engine/operator-routes.js"
@@ -141,19 +143,6 @@ export interface CatalogCruisesRuntimeExtension extends CatalogPolicyRuntimeExte
   syncRegistry(registry: SourceAdapterRegistry): void
 }
 
-export type CatalogProductQuoteEnricher = (input: {
-  db: unknown
-  result: QuoteEntityResult
-  entityModule: string
-  entityId: string
-  locale?: string
-  audience?: string
-  market?: string
-  currency?: string
-  registry: SourceAdapterRegistry
-  adapterContext?: SourceAdapterContext
-}) => Promise<QuoteEntityResult>
-
 export interface CatalogInventoryRuntimeExtension {
   readonly productFieldPolicy: readonly FieldPolicy[]
   readonly extrasFieldPolicy: readonly FieldPolicy[]
@@ -199,7 +188,6 @@ export interface CatalogInventoryRuntimeExtension {
     supplierId: string | null
     departureDate: string | null
   } | null>
-  enrichProductQuoteShape: CatalogProductQuoteEnricher
   buildSnapshotInput(
     db: AnyDrizzleDb,
     productId: Parameters<CatalogBookingSnapshotExecutionContext["buildSnapshotInput"]>[0],
@@ -347,13 +335,17 @@ export interface CatalogRuntimeServices {
     provenance: { sourceKind: string; sourceConnectionId: string | null }
   }): Promise<boolean>
   withEmbedding(inner: DocumentBuilder, embeddings: EmbeddingProvider | undefined): DocumentBuilder
-  applyTaxToQuoteResult(
-    db: AnyDrizzleDb,
-    result: QuoteEntityResult,
-    entityModule: string,
-    entityId: string,
-    sourceKind: string,
-  ): Promise<QuoteEntityResult>
+  /**
+   * Stateless, non-binding v1 Offer Preview for one bookable target.
+   *
+   * Exposed on the runtime surface — rather than left to the HTTP route — so a
+   * server-side composer (Trips pricing a catalog-backed component) reaches the
+   * SAME `composeRequirements` / `composeQuote` ports the Booking Session
+   * lifecycle uses, instead of opening a second pricing path. The access
+   * context is resolved from the request here and never from the caller, so the
+   * quoting audience cannot be named by whoever is asking.
+   */
+  previewOffer(context: unknown, input: OfferPreviewRequestV1): Promise<OfferPreviewOutcomeV1>
 }
 
 export const catalogRuntimeServicesPort = definePort<CatalogRuntimeServices>({
@@ -377,7 +369,7 @@ export const catalogRuntimeServicesPort = definePort<CatalogRuntimeServices>({
       "createCatalogDocumentBuilder",
       "isSourcedEntryListable",
       "withEmbedding",
-      "applyTaxToQuoteResult",
+      "previewOffer",
     ] as const) {
       if (typeof provider[method] !== "function") {
         throw new Error(`catalog.runtime-services provider must implement ${method}().`)

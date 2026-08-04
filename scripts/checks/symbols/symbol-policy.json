@@ -6,6 +6,56 @@
     "See docs/adr/0016-modules-as-components-of-one-deployable.md and issue #3898."
   ],
   "policies": {
+    "beta-quote-path-authority": {
+      "$comment": [
+        "The beta booking-engine quote lifecycle, deleted in voyant#4188. Its",
+        "routes went earlier; the library surface survived unmounted and was",
+        "still reachable as a published type from @voyant-travel/catalog-contracts.",
+        "",
+        "Voyant is beta: nothing here is aliased, deprecated or kept for",
+        "compatibility. A quote is now either a Session-bound",
+        "`bookingQuoteRecordV1` or a non-binding `offerPreviewResultV1`, both",
+        "produced by the SAME `composeRequirements` / `composeQuote` ports.",
+        "",
+        "Pinned by identifier rather than by path because these were library",
+        "exports, not route modules: a reintroduction would plausibly land at a",
+        "new path, and the empty `onlyIn` lists are default-deny over the whole",
+        "of packages/. `packages/catalog/src/booking-engine/quote.ts` and its",
+        "test are ALSO listed in retired-paths.json, because a file can come",
+        "back carrying different names."
+      ],
+      "onlyIn": {
+        "quoteEntity": [],
+        "quoteEntitiesBatch": [],
+        "QuoteEntityRequest": [],
+        "QuoteEntityResult": [],
+        "QuoteEntityDeps": [],
+        "QuoteEntityBatchRequest": [],
+        "QuoteEntityBatchResult": [],
+        "QuoteContentEnricher": [],
+        "QuoteContentEnrichmentInput": [],
+        "quoteResponseV1": [],
+        "QuoteResponseV1": [],
+        "quoteRequestV1": [],
+        "QuoteRequestV1": [],
+        "quoteScopeV1": [],
+        "quoteBatchRequestV1": [],
+        "QuoteBatchRequestV1": [],
+        "quoteBatchResultV1": [],
+        "QuoteBatchResultV1": [],
+        "quoteBatchResponseV1": [],
+        "QuoteBatchResponseV1": [],
+        "quoteBatchCriteriaV1": [],
+        "quoteBatchSelectionV1": [],
+        "serializeQuoteResult": [],
+        "createProductQuoteShapeEnricher": [],
+        "enrichProductQuoteShape": [],
+        "CatalogProductQuoteEnricher": [],
+        "applyCatalogTaxToQuoteResult": [],
+        "applyOperatorTaxToQuoteResult": [],
+        "applyTaxToQuoteResult": []
+      }
+    },
     "booking-create-authority": {
       "$comment": [
         "A Booking is created by exactly one durable command: Finance's",
@@ -67,6 +117,43 @@
         "operatorGraphRuntimeBindings": ["packages/runtime/src/deployment-resources.ts"],
         "loadFlightAdminRoutes": ["packages/runtime/src/deployment-resources.ts"],
         "loadFlightsRuntime": ["packages/runtime/src/deployment-resources.ts"]
+      }
+    },
+    "operator-catalog-backend-authority": {
+      "$comment": [
+        "Converted out of scripts/check-operator-catalog-backend-authority.mjs in",
+        "voyant#4188, which asserted these by matching `export function <name>`",
+        "in source text. Two of its seven pins named symbols this issue deleted",
+        "(`createProductQuoteShapeEnricher`, `applyCatalogTaxToQuoteResult`);",
+        "both now live in beta-quote-path-authority's onlyIn:[] instead.",
+        "",
+        "presentIn is a slightly weaker assertion than the substring it replaces:",
+        "it requires the identifier to be referenced in the file, not to be",
+        "exported as a function declaration from it. That is the right strength",
+        "for the rule, which is about which package owns the authority, and it no",
+        "longer breaks when the declaration is reformatted or changes shape.",
+        "",
+        "The import-specifier checks in that script (`apps/operator`,",
+        "`@voyant-travel/inventory`, `@voyant-travel/commerce` must not be imported",
+        "by runtime-support) are NOT identifiers and stay there."
+      ],
+      "presentIn": {
+        "packages/catalog/src/runtime-support.ts": [
+          "buildCatalogSlices",
+          "createCatalogOffersSearchResolvers",
+          "resolveCatalogHoldTtlMs",
+          "createCatalogProjectionRuntimeAdapter",
+          "createCatalogBookingSnapshotRuntimeAdapter"
+        ],
+        "packages/catalog/src/runtime/catalog-runtime.ts": ["buildIndexer"]
+      },
+      "onlyIn": {
+        "buildSourcedBookingRowValues": [],
+        "createCatalogPackageHoldPreparer": [],
+        "createCatalogOffersTypesenseResolvers": []
+      },
+      "absentFrom": {
+        "buildTypesenseIndexer": ["packages/commerce/src/runtime.ts"]
       }
     },
     "operator-admin-shell-context": {

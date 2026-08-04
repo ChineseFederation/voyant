@@ -1,5 +1,15 @@
 # Promotions architecture — design
 
+> **Status (voyant#4188).** This document describes the beta quote path:
+> `QuoteEntityDeps.evaluatePromotions`, the `quoteEntity` writer of
+> `catalog_quotes.pricing_applied_offers`, and `bookEntity` setting
+> `consumed_booking_id`. **All three are deleted.** The redemption recorder and
+> its schema survive and still read historical rows, but nothing evaluates a
+> promotion at quote time today. Restoring the feature means hanging the
+> evaluator off the v1 Session `composeQuote` and recording against
+> `booking_session_quotes`; every §7 reference to `quoteEntity` / `bookEntity`
+> below should be read as naming that future seam, not existing code.
+
 Status: implemented. The historical sequenced rollout remains documented below for rationale.
 Audience: anyone designing or implementing promotional offers in Voyant — auto-applied catalog discounts (storefront badges + strikethrough prices), code-redeemed discounts at checkout, and channel- / audience- / market-wide blanket discounts.
 

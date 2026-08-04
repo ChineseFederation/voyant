@@ -1,4 +1,4 @@
-import type { QuoteResponseV1 } from "@voyant-travel/catalog/booking-engine"
+import type { OfferPreviewResultV1 } from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import { eq } from "drizzle-orm"
 
@@ -51,12 +51,11 @@ export async function priceTrip(
         component,
         bookingDraft,
         scope: input.scope,
-        ttlMs: input.ttlMs,
       })
       const updated = await applyQuoteToComponent(db, component, quote)
       pricedComponents.push(updated)
       if (!quote.available || !quote.pricing) {
-        const reason = quote.invalidReason ?? "quote_unavailable"
+        const reason = quote.unavailableReason ?? "quote_unavailable"
         warnings.add(reason)
         failures.push({ componentId: component.id, reason })
       }
@@ -103,15 +102,21 @@ export async function priceTrip(
   }
 }
 
+/**
+ * Fold a non-binding Offer Preview onto the component.
+ *
+ * `priceExpiresAt` is cleared rather than carried: a preview mints no
+ * identifier and confers no price protection (`binding: false`), so there is
+ * nothing that could expire. The binding price and its expiry are minted by the
+ * accepted-Proposal Booking Session, not here.
+ */
 export async function applyQuoteToComponent(
   db: AnyDrizzleDb,
   component: TripComponent,
-  quote: QuoteResponseV1,
+  quote: OfferPreviewResultV1,
 ): Promise<TripComponent> {
-  const pricingSnapshot = quote.pricing
-    ? pricingSnapshotFromBreakdown(quote.pricing, quote.expiresAt)
-    : undefined
-  const warningCodes = quote.invalidReason ? [quote.invalidReason] : []
+  const pricingSnapshot = quote.pricing ? pricingSnapshotFromBreakdown(quote.pricing) : undefined
+  const warningCodes = quote.unavailableReason ? [quote.unavailableReason] : []
   const nextStatus: TripComponentStatus =
     quote.available && quote.pricing ? "priced" : "unavailable"
 
@@ -121,14 +126,13 @@ export async function applyQuoteToComponent(
     .update(tripComponents)
     .set({
       status: nextStatus,
-      catalogQuoteId: quote.quoteId,
       componentCurrency: pricingSnapshot?.currency ?? null,
       componentSubtotalAmountCents: pricingSnapshot?.subtotalAmountCents ?? null,
       componentTaxAmountCents: pricingSnapshot?.taxAmountCents ?? null,
       componentTotalAmountCents: pricingSnapshot?.totalAmountCents ?? null,
       pricingSnapshot,
       taxLines: quote.pricing ? taxLinesFromBreakdown(quote.pricing) : [],
-      priceExpiresAt: quote.expiresAt ? new Date(quote.expiresAt) : null,
+      priceExpiresAt: null,
       warningCodes,
       updatedAt: new Date(),
     })
@@ -146,9 +150,9 @@ export async function applyQuoteToComponent(
     fromStatus: component.status,
     toStatus: updated.status,
     payload: {
-      quoteId: quote.quoteId,
+      binding: quote.binding,
       available: quote.available,
-      invalidReason: quote.invalidReason,
+      unavailableReason: quote.unavailableReason,
     },
   })
 

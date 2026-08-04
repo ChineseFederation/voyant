@@ -152,7 +152,6 @@ describe("createCatalogRuntimePortContribution", () => {
         createClassificationProjectionExtension: () => emptyProjection,
         getProductContent: vi.fn(),
         getOwnedProductById: vi.fn(),
-        enrichProductQuoteShape: vi.fn(),
         loadProductReservationPolicy: vi.fn(),
       },
       [catalogOperationsRuntimeExtensionPort.id]: {

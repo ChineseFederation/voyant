@@ -150,7 +150,7 @@ function runtimePortStub(id: string): unknown {
     fieldPolicyRegistries: () => new Map(),
     createProductsDocumentBuilder: unavailable,
     withEmbedding: unavailable,
-    applyTaxToQuoteResult: unavailableAsync,
+    previewOffer: unavailableAsync,
     getProductContent: unavailableAsync,
     listAvailabilitySlots: unavailableAsync,
     getOwnedProductById: unavailableAsync,

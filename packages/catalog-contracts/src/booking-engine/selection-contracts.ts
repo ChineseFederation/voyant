@@ -227,10 +227,13 @@ export const bookingSelectionPublicV1 = z.object({
   paymentSchedules: z.array(bookingPaymentScheduleV1).optional(),
 
   /**
-   * Customer-typed promotion code. Validated case-insensitively against
-   * `promotional_offers.code` at quote time when the operator starter
-   * wires `evaluatePromotions` on `QuoteEntityDeps`. Surfaces as a
-   * `code_*` `invalidReason` on the quote when the code is bad.
+   * Customer-typed promotion code, validated case-insensitively against
+   * `promotional_offers.code`.
+   *
+   * Not evaluated today: its only evaluation hook was the beta
+   * `QuoteEntityDeps.evaluatePromotions`, deleted in voyant#4188. The field
+   * stays because it is what a caller sends; wiring it onto the v1 Session
+   * `composeQuote` is separate work.
    *
    * Per docs/architecture/promotions-architecture.md §7.0 — renamed
    * from the original placeholder code field to avoid

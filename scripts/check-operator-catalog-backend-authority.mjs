@@ -14,51 +14,19 @@ for (const relativePath of [
   }
 }
 
+// Which package OWNS each catalog runtime authority, which retired ones must
+// not come back, and the Typesense pin, are all statements about identifiers.
+// They moved to scripts/checks/symbols/symbol-policy.json under
+// "operator-catalog-backend-authority" in voyant#4188 — two of the seven names
+// this file pinned by substring were deleted by that issue, and a declarative
+// identifier rule neither breaks on reformatting nor needs editing to proceed.
+//
+// What stays here is the part symbol policy cannot express: these are import
+// specifiers, not identifiers.
 const packageRuntimePath = "packages/catalog/src/runtime-support.ts"
 const packageRuntime = readFileSync(resolve(root, packageRuntimePath), "utf8")
-const catalogRuntimePath = "packages/catalog/src/runtime/catalog-runtime.ts"
-const catalogRuntime = readFileSync(resolve(root, catalogRuntimePath), "utf8")
-const commerceRuntimePath = "packages/commerce/src/runtime.ts"
-const commerceRuntime = readFileSync(resolve(root, commerceRuntimePath), "utf8")
-for (const authority of [
-  "buildCatalogSlices",
-  "createCatalogOffersSearchResolvers",
-  "createProductQuoteShapeEnricher",
-  "resolveCatalogHoldTtlMs",
-  "applyCatalogTaxToQuoteResult",
-  "createCatalogProjectionRuntimeAdapter",
-  "createCatalogBookingSnapshotRuntimeAdapter",
-]) {
-  if (
-    !packageRuntime.includes(`export function ${authority}`) &&
-    !packageRuntime.includes(`export async function ${authority}`)
-  ) {
-    throw new Error(`${packageRuntimePath} must own ${authority}`)
-  }
-}
 
-for (const retiredAuthority of [
-  "buildSourcedBookingRowValues",
-  "createCatalogPackageHoldPreparer",
-]) {
-  if (packageRuntime.includes(retiredAuthority)) {
-    throw new Error(`${packageRuntimePath} must not restore ${retiredAuthority}`)
-  }
-}
-
-if (!catalogRuntime.includes("export function buildIndexer")) {
-  throw new Error(`${catalogRuntimePath} must own buildIndexer`)
-}
-if (commerceRuntime.includes("buildTypesenseIndexer")) {
-  throw new Error(`${commerceRuntimePath} must consume the provider-neutral buildIndexer service`)
-}
-
-for (const forbidden of [
-  "createCatalogOffersTypesenseResolvers",
-  "apps/operator",
-  "@voyant-travel/inventory",
-  "@voyant-travel/commerce",
-]) {
+for (const forbidden of ["apps/operator", "@voyant-travel/inventory", "@voyant-travel/commerce"]) {
   if (packageRuntime.includes(forbidden)) {
     throw new Error(`${packageRuntimePath} must not depend on ${forbidden}`)
   }

@@ -31,6 +31,28 @@
       "retiredBy": ["catalog-runtime-authority", "node-runtime-product-authority"]
     },
     {
+      "path": "packages/catalog/src/booking-engine/quote.ts",
+      "retiredBy": ["beta-quote-path-authority"],
+      "$comment": [
+        "The beta `quoteEntity` / `quoteEntitiesBatch` lifecycle, deleted in",
+        "voyant#4188. Its identifiers are pinned to nowhere by the",
+        "beta-quote-path-authority symbol policy; this entry holds the path as",
+        "well, because a file can return carrying different names."
+      ]
+    },
+    {
+      "path": "packages/catalog/src/booking-engine/quote-enricher.test.ts",
+      "retiredBy": ["beta-quote-path-authority"]
+    },
+    {
+      "path": "packages/inventory/src/catalog-runtime-extension.test.ts",
+      "retiredBy": ["beta-quote-path-authority"],
+      "$comment": [
+        "Covered only `enrichProductQuoteShape`, the beta shape-enrichment seam",
+        "superseded by the owned handler's `computeRequirements`."
+      ]
+    },
+    {
       "path": "packages/catalog/src/booking-engine/book.ts",
       "retiredBy": ["booking-create-authority"],
       "$comment": [
