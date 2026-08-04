@@ -118,6 +118,11 @@
       "note": "Documented. The Tool description states that a `vehicle` batch may only clear placements because vehicles are parent resources, and that travelers are assigned to `vehicle_seat` resources instead."
     },
     {
+      "id": "@voyant-travel/operations:set_departure_traveler_rooming_preferences:<root>",
+      "documented": true,
+      "note": "Documented. The Tool description tells the caller to supply either field on its own, which is exactly what the refinement requires: at least one of `bedPreference` or `roomTypeId`. The refinement's own message names both fields too."
+    },
+    {
       "id": "@voyant-travel/operator-settings:update_operator_settings:<root>",
       "documented": true,
       "note": "Documented. The Tool description states that supportedLocales and defaultLocale must be updated together and that defaultLocale must be included in supportedLocales."

@@ -7,11 +7,14 @@ import {
   createDepartureTool,
   detachDepartureFleetResourceTool,
   getOperatorDashboardSummaryTool,
+  materializeDepartureRoomBlockTool,
   type OperationsToolServices,
   operationsTools,
   rebuildBookingActionsTool,
+  releaseDepartureRoomBlockTool,
   resolveOperatorDashboardWindow,
   setDepartureTravelerAssignmentsTool,
+  setDepartureTravelerRoomingPreferencesTool,
   updateDepartureTool,
 } from "../src/tools.js"
 
@@ -39,6 +42,9 @@ function contextWith(overrides: Partial<OperationsToolServices>): ToolContext & 
       detachDepartureFleetResource: unavailable,
       listDepartureFleetResources: unavailable,
       setDepartureTravelerAssignments: unavailable,
+      materializeDepartureRoomBlock: unavailable,
+      releaseDepartureRoomBlock: unavailable,
+      setDepartureTravelerRoomingPreferences: unavailable,
       rebuildBookingActions: unavailable,
       getAvailabilityOverview: unavailable,
       getAvailabilityAggregates: unavailable,
@@ -351,6 +357,141 @@ describe("Operations tools", () => {
       unchanged: 0,
       travelerIds: ["bkpt_1", "bkpt_2"],
     })
+  })
+
+  it("draws a departure's rooms from a contracted block and reports the hold it took", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(materializeDepartureRoomBlockTool)
+    let forwarded: unknown
+    let forwardedDepartureId: string | undefined
+    const materializedAt = new Date("2026-07-28T12:00:00.000Z")
+    const result = await writeRegistry.dispatch<{ resources: Array<Record<string, unknown>> }>(
+      "materialize_departure_room_block",
+      { departureId: "avsl_1", blockId: "rmbk_1", rooms: 2 },
+      contextWith({
+        async materializeDepartureRoomBlock(departureId, input) {
+          forwardedDepartureId = departureId
+          forwarded = input
+          return {
+            blockId: input.blockId,
+            kind: input.kind,
+            created: 2,
+            skippedExisting: 0,
+            roomsPickedUp: 2,
+            pickupId: "rbpu_1",
+            remainingAfter: 18,
+            resources: [
+              {
+                id: "alrs_room_1",
+                slotId: departureId,
+                kind: input.kind,
+                refType: "room_block",
+                refId: input.blockId,
+                label: "Room 1",
+                capacity: 2,
+                occupancyMin: 1,
+                roomTypeId: "rmty_double",
+                bedConfiguration: "twin",
+                accessible: false,
+                minAge: null,
+                maxAge: null,
+                flags: { roomBlockPickupId: "rbpu_1" },
+                parentId: null,
+                sortOrder: 0,
+                createdAt: materializedAt,
+                updatedAt: materializedAt,
+              },
+            ],
+          }
+        },
+      }),
+    )
+
+    expect(forwardedDepartureId).toBe("avsl_1")
+    // `kind` and `namePattern` default in the shared route schema, so a Tool
+    // caller that names neither still reaches the service with both.
+    expect(forwarded).toMatchObject({
+      blockId: "rmbk_1",
+      rooms: 2,
+      kind: "room",
+      namePattern: "Room {sequence}",
+    })
+    expect(forwarded).not.toHaveProperty("departureId")
+    expect(result).toMatchObject({
+      blockId: "rmbk_1",
+      created: 2,
+      roomsPickedUp: 2,
+      pickupId: "rbpu_1",
+      remainingAfter: 18,
+    })
+    expect(result.resources[0]).toMatchObject({
+      id: "alrs_room_1",
+      occupancyMin: 1,
+      bedConfiguration: "twin",
+      accessible: false,
+      createdAt: materializedAt.toISOString(),
+    })
+  })
+
+  it("releases a block by its own id, defaulting the kind the positions were created under", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(releaseDepartureRoomBlockTool)
+    const forwarded: unknown[] = []
+    const result = await writeRegistry.dispatch(
+      "release_departure_room_block",
+      { departureId: "avsl_1", blockId: "rmbk_1" },
+      contextWith({
+        async releaseDepartureRoomBlock(departureId, blockId, options) {
+          forwarded.push(departureId, blockId, options)
+          return { blockId, kind: options.kind ?? "room", removed: 2, roomsReleased: 2 }
+        },
+      }),
+    )
+
+    expect(forwarded).toEqual(["avsl_1", "rmbk_1", { kind: "room" }])
+    expect(result).toEqual({ blockId: "rmbk_1", kind: "room", removed: 2, roomsReleased: 2 })
+  })
+
+  it("refuses a rooming-preferences call that would change nothing", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(setDepartureTravelerRoomingPreferencesTool)
+    let called = false
+    await expect(
+      writeRegistry.dispatch(
+        "set_departure_traveler_rooming_preferences",
+        { departureId: "avsl_1", travelerId: "bkpt_1" },
+        contextWith({
+          async setDepartureTravelerRoomingPreferences() {
+            called = true
+            return {}
+          },
+        }),
+      ),
+    ).rejects.toThrow(/at least one of bedPreference or roomTypeId/)
+    expect(called).toBe(false)
+  })
+
+  it("clears one rooming preference while leaving the other stored value alone", async () => {
+    const writeRegistry = createToolRegistry()
+    writeRegistry.register(setDepartureTravelerRoomingPreferencesTool)
+    let forwarded: unknown
+    let forwardedTravelerId: string | undefined
+    const result = await writeRegistry.dispatch(
+      "set_departure_traveler_rooming_preferences",
+      { departureId: "avsl_1", travelerId: "bkpt_1", roomTypeId: null },
+      contextWith({
+        async setDepartureTravelerRoomingPreferences(_departureId, travelerId, input) {
+          forwardedTravelerId = travelerId
+          forwarded = input
+          return { travelerId, bedPreference: "twin", roomTypeId: null }
+        },
+      }),
+    )
+
+    expect(forwardedTravelerId).toBe("bkpt_1")
+    expect(forwarded).toEqual({ roomTypeId: null })
+    expect(forwarded).not.toHaveProperty("bedPreference")
+    expect(result).toEqual({ travelerId: "bkpt_1", bedPreference: "twin", roomTypeId: null })
   })
 
   it("rebuilds Booking actions through the authoritative projection service", async () => {

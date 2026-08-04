@@ -13,6 +13,8 @@ import type {
   availabilityStartTimeListQuerySchema,
   batchAssignTravelerAllocationsSchema,
   detachDepartureResourceQuerySchema,
+  materializeFromRoomBlockSchema,
+  updateTravelerRoomingPreferencesSchema,
 } from "./availability/validation.js"
 
 /** Availability services contributed by an Operations runtime. */
@@ -45,6 +47,25 @@ export interface OperationsToolServices {
   setDepartureTravelerAssignments(
     departureId: string,
     input: z.infer<typeof batchAssignTravelerAllocationsSchema>,
+  ): Promise<unknown>
+  /**
+   * Room inventory drawn from a contracted accommodation block. Both legs go
+   * through the single write path that keeps the departure's positions and the
+   * block's nightly hold in one transaction.
+   */
+  materializeDepartureRoomBlock(
+    departureId: string,
+    input: z.infer<typeof materializeFromRoomBlockSchema>,
+  ): Promise<unknown>
+  releaseDepartureRoomBlock(
+    departureId: string,
+    blockId: string,
+    options: { kind?: string },
+  ): Promise<unknown>
+  setDepartureTravelerRoomingPreferences(
+    departureId: string,
+    travelerId: string,
+    input: z.infer<typeof updateTravelerRoomingPreferencesSchema>,
   ): Promise<unknown>
   rebuildBookingActions(): Promise<BookingActionSyncSummary>
   getAvailabilityOverview(query: z.infer<typeof availabilityOverviewQuerySchema>): Promise<unknown>

@@ -10,6 +10,7 @@ import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
 import {
+  allocationResourceKindSchema,
   attachDepartureResourceSchema,
   availabilityAggregatesQuerySchema,
   availabilityCloseoutListQuerySchema,
@@ -21,6 +22,8 @@ import {
   availabilityStartTimeListQuerySchema,
   batchAssignTravelerAllocationsSchema,
   detachDepartureResourceQuerySchema,
+  materializeFromRoomBlockSchema,
+  updateTravelerRoomingPreferencesSchema,
 } from "./availability/validation.js"
 import { getOperatorDashboardSummaryDefinition } from "./dashboard-tool.js"
 import type { OperationsToolContext, OperationsToolServices } from "./tool-services.js"
@@ -211,6 +214,45 @@ const departureTravelerAssignmentsOutputSchema = z.object({
   travelerIds: z.array(z.string()),
 })
 
+/**
+ * A room the departure operates. The same `allocation_resources` row as a fleet
+ * container, reported with the occupancy band and room attributes the rooming
+ * checks read — `capacity` is the maximum, `occupancyMin` the floor below which
+ * a room counts as under-filled.
+ */
+const departureRoomPositionSchema = departureFleetResourceSchema.extend({
+  occupancyMin: z.number().int().nullable(),
+  roomTypeId: z.string().nullable(),
+  bedConfiguration: z.string().nullable(),
+  accessible: z.boolean(),
+  minAge: z.number().int().nullable(),
+  maxAge: z.number().int().nullable(),
+})
+
+const materializeDepartureRoomBlockOutputSchema = z.object({
+  blockId: z.string(),
+  kind: z.string(),
+  created: z.number().int(),
+  skippedExisting: z.number().int(),
+  roomsPickedUp: z.number().int(),
+  pickupId: z.string().nullable(),
+  remainingAfter: z.number().int(),
+  resources: z.array(departureRoomPositionSchema),
+})
+
+const releaseDepartureRoomBlockOutputSchema = z.object({
+  blockId: z.string(),
+  kind: z.string(),
+  removed: z.number().int(),
+  roomsReleased: z.number().int(),
+})
+
+const departureTravelerRoomingPreferencesOutputSchema = z.object({
+  travelerId: z.string(),
+  bedPreference: z.string().nullable(),
+  roomTypeId: z.string().nullable(),
+})
+
 const availabilityRuleListOutputSchema = listResponseSchema(availabilityRuleListRowSchema)
 const availabilityRuleOutputSchema = z.object({ rule: availabilityRuleSchema.nullable() })
 const availabilityStartTimeListOutputSchema = listResponseSchema(availabilityStartTimeListRowSchema)
@@ -262,6 +304,36 @@ const DEPARTURE_WRITE_RISK = {
  * matters to an operator.
  */
 const DEPARTURE_FLEET_DETACH_RISK = {
+  destructive: true,
+  reversible: false,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write", "data-delete"],
+} as const
+
+/**
+ * Drawing rooms from a contracted block reaches past the departure: the same
+ * transaction that creates the room positions takes the supplier's nightly
+ * hold, which is what stops two departures selling the same twenty rooms.
+ * Releasing compensates the pickup, so the inventory move is reversible — the
+ * rooming plan built on top of the positions is not, which is why the release
+ * carries the destructive posture and this does not.
+ */
+const ROOM_BLOCK_MATERIALIZE_RISK = {
+  destructive: false,
+  reversible: true,
+  dryRunSupported: false,
+  confirmationRequired: true,
+  sideEffects: ["data-write"],
+} as const
+
+/**
+ * Releasing deletes the departure's room positions and empties every traveler
+ * placed in one. Drawing the block again brings the rooms back but not the
+ * rooming plan, so it is irreversible in the way that matters to an operator —
+ * the same posture as detaching a coach.
+ */
+const ROOM_BLOCK_RELEASE_RISK = {
   destructive: true,
   reversible: false,
   dryRunSupported: false,
@@ -418,6 +490,41 @@ const setDepartureTravelerAssignmentsArgs = batchAssignTravelerAllocationsSchema
   departureId: departureIdArgSchema,
 })
 
+const materializeDepartureRoomBlockArgs = materializeFromRoomBlockSchema.extend({
+  departureId: departureIdArgSchema,
+})
+
+const roomBlockIdArgSchema = z
+  .string()
+  .min(1)
+  .describe("The contracted room block the departure drew its rooms from.")
+
+const roomBlockKindArgSchema = allocationResourceKindSchema
+  .default("room")
+  .describe("The resource kind the positions were created under. Rooms are `room`.")
+
+const releaseDepartureRoomBlockArgs = z.object({
+  departureId: departureIdArgSchema,
+  blockId: roomBlockIdArgSchema,
+  kind: roomBlockKindArgSchema,
+})
+
+// The inherited "patch payload is required" refinement is a tautology once the
+// departure and traveler join the same flat object, so the Tool restates the
+// rule over the two fields it actually governs.
+const setDepartureTravelerRoomingPreferencesArgs = updateTravelerRoomingPreferencesSchema
+  .extend({
+    departureId: departureIdArgSchema,
+    travelerId: z
+      .string()
+      .min(1)
+      .describe("The traveler on this departure whose stated rooming preferences are changing."),
+  })
+  .refine(
+    (value) => value.bedPreference !== undefined || value.roomTypeId !== undefined,
+    "Set at least one of bedPreference or roomTypeId; omitting both changes nothing.",
+  )
+
 export const attachDepartureFleetResourceTool = defineTool<
   z.infer<typeof attachDepartureFleetResourceArgs>,
   z.infer<typeof attachDepartureFleetResourceOutputSchema>,
@@ -504,6 +611,96 @@ export const setDepartureTravelerAssignmentsTool = defineTool<
     return parseJsonResult(
       departureTravelerAssignmentsOutputSchema,
       await operations(ctx).setDepartureTravelerAssignments(departureId, input),
+    )
+  },
+})
+
+export const materializeDepartureRoomBlockTool = defineTool<
+  z.infer<typeof materializeDepartureRoomBlockArgs>,
+  z.infer<typeof materializeDepartureRoomBlockOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.materialize-departure-room-block`,
+  name: "materialize_departure_room_block",
+  description:
+    "Turn rooms a supplier has contracted to hold into rooms this departure operates, so " +
+    "travelers can be placed in them. One room position is created per room taken and the " +
+    "block's nightly hold is drawn down in the same step, which is what stops two departures " +
+    "selling the same rooms. Omit `rooms` to take the block's whole remaining hold for the " +
+    "nights this departure occupies. Running it twice for the same block and `kind` creates " +
+    "nothing and takes no second hold, so a retry is safe.",
+  inputSchema: materializeDepartureRoomBlockArgs,
+  outputSchema: materializeDepartureRoomBlockOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: ROOM_BLOCK_MATERIALIZE_RISK,
+  annotations: { idempotentHint: true },
+  async handler({ departureId, ...input }, ctx) {
+    return parseJsonResult(
+      materializeDepartureRoomBlockOutputSchema,
+      await operations(ctx).materializeDepartureRoomBlock(departureId, input),
+    )
+  },
+})
+
+export const releaseDepartureRoomBlockTool = defineTool<
+  z.infer<typeof releaseDepartureRoomBlockArgs>,
+  z.infer<typeof releaseDepartureRoomBlockOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.release-departure-room-block`,
+  name: "release_departure_room_block",
+  description:
+    "Give a departure's contracted rooms back to the supplier's hold so another departure can " +
+    "draw them. Every room position this departure took from the block is removed and every " +
+    "traveler placed in one loses their room, so reach for it when a departure is cancelled or " +
+    "resized — not to correct a single placement, which " +
+    "`set_departure_traveler_assignments` does without touching inventory.",
+  inputSchema: releaseDepartureRoomBlockArgs,
+  outputSchema: releaseDepartureRoomBlockOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "destructive",
+  riskPolicy: ROOM_BLOCK_RELEASE_RISK,
+  async handler({ departureId, blockId, ...options }, ctx) {
+    return parseJsonResult(
+      releaseDepartureRoomBlockOutputSchema,
+      await operations(ctx).releaseDepartureRoomBlock(departureId, blockId, options),
+    )
+  },
+})
+
+export const setDepartureTravelerRoomingPreferencesTool = defineTool<
+  z.infer<typeof setDepartureTravelerRoomingPreferencesArgs>,
+  z.infer<typeof departureTravelerRoomingPreferencesOutputSchema>,
+  OperationsToolContext
+>({
+  owner: OWNER,
+  capabilityVersion: VERSION,
+  capabilityId: `${OWNER}#tool.set-departure-traveler-rooming-preferences`,
+  name: "set_departure_traveler_rooming_preferences",
+  description:
+    "Record what a traveler asked for when the rooms are laid out — the bed configuration they " +
+    "want and the room type they booked. These are the two things the rooming checks compare a " +
+    "placement against, so a departure that reports unmet bed preferences is usually a " +
+    "departure where nobody entered them; set them here and re-run the plan. Supply either " +
+    "field on its own: one you leave out keeps its stored value, and an explicit null clears " +
+    "it. Nothing else about the traveler is writable here.",
+  inputSchema: setDepartureTravelerRoomingPreferencesArgs,
+  outputSchema: departureTravelerRoomingPreferencesOutputSchema,
+  requiredScopes: WRITE_SCOPES,
+  audience: STAFF_AUDIENCE,
+  tier: "write",
+  riskPolicy: DEPARTURE_WRITE_RISK,
+  async handler({ departureId, travelerId, ...input }, ctx) {
+    return parseJsonResult(
+      departureTravelerRoomingPreferencesOutputSchema,
+      await operations(ctx).setDepartureTravelerRoomingPreferences(departureId, travelerId, input),
     )
   },
 })
@@ -725,6 +922,9 @@ export const operationsWriteTools = [
   attachDepartureFleetResourceTool,
   detachDepartureFleetResourceTool,
   setDepartureTravelerAssignmentsTool,
+  materializeDepartureRoomBlockTool,
+  releaseDepartureRoomBlockTool,
+  setDepartureTravelerRoomingPreferencesTool,
   rebuildBookingActionsTool,
 ] as const
 

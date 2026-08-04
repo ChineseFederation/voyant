@@ -172,7 +172,7 @@ describe("operations deployment manifest", () => {
     const actions = operationsVoyantModule.actions ?? []
     const readTools = tools.filter((tool) => tool.requiredScopes?.includes("operations:read"))
     expect(readTools).toHaveLength(9)
-    expect(actions).toHaveLength(15)
+    expect(actions).toHaveLength(18)
     for (const tool of readTools) {
       expect(tool).toMatchObject({
         requiredScopes: ["operations:read"],
@@ -246,6 +246,37 @@ describe("operations deployment manifest", () => {
         risk: "medium",
         reversible: true,
       },
+      // Drawing rooms from a block takes the supplier's nightly hold, which the
+      // release compensates — so materialising is reversible as inventory.
+      materialize_departure_room_block: {
+        approval: "required",
+        action: "write",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "medium",
+        reversible: true,
+      },
+      // Releasing empties every traveler placed in one of the block's rooms, so
+      // it joins detaching a fleet resource as an irreversible, high-risk delete.
+      release_departure_room_block: {
+        approval: "required",
+        action: "delete",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "high",
+        reversible: false,
+      },
+      set_departure_traveler_rooming_preferences: {
+        approval: "required",
+        action: "write",
+        targetType: "departure",
+        targetLifecycle: "existing",
+        commandTargetField: "departureId",
+        risk: "medium",
+        reversible: true,
+      },
       rebuild_booking_actions: {
         id: "@voyant-travel/operations#action.rebuild-booking-actions",
         approval: "required",
@@ -259,7 +290,12 @@ describe("operations deployment manifest", () => {
 
     for (const tool of writeTools) {
       expect(tool).toMatchObject({ context: ["operations"] })
-      expect(tool.risk).toBe(tool.name === "detach_departure_fleet_resource" ? "high" : "medium")
+      // The two writes that delete rows and empty traveler placements with them.
+      const destructive = new Set([
+        "detach_departure_fleet_resource",
+        "release_departure_room_block",
+      ])
+      expect(tool.risk).toBe(destructive.has(tool.name ?? "") ? "high" : "medium")
       const action = actions.find((candidate) => candidate.from?.tools?.includes(tool.id))
       expect(action).toMatchObject({
         version: "v1",

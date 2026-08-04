@@ -25,6 +25,15 @@ import {
   detachDepartureResource,
   listDepartureResourceLinks,
 } from "./availability/service-allocation-resource-link.js"
+import {
+  type MaterializeFromRoomBlockInput,
+  materializeDepartureRoomsFromBlock,
+  releaseDepartureRoomBlock,
+} from "./availability/service-allocation-room-block.js"
+import {
+  type UpdateTravelerRoomingPreferencesInput,
+  updateTravelerRoomingPreferences,
+} from "./availability/service-allocation-traveler-preferences.js"
 import { AvailabilitySlotRevisionConflictError } from "./availability/service-core.js"
 
 export * from "./tools.js"
@@ -149,6 +158,39 @@ export const voyantToolContextContribution = defineToolContextContribution({
             assignTravelerAllocationsBatch(db as PostgresJsDatabase, departureId, input, {
               actorId: c.get("userId") ?? null,
             }),
+          )
+        },
+        materializeDepartureRoomBlock(departureId: string, input: MaterializeFromRoomBlockInput) {
+          return withAllocationToolErrors(() =>
+            materializeDepartureRoomsFromBlock(db as PostgresJsDatabase, departureId, input, {
+              actorId: c.get("userId") ?? null,
+            }),
+          )
+        },
+        releaseDepartureRoomBlock(
+          departureId: string,
+          blockId: string,
+          options: { kind?: string },
+        ) {
+          return withAllocationToolErrors(() =>
+            releaseDepartureRoomBlock(db as PostgresJsDatabase, departureId, blockId, options, {
+              actorId: c.get("userId") ?? null,
+            }),
+          )
+        },
+        setDepartureTravelerRoomingPreferences(
+          departureId: string,
+          travelerId: string,
+          input: UpdateTravelerRoomingPreferencesInput,
+        ) {
+          return withAllocationToolErrors(() =>
+            updateTravelerRoomingPreferences(
+              db as PostgresJsDatabase,
+              departureId,
+              travelerId,
+              input,
+              { actorId: c.get("userId") ?? null },
+            ),
           )
         },
         async rebuildBookingActions() {
