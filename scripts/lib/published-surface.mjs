@@ -22,6 +22,32 @@
  * beside them installs from the registry and exercises it.
  */
 
+export const DEFAULT_ATTEMPTS = 6
+
+/**
+ * How many times to ask the registry before calling a version unpublished.
+ *
+ * This was `Number(argv[argv.indexOf("--attempts") + 1] ?? 6)`. With the flag
+ * absent, `indexOf` returns -1 and `argv[0]` is the path to the node binary, so
+ * the count was `NaN`, `attempt <= NaN` was false, the retry loop never ran a
+ * single iteration, and every package came back "not on the registry" without
+ * one request being made. Every local run passed `--attempts`, so the default
+ * path — the only one CI takes — was never exercised until it failed a release.
+ *
+ * Hence both the explicit index check and the validation: a count that is not a
+ * positive integer must stop the run, never quietly skip the work.
+ */
+export function parseAttempts(argv) {
+  const index = argv.indexOf("--attempts")
+  if (index === -1) return DEFAULT_ATTEMPTS
+
+  const attempts = Number(argv[index + 1])
+  if (!Number.isInteger(attempts) || attempts < 1) {
+    throw new Error(`--attempts must be a positive integer, received "${argv[index + 1]}"`)
+  }
+  return attempts
+}
+
 export const REGISTRY = "https://registry.npmjs.org"
 
 /**

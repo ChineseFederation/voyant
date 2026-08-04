@@ -2,8 +2,10 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import {
+  DEFAULT_ATTEMPTS,
   expandExportPattern,
   importProbeSpecifiers,
+  parseAttempts,
   registryHasVersion,
   selectPublishedPackages,
   unappliedPublishConfigViolations,
@@ -18,6 +20,34 @@ function registryResponse({ status = 200, statusText = "OK", body = {} }) {
     json: async () => body,
   })
 }
+
+test("defaults the attempt count when no flag is passed", () => {
+  // The case CI takes and no local run ever did. `argv.indexOf` returns -1 with
+  // the flag absent, so the old `argv[index + 1]` read `argv[0]` — the node
+  // binary's path — and `Number(...)` of it was NaN. `attempt <= NaN` is false,
+  // so the retry loop ran zero times and every package was reported missing
+  // without one request being made.
+  assert.equal(parseAttempts(["/usr/bin/node", "/repo/scripts/verify.mjs"]), DEFAULT_ATTEMPTS)
+  assert.ok(DEFAULT_ATTEMPTS >= 1)
+})
+
+test("reads an explicit attempt count", () => {
+  assert.equal(parseAttempts(["/usr/bin/node", "/repo/scripts/verify.mjs", "--attempts", "2"]), 2)
+})
+
+test("refuses an attempt count that would skip the work", () => {
+  for (const value of ["0", "-1", "banana", "1.5"]) {
+    assert.throws(
+      () => parseAttempts(["/usr/bin/node", "/repo/scripts/verify.mjs", "--attempts", value]),
+      /--attempts must be a positive integer/,
+    )
+  }
+
+  assert.throws(
+    () => parseAttempts(["/usr/bin/node", "/repo/scripts/verify.mjs", "--attempts"]),
+    /--attempts must be a positive integer/,
+  )
+})
 
 test("reads a published version out of the packument", async () => {
   const published = await registryHasVersion("@voyant-travel/payments", "0.9.2", {

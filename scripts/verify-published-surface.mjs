@@ -22,6 +22,7 @@ import {
   formatImportFailure,
   formatMissingVersion,
   importProbeSpecifiers,
+  parseAttempts,
   REGISTRY,
   registryHasVersion,
   selectPublishedPackages,
@@ -32,7 +33,7 @@ import {
 const execFileAsync = promisify(execFile)
 
 const KEEP = process.argv.includes("--keep")
-const ATTEMPTS = Number(process.argv[process.argv.indexOf("--attempts") + 1] ?? 6)
+const ATTEMPTS = parseAttempts(process.argv)
 /** The registry is read-your-writes only eventually; a fresh publish can 404 briefly. */
 const RETRY_DELAY_MS = 10_000
 
@@ -62,7 +63,9 @@ function workspaceManifests() {
  */
 async function awaitRegistry(packages) {
   let pending = packages
+  let asked = false
   for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
+    asked = true
     const results = await Promise.all(
       pending.map(async (entry) => {
         try {
@@ -88,6 +91,13 @@ async function awaitRegistry(packages) {
     )
     await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
   }
+
+  // Returning `pending` untouched would name every package as unpublished
+  // without a single request having been made. That is precisely the shape the
+  // `NaN` attempt count produced, so the impossible case gets an assertion
+  // rather than a silent verdict.
+  if (!asked) throw new Error(`the registry was never queried (attempts=${ATTEMPTS})`)
+
   return pending
 }
 
