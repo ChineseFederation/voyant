@@ -23,7 +23,9 @@
  *   it moves every release, and no publisher can tell which of those releases
  *   touched anything they depend on.
  */
-import { ADMIN_UI_EXTENSION_API_VERSION } from "@voyant-travel/admin-extension-sdk"
+// The narrow subpath, not the package root: this module is read by the control
+// plane inside a Worker, which has no use for the SDK's iframe client.
+import { ADMIN_UI_EXTENSION_API_VERSION } from "@voyant-travel/admin-extension-sdk/version"
 import { VOYANT_EVENT_CATALOG_SCHEMA_VERSION } from "@voyant-travel/graph-contracts"
 import { APP_MANIFEST_SCHEMA_VERSION } from "./contracts.js"
 

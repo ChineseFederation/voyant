@@ -1,4 +1,4 @@
-import { ADMIN_UI_EXTENSION_API_VERSION } from "@voyant-travel/admin-extension-sdk"
+import { ADMIN_UI_EXTENSION_API_VERSION } from "@voyant-travel/admin-extension-sdk/version"
 import { VOYANT_EVENT_CATALOG_SCHEMA_VERSION } from "@voyant-travel/graph-contracts"
 import { describe, expect, it } from "vitest"
 import {
