@@ -21,6 +21,9 @@ import {
   updateCloseout,
   updateSlot,
 } from "./service-core.js"
+import { getDepartureCapacityCounters } from "./service-departure-capacity.js"
+import { getDepartureIssues } from "./service-departure-issues.js"
+import { getDepartureSummary } from "./service-departure-summary.js"
 import { getAvailabilityOverview } from "./service-overview.js"
 import {
   createCustomPickupArea,
@@ -75,6 +78,9 @@ import { getSlotUnitAvailability } from "./service-unit-availability.js"
 
 export const availabilityService = {
   getSlotAllocationManifest,
+  getDepartureSummary,
+  getDepartureCapacityCounters,
+  getDepartureIssues,
   listAllocationResources,
   createAllocationResource,
   updateAllocationResource,

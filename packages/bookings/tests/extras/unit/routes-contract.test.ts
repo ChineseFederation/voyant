@@ -227,12 +227,32 @@ describe("booking-extras admin contract", () => {
         travelers: [manifestTraveler],
         selections: [manifestSelectionRow],
         summaries: [manifestSummaryRow],
+        pagination: { limit: null, offset: 0, total: 1 },
       }),
     )
     expect(parsed.slot.id).toBe("avs_1")
     expect(parsed.extras).toHaveLength(1)
     expect(parsed.travelers[0]?.fullName).toBe("Ada Lovelace")
     expect(parsed.selections[0]?.productExtraId).toBe("pex_1")
+    expect(parsed.summaries[0]?.selectedTravelerCount).toBe(1)
+    expect(parsed.pagination.total).toBe(1)
+  })
+
+  it("slot manifest summaries stay whole-departure figures when a page is requested", () => {
+    const parsed = slotExtraManifestSchema.parse(
+      toWire({
+        slot: manifestSlot,
+        extras: [manifestExtra],
+        travelers: [manifestTraveler],
+        selections: [manifestSelectionRow],
+        summaries: [manifestSummaryRow],
+        pagination: { limit: 1, offset: 2, total: 9 },
+      }),
+    )
+    // `total` counts the departure, not the page, so a paged read still
+    // reports every traveler — and `summaries` is computed before the slice.
+    expect(parsed.travelers).toHaveLength(1)
+    expect(parsed.pagination).toEqual({ limit: 1, offset: 2, total: 9 })
     expect(parsed.summaries[0]?.selectedTravelerCount).toBe(1)
   })
 

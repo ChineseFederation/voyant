@@ -84,8 +84,16 @@ export const bookingExtraListQuerySchema = paginationSchema.extend({
   status: bookingExtraStatusSchema.optional(),
 })
 
+/**
+ * `limit`/`offset` page the **traveler** axis of the matrix only. The extras
+ * axis and every rollup in `summaries` stay whole-departure, so paging can
+ * never change a headline count. Omitting `limit` returns every traveler,
+ * which is the pre-pagination behaviour.
+ */
 export const slotExtraManifestQuerySchema = z.object({
   includeInactiveExtras: booleanQueryParam.default(false),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).default(0),
 })
 
 export const slotExtraSelectionPatchSchema = z.object({

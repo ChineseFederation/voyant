@@ -234,6 +234,16 @@ const slotExtraManifestSchema = z.object({
   travelers: z.array(manifestTravelerSchema),
   selections: z.array(manifestSelectionSchema),
   summaries: z.array(manifestSummarySchema),
+  /**
+   * Paging state for the traveler axis. `limit: null` means no page was
+   * requested. `total` is the whole departure's traveler count, so it — and
+   * every figure in `summaries` — is stable across pages.
+   */
+  pagination: z.object({
+    limit: z.number().int().nullable(),
+    offset: z.number().int(),
+    total: z.number().int(),
+  }),
 })
 
 // --- helpers ---------------------------------------------------------------

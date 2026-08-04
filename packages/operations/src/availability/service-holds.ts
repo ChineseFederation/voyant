@@ -381,6 +381,67 @@ export async function earliestOutstandingHoldExpiry(
 }
 
 /**
+ * Per-slot hold census.
+ *
+ * The hold table is otherwise only ever read by token or by draft — the
+ * checkout knows which hold it owns. A departure workspace asks the opposite
+ * question: how much of this slot's `remaining_pax` is currently spoken for by
+ * carts nobody has committed, and how much of it is being held by holds the
+ * reaper should already have released.
+ *
+ * `expired` is deliberately separate from `released`: an expired-but-unreleased
+ * hold is still decremented out of `remaining_pax`, so it is capacity the
+ * operator cannot sell and cannot see. Releasing them is the reaper's job
+ * (#4067); this only counts them.
+ */
+export interface SlotHoldCounts {
+  /** Live holds still inside their TTL. */
+  active: number
+  /** Pax still decremented out of `remaining_pax` by those live holds. */
+  activePax: number
+  /** Past `expires_at`, never released — capacity the reaper still owes back. */
+  expired: number
+  /** Pax held by those expired holds. */
+  expiredPax: number
+  /** Holds the reaper or a cancelled checkout gave back. */
+  released: number
+  /** Holds a completed checkout turned into a booking. */
+  converted: number
+}
+
+export async function countSlotHolds(
+  db: PostgresJsDatabase,
+  slotId: string,
+  now: Date = new Date(),
+): Promise<SlotHoldCounts> {
+  // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+  const outstanding = sql`${availabilityHolds.releasedAt} is null and ${availabilityHolds.convertedAt} is null`
+  // postgres.js binds a JS `Date` as a raw string parameter and throws
+  // `ERR_INVALID_ARG_TYPE`; hand it an ISO literal with an explicit cast.
+  const nowIso = now.toISOString()
+  const [row] = await db
+    .select({
+      active: sql<number>`count(*) filter (where ${outstanding} and ${availabilityHolds.expiresAt} >= ${nowIso}::timestamptz)::int`,
+      activePax: sql<number>`coalesce(sum(${availabilityHolds.paxCount}) filter (where ${outstanding} and ${availabilityHolds.expiresAt} >= ${nowIso}::timestamptz), 0)::int`,
+      expired: sql<number>`count(*) filter (where ${outstanding} and ${availabilityHolds.expiresAt} < ${nowIso}::timestamptz)::int`,
+      expiredPax: sql<number>`coalesce(sum(${availabilityHolds.paxCount}) filter (where ${outstanding} and ${availabilityHolds.expiresAt} < ${nowIso}::timestamptz), 0)::int`,
+      released: sql<number>`count(*) filter (where ${availabilityHolds.releasedAt} is not null)::int`,
+      converted: sql<number>`count(*) filter (where ${availabilityHolds.convertedAt} is not null)::int`,
+    })
+    .from(availabilityHolds)
+    .where(eq(availabilityHolds.slotId, slotId))
+
+  return {
+    active: row?.active ?? 0,
+    activePax: row?.activePax ?? 0,
+    expired: row?.expired ?? 0,
+    expiredPax: row?.expiredPax ?? 0,
+    released: row?.released ?? 0,
+    converted: row?.converted ?? 0,
+  }
+}
+
+/**
  * Looks up the hold(s) for a draft id. Multiple holds per draft
  * are possible (e.g. a multi-day product touching several slots);
  * the journey reaper releases them all at once.

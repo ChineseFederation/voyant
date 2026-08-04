@@ -1,28 +1,39 @@
+import {
+  ACTIVE_BOOKING_ALLOCATION_STATUSES,
+  ACTIVE_BOOKING_STATUSES,
+} from "@voyant-travel/bookings-contracts"
 import { type SQL, sql } from "drizzle-orm"
 
+export {
+  ACTIVE_BOOKING_ALLOCATION_STATUSES,
+  ACTIVE_BOOKING_STATUSES,
+  isActiveBookingAllocationStatus,
+  isActiveBookingStatus,
+  RELEASED_BOOKING_ALLOCATION_STATUSES,
+} from "@voyant-travel/bookings-contracts"
+
 /**
- * Booking statuses that still hold a slot's inventory. Must stay a subset of
- * `booking_status`: these values are bound as parameters against `bookings.
- * status`, so Postgres types them as the enum and rejects the whole query
- * with `22P02` on any value the enum no longer has. The v1 commitment
- * lifecycle (#4100) contracted the enum to
- * confirmed/in_progress/completed/cancelled -- the pre-commitment statuses
- * this list used to carry (`on_hold`, `awaiting_payment`) are booking
- * sessions now, not bookings. Mirrors the same list in bookings'
- * `extras/service-manifest.ts`.
+ * Drizzle fragment builders over the shared booking lifecycle vocabulary.
+ *
+ * The values themselves live in `@voyant-travel/bookings-contracts`
+ * (`booking-lifecycle.ts`) — a contracts package cannot import drizzle-orm, so
+ * only the `sql` interpolation lives here. The members are bound as parameters
+ * against `bookings.status` / `booking_allocations.status`, which Postgres
+ * types as the enum: any value the enum no longer carries fails the whole
+ * query with `22P02`.
  */
-export const ACTIVE_BOOKING_STATUSES_FOR_SLOT = ["confirmed", "in_progress", "completed"] as const
-
-const activeBookingStatusesForSlot = new Set<string>(ACTIVE_BOOKING_STATUSES_FOR_SLOT)
-
-export function activeBookingStatusesForSlotSql(): SQL {
+export function activeBookingStatusesSql(): SQL {
   return sql.join(
     // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-    ACTIVE_BOOKING_STATUSES_FOR_SLOT.map((status) => sql`${status}`),
+    ACTIVE_BOOKING_STATUSES.map((status) => sql`${status}`),
     sql`, `,
   )
 }
 
-export function isActiveBookingStatusForSlot(status: string): boolean {
-  return activeBookingStatusesForSlot.has(status)
+export function activeBookingAllocationStatusesSql(): SQL {
+  return sql.join(
+    // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+    ACTIVE_BOOKING_ALLOCATION_STATUSES.map((status) => sql`${status}`),
+    sql`, `,
+  )
 }

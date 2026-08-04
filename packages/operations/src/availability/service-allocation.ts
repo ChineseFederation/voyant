@@ -6,7 +6,7 @@ import {
 import { eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { z } from "zod"
-import { activeBookingStatusesForSlotSql } from "./booking-statuses.js"
+import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import { recordAllocationAudit } from "./service-allocation-audit.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"
 import type { AllocationPaymentStatus } from "./service-allocation-manifest-queries.js"
@@ -15,6 +15,7 @@ import {
   derivePaymentStatus,
   loadSlotBookingRows,
   loadSlotBookingUnitRows,
+  loadSlotTravelerCounts,
   loadSlotTravelerRows,
   normalizeAllocationMap,
   serializeSlot,
@@ -131,6 +132,28 @@ export interface AllocationManifestBooking {
   travelers: AllocationManifestTraveler[]
 }
 
+/**
+ * Paging state for the manifest's booking axis.
+ *
+ * `limit: null` means no page was requested and every booking is present —
+ * the pre-pagination behaviour, kept as the default so existing callers are
+ * unaffected. `total` is always the departure's full booking count, never the
+ * page's, and every figure in `summary` is likewise whole-departure. Paging
+ * changes which rows come back; it never changes a count.
+ */
+export interface SlotAllocationManifestPagination {
+  limit: number | null
+  offset: number
+  total: number
+}
+
+export interface SlotAllocationManifestOptions {
+  /** Bookings per page. Omit to return every booking. */
+  limit?: number
+  /** Bookings to skip. Ignored when `limit` is omitted. */
+  offset?: number
+}
+
 export interface SlotAllocationManifest {
   slot: {
     id: string
@@ -141,6 +164,12 @@ export interface SlotAllocationManifest {
   bookings: AllocationManifestBooking[]
   resources: Array<typeof allocationResources.$inferSelect>
   sharingGroupLabels: Record<string, string>
+  pagination: SlotAllocationManifestPagination
+  /**
+   * Whole-departure headline counts. Deliberately not derived from `bookings`
+   * above — see `SlotAllocationManifestPagination`. The richer counters live
+   * in the departure summary (`service-departure-summary.ts`).
+   */
   summary: {
     bookingCount: number
     travelerCount: number
@@ -152,6 +181,7 @@ export interface SlotAllocationManifest {
 export async function getSlotAllocationManifest(
   db: PostgresJsDatabase,
   slotId: string,
+  options: SlotAllocationManifestOptions = {},
 ): Promise<SlotAllocationManifest | null> {
   const [slot] = await db
     .select({
@@ -167,13 +197,21 @@ export async function getSlotAllocationManifest(
   if (!slot) return null
 
   const resources = await listAllocationResources(db, slotId)
-  const bookingRows = await loadSlotBookingRows(db, slotId)
-  if (bookingRows.length === 0) {
+  const allBookingRows = await loadSlotBookingRows(db, slotId)
+  const offset = options.limit === undefined ? 0 : (options.offset ?? 0)
+  const pagination: SlotAllocationManifestPagination = {
+    limit: options.limit ?? null,
+    offset,
+    total: allBookingRows.length,
+  }
+
+  if (allBookingRows.length === 0) {
     return {
       slot: serializeSlot(slot),
       bookings: [],
       resources,
       sharingGroupLabels: {},
+      pagination,
       summary: {
         bookingCount: 0,
         travelerCount: 0,
@@ -183,6 +221,25 @@ export async function getSlotAllocationManifest(
     }
   }
 
+  // Counts are read over every booking on the departure before the page is
+  // cut, so a caller that pages sees the same headline numbers on page 3 as on
+  // page 1.
+  const summary = {
+    bookingCount: allBookingRows.length,
+    ...(await loadSlotTravelerCounts(
+      db,
+      allBookingRows.map((row) => row.id),
+    )),
+    bookingsByStatus: allBookingRows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = (acc[row.status] ?? 0) + 1
+      return acc
+    }, {}),
+  }
+
+  const bookingRows =
+    options.limit === undefined
+      ? allBookingRows
+      : allBookingRows.slice(offset, offset + options.limit)
   const bookingIds = bookingRows.map((row) => row.id)
   const travelerRows = await loadSlotTravelerRows(db, bookingIds)
   const bookingUnitRows = await loadSlotBookingUnitRows(db, slotId, bookingIds)
@@ -190,9 +247,10 @@ export async function getSlotAllocationManifest(
   const bookingById = new Map(bookingRows.map((row) => [row.id, row]))
   // Assign 1-based slot-local sequence by booking createdAt. The SQL above
   // already orders by `created_at` then `booking_number`, so iterating in
-  // array order is the same as iterating in chronological order.
+  // array order is the same as iterating in chronological order. Numbered off
+  // the *full* list so a booking keeps its chip number when the caller pages.
   const sequenceByBookingId = new Map<string, number>()
-  for (const [index, row] of bookingRows.entries()) {
+  for (const [index, row] of allBookingRows.entries()) {
     sequenceByBookingId.set(row.id, index + 1)
   }
   const travelersByBooking = new Map<string, AllocationManifestTraveler[]>()
@@ -231,11 +289,11 @@ export async function getSlotAllocationManifest(
   }
 
   const bookings = bookingRows.map(
-    (row, index): AllocationManifestBooking => ({
+    (row): AllocationManifestBooking => ({
       id: row.id,
       bookingNumber: row.booking_number,
       status: row.status,
-      bookingSequence: index + 1,
+      bookingSequence: sequenceByBookingId.get(row.id) ?? 0,
       paymentStatus: derivePaymentStatus(row),
       contactFirstName: row.contact_first_name,
       contactLastName: row.contact_last_name,
@@ -262,23 +320,8 @@ export async function getSlotAllocationManifest(
     bookings,
     resources,
     sharingGroupLabels: sharingGroupLabelMap,
-    summary: bookings.reduce(
-      (acc, booking) => {
-        acc.bookingCount += 1
-        acc.travelerCount += booking.travelers.length
-        acc.leadTravelerCount += booking.travelers.filter(
-          (traveler) => traveler.isLeadTraveler,
-        ).length
-        acc.bookingsByStatus[booking.status] = (acc.bookingsByStatus[booking.status] ?? 0) + 1
-        return acc
-      },
-      {
-        bookingCount: 0,
-        travelerCount: 0,
-        leadTravelerCount: 0,
-        bookingsByStatus: {} as Record<string, number>,
-      },
-    ),
+    pagination,
+    summary,
   }
 }
 
@@ -514,8 +557,8 @@ async function assertTravelerBelongsToSlot(db: SqlExecutor, slotId: string, trav
     JOIN bookings b ON b.id = bt.booking_id
     WHERE bt.id = ${travelerId}
       AND ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     LIMIT 1
   `,
   )
@@ -536,8 +579,8 @@ async function assertSharingGroupBelongsToSlot(db: SqlExecutor, slotId: string, 
     JOIN bookings b ON b.id = bt.booking_id
     WHERE btd.sharing_group_id = ${groupId}
       AND ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     LIMIT 1
   `,
   )

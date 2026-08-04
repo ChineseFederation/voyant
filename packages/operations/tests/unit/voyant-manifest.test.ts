@@ -24,6 +24,9 @@ describe("operations deployment manifest", () => {
           optional: true,
           cardinality: "many",
         },
+        // Optional: a deployment without Finance still operates departures, it
+        // just shows no money on them.
+        { id: "finance.departure-profitability.runtime", optional: true },
       ],
       jobs: [
         {

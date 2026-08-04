@@ -13,7 +13,7 @@ import {
   planRoomAllocation,
   planVehicleSeatAllocation,
 } from "./auto-allocator.js"
-import { activeBookingStatusesForSlotSql } from "./booking-statuses.js"
+import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import {
   type AllocationMutationOptions,
   getSlotAllocationManifest,
@@ -111,8 +111,8 @@ async function autoMaterializeAllocationResourcesLocked(
         FROM bookings b
         JOIN booking_allocations ba ON ba.booking_id = b.id
         WHERE ba.availability_slot_id = ${slotId}
-          AND b.status IN (${activeBookingStatusesForSlotSql()})
-          AND ba.status IN ('held', 'confirmed', 'fulfilled')
+          AND b.status IN (${activeBookingStatusesSql()})
+          AND ba.status IN (${activeBookingAllocationStatusesSql()})
       ),
       -- Pax per option = sum of booking_item quantities for items belonging
       -- to bookings on this slot. The previous formulation joined
@@ -299,8 +299,8 @@ async function assertPlannedResourcesWithinCapacity(
         JOIN bookings b ON b.id = bt.booking_id
         WHERE btd.allocations ->> ar.kind = ar.id
           AND ba.availability_slot_id = ar.slot_id
-          AND b.status IN (${activeBookingStatusesForSlotSql()})
-          AND ba.status IN ('held', 'confirmed', 'fulfilled')
+          AND b.status IN (${activeBookingStatusesSql()})
+          AND ba.status IN (${activeBookingAllocationStatusesSql()})
       ) usage ON true
       WHERE ar.slot_id = ${slotId}
         AND ar.kind = ${kind}

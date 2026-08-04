@@ -92,6 +92,8 @@ export {
   type PlannedAllocation,
   type ResourceCapacityViolation,
   type SlotAllocationManifest,
+  type SlotAllocationManifestOptions,
+  type SlotAllocationManifestPagination,
   type SlotResourceAvailability,
   validateSlotAllocationCapacity,
 } from "./service-allocation.js"
@@ -105,6 +107,33 @@ export {
   buildAllocationRoomingCsv,
 } from "./service-allocation-exports.js"
 export {
+  type DepartureAllocationCounters,
+  type DepartureBookingCounters,
+  type DepartureCapacityCounters,
+  type DepartureResourceCounters,
+  type DepartureTravelerCounters,
+  getDepartureCapacityCounters,
+} from "./service-departure-capacity.js"
+export {
+  type DepartureIssue,
+  type DepartureIssueCode,
+  type DepartureIssueInput,
+  type DepartureIssueSeverity,
+  type DepartureIssueSubjectType,
+  evaluateDepartureIssues,
+  getDepartureIssues,
+} from "./service-departure-issues.js"
+export {
+  type DepartureBookingQuantities,
+  type DepartureExtrasRollup,
+  type DepartureFinanceHeadline,
+  type DepartureFinanceLine,
+  type DepartureIdentity,
+  type DepartureOperationsReadiness,
+  type DepartureSummary,
+  getDepartureSummary,
+} from "./service-departure-summary.js"
+export {
   instantToSlotLocal,
   type LocalToInstantInput,
   localToInstant,
@@ -117,6 +146,7 @@ export {
 export {
   allocationAuditLogQuerySchema,
   allocationAutomationSchema,
+  allocationManifestQuerySchema,
   assignTravelerAllocationSchema,
   availabilityCloseoutListQuerySchema,
   availabilityOverviewQuerySchema,

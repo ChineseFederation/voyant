@@ -31,6 +31,7 @@ describe("finance deployment manifest", () => {
           { id: "bookings.booking-action-source.runtime" },
           { id: "finance.host.runtime" },
           { id: "finance.app-api.runtime" },
+          { id: "finance.departure-profitability.runtime" },
         ],
       },
       runtime: { entry: "@voyant-travel/finance", export: "createFinanceVoyantRuntime" },

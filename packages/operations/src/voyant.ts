@@ -4,6 +4,7 @@ import {
 } from "@voyant-travel/bookings/runtime-port"
 import { catalogOperationsRuntimeExtensionPort } from "@voyant-travel/catalog/ports"
 import { defineModule, providePort, requirePort } from "@voyant-travel/core/project"
+import { financeDepartureProfitabilityRuntimePort } from "@voyant-travel/finance-contracts/runtime-port"
 
 import { operationsExpiredHoldsJobRuntimePort } from "./expired-holds-job-runtime-port.js"
 
@@ -52,6 +53,10 @@ export const operationsVoyantModule = defineModule({
     requirePort(operationsExpiredHoldsJobRuntimePort),
     requirePort(bookingActionProjectionRuntimePort),
     requirePort(bookingActionSourceRuntimePort, { optional: true, cardinality: "many" }),
+    // The departure workspace shows a headline P&L it must not compute. Optional
+    // because a deployment without Finance still operates departures; it just
+    // shows no money.
+    requirePort(financeDepartureProfitabilityRuntimePort, { optional: true }),
   ],
   jobs: [
     {

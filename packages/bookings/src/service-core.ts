@@ -5,6 +5,11 @@ import {
   type CreatedTargetMutationLease,
   consumeCreatedTargetMutationLease,
 } from "@voyant-travel/action-ledger"
+import {
+  ACTIVE_BOOKING_ALLOCATION_STATUSES,
+  ACTIVE_BOOKING_STATUSES,
+  isActiveBookingStatus,
+} from "@voyant-travel/bookings-contracts"
 import type { EventBus } from "@voyant-travel/core"
 import type { NamespacedCustomFieldValues } from "@voyant-travel/core/custom-fields"
 import { lockBookingFinanceInsertionFence } from "@voyant-travel/db/booking-finance-fence"
@@ -593,8 +598,6 @@ export interface BookingTravelerSharingGroupSummary {
 
 const travelerParticipantTypes = ["traveler", "occupant"] as const
 type TravelerParticipantType = (typeof travelerParticipantTypes)[number]
-const sharingGroupBookingStatuses = ["confirmed", "in_progress", "completed"] as const
-const sharingGroupAllocationStatuses = ["held", "confirmed", "fulfilled"] as const
 
 class BookingServiceError extends Error {
   constructor(
@@ -619,7 +622,7 @@ function toTimestamp(value?: string | null) {
 }
 
 function isAcceptedBookingStatus(status: BookingStatus) {
-  return status === "confirmed" || status === "in_progress" || status === "completed"
+  return isActiveBookingStatus(status)
 }
 
 function confirmedAtForStatus(status: BookingStatus, value: Date | null, now = new Date()) {
@@ -3858,8 +3861,8 @@ const bookingsServiceInternal = {
           eq(bookingAllocations.availabilitySlotId, slotId),
           isNotNull(bookingTravelerTravelDetails.sharingGroupId),
           ne(bookingTravelerTravelDetails.sharingGroupId, ""),
-          inArray(bookings.status, sharingGroupBookingStatuses),
-          inArray(bookingAllocations.status, sharingGroupAllocationStatuses),
+          inArray(bookings.status, ACTIVE_BOOKING_STATUSES),
+          inArray(bookingAllocations.status, ACTIVE_BOOKING_ALLOCATION_STATUSES),
           or(...travelerParticipantTypes.map((type) => eq(bookingTravelers.participantType, type))),
         ),
       )
@@ -3920,8 +3923,8 @@ const bookingsServiceInternal = {
         and(
           eq(bookingAllocations.availabilitySlotId, slotId),
           eq(bookingTravelerTravelDetails.sharingGroupId, sharingGroupId),
-          inArray(bookings.status, sharingGroupBookingStatuses),
-          inArray(bookingAllocations.status, sharingGroupAllocationStatuses),
+          inArray(bookings.status, ACTIVE_BOOKING_STATUSES),
+          inArray(bookingAllocations.status, ACTIVE_BOOKING_ALLOCATION_STATUSES),
           or(...travelerParticipantTypes.map((type) => eq(bookingTravelers.participantType, type))),
         ),
       )

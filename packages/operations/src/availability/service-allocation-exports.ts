@@ -1,4 +1,4 @@
-import { isActiveBookingStatusForSlot } from "./booking-statuses.js"
+import { isActiveBookingStatus } from "./booking-statuses.js"
 import type { AllocationManifestTraveler, SlotAllocationManifest } from "./service-allocation.js"
 
 const PASSENGER_HEADERS = [
@@ -48,7 +48,7 @@ export function buildAllocationPassengersCsv(manifest: SlotAllocationManifest): 
 export function buildAllocationRoomingCsv(manifest: SlotAllocationManifest, kind = "room"): string {
   const rows: Array<Array<string | number | null>> = [[...ROOMING_HEADERS]]
   const travelers = manifest.bookings.flatMap((booking) =>
-    isActiveBookingStatusForSlot(booking.status) ? booking.travelers : [],
+    isActiveBookingStatus(booking.status) ? booking.travelers : [],
   )
   const travelersByResource = new Map<string, AllocationManifestTraveler[]>()
   const unallocated: AllocationManifestTraveler[] = []

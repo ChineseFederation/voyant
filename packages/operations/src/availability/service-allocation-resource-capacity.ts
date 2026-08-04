@@ -1,7 +1,7 @@
 import { allocationResources } from "@voyant-travel/availability/schema"
 import { asc, eq, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { activeBookingStatusesForSlotSql } from "./booking-statuses.js"
+import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import { executeRows, type SqlExecutor, sqlTextArray } from "./service-allocation-sql.js"
 
 export async function listAllocationResources(db: PostgresJsDatabase, slotId: string) {
@@ -93,8 +93,8 @@ export async function getSlotsResourceAvailability(
         JOIN bookings b ON b.id = bt.booking_id
         WHERE btd.allocations ->> ar.kind = ar.id
           AND ba.availability_slot_id = ar.slot_id
-          AND b.status IN (${activeBookingStatusesForSlotSql()})
-          AND ba.status IN ('held', 'confirmed', 'fulfilled')
+          AND b.status IN (${activeBookingStatusesSql()})
+          AND ba.status IN (${activeBookingAllocationStatusesSql()})
       ) usage ON true
       WHERE ar.slot_id = ANY(${sqlTextArray(uniqueIds)})
       ORDER BY ar.slot_id, ar.kind, ar.sort_order, ar.created_at
@@ -234,8 +234,8 @@ export async function validateSlotAllocationCapacity(
         JOIN bookings b ON b.id = bt.booking_id
         WHERE btd.allocations ->> ${plan.kind} = ${resourceId}
           AND ba.availability_slot_id = ${slotId}
-          AND b.status IN (${activeBookingStatusesForSlotSql()})
-          AND ba.status IN ('held', 'confirmed', 'fulfilled')
+          AND b.status IN (${activeBookingStatusesSql()})
+          AND ba.status IN (${activeBookingAllocationStatusesSql()})
           AND btd.traveler_id <> ALL(${sqlTextArray(travelerIdsArr)})
       `,
     )
@@ -272,8 +272,8 @@ export async function countResourceOccupants(
     JOIN bookings b ON b.id = bt.booking_id
     WHERE btd.allocations ->> ${kind} = ${resourceId}
       AND ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
       AND (${excludeTravelerId ?? null}::text IS NULL OR btd.traveler_id <> ${excludeTravelerId ?? null})
   `,
   )

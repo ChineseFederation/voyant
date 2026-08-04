@@ -339,6 +339,19 @@ export const materializeOpenSlotsSchema = z.object({
   optionId: z.string().optional(),
 })
 
+/**
+ * Paging for the slot allocation manifest's **booking** axis.
+ *
+ * `limit` is optional on purpose: omitting it returns every booking, which is
+ * what this route did before it could page, so no existing caller changes
+ * behaviour. The manifest's `summary` counters are whole-departure regardless
+ * of the page — see `SlotAllocationManifestPagination`.
+ */
+export const allocationManifestQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  offset: z.coerce.number().int().min(0).default(0),
+})
+
 export const allocationAuditLogQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })

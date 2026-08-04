@@ -1,4 +1,5 @@
 import { bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
+import { ACTIVE_BOOKING_STATUSES } from "@voyant-travel/bookings/status"
 import { bookingPaymentSchedules, invoices, paymentSessions } from "@voyant-travel/finance/schema"
 import { and, asc, desc, eq, gt, isNull, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -13,7 +14,12 @@ import type { BookingDocumentBundleItem, BookingPaymentScheduleRow } from "./ser
 import { listBookingNotificationItems, resolveReminderRecipient } from "./service-shared.js"
 import type { NotificationAttachment } from "./types.js"
 
-export const PAYABLE_BOOKING_STATUSES = new Set(["confirmed", "in_progress", "completed"])
+/**
+ * Bookings a reminder may still chase. Same set as the shared
+ * `ACTIVE_BOOKING_STATUSES` — a cancelled booking is owed nothing — kept under
+ * the reminder vocabulary's own name and no longer restated here.
+ */
+export const PAYABLE_BOOKING_STATUSES = new Set<string>(ACTIVE_BOOKING_STATUSES)
 export const OPEN_PAYMENT_SCHEDULE_STATUSES = new Set(["pending", "due"])
 
 export interface BookingEventReminderRuntimeOptions {

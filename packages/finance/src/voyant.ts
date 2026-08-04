@@ -12,7 +12,10 @@ import {
   type VoyantGraphJsonObject,
 } from "@voyant-travel/core/project"
 import { customFieldsRuntimePort } from "@voyant-travel/core/runtime-port"
-import { financeAppApiRuntimePort } from "@voyant-travel/finance-contracts/runtime-port"
+import {
+  financeAppApiRuntimePort,
+  financeDepartureProfitabilityRuntimePort,
+} from "@voyant-travel/finance-contracts/runtime-port"
 import {
   financeReceivablesDatasetDefinition,
   financeReportingTemplates,
@@ -71,6 +74,7 @@ export const financeVoyantModule = defineModule({
       providePort(bookingActionSourceRuntimePort),
       providePort(financeHostRuntimePort),
       providePort(financeAppApiRuntimePort),
+      providePort(financeDepartureProfitabilityRuntimePort),
     ],
   },
   api: [

@@ -1,7 +1,7 @@
 import { availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import { ACTIVE_BOOKING_STATUSES_FOR_SLOT } from "./booking-statuses.js"
+import { ACTIVE_BOOKING_STATUSES } from "./booking-statuses.js"
 import { bookingItemsRef, bookingsRef } from "./bookings-ref.js"
 import { optionUnitsRef } from "./option-units-ref.js"
 
@@ -53,7 +53,7 @@ export async function getSlotUnitAvailability(
     .innerJoin(bookingsRef, eq(bookingsRef.id, bookingItemsRef.bookingId))
     .where(
       and(
-        inArray(bookingsRef.status, [...ACTIVE_BOOKING_STATUSES_FOR_SLOT]),
+        inArray(bookingsRef.status, [...ACTIVE_BOOKING_STATUSES]),
         // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
         sql`${bookingItemsRef.optionUnitId} IS NOT NULL`,
         // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.

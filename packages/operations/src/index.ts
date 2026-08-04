@@ -4,8 +4,10 @@ import {
 } from "@voyant-travel/bookings/runtime-port"
 import type { Module } from "@voyant-travel/core"
 import { defineGraphRuntimeFactory } from "@voyant-travel/core/project"
+import { financeDepartureProfitabilityRuntimePort } from "@voyant-travel/finance-contracts/runtime-port"
 import type { ApiModule } from "@voyant-travel/hono/module"
 
+import { configureDepartureProfitabilityReader } from "./availability/departure-profitability-runtime.js"
 import { availabilityLinkable } from "./availability/index.js"
 import { placesLinkable } from "./places/index.js"
 import { createOperationsAdminRoutes, operationsAdminRoutes } from "./routes.js"
@@ -31,13 +33,26 @@ export const operationsApiModule: ApiModule = {
 export const operationsApiModules = [operationsApiModule] as const
 
 export const createOperationsVoyantRuntime = defineGraphRuntimeFactory(
-  async ({ getPort, getPorts }) => ({
-    module: operationsModule,
-    adminRoutes: createOperationsAdminRoutes({
-      projection: await getPort(bookingActionProjectionRuntimePort),
-      sources: await getPorts(bookingActionSourceRuntimePort),
-    }),
-  }),
+  async ({ getPort, getPorts, hasPort }) => {
+    // Finance is optional: `getPort` throws on an unbound optional port, so the
+    // presence check has to come first. Binding the reader here keeps the money
+    // Finance's and the availability routes free of a Finance dependency — see
+    // `availability/departure-profitability-runtime.ts`.
+    const profitability = hasPort(financeDepartureProfitabilityRuntimePort)
+      ? await getPort(financeDepartureProfitabilityRuntimePort)
+      : undefined
+    configureDepartureProfitabilityReader(
+      profitability ? (db, query) => profitability.getDepartureProfitability(db, query) : undefined,
+    )
+
+    return {
+      module: operationsModule,
+      adminRoutes: createOperationsAdminRoutes({
+        projection: await getPort(bookingActionProjectionRuntimePort),
+        sources: await getPorts(bookingActionSourceRuntimePort),
+      }),
+    }
+  },
 )
 
 // Only the request side is package API. Binding the channel is deployment

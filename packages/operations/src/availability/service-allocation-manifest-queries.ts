@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
-import { activeBookingStatusesForSlotSql } from "./booking-statuses.js"
+import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
 import { executeRows, sqlTextArray } from "./service-allocation-sql.js"
 
 export interface BookingRow {
@@ -178,8 +178,8 @@ async function loadSlotBookingRowsBothJoins(
       GROUP BY booking_id
     ) sch ON sch.booking_id = b.id
     WHERE ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     ORDER BY b.created_at, b.booking_number
   `,
   )
@@ -219,8 +219,8 @@ async function loadSlotBookingRowsInvoicesOnly(
       GROUP BY booking_id
     ) inv ON inv.booking_id = b.id
     WHERE ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     ORDER BY b.created_at, b.booking_number
   `,
   )
@@ -259,8 +259,8 @@ async function loadSlotBookingRowsSchedulesOnly(
       GROUP BY booking_id
     ) sch ON sch.booking_id = b.id
     WHERE ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     ORDER BY b.created_at, b.booking_number
   `,
   )
@@ -290,8 +290,8 @@ async function loadSlotBookingRowsBare(
     FROM bookings b
     JOIN booking_allocations ba ON ba.booking_id = b.id
     WHERE ba.availability_slot_id = ${slotId}
-      AND b.status IN (${activeBookingStatusesForSlotSql()})
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND b.status IN (${activeBookingStatusesSql()})
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     ORDER BY b.created_at, b.booking_number
   `,
   )
@@ -344,6 +344,39 @@ export async function loadSlotTravelerRows(
   )
 }
 
+/**
+ * Whole-departure traveler counts for the manifest's summary block.
+ *
+ * The summary used to be folded out of the returned `bookings` array, which
+ * was correct only for as long as the manifest returned every booking. Once it
+ * pages, counting the page would silently redefine "how many travelers are on
+ * this departure" as "how many are on this screen", so the counts are read as
+ * an aggregate over the full booking set instead.
+ */
+export async function loadSlotTravelerCounts(
+  db: PostgresJsDatabase,
+  bookingIds: string[],
+): Promise<{ travelerCount: number; leadTravelerCount: number }> {
+  if (bookingIds.length === 0) return { travelerCount: 0, leadTravelerCount: 0 }
+
+  const rows = await executeRows<{ traveler_count: number; lead_traveler_count: number }>(
+    db,
+    sql`
+    SELECT
+      COUNT(*)::int AS traveler_count,
+      COUNT(*) FILTER (WHERE btd.is_lead_traveler)::int AS lead_traveler_count
+    FROM booking_travelers bt
+    LEFT JOIN booking_traveler_travel_details btd ON btd.traveler_id = bt.id
+    WHERE bt.booking_id = ANY(${sqlTextArray(bookingIds)})
+  `,
+  )
+
+  return {
+    travelerCount: rows[0]?.traveler_count ?? 0,
+    leadTravelerCount: rows[0]?.lead_traveler_count ?? 0,
+  }
+}
+
 export async function loadSlotBookingUnitRows(
   db: PostgresJsDatabase,
   slotId: string,
@@ -362,7 +395,7 @@ export async function loadSlotBookingUnitRows(
       LEFT JOIN option_units ou ON ou.id = ba.option_unit_id
       WHERE ba.booking_id = ANY(${sqlTextArray(bookingIds)})
         AND ba.availability_slot_id = ${slotId}
-        AND ba.status IN ('held', 'confirmed', 'fulfilled')
+        AND ba.status IN (${activeBookingAllocationStatusesSql()})
       ORDER BY
         ba.booking_id,
         (ba.option_unit_id IS NULL),
@@ -391,7 +424,7 @@ export async function loadSlotBookingUnitRows(
     FROM booking_allocations ba
     WHERE ba.booking_id = ANY(${sqlTextArray(bookingIds)})
       AND ba.availability_slot_id = ${slotId}
-      AND ba.status IN ('held', 'confirmed', 'fulfilled')
+      AND ba.status IN (${activeBookingAllocationStatusesSql()})
     ORDER BY
       ba.booking_id,
       (ba.option_unit_id IS NULL),

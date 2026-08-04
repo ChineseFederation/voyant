@@ -1,4 +1,4 @@
-import { isActiveBookingStatusForSlot } from "./booking-statuses.js"
+import { isActiveBookingStatus } from "./booking-statuses.js"
 
 export interface AllocatorTraveler {
   id: string
@@ -43,7 +43,7 @@ interface InternalGroup {
 }
 
 function activeTravelers(travelers: AllocatorTraveler[]): AllocatorTraveler[] {
-  return travelers.filter((traveler) => isActiveBookingStatusForSlot(traveler.bookingStatus))
+  return travelers.filter((traveler) => isActiveBookingStatus(traveler.bookingStatus))
 }
 
 function groupTravelers(travelers: AllocatorTraveler[]): Map<string, InternalGroup> {

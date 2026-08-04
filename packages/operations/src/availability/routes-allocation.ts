@@ -62,6 +62,7 @@ import {
 import {
   allocationAuditLogQuerySchema,
   allocationAutomationSchema,
+  allocationManifestQuerySchema,
   assignTravelerAllocationSchema,
   insertAllocationResourceSchema,
   materializeOpenSlotsSchema,
@@ -170,6 +171,12 @@ const slotAllocationManifestSchema = z.object({
   bookings: z.array(allocationManifestBookingSchema),
   resources: z.array(allocationResourceSchema),
   sharingGroupLabels: z.record(z.string(), z.string()),
+  /** `limit: null` means every booking is present; `total` is always the departure's. */
+  pagination: z.object({
+    limit: z.number().int().nullable(),
+    offset: z.number().int(),
+    total: z.number().int(),
+  }),
   summary: z.object({
     bookingCount: z.number().int(),
     travelerCount: z.number().int(),
@@ -302,7 +309,11 @@ function csvResponse(c: Context<Env>, csv: string, filename: string) {
 const getManifestRoute = createRoute({
   method: "get",
   path: "/slots/{id}/allocation",
-  request: { params: slotIdParamSchema },
+  description:
+    "The slot's allocation manifest. `limit`/`offset` page the booking axis; " +
+    "omitting `limit` returns every booking. The `summary` counters are " +
+    "whole-departure and do not change with the page.",
+  request: { params: slotIdParamSchema, query: allocationManifestQuerySchema },
   responses: {
     200: {
       description: "The slot's allocation manifest (bookings, travelers, resources, summary)",
@@ -379,7 +390,11 @@ const deleteResourceRoute = createRoute({
 
 const slotResourceRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
   .openapi(getManifestRoute, async (c) => {
-    const manifest = await getSlotAllocationManifest(c.get("db"), c.req.valid("param").id)
+    const manifest = await getSlotAllocationManifest(
+      c.get("db"),
+      c.req.valid("param").id,
+      c.req.valid("query"),
+    )
     return manifest
       ? c.json({ data: manifest }, 200)
       : c.json({ error: "Availability slot not found" }, 404)

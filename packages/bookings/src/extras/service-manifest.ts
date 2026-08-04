@@ -1,3 +1,7 @@
+import {
+  ACTIVE_BOOKING_ALLOCATION_STATUSES,
+  ACTIVE_BOOKING_STATUSES,
+} from "@voyant-travel/bookings-contracts"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import { and, asc, desc, eq, inArray, or } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
@@ -24,10 +28,6 @@ type SlotExtraManifestQuery = z.infer<typeof slotExtraManifestQuerySchema>
 type SlotExtraSelectionPatch = z.infer<typeof slotExtraSelectionPatchSchema>
 type SlotExtraSelectionBulk = z.infer<typeof slotExtraSelectionBulkSchema>
 type SlotExtraCollectionBulk = z.infer<typeof slotExtraCollectionBulkSchema>
-
-const activeBookingStatusesForSlot = ["confirmed", "in_progress", "completed"] as const
-
-const activeAllocationStatusesForSlot = ["held", "confirmed", "fulfilled"] as const
 
 function defaultCollectionStatus(collectionMode: string) {
   if (collectionMode === "cash_on_trip" || collectionMode === "external") return "pending"
@@ -129,7 +129,7 @@ export const bookingsExtrasManifestService = {
   async getSlotExtraManifest(
     db: PostgresJsDatabase,
     slotId: string,
-    query: SlotExtraManifestQuery = { includeInactiveExtras: false },
+    query: SlotExtraManifestQuery = { includeInactiveExtras: false, offset: 0 },
   ) {
     const [slot] = await db
       .select()
@@ -172,8 +172,8 @@ export const bookingsExtrasManifestService = {
         .where(
           and(
             eq(bookingAllocations.availabilitySlotId, slotId),
-            inArray(bookings.status, [...activeBookingStatusesForSlot]),
-            inArray(bookingAllocations.status, [...activeAllocationStatusesForSlot]),
+            inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+            inArray(bookingAllocations.status, [...ACTIVE_BOOKING_ALLOCATION_STATUSES]),
             or(
               eq(bookingTravelers.participantType, "traveler"),
               eq(bookingTravelers.participantType, "occupant"),
@@ -293,17 +293,36 @@ export const bookingsExtrasManifestService = {
       }),
     )
 
+    // Rollups are computed over the whole departure *before* the page is cut,
+    // so `summaries` and `travelerTotal` are identical on every page. Only the
+    // per-traveler rows are sliced.
+    const summaries = summarizeSlotExtras(extras, travelers.length, selections)
+    const offset = query.offset ?? 0
+    const pagedTravelers =
+      query.limit === undefined ? travelers : travelers.slice(offset, offset + query.limit)
+    const pagedTravelerIds = new Set(pagedTravelers.map((traveler) => traveler.id))
+
     return {
       status: "ok" as const,
       data: {
         slot,
         extras,
-        travelers: travelers.map((traveler) => ({
+        travelers: pagedTravelers.map((traveler) => ({
           ...traveler,
           fullName: fullName(traveler.firstName, traveler.lastName),
         })),
-        selections,
-        summaries: summarizeSlotExtras(extras, travelers.length, selections),
+        selections:
+          query.limit === undefined
+            ? selections
+            : selections.filter((selection) => pagedTravelerIds.has(selection.travelerId)),
+        summaries,
+        pagination: {
+          /** `null` means "no page was requested — every traveler is here". */
+          limit: query.limit ?? null,
+          offset,
+          /** Travelers on the whole departure, not on this page. */
+          total: travelers.length,
+        },
       },
     }
   },
@@ -479,8 +498,8 @@ async function validateSlotSelection(
         eq(bookingTravelers.id, input.travelerId),
         eq(bookingTravelers.bookingId, input.bookingId),
         eq(bookingAllocations.availabilitySlotId, slotId),
-        inArray(bookings.status, [...activeBookingStatusesForSlot]),
-        inArray(bookingAllocations.status, [...activeAllocationStatusesForSlot]),
+        inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+        inArray(bookingAllocations.status, [...ACTIVE_BOOKING_ALLOCATION_STATUSES]),
       ),
     )
     .limit(1)

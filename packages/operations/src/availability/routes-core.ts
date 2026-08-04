@@ -156,6 +156,14 @@ const availabilityStartTimeListRowSchema = availabilityStartTimeSchema.extend({
 const availabilitySlotBaseSchema = z.object({
   id: idSchema,
   productId: z.string(),
+  /**
+   * The immutable Product Version this departure was materialized from.
+   * Persisted and accepted on write since #4032 but previously dropped on the
+   * way out, which left the operator unable to see which frozen definition a
+   * departure is operating. `null` on legacy rows and never-published
+   * products.
+   */
+  productVersionId: z.string().nullable(),
   itineraryId: z.string().nullable(),
   optionId: z.string().nullable(),
   facilityId: z.string().nullable(),
@@ -208,6 +216,166 @@ const slotUnitAvailabilitySchema = z.object({
   initial: z.number().int().nullable(),
   reserved: z.number().int(),
   remaining: z.number().int().nullable(),
+})
+
+// --- departure summary ------------------------------------------------------
+
+/**
+ * The composed departure envelope. Every field is a scalar, a small record, or
+ * a capped list — this route is the workspace's headline, and it must stay a
+ * single bounded response no matter how large the departure is.
+ */
+const departureIssueSchema = z.object({
+  code: z.string(),
+  severity: z.enum(["critical", "warning"]),
+  subjectType: z.enum([
+    "departure",
+    "booking",
+    "booking_allocation",
+    "availability_hold",
+    "allocation_resource",
+  ]),
+  subjectId: z.string(),
+  count: z.number().int(),
+  message: z.string(),
+})
+
+const departureHoldCountersSchema = z.object({
+  active: z.number().int(),
+  activePax: z.number().int(),
+  expired: z.number().int(),
+  expiredPax: z.number().int(),
+  released: z.number().int(),
+  converted: z.number().int(),
+})
+
+const departureAllocationCountersSchema = z.object({
+  held: z.number().int(),
+  confirmed: z.number().int(),
+  fulfilled: z.number().int(),
+  staleHeld: z.number().int(),
+  released: z.number().int(),
+  expired: z.number().int(),
+  cancelled: z.number().int(),
+  active: z.number().int(),
+  inactive: z.number().int(),
+})
+
+const departureTravelerCountersSchema = z.object({
+  entered: z.number().int(),
+  lead: z.number().int(),
+  assigned: z.number().int(),
+  unassigned: z.number().int(),
+  missing: z.number().int(),
+})
+
+const departureResourceCountersSchema = z.object({
+  total: z.number().int(),
+  seating: z.number().int(),
+  capacity: z.number().int(),
+  assigned: z.number().int(),
+  available: z.number().int(),
+  overCapacity: z.number().int(),
+})
+
+const departureResourceRowSchema = z.object({
+  id: idSchema,
+  slotId: z.string(),
+  kind: z.string(),
+  label: z.string().nullable(),
+  refType: z.string().nullable(),
+  refId: z.string().nullable(),
+  parentId: z.string().nullable(),
+  capacity: z.number().int(),
+  assigned: z.number().int(),
+  available: z.number().int(),
+  flags: z.record(z.string(), z.unknown()),
+  sortOrder: z.number().int(),
+})
+
+const departureCapacityCountersSchema = z.object({
+  slotId: z.string(),
+  unlimited: z.boolean(),
+  initialPax: z.number().int().nullable(),
+  effectivePax: z.number().int().nullable(),
+  remainingPax: z.number().int().nullable(),
+  derivedRemainingPax: z.number().int().nullable(),
+  derivedConsumedPax: z.number().int(),
+  holds: departureHoldCountersSchema,
+  allocations: departureAllocationCountersSchema,
+  bookings: z.object({
+    active: z.number().int(),
+    cancelledWithLiveAllocation: z.number().int(),
+    expectedPax: z.number().int(),
+    byStatus: z.record(z.string(), z.number().int()),
+  }),
+  travelers: departureTravelerCountersSchema,
+  resources: departureResourceCountersSchema,
+  resourceBreakdown: z.array(departureResourceRowSchema),
+})
+
+const departureFinanceLineSchema = z.object({
+  currency: z.string(),
+  revenueCents: z.number().int(),
+  actualCostCents: z.number().int(),
+  plannedCostCents: z.number().int(),
+  profitCents: z.number().int(),
+  marginPercent: z.number().nullable(),
+  varianceCents: z.number().int(),
+})
+
+const departureSummarySchema = z.object({
+  departure: z.object({
+    id: idSchema,
+    productId: z.string(),
+    productVersionId: z.string().nullable(),
+    itineraryId: z.string().nullable(),
+    optionId: z.string().nullable(),
+    facilityId: z.string().nullable(),
+    status: availabilitySlotStatusSchema,
+    dateLocal: z.string(),
+    startsAt: z.string(),
+    endsAt: z.string().nullable(),
+    timezone: z.string(),
+    notes: z.string().nullable(),
+  }),
+  capacity: departureCapacityCountersSchema,
+  bookings: z.object({
+    count: z.number().int(),
+    byStatus: z.record(z.string(), z.number().int()),
+    expectedPax: z.number().int(),
+    currency: z.string().nullable(),
+    soldAmountCents: z.number().int().nullable(),
+    paidAmountCents: z.number().int().nullable(),
+    outstandingAmountCents: z.number().int().nullable(),
+  }),
+  travelers: departureTravelerCountersSchema,
+  allocation: departureResourceCountersSchema,
+  operations: z.object({
+    issues: z.array(departureIssueSchema),
+    criticalCount: z.number().int(),
+    warningCount: z.number().int(),
+    clear: z.boolean(),
+  }),
+  /** Null when the Extras module is not deployed. */
+  extras: z
+    .object({
+      offered: z.number().int(),
+      withSelections: z.number().int(),
+      selectedTravelerCount: z.number().int(),
+      totalQuantity: z.number().int(),
+      outstandingCollectionCount: z.number().int(),
+      fulfilledExtraCount: z.number().int(),
+    })
+    .nullable(),
+  /** Null when no Finance provider is bound in this deployment. */
+  finance: z
+    .object({
+      perCurrency: z.array(departureFinanceLineSchema),
+      base: departureFinanceLineSchema.nullable(),
+      unconvertibleCurrencies: z.array(z.string()),
+    })
+    .nullable(),
 })
 
 const availabilityCloseoutSchema = z.object({
@@ -783,6 +951,30 @@ const getSlotUnitAvailabilityRoute = createRoute({
   },
 })
 
+const getDepartureSummaryRoute = createRoute({
+  method: "get",
+  path: "/slots/{id}/summary",
+  description:
+    "One bounded envelope for an operated Departure: slot + Product Version " +
+    "identity, capacity counters (holds, allocations, travelers, resources), " +
+    "booking quantities and settlement, typed attention issues, the extras " +
+    "rollup, and Finance's headline P&L. Composes existing truths — Finance " +
+    "remains the monetary authority and money is null when it is not deployed. " +
+    "Every counter is whole-departure, so paging the allocation manifest never " +
+    "changes a figure here.",
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      description: "The departure summary",
+      content: { "application/json": { schema: z.object({ data: departureSummarySchema }) } },
+    },
+    404: {
+      description: "Availability slot not found",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
+
 const updateSlotRoute = createRoute({
   method: "patch",
   path: "/slots/{id}",
@@ -869,6 +1061,15 @@ const slotRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
     )
     return rows
       ? c.json({ data: rows }, 200)
+      : c.json({ error: "Availability slot not found" }, 404)
+  })
+  .openapi(getDepartureSummaryRoute, async (c) => {
+    const summary = await availabilityService.getDepartureSummary(
+      c.get("db"),
+      c.req.valid("param").id,
+    )
+    return summary
+      ? c.json({ data: summary }, 200)
       : c.json({ error: "Availability slot not found" }, 404)
   })
   .openapi(updateSlotRoute, async (c) => {
