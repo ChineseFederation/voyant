@@ -1,5 +1,11 @@
 # @voyant-travel/mcp
 
+## 0.15.8
+
+### Patch Changes
+
+- @voyant-travel/framework@0.75.3
+
 ## 0.15.7
 
 ### Patch Changes
