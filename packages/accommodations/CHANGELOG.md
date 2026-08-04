@@ -1,5 +1,12 @@
 # @voyant-travel/accommodations
 
+## 0.202.6
+
+### Patch Changes
+
+- Updated dependencies [64df424]
+  - @voyant-travel/operations@0.19.0
+
 ## 0.202.5
 
 ### Patch Changes

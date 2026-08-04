@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/inventory",
-  "version": "0.34.3",
+  "version": "0.34.4",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
