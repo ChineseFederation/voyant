@@ -1,5 +1,71 @@
 # @voyant-travel/finance-react
 
+## 0.245.0
+
+### Minor Changes
+
+- b7bb6c8: Surface the under-allocated remainder of a supplier invoice.
+
+  Allocating a supplier invoice has always permitted under-allocation, and the
+  invariant docs said the leftover "is reported as `unattributed` by the read
+  model". It was not. The profitability read model's unattributed figure sums
+  `supplier_cost_allocations` rows whose `targetType` is `unattributed`, so it
+  answers "how much did someone deliberately mark as belonging to no departure" —
+  a remainder nobody allocated has no row at all and could never appear. An
+  invoice of 1000 with 600 allocated reported 600 of cost and nothing else; the
+  missing 400 quietly inflated margin everywhere the read model is read.
+
+  The departure and product reports now carry a second, separate figure,
+  `unallocated` (and `unallocatedCents` in the accounting-base rollup): per
+  invoice, its total minus every allocation row against it. The two are not
+  merged, because "we decided this cost belongs to no departure" and "nobody has
+  allocated this yet" are different signals and only the second is a backlog. The
+  remainder gets the same FX treatment as the rest of the model — pro-rated from
+  the invoice's own issue-date base snapshot, with only un-snapshotted legacy
+  rows converted at a fallback rate — and void and soft-deleted invoices are
+  excluded, as in the neighbouring queries.
+
+  Both CSV exports gain a trailing per-currency block listing the two kinds of
+  unaccounted cost. It is emitted only when there is something to report, so an
+  export from a fully allocated ledger is unchanged.
+
+### Patch Changes
+
+- ff0b8cc: feat(operations): reconcile a departure in one workspace
+
+  The availability slot detail page becomes the departure workspace. It reads its
+  headline from the composed `GET /slots/{id}/summary` envelope instead of
+  re-summing the allocation manifest in the browser, so a paged manifest can no
+  longer move a counter, and Finance's own P&L replaces the client-side revenue
+  roll-up (`aggregateSlotFinancials` and `KpiStrip` are deprecated but still
+  exported).
+
+  - Six sections — Overview, Travelers, Allocation, Operations, Financials,
+    Activity — replace the old six tabs. Extras, Pickup and Closeouts are
+    sections inside Operations; Meta is the identity block inside Overview.
+  - The selected section is URL-addressable (`?tab=`), so it survives a reload
+    and is linkable.
+  - Every section renders when empty, each with its next authorized action.
+    Pickup and Closeouts previously disappeared entirely.
+  - The typed departure issues render with severity, grouped, localized per
+    `DepartureIssueCode`, each linking to its subject where one exists.
+  - Allocation resources' persisted `refType`/`refId` now resolve to a
+    destination (resource, supplier, product), and Financials links to Finance's
+    profitability report through a new `financeProfitability.report` destination.
+  - Fixes the allocation audit log resolving `allocation_resources` ids against
+    the global operations resource pool, which always missed and rendered a raw
+    id.
+
+- Updated dependencies [ff0b8cc]
+- Updated dependencies [645a219]
+- Updated dependencies [b7bb6c8]
+  - @voyant-travel/operations-react@0.126.0
+  - @voyant-travel/i18n@0.121.0
+  - @voyant-travel/finance@0.239.0
+  - @voyant-travel/bookings-react@0.245.0
+  - @voyant-travel/inventory-react@0.127.0
+  - @voyant-travel/distribution-react@0.235.0
+
 ## 0.244.0
 
 ### Patch Changes

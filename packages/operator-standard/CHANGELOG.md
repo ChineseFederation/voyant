@@ -1,5 +1,58 @@
 # @voyant-travel/operator-standard
 
+## 0.20.11
+
+### Patch Changes
+
+- Updated dependencies [ff0b8cc]
+- Updated dependencies [645a219]
+- Updated dependencies [b3cfd05]
+- Updated dependencies [b7bb6c8]
+  - @voyant-travel/operations-react@0.126.0
+  - @voyant-travel/finance-react@0.245.0
+  - @voyant-travel/i18n@0.121.0
+  - @voyant-travel/inventory@0.30.0
+  - @voyant-travel/finance@0.239.0
+  - @voyant-travel/storefront@0.241.0
+  - @voyant-travel/availability@0.3.2
+  - @voyant-travel/bookings-react@0.245.0
+  - @voyant-travel/admin-app@0.138.0
+  - @voyant-travel/flights-react@0.245.0
+  - @voyant-travel/inventory-react@0.127.0
+  - @voyant-travel/operator-settings-react@0.102.0
+  - @voyant-travel/action-ledger-react@0.134.0
+  - @voyant-travel/admin@0.134.3
+  - @voyant-travel/apps-react@0.10.2
+  - @voyant-travel/auth-react@0.150.11
+  - @voyant-travel/catalog-react@0.243.0
+  - @voyant-travel/commerce-react@0.127.0
+  - @voyant-travel/cruises-react@0.244.0
+  - @voyant-travel/custom-fields-react@0.10.2
+  - @voyant-travel/distribution-react@0.235.0
+  - @voyant-travel/event-catalog-react@0.25.1
+  - @voyant-travel/identity-react@0.245.0
+  - @voyant-travel/legal-react@0.245.0
+  - @voyant-travel/media-react@0.10.2
+  - @voyant-travel/mice-react@0.113.0
+  - @voyant-travel/navigation-preferences-react@0.24.2
+  - @voyant-travel/notifications-react@0.147.4
+  - @voyant-travel/proposals-react@0.243.0
+  - @voyant-travel/relationships-react@0.245.0
+  - @voyant-travel/storefront-react@0.247.0
+  - @voyant-travel/trips-react@0.238.0
+  - @voyant-travel/catalog-authoring@0.107.41
+  - @voyant-travel/legal@0.239.0
+  - @voyant-travel/trips@0.229.8
+  - @voyant-travel/accommodations@0.199.4
+  - @voyant-travel/catalog@0.237.2
+  - @voyant-travel/commerce@0.47.6
+  - @voyant-travel/cruises@0.235.7
+  - @voyant-travel/distribution@0.227.4
+  - @voyant-travel/flights@0.236.7
+  - @voyant-travel/notifications@0.147.9
+  - @voyant-travel/operator-settings@0.17.16
+  - @voyant-travel/admin-host@0.96.0
+
 ## 0.20.10
 
 ### Patch Changes
