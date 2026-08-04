@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useOperatorAdminMessages as useAdminMessages } from "@voyant-travel/admin"
 import { type Draft, emptyDraft } from "@voyant-travel/bookings-react/journey"
 import { type CatalogSearchHit, useCatalogSearch } from "@voyant-travel/catalog-react"
-import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
+import { useOfferPreview } from "@voyant-travel/catalog-react/booking-engine"
 import { AsyncCombobox } from "@voyant-travel/ui/components/async-combobox"
 import { DateTimeField } from "@voyant-travel/ui/components/date-time-field"
 import * as React from "react"
@@ -66,13 +66,21 @@ export function CatalogConfigurator({
     pending.bookingDraft && (pending.bookingDraft.configure.pax?.adult ?? 0) !== paxAdult
       ? updateDraftPax(pending.bookingDraft, paxAdult)
       : pending.bookingDraft
-  const quote = useBookingQuote({
+  // Non-binding price + requirements probe. The beta `POST /catalog/quote`
+  // this configurator used is gone; Offer Preview is its stateless successor,
+  // so browsing catalog components still does not open a Booking Session.
+  const previewTarget = React.useMemo(
+    () => offerPreviewTargetFor(vertical, pending.catalogEntityId, pending.catalogSourceKind),
+    [vertical, pending.catalogEntityId, pending.catalogSourceKind],
+  )
+  const quote = useOfferPreview({
     surface: "admin",
-    draft: quoteDraft,
-    scope: { locale: "en-GB", audience: "staff", market: "default" },
-    enabled: Boolean(pending.bookingDraft),
+    target: previewTarget,
+    selection: quoteDraft,
+    scope: { locale: "en-GB", market: "default" },
+    enabled: Boolean(pending.bookingDraft && previewTarget),
   })
-  const shape = quote.data?.shape ?? null
+  const shape = quote.data?.requirements ?? null
 
   React.useEffect(() => {
     if (!pending.bookingDraft) return
@@ -199,11 +207,29 @@ export function CatalogConfigurator({
           shape={shape}
           onDraftChange={(bookingDraft) => onChange({ ...pending, bookingDraft })}
         />
-      ) : pending.bookingDraft && quote.isQuoting ? (
+      ) : pending.bookingDraft && quote.isSettling ? (
         <p className="text-muted-foreground text-sm">{t.loadingOptions}</p>
       ) : null}
     </div>
   )
+}
+
+/**
+ * Name the component for Offer Preview.
+ *
+ * `createBookingSessionTargetV1` admits `product` and `catalog_item` only —
+ * there is no `owned_entity` member on the create-side union — so an owned
+ * stay cannot be named at all and returns `null` rather than being mislabelled
+ * as a sourced catalog item, which would price the wrong thing.
+ */
+function offerPreviewTargetFor(
+  vertical: CatalogVertical,
+  entityId: string | null,
+  sourceKind: string | null,
+): { kind: "product"; productId: string } | { kind: "catalog_item"; catalogItemId: string } | null {
+  if (!entityId) return null
+  if (sourceKind && sourceKind !== "owned") return { kind: "catalog_item", catalogItemId: entityId }
+  return vertical === "products" ? { kind: "product", productId: entityId } : null
 }
 
 function createCatalogBookingDraft({

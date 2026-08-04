@@ -63,6 +63,10 @@ export const bookingsUiEnCreateList = {
           "The selected availability is no longer held. Review the departure and try again.",
         quoteUnavailable:
           "The selected product could not be quoted. Review the selection and try again.",
+        selectionIncomplete:
+          "Some required booking details are still missing. Complete the highlighted fields and try again.",
+        requirementsChanged:
+          "The booking details this product requires changed. Review the refreshed form and try again.",
         commitRejected: "The booking could not be committed from the current selection.",
         notAuthorized: "You do not have permission to commit this booking.",
         unknown: "The Booking Session rejected this request. Review the booking and try again.",

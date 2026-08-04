@@ -64,6 +64,10 @@ export const bookingsUiRoCreateList = {
           "Disponibilitatea selectata nu mai este retinuta. Verifica plecarea si incearca din nou.",
         quoteUnavailable:
           "Produsul selectat nu a putut fi cotat. Verifica selectia si incearca din nou.",
+        selectionIncomplete:
+          "Unele date obligatorii ale rezervarii lipsesc. Completeaza campurile marcate si incearca din nou.",
+        requirementsChanged:
+          "Datele solicitate de acest produs s-au schimbat. Verifica formularul actualizat si incearca din nou.",
         commitRejected: "Rezervarea nu a putut fi finalizata din selectia curenta.",
         notAuthorized: "Nu ai permisiunea de a finaliza aceasta rezervare.",
         unknown: "Booking Session a respins cererea. Verifica rezervarea si incearca din nou.",

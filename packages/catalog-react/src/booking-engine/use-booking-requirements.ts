@@ -6,24 +6,32 @@ import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/boo
 import type { BookingJourneyApiOptions } from "./use-booking-journey-api.js"
 
 export interface UseBookingRequirementsOptions extends BookingJourneyApiOptions {
-  /** Quote response — typically passed in from the wrapping
-   *  `useBookingQuote()`. */
-  quote: { shape?: BookingRequirementsV1 } | null
-  /** Fallback shape rendered when the quote hasn't loaded yet — the
+  /**
+   * Anything that publishes Booking Requirements: a Session record
+   * (`useBookingSession().session`), a Quote (`useBookingQuote().data`), or an
+   * Offer Preview result (`useOfferPreview().data`). All three carry
+   * `requirements`; `shape` is the beta quote's spelling, still read so a
+   * half-migrated host keeps rendering.
+   */
+  quote: { requirements?: BookingRequirementsV1; shape?: BookingRequirementsV1 } | null
+  /** Fallback shape rendered before the first descriptor lands — the
    *  journey shell uses this so the wizard renders an empty Configure
    *  step on first paint. */
   fallback: BookingRequirementsV1
 }
 
 /**
- * Convenience accessor that returns the descriptor a quote response
- * carries — or a caller-supplied fallback while we wait for the
- * first quote. Per booking-journey-architecture §3 + §8.1.
+ * Convenience accessor that returns the descriptor a Session, Quote or Offer
+ * Preview carries — or a caller-supplied fallback while we wait for the first
+ * one. Per booking-journey-architecture §3 + §8.1.
  */
 export function useBookingRequirements(
   options: UseBookingRequirementsOptions,
 ): BookingRequirementsV1 {
-  return normalizeBookingRequirements(options.quote?.shape, options.fallback)
+  return normalizeBookingRequirements(
+    options.quote?.requirements ?? options.quote?.shape,
+    options.fallback,
+  )
 }
 
 /**

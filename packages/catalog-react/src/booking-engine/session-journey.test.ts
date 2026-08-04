@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 
 import {
-  commitManualBookingSessionV1,
-  type ManualBookingSessionContinuation,
-} from "../../src/manual-booking-session-client.js"
+  type BookingSessionJourneyContinuation,
+  commitBookingSessionJourneyV1,
+} from "./session-journey.js"
+import { BookingSessionJourneyError, unsatisfiedBookingRequirements } from "./session-outcomes.js"
+import { createBookingJourneyApi } from "./use-booking-journey-api.js"
 
 const REQUIREMENTS = {
   showsConfigure: true,
@@ -24,7 +26,7 @@ function json(body: unknown) {
   return Response.json(body)
 }
 
-describe("manual Booking Session v1 client", () => {
+describe("Booking Session v1 journey", () => {
   it("uses only authenticated Session, Quote, Hold, and Commit routes", async () => {
     const calls: Array<{ url: string; body: Record<string, unknown> }> = []
     const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -50,10 +52,10 @@ describe("manual Booking Session v1 client", () => {
     })
 
     await expect(
-      commitManualBookingSessionV1(
-        { baseUrl: "https://operator.test", fetcher },
+      commitBookingSessionJourneyV1(
+        createBookingJourneyApi({ baseUrl: "https://operator.test", fetcher }),
         {
-          productId: "prod_1",
+          target: { kind: "product", productId: "prod_1" },
           selection: { configure: { pax: { adult: 2 } }, staffBooking: { personId: "pers_1" } },
           quantity: 2,
           idempotencyKey: "manual-booking:stable",
@@ -102,15 +104,12 @@ describe("manual Booking Session v1 client", () => {
     })
 
     await expect(
-      commitManualBookingSessionV1(
-        { baseUrl: "", fetcher },
-        {
-          productId: "prod_1",
-          selection: {},
-          quantity: 1,
-          idempotencyKey: "manual-booking:payment",
-        },
-      ),
+      commitBookingSessionJourneyV1(createBookingJourneyApi({ baseUrl: "", fetcher }), {
+        target: { kind: "product", productId: "prod_1" },
+        selection: {},
+        quantity: 1,
+        idempotencyKey: "manual-booking:payment",
+      }),
     ).resolves.toEqual({
       kind: "payment_required",
       sessionId: "bses_1",
@@ -124,7 +123,7 @@ describe("manual Booking Session v1 client", () => {
   })
 
   it("retries only Commit when the first Commit response is lost", async () => {
-    let continuation: ManualBookingSessionContinuation | undefined
+    let continuation: BookingSessionJourneyContinuation | undefined
     const firstFetcher = vi.fn(async (url: string) => {
       if (url.endsWith("/booking-sessions")) {
         return json({ kind: "session_created", session: session() })
@@ -135,10 +134,10 @@ describe("manual Booking Session v1 client", () => {
     })
 
     await expect(
-      commitManualBookingSessionV1(
-        { baseUrl: "", fetcher: firstFetcher },
+      commitBookingSessionJourneyV1(
+        createBookingJourneyApi({ baseUrl: "", fetcher: firstFetcher }),
         {
-          productId: "prod_1",
+          target: { kind: "product", productId: "prod_1" },
           selection: {},
           quantity: 1,
           idempotencyKey: "manual-booking:retry",
@@ -177,10 +176,10 @@ describe("manual Booking Session v1 client", () => {
       }),
     )
     await expect(
-      commitManualBookingSessionV1(
-        { baseUrl: "", fetcher: retryFetcher },
+      commitBookingSessionJourneyV1(
+        createBookingJourneyApi({ baseUrl: "", fetcher: retryFetcher }),
         {
-          productId: "prod_1",
+          target: { kind: "product", productId: "prod_1" },
           selection: {},
           quantity: 1,
           idempotencyKey: "manual-booking:retry",
@@ -209,20 +208,48 @@ describe("manual Booking Session v1 client", () => {
     )
 
     await expect(
-      commitManualBookingSessionV1(
-        { baseUrl: "", fetcher },
-        {
-          productId: "prod_1",
-          selection: {},
-          quantity: 1,
-          idempotencyKey: "manual-booking:conflict",
-        },
-      ),
+      commitBookingSessionJourneyV1(createBookingJourneyApi({ baseUrl: "", fetcher }), {
+        target: { kind: "product", productId: "prod_1" },
+        selection: {},
+        quantity: 1,
+        idempotencyKey: "manual-booking:conflict",
+      }),
     ).rejects.toMatchObject({
-      name: "ManualBookingSessionError",
-      message: "manual_booking_session_revisionConflict",
+      name: "BookingSessionJourneyError",
+      message: "booking_session_revisionConflict",
       recovery: "revisionConflict",
     })
+  })
+
+  it("carries the unsatisfied requirement list through instead of flattening it", async () => {
+    const unsatisfied = [
+      { requirementKey: "paxBands.adult", reason: "pax_band_below_min" },
+      { requirementKey: "travelerFields.passportNumber", reason: "traveler_field_required" },
+    ]
+    const fetcher = vi.fn(async () =>
+      json({
+        kind: "rejected",
+        error: { kind: "selection_incomplete", unsatisfied, nextAction: "update_selection" },
+      }),
+    )
+
+    const failure = await commitBookingSessionJourneyV1(
+      createBookingJourneyApi({ baseUrl: "", fetcher }),
+      {
+        target: { kind: "product", productId: "prod_1" },
+        selection: {},
+        quantity: 1,
+        idempotencyKey: "manual-booking:incomplete",
+      },
+    ).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(BookingSessionJourneyError)
+    const error = failure as BookingSessionJourneyError
+    // The point of typed outcomes: a host renders this list, field by field.
+    expect(error.unsatisfied).toEqual(unsatisfied)
+    expect(error.error).toMatchObject({ kind: "selection_incomplete" })
+    expect(error.recovery).toBe("selectionIncomplete")
+    expect(unsatisfiedBookingRequirements(error.outcome)).toEqual(unsatisfied)
   })
 })
 

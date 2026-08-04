@@ -1,186 +1,168 @@
 "use client"
 
 import { useMutation, useQuery } from "@tanstack/react-query"
-import {
-  type BookingSelectionV1,
-  type QuoteResponseV1,
-  quoteResponseV1,
-} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { useEffect, useMemo, useRef, useState } from "react"
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
+import type {
+  BookingQuoteRecordV1,
+  BookingSessionLifecycleErrorV1,
+  BookingSessionOutcomeV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
+import { bookingSessionIdempotencyKey, quoteBookingSession } from "./session-client.js"
+import { bookingSessionOutcomeOf, bookingSessionRejection } from "./session-outcomes.js"
 import { type BookingJourneyApiOptions, useBookingJourneyApi } from "./use-booking-journey-api.js"
 
 export interface UseBookingQuoteOptions extends BookingJourneyApiOptions {
-  draft: BookingSelectionV1 | null
-  /** Locale / audience / market scope — defaults sensible per surface. */
-  scope?: {
-    locale?: string
-    audience?: "staff" | "customer" | "partner" | "supplier"
-    market?: string
-    currency?: string
-  }
+  sessionId: string | null
+  /** The revision to price. The Quote is bound to it, exactly. */
+  revision: number | null
+  /** Stable root shared with `useBookingSession` — see its idempotency note. */
+  idempotencyRoot: string
   /** Debounce window in ms — default 250 (per booking-journey-architecture §5). */
   debounceMs?: number
-  /** Disable auto-refetch — caller drives via `mutate()`. */
+  /** Disable the automatic quote; the caller drives via `requote()`. */
   enabled?: boolean
 }
 
+export interface UseBookingQuote {
+  /** The priced Quote, or `null` when this revision could not be priced. */
+  data: BookingQuoteRecordV1 | null
+  /**
+   * The Booking Requirements this price was computed against. Also read off a
+   * `quote_unavailable` rejection: a sold-out target must still render a
+   * correct wizard so the buyer can change the selection that made it
+   * unavailable.
+   */
+  requirements: BookingRequirementsV1 | null
+  /** Echoed back on Commit so a stale descriptor is rejected, not booked. */
+  requirementsFingerprint: string | null
+  /** The whole outcome, so callers can branch on its `kind`. */
+  outcome: BookingSessionOutcomeV1 | null
+  rejection: BookingSessionLifecycleErrorV1 | null
+  isQuoting: boolean
+  /** Covers the debounce window too, so no surface can commit a price it is about to replace. */
+  isSettling: boolean
+  /** Transport failure only. Lifecycle rejections arrive as outcomes. */
+  error: Error | null
+  /** Re-price the current revision. `fresh` mints a new key, for an expired Quote. */
+  requote: (options?: { fresh?: boolean }) => Promise<BookingSessionOutcomeV1>
+}
+
 /**
- * Live-quote a draft. Re-fetches on every meaningful draft change,
- * with a 250ms debounce. Per booking-journey-architecture §5.
+ * Quote the current Session revision.
  *
- * Returns:
- *   - `data`         — the latest QuoteResponseV1 (or `null` while loading)
- *   - `isQuoting`    — true while a fetch is in flight
- *   - `requote`      — manual trigger (e.g. for "refresh price" buttons)
+ * Four behaviours are carried over from the beta hook this replaces. They
+ * encode fixed bugs (voyant#2643), not preferences:
+ *
+ *  1. **~250ms debounce.** The revision advances once per accepted selection
+ *     edit; quoting on every one of them re-prices the wizard mid-keystroke.
+ *  2. **`isSettling`.** `isQuoting` only covers an active request. Commit
+ *     surfaces must also be blocked during the debounce window, or they can
+ *     submit the previous Quote after the selection changed and before the
+ *     next request starts.
+ *  3. **`placeholderData`.** Each revision is a new query key. Keeping the
+ *     previous Quote visible while the next one fetches makes the price swap
+ *     in place instead of blanking and flashing the whole step.
+ *  4. **Never carry a price across a scope change.** In the beta hook that was
+ *     an explicit scope guard on the query key. Here it is structural: a
+ *     Session's scope is fixed at create, so a market/currency change *is* a
+ *     new Session — and the placeholder is dropped whenever the Session id
+ *     changes, so a stale-market price can never be the one confirmed.
  */
-export function useBookingQuote(options: UseBookingQuoteOptions) {
+export function useBookingQuote(options: UseBookingQuoteOptions): UseBookingQuote {
   const api = useBookingJourneyApi(options)
   const debounceMs = options.debounceMs ?? 250
-  const enabled = options.enabled !== false && !!options.draft
+  const { sessionId, revision, idempotencyRoot } = options
+  const surface = options.surface ?? "admin"
+  const enabled = options.enabled !== false && Boolean(sessionId) && revision !== null
 
-  // Stabilize the draft snapshot via a serialized signature so
-  // TanStack Query's queryKey only changes when meaningful fields
-  // change.
-  const signature = options.draft ? signDraft(options.draft) : null
-  const [debouncedSignature, setDebouncedSignature] = useState(signature)
-  const draftRef = useRef(options.draft)
-  draftRef.current = options.draft
-
-  // Scope (market / currency / locale / audience) is part of what the quote
-  // prices, so it must be in the query key — otherwise changing the selected
-  // market/currency on an already-open journey keeps the previous quote until
-  // the draft signature changes.
-  const scopeKey = JSON.stringify({
-    locale: options.scope?.locale,
-    audience: options.scope?.audience,
-    market: options.scope?.market,
-    currency: options.scope?.currency,
-  })
-
+  const [debouncedRevision, setDebouncedRevision] = useState<number | null>(revision)
   useEffect(() => {
-    if (!signature) {
-      setDebouncedSignature(null)
+    if (revision === null) {
+      setDebouncedRevision(null)
       return
     }
-    const t = setTimeout(() => setDebouncedSignature(signature), debounceMs)
-    return () => clearTimeout(t)
-  }, [signature, debounceMs])
+    const timer = setTimeout(() => setDebouncedRevision(revision), debounceMs)
+    return () => clearTimeout(timer)
+  }, [revision, debounceMs])
 
-  const query = useQuery<QuoteResponseV1 | null>({
-    queryKey: ["booking-quote", options.surface ?? "admin", debouncedSignature, scopeKey],
-    queryFn: async () => {
-      const draft = draftRef.current
-      if (!draft) return null
-      return runQuote(api, draft, options.scope)
+  // `attempt` is deliberately NOT advanced by a normal requote: re-asking for
+  // the same revision must reuse its key so a retried request cannot mint a
+  // second Quote. Only an explicit `requote({ fresh: true })` — the "this Quote
+  // expired, get me another" path — advances it.
+  const [attempt, setAttempt] = useState(0)
+
+  const runQuote = useCallback(
+    async (targetRevision: number, targetAttempt: number) => {
+      if (!sessionId) return null
+      return quoteBookingSession(api, sessionId, {
+        expectedRevision: targetRevision,
+        idempotencyKey: bookingSessionIdempotencyKey(
+          idempotencyRoot,
+          "quote",
+          targetRevision,
+          targetAttempt || undefined,
+        ),
+      })
     },
+    [api, idempotencyRoot, sessionId],
+  )
+
+  const query = useQuery<BookingSessionOutcomeV1 | null>({
+    queryKey: ["booking-session-quote", surface, sessionId, debouncedRevision, attempt],
+    queryFn: () => (debouncedRevision === null ? null : runQuote(debouncedRevision, attempt)),
     enabled,
-    // Each meaningful draft edit changes the query key. Keep the previous
-    // quote's data visible while the new one fetches so the journey updates
-    // in place (price swaps when ready) instead of blanking → falling back
-    // to the minimal shape → flashing the whole Configure step on every
-    // traveler/room change.
-    //
-    // BUT do not carry a quote across a SCOPE change: its price is for the old
-    // market/currency, and keeping it visible would let the shopper confirm the
-    // stale-scope quote in the sub-second window before the re-scoped quote
-    // lands. On a scope change we drop to `null` (loading) so the confirm guard
-    // (`!quote.data?.quoteId`) blocks booking until the new quote resolves.
-    placeholderData: (previous, previousQuery) => {
-      const previousScopeKey = previousQuery?.queryKey?.[3]
-      return previousScopeKey === scopeKey ? previous : undefined
-    },
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey?.[2] === sessionId ? previous : undefined,
   })
 
-  const requote = useMutation<QuoteResponseV1, Error, void>({
-    mutationFn: async () => {
-      const draft = draftRef.current
-      if (!draft) throw new Error("no draft to requote")
-      return runQuote(api, draft, options.scope)
-    },
+  const requoteMutation = useMutation<BookingSessionOutcomeV1 | null, Error, number>({
+    mutationFn: (targetAttempt) =>
+      revision === null ? Promise.resolve(null) : runQuote(revision, targetAttempt),
   })
+  const requoteMutateAsync = requoteMutation.mutateAsync
+
+  const outcome = query.data ?? null
+  const created = bookingSessionOutcomeOf(outcome, "quote_created")
+  const rejection = bookingSessionRejection(outcome)
+
+  const requote = useCallback(
+    async (requoteOptions?: { fresh?: boolean }) => {
+      const nextAttempt = requoteOptions?.fresh ? attempt + 1 : attempt
+      if (requoteOptions?.fresh) setAttempt(nextAttempt)
+      const next = await requoteMutateAsync(nextAttempt)
+      if (!next) throw new Error("no booking session revision to quote")
+      return next
+    },
+    [attempt, requoteMutateAsync],
+  )
 
   return useMemo(
     () => ({
-      data: query.data ?? null,
-      isQuoting: query.isFetching || requote.isPending,
-      // `isQuoting` only covers an active request. Expose the debounce window too so
-      // commit surfaces cannot submit the previous quote after the draft changed but
-      // before the next request starts.
-      isSettling: signature !== debouncedSignature || query.isFetching || requote.isPending,
-      error: query.error ?? requote.error ?? null,
-      requote: () => requote.mutateAsync(),
-      refetch: query.refetch,
+      data: created?.quote ?? null,
+      requirements:
+        created?.quote.requirements ??
+        (rejection?.kind === "quote_unavailable" ? (rejection.requirements ?? null) : null),
+      requirementsFingerprint: created?.quote.requirementsFingerprint ?? null,
+      outcome,
+      rejection,
+      isQuoting: query.isFetching || requoteMutation.isPending,
+      isSettling: revision !== debouncedRevision || query.isFetching || requoteMutation.isPending,
+      error: query.error ?? requoteMutation.error ?? null,
+      requote,
     }),
     [
-      debouncedSignature,
-      query.data,
-      query.isFetching,
+      created,
+      debouncedRevision,
+      outcome,
       query.error,
-      query.refetch,
+      query.isFetching,
+      rejection,
       requote,
-      signature,
+      requoteMutation.error,
+      requoteMutation.isPending,
+      revision,
     ],
   )
-}
-
-async function runQuote(
-  api: ReturnType<typeof useBookingJourneyApi>,
-  draft: BookingSelectionV1,
-  scope: UseBookingQuoteOptions["scope"],
-): Promise<QuoteResponseV1> {
-  // Storefront callers don't surface `sourceKind` in URLs (the
-  // server resolves provenance from (module, id) via the catalog
-  // plane). Operator callers know the kind upfront and pass it.
-  // Either way, only send the source pointer fields when the
-  // caller actually has them — empty strings would otherwise fail
-  // the server-side validation that requires a non-empty kind.
-  const body: Record<string, unknown> = {
-    entityModule: draft.entity.module,
-    entityId: draft.entity.id,
-    scope: {
-      locale: scope?.locale ?? "en-GB",
-      audience: scope?.audience ?? defaultAudience(api.apiBase),
-      market: scope?.market ?? "default",
-      currency: scope?.currency,
-    },
-    draft,
-  }
-  if (draft.entity.sourceKind) body.sourceKind = draft.entity.sourceKind
-  if (draft.entity.sourceConnectionId) body.sourceConnectionId = draft.entity.sourceConnectionId
-  if (draft.entity.sourceRef) body.sourceRef = draft.entity.sourceRef
-  return api.request<QuoteResponseV1>("POST", "/quote", quoteResponseV1, body)
-}
-
-function defaultAudience(apiBase: string): "staff" | "customer" | "partner" | "supplier" {
-  return apiBase.includes("/v1/public/") ? "customer" : "staff"
-}
-
-/**
- * Pricing-significant signature — only fields that affect price /
- * shape go in. Avoids re-quoting on cosmetic edits like phone
- * formatting or notes.
- */
-function signDraft(draft: BookingSelectionV1): string {
-  return JSON.stringify({
-    entity: draft.entity,
-    pax: draft.configure?.pax,
-    departureSlotId: draft.configure?.departureSlotId,
-    departureDate: draft.configure?.departureDate,
-    departureTime: draft.configure?.departureTime,
-    variantId: draft.configure?.variantId,
-    // Room/unit picks drive per-room pricing — without this the quote never
-    // re-runs when the operator changes rooms, leaving a stale base price.
-    optionSelections: draft.configure?.optionSelections,
-    cabinCategoryId: draft.configure?.cabinCategoryId,
-    cabinNumberId: draft.configure?.cabinNumberId,
-    dateRange: draft.configure?.dateRange,
-    travelerCount: draft.travelers?.length,
-    travelerBands: draft.travelers?.map((t) => t.band),
-    accommodation: draft.accommodation,
-    addons: draft.addons,
-    promotionCode: draft.promotionCode,
-    buyerType: draft.billing?.buyerType,
-    billingCountry: draft.billing?.address?.country,
-  })
 }

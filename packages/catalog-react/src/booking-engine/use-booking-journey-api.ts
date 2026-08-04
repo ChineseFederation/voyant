@@ -8,6 +8,11 @@ import {
 } from "../client.js"
 import { useVoyantCatalogContext } from "../provider.js"
 
+/** The anonymous-Session secret header the public Session routes read. */
+export const BOOKING_SESSION_CAPABILITY_HEADER = "Voyant-Booking-Session-Capability"
+
+export type BookingJourneyMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE"
+
 export interface BookingJourneyApiOptions {
   /**
    * Surface to call against. Operator passes `"admin"`; storefront /
@@ -19,44 +24,76 @@ export interface BookingJourneyApiOptions {
   baseUrl?: string
   /** Override the fetcher pulled from VoyantCatalogProvider. */
   fetcher?: VoyantFetcher
+  /**
+   * Client-held anonymous Session secret. Generate it once, persist it next to
+   * the Session id, and reuse it for the create retry and every later mutation
+   * — it is the only thing that lets an anonymous caller back into its own
+   * Session. Ignored on `admin`, which is cookie-authenticated.
+   */
+  capability?: string
 }
 
 export interface UseBookingJourneyApi {
   /** Resolved base URL for catalog booking-engine endpoints. */
   apiBase: string
   fetcher: VoyantFetcher
-  /** GET / POST / PUT / DELETE wrappers with Zod-validated responses. */
+  surface: "admin" | "public"
+  /** Method wrappers with Zod-validated responses. */
   request<TOut>(
-    method: "GET" | "POST" | "PUT" | "DELETE",
+    method: BookingJourneyMethod,
     path: string,
     schema: z.ZodType<TOut>,
     body?: unknown,
   ): Promise<TOut>
 }
 
-export function useBookingJourneyApi(options: BookingJourneyApiOptions = {}): UseBookingJourneyApi {
-  const ctx = useVoyantCatalogContext()
-  const baseUrl = options.baseUrl ?? ctx.baseUrl
-  const fetcher = options.fetcher ?? ctx.fetcher
-  const surface = options.surface ?? "admin"
-  const apiBase = `${stripTrailingSlash(baseUrl)}/v1/${surface}/catalog`
+export interface BookingJourneyApiConfig extends BookingJourneyApiOptions {
+  baseUrl: string
+  fetcher: VoyantFetcher
+}
 
-  const fetchOptions: FetchWithValidationOptions = { baseUrl, fetcher }
+/**
+ * Non-hook transport factory.
+ *
+ * The Session journey also runs from plain async code — a submit handler that
+ * has to survive a lost Commit response cannot live inside a render — so the
+ * transport is a function first and a hook second. `useBookingJourneyApi` is
+ * the same object with the provider's base URL and fetcher filled in.
+ */
+export function createBookingJourneyApi(config: BookingJourneyApiConfig): UseBookingJourneyApi {
+  const surface = config.surface ?? "admin"
+  const prefix = `/v1/${surface}/catalog`
+  const fetchOptions: FetchWithValidationOptions = {
+    baseUrl: config.baseUrl,
+    fetcher: config.fetcher,
+  }
+  const capability = surface === "public" ? config.capability?.trim() : undefined
 
   return {
-    apiBase,
-    fetcher,
+    apiBase: `${stripTrailingSlash(config.baseUrl)}${prefix}`,
+    fetcher: config.fetcher,
+    surface,
     async request<TOut>(
-      method: "GET" | "POST" | "PUT" | "DELETE",
+      method: BookingJourneyMethod,
       path: string,
       schema: z.ZodType<TOut>,
       body?: unknown,
     ): Promise<TOut> {
-      const init: RequestInit = { method }
+      const init: RequestInit = { method, credentials: "include" }
       if (body !== undefined) init.body = JSON.stringify(body)
-      return fetchWithValidation<TOut>(`/v1/${surface}/catalog${path}`, schema, fetchOptions, init)
+      if (capability) init.headers = { [BOOKING_SESSION_CAPABILITY_HEADER]: capability }
+      return fetchWithValidation<TOut>(`${prefix}${path}`, schema, fetchOptions, init)
     },
   }
+}
+
+export function useBookingJourneyApi(options: BookingJourneyApiOptions = {}): UseBookingJourneyApi {
+  const ctx = useVoyantCatalogContext()
+  return createBookingJourneyApi({
+    ...options,
+    baseUrl: options.baseUrl ?? ctx.baseUrl,
+    fetcher: options.fetcher ?? ctx.fetcher,
+  })
 }
 
 function stripTrailingSlash(url: string): string {

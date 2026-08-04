@@ -1,68 +1,123 @@
 "use client"
 
 import { useMutation } from "@tanstack/react-query"
-import { z } from "zod"
+import type {
+  BookingHoldRecordV1,
+  BookingSessionLifecycleErrorV1,
+  BookingSessionOutcomeV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import { useCallback, useMemo, useState } from "react"
 
+import {
+  abandonBookingSession,
+  bookingSessionIdempotencyKey,
+  holdBookingSession,
+} from "./session-client.js"
+import { bookingSessionOutcomeOf, bookingSessionRejection } from "./session-outcomes.js"
 import { type BookingJourneyApiOptions, useBookingJourneyApi } from "./use-booking-journey-api.js"
 
-const placeHoldResponseSchema = z.object({
-  holdToken: z.string(),
-  expiresAt: z.string().datetime(),
-})
-
-export interface PlaceHoldInput {
-  entityModule: string
-  entityId: string
-  draftId: string
-  ttlMs?: number
-  parameters?: Record<string, unknown>
+export interface UseBookingHoldOptions extends BookingJourneyApiOptions {
+  sessionId: string | null
+  revision: number | null
+  /** Stable root shared with `useBookingSession` — see its idempotency note. */
+  idempotencyRoot: string
 }
 
-export interface ReleaseHoldInput {
-  entityModule: string
-  holdToken: string
+export interface PlaceBookingHoldInput {
+  /** The Quote the Hold is taken against. A Hold without one holds no price. */
+  quoteId: string
+  quantity?: number
+}
+
+export interface UseBookingHold {
+  hold: BookingHoldRecordV1 | null
+  outcome: BookingSessionOutcomeV1 | null
+  rejection: BookingSessionLifecycleErrorV1 | null
+  isPending: boolean
+  /** Transport failure only. Lifecycle rejections arrive as outcomes. */
+  error: Error | null
+  place: (input: PlaceBookingHoldInput) => Promise<BookingSessionOutcomeV1>
+  /** Give the capacity back by abandoning the Session — see the note below. */
+  release: () => Promise<BookingSessionOutcomeV1>
 }
 
 /**
- * Place an inventory soft-hold against the engine. Per
- * booking-journey-architecture §5.7 — the journey calls this once
- * the user has picked a slot + pax in the Configure step so
- * concurrent shoppers can't oversell capacity.
+ * Place a real-capacity Hold against a Quote, so a concurrent shopper cannot
+ * oversell the inventory between pricing and Commit.
  *
- * The bound mutation also exposes a `release` helper for the cancel
- * path; the reaper covers expiry without explicit calls.
+ * `place` keys on `<root>:hold:<revision>:<quoteId>:<quantity>` — retrying the
+ * same hold reuses the key, while holding a different quantity or a different
+ * Quote does not, so a dropped response cannot double-hold.
+ *
+ * **`release` abandons the Session.** The v1 surface mounts no hold-release
+ * route: the canonical set is create / read / patch / adopt / renew / quote /
+ * hold / abandon / commit, and `abandon` is what releases every live Hold the
+ * Session holds (expiry covers the rest). Exposing a `release()` that quietly
+ * kept the Session alive would be a lie about what the server does, so this
+ * one is honest and terminal.
  */
-export function useBookingHold(options: BookingJourneyApiOptions = {}): {
-  place: (input: PlaceHoldInput) => Promise<{ holdToken: string; expiresAt: string }>
-  release: (input: ReleaseHoldInput) => Promise<void>
-  isPending: boolean
-} {
+export function useBookingHold(options: UseBookingHoldOptions): UseBookingHold {
   const api = useBookingJourneyApi(options)
+  const { sessionId, revision, idempotencyRoot } = options
+  const [outcome, setOutcome] = useState<BookingSessionOutcomeV1 | null>(null)
 
-  const place = useMutation({
-    mutationFn: async (input: PlaceHoldInput) => {
-      return api.request("POST", "/holds/place", placeHoldResponseSchema, {
-        entityModule: input.entityModule,
-        entityId: input.entityId,
-        draftId: input.draftId,
-        ttlMs: input.ttlMs,
-        parameters: input.parameters,
-      })
-    },
+  const mutation = useMutation<
+    BookingSessionOutcomeV1,
+    Error,
+    () => Promise<BookingSessionOutcomeV1>
+  >({
+    mutationFn: (call) => call(),
+    onSuccess: setOutcome,
   })
+  const run = mutation.mutateAsync
 
-  const release = useMutation({
-    mutationFn: async (input: ReleaseHoldInput) => {
-      await api.request("POST", "/holds/release", z.undefined(), {
-        entityModule: input.entityModule,
-        holdToken: input.holdToken,
-      })
+  const requireSession = useCallback(() => {
+    if (!sessionId || revision === null) throw new Error("no booking session to hold against")
+    return { sessionId, revision }
+  }, [revision, sessionId])
+
+  const place = useCallback(
+    (input: PlaceBookingHoldInput) => {
+      const current = requireSession()
+      const quantity = input.quantity ?? 1
+      return run(() =>
+        holdBookingSession(api, current.sessionId, {
+          expectedRevision: current.revision,
+          quoteId: input.quoteId,
+          quantity,
+          idempotencyKey: bookingSessionIdempotencyKey(
+            idempotencyRoot,
+            "hold",
+            current.revision,
+            input.quoteId,
+            quantity,
+          ),
+        }),
+      )
     },
-  })
+    [api, idempotencyRoot, requireSession, run],
+  )
 
-  return {
-    place: (input) => place.mutateAsync(input),
-    release: (input) => release.mutateAsync(input),
-    isPending: place.isPending || release.isPending,
-  }
+  const release = useCallback(() => {
+    const current = requireSession()
+    return run(() =>
+      abandonBookingSession(api, current.sessionId, {
+        expectedRevision: current.revision,
+        idempotencyKey: bookingSessionIdempotencyKey(idempotencyRoot, "abandon", current.revision),
+      }),
+    )
+  }, [api, idempotencyRoot, requireSession, run])
+
+  return useMemo(
+    () => ({
+      hold: bookingSessionOutcomeOf(outcome, "hold_created")?.hold ?? null,
+      outcome,
+      rejection: bookingSessionRejection(outcome),
+      isPending: mutation.isPending,
+      error: mutation.error ?? null,
+      place,
+      release,
+    }),
+    [mutation.error, mutation.isPending, outcome, place, release],
+  )
 }

@@ -20,7 +20,13 @@ import {
   createCatalogEnrichmentFetchers,
   useCatalogSlots,
 } from "@voyant-travel/catalog-react"
-import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
+import {
+  type BookingSessionJourneyContinuation,
+  BookingSessionJourneyError,
+  commitBookingSessionJourneyV1,
+  createBookingJourneyApi,
+  useOfferPreview,
+} from "@voyant-travel/catalog-react/booking-engine"
 import {
   useOptionUnitPriceRules,
   usePricingCategories,
@@ -70,11 +76,6 @@ import {
   type BookingCreateTravelCreditRedemptionInput,
   usePricingPreview,
 } from "../index.js"
-import {
-  commitManualBookingSessionV1,
-  type ManualBookingSessionContinuation,
-  ManualBookingSessionError,
-} from "../manual-booking-session-client.js"
 import { useVoyantBookingsContext } from "../provider.js"
 import {
   findAlreadyPaidInstallmentMissingPaymentDate,
@@ -156,7 +157,7 @@ export interface ManualBookingAttempt {
    */
   labelReference: string | null
   idempotencyKey: string
-  continuation?: ManualBookingSessionContinuation
+  continuation?: BookingSessionJourneyContinuation
 }
 
 export function formatManualBookingAmount(
@@ -521,7 +522,12 @@ export function ManualBookingCreateForm({
   const { baseUrl, fetcher } = useVoyantBookingsContext()
   const { messages, formatDate, formatCurrency } = useBookingsUiI18nOrDefault()
   const copy = messages.manualBookingCreate
-  const client = React.useMemo(() => ({ baseUrl, fetcher }), [baseUrl, fetcher])
+  // The shared v1 Session transport. `surface: "admin"` keeps the manual form
+  // on the staff routes it has always used.
+  const client = React.useMemo(
+    () => createBookingJourneyApi({ baseUrl, fetcher, surface: "admin" }),
+    [baseUrl, fetcher],
+  )
   const queryClient = useQueryClient()
   const availabilityClient = useVoyantAvailabilityContext()
   const [product, setProduct] = React.useState<ProductPickerValue>({
@@ -861,12 +867,18 @@ export function ManualBookingCreateForm({
       paymentSchedule,
     ],
   )
-  const sourcedQuote = useBookingQuote({
+  // Non-binding price probe. The beta `POST /catalog/quote` this replaced is
+  // gone; Offer Preview is its successor and mints no Session per keystroke.
+  // The Session that actually books is opened by the submit handler below.
+  const sourcedQuote = useOfferPreview({
     surface: "admin",
     baseUrl,
     fetcher,
-    draft: sourcedQuoteDraft,
-    scope: { audience: "staff", currency: product.sellCurrency },
+    // Sourced products resolve through the catalog plane, which is what
+    // `catalog_item` names; `product` would dispatch to the owned handler.
+    target: product.productId ? { kind: "catalog_item", catalogItemId: product.productId } : null,
+    selection: sourcedQuoteDraft,
+    scope: { ...(product.sellCurrency ? { currency: product.sellCurrency } : {}) },
     enabled:
       isSourcedProduct && Boolean(product.productId && hasBookingTiming && resolvedSourceKind),
   })
@@ -879,8 +891,8 @@ export function ManualBookingCreateForm({
   const currentSourcedQuoteData =
     sourcedQuoteProductId === product.productId ? sourcedQuote.data : null
   const sourcedProductOptions = React.useMemo(
-    () => resolveSourcedProductOptions(currentSourcedQuoteData?.shape, productContent),
-    [currentSourcedQuoteData?.shape, productContent],
+    () => resolveSourcedProductOptions(currentSourcedQuoteData?.requirements, productContent),
+    [currentSourcedQuoteData?.requirements, productContent],
   )
   const sourcedProductSelectItems = React.useMemo(
     () => sourcedProductOptions.map((option) => ({ label: option.name, value: option.id })),
@@ -896,8 +908,9 @@ export function ManualBookingCreateForm({
     [sourcedProductOptions, product.optionId, selectedSlot?.remainingPax],
   )
   const sourcedExtras = React.useMemo(
-    () => (currentSourcedQuoteData?.shape?.addons?.catalog ?? []) as CatalogBookingExtraOption[],
-    [currentSourcedQuoteData?.shape?.addons?.catalog],
+    () =>
+      (currentSourcedQuoteData?.requirements?.addons?.catalog ?? []) as CatalogBookingExtraOption[],
+    [currentSourcedQuoteData?.requirements?.addons?.catalog],
   )
 
   React.useEffect(() => {
@@ -1095,7 +1108,7 @@ export function ManualBookingCreateForm({
   const travelerPricingCategories: TravelerPricingCategoryOption[] = React.useMemo(() => {
     if (isSourcedProduct) {
       const unitIds = sourcedOptionUnits.map((unit) => unit.optionUnitId)
-      return (currentSourcedQuoteData?.shape?.paxBands ?? []).map((band) => ({
+      return (currentSourcedQuoteData?.requirements?.paxBands ?? []).map((band) => ({
         categoryId: band.code,
         name: band.label,
         code: band.code,
@@ -1156,7 +1169,7 @@ export function ManualBookingCreateForm({
     bookingUnits,
     isSourcedProduct,
     sourcedOptionUnits,
-    currentSourcedQuoteData?.shape?.paxBands,
+    currentSourcedQuoteData?.requirements?.paxBands,
   ])
 
   const travelerPricingCategoryLabels = React.useMemo(
@@ -1248,12 +1261,13 @@ export function ManualBookingCreateForm({
       paymentSchedule,
     ],
   )
-  const ownedQuote = useBookingQuote({
+  const ownedQuote = useOfferPreview({
     surface: "admin",
     baseUrl,
     fetcher,
-    draft: quoteDraft,
-    scope: { audience: "staff", currency: productRecord?.sellCurrency ?? undefined },
+    target: product.productId ? { kind: "product", productId: product.productId } : null,
+    selection: quoteDraft,
+    scope: { ...(productRecord?.sellCurrency ? { currency: productRecord.sellCurrency } : {}) },
     enabled:
       !isSourcedProduct &&
       Boolean(
@@ -1579,8 +1593,8 @@ export function ManualBookingCreateForm({
             `${messages.bookingCreateDialog.labels.sharedRoomGeneratedLabelPrefix} - ${attempt.labelReference}`,
         }
       }
-      const result = await commitManualBookingSessionV1(client, {
-        productId: product.productId,
+      const result = await commitBookingSessionJourneyV1(client, {
+        target: { kind: "product", productId: product.productId },
         selection: buildManualBookingSessionSelection({
           quoteDraft,
           booking,
@@ -1609,7 +1623,7 @@ export function ManualBookingCreateForm({
       onCreated(result.bookingId)
     } catch (cause) {
       setError(
-        cause instanceof ManualBookingSessionError
+        cause instanceof BookingSessionJourneyError
           ? copy.validation.bookingSession[cause.recovery]
           : cause instanceof Error
             ? cause.message

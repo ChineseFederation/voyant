@@ -52,6 +52,8 @@ export type BookingsUiCreateListMessages = {
         quoteChanged: string
         availabilityChanged: string
         quoteUnavailable: string
+        selectionIncomplete: string
+        requirementsChanged: string
         commitRejected: string
         notAuthorized: string
         unknown: string
