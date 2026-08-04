@@ -94,12 +94,28 @@ export function buildAllocationRoomingCsv(manifest: SlotAllocationManifest, kind
   return csvDocument(rows)
 }
 
+/**
+ * Export filenames. `seating` was unreachable before: `buildAllocationRoomingCsv`
+ * has always taken a `kind`, but the route declared no `kind` parameter and this
+ * union had no name for a seat manifest, so a coach's seating list could not be
+ * downloaded at all.
+ */
+export type AllocationExportPrefix = "passengers" | "rooming" | "seating"
+
 export function allocationExportFilename(
   manifest: SlotAllocationManifest,
-  prefix: "passengers" | "rooming",
+  prefix: AllocationExportPrefix,
 ): string {
   const slug = manifest.slot.productId?.slice(0, 8) ?? "departure"
   return `${prefix}-${slug}-${manifest.slot.id}.csv`
+}
+
+/**
+ * Which export a resource kind belongs to. Seat-shaped kinds print as a seating
+ * manifest; everything else prints as a rooming list.
+ */
+export function allocationExportPrefixForKind(kind: string): AllocationExportPrefix {
+  return kind === "vehicle_seat" || kind === "flight_seat" ? "seating" : "rooming"
 }
 
 function csvDocument(rows: Array<Array<string | number | boolean | null | undefined>>) {

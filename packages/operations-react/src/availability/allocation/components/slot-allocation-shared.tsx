@@ -7,11 +7,11 @@ import type {
   AllocationResource,
 } from "@voyant-travel/operations-react/availability"
 import { Badge, Card, CardContent, CardHeader, CardTitle, cn } from "@voyant-travel/ui/components"
-import { Accessibility, CircleAlert, Crown, History, UtensilsCrossed } from "lucide-react"
+import { Accessibility, Crown, History, UtensilsCrossed } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { useAllocationUiI18nOrDefault, useAllocationUiMessagesOrDefault } from "../i18n/index.js"
-import { flagString, type ValidationIssue } from "./slot-allocation-model.js"
+import { flagString } from "./slot-allocation-model.js"
 
 /**
  * Passive grouping container used by the unallocated column and other
@@ -110,50 +110,6 @@ export function TravelerTile({
         </div>
       </div>
       {renderActions ? <div className="shrink-0">{renderActions(traveler)}</div> : null}
-    </div>
-  )
-}
-
-export function ValidationSummary({
-  issues,
-  resources,
-  unallocatedCount,
-}: {
-  issues: ValidationIssue[]
-  resources: AllocationResource[]
-  unallocatedCount: number
-}) {
-  const messages = useAllocationUiMessagesOrDefault()
-
-  if (issues.length === 0) {
-    return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-        <Badge variant="outline">{messages.validationClear}</Badge>
-        <span>
-          {resources.length} {messages.resources.toLowerCase()} · {unallocatedCount}{" "}
-          {messages.unallocated.toLowerCase()}
-        </span>
-      </div>
-    )
-  }
-
-  return (
-    <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-      <div className="flex items-center gap-2 font-medium">
-        <CircleAlert className="size-4" aria-hidden="true" />
-        {messages.validationTitle}
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {issues.map((issue) => (
-          <Badge
-            key={issue.id}
-            variant="outline"
-            className="border-amber-300 bg-background/70 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100"
-          >
-            {issue.label}
-          </Badge>
-        ))}
-      </div>
     </div>
   )
 }

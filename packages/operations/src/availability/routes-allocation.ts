@@ -28,12 +28,21 @@
  */
 
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
-import { openApiValidationHook } from "@voyant-travel/hono"
-import type { Context } from "hono"
+import { idempotencyKey, openApiValidationHook } from "@voyant-travel/hono"
 
+import { availabilityAllocationPlanningRoutes } from "./routes-allocation-planning.js"
+import {
+  allocationErrorResponses,
+  allocationResourceSchema,
+  csvResponse,
+  errorResponseSchema,
+  flagsSchema,
+  handleAllocationRouteError,
+  isoTimestamp,
+  slotIdParamSchema,
+} from "./routes-allocation-shared.js"
 import type { Env } from "./routes-shared.js"
 import {
-  AllocationServiceError,
   assignTravelerAllocation,
   createAllocationResource,
   deleteAllocationResource,
@@ -56,14 +65,17 @@ import {
 } from "./service-allocation-automation.js"
 import {
   allocationExportFilename,
+  allocationExportPrefixForKind,
   buildAllocationPassengersCsv,
   buildAllocationRoomingCsv,
 } from "./service-allocation-exports.js"
 import {
   allocationAuditLogQuerySchema,
   allocationAutomationSchema,
+  allocationKindQuerySchema,
   allocationManifestQuerySchema,
   assignTravelerAllocationSchema,
+  deleteAllocationResourceQuerySchema,
   insertAllocationResourceSchema,
   materializeOpenSlotsSchema,
   pairSharingGroupSchema,
@@ -75,38 +87,15 @@ import {
 
 // --- shared response schemas ------------------------------------------------
 
-const errorResponseSchema = z.object({ error: z.string() })
-/** Allocation service errors serialize `error` + an optional `detail` payload. */
-const allocationErrorSchema = z.object({ error: z.string(), detail: z.unknown().optional() })
-const isoTimestamp = z.string()
-/** Resource `flags` is an untyped jsonb record. */
-const flagsSchema = z.record(z.string(), z.unknown())
-
-const slotIdParamSchema = z.object({ id: z.string() })
 const slotResourceParamSchema = z.object({ id: z.string(), resourceId: z.string() })
 const slotTravelerParamSchema = z.object({ id: z.string(), travelerId: z.string() })
 const slotGroupParamSchema = z.object({ id: z.string(), groupId: z.string() })
 const productIdParamSchema = z.object({ productId: z.string() })
+const allocationExportQuerySchema = allocationKindQuerySchema
 const templateParamSchema = z.object({
   productId: z.string(),
   optionId: z.string(),
   kind: z.string(),
-})
-
-// §17: `allocation_resources.$inferSelect` — timestamps serialize to strings.
-const allocationResourceSchema = z.object({
-  id: z.string(),
-  slotId: z.string(),
-  kind: z.string(),
-  refType: z.string().nullable(),
-  refId: z.string().nullable(),
-  label: z.string().nullable(),
-  capacity: z.number().int(),
-  flags: flagsSchema,
-  parentId: z.string().nullable(),
-  sortOrder: z.number().int(),
-  createdAt: isoTimestamp,
-  updatedAt: isoTimestamp,
 })
 
 /** Trimmed `returning()` projection from delete (id/kind/label/capacity only). */
@@ -226,6 +215,8 @@ const allocationAutomationResultSchema = z.object({
   assigned: z.number().int().optional(),
   skipped: z.number().int().optional(),
   created: z.number().int().optional(),
+  /** Template groups already materialised on this slot and left alone. */
+  skippedExisting: z.number().int().optional(),
   resources: z.array(allocationResourceSchema).optional(),
 })
 
@@ -254,55 +245,6 @@ const productOptionResourceTemplatesSchema = z.object({
   sortOrder: z.number().int(),
   templates: z.array(resourceTemplateSchema),
 })
-
-/**
- * Map an `AllocationServiceError` to its HTTP status (anything else re-throws to
- * the boundary). Returns `c.json(...)` — a typed response — so the `.openapi()`
- * handlers' declared 4xx schemas accept it. The status is narrowed to the
- * literal union the allocation routes actually declare (400/404/409/500) so the
- * shared helper's return composes with each leg's typed response union.
- */
-function handleAllocationRouteError(c: Context<Env>, error: unknown) {
-  if (error instanceof AllocationServiceError) {
-    return c.json(
-      {
-        error: error.message,
-        ...(error.detail ? { detail: error.detail } : {}),
-      },
-      error.status as 400 | 404 | 409 | 500,
-    )
-  }
-  throw error
-}
-
-/** One `application/json` error response entry keyed by an explicit status. */
-const errResponse = (description: string) => ({
-  description,
-  content: { "application/json": { schema: allocationErrorSchema } },
-})
-
-/**
- * The error statuses `handleAllocationRouteError` can emit (an
- * `AllocationServiceError` maps to 400/404/409/500). Every leg that funnels
- * errors through that shared helper declares this full set inline (a spread
- * collapses the literal status keys `createRoute` needs) so the helper's typed
- * response union is a subset of each route's declared responses. `400` doubles
- * as the request-body validation failure surfaced by `openApiValidationHook`.
- */
-const allocationErrorResponses = {
-  400: errResponse("invalid_request, or an allocation invariant was violated"),
-  404: errResponse("The slot, traveler, resource, sharing group, or template was not found"),
-  409: errResponse("Resource over capacity, or resources already exist for this kind"),
-  500: errResponse("The allocation operation could not be completed"),
-}
-
-/** Serialize a CSV body as a `text/csv` attachment via the typed `c.body(...)`. */
-function csvResponse(c: Context<Env>, csv: string, filename: string) {
-  return c.body(csv, 200, {
-    "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="${filename}"`,
-  })
-}
 
 // --- slot allocation manifest + resources -----------------------------------
 
@@ -373,7 +315,7 @@ const updateResourceRoute = createRoute({
 const deleteResourceRoute = createRoute({
   method: "delete",
   path: "/slots/{id}/allocation/resources/{resourceId}",
-  request: { params: slotResourceParamSchema },
+  request: { params: slotResourceParamSchema, query: deleteAllocationResourceQuerySchema },
   responses: {
     200: {
       description: "The deleted allocation resource (id/kind/label/capacity)",
@@ -434,8 +376,10 @@ const slotResourceRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidation
   .openapi(deleteResourceRoute, async (c) => {
     try {
       const params = c.req.valid("param")
+      const { expectedUpdatedAt } = c.req.valid("query")
       const row = await deleteAllocationResource(c.get("db"), params.id, params.resourceId, {
         actorId: c.get("userId") ?? null,
+        ...(expectedUpdatedAt !== undefined ? { expectedUpdatedAt } : {}),
       })
       return row
         ? c.json({ data: row }, 200)
@@ -656,10 +600,14 @@ const exportPassengersRoute = createRoute({
 const exportRoomingRoute = createRoute({
   method: "get",
   path: "/slots/{id}/allocation/export-rooming-list",
-  request: { params: slotIdParamSchema },
+  description:
+    "Resource-occupancy CSV for one allocation kind. `kind=vehicle_seat` produces the " +
+    "coach seating manifest; the default `room` produces the rooming list. The CSV " +
+    "builder always took a kind — until now the route never let a caller name one.",
+  request: { params: slotIdParamSchema, query: allocationExportQuerySchema },
   responses: {
     200: {
-      description: "Rooming-list CSV (text/csv attachment)",
+      description: "Rooming-list or seating-manifest CSV (text/csv attachment)",
       content: { "text/csv": { schema: z.string() } },
     },
     404: {
@@ -690,10 +638,11 @@ const slotAuditExportRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidat
   .openapi(exportRoomingRoute, async (c) => {
     const manifest = await getSlotAllocationManifest(c.get("db"), c.req.valid("param").id)
     if (!manifest) return c.json({ error: "Availability slot not found" }, 404)
+    const { kind } = c.req.valid("query")
     return csvResponse(
       c,
-      buildAllocationRoomingCsv(manifest),
-      allocationExportFilename(manifest, "rooming"),
+      buildAllocationRoomingCsv(manifest, kind),
+      allocationExportFilename(manifest, allocationExportPrefixForKind(kind)),
     )
   })
 
@@ -702,6 +651,11 @@ const slotAuditExportRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidat
 const autoMaterializeRoute = createRoute({
   method: "post",
   path: "/slots/{id}/allocation/auto-materialize",
+  description:
+    "Materialise resources for this kind from the option's templates, sized to the pax " +
+    "already booked. Idempotent: template groups that already have resources on this " +
+    "slot are skipped and reported in `skippedExisting`, so a retry is a no-op rather " +
+    "than a 409.",
   request: {
     params: slotIdParamSchema,
     body: {
@@ -726,13 +680,21 @@ const autoMaterializeRoute = createRoute({
 const materializeTemplatesRoute = createRoute({
   method: "post",
   path: "/slots/{id}/allocation/materialize-templates",
+  description:
+    "Lay this departure out from its option's template `default_count`s, before any " +
+    "sale. `vehicle_seat` templates count vehicles and draw each one's full seat map.",
   request: { params: slotIdParamSchema },
   responses: {
     200: {
       description: "The count of resources materialised from the slot's template defaults",
       content: {
         "application/json": {
-          schema: z.object({ data: z.object({ created: z.number().int() }) }),
+          schema: z.object({
+            data: z.object({
+              created: z.number().int(),
+              skippedExisting: z.number().int(),
+            }),
+          }),
         },
       },
     },
@@ -768,6 +730,20 @@ const autoAllocateRoute = createRoute({
 })
 
 const slotAutomationRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidationHook })
+
+// Auto-allocate re-plans from live state, so a retry after a dropped connection
+// is *not* the same operation twice. An `Idempotency-Key` makes it replayable;
+// the header stays optional so existing clients are unaffected.
+slotAutomationRoutes.use(
+  "/slots/:id/allocation/auto-allocate",
+  idempotencyKey({ scope: "operations.allocation.auto-allocate" }),
+)
+slotAutomationRoutes.use(
+  "/slots/:id/allocation/auto-materialize",
+  idempotencyKey({ scope: "operations.allocation.auto-materialize" }),
+)
+
+slotAutomationRoutes
   .openapi(autoMaterializeRoute, async (c) => {
     try {
       const data = await autoMaterializeAllocationResources(
@@ -787,7 +763,10 @@ const slotAutomationRoutes = new OpenAPIHono<Env>({ defaultHook: openApiValidati
         c.get("db"),
         c.req.valid("param").id,
       )
-      return c.json({ data: { created: result.created } }, 200)
+      return c.json(
+        { data: { created: result.created, skippedExisting: result.skippedExisting } },
+        200,
+      )
     } catch (error) {
       return handleAllocationRouteError(c, error)
     }
@@ -963,3 +942,4 @@ export const availabilityAllocationRoutes = new OpenAPIHono<Env>({
   .route("/", slotAuditExportRoutes)
   .route("/", slotAutomationRoutes)
   .route("/", templateRoutes)
+  .route("/", availabilityAllocationPlanningRoutes)

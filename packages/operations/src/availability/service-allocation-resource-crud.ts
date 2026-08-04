@@ -95,9 +95,12 @@ export async function updateAllocationResource(
   db: PostgresJsDatabase,
   slotId: string,
   resourceId: string,
-  input: UpdateAllocationResourceInput,
+  patch: UpdateAllocationResourceInput,
   options: AllocationMutationOptions = {},
 ) {
+  // `expectedUpdatedAt` is a precondition, never a column: strip it before the
+  // patch reaches `set()`.
+  const { expectedUpdatedAt, ...input } = patch
   const result = await db.transaction(async (tx) => {
     const transactionalDb = tx as PostgresJsDatabase
     const [existing] = await tx
@@ -109,12 +112,14 @@ export async function updateAllocationResource(
         flags: allocationResources.flags,
         sortOrder: allocationResources.sortOrder,
         parentId: allocationResources.parentId,
+        updatedAt: allocationResources.updatedAt,
       })
       .from(allocationResources)
       .where(and(eq(allocationResources.id, resourceId), eq(allocationResources.slotId, slotId)))
       .for("update")
       .limit(1)
     if (!existing) return null
+    assertAllocationResourceRevision(existing.updatedAt, expectedUpdatedAt, resourceId)
 
     if (existing.kind === "vehicle_seat" && input.capacity !== undefined && input.capacity !== 1) {
       throw new AllocationServiceError("A vehicle seat must have capacity 1", 400)
@@ -206,22 +211,28 @@ export async function updateAllocationResource(
   return result?.row ?? null
 }
 
+export interface DeleteAllocationResourceOptions extends AllocationMutationOptions {
+  /** Optimistic-concurrency precondition; see `updateAllocationResourceSchema`. */
+  expectedUpdatedAt?: string
+}
+
 export async function deleteAllocationResource(
   db: PostgresJsDatabase,
   slotId: string,
   resourceId: string,
-  options: AllocationMutationOptions = {},
+  options: DeleteAllocationResourceOptions = {},
 ) {
   const row = await db.transaction(async (tx) => {
     // Locking the parent candidate serializes deletion with seat creation,
     // which locks the same row before checking and inserting child seats.
     const [existing] = await tx
-      .select({ id: allocationResources.id })
+      .select({ id: allocationResources.id, updatedAt: allocationResources.updatedAt })
       .from(allocationResources)
       .where(and(eq(allocationResources.id, resourceId), eq(allocationResources.slotId, slotId)))
       .for("update")
       .limit(1)
     if (!existing) return null
+    assertAllocationResourceRevision(existing.updatedAt, options.expectedUpdatedAt, resourceId)
 
     const [child] = await tx
       .select({ id: allocationResources.id })
@@ -265,6 +276,34 @@ export async function deleteAllocationResource(
     return deleted ?? null
   })
   return row
+}
+
+/**
+ * Optimistic concurrency for allocation resources, mirroring the departure's own
+ * `expectedUpdatedAt` precondition in `service-core.ts`. Omitting the
+ * precondition keeps the previous last-write-wins behaviour, so existing callers
+ * are unaffected.
+ */
+function assertAllocationResourceRevision(
+  currentUpdatedAt: Date,
+  expectedUpdatedAt: string | undefined,
+  resourceId: string,
+) {
+  if (expectedUpdatedAt === undefined) return
+  const expected = new Date(expectedUpdatedAt)
+  if (Number.isNaN(expected.getTime())) {
+    throw new AllocationServiceError("expectedUpdatedAt must be a valid instant", 400, {
+      expectedUpdatedAt,
+    })
+  }
+  if (expected.getTime() !== currentUpdatedAt.getTime()) {
+    throw new AllocationServiceError("Allocation resource changed after it was read", 409, {
+      reason: "revision_conflict",
+      resourceId,
+      expectedUpdatedAt,
+      currentUpdatedAt: currentUpdatedAt.toISOString(),
+    })
+  }
 }
 
 async function assertValidResourceParent(

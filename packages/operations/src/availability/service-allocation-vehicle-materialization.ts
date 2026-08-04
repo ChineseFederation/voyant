@@ -15,6 +15,22 @@ export interface AutoMaterializeRow {
   flags: Record<string, unknown> | null
   option_name: string | null
   sort_order: number | null
+  /**
+   * Explicit number of vehicles to lay out, overriding the pax-derived count.
+   * Template-default materialisation supplies this so an operator can draw a
+   * coach *before* the first sale, when `pax_count` is zero and the derived
+   * count would be meaningless.
+   */
+  vehicle_count?: number | null
+}
+
+/**
+ * How many vehicles this group needs: the explicit `vehicle_count` when the
+ * caller knows it (template defaults), otherwise derived from pax.
+ */
+function resolveVehicleCount(group: AutoMaterializeRow, seatsPerVehicle: number): number {
+  if (group.vehicle_count != null) return Math.max(0, group.vehicle_count)
+  return Math.max(1, Math.ceil(group.pax_count / Math.max(1, seatsPerVehicle)))
 }
 
 /**
@@ -36,7 +52,7 @@ export async function materializeVehicleSeatGroupInTransaction(
 
   const layout = group.layout ?? "2-2"
   const seatsPerRow = parseLayoutSeatsPerRow(layout)
-  const vehiclesNeeded = Math.max(1, Math.ceil(group.pax_count / Math.max(1, group.capacity)))
+  const vehiclesNeeded = resolveVehicleCount(group, group.capacity)
   const resources: AllocationResource[] = []
   let sequence = startingSequence
 
@@ -126,7 +142,7 @@ async function materializeVehicleSeatGroupFromSpec(
   )
   if (seatsPerVehicle === 0) return { resources: [], vehicleCount: 0 }
 
-  const vehiclesNeeded = Math.max(1, Math.ceil(group.pax_count / seatsPerVehicle))
+  const vehiclesNeeded = resolveVehicleCount(group, seatsPerVehicle)
   const resources: AllocationResource[] = []
   let sequence = startingSequence
 

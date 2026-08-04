@@ -290,13 +290,78 @@ export const insertAllocationResourceSchema = allocationResourceCoreSchema.super
     }
   },
 )
+/**
+ * `expectedUpdatedAt` is the optimistic-concurrency precondition: the
+ * `updatedAt` the caller read. Supplying it rejects a patch computed against a
+ * resource somebody else has since re-shaped (a coach whose capacity was
+ * lowered under you) with 409 instead of silently overwriting.
+ */
 export const updateAllocationResourceSchema = allocationResourceCoreSchema
   .omit({ kind: true })
-  .strict()
   .partial()
-  .refine((value) => Object.keys(value).length > 0, {
+  .extend({ expectedUpdatedAt: isoDateTimeSchema.optional() })
+  .strict()
+  .refine((value) => Object.keys(value).some((key) => key !== "expectedUpdatedAt"), {
     message: "Patch payload is required",
   })
+
+export const deleteAllocationResourceQuerySchema = z.object({
+  expectedUpdatedAt: isoDateTimeSchema.optional(),
+})
+
+/**
+ * Attach an existing fleet `resources` record to a departure. `kind` and
+ * `capacity` default from the fleet record; name them when it does not carry
+ * one (a `guide`/`equipment` resource, or a coach with no declared capacity).
+ */
+export const attachDepartureResourceSchema = z.object({
+  resourceId: z.string().trim().min(1),
+  kind: allocationResourceKindSchema.optional(),
+  capacity: z.number().int().min(1).optional(),
+  label: z.string().trim().min(1).max(160).nullable().optional(),
+  flags: allocationResourceFlagsSchema.default({}),
+  sortOrder: z.number().int().default(0),
+  notes: z.string().trim().max(500).nullable().optional(),
+})
+
+export const detachDepartureResourceQuerySchema = z.object({
+  expectedUpdatedAt: isoDateTimeSchema.optional(),
+  /** Remove the attached resource's children (a coach's seats) with it. */
+  cascade: booleanQueryParam.optional(),
+})
+
+/**
+ * Place a whole set of travelers in one transaction. `expectedResourceId` is
+ * the per-traveler optimistic-concurrency precondition — omit it to write
+ * unconditionally, pass `null` to require the traveler to be unassigned.
+ */
+export const batchAssignTravelerAllocationsSchema = z
+  .object({
+    kind: allocationResourceKindSchema,
+    assignments: z
+      .array(
+        z.object({
+          travelerId: z.string().trim().min(1),
+          resourceId: z.string().trim().min(1).nullable(),
+          expectedResourceId: z.string().trim().min(1).nullable().optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+  })
+  .refine(
+    (value) =>
+      value.kind !== "vehicle" ||
+      value.assignments.every((assignment) => assignment.resourceId === null),
+    {
+      path: ["kind"],
+      message: "Vehicles are parent resources; assign travelers to vehicle seats instead",
+    },
+  )
+
+export const allocationKindQuerySchema = z.object({
+  kind: allocationResourceKindSchema.default("room"),
+})
 
 export const assignTravelerAllocationSchema = z
   .object({

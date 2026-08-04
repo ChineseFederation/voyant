@@ -6,30 +6,28 @@ import {
 } from "@voyant-travel/availability/schema"
 import { and, eq, inArray, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
-import type { z } from "zod"
-import {
-  type AllocatorResource,
-  type AllocatorTraveler,
-  planRoomAllocation,
-  planVehicleSeatAllocation,
-} from "./auto-allocator.js"
 import { activeBookingAllocationStatusesSql, activeBookingStatusesSql } from "./booking-statuses.js"
-import {
-  type AllocationMutationOptions,
-  getSlotAllocationManifest,
-  recordAllocationAudit,
-  type SlotAllocationManifest,
-} from "./service-allocation.js"
+import { type AllocationMutationOptions, recordAllocationAudit } from "./service-allocation.js"
+import type {
+  AllocationAutomationInput,
+  AllocationAutomationResult,
+} from "./service-allocation-auto-allocate.js"
 import { AllocationServiceError } from "./service-allocation-errors.js"
-import { executeRows, sqlTextArray } from "./service-allocation-sql.js"
+import { executeRows } from "./service-allocation-sql.js"
 import {
   type AutoMaterializeRow,
   materializeVehicleSeatGroupInTransaction,
   renderNamePattern,
 } from "./service-allocation-vehicle-materialization.js"
-import type { allocationAutomationSchema } from "./validation.js"
 
-export type AllocationAutomationInput = z.infer<typeof allocationAutomationSchema>
+export {
+  type AllocationAutomationInput,
+  type AllocationAutomationResult,
+  type AllocationPlanEntry,
+  type AllocationPlanPreview,
+  autoAllocateSlotResources,
+  previewAutoAllocateSlotResources,
+} from "./service-allocation-auto-allocate.js"
 export type {
   ProductOptionResourceTemplates,
   ResourceTemplate,
@@ -45,42 +43,74 @@ export {
   positionFromCells,
 } from "./service-allocation-vehicle-materialization.js"
 
-export interface AllocationAutomationResult {
-  kind: string
-  assigned?: number
-  skipped?: number
-  created?: number
-  resources?: AllocationResource[]
-}
-
+/**
+ * ## Idempotency
+ *
+ * This used to raise `409 Resources already exist` the moment the slot held a
+ * single resource of the requested kind, while
+ * {@link materializeSlotResourcesFromTemplateDefaults} silently skipped. Two
+ * routes over the same table disagreed on what "already done" means, and a
+ * retried request — the normal outcome of a dropped connection — surfaced as an
+ * error the operator had to interpret.
+ *
+ * Both paths now agree on **skip-existing at (kind, ref) granularity**:
+ * materialising is a converge-to-this-layout operation, so calling it twice
+ * leaves the same rows and reports `created: 0, skippedExisting: n`. Skipping
+ * was chosen over erroring because it is the only one of the two that is safe
+ * to retry, and because per-(kind, ref) granularity lets a second room type
+ * materialise later without the whole kind being considered done — the coarser
+ * "any row of this kind exists" rule blocked exactly that.
+ *
+ * Replacing an existing layout stays an explicit operator action: delete the
+ * resources, then materialise again.
+ */
 export async function autoMaterializeAllocationResources(
   db: PostgresJsDatabase,
   slotId: string,
   input: AllocationAutomationInput,
   options: AllocationMutationOptions = {},
 ): Promise<AllocationAutomationResult> {
-  const result = await db.transaction(async (tx) => {
-    const materialized = await autoMaterializeAllocationResourcesLocked(
-      tx as PostgresJsDatabase,
-      slotId,
-      input,
-    )
-
-    // Audit inside the transaction so the materialised resources and
-    // their record commit or roll back together.
-    if ((materialized.created ?? 0) > 0) {
-      await recordAllocationAudit(tx, {
+  return db.transaction(async (tx) => {
+    const scoped = tx as PostgresJsDatabase
+    const result = await autoMaterializeAllocationResourcesLocked(scoped, slotId, input)
+    if ((result.created ?? 0) > 0) {
+      // Inside the transaction: a rolled-back materialisation must not leave an
+      // audit entry claiming rooms were laid out.
+      await recordAllocationAudit(scoped, {
         slotId,
         action: "resources.materialize",
         actorId: options.actorId ?? null,
-        after: { kind: materialized.kind, created: materialized.created ?? 0 },
+        after: {
+          kind: result.kind,
+          created: result.created ?? 0,
+          skippedExisting: result.skippedExisting ?? 0,
+        },
       })
     }
-
-    return materialized
+    return result
   })
+}
 
-  return result
+/**
+ * Existing `(kind, ref_id)` pairs on a slot. Both materialisation paths key
+ * their skip decision on the pair they are about to write, so a template that
+ * targets a second option unit still materialises while the first is left
+ * alone.
+ */
+async function loadExistingResourceKeys(
+  db: PostgresJsDatabase,
+  slotId: string,
+): Promise<Set<string>> {
+  const rows = await executeRows<{ kind: string; ref_id: string | null }>(
+    db,
+    // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+    sql`SELECT DISTINCT kind, ref_id FROM allocation_resources WHERE slot_id = ${slotId}`,
+  )
+  return new Set(rows.map((row) => resourceKey(row.kind, row.ref_id)))
+}
+
+function resourceKey(kind: string, refId: string | null | undefined): string {
+  return `${kind}::${refId ?? ""}`
 }
 
 async function autoMaterializeAllocationResourcesLocked(
@@ -97,19 +127,7 @@ async function autoMaterializeAllocationResourcesLocked(
     .limit(1)
   if (!slot) throw new AllocationServiceError("Availability slot not found", 404)
 
-  const existing = await executeRows<{ count: number }>(
-    db,
-    sql`
-      SELECT COUNT(*)::int AS count
-      FROM allocation_resources
-      WHERE slot_id = ${slotId} AND kind = ${kind}
-    `,
-  )
-  if ((existing[0]?.count ?? 0) > 0) {
-    throw new AllocationServiceError("Resources already exist", 409, {
-      detail: "Delete existing resources before re-materializing, or add new ones manually.",
-    })
-  }
+  const existingKeys = await loadExistingResourceKeys(db, slotId)
 
   const groups = await executeRows<AutoMaterializeRow>(
     db,
@@ -153,12 +171,17 @@ async function autoMaterializeAllocationResourcesLocked(
     `,
   )
 
-  if (groups.length === 0) return { kind, created: 0, resources: [] }
+  if (groups.length === 0) return { kind, created: 0, skippedExisting: 0, resources: [] }
 
   const created: AllocationResource[] = []
   let sequence = 0
+  let skippedExisting = 0
   for (const group of groups) {
     if (kind === "vehicle_seat") {
+      if (existingKeys.has(resourceKey(kind, group.ref_id))) {
+        skippedExisting += 1
+        continue
+      }
       const vehicleResources = await materializeVehicleSeatGroupInTransaction(
         db,
         slotId,
@@ -167,18 +190,24 @@ async function autoMaterializeAllocationResourcesLocked(
       )
       sequence += vehicleResources.vehicleCount
       created.push(...vehicleResources.resources)
+      existingKeys.add(resourceKey(kind, group.ref_id))
+      continue
+    }
+
+    // Default the resource's ref to its materializing option so the UI
+    // can badge each row with the option name (e.g. Standard double).
+    // Templates that explicitly set ref_type/ref_id (e.g. pointing at a
+    // hotel inventory row) keep their own values.
+    const resolvedRefType = group.ref_type ?? "option"
+    const resolvedRefId = group.ref_id ?? group.option_id
+    if (existingKeys.has(resourceKey(kind, resolvedRefId))) {
+      skippedExisting += 1
       continue
     }
 
     const unitsNeeded = Math.max(1, Math.ceil(group.pax_count / Math.max(1, group.capacity)))
     for (let index = 0; index < unitsNeeded; index++) {
       sequence += 1
-      // Default the resource's ref to its materializing option so the UI
-      // can badge each row with the option name (e.g. Standard double).
-      // Templates that explicitly set ref_type/ref_id (e.g. pointing at a
-      // hotel inventory row) keep their own values.
-      const resolvedRefType = group.ref_type ?? "option"
-      const resolvedRefId = group.ref_id ?? group.option_id
       const [row] = await db
         .insert(allocationResources)
         .values({
@@ -198,139 +227,10 @@ async function autoMaterializeAllocationResourcesLocked(
         .returning()
       if (row) created.push(row)
     }
+    existingKeys.add(resourceKey(kind, resolvedRefId))
   }
 
-  return { kind, created: created.length, resources: created }
-}
-
-export async function autoAllocateSlotResources(
-  db: PostgresJsDatabase,
-  slotId: string,
-  input: AllocationAutomationInput,
-  options: AllocationMutationOptions = {},
-): Promise<AllocationAutomationResult> {
-  const kind = input.kind ?? "room"
-
-  // The capacity invariant lives in the *decision*, not in the write, so the
-  // manifest read, the plan and the upsert all sit inside one transaction
-  // behind the same `FOR UPDATE` over the slot's resources of this kind.
-  // Planning from a snapshot taken before the lock let a manual assignment
-  // (or a second auto-allocate) land in between; the plan was then applied
-  // verbatim and could push a resource past its capacity with no conflict
-  // raised. Serialising the writes alone never serialised the decision.
-  const plan = await db.transaction(async (tx) => {
-    const scoped = tx as PostgresJsDatabase
-
-    await scoped.execute(sql`
-      SELECT id
-      FROM allocation_resources
-      WHERE slot_id = ${slotId} AND kind = ${kind}
-      FOR UPDATE
-    `)
-
-    const manifest = await getSlotAllocationManifest(scoped, slotId)
-    if (!manifest) throw new AllocationServiceError("Availability slot not found", 404)
-
-    const resources = manifest.resources.filter((resource) => resource.kind === kind)
-    if (resources.length === 0) {
-      throw new AllocationServiceError("No resources for this allocation kind", 400, { kind })
-    }
-
-    const travelers = toAllocatorTravelers(manifest, kind)
-    const allocatorResources = resources.map(toAllocatorResource)
-    const planned =
-      kind === "vehicle_seat"
-        ? planVehicleSeatAllocation(travelers, allocatorResources)
-        : planRoomAllocation(travelers, allocatorResources)
-
-    if (planned.assignments.length > 0) {
-      const travelerIds = planned.assignments.map((assignment) => assignment.travelerId)
-      const resourceIds = planned.assignments.map((assignment) => assignment.resourceId)
-      await scoped.execute(sql`
-        INSERT INTO booking_traveler_travel_details (traveler_id, allocations)
-        SELECT
-          row.traveler_id,
-          jsonb_build_object(${kind}::text, row.resource_id::text)
-        FROM unnest(${sqlTextArray(travelerIds)}, ${sqlTextArray(resourceIds)}) AS row(traveler_id, resource_id)
-        ON CONFLICT (traveler_id) DO UPDATE SET
-          allocations =
-            COALESCE(booking_traveler_travel_details.allocations, '{}'::jsonb)
-            || EXCLUDED.allocations,
-          updated_at = now()
-      `)
-      await assertPlannedResourcesWithinCapacity(scoped, slotId, kind, resourceIds)
-    }
-
-    // Audit inside the transaction so the applied plan and its record
-    // commit or roll back together — PR #4139 moved planning and writing
-    // in here but left the audit outside.
-    await recordAllocationAudit(tx, {
-      slotId,
-      action: "auto-allocate",
-      actorId: options.actorId ?? null,
-      after: { kind, assigned: planned.assignments.length, skipped: planned.skipped },
-    })
-
-    return planned
-  })
-
-  return { kind, assigned: plan.assignments.length, skipped: plan.skipped }
-}
-
-/**
- * Post-write invariant check for the resources an auto-allocate plan
- * touched. Re-planning under the lock already keeps the plan inside
- * capacity, so this is a backstop against an allocator regression rather
- * than the primary guard -- it runs inside the writing transaction, so a
- * violation rolls the whole plan back instead of shipping an oversold slot.
- * One aggregate query over the planned resources only: an unrelated
- * resource that was already over capacity must not block the operator.
- */
-async function assertPlannedResourcesWithinCapacity(
-  db: PostgresJsDatabase,
-  slotId: string,
-  kind: string,
-  resourceIds: string[],
-): Promise<void> {
-  const overflowing = await executeRows<{
-    id: string
-    label: string | null
-    capacity: number
-    assigned: number
-  }>(
-    db,
-    sql`
-      SELECT ar.id, ar.label, ar.capacity, usage.assigned
-      FROM allocation_resources ar
-      JOIN LATERAL (
-        SELECT COUNT(DISTINCT btd.traveler_id)::int AS assigned
-        FROM booking_traveler_travel_details btd
-        JOIN booking_travelers bt ON bt.id = btd.traveler_id
-        JOIN booking_allocations ba ON ba.booking_id = bt.booking_id
-        JOIN bookings b ON b.id = bt.booking_id
-        WHERE btd.allocations ->> ar.kind = ar.id
-          AND ba.availability_slot_id = ar.slot_id
-          AND b.status IN (${activeBookingStatusesSql()})
-          AND ba.status IN (${activeBookingAllocationStatusesSql()})
-      ) usage ON true
-      WHERE ar.slot_id = ${slotId}
-        AND ar.kind = ${kind}
-        AND ar.id = ANY(${sqlTextArray([...new Set(resourceIds)])})
-        AND usage.assigned > ar.capacity
-    `,
-  )
-
-  if (overflowing.length === 0) return
-
-  throw new AllocationServiceError("Resource over capacity", 409, {
-    kind,
-    resources: overflowing.map((resource) => ({
-      id: resource.id,
-      label: resource.label,
-      capacity: resource.capacity,
-      assigned: resource.assigned,
-    })),
-  })
+  return { kind, created: created.length, skippedExisting, resources: created }
 }
 
 export interface MaterializeSlotResourcesFromTemplatesOptions {
@@ -362,15 +262,32 @@ export interface MaterializeSlotResourcesFromTemplatesOptions {
  * `default_count` are skipped — operators handle those via the admin
  * materialise route once pax is known.
  *
- * Vehicle-seat layouts are out of scope here; use the existing
- * `autoMaterializeAllocationResources` path for those once the slot
- * has bookings (it knows pax-per-option).
+ * `vehicle_seat` templates are materialised here too: `default_count` is read
+ * as the number of *vehicles* to lay out, and each one gets its full seat map
+ * from the template's `flags.layoutSpec` (or `layout` + `capacity`). Before
+ * this, the only path that created seats was the pax-derived one, so a coach
+ * with an empty seat map could not be drawn until the departure had already
+ * been sold — the operator had to hand-create fifty seats or sell blind.
+ *
+ * Runs inside a transaction that holds the slot row lock, because vehicle-seat
+ * layouts write a parent and its children and must not interleave with a
+ * concurrent materialisation of the same slot.
  */
 export async function materializeSlotResourcesFromTemplateDefaults(
   db: PostgresJsDatabase,
   slotId: string,
   opts: MaterializeSlotResourcesFromTemplatesOptions = {},
-): Promise<{ created: number; resources: AllocationResource[] }> {
+): Promise<{ created: number; skippedExisting: number; resources: AllocationResource[] }> {
+  return db.transaction(async (tx) =>
+    materializeSlotResourcesFromTemplateDefaultsLocked(tx as PostgresJsDatabase, slotId, opts),
+  )
+}
+
+async function materializeSlotResourcesFromTemplateDefaultsLocked(
+  db: PostgresJsDatabase,
+  slotId: string,
+  opts: MaterializeSlotResourcesFromTemplatesOptions,
+): Promise<{ created: number; skippedExisting: number; resources: AllocationResource[] }> {
   const [slot] = await db
     .select({
       id: availabilitySlots.id,
@@ -379,8 +296,9 @@ export async function materializeSlotResourcesFromTemplateDefaults(
     })
     .from(availabilitySlots)
     .where(eq(availabilitySlots.id, slotId))
+    .for("update")
     .limit(1)
-  if (!slot) return { created: 0, resources: [] }
+  if (!slot) return { created: 0, skippedExisting: 0, resources: [] }
 
   // Resolve which option(s) supply templates. An explicit `opts.optionId`
   // wins (used when back-filling a product-level slot on behalf of one
@@ -399,7 +317,7 @@ export async function materializeSlotResourcesFromTemplateDefaults(
     )
     optionIds = optionRows.map((row) => row.id)
   }
-  if (optionIds.length === 0) return { created: 0, resources: [] }
+  if (optionIds.length === 0) return { created: 0, skippedExisting: 0, resources: [] }
 
   const templateConditions = [inArray(productOptionResourceTemplates.productOptionId, optionIds)]
   if (opts.kind) {
@@ -412,29 +330,55 @@ export async function materializeSlotResourcesFromTemplateDefaults(
     .where(and(...templateConditions))
     .orderBy(productOptionResourceTemplates.kind, productOptionResourceTemplates.createdAt)
 
-  if (templates.length === 0) return { created: 0, resources: [] }
+  if (templates.length === 0) return { created: 0, skippedExisting: 0, resources: [] }
 
   const skipExisting = opts.skipExisting !== false
-  const existing = skipExisting
-    ? await executeRows<{ kind: string; ref_id: string | null }>(
-        db,
-        // agent-quality: raw-sql reviewed -- owner: availability; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-        sql`SELECT DISTINCT kind, ref_id FROM allocation_resources WHERE slot_id = ${slotId}`,
-      )
-    : []
   // Key by (kind, ref) — not kind alone — so a second room type (another
   // option_unit, same kind="room") still materializes when re-applying, rather
-  // than the whole "room" kind being skipped once one room exists.
-  const templateKey = (kind: string, refId: string | null) => `${kind}::${refId ?? ""}`
-  const existingKeys = new Set(existing.map((row) => templateKey(row.kind, row.ref_id)))
+  // than the whole "room" kind being skipped once one room exists. Shared with
+  // `autoMaterializeAllocationResources`, which now skips on the same rule.
+  const existingKeys = skipExisting ? await loadExistingResourceKeys(db, slotId) : new Set<string>()
 
   const resources: AllocationResource[] = []
   let sequence = 0
+  let skippedExisting = 0
 
   for (const template of templates) {
     if (template.defaultCount == null || template.defaultCount <= 0) continue
-    if (template.kind === "vehicle_seat") continue
-    if (skipExisting && existingKeys.has(templateKey(template.kind, template.refId))) continue
+    const key = resourceKey(template.kind, template.refId)
+    if (skipExisting && existingKeys.has(key)) {
+      skippedExisting += 1
+      continue
+    }
+
+    if (template.kind === "vehicle_seat") {
+      // `default_count` counts vehicles here, not seats: the seat count comes
+      // from the layout. `pax_count` is irrelevant — that is the whole point of
+      // laying a coach out before the first sale.
+      const group: AutoMaterializeRow = {
+        option_id: template.productOptionId,
+        pax_count: 0,
+        vehicle_count: template.defaultCount,
+        capacity: template.capacity,
+        name_pattern: template.namePattern,
+        ref_type: template.refType,
+        ref_id: template.refId,
+        layout: template.layout,
+        flags: template.flags ?? {},
+        option_name: null,
+        sort_order: null,
+      }
+      const vehicleResources = await materializeVehicleSeatGroupInTransaction(
+        db,
+        slotId,
+        group,
+        sequence,
+      )
+      sequence += vehicleResources.vehicleCount
+      resources.push(...vehicleResources.resources)
+      existingKeys.add(key)
+      continue
+    }
 
     for (let index = 0; index < template.defaultCount; index++) {
       sequence += 1
@@ -456,9 +400,10 @@ export async function materializeSlotResourcesFromTemplateDefaults(
         .returning()
       if (row) resources.push(row)
     }
+    existingKeys.add(key)
   }
 
-  return { created: resources.length, resources }
+  return { created: resources.length, skippedExisting, resources }
 }
 
 /**
@@ -499,46 +444,4 @@ export async function materializeOpenSlotsFromTemplateDefaults(
   }
 
   return { slots: slots.length, created }
-}
-
-function toAllocatorTravelers(manifest: SlotAllocationManifest, kind: string): AllocatorTraveler[] {
-  const travelers: AllocatorTraveler[] = []
-  for (const booking of manifest.bookings) {
-    for (const traveler of booking.travelers) {
-      travelers.push({
-        id: traveler.id,
-        bookingId: booking.id,
-        bookingStatus: booking.status,
-        isLeadTraveler: traveler.isLeadTraveler,
-        sharingGroupId: traveler.sharingGroupId,
-        hasAccessibilityNeeds: traveler.hasAccessibilityNeeds,
-        existingAllocationId: traveler.allocations[kind] ?? null,
-        optionId: traveler.optionId,
-        optionUnitId: traveler.optionUnitId,
-        optionUnitCode: traveler.optionUnitCode,
-      })
-    }
-  }
-  return travelers
-}
-
-function toAllocatorResource(resource: AllocationResource): AllocatorResource {
-  return {
-    id: resource.id,
-    kind: resource.kind,
-    capacity: resource.capacity,
-    flags: resource.flags ?? {},
-    parentId: resource.parentId,
-    refType: resource.refType,
-    refId: resource.refId,
-    label: resource.label,
-    row: typeof resource.flags?.row === "number" ? resource.flags.row : undefined,
-    column: typeof resource.flags?.column === "string" ? resource.flags.column : undefined,
-    position:
-      resource.flags?.position === "window" ||
-      resource.flags?.position === "aisle" ||
-      resource.flags?.position === "middle"
-        ? resource.flags.position
-        : undefined,
-  }
 }

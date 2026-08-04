@@ -49,11 +49,6 @@ export function deriveAllocationKinds({
   return kinds
 }
 
-export type ValidationIssue = {
-  id: string
-  label: string
-}
-
 export function collectOccupants(
   travelers: AllocationManifestTraveler[],
   resources: AllocationResource[],
@@ -113,65 +108,6 @@ export function collectVehicleOccupants(
   }
 
   return { byResource, byTravelerId, unallocated }
-}
-
-export function buildValidationIssues({
-  travelers,
-  resources,
-  occupants,
-  kind,
-  messages,
-}: {
-  travelers: AllocationManifestTraveler[]
-  resources: AllocationResource[]
-  occupants: AllocationOccupants
-  kind: string
-  messages: AllocationUiMessages
-}) {
-  const issues: ValidationIssue[] = []
-
-  if (occupants.unallocated.length > 0) {
-    issues.push({
-      id: "unallocated",
-      label: `${occupants.unallocated.length} ${messages.validationUnallocated}`,
-    })
-  }
-
-  for (const resource of resources) {
-    const count = occupants.byResource.get(resource.id)?.length ?? 0
-    if (count > resource.capacity) {
-      issues.push({
-        id: `over-capacity:${resource.id}`,
-        label: `${resource.label ?? kindLabel(kind, messages)} ${messages.validationOverCapacity}`,
-      })
-    }
-  }
-
-  for (const splitGroup of splitSharingGroups(travelers, kind)) {
-    issues.push({
-      id: `split:${splitGroup}`,
-      label: `${messages.validationSplitGroup}: ${splitGroup}`,
-    })
-  }
-
-  return issues
-}
-
-export function splitSharingGroups(travelers: AllocationManifestTraveler[], kind: string) {
-  const allocationsByGroup = new Map<string, Set<string>>()
-  for (const traveler of travelers) {
-    const groupId = traveler.sharingGroupId
-    if (!groupId) continue
-    const allocations = allocationsByGroup.get(groupId) ?? new Set<string>()
-    allocations.add(traveler.allocations[kind] ?? "unallocated")
-    allocationsByGroup.set(groupId, allocations)
-  }
-
-  const split: string[] = []
-  for (const [groupId, allocations] of allocationsByGroup) {
-    if (allocations.size > 1) split.push(groupId)
-  }
-  return split
 }
 
 export interface VehicleSeatGroup {

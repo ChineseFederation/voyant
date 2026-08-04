@@ -98,14 +98,44 @@ export {
   validateSlotAllocationCapacity,
 } from "./service-allocation.js"
 export {
+  type AssignTravelerAllocationsBatchInput,
+  type AssignTravelerAllocationsBatchResult,
+  assignTravelerAllocationsBatch,
+  type BatchAllocationAssignment,
+} from "./service-allocation-assignment-batch.js"
+export {
+  type AllocationPlanEntry,
+  type AllocationPlanPreview,
   type MaterializeSlotResourcesFromTemplatesOptions,
   materializeSlotResourcesFromTemplateDefaults,
+  previewAutoAllocateSlotResources,
 } from "./service-allocation-automation.js"
 export {
+  type AllocationConflict,
+  type AllocationConflictCode,
+  type AllocationConflictInput,
+  type AllocationConflictResource,
+  type AllocationConflictSeverity,
+  type AllocationConflictSubjectType,
+  evaluateAllocationConflicts,
+  getSlotAllocationConflicts,
+} from "./service-allocation-conflicts.js"
+export {
+  type AllocationExportPrefix,
   allocationExportFilename,
+  allocationExportPrefixForKind,
   buildAllocationPassengersCsv,
   buildAllocationRoomingCsv,
 } from "./service-allocation-exports.js"
+export {
+  type AttachDepartureResourceInput,
+  attachDepartureResource,
+  type DepartureResourceLink,
+  type DepartureResourceRow,
+  type DetachDepartureResourceOptions,
+  detachDepartureResource,
+  listDepartureResourceLinks,
+} from "./service-allocation-resource-link.js"
 export {
   type DepartureAllocationCounters,
   type DepartureBookingCounters,

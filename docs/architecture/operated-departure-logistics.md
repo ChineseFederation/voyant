@@ -97,6 +97,74 @@ would change behaviour. It stays a distinct, locally-documented vocabulary.
 The admin route bundle is mounted behind the operator application's existing
 authenticated admin boundary. Mutation audit entries retain the acting user ID.
 
+## Attaching a fleet resource: which table is authoritative
+
+An allocation resource may carry `refType = "resource"` with `refId` pointing at
+a `resources` row, which is how a departure says "this is the coach that
+operates it". Two tables then describe the same coach, and they answer different
+questions:
+
+| Table | Authoritative for | Scope |
+|---|---|---|
+| `allocation_resources` (`ref_type = "resource"`) | **what this departure operates** — the container travelers are assigned against, its capacity, its child seats | one slot |
+| `resource_slot_assignments` | **fleet commitment across departures** — is this coach already promised elsewhere, and since when | every slot |
+
+Neither is a copy of the other, and neither is optional:
+
+- Every read the departure workspace does — manifest, exports, capacity
+  counters, the conflicts projection — goes through `allocation_resources`. A
+  departure never has to consult the Resources module to render or validate its
+  plan.
+- Only `resource_slot_assignments` spans departures, so it is the only table
+  that can detect a double-booking. `allocation_resources` is slot-scoped by
+  construction and can never see a clash.
+
+There is exactly **one write path** (`service-allocation-resource-link.ts`).
+Attaching writes both rows in one transaction, having first consulted the fleet
+ledger as the conflict oracle; detaching removes the container and releases the
+commitment. A live `resource_slot_assignments` row the Resources admin section
+already created for the same (slot, resource) is **adopted**, not duplicated,
+and its id is recorded on the allocation resource's `flags.resourceAssignmentId`.
+That reconciliation is what stops a coach being held twice through two unrelated
+tables.
+
+An attach is idempotent: re-attaching the same resource returns the existing
+link rather than raising, matching the materialisation paths.
+
+## Materialising a layout, and what "already done" means
+
+Both materialisation paths — pax-derived (`autoMaterializeAllocationResources`)
+and template-default (`materializeSlotResourcesFromTemplateDefaults`) — agree on
+**skip-existing at `(kind, ref_id)` granularity**. Materialising is a
+converge-to-this-layout operation, so running it twice leaves the same rows and
+reports `created: 0, skippedExisting: n`. The pax-derived path used to raise
+`409 Resources already exist` instead; skipping is the only rule of the two that
+is safe to retry, and the per-`(kind, ref)` granularity is what lets a second
+room type materialise later without the whole `room` kind counting as done.
+
+Replacing an existing layout stays an explicit operator action: delete the
+resources, then materialise again.
+
+`vehicle_seat` templates materialise from their `default_count` too, which
+counts **vehicles**; the seat count comes from the template's layout. An
+operator can therefore draw a coach before the departure has sold a single seat.
+
+## Allocation conflicts are a server projection
+
+"What is wrong with this plan" is answered once, server-side
+(`service-allocation-conflicts.ts`), so the workspace UI, the CSV export and the
+printed manifest cannot disagree. The rules are pure over already-loaded facts
+and every conflict carries a stable machine code:
+`traveler_unassigned`, `resource_over_capacity`, `duplicate_assignment`,
+`inaccessible_assignment`, `incompatible_assignment`,
+`oversubscribed_sharing_group`, `split_sharing_group`. Never rename a code; add
+a new one. Detection only — nothing there repairs anything.
+
+Departure-level drift (stale holds, oversold capacity, missing travelers) stays
+in `service-departure-issues.ts`. The two projections are complementary: one
+asks "does this departure's bookkeeping agree with itself", the other asks "can
+this rooming or seating plan actually be operated".
+
 ## Deliberately deferred planner work
 
 This shared primitive supports real rooming, vehicle, and seat assignment now.
@@ -109,8 +177,9 @@ Rich specialist planning remains additive UI over the same data:
   allocation map;
 - crew qualifications, shifts, duty-time limits, and supplier contracting;
 - vehicle registration, depot, route-leg, and maintenance constraints;
-- automatic conflict detection across departures for shared fleet and staff.
+- automatic conflict detection across departures for shared fleet and staff
+  beyond the overlapping-window check the attach path already performs.
 
 Those features should link resources through `refType`/`refId` to their owning
 fleet, people, supplier, or facility records instead of copying those entities
-into availability.
+into availability — the `"resource"` ref above is the first of them.

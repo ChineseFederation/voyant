@@ -369,6 +369,14 @@ jobs:
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/auto-allocate-concurrency.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/allocation-assignment-concurrency.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/allocation-routes.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/allocation-departure-resources.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/materialize-template-defaults.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/departure-summary.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/allocation-audit-atomicity.test.ts

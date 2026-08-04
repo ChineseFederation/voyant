@@ -174,12 +174,16 @@ describe.skipIf(!DB_AVAILABLE)("materialize template defaults (integration)", ()
       status: "confirmed",
     })
 
-    const outcomes = await Promise.allSettled([
+    // Idempotency parity (#4034): the pax-derived path used to 409 on the
+    // second call while the template-default path silently skipped. Both now
+    // skip, so a retried request is a visible no-op instead of an error the
+    // operator has to interpret.
+    const outcomes = await Promise.all([
       autoMaterializeAllocationResources(db, slotId, { kind: "vehicle_seat" }),
       autoMaterializeAllocationResources(db, slotId, { kind: "vehicle_seat" }),
     ])
-    expect(outcomes.filter((outcome) => outcome.status === "fulfilled")).toHaveLength(1)
-    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1)
+    expect(outcomes.filter((outcome) => (outcome.created ?? 0) > 0)).toHaveLength(1)
+    expect(outcomes.filter((outcome) => (outcome.skippedExisting ?? 0) > 0)).toHaveLength(1)
 
     const rows = await db
       .select()
@@ -192,6 +196,96 @@ describe.skipIf(!DB_AVAILABLE)("materialize template defaults (integration)", ()
     expect(seats.every((seat) => seat.capacity === 1 && seat.parentId === vehicles[0]?.id)).toBe(
       true,
     )
+  })
+
+  // #4034: a coach could not be laid out before the first sale. The only path
+  // that created seats derived its vehicle count from booked pax, so an empty
+  // departure produced nothing and the operator had to hand-create every seat.
+  it("lays a coach out from its template default before any booking exists", async () => {
+    await db.insert(productOptionResourceTemplates).values({
+      productOptionId: optionId,
+      kind: "vehicle_seat",
+      capacity: 6,
+      namePattern: "Coach {sequence}",
+      layout: "2-1",
+      defaultCount: 2,
+    })
+
+    const slotId = newId("availability_slots")
+    await db.insert(availabilitySlots).values({
+      id: slotId,
+      productId,
+      optionId,
+      dateLocal: "2026-06-01",
+      startsAt: new Date("2026-06-01T08:00:00Z"),
+      timezone: "UTC",
+      status: "open",
+      unlimited: false,
+      initialPax: 12,
+      remainingPax: 12,
+    })
+
+    const result = await materializeSlotResourcesFromTemplateDefaults(db, slotId)
+    // default_count counts vehicles; the seat count comes from the layout.
+    expect(result.created).toBe(2 + 12)
+
+    const rows = await db
+      .select()
+      .from(allocationResources)
+      .where(eq(allocationResources.slotId, slotId))
+    const vehicles = rows.filter((row) => row.kind === "vehicle")
+    const seats = rows.filter((row) => row.kind === "vehicle_seat")
+    expect(vehicles).toHaveLength(2)
+    expect(seats).toHaveLength(12)
+    expect(seats.every((seat) => seat.capacity === 1)).toBe(true)
+    expect(new Set(seats.map((seat) => seat.parentId))).toEqual(
+      new Set(vehicles.map((vehicle) => vehicle.id)),
+    )
+
+    // ...and re-running is a no-op, not a duplicate coach.
+    const again = await materializeSlotResourcesFromTemplateDefaults(db, slotId)
+    expect(again.created).toBe(0)
+    expect(again.skippedExisting).toBe(1)
+  })
+
+  it("draws a seat map from a template layoutSpec", async () => {
+    await db.insert(productOptionResourceTemplates).values({
+      productOptionId: optionId,
+      kind: "vehicle_seat",
+      capacity: 3,
+      namePattern: "Minibus {sequence}",
+      defaultCount: 1,
+      flags: {
+        layoutSpec: {
+          rows: [{ cells: ["seat", "aisle", "seat"] }, { cells: ["void", "aisle", "seat"] }],
+        },
+      },
+    })
+
+    const slotId = newId("availability_slots")
+    await db.insert(availabilitySlots).values({
+      id: slotId,
+      productId,
+      optionId,
+      dateLocal: "2026-06-01",
+      startsAt: new Date("2026-06-01T08:00:00Z"),
+      timezone: "UTC",
+      status: "open",
+      unlimited: false,
+      initialPax: 3,
+      remainingPax: 3,
+    })
+
+    const result = await materializeSlotResourcesFromTemplateDefaults(db, slotId)
+    expect(result.created).toBe(1 + 3)
+
+    const rows = await db
+      .select()
+      .from(allocationResources)
+      .where(eq(allocationResources.slotId, slotId))
+    const vehicle = rows.find((row) => row.kind === "vehicle")
+    expect(vehicle?.capacity).toBe(3)
+    expect(rows.filter((row) => row.kind === "vehicle_seat")).toHaveLength(3)
   })
 
   it("auto-materializes during generateAvailabilitySlots", async () => {
