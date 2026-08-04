@@ -281,10 +281,7 @@ export async function countResourceOccupants(
   return rows[0]?.count ?? 0
 }
 
-export async function clearTravelerAllocationsForResource(
-  db: PostgresJsDatabase,
-  resourceId: string,
-) {
+export async function clearTravelerAllocationsForResource(db: SqlExecutor, resourceId: string) {
   await db.execute(sql`
     UPDATE booking_traveler_travel_details btd
     SET allocations = COALESCE((

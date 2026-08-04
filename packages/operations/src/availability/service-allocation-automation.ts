@@ -59,18 +59,26 @@ export async function autoMaterializeAllocationResources(
   input: AllocationAutomationInput,
   options: AllocationMutationOptions = {},
 ): Promise<AllocationAutomationResult> {
-  const result = await db.transaction(async (tx) =>
-    autoMaterializeAllocationResourcesLocked(tx as PostgresJsDatabase, slotId, input),
-  )
-
-  if ((result.created ?? 0) > 0) {
-    await recordAllocationAudit(db, {
+  const result = await db.transaction(async (tx) => {
+    const materialized = await autoMaterializeAllocationResourcesLocked(
+      tx as PostgresJsDatabase,
       slotId,
-      action: "resources.materialize",
-      actorId: options.actorId ?? null,
-      after: { kind: result.kind, created: result.created ?? 0 },
-    })
-  }
+      input,
+    )
+
+    // Audit inside the transaction so the materialised resources and
+    // their record commit or roll back together.
+    if ((materialized.created ?? 0) > 0) {
+      await recordAllocationAudit(tx, {
+        slotId,
+        action: "resources.materialize",
+        actorId: options.actorId ?? null,
+        after: { kind: materialized.kind, created: materialized.created ?? 0 },
+      })
+    }
+
+    return materialized
+  })
 
   return result
 }
@@ -253,14 +261,17 @@ export async function autoAllocateSlotResources(
       await assertPlannedResourcesWithinCapacity(scoped, slotId, kind, resourceIds)
     }
 
-    return planned
-  })
+    // Audit inside the transaction so the applied plan and its record
+    // commit or roll back together — PR #4139 moved planning and writing
+    // in here but left the audit outside.
+    await recordAllocationAudit(tx, {
+      slotId,
+      action: "auto-allocate",
+      actorId: options.actorId ?? null,
+      after: { kind, assigned: planned.assignments.length, skipped: planned.skipped },
+    })
 
-  await recordAllocationAudit(db, {
-    slotId,
-    action: "auto-allocate",
-    actorId: options.actorId ?? null,
-    after: { kind, assigned: plan.assignments.length, skipped: plan.skipped },
+    return planned
   })
 
   return { kind, assigned: plan.assignments.length, skipped: plan.skipped }

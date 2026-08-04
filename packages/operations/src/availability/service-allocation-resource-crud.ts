@@ -71,21 +71,23 @@ export async function createAllocationResource(
         sortOrder: input.sortOrder ?? 0,
       })
       .returning()
+    if (created) {
+      // Audit inside the transaction so the resource and its record
+      // commit or roll back together.
+      await recordAllocationAudit(tx, {
+        slotId,
+        action: "resource.create",
+        actorId: options.actorId ?? null,
+        resourceId: created.id,
+        after: {
+          kind: created.kind,
+          label: created.label,
+          capacity: created.capacity,
+        },
+      })
+    }
     return created ?? null
   })
-  if (row) {
-    await recordAllocationAudit(db, {
-      slotId,
-      action: "resource.create",
-      actorId: options.actorId ?? null,
-      resourceId: row.id,
-      after: {
-        kind: row.kind,
-        label: row.label,
-        capacity: row.capacity,
-      },
-    })
-  }
   return row
 }
 
@@ -178,28 +180,29 @@ export async function updateAllocationResource(
       .set({ ...input, updatedAt: new Date() })
       .where(and(eq(allocationResources.id, resourceId), eq(allocationResources.slotId, slotId)))
       .returning()
-    return row ? { existing, row } : null
-  })
-  if (result) {
-    await recordAllocationAudit(db, {
+    if (!row) return null
+    // Audit inside the transaction so the update and its record commit
+    // or roll back together.
+    await recordAllocationAudit(tx, {
       slotId,
       action: "resource.update",
       actorId: options.actorId ?? null,
-      resourceId: result.row.id,
+      resourceId: row.id,
       before: {
-        label: result.existing.label,
-        capacity: result.existing.capacity,
-        flags: result.existing.flags,
-        sortOrder: result.existing.sortOrder,
+        label: existing.label,
+        capacity: existing.capacity,
+        flags: existing.flags,
+        sortOrder: existing.sortOrder,
       },
       after: {
-        label: result.row.label,
-        capacity: result.row.capacity,
-        flags: result.row.flags,
-        sortOrder: result.row.sortOrder,
+        label: row.label,
+        capacity: row.capacity,
+        flags: row.flags,
+        sortOrder: row.sortOrder,
       },
     })
-  }
+    return { existing, row }
+  })
   return result?.row ?? null
 }
 
@@ -240,22 +243,27 @@ export async function deleteAllocationResource(
         label: allocationResources.label,
         capacity: allocationResources.capacity,
       })
+    if (deleted) {
+      // Clear the dangling traveler references and audit inside the
+      // transaction so the row deletion, the cleanup, and the record
+      // commit or roll back together. Otherwise a failed cleanup leaves
+      // `booking_traveler_travel_details.allocations` pointing at a
+      // deleted resource id, and the rooming CSV stops reconciling.
+      await clearTravelerAllocationsForResource(tx, resourceId)
+      await recordAllocationAudit(tx, {
+        slotId,
+        action: "resource.delete",
+        actorId: options.actorId ?? null,
+        resourceId: deleted.id,
+        before: {
+          kind: deleted.kind,
+          label: deleted.label,
+          capacity: deleted.capacity,
+        },
+      })
+    }
     return deleted ?? null
   })
-  if (row) {
-    await clearTravelerAllocationsForResource(db, resourceId)
-    await recordAllocationAudit(db, {
-      slotId,
-      action: "resource.delete",
-      actorId: options.actorId ?? null,
-      resourceId: row.id,
-      before: {
-        kind: row.kind,
-        label: row.label,
-        capacity: row.capacity,
-      },
-    })
-  }
   return row
 }
 

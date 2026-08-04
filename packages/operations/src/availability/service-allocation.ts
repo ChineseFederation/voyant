@@ -1,3 +1,9 @@
+// agent-quality: file-size exception -- owner: availability. This module
+// pairs the slot allocation manifest read with every traveler/sharing-group
+// mutation that must stay in step with it, and they share private slot/
+// traveler helpers below. It was already over the limit before #4164 wrapped
+// the mutations' audit writes in their transactions; splitting the manifest
+// read out is a separate refactor, not part of this bug fix.
 import {
   type allocationResources,
   availabilitySlots,
@@ -338,10 +344,9 @@ export async function assignTravelerAllocation(
       400,
     )
   }
-  let beforeResourceId: string | null = null
   await db.transaction(async (tx) => {
     await assertTravelerBelongsToSlot(tx, slotId, travelerId)
-    beforeResourceId = await getTravelerAllocation(tx, travelerId, input.kind)
+    const beforeResourceId = await getTravelerAllocation(tx, travelerId, input.kind)
 
     if (input.resourceId) {
       const [resource] = await executeRows<{
@@ -396,14 +401,18 @@ export async function assignTravelerAllocation(
         WHERE traveler_id = ${travelerId}
       `)
     }
-  })
-  await recordAllocationAudit(db, {
-    slotId,
-    action: input.resourceId ? "traveler.assign" : "traveler.unassign",
-    actorId: options.actorId ?? null,
-    travelerId,
-    before: { kind: input.kind, resourceId: beforeResourceId },
-    after: { kind: input.kind, resourceId: input.resourceId },
+
+    // Audit inside the transaction so a failed audit insert rolls the
+    // assignment back rather than committing an unrecorded move.
+    // `beforeResourceId` was captured above, before the write.
+    await recordAllocationAudit(tx, {
+      slotId,
+      action: input.resourceId ? "traveler.assign" : "traveler.unassign",
+      actorId: options.actorId ?? null,
+      travelerId,
+      before: { kind: input.kind, resourceId: beforeResourceId },
+      after: { kind: input.kind, resourceId: input.resourceId },
+    })
   })
 
   return { travelerId, kind: input.kind, resourceId: input.resourceId }
@@ -416,22 +425,26 @@ export async function updateTravelerSharingGroup(
   input: UpdateTravelerSharingGroupInput,
   options: AllocationMutationOptions = {},
 ) {
-  await assertTravelerBelongsToSlot(db, slotId, travelerId)
-  const beforeSharingGroupId = await getTravelerSharingGroup(db, travelerId)
-  await db.execute(sql`
-    INSERT INTO booking_traveler_travel_details (traveler_id, sharing_group_id)
-    VALUES (${travelerId}, ${input.sharingGroupId})
-    ON CONFLICT (traveler_id) DO UPDATE SET
-      sharing_group_id = ${input.sharingGroupId},
-      updated_at = now()
-  `)
-  await recordAllocationAudit(db, {
-    slotId,
-    action: input.sharingGroupId ? "traveler.sharing-group.set" : "traveler.sharing-group.clear",
-    actorId: options.actorId ?? null,
-    travelerId,
-    before: { sharingGroupId: beforeSharingGroupId },
-    after: { sharingGroupId: input.sharingGroupId },
+  await db.transaction(async (tx) => {
+    await assertTravelerBelongsToSlot(tx, slotId, travelerId)
+    const beforeSharingGroupId = await getTravelerSharingGroup(tx, travelerId)
+    await tx.execute(sql`
+      INSERT INTO booking_traveler_travel_details (traveler_id, sharing_group_id)
+      VALUES (${travelerId}, ${input.sharingGroupId})
+      ON CONFLICT (traveler_id) DO UPDATE SET
+        sharing_group_id = ${input.sharingGroupId},
+        updated_at = now()
+    `)
+    // Audit inside the transaction so the sharing-group change and its
+    // record commit or roll back together.
+    await recordAllocationAudit(tx, {
+      slotId,
+      action: input.sharingGroupId ? "traveler.sharing-group.set" : "traveler.sharing-group.clear",
+      actorId: options.actorId ?? null,
+      travelerId,
+      before: { sharingGroupId: beforeSharingGroupId },
+      after: { sharingGroupId: input.sharingGroupId },
+    })
   })
 
   return { travelerId, sharingGroupId: input.sharingGroupId }
@@ -443,24 +456,28 @@ export async function pairSharingGroup(
   input: PairSharingGroupInput,
   options: AllocationMutationOptions = {},
 ) {
-  for (const travelerId of input.travelerIds) {
-    await assertTravelerBelongsToSlot(db, slotId, travelerId)
-  }
-
   const sharingGroupId = input.sharingGroupId ?? globalThis.crypto.randomUUID()
-  await db.execute(sql`
-    INSERT INTO booking_traveler_travel_details (traveler_id, sharing_group_id)
-    SELECT id, ${sharingGroupId}
-    FROM unnest(${sqlTextArray(input.travelerIds)}) AS u(id)
-    ON CONFLICT (traveler_id) DO UPDATE SET
-      sharing_group_id = EXCLUDED.sharing_group_id,
-      updated_at = now()
-  `)
-  await recordAllocationAudit(db, {
-    slotId,
-    action: "traveler.sharing-group.set",
-    actorId: options.actorId ?? null,
-    after: { sharingGroupId, travelerIds: input.travelerIds },
+  await db.transaction(async (tx) => {
+    for (const travelerId of input.travelerIds) {
+      await assertTravelerBelongsToSlot(tx, slotId, travelerId)
+    }
+
+    await tx.execute(sql`
+      INSERT INTO booking_traveler_travel_details (traveler_id, sharing_group_id)
+      SELECT id, ${sharingGroupId}
+      FROM unnest(${sqlTextArray(input.travelerIds)}) AS u(id)
+      ON CONFLICT (traveler_id) DO UPDATE SET
+        sharing_group_id = EXCLUDED.sharing_group_id,
+        updated_at = now()
+    `)
+    // Audit inside the transaction so the pairing and its record commit
+    // or roll back together.
+    await recordAllocationAudit(tx, {
+      slotId,
+      action: "traveler.sharing-group.set",
+      actorId: options.actorId ?? null,
+      after: { sharingGroupId, travelerIds: input.travelerIds },
+    })
   })
 
   return { sharingGroupId, travelerIds: input.travelerIds }
@@ -473,20 +490,25 @@ export async function updateSharingGroupLabel(
   input: UpdateSharingGroupLabelInput,
   options: AllocationMutationOptions = {},
 ) {
-  await assertSharingGroupBelongsToSlot(db, slotId, groupId)
-  const [row] = await db
-    .insert(sharingGroupLabels)
-    .values({ groupId, label: input.label })
-    .onConflictDoUpdate({
-      target: sharingGroupLabels.groupId,
-      set: { label: input.label, updatedAt: new Date() },
+  const row = await db.transaction(async (tx) => {
+    await assertSharingGroupBelongsToSlot(tx, slotId, groupId)
+    const [inserted] = await tx
+      .insert(sharingGroupLabels)
+      .values({ groupId, label: input.label })
+      .onConflictDoUpdate({
+        target: sharingGroupLabels.groupId,
+        set: { label: input.label, updatedAt: new Date() },
+      })
+      .returning()
+    // Audit inside the transaction so the label change and its record
+    // commit or roll back together.
+    await recordAllocationAudit(tx, {
+      slotId,
+      action: "sharing-group.label.update",
+      actorId: options.actorId ?? null,
+      after: { sharingGroupId: groupId, label: inserted?.label ?? input.label },
     })
-    .returning()
-  await recordAllocationAudit(db, {
-    slotId,
-    action: "sharing-group.label.update",
-    actorId: options.actorId ?? null,
-    after: { sharingGroupId: groupId, label: row?.label ?? input.label },
+    return inserted
   })
   return row ?? { groupId, label: input.label, createdAt: new Date(), updatedAt: new Date() }
 }
@@ -497,19 +519,24 @@ export async function deleteSharingGroupLabel(
   groupId: string,
   options: AllocationMutationOptions = {},
 ) {
-  await assertSharingGroupBelongsToSlot(db, slotId, groupId)
-  const [row] = await db
-    .delete(sharingGroupLabels)
-    .where(eq(sharingGroupLabels.groupId, groupId))
-    .returning()
-  if (row) {
-    await recordAllocationAudit(db, {
-      slotId,
-      action: "sharing-group.label.clear",
-      actorId: options.actorId ?? null,
-      before: { sharingGroupId: groupId, label: row.label },
-    })
-  }
+  const row = await db.transaction(async (tx) => {
+    await assertSharingGroupBelongsToSlot(tx, slotId, groupId)
+    const [deleted] = await tx
+      .delete(sharingGroupLabels)
+      .where(eq(sharingGroupLabels.groupId, groupId))
+      .returning()
+    if (deleted) {
+      // Audit inside the transaction so the label removal and its record
+      // commit or roll back together.
+      await recordAllocationAudit(tx, {
+        slotId,
+        action: "sharing-group.label.clear",
+        actorId: options.actorId ?? null,
+        before: { sharingGroupId: groupId, label: deleted.label },
+      })
+    }
+    return deleted
+  })
   return row ?? null
 }
 
