@@ -1,5 +1,15 @@
 # @voyant-travel/app-manifest
 
+## 0.2.1
+
+### Patch Changes
+
+- 7d3ace7: Read the admin extension version from its narrow subpath.
+
+  The control plane reads `VOYANT_APP_CONTRACT_VERSIONS` inside a Worker, where
+  the SDK's iframe client is dead weight. `@voyant-travel/admin-extension-sdk/version`
+  carries the constant on its own.
+
 ## 0.2.0
 
 ### Minor Changes
