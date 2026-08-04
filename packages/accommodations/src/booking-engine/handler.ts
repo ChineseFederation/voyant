@@ -5,7 +5,7 @@
  *
  * Phase B scope (deliberately narrow):
  *   - `computeQuote` projects the property's accommodation content
- *     into a `BookingDraftShape` with date-range + occupancy
+ *     into a `BookingRequirements` with date-range + occupancy
  *     sub-steps and a Rooms accommodation step. Pricing is resolved
  *     from first-party date-aware owned rates + inventory when the
  *     draft has a selected room and rate plan; otherwise no pricing
@@ -15,7 +15,7 @@
  */
 
 import type {
-  BookingDraftShape,
+  BookingRequirements,
   ComputeQuoteBatchResult,
   ComputeQuoteRequest,
   ComputeQuoteResult,
@@ -25,7 +25,7 @@ import type {
 } from "@voyant-travel/catalog/booking-engine"
 
 import type { AccommodationContent } from "../content-shape.js"
-import { buildAccommodationDraftShape } from "../draft-shape.js"
+import { buildAccommodationRequirements } from "../requirements.js"
 import {
   type OwnedStayQuoteResult,
   type QuoteOwnedStayInput,
@@ -100,7 +100,7 @@ export function createAccommodationBookingHandler(
         return { available: false, invalidReason: "property_not_found" }
       }
 
-      const shape: BookingDraftShape = buildAccommodationDraftShape(content, {
+      const shape: BookingRequirements = buildAccommodationRequirements(content, {
         minNights: options.defaultMinNights,
         maxNights: options.defaultMaxNights,
       })
@@ -126,7 +126,7 @@ export function createAccommodationBookingHandler(
         request.selections.map(async (selection) => {
           const content = await options.loadContent(ctx, selection.entityId)
           const shape = content
-            ? buildAccommodationDraftShape(content, {
+            ? buildAccommodationRequirements(content, {
                 minNights: options.defaultMinNights,
                 maxNights: options.defaultMaxNights,
               })

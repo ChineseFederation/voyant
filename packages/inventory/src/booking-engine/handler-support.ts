@@ -731,7 +731,7 @@ export function bookingItemLinesFromOptionSelections(
 /**
  * Item lines for a product the journey never showed a units step for.
  *
- * `buildOwnedProductDraftShape` renders the `option-units` sub-step only for
+ * `buildOwnedProductRequirements` renders the `option-units` sub-step only for
  * options that sell room/vehicle inventory, so a person-priced product's draft
  * carries pax bands and no `configure.optionSelections`. Without this the
  * commit arrived with no item lines at all and booking creation refused it

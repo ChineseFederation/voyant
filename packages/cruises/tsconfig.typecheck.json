@@ -27,12 +27,12 @@
         "../accommodations/dist/catalog-runtime-extension.d.ts"
       ],
       "@voyant-travel/accommodations/content-shape": ["../accommodations/dist/content-shape.d.ts"],
-      "@voyant-travel/accommodations/draft-shape": ["../accommodations/dist/draft-shape.d.ts"],
       "@voyant-travel/accommodations/graph-runtime": ["../accommodations/dist/graph-runtime.d.ts"],
       "@voyant-travel/accommodations/linkables": ["../accommodations/dist/linkables.d.ts"],
       "@voyant-travel/accommodations/payment-policy-runtime": [
         "../accommodations/dist/payment-policy-runtime.d.ts"
       ],
+      "@voyant-travel/accommodations/requirements": ["../accommodations/dist/requirements.d.ts"],
       "@voyant-travel/accommodations/routes-content": [
         "../accommodations/dist/routes-content.d.ts"
       ],
@@ -422,14 +422,14 @@
       "@voyant-travel/catalog-contracts/booking-engine/contracts": [
         "../catalog-contracts/dist/booking-engine/contracts.d.ts"
       ],
-      "@voyant-travel/catalog-contracts/booking-engine/draft-shape": [
-        "../catalog-contracts/dist/booking-engine/draft-shape.d.ts"
-      ],
       "@voyant-travel/catalog-contracts/booking-engine/lifecycle-conformance": [
         "../catalog-contracts/dist/booking-engine/lifecycle-conformance.d.ts"
       ],
       "@voyant-travel/catalog-contracts/booking-engine/promotions-contract": [
         "../catalog-contracts/dist/booking-engine/promotions-contract.d.ts"
+      ],
+      "@voyant-travel/catalog-contracts/booking-engine/requirements": [
+        "../catalog-contracts/dist/booking-engine/requirements.d.ts"
       ],
       "@voyant-travel/catalog-contracts/booking-engine/session-contracts": [
         "../catalog-contracts/dist/booking-engine/session-contracts.d.ts"
@@ -470,9 +470,6 @@
       "@voyant-travel/catalog/booking-engine": ["../catalog/dist/booking-engine/index.d.ts"],
       "@voyant-travel/catalog/booking-engine/contracts": [
         "../catalog/dist/booking-engine/contracts.d.ts"
-      ],
-      "@voyant-travel/catalog/booking-engine/draft-shape": [
-        "../catalog/dist/booking-engine/draft-shape.d.ts"
       ],
       "@voyant-travel/catalog/booking-engine/operator-routes": [
         "../catalog/dist/booking-engine/operator-routes.d.ts"
@@ -587,8 +584,8 @@
         "../charters/dist/catalog-runtime-extension.d.ts"
       ],
       "@voyant-travel/charters/content-shape": ["../charters/dist/content-shape.d.ts"],
-      "@voyant-travel/charters/draft-shape": ["../charters/dist/draft-shape.d.ts"],
       "@voyant-travel/charters/public-routes": ["../charters/dist/routes-public.d.ts"],
+      "@voyant-travel/charters/requirements": ["../charters/dist/requirements.d.ts"],
       "@voyant-travel/charters/routes": ["../charters/dist/routes.d.ts"],
       "@voyant-travel/charters/runtime-contributor": ["../charters/dist/runtime-contributor.d.ts"],
       "@voyant-travel/charters/schema": ["../charters/dist/schema.d.ts"],
@@ -1268,13 +1265,13 @@
         "../inventory/dist/catalog-runtime-extension.d.ts"
       ],
       "@voyant-travel/inventory/content-shape": ["../inventory/dist/content-shape.d.ts"],
-      "@voyant-travel/inventory/draft-shape": ["../inventory/dist/draft-shape.d.ts"],
       "@voyant-travel/inventory/extras": ["../inventory/dist/extras.d.ts"],
       "@voyant-travel/inventory/graph-runtime": ["../inventory/dist/graph-runtime.d.ts"],
       "@voyant-travel/inventory/linkables": ["../inventory/dist/linkables.d.ts"],
       "@voyant-travel/inventory/public-routes": ["../inventory/dist/public-routes.d.ts"],
       "@voyant-travel/inventory/public-validation": ["../inventory/dist/public-validation.d.ts"],
       "@voyant-travel/inventory/read-model": ["../inventory/dist/read-model.d.ts"],
+      "@voyant-travel/inventory/requirements": ["../inventory/dist/requirements.d.ts"],
       "@voyant-travel/inventory/routes": ["../inventory/dist/routes.d.ts"],
       "@voyant-travel/inventory/routes-brochure": ["../inventory/dist/routes-brochure.d.ts"],
       "@voyant-travel/inventory/routes-content": ["../inventory/dist/routes-content.d.ts"],

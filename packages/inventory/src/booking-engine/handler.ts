@@ -9,7 +9,7 @@
  *     (`products.sellAmountCents` / `sellCurrency`) for pricing
  *     basis, with option/unit-specific pax tiers from
  *     `product_pax_pricing_tiers` when the draft selects units.
- *   - `getProductContent` + `buildProductDraftShape` for the journey
+ *   - `getProductContent` + `buildProductRequirements` for the journey
  *     wizard's step descriptor.
  * Phase A scope (deliberately narrow):
  *   - Price = product.sellAmountCents × pax_count unless option/unit
@@ -21,13 +21,13 @@
 
 import {
   type AddonOffer,
-  type BookingDraftShape,
+  type BookingRequirements,
   type ComputeQuoteRequest,
   type ComputeQuoteResult,
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type OwnedBookingHandler,
   type OwnedHandlerContext,
@@ -95,7 +95,7 @@ export interface DraftLike {
   }>
 }
 
-export interface BuildOwnedProductDraftShapeOptions {
+export interface BuildOwnedProductRequirementsOptions {
   /**
    * Per-traveler field requirements pulled from
    * `@voyant-travel/bookings/requirements` for this product. Caller-supplied
@@ -130,9 +130,9 @@ export interface BuildOwnedProductDraftShapeOptions {
   paxBandDependencies?: ReadonlyArray<PaxBandDependency>
 }
 
-export function buildOwnedProductDraftShape(
-  options: BuildOwnedProductDraftShapeOptions = {},
-): BookingDraftShape {
+export function buildOwnedProductRequirements(
+  options: BuildOwnedProductRequirementsOptions = {},
+): BookingRequirements {
   // Use the product's configured traveler types when supplied; otherwise
   // the generic adult/child/infant defaults.
   const paxBands =
@@ -140,7 +140,7 @@ export function buildOwnedProductDraftShape(
   const fields = options.travelerFields ?? defaultTravelerFields()
   const addons = options.addonCatalog ?? []
   const variants = options.productOptions ?? []
-  const flags = defaultDraftShapeFlags()
+  const flags = defaultRequirementsFlags()
   // Room/vehicle-style products sell inventory units (rooms) the operator
   // must pick a quantity of; person-only products price by pax band alone.
   const hasInventoryUnits = variants.some((variant) =>
@@ -573,7 +573,7 @@ export function createProductsBookingHandler(
       // bands, options, extras and units. Pricing is best-effort: a
       // failure here returns the shape with no price rather than 500ing
       // the quote (which would collapse the shape to the bare default).
-      const shape = buildOwnedProductDraftShape({
+      const shape = buildOwnedProductRequirements({
         travelerFields,
         addonCatalog,
         productOptions: productOptionCatalog,

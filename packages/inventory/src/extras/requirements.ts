@@ -1,5 +1,5 @@
 /**
- * Project an `ExtraContent` payload into a `BookingDraftShape`.
+ * Project an `ExtraContent` payload into a `BookingRequirements`.
  *
  * Extras are booking add-ons (excursions, transfers, insurance) —
  * they're never standalone bookable on their own; they always layer
@@ -15,15 +15,15 @@
  *     supplier's extras).
  *
  * In practice templates rarely call this directly — the parent
- * product's `BookingDraftShape` aggregates extras via the journey's
+ * product's `BookingRequirements` aggregates extras via the journey's
  * cross-product composer. This function is the building block.
  */
 
 import {
   type AddonOffer,
-  type BookingDraftShape,
+  type BookingRequirements,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type PaxBandSpec,
   paxBandsAllowedTotalFrom,
@@ -35,7 +35,7 @@ const DEGENERATE_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
   { code: "adult", label: "Adult", minCount: 0, maxCount: 8 },
 ]
 
-export interface BuildExtraDraftShapeOptions {
+export interface BuildExtraRequirementsOptions {
   locale?: string
   /**
    * When true, returns the full descriptor surface (configure +
@@ -46,11 +46,11 @@ export interface BuildExtraDraftShapeOptions {
   standalone?: boolean
 }
 
-export function buildExtraDraftShape(
+export function buildExtraRequirements(
   content: ExtraContent,
-  options: BuildExtraDraftShapeOptions = {},
-): BookingDraftShape {
-  const flags = defaultDraftShapeFlags()
+  options: BuildExtraRequirementsOptions = {},
+): BookingRequirements {
+  const flags = defaultRequirementsFlags()
   const standalone = options.standalone ?? false
 
   // Project the extra + its options as add-on offers. The extra

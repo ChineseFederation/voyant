@@ -5,7 +5,7 @@
  * Everything else imports shared helpers from here.
  */
 
-import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import { DatePicker } from "@voyant-travel/ui/components/date-picker"
 import { Input } from "@voyant-travel/ui/components/input"
 import { Label } from "@voyant-travel/ui/components/label"
@@ -36,7 +36,7 @@ export interface StepCommonProps {
   // dispatcher), so effects can merge onto the latest draft without clobbering
   // concurrent updates.
   setDraft: (next: Draft | ((prev: Draft) => Draft)) => void
-  shape: BookingDraftShape
+  shape: BookingRequirements
   /**
    * Default country (ISO 3166-1 alpha-2) for the step's phone inputs, already
    * resolved by the draft surface from its configured default or the

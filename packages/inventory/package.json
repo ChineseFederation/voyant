@@ -35,7 +35,7 @@
     "./routes-content": "./src/routes-content.ts",
     "./routes-editorial-overlays": "./src/routes-editorial-overlays.ts",
     "./service-editorial-overlays": "./src/service-editorial-overlays.ts",
-    "./draft-shape": "./src/draft-shape.ts",
+    "./requirements": "./src/requirements.ts",
     "./booking-engine": "./src/booking-engine.ts",
     "./booking-engine/runtime": "./src/booking-engine/product-runtime.ts",
     "./booking-payment-policy-runtime": "./src/booking-payment-policy-runtime.ts",
@@ -263,10 +263,10 @@
         "import": "./dist/service-editorial-overlays.js",
         "default": "./dist/service-editorial-overlays.js"
       },
-      "./draft-shape": {
-        "types": "./dist/draft-shape.d.ts",
-        "import": "./dist/draft-shape.js",
-        "default": "./dist/draft-shape.js"
+      "./requirements": {
+        "types": "./dist/requirements.d.ts",
+        "import": "./dist/requirements.js",
+        "default": "./dist/requirements.js"
       },
       "./booking-engine": {
         "types": "./dist/booking-engine.d.ts",

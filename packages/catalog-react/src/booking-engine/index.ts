@@ -5,9 +5,9 @@
  * Per `docs/architecture/booking-journey-architecture.md` §8.1.
  *
  * Hooks:
- *   - `useBookingDraft`       — local draft state with server sync
- *   - `useBookingQuote`       — debounced live quote on draft change
- *   - `useBookingDraftShape`  — convenience accessor on the latest quote
+ *   - `useBookingDraft`        — local draft state with server sync
+ *   - `useBookingQuote`        — debounced live quote on draft change
+ *   - `useBookingRequirements` — convenience accessor on the latest quote
  *
  * The hooks share a `useBookingJourneyApi()` accessor that derives
  * the API base from the surrounding `VoyantCatalogProvider` and
@@ -22,10 +22,6 @@ export {
   useBookingDraft,
 } from "./use-booking-draft.js"
 export {
-  type UseBookingDraftShapeOptions,
-  useBookingDraftShape,
-} from "./use-booking-draft-shape.js"
-export {
   type PlaceHoldInput,
   type ReleaseHoldInput,
   useBookingHold,
@@ -39,3 +35,7 @@ export {
   type UseBookingQuoteOptions,
   useBookingQuote,
 } from "./use-booking-quote.js"
+export {
+  type UseBookingRequirementsOptions,
+  useBookingRequirements,
+} from "./use-booking-requirements.js"

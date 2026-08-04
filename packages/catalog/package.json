@@ -46,7 +46,6 @@
     "./booking-engine/sessions-routes": "./src/booking-engine/sessions-routes.ts",
     "./booking-engine/sessions-schema": "./src/booking-engine/sessions-schema.ts",
     "./booking-engine/supplier-operations": "./src/booking-engine/supplier-operations.ts",
-    "./booking-engine/draft-shape": "./src/booking-engine/draft-shape.ts",
     "./booking-engine/contracts": "./src/booking-engine/contracts.ts",
     "./booking-snapshot-subscriber": "./src/booking-snapshot-subscriber-runtime.ts",
     "./offers": "./src/offers/operator-routes.ts",
@@ -323,11 +322,6 @@
         "types": "./dist/booking-engine/supplier-operations.d.ts",
         "import": "./dist/booking-engine/supplier-operations.js",
         "default": "./dist/booking-engine/supplier-operations.js"
-      },
-      "./booking-engine/draft-shape": {
-        "types": "./dist/booking-engine/draft-shape.d.ts",
-        "import": "./dist/booking-engine/draft-shape.js",
-        "default": "./dist/booking-engine/draft-shape.js"
       },
       "./booking-engine/contracts": {
         "types": "./dist/booking-engine/contracts.d.ts",

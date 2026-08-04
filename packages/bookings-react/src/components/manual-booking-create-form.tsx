@@ -9,8 +9,8 @@ import {
   travelersToRows,
 } from "@voyant-travel/bookings/pricing-assignment"
 import {
-  type BookingDraftShapeV1,
   type BookingDraftV1,
+  type BookingRequirementsV1,
   bookingDraftV1,
   type PaxBandCode,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
@@ -2142,7 +2142,7 @@ export interface SourcedProductOption {
 }
 
 export function resolveSourcedProductOptions(
-  shape: BookingDraftShapeV1 | undefined,
+  shape: BookingRequirementsV1 | undefined,
   content: CatalogDetailEnrichment | null,
 ): SourcedProductOption[] {
   const optionStep = shape?.configureSubSteps?.find((step) => step.kind === "product-option")

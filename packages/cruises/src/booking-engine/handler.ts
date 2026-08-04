@@ -8,8 +8,8 @@
  * computeQuote scope:
  *   - Reads cruise content via the caller-supplied loader
  *     (`getCruiseContent`).
- *   - Projects to a `BookingDraftShape` with cabin-category +
- *     occupancy sub-steps via `buildCruiseDraftShape`.
+ *   - Projects to a `BookingRequirements` with cabin-category +
+ *     occupancy sub-steps via `buildCruiseRequirements`.
  *   - When a sailing + cabin category + occupancy are picked,
  *     looks up the per-occupancy `cruise_prices` row and returns
  *     pricing as `pricePerPerson × paxCount`.
@@ -17,7 +17,7 @@
  */
 
 import type {
-  BookingDraftShape,
+  BookingRequirements,
   ComputeQuoteRequest,
   ComputeQuoteResult,
   OwnedBookingHandler,
@@ -25,7 +25,7 @@ import type {
 } from "@voyant-travel/catalog/booking-engine"
 
 import type { CruiseContent } from "../content-shape.js"
-import { buildCruiseDraftShape } from "../draft-shape.js"
+import { buildCruiseRequirements } from "../requirements.js"
 
 interface DraftLike {
   configure?: {
@@ -115,7 +115,7 @@ export function createCruiseBookingHandler(
         return { available: false, invalidReason: "cruise_not_found" }
       }
 
-      const shape: BookingDraftShape = buildCruiseDraftShape(content, {
+      const shape: BookingRequirements = buildCruiseRequirements(content, {
         forceCabinNumberSubStep: options.forceCabinNumberSubStep,
         includeInsurance: options.includeInsurance,
       })

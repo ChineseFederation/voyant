@@ -10,7 +10,7 @@ export type PaxBandCode = z.infer<typeof paxBandCodeSchema>
  * A band code as it travels on the wire. Either a canonical code or a
  * tier-qualified one (`"child:pricing_categories_01j…"`) for a product
  * selling several tiers of one category — see `paxBandBaseCode` in
- * `draft-shape.ts`.
+ * `requirements.ts`.
  *
  * Deliberately open: the wizard learns the active bands off the
  * descriptor, and the descriptor is per product. Narrowing this to an
@@ -220,7 +220,7 @@ export const bookingFieldRequirementV1 = z.object({
   group: z.enum(["billing", "company", "preferences"]),
 })
 
-export const bookingDraftShapeV1 = z.object({
+export const bookingRequirementsV1 = z.object({
   showsConfigure: z.boolean(),
   showsBilling: z.boolean(),
   showsTravelers: z.boolean(),
@@ -530,5 +530,5 @@ export const bookingDraftV1 = z.object({
 })
 
 export type BookingDraftV1 = z.infer<typeof bookingDraftV1>
-export type BookingDraftShapeV1 = z.infer<typeof bookingDraftShapeV1>
+export type BookingRequirementsV1 = z.infer<typeof bookingRequirementsV1>
 export type PricingBreakdownV1 = z.infer<typeof pricingBreakdownV1>

@@ -16,7 +16,7 @@
     "./content-shape": "./src/content-shape.ts",
     "./service-content": "./src/service-content.ts",
     "./service-content-synthesizer": "./src/service-content-synthesizer.ts",
-    "./draft-shape": "./src/draft-shape.ts",
+    "./requirements": "./src/requirements.ts",
     "./voyant": "./src/voyant.ts",
     "./openapi/admin": "./openapi/admin/charters.json",
     "./openapi/storefront": "./openapi/storefront/charters.json",
@@ -123,10 +123,10 @@
         "import": "./dist/service-content-synthesizer.js",
         "default": "./dist/service-content-synthesizer.js"
       },
-      "./draft-shape": {
-        "types": "./dist/draft-shape.d.ts",
-        "import": "./dist/draft-shape.js",
-        "default": "./dist/draft-shape.js"
+      "./requirements": {
+        "types": "./dist/requirements.d.ts",
+        "import": "./dist/requirements.js",
+        "default": "./dist/requirements.js"
       },
       "./voyant": {
         "types": "./dist/voyant.d.ts",

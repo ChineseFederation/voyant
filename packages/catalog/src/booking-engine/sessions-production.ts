@@ -3,6 +3,7 @@ import {
   createSourcedBookingCommitment,
   type SourcedBookingTravelerInput,
 } from "@voyant-travel/bookings/service-sourced-commitment"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   allocateBookingNumber,
@@ -20,7 +21,6 @@ import { captureSnapshot } from "../services/snapshot-service.js"
 import type { PricingBasis } from "../snapshot/schema.js"
 import { bookingAllocationsRef, bookingsRef } from "./bookings-ref.js"
 import { pricingBreakdownV1 } from "./contracts.js"
-import { paxBandBaseCode } from "./draft-shape.js"
 import type { OwnedBookingHandlerRegistry, SelfServiceBillingParty } from "./owned-handler.js"
 import { engineParametersFromSelection } from "./quote-support.js"
 import type { SourceAdapterRegistry } from "./registry.js"

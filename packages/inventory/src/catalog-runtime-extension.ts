@@ -11,8 +11,8 @@ import { productDestinationsCatalogPolicy } from "./catalog-policy-destinations.
 import { productPricingCatalogPolicy } from "./catalog-policy-pricing.js"
 import { productPromotionsCatalogPolicy } from "./catalog-policy-promotions.js"
 import { productTaxonomyCatalogPolicy } from "./catalog-policy-taxonomy.js"
-import { buildProductDraftShape } from "./draft-shape.js"
 import { extrasCatalogPolicy } from "./extras.js"
+import { buildProductRequirements } from "./requirements.js"
 import { productCategories, productCategoryProducts, products } from "./schema.js"
 import { productsService } from "./service.js"
 import {
@@ -44,7 +44,7 @@ export const enrichProductQuoteShape = createProductQuoteShapeEnricher({
       { registry, buildAdapterContext: () => adapterContext },
     ),
   buildShape: (content, options) =>
-    buildProductDraftShape(content as Parameters<typeof buildProductDraftShape>[0], options),
+    buildProductRequirements(content as Parameters<typeof buildProductRequirements>[0], options),
 })
 
 export const catalogInventoryRuntimeExtension = {

@@ -16,7 +16,7 @@
     "./catalog-policy": "./src/catalog-policy.ts",
     "./catalog-policy-properties": "./src/catalog-policy-properties.ts",
     "./service-catalog-plane": "./src/service-catalog-plane.ts",
-    "./draft-shape": "./src/draft-shape.ts",
+    "./requirements": "./src/requirements.ts",
     "./booking-engine": "./src/booking-engine/index.ts",
     "./booking-engine/runtime": "./src/booking-engine/runtime.ts",
     "./routes-content": "./src/routes-content.ts",
@@ -135,10 +135,10 @@
         "import": "./dist/service-catalog-plane.js",
         "default": "./dist/service-catalog-plane.js"
       },
-      "./draft-shape": {
-        "types": "./dist/draft-shape.d.ts",
-        "import": "./dist/draft-shape.js",
-        "default": "./dist/draft-shape.js"
+      "./requirements": {
+        "types": "./dist/requirements.d.ts",
+        "import": "./dist/requirements.js",
+        "default": "./dist/requirements.js"
       },
       "./booking-engine": {
         "types": "./dist/booking-engine/index.d.ts",

@@ -1,9 +1,9 @@
-import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import { describe, expect, it } from "vitest"
 
-import { normalizeBookingDraftShape } from "./use-booking-draft-shape.js"
+import { normalizeBookingRequirements } from "./use-booking-requirements.js"
 
-const fallbackShape: BookingDraftShape = {
+const fallbackShape: BookingRequirements = {
   showsConfigure: true,
   showsBilling: true,
   showsTravelers: true,
@@ -21,13 +21,13 @@ const fallbackShape: BookingDraftShape = {
   paymentIntents: ["hold", "card"],
 }
 
-describe("normalizeBookingDraftShape", () => {
+describe("normalizeBookingRequirements", () => {
   it("returns the fallback when the quote has no shape", () => {
-    expect(normalizeBookingDraftShape(undefined, fallbackShape)).toBe(fallbackShape)
+    expect(normalizeBookingRequirements(undefined, fallbackShape)).toBe(fallbackShape)
   })
 
   it("drops malformed configure sub-step entries before journey code reads kind", () => {
-    const shape = normalizeBookingDraftShape(
+    const shape = normalizeBookingRequirements(
       {
         ...fallbackShape,
         configureSubSteps: [
@@ -47,7 +47,7 @@ describe("normalizeBookingDraftShape", () => {
   })
 
   it("falls back when required descriptor fields are malformed", () => {
-    const shape = normalizeBookingDraftShape(
+    const shape = normalizeBookingRequirements(
       {
         showsBilling: false,
         configureSubSteps: [undefined],

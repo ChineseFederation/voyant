@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 
-import { bookingDraftShapeV1, bookingDraftV1, pricingBreakdownV1 } from "./draft-contracts.js"
+import { bookingDraftV1, bookingRequirementsV1, pricingBreakdownV1 } from "./draft-contracts.js"
 
 // ─────────────────────────────────────────────────────────────────
 // Engine request / response contracts
@@ -32,7 +32,7 @@ export const quoteResponseV1 = z.object({
   expiresAt: z.string().datetime(),
   available: z.boolean(),
   invalidReason: z.string().optional(),
-  shape: bookingDraftShapeV1.optional(),
+  shape: bookingRequirementsV1.optional(),
   pricing: pricingBreakdownV1.optional(),
   upstreamPayload: z.record(z.string(), z.unknown()).optional(),
 })

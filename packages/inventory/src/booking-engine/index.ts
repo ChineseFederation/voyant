@@ -7,7 +7,7 @@
 
 export {
   type AvailabilityHoldBridge,
-  buildOwnedProductDraftShape,
+  buildOwnedProductRequirements,
   type CreateProductsBookingHandlerOptions,
   createProductsBookingHandler,
 } from "./handler.js"

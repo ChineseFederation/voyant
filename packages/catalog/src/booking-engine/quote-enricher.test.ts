@@ -9,17 +9,15 @@
  *   - Skipped when the entity is not available (failed live-resolve).
  */
 
-import { describe, expect, it, vi } from "vitest"
-
-import type { LiveResolveResult, SourceAdapter } from "../adapter/contract.js"
-
-import type { BookingDraftShape } from "./draft-shape.js"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import {
   DEFAULT_PAX_BANDS,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
-} from "./draft-shape.js"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import { describe, expect, it, vi } from "vitest"
+import type { LiveResolveResult, SourceAdapter } from "../adapter/contract.js"
 import { type QuoteContentEnricher, quoteEntity } from "./quote.js"
 import { createSourceAdapterRegistry } from "./registry.js"
 
@@ -82,8 +80,8 @@ const failLiveResolve: SourceAdapter["liveResolve"] = async (
   failed: { prod_abc: "not_found" },
 })
 
-const sampleShape: BookingDraftShape = {
-  ...defaultDraftShapeFlags(),
+const sampleShape: BookingRequirements = {
+  ...defaultRequirementsFlags(),
   paxBands: DEFAULT_PAX_BANDS,
   paxBandsAllowedTotal: { min: 1, max: 8 },
   travelerFields: defaultTravelerFields(),
@@ -92,7 +90,7 @@ const sampleShape: BookingDraftShape = {
 }
 
 describe("quoteEntity — contentEnricher hook", () => {
-  it("attaches the enricher's BookingDraftShape to the quote result", async () => {
+  it("attaches the enricher's BookingRequirements to the quote result", async () => {
     const enricher: QuoteContentEnricher = vi.fn(async () => sampleShape)
     const registry = createSourceAdapterRegistry()
     registry.register(makeAdapter(okLiveResolve))

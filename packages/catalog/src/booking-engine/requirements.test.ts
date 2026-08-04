@@ -1,15 +1,14 @@
-import { describe, expect, it } from "vitest"
-
 import {
   DEFAULT_PAX_BANDS,
   DEFAULT_PAX_TOTAL,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   paxBandBaseCode,
   paxBandsAllowedTotalFrom,
   paxBandTierCode,
-} from "./draft-shape.js"
+} from "@voyant-travel/catalog-contracts/booking-engine/requirements"
+import { describe, expect, it } from "vitest"
 
 describe("pax band tier codes", () => {
   it("leaves a canonical code untouched", () => {
@@ -30,9 +29,9 @@ describe("pax band tier codes", () => {
   })
 })
 
-describe("defaultDraftShapeFlags", () => {
+describe("defaultRequirementsFlags", () => {
   it("returns the canonical flag set: configure + billing + travelers + payment + review on, accommodation + addons off", () => {
-    const flags = defaultDraftShapeFlags()
+    const flags = defaultRequirementsFlags()
     expect(flags.showsConfigure).toBe(true)
     expect(flags.showsBilling).toBe(true)
     expect(flags.showsTravelers).toBe(true)
@@ -43,8 +42,8 @@ describe("defaultDraftShapeFlags", () => {
   })
 
   it("returns a fresh object on each call (no shared mutation)", () => {
-    const a = defaultDraftShapeFlags()
-    const b = defaultDraftShapeFlags()
+    const a = defaultRequirementsFlags()
+    const b = defaultRequirementsFlags()
     expect(a).not.toBe(b)
   })
 })

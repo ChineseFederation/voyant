@@ -23,12 +23,10 @@
  * the dispatch.
  */
 
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-
 import type { SourceAdapterContext } from "../adapter/contract.js"
 import type { PricingBasis } from "../snapshot/schema.js"
-
-import type { BookingDraftShape } from "./draft-shape.js"
 import { NoOwnedHandlerRegisteredError } from "./errors.js"
 
 // ─────────────────────────────────────────────────────────────────────
@@ -78,7 +76,7 @@ export interface ComputeQuoteResult {
    * they have enough context (always, for products in Phase A; the
    * journey falls back to defaults when omitted).
    */
-  shape?: BookingDraftShape
+  shape?: BookingRequirements
   /** Echoed back into `catalog_quotes.upstream_payload` for audit. */
   upstreamPayload?: Record<string, unknown>
 }

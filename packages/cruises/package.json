@@ -24,7 +24,7 @@
     "./service-presentation-subjects": "./src/service-presentation-subjects.ts",
     "./routes-content": "./src/routes-content.ts",
     "./graph-runtime": "./src/graph-runtime.ts",
-    "./draft-shape": "./src/draft-shape.ts",
+    "./requirements": "./src/requirements.ts",
     "./booking-engine": "./src/booking-engine/index.ts",
     "./booking-engine/runtime": "./src/booking-engine/runtime.ts",
     "./service-pricing": "./src/service-pricing.ts",
@@ -172,10 +172,10 @@
         "import": "./dist/routes-content.js",
         "default": "./dist/routes-content.js"
       },
-      "./draft-shape": {
-        "types": "./dist/draft-shape.d.ts",
-        "import": "./dist/draft-shape.js",
-        "default": "./dist/draft-shape.js"
+      "./requirements": {
+        "types": "./dist/requirements.d.ts",
+        "import": "./dist/requirements.js",
+        "default": "./dist/requirements.js"
       },
       "./booking-engine": {
         "types": "./dist/booking-engine/index.d.ts",

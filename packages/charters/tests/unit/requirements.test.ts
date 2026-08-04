@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { CharterContent } from "../../src/content-shape.js"
 import { charterContentSchema } from "../../src/content-shape.js"
-import { buildCharterDraftShape, DEFAULT_CHARTER_PAX_BANDS } from "../../src/draft-shape.js"
+import { buildCharterRequirements, DEFAULT_CHARTER_PAX_BANDS } from "../../src/requirements.js"
 
 const minimalContent: CharterContent = charterContentSchema.parse({
   charter: { id: "chrt_abc", name: "Mediterranean Charter" },
@@ -32,32 +32,32 @@ const perSuiteContent: CharterContent = charterContentSchema.parse({
   ],
 })
 
-describe("buildCharterDraftShape", () => {
+describe("buildCharterRequirements", () => {
   it("uses default pax bands when yacht has no capacity", () => {
-    const shape = buildCharterDraftShape(minimalContent)
+    const shape = buildCharterRequirements(minimalContent)
     expect(shape.paxBands).toEqual(DEFAULT_CHARTER_PAX_BANDS)
   })
 
   it("derives pax band maxCount from yacht.capacity_guests when present", () => {
-    const shape = buildCharterDraftShape(wholeYachtContent)
+    const shape = buildCharterRequirements(wholeYachtContent)
     expect(shape.paxBands[0]?.maxCount).toBe(12)
     expect(shape.paxBandsAllowedTotal).toEqual({ min: 1, max: 12 })
   })
 
   it("emits departure + occupancy for whole-yacht charters with voyages", () => {
-    const shape = buildCharterDraftShape(wholeYachtContent)
+    const shape = buildCharterRequirements(wholeYachtContent)
     const kinds = (shape.configureSubSteps ?? []).map((s) => s.kind)
     expect(kinds).toEqual(["departure", "occupancy"])
   })
 
   it("emits departure + cabin-category + occupancy for per-suite charters with suites", () => {
-    const shape = buildCharterDraftShape(perSuiteContent)
+    const shape = buildCharterRequirements(perSuiteContent)
     const kinds = (shape.configureSubSteps ?? []).map((s) => s.kind)
     expect(kinds).toEqual(["departure", "cabin-category", "occupancy"])
   })
 
   it("projects suites into cabin-category options for per-suite charters", () => {
-    const shape = buildCharterDraftShape(perSuiteContent)
+    const shape = buildCharterRequirements(perSuiteContent)
     const cabinStep = shape.configureSubSteps?.find((s) => s.kind === "cabin-category")
     expect(cabinStep && cabinStep.kind === "cabin-category").toBe(true)
     if (cabinStep && cabinStep.kind === "cabin-category") {
@@ -69,7 +69,7 @@ describe("buildCharterDraftShape", () => {
   })
 
   it("does not emit cabin-category for whole-yacht charters even with suites populated", () => {
-    const shape = buildCharterDraftShape({
+    const shape = buildCharterRequirements({
       ...wholeYachtContent,
       suites: perSuiteContent.suites, // suites present but charter_type = whole_yacht
     })
@@ -78,7 +78,7 @@ describe("buildCharterDraftShape", () => {
   })
 
   it("respects custom paxBands", () => {
-    const shape = buildCharterDraftShape(minimalContent, {
+    const shape = buildCharterRequirements(minimalContent, {
       paxBands: [{ code: "adult", label: "Adult", minCount: 2, maxCount: 6 }],
     })
     expect(shape.paxBands[0]?.minCount).toBe(2)

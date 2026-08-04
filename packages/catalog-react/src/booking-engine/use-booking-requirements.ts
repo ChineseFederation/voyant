@@ -1,18 +1,18 @@
 "use client"
 
-import { bookingDraftShapeV1 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import { bookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 
 import type { BookingJourneyApiOptions } from "./use-booking-journey-api.js"
 
-export interface UseBookingDraftShapeOptions extends BookingJourneyApiOptions {
+export interface UseBookingRequirementsOptions extends BookingJourneyApiOptions {
   /** Quote response — typically passed in from the wrapping
    *  `useBookingQuote()`. */
-  quote: { shape?: BookingDraftShape } | null
+  quote: { shape?: BookingRequirements } | null
   /** Fallback shape rendered when the quote hasn't loaded yet — the
    *  journey shell uses this so the wizard renders an empty Configure
    *  step on first paint. */
-  fallback: BookingDraftShape
+  fallback: BookingRequirements
 }
 
 /**
@@ -20,8 +20,10 @@ export interface UseBookingDraftShapeOptions extends BookingJourneyApiOptions {
  * carries — or a caller-supplied fallback while we wait for the
  * first quote. Per booking-journey-architecture §3 + §8.1.
  */
-export function useBookingDraftShape(options: UseBookingDraftShapeOptions): BookingDraftShape {
-  return normalizeBookingDraftShape(options.quote?.shape, options.fallback)
+export function useBookingRequirements(
+  options: UseBookingRequirementsOptions,
+): BookingRequirements {
+  return normalizeBookingRequirements(options.quote?.shape, options.fallback)
 }
 
 /**
@@ -29,16 +31,16 @@ export function useBookingDraftShape(options: UseBookingDraftShapeOptions): Book
  * public contract before rendering so a missing/malformed descriptor degrades
  * to the fallback instead of crashing when journey code reads sub-step `kind`.
  */
-export function normalizeBookingDraftShape(
+export function normalizeBookingRequirements(
   shape: unknown,
-  fallback: BookingDraftShape,
-): BookingDraftShape {
+  fallback: BookingRequirements,
+): BookingRequirements {
   const shapeRecord = asRecord(shape)
   if (!shapeRecord) return fallback
 
-  const fallbackParsed = bookingDraftShapeV1.safeParse(fallback)
+  const fallbackParsed = bookingRequirementsV1.safeParse(fallback)
   const safeFallback = fallbackParsed.success ? fallbackParsed.data : fallback
-  const parsed = bookingDraftShapeV1.safeParse({
+  const parsed = bookingRequirementsV1.safeParse({
     ...safeFallback,
     ...stripMalformedSubSteps(shapeRecord),
     showsReview: true,

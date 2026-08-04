@@ -21,9 +21,9 @@ export {
   validateExtraContent,
 } from "./extras/content-shape.js"
 export {
-  type BuildExtraDraftShapeOptions,
-  buildExtraDraftShape,
-} from "./extras/draft-shape.js"
+  type BuildExtraRequirementsOptions,
+  buildExtraRequirements,
+} from "./extras/requirements.js"
 export type { InventoryExtrasRoutes } from "./extras/routes.js"
 export type {
   NewOptionExtraConfig,

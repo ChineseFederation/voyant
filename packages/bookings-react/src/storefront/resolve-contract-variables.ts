@@ -43,7 +43,7 @@ import type {
   BookingDraftV1,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import { paxBandBaseCode } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 import type {
   ComputedScheduleEntry,
   PaymentPolicySource,

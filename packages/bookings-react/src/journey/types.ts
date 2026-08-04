@@ -7,7 +7,7 @@ import type {
   BookingDraftV1,
   PricingBreakdownV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import type { BookingDraftShape } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import type { BookingRequirements } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 
 export type JourneyStep =
   | "departure"
@@ -235,7 +235,7 @@ export interface JourneyHeaderState {
   current: JourneyStep
   visited: ReadonlyArray<JourneyStep>
   steps: ReadonlyArray<JourneyStep>
-  shape: BookingDraftShape
+  shape: BookingRequirements
 }
 
 export interface SidePanelState {
@@ -245,6 +245,6 @@ export interface SidePanelState {
   entitySummary?: BookingEntitySummary
   currentStep?: JourneyStep
   steps?: ReadonlyArray<JourneyStep>
-  shape?: BookingDraftShape
+  shape?: BookingRequirements
   draft?: BookingDraftV1
 }

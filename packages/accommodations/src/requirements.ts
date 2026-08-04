@@ -1,5 +1,5 @@
 /**
- * Project a `AccommodationContent` payload into a `BookingDraftShape`.
+ * Project a `AccommodationContent` payload into a `BookingRequirements`.
  *
  * Hotel / room-type bookings need:
  *   - Configure: date-range (check-in → check-out) + occupancy.
@@ -14,9 +14,9 @@
  */
 
 import {
-  type BookingDraftShape,
+  type BookingRequirements,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type PaxBandSpec,
   paxBandsAllowedTotalFrom,
@@ -31,7 +31,7 @@ export const DEFAULT_ACCOMMODATION_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
   { code: "child", label: "Child", minAge: 0, maxAge: 17, minCount: 0, maxCount: 4 },
 ]
 
-export interface BuildAccommodationDraftShapeOptions {
+export interface BuildAccommodationRequirementsOptions {
   locale?: string
   paxBands?: ReadonlyArray<PaxBandSpec>
   paxBandsAllowedTotal?: { min: number; max: number }
@@ -45,10 +45,10 @@ export interface BuildAccommodationDraftShapeOptions {
   sharedRoomAllowed?: boolean
 }
 
-export function buildAccommodationDraftShape(
+export function buildAccommodationRequirements(
   content: AccommodationContent,
-  options: BuildAccommodationDraftShapeOptions = {},
-): BookingDraftShape {
+  options: BuildAccommodationRequirementsOptions = {},
+): BookingRequirements {
   const paxBands = options.paxBands ?? DEFAULT_ACCOMMODATION_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
   const minNights = options.minNights ?? 1
@@ -90,7 +90,7 @@ export function buildAccommodationDraftShape(
   }))
 
   return {
-    ...defaultDraftShapeFlags(),
+    ...defaultRequirementsFlags(),
     showsAccommodation: roomOptions.length > 0,
     paxBands,
     paxBandsAllowedTotal: total,

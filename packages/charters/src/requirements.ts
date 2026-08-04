@@ -1,5 +1,5 @@
 /**
- * Project a `CharterContent` payload into a `BookingDraftShape`.
+ * Project a `CharterContent` payload into a `BookingRequirements`.
  *
  * Charter products fall into two booking modes that require
  * different sub-steps:
@@ -16,11 +16,11 @@
  */
 
 import {
-  type BookingDraftShape,
+  type BookingRequirements,
   type CabinCategoryOption,
   type ConfigureSubStep,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type PaxBandSpec,
   paxBandsAllowedTotalFrom,
@@ -32,16 +32,16 @@ export const DEFAULT_CHARTER_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
   { code: "adult", label: "Adult", minCount: 1, maxCount: 12 },
 ]
 
-export interface BuildCharterDraftShapeOptions {
+export interface BuildCharterRequirementsOptions {
   locale?: string
   paxBands?: ReadonlyArray<PaxBandSpec>
   paxBandsAllowedTotal?: { min: number; max: number }
 }
 
-export function buildCharterDraftShape(
+export function buildCharterRequirements(
   content: CharterContent,
-  options: BuildCharterDraftShapeOptions = {},
-): BookingDraftShape {
+  options: BuildCharterRequirementsOptions = {},
+): BookingRequirements {
   const paxBands =
     options.paxBands ??
     (content.yacht?.capacity_guests
@@ -68,7 +68,7 @@ export function buildCharterDraftShape(
   configureSubSteps.push({ kind: "occupancy", bands: paxBands })
 
   return {
-    ...defaultDraftShapeFlags(),
+    ...defaultRequirementsFlags(),
     paxBands,
     paxBandsAllowedTotal: total,
     travelerFields: defaultTravelerFields(),

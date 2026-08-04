@@ -1,4 +1,4 @@
-import type { PaxBandDependency } from "@voyant-travel/catalog-contracts/booking-engine/draft-shape"
+import type { PaxBandDependency } from "@voyant-travel/catalog-contracts/booking-engine/requirements"
 
 /**
  * A pax-band occupancy rule that the picked traveler counts violate.

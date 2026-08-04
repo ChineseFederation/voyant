@@ -1,11 +1,11 @@
-import type { BookingDraftShape } from "@voyant-travel/catalog/booking-engine"
+import type { BookingRequirements } from "@voyant-travel/catalog/booking-engine"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const getProductContent = vi.hoisted(() => vi.fn())
-const buildProductDraftShape = vi.hoisted(() => vi.fn())
+const buildProductRequirements = vi.hoisted(() => vi.fn())
 
 vi.mock("@voyant-travel/inventory/service-content", () => ({ getProductContent }))
-vi.mock("@voyant-travel/inventory/draft-shape", () => ({ buildProductDraftShape }))
+vi.mock("@voyant-travel/inventory/requirements", () => ({ buildProductRequirements }))
 
 const { enrichProductQuoteShape } = await import("./catalog-runtime-extension.js")
 
@@ -22,7 +22,7 @@ const productShape = {
   travelerFields: [],
   bookingFields: [],
   paymentIntents: ["hold", "card"],
-} satisfies BookingDraftShape
+} satisfies BookingRequirements
 
 const baseQuote = {
   quoteId: "cquo_1",
@@ -33,7 +33,7 @@ const baseQuote = {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  buildProductDraftShape.mockReturnValue(productShape)
+  buildProductRequirements.mockReturnValue(productShape)
 })
 
 describe("enrichProductQuoteShape", () => {
@@ -66,7 +66,7 @@ describe("enrichProductQuoteShape", () => {
       },
       expect.objectContaining({ registry: {} }),
     )
-    expect(buildProductDraftShape).toHaveBeenCalledWith(content, { locale: "ro-RO" })
+    expect(buildProductRequirements).toHaveBeenCalledWith(content, { locale: "ro-RO" })
   })
 
   it("uses quote scope defaults when optional scope fields are omitted", async () => {
@@ -96,7 +96,7 @@ describe("enrichProductQuoteShape", () => {
       },
       expect.objectContaining({ registry: {} }),
     )
-    expect(buildProductDraftShape).toHaveBeenCalledWith(content, { locale: "en-GB" })
+    expect(buildProductRequirements).toHaveBeenCalledWith(content, { locale: "en-GB" })
   })
 
   it("does not replace an existing quote shape", async () => {

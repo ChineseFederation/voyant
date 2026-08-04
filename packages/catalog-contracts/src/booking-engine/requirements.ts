@@ -1,9 +1,12 @@
 /**
- * `BookingDraftShape` — descriptor returned alongside a quote that
- * tells the journey wizard which steps + sub-steps to render.
+ * `BookingRequirements` — the server-published description of what a
+ * booking of this target requires: steps + sub-steps, passenger bands,
+ * and per-traveler + lead-only field requirements. It is returned
+ * alongside a quote and tells the journey wizard which steps +
+ * sub-steps to render.
  *
- * Per `docs/architecture/booking-journey-architecture.md` §3, the
- * shape encodes:
+ * It is **server-owned** — hosts render it and never invent one.
+ * Concretely, `BookingRequirements` encodes:
  *   - **Step visibility flags** (`showsConfigure`, `showsAccommodation`,
  *     `showsAddons`, etc.) — whether each top-level wizard step is
  *     relevant to this product.
@@ -14,16 +17,16 @@
  *   - **Per-traveler + lead-only field requirements** — drives the
  *     PassengersSection / billing-step columns.
  *
- * The shape is per-product / per-quote; the engine populates it for
- * owned rows, the adapter (or per-vertical builder) populates it for
- * sourced rows. It is **immutable per quote** — clients use it to
+ * `BookingRequirements` is per-product / per-quote; the engine populates
+ * it for owned rows, the adapter (or per-vertical builder) populates it
+ * for sourced rows. It is **immutable per quote** — clients use it to
  * decide rendering; they never mutate it.
  *
- * Catalog plane stays neutral about per-vertical shape derivation.
- * Each vertical exports a `build*DraftShape(content, scope)` function
- * that projects its content payload into a `BookingDraftShape`. The
- * journey composes these via the `contentEnricher` hook on
- * `QuoteEntityDeps`.
+ * Catalog plane stays neutral about per-vertical requirements
+ * derivation. Each vertical exports a `build*Requirements(content, scope)`
+ * function that projects its content payload into a
+ * `BookingRequirements`. The journey composes these via the
+ * `contentEnricher` hook on `QuoteEntityDeps`.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,10 +258,10 @@ export interface BookingFieldRequirement {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BookingDraftShape — the unified descriptor
+// BookingRequirements — the unified descriptor
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface BookingDraftShape {
+export interface BookingRequirements {
   // ── Step visibility flags ─────────────────────────────────────────
   showsConfigure: boolean
   showsBilling: boolean
@@ -414,8 +417,8 @@ export function paxBandsAllowedTotalFrom(bands: ReadonlyArray<PaxBandSpec>): {
  * override the off-by-default flags when they have non-empty
  * accommodation / addons content.
  */
-export function defaultDraftShapeFlags(): Pick<
-  BookingDraftShape,
+export function defaultRequirementsFlags(): Pick<
+  BookingRequirements,
   | "showsConfigure"
   | "showsBilling"
   | "showsTravelers"

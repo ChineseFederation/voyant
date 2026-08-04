@@ -1,5 +1,5 @@
 /**
- * Project a `CruiseContent` payload into a `BookingDraftShape` so the
+ * Project a `CruiseContent` payload into a `BookingRequirements` so the
  * journey wizard can render the correct sub-steps for a sourced
  * cruise.
  *
@@ -22,11 +22,11 @@
  */
 
 import {
-  type BookingDraftShape,
+  type BookingRequirements,
   type CabinCategoryOption,
   type ConfigureSubStep,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type PaxBandSpec,
   paxBandsAllowedTotalFrom,
@@ -44,7 +44,7 @@ export const DEFAULT_CRUISE_PAX_BANDS: ReadonlyArray<PaxBandSpec> = [
   { code: "adult", label: "Adult", minCount: 1, maxCount: 8 },
 ]
 
-export interface BuildCruiseDraftShapeOptions {
+export interface BuildCruiseRequirementsOptions {
   locale?: string
   /**
    * Cruise-line-specific pax bands. Templates derive these from the
@@ -68,10 +68,10 @@ export interface BuildCruiseDraftShapeOptions {
   includeInsurance?: boolean
 }
 
-export function buildCruiseDraftShape(
+export function buildCruiseRequirements(
   content: CruiseContent,
-  options: BuildCruiseDraftShapeOptions = {},
-): BookingDraftShape {
+  options: BuildCruiseRequirementsOptions = {},
+): BookingRequirements {
   const paxBands = options.paxBands ?? DEFAULT_CRUISE_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
 
@@ -105,7 +105,7 @@ export function buildCruiseDraftShape(
   configureSubSteps.push({ kind: "air-arrangement", required: false })
 
   return {
-    ...defaultDraftShapeFlags(),
+    ...defaultRequirementsFlags(),
     paxBands,
     paxBandsAllowedTotal: total,
     travelerFields: defaultTravelerFields(),

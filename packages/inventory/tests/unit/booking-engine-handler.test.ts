@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { buildOwnedProductDraftShape } from "../../src/booking-engine/handler.js"
+import { buildOwnedProductRequirements } from "../../src/booking-engine/handler.js"
 
-describe("buildOwnedProductDraftShape", () => {
+describe("buildOwnedProductRequirements", () => {
   it("returns the canonical defaults when no options are passed", () => {
-    const shape = buildOwnedProductDraftShape()
+    const shape = buildOwnedProductRequirements()
     expect(shape.showsConfigure).toBe(true)
     expect(shape.showsTravelers).toBe(true)
     expect(shape.showsPayment).toBe(true)
@@ -20,7 +20,7 @@ describe("buildOwnedProductDraftShape", () => {
   })
 
   it("widens travelerFields with caller-supplied requirements", () => {
-    const shape = buildOwnedProductDraftShape({
+    const shape = buildOwnedProductRequirements({
       travelerFields: [
         { key: "firstName", label: "First name", type: "text", required: true },
         { key: "passportNumber", label: "Passport", type: "text", required: true },
@@ -30,7 +30,7 @@ describe("buildOwnedProductDraftShape", () => {
   })
 
   it("flips showsAddons on when the catalog is non-empty", () => {
-    const shape = buildOwnedProductDraftShape({
+    const shape = buildOwnedProductRequirements({
       addonCatalog: [
         { id: "x_1", name: "Lunch", kind: "extras" },
         { id: "x_2", name: "Insurance", kind: "insurance" },
@@ -41,7 +41,7 @@ describe("buildOwnedProductDraftShape", () => {
   })
 
   it("exposes product options as configure variants", () => {
-    const shape = buildOwnedProductDraftShape({
+    const shape = buildOwnedProductRequirements({
       productOptions: [
         { id: "opt_std", name: "Standard double", code: "STD", isDefault: true },
         { id: "opt_suite", name: "Junior suite upgrade", code: "STE" },
@@ -57,7 +57,7 @@ describe("buildOwnedProductDraftShape", () => {
   })
 
   it("omits addons when the catalog is empty", () => {
-    const shape = buildOwnedProductDraftShape({ addonCatalog: [] })
+    const shape = buildOwnedProductRequirements({ addonCatalog: [] })
     expect(shape.showsAddons).toBe(false)
     expect(shape.addons).toBeUndefined()
   })

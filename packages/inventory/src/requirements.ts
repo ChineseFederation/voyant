@@ -1,5 +1,5 @@
 /**
- * Project a `ProductContent` payload into a `BookingDraftShape` so
+ * Project a `ProductContent` payload into a `BookingRequirements` so
  * the journey wizard can render the correct sub-steps for a sourced
  * product.
  *
@@ -20,11 +20,11 @@
  */
 
 import {
-  type BookingDraftShape,
+  type BookingRequirements,
   DEFAULT_PAX_BANDS,
   DEFAULT_PAYMENT_INTENTS,
   defaultBookingFields,
-  defaultDraftShapeFlags,
+  defaultRequirementsFlags,
   defaultTravelerFields,
   type PaxBandSpec,
   paxBandsAllowedTotalFrom,
@@ -32,7 +32,7 @@ import {
 
 import type { ProductContent } from "./content-shape.js"
 
-export interface BuildProductDraftShapeOptions {
+export interface BuildProductRequirementsOptions {
   /** Locale — used for option-label fallback. Defaults to `"en-GB"`. */
   locale?: string
   /**
@@ -49,10 +49,10 @@ export interface BuildProductDraftShapeOptions {
   paxBandsAllowedTotal?: { min: number; max: number }
 }
 
-export function buildProductDraftShape(
+export function buildProductRequirements(
   content: ProductContent,
-  options: BuildProductDraftShapeOptions = {},
-): BookingDraftShape {
+  options: BuildProductRequirementsOptions = {},
+): BookingRequirements {
   const paxBands = options.paxBands ?? DEFAULT_PAX_BANDS
   const total = options.paxBandsAllowedTotal ?? paxBandsAllowedTotalFrom(paxBands)
 
@@ -63,7 +63,7 @@ export function buildProductDraftShape(
   }))
 
   return {
-    ...defaultDraftShapeFlags(),
+    ...defaultRequirementsFlags(),
     paxBands,
     paxBandsAllowedTotal: total,
     travelerFields: defaultTravelerFields(),
