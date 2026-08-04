@@ -239,6 +239,16 @@ export function ProfitabilityPage({
     )
   }, [departureReport, baseMode, activeCurrency])
 
+  // Supplier cost nobody has allocated yet — shown next to, never merged into,
+  // the deliberately-unattributed figure above.
+  const unallocated = useMemo(() => {
+    if (baseMode) return departureReport?.base?.unallocatedCents ?? 0
+    return (
+      (departureReport?.unallocated ?? []).find((u) => u.currency === activeCurrency)
+        ?.amountCents ?? 0
+    )
+  }, [departureReport, baseMode, activeCurrency])
+
   const chartData = useMemo(
     () =>
       [...departureRows]
@@ -404,6 +414,11 @@ export function ProfitabilityPage({
               accent={totals.variance >= 0 ? "positive" : "negative"}
             />
             <KpiCard label={t.kpis.unattributed} value={money(unattributed)} />
+            <KpiCard
+              label={t.kpis.unallocated}
+              value={money(unallocated)}
+              accent={unallocated > 0 ? "negative" : undefined}
+            />
           </div>
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-2">

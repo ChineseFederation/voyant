@@ -10,7 +10,7 @@
 
 import { bookingItems, bookings, bookingTravelers } from "@voyant-travel/bookings/schema"
 import { sql } from "drizzle-orm"
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { exchangeRatesRef } from "../../src/markets-ref.js"
 import { invoices } from "../../src/schema.js"
@@ -18,6 +18,13 @@ import { financeService } from "../../src/service.js"
 import { supplierInvoicesService } from "../../src/service-supplier-invoices.js"
 
 const DB_AVAILABLE = !!process.env.TEST_DATABASE_URL
+
+// Seeding a scenario here means real inserts across bookings, invoices and
+// several supplier invoices, which comfortably outruns the 5s default. A test
+// that trips that limit does not stop its in-flight queries, so its writes land
+// after the next test's `cleanupTestDb` and corrupt an unrelated assertion —
+// give the bodies the same headroom the hooks already have.
+vi.setConfig({ testTimeout: 60_000 })
 
 let seq = 0
 const next = () => {
@@ -34,6 +41,12 @@ async function seedSupplierCost(
     amountCents: number
     costCategoryId?: string
     target: { targetType: "departure"; departureId: string } | { targetType: "unattributed" }
+    /**
+     * Allocate less than the invoice total. `validateAllocations` permits this
+     * and stores nothing for the leftover, so the remainder only exists as
+     * arithmetic on the invoice.
+     */
+    allocateCents?: number
   },
 ) {
   const created = await supplierInvoicesService.create(db, {
@@ -57,22 +70,26 @@ async function seedSupplierCost(
   })
   const id = created?.id as string
   const lineId = created?.lines?.[0]?.id as string
-  await supplierInvoicesService.setAllocations(db, id, {
-    allocations: [
-      opts.target.targetType === "departure"
-        ? {
-            targetType: "departure",
-            departureId: opts.target.departureId,
-            supplierInvoiceLineId: lineId,
-            amountCents: opts.amountCents,
-          }
-        : {
-            targetType: "unattributed",
-            supplierInvoiceLineId: lineId,
-            amountCents: opts.amountCents,
-          },
-    ],
-  })
+  const allocateCents = opts.allocateCents ?? opts.amountCents
+  if (allocateCents > 0) {
+    await supplierInvoicesService.setAllocations(db, id, {
+      allocations: [
+        opts.target.targetType === "departure"
+          ? {
+              targetType: "departure",
+              departureId: opts.target.departureId,
+              supplierInvoiceLineId: lineId,
+              amountCents: allocateCents,
+            }
+          : {
+              targetType: "unattributed",
+              supplierInvoiceLineId: lineId,
+              amountCents: allocateCents,
+            },
+      ],
+    })
+  }
+  return id
 }
 
 describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
@@ -89,6 +106,11 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
     seq = 0
     const { cleanupTestDb } = await import("@voyant-travel/db/test-utils")
     await cleanupTestDb(db)
+    // `supplier_invoices.supplierId` is validated against `suppliers` whenever
+    // that table exists, so every supplier invoice below needs a real row.
+    await db.execute(
+      sql`insert into suppliers (id, name, type) values ('supp_test', 'Test Supplier', 'other')`,
+    )
   })
 
   afterAll(async () => {
@@ -118,6 +140,7 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
       {
         bookingId: "book_b1",
         title: "Tour P1",
+        status: "confirmed",
         availabilitySlotId: "avsl_d1",
         productId: "prod_p1",
         productNameSnapshot: "Tour P1",
@@ -132,6 +155,7 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
       {
         bookingId: "book_b2",
         title: "Tour P1",
+        status: "confirmed",
         availabilitySlotId: "avsl_d1",
         productId: "prod_p1",
         productNameSnapshot: "Tour P1",
@@ -146,6 +170,7 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
       {
         bookingId: "book_b2",
         title: "Tour P1",
+        status: "confirmed",
         availabilitySlotId: "avsl_d2",
         productId: "prod_p1",
         productNameSnapshot: "Tour P1",
@@ -253,6 +278,9 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
     })
 
     expect(report.unattributed).toContainEqual({ currency: "EUR", amountCents: 5000 })
+    // Every seeded invoice is allocated in full, so there is no remainder — the
+    // explicitly-unattributed 5000 EUR must not leak into this figure.
+    expect(report.unallocated).toEqual([])
     // Breakdown is by configurable cost category name.
     expect(report.costByServiceType).toContainEqual({
       serviceType: "Transport",
@@ -296,6 +324,7 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
     await db.insert(bookingItems).values({
       bookingId: "book_c",
       title: "Tour C",
+      status: "confirmed",
       availabilitySlotId: "avsl_c",
       productId: "prod_c",
       startsAt: new Date("2026-07-01T09:00:00Z"),
@@ -490,6 +519,167 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
     expect(row?.actualCostCents).toBe(500000)
   })
 
+  it("surfaces an under-allocated invoice's remainder, distinct from explicit unattributed cost", async () => {
+    await seedBaseScenario()
+    // 100000 EUR invoiced, only 60000 allocated to D1: 40000 is unaccounted for
+    // and, before this figure existed, silently inflated D1's margin.
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 100000,
+      allocateCents: 60000,
+      target: { targetType: "departure", departureId: "avsl_d1" },
+    })
+
+    const report = await financeService.getDepartureProfitability(db, {})
+
+    // Only the allocated part is attributed to the departure.
+    const d1Eur = report.rows.find((r) => r.departureId === "avsl_d1" && r.currency === "EUR")
+    expect(d1Eur?.actualCostCents).toBe(130000) // 70000 fully allocated + 60000 partial
+
+    // The remainder surfaces on its own, and does NOT merge with the 5000 EUR
+    // that was deliberately allocated to `unattributed`.
+    expect(report.unallocated).toEqual([{ currency: "EUR", amountCents: 40000 }])
+    expect(report.unattributed).toContainEqual({ currency: "EUR", amountCents: 5000 })
+
+    // The product rollup reports the same two figures.
+    const products = await financeService.getProductProfitability(db, {})
+    expect(products.unallocated).toEqual([{ currency: "EUR", amountCents: 40000 }])
+    expect(products.unattributed).toContainEqual({ currency: "EUR", amountCents: 5000 })
+  })
+
+  it("counts an invoice with no allocations at all as fully unallocated", async () => {
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "other",
+      amountCents: 25000,
+      allocateCents: 0,
+      target: { targetType: "unattributed" },
+    })
+
+    const report = await financeService.getDepartureProfitability(db, {})
+    expect(report.unallocated).toEqual([{ currency: "EUR", amountCents: 25000 }])
+    expect(report.unattributed).toEqual([])
+  })
+
+  it("keeps remainders in separate per-currency buckets and filters with the rest", async () => {
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 100000,
+      allocateCents: 60000,
+      target: { targetType: "departure", departureId: "avsl_d1" },
+    })
+    await seedSupplierCost(db, {
+      currency: "RON",
+      serviceType: "guide",
+      amountCents: 50000,
+      allocateCents: 12500,
+      target: { targetType: "departure", departureId: "avsl_d1" },
+    })
+
+    const report = await financeService.getDepartureProfitability(db, {})
+    expect([...report.unallocated].sort((a, b) => a.currency.localeCompare(b.currency))).toEqual([
+      { currency: "EUR", amountCents: 40000 },
+      { currency: "RON", amountCents: 37500 },
+    ])
+
+    // The currency filter applies to the remainder exactly as to every other
+    // per-currency figure — RON amounts are never folded into a EUR view.
+    const onlyRon = await financeService.getDepartureProfitability(db, { currency: "RON" })
+    expect(onlyRon.unallocated).toEqual([{ currency: "RON", amountCents: 37500 }])
+  })
+
+  it("excludes void and soft-deleted invoices from the remainder", async () => {
+    const voidedId = await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "other",
+      amountCents: 80000,
+      allocateCents: 0,
+      target: { targetType: "unattributed" },
+    })
+    const deletedId = await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "other",
+      amountCents: 90000,
+      allocateCents: 0,
+      target: { targetType: "unattributed" },
+    })
+    await supplierInvoicesService.update(db, voidedId, { status: "void" })
+    await supplierInvoicesService.softDelete(db, deletedId)
+
+    const report = await financeService.getDepartureProfitability(db, {})
+    expect(report.unallocated).toEqual([])
+  })
+
+  it("converts the remainder at the invoice's own issue-date rate, not the latest one", async () => {
+    // EUR→RON = 5 on the issue date, so a EUR invoice snapshots its base then.
+    await db.execute(
+      sql`insert into fx_rate_sets (id, base_currency, effective_at) values ('fxrs_rem', 'RON', now())`,
+    )
+    await db.insert(exchangeRatesRef).values({
+      fxRateSetId: "fxrs_rem",
+      baseCurrency: "EUR",
+      quoteCurrency: "RON",
+      rateDecimal: "5",
+      observedAt: new Date("2026-06-01T00:00:00Z"),
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    })
+
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 100000,
+      allocateCents: 60000,
+      target: { targetType: "departure", departureId: "avsl_rem" },
+    })
+
+    // A later, different rate must not re-value the snapshotted remainder.
+    await db.execute(
+      sql`insert into fx_rate_sets (id, base_currency, effective_at) values ('fxrs_rem_late', 'RON', now())`,
+    )
+    await db.insert(exchangeRatesRef).values({
+      fxRateSetId: "fxrs_rem_late",
+      baseCurrency: "EUR",
+      quoteCurrency: "RON",
+      rateDecimal: "10",
+      observedAt: new Date("2026-09-01T00:00:00Z"),
+      createdAt: new Date("2026-09-01T00:00:00Z"),
+    })
+
+    const report = await financeService.getDepartureProfitability(db, {})
+    expect(report.unallocated).toEqual([{ currency: "EUR", amountCents: 40000 }])
+    // 40000 EUR pro-rated from the issue-date snapshot = 200000 RON, not 400000.
+    expect(report.base?.unallocatedCents).toBe(200000)
+    expect(report.base?.unattributedCents).toBe(0)
+  })
+
+  it("converts a legacy remainder with no base snapshot at the fallback rate", async () => {
+    // Invoice created with no rate anywhere → no base snapshot (residual).
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 100000,
+      allocateCents: 60000,
+      target: { targetType: "departure", departureId: "avsl_legacy" },
+    })
+    // The rate only shows up afterwards, so the residual converts at it.
+    await db.execute(
+      sql`insert into fx_rate_sets (id, base_currency, effective_at) values ('fxrs_legacy', 'EUR', now())`,
+    )
+    await db.insert(exchangeRatesRef).values({
+      fxRateSetId: "fxrs_legacy",
+      baseCurrency: "RON",
+      quoteCurrency: "EUR",
+      rateDecimal: "0.2",
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    })
+
+    const report = await financeService.getDepartureProfitability(db, {})
+    expect(report.base?.unconvertibleCurrencies).toEqual([])
+    expect(report.base?.unallocatedCents).toBe(200000) // 40000 EUR × 5
+  })
+
   it("splits a departure's revenue and cost across its travellers (equal)", async () => {
     await db.insert(bookings).values({
       id: "book_t1",
@@ -501,6 +691,7 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
     await db.insert(bookingItems).values({
       bookingId: "book_t1",
       title: "Tour T",
+      status: "confirmed",
       availabilitySlotId: "avsl_t",
       productId: "prod_t",
       startsAt: new Date("2026-07-01T09:00:00Z"),

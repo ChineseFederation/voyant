@@ -38,6 +38,11 @@ export type ProfitabilityFxRuntime = InvoiceFxOptions
  * - Actual cost = `supplier_cost_allocations` targeted at the departure/product.
  * - Planned cost = `booking_items.totalCostAmountCents` (what we expected to pay).
  * - Profit = revenue − actual cost. Variance = planned − actual cost.
+ *
+ * Two further figures account for supplier cost that reaches no departure, and
+ * are reported separately because they mean different things: `unattributed` is
+ * cost someone allocated to nothing on purpose, `unallocated` is the
+ * under-allocated remainder of an invoice that carries no allocation row at all.
  */
 
 export interface ProfitabilityCostByServiceType {
@@ -47,6 +52,22 @@ export interface ProfitabilityCostByServiceType {
 }
 
 export interface ProfitabilityUnattributed {
+  currency: string
+  amountCents: number
+}
+
+/**
+ * The under-allocated remainder of recorded AP cost: a supplier invoice's total
+ * minus every allocation row written against it, whatever those rows target.
+ *
+ * Deliberately separate from {@link ProfitabilityUnattributed}. "We decided this
+ * cost belongs to no departure" (an allocation row with
+ * `targetType = 'unattributed'`) and "nobody has allocated this yet" (no row at
+ * all) are different operational signals, and only the second one is a backlog.
+ * Together with the departure/product-targeted allocations the three figures
+ * partition an invoice's total.
+ */
+export interface ProfitabilityUnallocated {
   currency: string
   amountCents: number
 }
@@ -71,6 +92,7 @@ export interface DepartureProfitabilityBaseRollup {
   rows: DepartureProfitabilityRow[]
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributedCents: number
+  unallocatedCents: number
   /** Source currencies with no resolvable FX rate — excluded from the rollup. */
   unconvertibleCurrencies: string[]
 }
@@ -79,6 +101,7 @@ export interface DepartureProfitabilityReport {
   rows: DepartureProfitabilityRow[]
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributed: ProfitabilityUnattributed[]
+  unallocated: ProfitabilityUnallocated[]
   base?: DepartureProfitabilityBaseRollup
 }
 
@@ -100,6 +123,7 @@ export interface ProductProfitabilityBaseRollup {
   rows: ProductProfitabilityRow[]
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributedCents: number
+  unallocatedCents: number
   unconvertibleCurrencies: string[]
 }
 
@@ -107,6 +131,7 @@ export interface ProductProfitabilityReport {
   rows: ProductProfitabilityRow[]
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributed: ProfitabilityUnattributed[]
+  unallocated: ProfitabilityUnallocated[]
   base?: ProductProfitabilityBaseRollup
 }
 
@@ -192,6 +217,8 @@ interface LoadedAccumulators {
   costByServiceTypeBase: Map<string, BaseSplit>
   unattributed: ProfitabilityUnattributed[]
   unattributedBase: BaseSplit
+  unallocated: ProfitabilityUnallocated[]
+  unallocatedBase: BaseSplit
 }
 
 /**
@@ -217,8 +244,19 @@ async function loadDepartureAccumulators(
   const invSnapshotted = sql`${invoices.baseCurrency} = ${base} and ${invoices.baseTotalCents} is not null`
   // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
   const allocSnapshotted = sql`${supplierInvoices.baseCurrency} = ${base} and ${supplierCostAllocations.baseAmountCents} is not null`
+  // True when a supplier invoice carries a usable base snapshot AND a non-zero
+  // total, so a part of it (a line, or the unallocated remainder) can be
+  // pro-rated into the accounting base at the invoice's own issue-date rate.
   // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
-  const lineSnapshotted = sql`${supplierInvoices.baseCurrency} = ${base} and ${supplierInvoices.baseTotalCents} is not null and ${supplierInvoices.totalCents} <> 0`
+  const apProRatable = sql`${supplierInvoices.baseCurrency} = ${base} and ${supplierInvoices.baseTotalCents} is not null and ${supplierInvoices.totalCents} <> 0`
+  // Under-allocated remainder per invoice: the total minus every allocation row
+  // against it, regardless of what those rows target. `greatest(…, 0)` guards
+  // the one path that can outrun the write-time over-allocation check — editing
+  // an invoice's header total downwards does not re-validate its allocations.
+  // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+  const allocatedCents = sql`coalesce((select sum(${supplierCostAllocations.amountCents}) from ${supplierCostAllocations} where ${supplierCostAllocations.supplierInvoiceId} = ${supplierInvoices.id}), 0)`
+  // agent-quality: raw-sql reviewed -- owner: finance; dynamic SQL interpolation uses Drizzle parameter binding or vetted SQL identifiers.
+  const remainderCents = sql`greatest(${supplierInvoices.totalCents} - ${allocatedCents}, 0)`
 
   const [
     itemRows,
@@ -227,6 +265,7 @@ async function loadDepartureAccumulators(
     productCostRows,
     serviceTypeRows,
     unattributedRows,
+    unallocatedRows,
   ] = await Promise.all([
     // Booked sell + planned cost per (departure, booking), with display snapshots.
     db
@@ -328,8 +367,8 @@ async function loadDepartureAccumulators(
         serviceType: sql<string>`coalesce(${costCategories.name}, 'Uncategorized')`,
         currency: supplierInvoices.currency,
         amountCents: sql<number>`coalesce(sum(${supplierInvoiceLines.totalAmountCents}), 0)::bigint`,
-        baseAmountCents: sql<number>`coalesce(sum(case when ${lineSnapshotted} then round(${supplierInvoiceLines.totalAmountCents}::numeric * ${supplierInvoices.baseTotalCents} / ${supplierInvoices.totalCents}) else 0 end), 0)::bigint`,
-        residualAmountCents: sql<number>`coalesce(sum(case when ${lineSnapshotted} then 0 else ${supplierInvoiceLines.totalAmountCents} end), 0)::bigint`,
+        baseAmountCents: sql<number>`coalesce(sum(case when ${apProRatable} then round(${supplierInvoiceLines.totalAmountCents}::numeric * ${supplierInvoices.baseTotalCents} / ${supplierInvoices.totalCents}) else 0 end), 0)::bigint`,
+        residualAmountCents: sql<number>`coalesce(sum(case when ${apProRatable} then 0 else ${supplierInvoiceLines.totalAmountCents} end), 0)::bigint`,
       })
       .from(supplierInvoiceLines)
       .innerJoin(supplierInvoices, eq(supplierInvoiceLines.supplierInvoiceId, supplierInvoices.id))
@@ -357,6 +396,31 @@ async function loadDepartureAccumulators(
           isNull(supplierInvoices.deletedAt),
         ),
       )
+      .groupBy(supplierInvoices.currency),
+    // Under-allocated remainder — recorded AP cost that carries NO allocation
+    // row at all. Invariant §6.1(4) permits under-allocation and stores nothing
+    // for the leftover, so it exists only as arithmetic on the invoice: without
+    // this query the shortfall is invisible and silently inflates margin.
+    //
+    // One formula covers both allocation modes. In whole-invoice mode the cap is
+    // the invoice total; in per-line mode it is each line's total, and since
+    // `validateAllocations` holds every line at or under its own total,
+    // Σ(lineTotal − Σalloc) collapses to (Σ lineTotal − Σ alloc). Anchoring on
+    // the header total additionally catches a header that outruns its lines.
+    //
+    // Base treatment mirrors the cost-by-category query: the remainder is
+    // pro-rated by the invoice's snapshotted base/total ratio (its issue-date
+    // rate), never re-valued at today's rate; invoices without a snapshot fall
+    // to the residual bucket and convert once via the fallback rate.
+    db
+      .select({
+        currency: supplierInvoices.currency,
+        amountCents: sql<number>`coalesce(sum(${remainderCents}), 0)::bigint`,
+        baseAmountCents: sql<number>`coalesce(sum(case when ${apProRatable} then round(${remainderCents}::numeric * ${supplierInvoices.baseTotalCents} / ${supplierInvoices.totalCents}) else 0 end), 0)::bigint`,
+        residualAmountCents: sql<number>`coalesce(sum(case when ${apProRatable} then 0 else ${remainderCents} end), 0)::bigint`,
+      })
+      .from(supplierInvoices)
+      .where(and(ne(supplierInvoices.status, "void"), isNull(supplierInvoices.deletedAt)))
       .groupBy(supplierInvoices.currency),
   ])
 
@@ -533,6 +597,15 @@ async function loadDepartureAccumulators(
     addResidual(unattributedBase.residual, row.currency, num(row.residualAmountCents))
   }
 
+  const unallocated: ProfitabilityUnallocated[] = []
+  const unallocatedBase = newBaseSplit()
+  for (const row of unallocatedRows) {
+    const amountCents = num(row.amountCents)
+    if (amountCents !== 0) unallocated.push({ currency: row.currency, amountCents })
+    unallocatedBase.snapshotBase += num(row.baseAmountCents)
+    addResidual(unallocatedBase.residual, row.currency, num(row.residualAmountCents))
+  }
+
   return {
     baseCurrency: base,
     departures,
@@ -542,6 +615,8 @@ async function loadDepartureAccumulators(
     costByServiceTypeBase,
     unattributed,
     unattributedBase,
+    unallocated,
+    unallocatedBase,
   }
 }
 
@@ -560,8 +635,15 @@ export async function getDepartureProfitability(
 ): Promise<DepartureProfitabilityReport> {
   const baseCurrency = (await resolveInvoiceFxSettingsOrDefault(db, options)).baseCurrency
   const loaded = await loadDepartureAccumulators(db, baseCurrency)
-  const { departures, costByServiceType, costByServiceTypeBase, unattributed, unattributedBase } =
-    loaded
+  const {
+    departures,
+    costByServiceType,
+    costByServiceTypeBase,
+    unattributed,
+    unattributedBase,
+    unallocated,
+    unallocatedBase,
+  } = loaded
 
   const rows: DepartureProfitabilityRow[] = []
   const filtered: DepartureAcc[] = []
@@ -607,6 +689,7 @@ export async function getDepartureProfitability(
     filtered.flatMap((acc) => [...acc.residual.keys()]),
     costByServiceTypeBase,
     unattributedBase,
+    unallocatedBase,
   )
   const { rates, unconvertible } = await buildBaseRates(
     db,
@@ -647,11 +730,13 @@ export async function getDepartureProfitability(
     rows,
     costByServiceType: filterCostByCurrency(costByServiceType, query.currency),
     unattributed: filterCostByCurrency(unattributed, query.currency),
+    unallocated: filterCostByCurrency(unallocated, query.currency),
     base: {
       currency: baseCurrency,
       rows: baseRows,
       costByServiceType: baseCostByServiceType(costByServiceTypeBase, rates, baseCurrency),
       unattributedCents: Math.round(resolveBaseSplit(unattributedBase, rates, new Set())),
+      unallocatedCents: Math.round(resolveBaseSplit(unallocatedBase, rates, new Set())),
       unconvertibleCurrencies: unconvertible,
     },
   }
@@ -672,6 +757,8 @@ export async function getProductProfitability(
     costByServiceTypeBase,
     unattributed,
     unattributedBase,
+    unallocated,
+    unallocatedBase,
   } = loaded
 
   interface ProductAcc {
@@ -784,6 +871,7 @@ export async function getProductProfitability(
     [...products.values()].flatMap((acc) => [...acc.residual.keys()]),
     costByServiceTypeBase,
     unattributedBase,
+    unallocatedBase,
   )
   const { rates, unconvertible } = await buildBaseRates(
     db,
@@ -818,11 +906,13 @@ export async function getProductProfitability(
     rows,
     costByServiceType: filterCostByCurrency(costByServiceType, query.currency),
     unattributed: filterCostByCurrency(unattributed, query.currency),
+    unallocated: filterCostByCurrency(unallocated, query.currency),
     base: {
       currency: baseCurrency,
       rows: baseRows,
       costByServiceType: baseCostByServiceType(costByServiceTypeBase, rates, baseCurrency),
       unattributedCents: Math.round(resolveBaseSplit(unattributedBase, rates, new Set())),
+      unallocatedCents: Math.round(resolveBaseSplit(unallocatedBase, rates, new Set())),
       unconvertibleCurrencies: unconvertible,
     },
   }
@@ -1096,6 +1186,34 @@ const csvDocument = (rows: string[]): string => `﻿${rows.join("\r\n")}\r\n`
 const major = (cents: number): string => (cents / 100).toFixed(2)
 const marginCell = (value: number | null): string => (value == null ? "" : value.toFixed(1))
 
+/**
+ * Trailing block for AP cost that never reached a departure, per currency. The
+ * two kinds stay on separate lines because they are separate signals:
+ * `explicitly_unattributed` was allocated to nothing on purpose, whereas
+ * `unallocated_remainder` is the under-allocated leftover nobody has touched.
+ *
+ * Emitted only when there is something to report, so an export from a fully
+ * allocated ledger is byte-identical to one produced before this block existed.
+ */
+function unaccountedCostRows(report: {
+  unattributed: ProfitabilityUnattributed[]
+  unallocated: ProfitabilityUnallocated[]
+}): string[] {
+  const entries: Array<[string, { currency: string; amountCents: number }]> = [
+    ...report.unattributed.map((entry): [string, typeof entry] => [
+      "explicitly_unattributed",
+      entry,
+    ]),
+    ...report.unallocated.map((entry): [string, typeof entry] => ["unallocated_remainder", entry]),
+  ]
+  if (entries.length === 0) return []
+  return [
+    "",
+    csvRow(["unaccounted_cost", "currency", "amount"]),
+    ...entries.map(([kind, entry]) => csvRow([kind, entry.currency, major(entry.amountCents)])),
+  ]
+}
+
 export function buildDepartureProfitabilityCsv(report: DepartureProfitabilityReport): string {
   const header = [
     "departure_id",
@@ -1127,7 +1245,7 @@ export function buildDepartureProfitabilityCsv(report: DepartureProfitabilityRep
       major(r.varianceCents),
     ]),
   )
-  return csvDocument([csvRow(header), ...rows])
+  return csvDocument([csvRow(header), ...rows, ...unaccountedCostRows(report)])
 }
 
 export function buildProductProfitabilityCsv(report: ProductProfitabilityReport): string {
@@ -1157,5 +1275,5 @@ export function buildProductProfitabilityCsv(report: ProductProfitabilityReport)
       major(r.varianceCents),
     ]),
   )
-  return csvDocument([csvRow(header), ...rows])
+  return csvDocument([csvRow(header), ...rows, ...unaccountedCostRows(report)])
 }

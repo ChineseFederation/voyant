@@ -25,6 +25,7 @@ export const profitability = {
     plannedCost: "Cost planificat",
     variance: "Diferenta",
     unattributed: "Cost neatribuit",
+    unallocated: "Cost nealocat",
   },
   charts: {
     departurePnl: "P&L pe plecare",

@@ -15,6 +15,17 @@ export const profitabilityUnattributedSchema = z.object({
 })
 export type ProfitabilityUnattributed = z.infer<typeof profitabilityUnattributedSchema>
 
+/**
+ * The under-allocated remainder of recorded supplier cost — an invoice total
+ * minus every allocation row against it. Distinct from `unattributed`, which is
+ * cost deliberately allocated to no departure.
+ */
+export const profitabilityUnallocatedSchema = z.object({
+  currency: z.string(),
+  amountCents: z.number().int(),
+})
+export type ProfitabilityUnallocated = z.infer<typeof profitabilityUnallocatedSchema>
+
 export const departureProfitabilityRowSchema = z.object({
   departureId: z.string(),
   departureLabel: z.string().nullable(),
@@ -36,6 +47,7 @@ export const departureProfitabilityBaseRollupSchema = z.object({
   rows: z.array(departureProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributedCents: z.number().int(),
+  unallocatedCents: z.number().int(),
   unconvertibleCurrencies: z.array(z.string()),
 })
 export type DepartureProfitabilityBaseRollup = z.infer<
@@ -46,6 +58,7 @@ export const departureProfitabilityReportSchema = z.object({
   rows: z.array(departureProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: departureProfitabilityBaseRollupSchema.optional(),
 })
 export type DepartureProfitabilityReport = z.infer<typeof departureProfitabilityReportSchema>
@@ -69,6 +82,7 @@ export const productProfitabilityBaseRollupSchema = z.object({
   rows: z.array(productProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributedCents: z.number().int(),
+  unallocatedCents: z.number().int(),
   unconvertibleCurrencies: z.array(z.string()),
 })
 export type ProductProfitabilityBaseRollup = z.infer<typeof productProfitabilityBaseRollupSchema>
@@ -77,6 +91,7 @@ export const productProfitabilityReportSchema = z.object({
   rows: z.array(productProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: productProfitabilityBaseRollupSchema.optional(),
 })
 export type ProductProfitabilityReport = z.infer<typeof productProfitabilityReportSchema>

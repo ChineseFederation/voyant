@@ -5,6 +5,13 @@ import { z } from "zod"
  * stored: actual cost from `supplier_cost_allocations`, revenue from issued
  * customer invoices (AR), planned cost from `booking_items`. Rows are emitted
  * **per currency** — amounts are never summed across currencies (no FX in v1).
+ *
+ * Only the query inputs are contracts here; the response shapes are authored
+ * from the service interfaces next to the routes that serve them
+ * (`@voyant-travel/finance` `routes-reports.ts`). Alongside the rows those
+ * responses carry two separate unaccounted-cost figures: `unattributed` (cost
+ * allocated to no departure on purpose) and `unallocated` (the under-allocated
+ * remainder of a supplier invoice, which has no allocation row at all).
  */
 
 export const departureProfitabilityQuerySchema = z.object({

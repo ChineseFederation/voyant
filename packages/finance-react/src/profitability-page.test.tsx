@@ -41,6 +41,7 @@ vi.mock("./index.js", () => ({
           { serviceType: "accommodation", currency: "RON", amountCents: 7500050 },
         ],
         unattributed: [{ currency: "RON", amountCents: 120050 }],
+        unallocated: [{ currency: "RON", amountCents: 45000 }],
         base: {
           currency: "RON",
           rows: [departureRow],
@@ -48,6 +49,7 @@ vi.mock("./index.js", () => ({
             { serviceType: "accommodation", currency: "RON", amountCents: 7500050 },
           ],
           unattributedCents: 120050,
+          unallocatedCents: 45000,
           unconvertibleCurrencies: [],
         },
       },
@@ -62,6 +64,7 @@ vi.mock("./index.js", () => ({
           { serviceType: "accommodation", currency: "RON", amountCents: 7500050 },
         ],
         unattributed: [{ currency: "RON", amountCents: 120050 }],
+        unallocated: [{ currency: "RON", amountCents: 45000 }],
         base: {
           currency: "RON",
           rows: [productRow],
@@ -69,6 +72,7 @@ vi.mock("./index.js", () => ({
             { serviceType: "accommodation", currency: "RON", amountCents: 7500050 },
           ],
           unattributedCents: 120050,
+          unallocatedCents: 45000,
           unconvertibleCurrencies: [],
         },
       },

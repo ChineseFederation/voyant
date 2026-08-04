@@ -214,7 +214,7 @@ describe("validateAllocations (§6.1 invariants)", () => {
     ).toEqual({ ok: true })
   })
 
-  it("allows under-allocation (remainder reported as unattributed, not stored)", () => {
+  it("allows under-allocation (remainder derived as unallocated on read, not stored)", () => {
     expect(
       validateAllocations({
         invoiceTotalCents: 1000,

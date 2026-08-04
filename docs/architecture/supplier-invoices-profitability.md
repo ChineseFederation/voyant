@@ -279,7 +279,7 @@ Pin these down in PR1's validation + tests:
 1. **No mixing modes per invoice.** An invoice is allocated **either** whole-invoice (line-less rows, `supplierInvoiceLineId = null`) **or** per-line — never both. Reject the second mode once the first exists on an invoice.
 2. **Exactly one target per allocation** (§6 table note): a check constraint requires the id column matching `targetType` to be non-null and the others null.
 3. **No over-allocation.** Σ(allocations of a line) ≤ line `totalAmountCents`; for whole-invoice mode, Σ ≤ invoice `totalCents`. Over-allocation rejected.
-4. **Under-allocation → explicit remainder.** The remainder is **not** silently dropped: the read model reports it as an `unattributed` figure per invoice (data-quality signal). Whether to also *materialise* a synthetic `unattributed` allocation row vs compute it on read is a PR1 call — recommendation: compute on read, don't store.
+4. **Under-allocation → explicit remainder.** The remainder is **not** silently dropped: the read model computes it on read (nothing is stored) and reports it per currency as `unallocated`, separately from `unattributed`. The two are different signals — `unattributed` is cost someone decided belongs to no departure, `unallocated` is cost nobody has touched yet — so merging them would hide a backlog behind a decision.
 5. **Currency.** An allocation inherits the invoice currency; `baseAmountCents` is computed via the invoice's `fxRateSetId` at record time (§9). Allocations never mix currencies within one invoice.
 6. **Supplier credit notes** (§5.6 / §15-Q5): a credit note (negative invoice in the lean v1) produces **negative** allocations against the same targets, so the read model nets them. Define the matching rule (credit references the original `supplier_invoices.id`) and forbid a credit's allocations from exceeding the original's per-target totals.
 
@@ -322,7 +322,9 @@ profitCents         -- revenue − actual
 marginPercent       -- profit / revenue
 varianceCents       -- planned − actual   (negative = overspend)
 costByServiceType   -- breakdown for the stacked-bar chart
-unattributedCents   -- AP recorded but not yet attributed (data-quality signal)
+unattributedCents   -- AP allocated to `unattributed` on purpose (excluded from P&L)
+unallocatedCents    -- AP with no allocation row at all: the under-allocated
+                    -- remainder, Σ(invoice total − Σ its allocations) (backlog signal)
 ```
 
 ### `getProductProfitability({ from, to })`

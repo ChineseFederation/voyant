@@ -92,6 +92,16 @@ const profitabilityUnattributedSchema = z.object({
   amountCents: z.number().int(),
 })
 
+/**
+ * The under-allocated remainder of recorded supplier cost — an invoice total
+ * minus every allocation row against it. Distinct from `unattributed`, which is
+ * cost deliberately allocated to no departure.
+ */
+const profitabilityUnallocatedSchema = z.object({
+  currency: z.string(),
+  amountCents: z.number().int(),
+})
+
 const departureProfitabilityRowSchema = z.object({
   departureId: z.string(),
   departureLabel: z.string().nullable(),
@@ -111,12 +121,14 @@ const departureProfitabilityReportSchema = z.object({
   rows: z.array(departureProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: z
     .object({
       currency: z.string(),
       rows: z.array(departureProfitabilityRowSchema),
       costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
       unattributedCents: z.number().int(),
+      unallocatedCents: z.number().int(),
       unconvertibleCurrencies: z.array(z.string()),
     })
     .optional(),
@@ -139,12 +151,14 @@ const productProfitabilityReportSchema = z.object({
   rows: z.array(productProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: z
     .object({
       currency: z.string(),
       rows: z.array(productProfitabilityRowSchema),
       costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
       unattributedCents: z.number().int(),
+      unallocatedCents: z.number().int(),
       unconvertibleCurrencies: z.array(z.string()),
     })
     .optional(),

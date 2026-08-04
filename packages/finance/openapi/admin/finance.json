@@ -9096,6 +9096,24 @@
                             ]
                           }
                         },
+                        "unallocated": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "currency",
+                              "amountCents"
+                            ]
+                          }
+                        },
                         "base": {
                           "type": "object",
                           "properties": {
@@ -9200,6 +9218,9 @@
                             "unattributedCents": {
                               "type": "integer"
                             },
+                            "unallocatedCents": {
+                              "type": "integer"
+                            },
                             "unconvertibleCurrencies": {
                               "type": "array",
                               "items": {
@@ -9212,6 +9233,7 @@
                             "rows",
                             "costByServiceType",
                             "unattributedCents",
+                            "unallocatedCents",
                             "unconvertibleCurrencies"
                           ]
                         }
@@ -9219,7 +9241,8 @@
                       "required": [
                         "rows",
                         "costByServiceType",
-                        "unattributed"
+                        "unattributed",
+                        "unallocated"
                       ]
                     }
                   },
@@ -9383,6 +9406,24 @@
                             ]
                           }
                         },
+                        "unallocated": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "currency": {
+                                "type": "string"
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "currency",
+                              "amountCents"
+                            ]
+                          }
+                        },
                         "base": {
                           "type": "object",
                           "properties": {
@@ -9470,6 +9511,9 @@
                             "unattributedCents": {
                               "type": "integer"
                             },
+                            "unallocatedCents": {
+                              "type": "integer"
+                            },
                             "unconvertibleCurrencies": {
                               "type": "array",
                               "items": {
@@ -9482,6 +9526,7 @@
                             "rows",
                             "costByServiceType",
                             "unattributedCents",
+                            "unallocatedCents",
                             "unconvertibleCurrencies"
                           ]
                         }
@@ -9489,7 +9534,8 @@
                       "required": [
                         "rows",
                         "costByServiceType",
-                        "unattributed"
+                        "unattributed",
+                        "unallocated"
                       ]
                     }
                   },

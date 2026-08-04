@@ -29,6 +29,11 @@ const profitabilityUnattributedSchema = z.object({
   amountCents: z.number().int(),
 })
 
+const profitabilityUnallocatedSchema = z.object({
+  currency: z.string(),
+  amountCents: z.number().int(),
+})
+
 const departureProfitabilityRowSchema = z.object({
   departureId: z.string(),
   departureLabel: z.string().nullable(),
@@ -48,12 +53,14 @@ const departureProfitabilityReportSchema = z.object({
   rows: z.array(departureProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: z
     .object({
       currency: z.string(),
       rows: z.array(departureProfitabilityRowSchema),
       costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
       unattributedCents: z.number().int(),
+      unallocatedCents: z.number().int(),
       unconvertibleCurrencies: z.array(z.string()),
     })
     .optional(),
@@ -76,12 +83,14 @@ const productProfitabilityReportSchema = z.object({
   rows: z.array(productProfitabilityRowSchema),
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
+  unallocated: z.array(profitabilityUnallocatedSchema),
   base: z
     .object({
       currency: z.string(),
       rows: z.array(productProfitabilityRowSchema),
       costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
       unattributedCents: z.number().int(),
+      unallocatedCents: z.number().int(),
       unconvertibleCurrencies: z.array(z.string()),
     })
     .optional(),
@@ -135,11 +144,13 @@ const departureReport: DepartureProfitabilityReport = {
   ],
   costByServiceType: [{ serviceType: "transportation", currency: "EUR", amountCents: 120000 }],
   unattributed: [{ currency: "EUR", amountCents: 0 }],
+  unallocated: [{ currency: "EUR", amountCents: 40000 }],
   base: {
     currency: "RON",
     rows: [],
     costByServiceType: [],
     unattributedCents: 0,
+    unallocatedCents: 200000,
     unconvertibleCurrencies: [],
   },
 }
@@ -161,6 +172,7 @@ const productReport: ProductProfitabilityReport = {
   ],
   costByServiceType: [],
   unattributed: [],
+  unallocated: [],
 }
 
 const travelerReport: TravelerProfitabilityReport = {

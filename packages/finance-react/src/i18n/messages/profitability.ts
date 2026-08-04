@@ -26,6 +26,7 @@ export type ProfitabilityMessages = {
     plannedCost: string
     variance: string
     unattributed: string
+    unallocated: string
   }
   charts: {
     departurePnl: string

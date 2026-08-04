@@ -304,8 +304,12 @@ export type AllocationCheckResult =
  *  2. Exactly-one-target is enforced upstream by the zod schema + DB check.
  *  3. No over-allocation — Σ per line ≤ that line's total; for whole-invoice
  *     mode, Σ ≤ the invoice total.
- *  4. Under-allocation is allowed (the remainder is reported as `unattributed`
- *     by the read model, not stored).
+ *  4. Under-allocation is allowed. Nothing is stored for the remainder; the
+ *     profitability read model derives it per currency and reports it as
+ *     `unallocated` (`service-profitability.ts`). It is kept apart from that
+ *     model's `unattributed` figure, which counts allocations deliberately
+ *     targeted at nothing — an untouched leftover is a backlog, a deliberate
+ *     `unattributed` allocation is a decision.
  */
 export function validateAllocations(params: {
   invoiceTotalCents: number
