@@ -6,6 +6,7 @@
  */
 
 import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
+import type { UnsatisfiedRequirementV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-validation"
 import { DatePicker } from "@voyant-travel/ui/components/date-picker"
 import { Input } from "@voyant-travel/ui/components/input"
 import { Label } from "@voyant-travel/ui/components/label"
@@ -32,6 +33,17 @@ export type RenderUnitsPicker = (props: UnitsPickerProps) => React.ReactNode
 
 export interface StepCommonProps {
   draft: Draft
+  /**
+   * The Booking Requirements the SERVER reported as unsatisfied — the
+   * `selection_incomplete.unsatisfied[]` list off a rejected quote or commit,
+   * passed through untouched.
+   *
+   * A step anchors what it can to the control the `requirementKey` names and
+   * groups the rest into its own error list. The step never re-evaluates a
+   * requirement: it renders what it was told, so it cannot disagree with the
+   * server that told it. See `../lib/unsatisfied-requirements.ts`.
+   */
+  unsatisfied?: ReadonlyArray<UnsatisfiedRequirementV1>
   // Accepts a value or a functional updater (the underlying `useState`
   // dispatcher), so effects can merge onto the latest draft without clobbering
   // concurrent updates.
@@ -153,11 +165,7 @@ export function Field({
         aria-describedby={error ? errorId : undefined}
         onChange={(e) => onChange(e.target.value)}
       />
-      {error ? (
-        <p id={errorId} className="text-destructive text-xs" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id={errorId} error={error} />
     </div>
   )
 }
@@ -168,6 +176,7 @@ export function PhoneField({
   value,
   onChange,
   defaultCountry,
+  error,
 }: {
   id: string
   label: string
@@ -176,6 +185,7 @@ export function PhoneField({
   /** Explicit default country (ISO 3166-1 alpha-2). Falls back to the active
    *  locale's region, then GB. */
   defaultCountry?: string
+  error?: string
 }): React.ReactElement {
   const i18n = useBookingsUiI18nOrDefault()
   const resolvedCountry = resolveDefaultPhoneCountry(defaultCountry, i18n.locale)
@@ -188,10 +198,33 @@ export function PhoneField({
           resolvedCountry as React.ComponentProps<typeof PhoneInput>["defaultCountry"]
         }
         international
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
         value={value || undefined}
         onChange={(v) => onChange(v ? String(v) : "")}
       />
+      <FieldError id={`${id}-error`} error={error} />
     </div>
+  )
+}
+
+/**
+ * The message attached to one control — a server-reported unsatisfied
+ * requirement or a local format check. Rendered as an alert so a buyer using a
+ * screen reader hears it when it appears rather than on the next focus.
+ */
+export function FieldError({
+  id,
+  error,
+}: {
+  id: string
+  error?: string
+}): React.ReactElement | null {
+  if (!error) return null
+  return (
+    <p id={id} className="text-destructive text-xs" role="alert">
+      {error}
+    </p>
   )
 }
 
@@ -211,12 +244,14 @@ export function DateField({
   value,
   onChange,
   range = "future",
+  error,
 }: {
   id: string
   label: string
   value: string
   onChange: (v: string) => void
   range?: "past" | "future" | "document"
+  error?: string
 }): React.ReactElement {
   const today = new Date()
   const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -247,6 +282,7 @@ export function DateField({
         defaultMonth={defaultMonth}
         displayFormat="PPP"
       />
+      <FieldError id={`${id}-error`} error={error} />
     </div>
   )
 }
@@ -257,19 +293,26 @@ export function SelectField({
   value,
   options,
   onChange,
+  error,
 }: {
   id: string
   label: string
   value: string
   options: ReadonlyArray<{ value: string; label: string }>
   onChange: (v: string) => void
+  error?: string
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   return (
     <div className="space-y-1">
       <Label htmlFor={id}>{label}</Label>
       <Select value={value || undefined} onValueChange={(v) => onChange(v ?? "")}>
-        <SelectTrigger id={id} className="w-full">
+        <SelectTrigger
+          id={id}
+          className="w-full"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+        >
           <SelectValue placeholder={messages.bookingJourney.values.selectPlaceholder} />
         </SelectTrigger>
         <SelectContent>
@@ -280,6 +323,7 @@ export function SelectField({
           ))}
         </SelectContent>
       </Select>
+      <FieldError id={`${id}-error`} error={error} />
     </div>
   )
 }

@@ -29,6 +29,20 @@ export {
   totalPax,
 } from "./lib/draft-state.js"
 export {
+  anchorForRequirementKey,
+  bookingFieldMessages,
+  configureSubStepMessages,
+  type DescribedUnsatisfiedRequirement,
+  describeUnsatisfiedRequirement,
+  describeUnsatisfiedRequirements,
+  groupUnsatisfiedRequirements,
+  paxBandMessages,
+  stepForUnsatisfiedAnchor,
+  stepLevelUnsatisfiedMessages,
+  travelerFieldMessages,
+  type UnsatisfiedRequirementAnchor,
+} from "./lib/unsatisfied-requirements.js"
+export {
   type BillingExtrasContext,
   type BookingEntitySummary,
   type DeparturePickerProps,

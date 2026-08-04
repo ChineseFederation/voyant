@@ -1,3 +1,5 @@
+import type { UnsatisfiedRequirementReasonV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-validation"
+
 export type BookingsUiJourneyMessages = {
   bookingJourney: {
     steps: Record<
@@ -55,6 +57,18 @@ export type BookingsUiJourneyMessages = {
       travelerFieldRequired: string
       paymentIntentMissing: string
       noTravelers: string
+    }
+    /**
+     * Copy for the Booking Requirements the server says the selection does not
+     * satisfy — the `selection_incomplete.unsatisfied[]` list. Keyed by the
+     * contract's `reason` enum so a reason the server can emit and this package
+     * cannot render is a compile error, not a blank line; `fallback` covers a
+     * server that ships a new reason ahead of this package.
+     */
+    unsatisfied: {
+      title: string
+      fallback: string
+      reasons: Record<UnsatisfiedRequirementReasonV1, string>
     }
     configure: {
       travelers: string

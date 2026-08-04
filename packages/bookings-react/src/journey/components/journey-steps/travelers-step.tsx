@@ -16,6 +16,11 @@ import {
   totalPax,
 } from "../../lib/draft-state.js"
 import { isValidOptionalEmail } from "../../lib/email-validation.js"
+import {
+  describeUnsatisfiedRequirements,
+  stepLevelUnsatisfiedMessages,
+  travelerFieldMessages,
+} from "../../lib/unsatisfied-requirements.js"
 import type { TravelerContactPickerProps } from "../../types.js"
 import { PaxDependencyWarnings, PaxValidation } from "./configure-steps.js"
 import {
@@ -67,6 +72,7 @@ export function TravelersStep({
   renderTravelerContactPicker,
   warnings,
   errors,
+  unsatisfied,
 }: StepCommonProps & {
   renderTravelerContactPicker?: (props: TravelerContactPickerProps) => React.ReactNode
   warnings?: ReadonlyArray<string>
@@ -77,6 +83,23 @@ export function TravelersStep({
   const bands = shape.paxBands
   const hasBandChoice = bands.length > 1
   const { min, max } = shape.paxBandsAllowedTotal
+  // `travelerFields.<key>.travelers.<n>` addresses one input on one row, so it
+  // goes to that row. The party-shaped findings (`paxBands.*`,
+  // `paxBandsAllowedTotal`, the occupancy sub-step, the cross-band dependency
+  // rules) have no single control here — the party is derived from the rows
+  // themselves — so they group at the step, next to the existing party
+  // validation.
+  const described = describeUnsatisfiedRequirements(unsatisfied, messages, shape)
+  const stepUnsatisfied = stepLevelUnsatisfiedMessages(
+    described,
+    "travelers",
+    (entry) =>
+      entry.anchor.kind === "travelerField" &&
+      entry.anchor.travelerIndex >= 0 &&
+      // A row the step is not drawing (a stale index, or a field the row's band
+      // filters out) cannot hold the message — group it rather than lose it.
+      entry.anchor.travelerIndex < travelers.length,
+  )
 
   // Seed the initial rows ONCE: from any pre-set band counts (detail-page
   // hand-off) or up to the minimum party size, then keep the derived pax in
@@ -154,6 +177,7 @@ export function TravelersStep({
               apply={apply}
               showBandSelect={hasBandChoice}
               onRemove={travelers.length > 1 ? () => removeTraveler(idx) : undefined}
+              unsatisfiedFields={travelerFieldMessages(described, idx)}
             />
           )
         })}
@@ -172,6 +196,7 @@ export function TravelersStep({
 
         <PaxValidation draft={draft} shape={shape} />
         <PaxDependencyWarnings draft={draft} shape={shape} />
+        <JourneyErrors errors={stepUnsatisfied} />
         <JourneyErrors errors={errors} />
         <JourneyWarnings warnings={warnings} />
       </CardContent>
@@ -196,6 +221,7 @@ function TravelerCard({
   apply,
   showBandSelect,
   onRemove,
+  unsatisfiedFields,
 }: {
   idx: number
   traveler: Draft["travelers"][number]
@@ -208,6 +234,12 @@ function TravelerCard({
   apply: TravelerContactPickerProps["apply"]
   showBandSelect?: boolean
   onRemove?: () => void
+  /**
+   * Traveler-field key → server message for THIS row. Whatever the row draws an
+   * input for gets the message on that input; the rest is listed at the bottom
+   * of the card, still on the traveler it belongs to.
+   */
+  unsatisfiedFields?: ReadonlyMap<string, string>
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const bands = shape.paxBands
@@ -235,6 +267,30 @@ function TravelerCard({
   // documents) always show.
   const showIdentity = !renderTravelerContactPicker
   const gridHasContent = showIdentity || Boolean(dobField) || dynamicFields.length > 0
+
+  // The traveler-field keys this row actually draws an input for — the same
+  // conditions the JSX below uses. A server message for a key in this set goes
+  // on that input; every other message for this traveler is listed at the
+  // bottom of the card, so a field the row does not draw (hidden behind the CRM
+  // picker, filtered out by the traveler's band) still reaches the buyer.
+  const drawnFieldKeys = new Set<string>()
+  if (showIdentity) {
+    drawnFieldKeys.add("firstName")
+    drawnFieldKeys.add("lastName")
+    if (applicableFields.some((f) => f.key === "email")) drawnFieldKeys.add("email")
+    if (phoneField) drawnFieldKeys.add("phone")
+  }
+  if (dobField) drawnFieldKeys.add("dateOfBirth")
+  for (const field of dynamicFields) drawnFieldKeys.add(field.key)
+  const unsatisfiedField = (key: string): string | undefined => unsatisfiedFields?.get(key)
+  const remainingUnsatisfied = [...(unsatisfiedFields ?? new Map<string, string>())]
+    .filter(([key]) => !drawnFieldKeys.has(key))
+    .map(([, message]) => message)
+
+  // A local format check and a server finding both answer "what is wrong with
+  // this input", so they share the control's error slot. The local one wins:
+  // the buyer can see it is wrong right now, and fixing it is what makes the
+  // next quote worth asking for.
   const emailError = isValidOptionalEmail(traveler.email)
     ? undefined
     : messages.bookingJourney.validation.invalidEmail
@@ -365,12 +421,14 @@ function TravelerCard({
                 id={`bj-trav-${idx}-first`}
                 label={messages.bookingJourney.billing.firstName}
                 value={traveler.firstName}
+                error={unsatisfiedField("firstName")}
                 onChange={(v) => patchRow({ firstName: v })}
               />
               <Field
                 id={`bj-trav-${idx}-last`}
                 label={messages.bookingJourney.billing.lastName}
                 value={traveler.lastName}
+                error={unsatisfiedField("lastName")}
                 onChange={(v) => patchRow({ lastName: v })}
               />
               {applicableFields.some((f) => f.key === "email") ? (
@@ -379,7 +437,7 @@ function TravelerCard({
                   label={messages.bookingJourney.billing.email}
                   type="email"
                   value={traveler.email ?? ""}
-                  error={emailError}
+                  error={emailError ?? unsatisfiedField("email")}
                   onChange={(v) => patchRow({ email: v })}
                 />
               ) : null}
@@ -390,6 +448,7 @@ function TravelerCard({
                   label={phoneField.label + (phoneField.required ? " *" : "")}
                   defaultCountry={defaultPhoneCountry}
                   value={traveler.phone ?? ""}
+                  error={unsatisfiedField("phone")}
                   onChange={(v) => patchRow({ phone: v })}
                 />
               ) : null}
@@ -402,6 +461,7 @@ function TravelerCard({
                 // i18n-literal-ok Required marker appended to a descriptor-supplied field label.
                 label={dobField.label + (dobField.required ? " *" : "")}
                 value={traveler.dateOfBirth ?? ""}
+                error={unsatisfiedField("dateOfBirth")}
                 onChange={onDobChange}
                 range="past"
               />
@@ -421,6 +481,7 @@ function TravelerCard({
               patchRow({ documents: { ...traveler.documents, [field.key]: v } })
             // i18n-literal-ok Required marker appended to a descriptor-supplied field label.
             const labelText = field.label + (field.required ? " *" : "")
+            const fieldError = unsatisfiedField(field.key)
             if (field.type === "select" && field.options) {
               return (
                 <SelectField
@@ -429,6 +490,7 @@ function TravelerCard({
                   label={labelText}
                   value={value}
                   options={field.options}
+                  error={fieldError}
                   onChange={onFieldChange}
                 />
               )
@@ -440,6 +502,7 @@ function TravelerCard({
                   id={`bj-trav-${idx}-${field.key}`}
                   label={labelText}
                   value={value}
+                  error={fieldError}
                   onChange={onFieldChange}
                   range={field.key === "documentExpiry" ? "document" : "future"}
                 />
@@ -452,12 +515,14 @@ function TravelerCard({
                 label={labelText}
                 type="text"
                 value={value}
+                error={fieldError}
                 onChange={onFieldChange}
               />
             )
           })}
         </div>
       ) : null}
+      <JourneyErrors errors={remainingUnsatisfied} />
     </div>
   )
 }

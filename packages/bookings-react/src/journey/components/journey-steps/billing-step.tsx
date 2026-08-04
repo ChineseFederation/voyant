@@ -1,5 +1,6 @@
 "use client"
 
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
 import { Separator } from "@voyant-travel/ui/components"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
 import { CountryCombobox } from "@voyant-travel/ui/components/country-combobox"
@@ -8,9 +9,15 @@ import { RadioGroup, RadioGroupItem } from "@voyant-travel/ui/components/radio-g
 import { useBookingsUiMessagesOrDefault } from "../../../i18n/index.js"
 import { patchBilling, setBillingBuyerType } from "../../lib/draft-state.js"
 import { isValidOptionalEmail } from "../../lib/email-validation.js"
+import {
+  bookingFieldMessages,
+  describeUnsatisfiedRequirements,
+  stepLevelUnsatisfiedMessages,
+} from "../../lib/unsatisfied-requirements.js"
 import type { LeadContactPickerProps } from "../../types.js"
 import {
   Field,
+  FieldError,
   JourneyErrors,
   JourneyWarnings,
   PhoneField,
@@ -21,14 +28,74 @@ import {
 // Billing
 // ─────────────────────────────────────────────────────────────────
 
+/** One input this step draws, addressable from a booking-field requirement. */
+type BillingControl =
+  | "buyerType"
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "phone"
+  | "line1"
+  | "line2"
+  | "city"
+  | "postal"
+  | "country"
+  | "companyName"
+  | "vatId"
+
+/** Keys inside the selection's `billing` block, in the group they are declared under. */
+const BILLING_GROUP_CONTROLS: Record<string, BillingControl> = {
+  "contact.firstName": "firstName",
+  "contact.lastName": "lastName",
+  "contact.email": "email",
+  "contact.phone": "phone",
+  "address.line1": "line1",
+  "address.line2": "line2",
+  "address.city": "city",
+  "address.postal": "postal",
+  "address.country": "country",
+}
+
+/** Keys inside `billing.company` — the `company` group's keys are relative to it. */
+const COMPANY_GROUP_CONTROLS: Record<string, BillingControl> = {
+  name: "companyName",
+  vatId: "vatId",
+}
+
+/**
+ * The control this step draws for a booking-field requirement, or `null` when
+ * it draws none and the message has to group at the step.
+ *
+ * A `requirementKey` carries the field key but not its group, and the two
+ * groups can collide (`name` is a company key), so the group comes from the
+ * descriptor that declared the field.
+ */
+function billingControlForBookingField(
+  fieldKey: string,
+  shape: BookingRequirementsV1,
+  drawsFields: boolean,
+  buyerType: "B2C" | "B2B",
+): BillingControl | null {
+  const group = shape.bookingFields.find((field) => field.key === fieldKey)?.group ?? "billing"
+  // The buyer-type radio group renders on every surface, picker or not.
+  if (group === "billing" && fieldKey === "buyerType") return "buyerType"
+  if (!drawsFields) return null
+  if (group === "billing") return BILLING_GROUP_CONTROLS[fieldKey] ?? null
+  // Company inputs only exist while the buyer is a company.
+  if (group === "company" && buyerType === "B2B") return COMPANY_GROUP_CONTROLS[fieldKey] ?? null
+  return null
+}
+
 export function BillingStep({
   draft,
   setDraft,
+  shape,
   defaultPhoneCountry,
   renderLeadContactPicker,
   renderExtras,
   warnings,
   errors,
+  unsatisfied,
 }: StepCommonProps & {
   renderLeadContactPicker?: (props: LeadContactPickerProps) => React.ReactNode
   renderExtras?: () => React.ReactNode
@@ -37,6 +104,27 @@ export function BillingStep({
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const billing = draft.billing
+  // `bookingFields.<key>` is a dotted path inside the billing block, and this
+  // step draws those inputs — but ONLY on a surface without a CRM picker. With
+  // the picker wired the operator edits identity, address and company through
+  // the picker, so there is no input to sit on and the messages group at the
+  // step. Restructuring the picker to accept per-field messages is a bigger
+  // change than #4188 needs.
+  const described = describeUnsatisfiedRequirements(unsatisfied, messages, shape)
+  const drawsFields = !renderLeadContactPicker
+  const controlFor = (fieldKey: string): BillingControl | null =>
+    billingControlForBookingField(fieldKey, shape, drawsFields, billing.buyerType)
+  const byControl = new Map<BillingControl, string>()
+  for (const [fieldKey, message] of bookingFieldMessages(described)) {
+    const control = controlFor(fieldKey)
+    if (control && !byControl.has(control)) byControl.set(control, message)
+  }
+  const bookingField = (control: BillingControl): string | undefined => byControl.get(control)
+  const stepUnsatisfied = stepLevelUnsatisfiedMessages(
+    described,
+    "billing",
+    (entry) => entry.anchor.kind === "bookingField" && controlFor(entry.anchor.fieldKey) !== null,
+  )
   const emailError = isValidOptionalEmail(billing.contact.email)
     ? undefined
     : messages.bookingJourney.validation.invalidEmail
@@ -98,6 +186,7 @@ export function BillingStep({
               <RadioGroupItem value="B2B" /> {messages.bookingJourney.billing.company}
             </label>
           </RadioGroup>
+          <FieldError id="bj-billing-buyerType-error" error={bookingField("buyerType")} />
         </div>
 
         {renderLeadContactPicker ? (
@@ -115,6 +204,7 @@ export function BillingStep({
                 id="bj-billing-firstName"
                 label={messages.bookingJourney.billing.firstName}
                 value={billing.contact.firstName}
+                error={bookingField("firstName")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -127,6 +217,7 @@ export function BillingStep({
                 id="bj-billing-lastName"
                 label={messages.bookingJourney.billing.lastName}
                 value={billing.contact.lastName}
+                error={bookingField("lastName")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -140,7 +231,7 @@ export function BillingStep({
                 label={messages.bookingJourney.billing.email}
                 type="email"
                 value={billing.contact.email}
-                error={emailError}
+                error={emailError ?? bookingField("email")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -154,6 +245,7 @@ export function BillingStep({
                 label={messages.bookingJourney.billing.phone}
                 defaultCountry={defaultPhoneCountry}
                 value={billing.contact.phone ?? ""}
+                error={bookingField("phone")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -169,6 +261,7 @@ export function BillingStep({
                 id="bj-billing-line1"
                 label={messages.bookingJourney.billing.addressLine1}
                 value={billing.address.line1 ?? ""}
+                error={bookingField("line1")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -181,6 +274,7 @@ export function BillingStep({
                 id="bj-billing-line2"
                 label={messages.bookingJourney.billing.addressLine2Optional}
                 value={billing.address.line2 ?? ""}
+                error={bookingField("line2")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -193,6 +287,7 @@ export function BillingStep({
                 id="bj-billing-city"
                 label={messages.bookingJourney.billing.city}
                 value={billing.address.city ?? ""}
+                error={bookingField("city")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -205,6 +300,7 @@ export function BillingStep({
                 id="bj-billing-postal"
                 label={messages.bookingJourney.billing.postalCode}
                 value={billing.address.postal ?? ""}
+                error={bookingField("postal")}
                 onChange={(v) =>
                   setDraft(
                     patchBilling(draft, {
@@ -227,6 +323,7 @@ export function BillingStep({
                     )
                   }
                 />
+                <FieldError id="bj-billing-country-error" error={bookingField("country")} />
               </div>
             </div>
 
@@ -236,6 +333,7 @@ export function BillingStep({
                   id="bj-billing-companyName"
                   label={messages.bookingJourney.billing.companyName}
                   value={billing.company?.name ?? ""}
+                  error={bookingField("companyName")}
                   onChange={(v) =>
                     setDraft(
                       patchBilling(draft, {
@@ -251,6 +349,7 @@ export function BillingStep({
                   id="bj-billing-vatId"
                   label={messages.bookingJourney.billing.vatId}
                   value={billing.company?.vatId ?? ""}
+                  error={bookingField("vatId")}
                   onChange={(v) =>
                     setDraft(
                       patchBilling(draft, {
@@ -268,6 +367,7 @@ export function BillingStep({
         )}
 
         {renderExtras ? <div>{renderExtras()}</div> : null}
+        <JourneyErrors errors={stepUnsatisfied} />
         <JourneyErrors errors={errors} />
         <JourneyWarnings warnings={warnings} />
       </CardContent>

@@ -60,6 +60,36 @@ export const bookingsUiRoJourney = {
         "Nu a fost aleasa nicio optiune de plata - aceasta rezervare va fi pusa in asteptare.",
       noTravelers: "Adauga cel putin un calator.",
     },
+    unsatisfied: {
+      title: "Completeaza aceste date inainte de a continua:",
+      fallback:
+        "Rezervarea nu are toate datele obligatorii. Verifica selectia si incearca din nou.",
+      reasons: {
+        pax_band_below_min:
+          "Adauga mai multi calatori {band} - rezervarea este sub minimul permis.",
+        pax_band_above_max: "Elimina cativa calatori {band} - rezervarea depaseste maximul permis.",
+        pax_total_below_min:
+          "Adauga mai multi calatori - rezervarea este sub numarul minim de participanti.",
+        pax_total_above_max:
+          "Elimina cativa calatori - rezervarea depaseste numarul maxim de participanti.",
+        pax_band_master_required: "{dependent} necesita cel putin un {master}.",
+        pax_band_excluded: "{dependent} nu poate fi combinat cu {master}.",
+        pax_band_per_master_exceeded:
+          "Prea multi {dependent} pentru numarul de {master} din aceasta rezervare.",
+        pax_band_sum_exceeded: "Prea multi {dependent} in aceasta rezervare.",
+        departure_required: "Alege o plecare.",
+        option_units_required: "Alege cel putin o camera.",
+        cabin_category_required: "Alege o categorie de cabina.",
+        cabin_number_required: "Alege un numar de cabina.",
+        date_range_required: "Alege data de check-in si data de check-out.",
+        date_range_too_short: "Sejurul este mai scurt decat permite produsul.",
+        date_range_too_long: "Sejurul este mai lung decat permite produsul.",
+        occupancy_required: "Adauga cel putin un calator.",
+        air_arrangement_required: "Alege un aranjament de zbor.",
+        traveler_field_required: "Calator {traveler}: {field} este obligatoriu.",
+        booking_field_required: "{field} este obligatoriu.",
+      },
+    },
     configure: {
       travelers: "Calatori",
       departureDate: "Data plecare",

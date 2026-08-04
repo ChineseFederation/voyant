@@ -1,5 +1,7 @@
 "use client"
 
+import type { BookingRequirementsV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-contracts"
+import type { UnsatisfiedRequirementV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-validation"
 import { Separator } from "@voyant-travel/ui/components"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
@@ -8,7 +10,8 @@ import { Textarea } from "@voyant-travel/ui/components/textarea"
 import { Loader2 } from "lucide-react"
 import { useBookingsUiMessagesOrDefault } from "../../../i18n/index.js"
 import type { Draft } from "../../lib/draft-state.js"
-import { JourneyWarnings } from "./shared.js"
+import { describeUnsatisfiedRequirements } from "../../lib/unsatisfied-requirements.js"
+import { JourneyErrors, JourneyWarnings } from "./shared.js"
 
 // ─────────────────────────────────────────────────────────────────
 // Review
@@ -23,12 +26,26 @@ export function ReviewStep({
   renderExtras,
   surface,
   warnings,
+  unsatisfied,
+  shape,
 }: {
   draft: Draft
   setDraft: (next: Draft) => void
   isCommitting: boolean
   onConfirm: () => void
   warnings?: ReadonlyArray<string>
+  /**
+   * The server's `selection_incomplete.unsatisfied[]`, rendered here as the
+   * complete list next to Confirm — the button that provoked the rejection.
+   *
+   * Deliberately the WHOLE list, including what a step already anchored: a
+   * summary at the point of failure plus an inline message on the control is
+   * the standard accessible pattern, and it is the only place a requirement no
+   * step draws is guaranteed to appear.
+   */
+  unsatisfied?: ReadonlyArray<UnsatisfiedRequirementV1>
+  /** Descriptor, used only to render band and field LABELS in that list. */
+  shape?: BookingRequirementsV1
   /** Gate the confirm button — when `false`, it's disabled with a hint
    *  (stacked layout, where there are no per-step advance gates). The
    *  wizard reaches Review only after passing every gate, so it omits
@@ -52,6 +69,9 @@ export function ReviewStep({
     [draft.billing.contact.firstName, draft.billing.contact.lastName].filter(Boolean).join(" ") ||
     messages.bookingJourney.values.noValue
   const leadEmail = draft.billing.contact.email || messages.bookingJourney.values.noValue
+  const unsatisfiedMessages = describeUnsatisfiedRequirements(unsatisfied, messages, shape).map(
+    (entry) => entry.message,
+  )
   return (
     <Card>
       <CardHeader>
@@ -92,6 +112,14 @@ export function ReviewStep({
           </div>
         ) : null}
         {renderExtras ? <div>{renderExtras()}</div> : null}
+        {unsatisfiedMessages.length > 0 ? (
+          <div className="space-y-1">
+            <div className="font-medium text-destructive text-sm">
+              {messages.bookingJourney.unsatisfied.title}
+            </div>
+            <JourneyErrors errors={unsatisfiedMessages} />
+          </div>
+        ) : null}
         <JourneyWarnings warnings={warnings} />
         <div className="space-y-2">
           <Button onClick={onConfirm} disabled={isCommitting || canConfirm === false}>

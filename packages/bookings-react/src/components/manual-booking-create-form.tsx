@@ -14,6 +14,7 @@ import {
   bookingSelectionV1,
   type PaxBandCode,
 } from "@voyant-travel/catalog-contracts/booking-engine/contracts"
+import type { UnsatisfiedRequirementV1 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-validation"
 import {
   type CatalogDetailEnrichment,
   type CatalogSlot,
@@ -76,6 +77,7 @@ import {
   type BookingCreateTravelCreditRedemptionInput,
   usePricingPreview,
 } from "../index.js"
+import { describeUnsatisfiedRequirements } from "../journey/lib/unsatisfied-requirements.js"
 import { useVoyantBookingsContext } from "../provider.js"
 import {
   findAlreadyPaidInstallmentMissingPaymentDate,
@@ -578,6 +580,17 @@ export function ManualBookingCreateForm({
   const [contactTouched, setContactTouched] = React.useState(false)
   const [notes, setNotes] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
+  /**
+   * The requirements the Booking Session said this selection does not satisfy.
+   *
+   * This form is one page of bespoke inputs rather than the journey's step
+   * components, so there is no per-control anchor to attach these to without
+   * rebuilding it. They render as a list under the error banner — which is
+   * still every missing requirement named, in one pass, instead of the single
+   * "some required booking details are still missing" sentence this form showed
+   * before.
+   */
+  const [unsatisfied, setUnsatisfied] = React.useState<UnsatisfiedRequirementV1[]>([])
   const errorRef = React.useRef<HTMLParagraphElement>(null)
   const [submitting, setSubmitting] = React.useState(false)
   const [payloadMismatchUnitIds, setPayloadMismatchUnitIds] = React.useState<string[]>([])
@@ -1347,8 +1360,23 @@ export function ManualBookingCreateForm({
             : copy.promotion.unavailable
     : null
 
+  // Human copy for the server's findings. The descriptor is only consulted for
+  // labels, and an owned product's form never loaded one — the messages then
+  // name the requirement by its own key, which is what an operator would look
+  // up anyway.
+  const unsatisfiedMessages = React.useMemo(
+    () =>
+      describeUnsatisfiedRequirements(
+        unsatisfied,
+        messages,
+        currentSourcedQuoteData?.requirements,
+      ).map((entry) => entry.message),
+    [unsatisfied, messages, currentSourcedQuoteData?.requirements],
+  )
+
   const handleSubmit = async () => {
     setError(null)
+    setUnsatisfied([])
     setPayloadMismatchUnitIds([])
     if (quote.isSettling) {
       setError(copy.validation.pricingPending)
@@ -1629,6 +1657,9 @@ export function ManualBookingCreateForm({
             ? cause.message
             : copy.validation.create,
       )
+      // The typed outcome carried the list; keep it. Collapsing it back into
+      // the sentence above is what made the server's enforcement invisible.
+      setUnsatisfied(cause instanceof BookingSessionJourneyError ? (cause.unsatisfied ?? []) : [])
     } finally {
       submissionRef.current = false
       setSubmitting(false)
@@ -1985,6 +2016,19 @@ export function ManualBookingCreateForm({
           >
             {error}
           </p>
+        ) : null}
+        {unsatisfiedMessages.length > 0 ? (
+          <div
+            role="alert"
+            className="mt-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-destructive text-xs"
+          >
+            <div className="font-medium">{messages.bookingJourney.unsatisfied.title}</div>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
+              {unsatisfiedMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
         ) : null}
         {isSourcedProduct ? (
           <p

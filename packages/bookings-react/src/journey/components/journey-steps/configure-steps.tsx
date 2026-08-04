@@ -16,8 +16,15 @@ import {
   type PaxBandDependencyViolation,
 } from "../../lib/pax-band-dependencies.js"
 import {
+  configureSubStepMessages,
+  describeUnsatisfiedRequirements,
+  paxBandMessages,
+  stepLevelUnsatisfiedMessages,
+} from "../../lib/unsatisfied-requirements.js"
+import {
   ageHint,
   DateField,
+  JourneyErrors,
   type RenderDeparturePicker,
   type RenderUnitsPicker,
   type StepCommonProps,
@@ -33,6 +40,7 @@ export function DepartureStep({
   shape,
   productId,
   renderDeparturePicker,
+  unsatisfied,
 }: StepCommonProps & {
   /** Owned product id — passed to the injected departure picker. */
   productId?: string
@@ -40,6 +48,17 @@ export function DepartureStep({
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const subSteps = shape.configureSubSteps ?? []
+  // `configureSubSteps.departure` belongs under the departure picker itself.
+  // The picker is an injected slot, so the message sits directly below it
+  // rather than on one of its inputs — the closest anchor available without
+  // reaching into a component this package does not own.
+  const described = describeUnsatisfiedRequirements(unsatisfied, messages, shape)
+  const departureErrors = configureSubStepMessages(described).get("departure") ?? []
+  const stepErrors = stepLevelUnsatisfiedMessages(
+    described,
+    "departure",
+    (entry) => entry.anchor.kind === "configureSubStep" && entry.anchor.subStepKind === "departure",
+  )
   // With no descriptor sub-steps, still offer a departure (storefront
   // free-date fallback).
   const showsDeparture = subSteps.length === 0 || subSteps.some((s) => s.kind === "departure")
@@ -76,7 +95,11 @@ export function DepartureStep({
         <CardTitle>{messages.bookingJourney.steps.departure}</CardTitle>
       </CardHeader>
       <Separator />
-      <CardContent className="space-y-6">{departureNode}</CardContent>
+      <CardContent className="space-y-6">
+        {departureNode}
+        <JourneyErrors errors={departureErrors} />
+        <JourneyErrors errors={stepErrors} />
+      </CardContent>
     </Card>
   )
 }
@@ -87,6 +110,7 @@ export function OptionsStep({
   shape,
   productId,
   renderUnitsPicker,
+  unsatisfied,
 }: StepCommonProps & {
   /** Owned product id — passed to the injected units picker. */
   productId?: string
@@ -94,6 +118,22 @@ export function OptionsStep({
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const subSteps = shape.configureSubSteps ?? []
+  // Each configure sub-step draws its own block here, so a finding keyed
+  // `configureSubSteps.<kind>` lands on the block that owns it. Anything the
+  // options step owns but has no block for falls through to the step list.
+  const described = describeUnsatisfiedRequirements(unsatisfied, messages, shape)
+  const subStepErrors = configureSubStepMessages(described)
+  const anchoredKinds = new Set(["option-units", "date-range", "cabin-category", "air-arrangement"])
+  // The cabin-number block only exists once a category is picked. Without one
+  // there is nothing to anchor to, so the message stays in the step list rather
+  // than being attached to a block that renders nothing.
+  if (draft.configure.cabinCategoryId) anchoredKinds.add("cabin-number")
+  const stepErrors = stepLevelUnsatisfiedMessages(
+    described,
+    "options",
+    (entry) =>
+      entry.anchor.kind === "configureSubStep" && anchoredKinds.has(entry.anchor.subStepKind),
+  )
   const optionList = subSteps.flatMap((s) => (s.kind === "product-option" ? s.options : []))
   const multipleOptions = optionList.length > 1
   const showsUnits = subSteps.some((s) => s.kind === "option-units")
@@ -147,19 +187,33 @@ export function OptionsStep({
             {unitsNode && !multipleOptions ? unitsNode : null}
           </div>
         ) : null}
+        {/* Outside the block above: a surface with no units picker wired still
+            has to be told the rooms are missing. */}
+        <JourneyErrors errors={subStepErrors.get("option-units")} />
         {/* Vertical-specific sub-steps (cruise cabins, date ranges, air). */}
         {otherSteps.length > 0 ? (
           <div className="space-y-4">
-            {otherSteps.map((sub) => renderOtherConfigureSubStep(sub, draft, setDraft))}
+            {otherSteps.map((sub) =>
+              renderOtherConfigureSubStep(sub, draft, setDraft, subStepErrors.get(sub.kind)),
+            )}
           </div>
         ) : null}
+        <JourneyErrors errors={stepErrors} />
       </CardContent>
     </Card>
   )
 }
 
-export function PaxBands({ draft, setDraft, shape }: StepCommonProps): React.ReactElement {
+export function PaxBands({
+  draft,
+  setDraft,
+  shape,
+  unsatisfied,
+}: StepCommonProps): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
+  // `paxBands.<code>` names a band, and a band is one stepper row — the
+  // tightest anchor in the whole descriptor.
+  const bandErrors = paxBandMessages(describeUnsatisfiedRequirements(unsatisfied, messages, shape))
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
       <Label>{messages.bookingJourney.travelers.partySize}</Label>
@@ -167,44 +221,47 @@ export function PaxBands({ draft, setDraft, shape }: StepCommonProps): React.Rea
         {shape.paxBands.map((band) => {
           const value = draft.configure.pax?.[band.code] ?? 0
           return (
-            <div key={band.code} className="flex items-center gap-3 rounded-md border px-3 py-2">
-              <div className="flex-1">
-                <div className="text-sm font-medium">{band.label}</div>
-                {band.minAge != null || band.maxAge != null ? (
-                  <div className="text-muted-foreground text-xs">
-                    {ageHint(band.minAge, band.maxAge, messages)}
-                  </div>
-                ) : null}
+            <div key={band.code} className="space-y-1">
+              <div className="flex items-center gap-3 rounded-md border px-3 py-2">
+                <div className="flex-1">
+                  <div className="text-sm font-medium">{band.label}</div>
+                  {band.minAge != null || band.maxAge != null ? (
+                    <div className="text-muted-foreground text-xs">
+                      {ageHint(band.minAge, band.maxAge, messages)}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    className="h-7 w-7 p-0"
+                    disabled={value <= band.minCount}
+                    onClick={() => setDraft(patchPaxCount(draft, band.code, value - 1))}
+                    aria-label={formatMessage(messages.bookingJourney.travelers.decrease, {
+                      label: band.label,
+                    })}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="min-w-[1.5rem] text-center text-sm tabular-nums">{value}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    type="button"
+                    className="h-7 w-7 p-0"
+                    disabled={value >= band.maxCount}
+                    onClick={() => setDraft(patchPaxCount(draft, band.code, value + 1))}
+                    aria-label={formatMessage(messages.bookingJourney.travelers.increase, {
+                      label: band.label,
+                    })}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  className="h-7 w-7 p-0"
-                  disabled={value <= band.minCount}
-                  onClick={() => setDraft(patchPaxCount(draft, band.code, value - 1))}
-                  aria-label={formatMessage(messages.bookingJourney.travelers.decrease, {
-                    label: band.label,
-                  })}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </Button>
-                <span className="min-w-[1.5rem] text-center text-sm tabular-nums">{value}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  className="h-7 w-7 p-0"
-                  disabled={value >= band.maxCount}
-                  onClick={() => setDraft(patchPaxCount(draft, band.code, value + 1))}
-                  aria-label={formatMessage(messages.bookingJourney.travelers.increase, {
-                    label: band.label,
-                  })}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              <JourneyErrors errors={bandErrors.get(band.code)} />
             </div>
           )
         })}
@@ -319,6 +376,8 @@ function renderOtherConfigureSubStep(
   sub: NonNullable<BookingRequirementsV1["configureSubSteps"]>[number],
   draft: Draft,
   setDraft: (next: Draft) => void,
+  /** Server findings keyed to this sub-step, rendered inside its own block. */
+  errors?: ReadonlyArray<string>,
 ): React.ReactNode {
   if (sub.kind === "date-range") {
     return (
@@ -328,6 +387,7 @@ function renderOtherConfigureSubStep(
         setDraft={setDraft}
         minNights={sub.minNights}
         maxNights={sub.maxNights}
+        errors={errors}
       />
     )
   }
@@ -338,6 +398,7 @@ function renderOtherConfigureSubStep(
         draft={draft}
         setDraft={setDraft}
         categories={sub.categories}
+        errors={errors}
       />
     )
   }
@@ -348,11 +409,19 @@ function renderOtherConfigureSubStep(
         draft={draft}
         setDraft={setDraft}
         perCategory={sub.perCategory}
+        errors={errors}
       />
     )
   }
   if (sub.kind === "air-arrangement") {
-    return <AirArrangementFields key="air-arrangement" draft={draft} setDraft={setDraft} />
+    return (
+      <AirArrangementFields
+        key="air-arrangement"
+        draft={draft}
+        setDraft={setDraft}
+        errors={errors}
+      />
+    )
   }
   return null
 }
@@ -475,45 +544,50 @@ function DateRangeFields({
   setDraft,
   minNights,
   maxNights,
+  errors,
 }: {
   draft: Draft
   setDraft: (next: Draft) => void
   minNights: number
   maxNights: number
+  errors?: ReadonlyArray<string>
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const range = draft.configure.dateRange
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <DateField
-        id="bj-checkin"
-        label={messages.bookingJourney.configure.checkIn}
-        value={range?.checkIn ?? ""}
-        onChange={(v) =>
-          setDraft(
-            patchConfigure(draft, {
-              dateRange: { checkIn: v, checkOut: range?.checkOut ?? "" },
-            }),
-          )
-        }
-        range="future"
-      />
-      <DateField
-        id="bj-checkout"
-        label={formatMessage(messages.bookingJourney.configure.checkOutWithNights, {
-          minNights,
-          maxNights,
-        })}
-        value={range?.checkOut ?? ""}
-        onChange={(v) =>
-          setDraft(
-            patchConfigure(draft, {
-              dateRange: { checkIn: range?.checkIn ?? "", checkOut: v },
-            }),
-          )
-        }
-        range="future"
-      />
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <DateField
+          id="bj-checkin"
+          label={messages.bookingJourney.configure.checkIn}
+          value={range?.checkIn ?? ""}
+          onChange={(v) =>
+            setDraft(
+              patchConfigure(draft, {
+                dateRange: { checkIn: v, checkOut: range?.checkOut ?? "" },
+              }),
+            )
+          }
+          range="future"
+        />
+        <DateField
+          id="bj-checkout"
+          label={formatMessage(messages.bookingJourney.configure.checkOutWithNights, {
+            minNights,
+            maxNights,
+          })}
+          value={range?.checkOut ?? ""}
+          onChange={(v) =>
+            setDraft(
+              patchConfigure(draft, {
+                dateRange: { checkIn: range?.checkIn ?? "", checkOut: v },
+              }),
+            )
+          }
+          range="future"
+        />
+      </div>
+      <JourneyErrors errors={errors} />
     </div>
   )
 }
@@ -522,10 +596,12 @@ function CabinCategoryFields({
   draft,
   setDraft,
   categories,
+  errors,
 }: {
   draft: Draft
   setDraft: (next: Draft) => void
   categories: ReadonlyArray<{ id: string; name: string; description?: string }>
+  errors?: ReadonlyArray<string>
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   return (
@@ -558,6 +634,7 @@ function CabinCategoryFields({
           )
         })}
       </div>
+      <JourneyErrors errors={errors} />
     </div>
   )
 }
@@ -565,9 +642,11 @@ function CabinCategoryFields({
 function AirArrangementFields({
   draft,
   setDraft,
+  errors,
 }: {
   draft: Draft
   setDraft: (next: Draft) => void
+  errors?: ReadonlyArray<string>
 }): React.ReactElement {
   const messages = useBookingsUiMessagesOrDefault()
   const current = draft.configure.airArrangement
@@ -613,6 +692,7 @@ function AirArrangementFields({
           )
         })}
       </div>
+      <JourneyErrors errors={errors} />
     </div>
   )
 }
@@ -621,10 +701,12 @@ function CabinNumberFields({
   draft,
   setDraft,
   perCategory,
+  errors,
 }: {
   draft: Draft
   setDraft: (next: Draft) => void
   perCategory: Record<string, ReadonlyArray<{ id: string; label: string }>>
+  errors?: ReadonlyArray<string>
 }): React.ReactNode {
   const messages = useBookingsUiMessagesOrDefault()
   const catId = draft.configure.cabinCategoryId
@@ -650,6 +732,7 @@ function CabinNumberFields({
           )
         })}
       </div>
+      <JourneyErrors errors={errors} />
     </div>
   )
 }
