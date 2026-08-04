@@ -29,6 +29,47 @@ After Commit, Booking, Booking Item, Allocation, Finance, supplier operation,
 fulfillment, amendment, and audit records own their respective state. Payment
 or Hold state never becomes Booking status.
 
+## Booking Requirements
+
+**Booking Requirements** is the server's description of what a booking of one
+target requires: which journey steps and sub-steps apply, the pax bands and
+their cross-band occupancy rules, and the per-traveler and lead-only fields that
+must be answered.
+
+It is server-owned. A host renders it; a host never invents one. A per-vertical
+step list built in the client is a second source of truth about what a booking
+needs, and the first time a vertical adds a required field the host collects the
+old set and commits an incomplete booking.
+
+Three properties make that guarantee hold rather than merely state it:
+
+1. **One derivation.** A vertical's owned booking handler exposes
+   `computeRequirements`, and its own `computeQuote` reads that same derivation.
+   What a host renders and what a Commit will validate against cannot be two
+   code paths. Two of them is precisely the defect behind
+   [#4113](https://github.com/voyant-travel/voyant/issues/4113), where a
+   descriptor withheld a step the commit required and 13 of 39 product options
+   were unbookable for nine days.
+2. **It does not depend on price.** Requirements are published on the Booking
+   Session, on its Quote, and on the non-binding Offer Preview — and they
+   survive an unavailable quote, so a sold-out or unpriced target still renders
+   a correct wizard.
+3. **It is enforced, not advertised.** The selection is validated against the
+   published requirements at quote time and again at Commit, and a Quote carries
+   a `requirementsFingerprint` the Commit re-derives and compares. An
+   under-collecting host fails loudly with `selection_incomplete` and a
+   machine-readable list of what is missing, rather than quietly committing an
+   incomplete booking.
+
+Requirements are derived per target **and scope** — labels are locale-derived
+and prices market-derived — so a Booking Session fixes its scope at creation and
+never changes it.
+
+A requirement the Session cannot carry is a contract error, not a runtime
+surprise: the selection projection keeps a deliberately narrow traveler shape,
+so a descriptor marking anything outside it required would publish a demand the
+buyer can never satisfy. The conformance suite rejects that at development time.
+
 ## Canonical API
 
 Catalog owns the Booking Session API on both staff and storefront surfaces, and
