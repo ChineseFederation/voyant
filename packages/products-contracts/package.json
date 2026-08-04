@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/products-contracts",
-  "version": "0.109.0",
+  "version": "0.109.1",
   "description": "Product content and validation contracts for adapter authors — validate products/v3 payloads without the runtime.",
   "license": "Apache-2.0",
   "type": "module",
