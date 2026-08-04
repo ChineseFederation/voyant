@@ -14,6 +14,19 @@ function normalizePath(value: string): string {
   return trimTrailingSlash(path)
 }
 
+export interface AuthBasePathFetcherOptions {
+  baseUrl: string
+  authBasePath: string
+  /**
+   * Paths under `/auth` that are served by the deployment itself rather than by
+   * the realm's Better Auth handler, so they keep the shared prefix. Given
+   * `/status`, both `/auth/status` and `/auth/status?x=1` pass through, and so
+   * does any nested path such as `/auth/api-tokens/key_1/rotate` for
+   * `/api-tokens`.
+   */
+  sharedPaths?: readonly string[]
+}
+
 /**
  * Routes auth-react requests to a specific auth realm without changing other API calls.
  * The replacement is deliberately scoped to the configured API base URL so a customer
@@ -21,21 +34,24 @@ function normalizePath(value: string): string {
  */
 export function createAuthBasePathFetcher(
   fetcher: VoyantFetcher,
-  options: { baseUrl: string; authBasePath: string },
+  options: AuthBasePathFetcherOptions,
 ): VoyantFetcher {
   const baseUrl = trimTrailingSlash(options.baseUrl)
   const defaultAuthBaseUrl = `${baseUrl}/auth`
   const realmAuthBaseUrl = `${baseUrl}${normalizePath(options.authBasePath)}`
+  const sharedPaths = (options.sharedPaths ?? []).map(normalizePath)
 
   return (url, init) => {
     const isDefaultAuthRequest =
       url === defaultAuthBaseUrl ||
       url.startsWith(`${defaultAuthBaseUrl}/`) ||
       url.startsWith(`${defaultAuthBaseUrl}?`)
-    const target = isDefaultAuthRequest
-      ? `${realmAuthBaseUrl}${url.slice(defaultAuthBaseUrl.length)}`
-      : url
-    return fetcher(target, init)
+    if (!isDefaultAuthRequest) return fetcher(url, init)
+
+    const rest = url.slice(defaultAuthBaseUrl.length)
+    const path = trimTrailingSlash(rest.split(/[?#]/)[0] ?? "")
+    const isShared = sharedPaths.some((shared) => path === shared || path.startsWith(`${shared}/`))
+    return fetcher(isShared ? url : `${realmAuthBaseUrl}${rest}`, init)
   }
 }
 

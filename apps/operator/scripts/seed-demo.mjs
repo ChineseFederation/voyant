@@ -7,8 +7,8 @@
  * against real data.
  *
  * Plain Node ESM. No new dependencies: uses global `fetch` and a hand-rolled
- * cookie jar. `better-auth/crypto` (already a transitive dep of the operator)
- * is used only to (re)set the admin password when a login attempt fails.
+ * cookie jar. `better-auth/crypto` and `pg` (both already operator dependencies)
+ * are used only to (re)set the admin password when a login attempt fails.
  *
  * Usage (from apps/operator):
  *   node scripts/seed-demo.mjs
@@ -24,7 +24,7 @@
  * Auth model: the admin realm is local Better Auth. If the configured
  * email/password cannot sign in, and the reset fallback is enabled, the script
  * hashes SEED_ADMIN_PASSWORD with Better Auth's scrypt and writes it to the
- * `credential` account row via `docker exec voyant-ui-pg psql`, then retries.
+ * `credential` account row over DATABASE_URL, then retries.
  *
  * Safe to re-run: every entity is looked up by a stable marker (name / tag /
  * number) before it is created, so a second run reuses existing records.
@@ -32,7 +32,6 @@
  * The API is mounted under `/api/v1/admin/*` (the SSR app owns `/v1/*`).
  */
 
-import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -120,16 +119,30 @@ function readDatabaseUrl() {
 }
 
 async function resetAdminPassword() {
+  const databaseUrl = readDatabaseUrl()
+  if (!databaseUrl) {
+    throw new Error(
+      "auth: password reset needs DATABASE_URL (exported, or set in apps/operator/.env).",
+    )
+  }
   const { hashPassword } = await import("better-auth/crypto")
-  const hash = await hashPassword(ADMIN_PASSWORD)
-  // Parse the pg container/db from DATABASE_URL for the psql fallback.
-  const dbUrl = readDatabaseUrl()
-  const dbName = dbUrl ? new URL(dbUrl).pathname.replace(/^\//, "") || "voyant" : "voyant"
-  const dbUser = dbUrl ? decodeURIComponent(new URL(dbUrl).username) || "voyant" : "voyant"
-  const sql = `UPDATE account SET password='${hash}', updated_at=now() FROM "user" u WHERE account.user_id=u.id AND account.provider_id='credential' AND u.email='${ADMIN_EMAIL}';`
-  execFileSync("docker", ["exec", "voyant-ui-pg", "psql", "-U", dbUser, dbName, "-c", sql], {
-    stdio: "pipe",
-  })
+  const { default: pg } = await import("pg")
+  // Connect over the wire from DATABASE_URL — the database is not assumed to be
+  // a container, let alone one with a particular name.
+  const client = new pg.Client({ connectionString: databaseUrl })
+  await client.connect()
+  try {
+    await client.query(
+      `UPDATE account SET password = $1, updated_at = now()
+         FROM "user" u
+        WHERE account.user_id = u.id
+          AND account.provider_id = 'credential'
+          AND u.email = $2`,
+      [await hashPassword(ADMIN_PASSWORD), ADMIN_EMAIL],
+    )
+  } finally {
+    await client.end()
+  }
 }
 
 async function authenticate() {

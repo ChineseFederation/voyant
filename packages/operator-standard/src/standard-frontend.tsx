@@ -39,7 +39,6 @@ import type {
   FinancePublicRouteRuntime,
 } from "@voyant-travel/finance-react/public-routes"
 import { ProductDetailPageProducts } from "@voyant-travel/inventory-react/storefront"
-import { VoyantAvailabilityProvider } from "@voyant-travel/operations-react/availability/provider"
 import type {
   createProposalsPublicRouteContribution,
   ProposalsPublicRouteRuntime,
@@ -111,6 +110,22 @@ export interface StandardOperatorFrontend {
     workspaceRoute: AnyRoute
   }): ReturnType<typeof createAdminRouter<TRouteTree>>
 }
+
+/**
+ * Admin auth paths the deployment serves itself instead of handing to the admin
+ * realm's Better Auth handler. Unlike the customer realm — which mounts its own
+ * facades under `/auth/customer/*` — these stay on the shared `/auth/*` prefix,
+ * so the realm rewrite below must leave them alone or they 404.
+ *
+ * Mounted by `createOperatorAuthNodeRuntime` in `@voyant-travel/auth`.
+ */
+const ADMIN_SHARED_AUTH_PATHS = [
+  "/me",
+  "/status",
+  "/bootstrap-status",
+  "/api-tokens",
+  "/organization/list-members",
+] as const
 
 class ApiError extends Error {
   constructor(
@@ -338,12 +353,12 @@ export function createStandardOperatorFrontend(
 ): StandardOperatorFrontend {
   const presentation = createAdminHostPresentation(options)
   const runtime = createPresentationRuntime(presentation, options.presentations)
-  const AvailabilityProvider: AdminChildProvider = ({ children }) => (
-    <VoyantAvailabilityProvider baseUrl={getAdminApiUrl()} fetcher={adminFetcher}>
-      {children}
-    </VoyantAvailabilityProvider>
-  )
-  const providers = [TooltipProvider, AvailabilityProvider] satisfies readonly AdminChildProvider[]
+  // Every `Voyant<Domain>Provider` is an alias of the one `VoyantReactProvider`,
+  // so they all write the same React context. Re-rendering one below the shell
+  // would replace the shell's `{ baseUrl, fetcher }` for the entire tree — the
+  // admin realm scoping below included. Domain hooks read the shell's context
+  // directly, so nothing here re-provides it.
+  const providers = [TooltipProvider] satisfies readonly AdminChildProvider[]
 
   function Providers({ children, queryClient }: { children: ReactNode; queryClient: QueryClient }) {
     const baseUrl = getAdminApiUrl()
@@ -353,7 +368,12 @@ export function createStandardOperatorFrontend(
     // realm — mirroring the storefront's `/auth/customer` rewrite. Non-auth URLs
     // pass through unchanged, so domain data hooks are unaffected.
     const adminAuthFetcher = useMemo(
-      () => createAuthBasePathFetcher(adminFetcher, { baseUrl, authBasePath: "/auth/admin" }),
+      () =>
+        createAuthBasePathFetcher(adminFetcher, {
+          baseUrl,
+          authBasePath: "/auth/admin",
+          sharedPaths: ADMIN_SHARED_AUTH_PATHS,
+        }),
       [baseUrl],
     )
     return (

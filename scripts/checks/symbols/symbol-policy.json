@@ -12,6 +12,49 @@
         "loadFlightAdminRoutes": ["packages/runtime/src/deployment-resources.ts"],
         "loadFlightsRuntime": ["packages/runtime/src/deployment-resources.ts"]
       }
+    },
+    "operator-admin-shell-context": {
+      "$comment": [
+        "Every Voyant<Domain>Provider is an alias of the one VoyantReactProvider,",
+        "so rendering one below the operator admin shell replaces the shell's",
+        "{ baseUrl, fetcher } for the whole tree — including the admin Better Auth",
+        "realm scoping, which silently 404s every auth-react call. Domain hooks read",
+        "the shell's context directly and need no re-provider. See issue #4182."
+      ],
+      "absentFrom": {
+        "VoyantActionLedgerProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantAuthProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantAvailabilityProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantBookingRequirementsProvider": [
+          "packages/operator-standard/src/standard-frontend.tsx"
+        ],
+        "VoyantBookingsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantCatalogProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantChartersProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantCruisesProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantCustomerPortalProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantDistributionProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantExternalRefsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantExtrasProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantFacilitiesProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantFinanceProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantFlightsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantGroundProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantIdentityProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantLegalProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantMarketsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantMediaProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantNotificationsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantPricingProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantProductsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantPromotionsProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantResourcesProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantSellabilityProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantStorefrontProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantSuppliersProvider": ["packages/operator-standard/src/standard-frontend.tsx"],
+        "VoyantTripsProvider": ["packages/operator-standard/src/standard-frontend.tsx"]
+      }
     }
   }
 }
