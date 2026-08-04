@@ -105,6 +105,7 @@ export const typeIdSchemas = {
   availabilityStartTime: typeIdSchema("availability_start_times"),
   availabilitySlot: typeIdSchema("availability_slots"),
   availabilityCloseout: typeIdSchema("availability_closeouts"),
+  departureServiceOperation: typeIdSchema("departure_service_operations"),
   availabilityPickupPoint: typeIdSchema("availability_pickup_points"),
   availabilitySlotPickup: typeIdSchema("availability_slot_pickups"),
   roomBlock: typeIdSchema("room_blocks"),

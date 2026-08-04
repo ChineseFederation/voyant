@@ -35,10 +35,17 @@ export const productsUiOperationsEn = {
   productDayServiceForm: {
     fields: {
       supplierService: "Supplier service",
+      supplier: "Supplier",
+      facility: "Facility",
       serviceType: "Service type",
       countryCode: "Country code",
       name: "Name",
       description: "Description",
+      startTime: "Start time",
+      endTime: "End time",
+      durationMinutes: "Duration (min)",
+      inclusionRole: "Inclusion",
+      travelerScope: "Applies to",
       costCurrency: "Currency",
       costAmount: "Cost",
       quantity: "Quantity",
@@ -47,9 +54,12 @@ export const productsUiOperationsEn = {
     },
     placeholders: {
       supplierService: "Select a supplier service",
+      supplier: "Supplier id",
+      facility: "Facility id",
       countryCode: "RO",
       name: "Hotel stay",
       description: "Operational service details",
+      durationMinutes: "90",
       notes: "Internal notes",
     },
     serviceTypes: {
@@ -59,6 +69,15 @@ export const productsUiOperationsEn = {
       guide: "Guide",
       meal: "Meal",
       other: "Other",
+    },
+    inclusionRoles: {
+      included: "Included",
+      optional: "Optional",
+    },
+    travelerScopes: {
+      all: "All travellers",
+      adults: "Adults",
+      children: "Children",
     },
     validation: {
       nameRequired: "Service name is required.",

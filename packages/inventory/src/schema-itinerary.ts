@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -14,6 +15,24 @@ import {
 
 import { products } from "./schema-core.js"
 import { productMediaTypeEnum, serviceTypeEnum } from "./schema-shared.js"
+
+/**
+ * Whether a day service is delivered as part of the sold package (`included`)
+ * or only when a traveller elects it (`optional`). The multi-day tracer
+ * (voyant#4035) needs this operational role to know what a materialized
+ * departure line obligates the operator to run.
+ */
+export const dayServiceInclusionRoleEnum = pgEnum("day_service_inclusion_role", [
+  "included",
+  "optional",
+])
+
+/** Which travellers a day service applies to. Coarse for the spine (voyant#4035). */
+export const dayServiceTravelerScopeEnum = pgEnum("day_service_traveler_scope", [
+  "all",
+  "adults",
+  "children",
+])
 
 export const productItineraries = pgTable(
   "product_itineraries",
@@ -127,10 +146,23 @@ export const productDayServices = pgTable(
       .notNull()
       .references(() => productDays.id, { onDelete: "cascade" }),
     supplierServiceId: text("supplier_service_id"),
+    // A supplier the service is delivered by, alongside the loose
+    // `supplierServiceId`. Soft reference — inventory does not own suppliers.
+    supplierId: text("supplier_id"),
+    // A Place/facility the service happens at. Soft reference — operations owns
+    // facilities; a cross-domain FK would violate schema discipline.
+    facilityId: text("facility_id"),
     serviceType: serviceTypeEnum("service_type").notNull(),
     name: text("name").notNull(),
     description: text("description"),
     countryCode: text("country_code"),
+    // When the service happens within its day, in the departure's local time.
+    // `durationMinutes` is an alternative to an explicit end time.
+    startTimeLocal: text("start_time_local"),
+    endTimeLocal: text("end_time_local"),
+    durationMinutes: integer("duration_minutes"),
+    inclusionRole: dayServiceInclusionRoleEnum("inclusion_role").notNull().default("included"),
+    travelerScope: dayServiceTravelerScopeEnum("traveler_scope").notNull().default("all"),
     costCurrency: text("cost_currency").notNull(),
     costAmountCents: integer("cost_amount_cents").notNull(),
     quantity: integer("quantity").notNull().default(1),
@@ -142,6 +174,8 @@ export const productDayServices = pgTable(
     index("idx_product_day_services_day").on(table.dayId),
     index("idx_product_day_services_day_sort").on(table.dayId, table.sortOrder),
     index("idx_product_day_services_supplier_service").on(table.supplierServiceId),
+    index("idx_product_day_services_supplier").on(table.supplierId),
+    index("idx_product_day_services_facility").on(table.facilityId),
   ],
 )
 

@@ -1,7 +1,10 @@
 import {
   booleanQueryParam,
+  dayServiceInclusionRoleSchema,
+  dayServiceTravelerScopeSchema,
   destinationTypeSchema,
   languageTagSchema,
+  localTimeOfDaySchema,
   productFeatureTypeSchema,
   productLocationTypeSchema,
   serviceTypeSchema,
@@ -279,6 +282,19 @@ const dayServiceCoreSchema = z.object({
   description: z.string().optional().nullable(),
   countryCode: z.string().min(2).max(2).optional().nullable(),
   supplierServiceId: z.string().optional().nullable(),
+  // Operational fields (voyant#4035): a costing row becomes an operable one.
+  // A supplier the departure line is delivered by, alongside the existing loose
+  // `supplierServiceId`, and a Place/facility the service happens at. Both are
+  // soft references (plain ids) — inventory does not own suppliers/facilities.
+  supplierId: z.string().optional().nullable(),
+  facilityId: z.string().optional().nullable(),
+  // When the service happens within its day, in the departure's local time.
+  // `durationMinutes` is an alternative to an explicit end time.
+  startTimeLocal: localTimeOfDaySchema.optional().nullable(),
+  endTimeLocal: localTimeOfDaySchema.optional().nullable(),
+  durationMinutes: z.number().int().min(0).optional().nullable(),
+  inclusionRole: dayServiceInclusionRoleSchema.default("included"),
+  travelerScope: dayServiceTravelerScopeSchema.default("all"),
   costCurrency: z.string().min(3).max(3),
   costAmountCents: z.number().int().min(0),
   quantity: z.number().int().positive().default(1),

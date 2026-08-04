@@ -35,10 +35,17 @@ export const productsUiOperationsRo = {
   productDayServiceForm: {
     fields: {
       supplierService: "Serviciu furnizor",
+      supplier: "Furnizor",
+      facility: "Locatie",
       serviceType: "Tip serviciu",
       countryCode: "Cod tara",
       name: "Nume",
       description: "Descriere",
+      startTime: "Ora inceput",
+      endTime: "Ora sfarsit",
+      durationMinutes: "Durata (min)",
+      inclusionRole: "Includere",
+      travelerScope: "Se aplica",
       costCurrency: "Moneda",
       costAmount: "Cost",
       quantity: "Cantitate",
@@ -47,9 +54,12 @@ export const productsUiOperationsRo = {
     },
     placeholders: {
       supplierService: "Selecteaza un serviciu furnizor",
+      supplier: "Id furnizor",
+      facility: "Id locatie",
       countryCode: "RO",
       name: "Cazare hotel",
       description: "Detalii operationale ale serviciului",
+      durationMinutes: "90",
       notes: "Note interne",
     },
     serviceTypes: {
@@ -59,6 +69,15 @@ export const productsUiOperationsRo = {
       guide: "Ghid",
       meal: "Masa",
       other: "Altul",
+    },
+    inclusionRoles: {
+      included: "Inclus",
+      optional: "Optional",
+    },
+    travelerScopes: {
+      all: "Toti calatorii",
+      adults: "Adulti",
+      children: "Copii",
     },
     validation: {
       nameRequired: "Numele serviciului este obligatoriu.",

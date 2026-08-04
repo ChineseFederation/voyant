@@ -4151,6 +4151,9 @@ importers:
       '@voyant-travel/identity':
         specifier: workspace:^
         version: link:../identity
+      '@voyant-travel/products-contracts':
+        specifier: workspace:^
+        version: link:../products-contracts
       '@voyant-travel/tools':
         specifier: workspace:^
         version: link:../tools

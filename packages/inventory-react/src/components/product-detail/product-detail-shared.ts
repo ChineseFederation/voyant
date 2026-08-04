@@ -23,10 +23,17 @@ export type DayService = {
   id: string
   dayId: string
   supplierServiceId: string | null
+  supplierId: string | null
+  facilityId: string | null
   serviceType: "accommodation" | "transfer" | "experience" | "guide" | "meal" | "other"
   name: string
   description: string | null
   countryCode: string | null
+  startTimeLocal: string | null
+  endTimeLocal: string | null
+  durationMinutes: number | null
+  inclusionRole: "included" | "optional"
+  travelerScope: "all" | "adults" | "children"
   costCurrency: string
   costAmountCents: number
   quantity: number

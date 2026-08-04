@@ -42,6 +42,7 @@
     "@voyant-travel/types": "workspace:^",
     "@voyant-travel/hono": "workspace:^",
     "@voyant-travel/identity": "workspace:^",
+    "@voyant-travel/products-contracts": "workspace:^",
     "@voyant-travel/tools": "workspace:^",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",

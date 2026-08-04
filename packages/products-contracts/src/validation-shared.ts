@@ -99,3 +99,23 @@ export const serviceTypeSchema = z.enum([
   "meal",
   "other",
 ])
+
+/**
+ * Whether a day service is part of the sold package or a chargeable extra.
+ * A costing row carries no operational role; the multi-day tracer needs one so
+ * a materialized departure line knows whether the operator must deliver it
+ * (`included`) or only when a traveller elects it (`optional`). See voyant#4035.
+ */
+export const dayServiceInclusionRoleSchema = z.enum(["included", "optional"])
+
+/**
+ * Which travellers a day service applies to. `all` is the default; `adults` /
+ * `children` narrow a service (e.g. a child-only activity) so the run sheet can
+ * scope who it is delivered for. Deliberately coarse for the spine (voyant#4035).
+ */
+export const dayServiceTravelerScopeSchema = z.enum(["all", "adults", "children"])
+
+/** A wall-clock local time of day, `HH:mm` (24h). Timezone comes from the slot. */
+export const localTimeOfDaySchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Local time must be HH:mm (24h)")

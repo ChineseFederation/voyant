@@ -39,10 +39,17 @@ export type ProductsUiOperationsMessages = {
   productDayServiceForm: {
     fields: {
       supplierService: string
+      supplier: string
+      facility: string
       serviceType: string
       countryCode: string
       name: string
       description: string
+      startTime: string
+      endTime: string
+      durationMinutes: string
+      inclusionRole: string
+      travelerScope: string
       costCurrency: string
       costAmount: string
       quantity: string
@@ -51,9 +58,12 @@ export type ProductsUiOperationsMessages = {
     }
     placeholders: {
       supplierService: string
+      supplier: string
+      facility: string
       countryCode: string
       name: string
       description: string
+      durationMinutes: string
       notes: string
     }
     serviceTypes: {
@@ -63,6 +73,15 @@ export type ProductsUiOperationsMessages = {
       guide: string
       meal: string
       other: string
+    }
+    inclusionRoles: {
+      included: string
+      optional: string
+    }
+    travelerScopes: {
+      all: string
+      adults: string
+      children: string
     }
     validation: {
       nameRequired: string

@@ -1,6 +1,7 @@
 import { availabilityRules, availabilitySlots } from "@voyant-travel/availability/schema"
 import { and, eq, inArray } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { materializeDepartureServiceOperations } from "./materialize-departure-operations.js"
 import { resolveCurrentProductVersionId } from "./products-ref.js"
 import { expandRRule } from "./rrule.js"
 import { materializeSlotResourcesFromTemplateDefaults } from "./service-allocation-automation.js"
@@ -25,6 +26,13 @@ export type GenerateAvailabilitySlotsOptions = {
    */
   materializeResources?: boolean
   /**
+   * Materialize each freshly-created departure's operable service lines from
+   * the frozen Product Version snapshot it is bound to (voyant#4035). A slot
+   * with no bound version or a version with no snapshot is a no-op. Defaults to
+   * true.
+   */
+  materializeDepartureOperations?: boolean
+  /**
    * Resolves the Product Version each freshly-generated departure is bound to
    * — the product's currently published version, or `null` when it has never
    * been published.
@@ -45,6 +53,7 @@ export type GenerateAvailabilitySlotsResult = {
   slotsCreated: number
   slotsSkipped: number
   resourcesMaterialized: number
+  departureOperationsMaterialized: number
 }
 
 /**
@@ -62,6 +71,7 @@ export async function generateAvailabilitySlots(
   const perRuleLimit = options.perRuleLimit ?? 1000
   const now = options.now ?? new Date()
   const shouldMaterializeResources = options.materializeResources !== false
+  const shouldMaterializeDepartureOperations = options.materializeDepartureOperations !== false
 
   const from = new Date(now)
   from.setUTCHours(0, 0, 0, 0)
@@ -79,6 +89,7 @@ export async function generateAvailabilitySlots(
   let slotsCreated = 0
   let slotsSkipped = 0
   let resourcesMaterialized = 0
+  let departureOperationsMaterialized = 0
 
   for (const rule of rules) {
     const dates = expandRRule(rule.recurrenceRule, from, to, perRuleLimit)
@@ -145,6 +156,16 @@ export async function generateAvailabilitySlots(
         resourcesMaterialized += result.created
       }
     }
+
+    // Materialize each new departure's operable service lines from its frozen
+    // Product Version snapshot, alongside resource seeding (voyant#4035). A
+    // slot with no bound version or no snapshot is a no-op.
+    if (shouldMaterializeDepartureOperations) {
+      for (const created of inserted) {
+        const result = await materializeDepartureServiceOperations(db, created.id)
+        departureOperationsMaterialized += result.created
+      }
+    }
   }
 
   return {
@@ -152,5 +173,6 @@ export async function generateAvailabilitySlots(
     slotsCreated,
     slotsSkipped,
     resourcesMaterialized,
+    departureOperationsMaterialized,
   }
 }

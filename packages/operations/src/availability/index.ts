@@ -67,6 +67,11 @@ export {
   sharingGroupLabels,
 } from "@voyant-travel/availability/schema"
 export {
+  assertDepartureServiceOperationTransition,
+  canTransitionDepartureServiceOperation,
+  DepartureServiceOperationTransitionError,
+} from "./departure-operations-status.js"
+export {
   AVAILABILITY_SLOT_CHANGED_EVENT,
   type AvailabilitySlotChangedEvent,
   type AvailabilitySlotChangeSource,
@@ -76,6 +81,18 @@ export {
   type GenerateAvailabilitySlotsResult,
   generateAvailabilitySlots,
 } from "./generate-slots.js"
+export {
+  type MaterializeDepartureServiceOperationsOptions,
+  type MaterializeDepartureServiceOperationsResult,
+  materializeDepartureServiceOperations,
+} from "./materialize-departure-operations.js"
+export {
+  type DepartureServiceOperation,
+  type DepartureServiceOperationStatus,
+  departureServiceOperationStatusEnum,
+  departureServiceOperations,
+  type NewDepartureServiceOperation,
+} from "./schema-departure-operations.js"
 export {
   countDeparturesOnVersion,
   listUnboundDepartures,

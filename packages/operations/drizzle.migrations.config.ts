@@ -15,6 +15,7 @@ export default defineConfig({
   // migration — so this config lists operations' owned schema files explicitly
   // (the barrel's availability re-export is intentionally excluded here).
   schema: [
+    "./src/availability/schema-departure-operations.ts",
     "./src/booking-actions/schema.ts",
     "./src/ground/schema.ts",
     "./src/places/schema.ts",

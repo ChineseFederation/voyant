@@ -18,6 +18,8 @@ import { useProductsUiMessagesOrDefault } from "../i18n/provider.js"
 import { type ProductDayServiceRecord, useProductDayServiceMutation } from "../index.js"
 
 type ProductDayServiceType = ProductDayServiceRecord["serviceType"]
+type ProductDayServiceInclusionRole = ProductDayServiceRecord["inclusionRole"]
+type ProductDayServiceTravelerScope = ProductDayServiceRecord["travelerScope"]
 
 type Mode =
   | { kind: "create"; productId: string; dayId: string; sortOrder?: number }
@@ -68,6 +70,13 @@ interface FormState {
   description: string
   countryCode: string
   supplierServiceId: string
+  supplierId: string
+  facilityId: string
+  startTimeLocal: string
+  endTimeLocal: string
+  durationMinutes: string
+  inclusionRole: ProductDayServiceInclusionRole
+  travelerScope: ProductDayServiceTravelerScope
   costCurrency: string
   costAmount: string
   quantity: string
@@ -83,6 +92,14 @@ function initialState(mode: Mode): FormState {
       description: mode.service.description ?? "",
       countryCode: mode.service.countryCode ?? "",
       supplierServiceId: mode.service.supplierServiceId ?? "",
+      supplierId: mode.service.supplierId ?? "",
+      facilityId: mode.service.facilityId ?? "",
+      startTimeLocal: mode.service.startTimeLocal ?? "",
+      endTimeLocal: mode.service.endTimeLocal ?? "",
+      durationMinutes:
+        mode.service.durationMinutes == null ? "" : String(mode.service.durationMinutes),
+      inclusionRole: mode.service.inclusionRole,
+      travelerScope: mode.service.travelerScope,
       costCurrency: mode.service.costCurrency,
       costAmount: String(mode.service.costAmountCents / 100),
       quantity: String(mode.service.quantity),
@@ -97,6 +114,13 @@ function initialState(mode: Mode): FormState {
     description: "",
     countryCode: "",
     supplierServiceId: "",
+    supplierId: "",
+    facilityId: "",
+    startTimeLocal: "",
+    endTimeLocal: "",
+    durationMinutes: "",
+    inclusionRole: "included",
+    travelerScope: "all",
     costCurrency: "EUR", // i18n-literal-ok ISO default currency
     costAmount: "0",
     quantity: "1",
@@ -131,6 +155,15 @@ export function ProductDayServiceForm({
     { value: "guide", label: serviceMessages.serviceTypes.guide },
     { value: "meal", label: serviceMessages.serviceTypes.meal },
     { value: "other", label: serviceMessages.serviceTypes.other },
+  ]
+  const inclusionRoles: Array<{ value: ProductDayServiceInclusionRole; label: string }> = [
+    { value: "included", label: serviceMessages.inclusionRoles.included },
+    { value: "optional", label: serviceMessages.inclusionRoles.optional },
+  ]
+  const travelerScopes: Array<{ value: ProductDayServiceTravelerScope; label: string }> = [
+    { value: "all", label: serviceMessages.travelerScopes.all },
+    { value: "adults", label: serviceMessages.travelerScopes.adults },
+    { value: "children", label: serviceMessages.travelerScopes.children },
   ]
 
   const field =
@@ -194,12 +227,24 @@ export function ProductDayServiceForm({
       return
     }
 
+    const durationMinutes = state.durationMinutes.trim()
+      ? Number.parseInt(state.durationMinutes, 10)
+      : null
+
     const payload = {
       serviceType: state.serviceType,
       name: state.name.trim(),
       description: state.description.trim() ? state.description.trim() : null,
       countryCode: state.countryCode.trim() ? state.countryCode.trim().toUpperCase() : null,
       supplierServiceId: state.supplierServiceId.trim() ? state.supplierServiceId.trim() : null,
+      supplierId: state.supplierId.trim() ? state.supplierId.trim() : null,
+      facilityId: state.facilityId.trim() ? state.facilityId.trim() : null,
+      startTimeLocal: state.startTimeLocal.trim() ? state.startTimeLocal.trim() : null,
+      endTimeLocal: state.endTimeLocal.trim() ? state.endTimeLocal.trim() : null,
+      durationMinutes:
+        durationMinutes != null && Number.isFinite(durationMinutes) ? durationMinutes : null,
+      inclusionRole: state.inclusionRole,
+      travelerScope: state.travelerScope,
       costCurrency: state.costCurrency.trim().toUpperCase(),
       costAmountCents: Math.round(costAmount * 100),
       quantity,
@@ -315,6 +360,113 @@ export function ProductDayServiceForm({
           placeholder={serviceMessages.placeholders.description}
           disabled={isSubmitting}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="product-day-service-supplier">{serviceMessages.fields.supplier}</Label>
+          <Input
+            id="product-day-service-supplier"
+            value={state.supplierId}
+            onChange={(event) => field("supplierId")(event.target.value)}
+            placeholder={serviceMessages.placeholders.supplier}
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="product-day-service-facility">{serviceMessages.fields.facility}</Label>
+          <Input
+            id="product-day-service-facility"
+            value={state.facilityId}
+            onChange={(event) => field("facilityId")(event.target.value)}
+            placeholder={serviceMessages.placeholders.facility}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="product-day-service-start">{serviceMessages.fields.startTime}</Label>
+          <Input
+            id="product-day-service-start"
+            type="time"
+            value={state.startTimeLocal}
+            onChange={(event) => field("startTimeLocal")(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="product-day-service-end">{serviceMessages.fields.endTime}</Label>
+          <Input
+            id="product-day-service-end"
+            type="time"
+            value={state.endTimeLocal}
+            onChange={(event) => field("endTimeLocal")(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="product-day-service-duration">
+            {serviceMessages.fields.durationMinutes}
+          </Label>
+          <Input
+            id="product-day-service-duration"
+            type="number"
+            min="0"
+            value={state.durationMinutes}
+            onChange={(event) => field("durationMinutes")(event.target.value)}
+            placeholder={serviceMessages.placeholders.durationMinutes}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label>{serviceMessages.fields.inclusionRole}</Label>
+          <Select
+            value={state.inclusionRole}
+            onValueChange={(value) =>
+              field("inclusionRole")(value as ProductDayServiceInclusionRole)
+            }
+            items={inclusionRoles}
+            disabled={isSubmitting}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {inclusionRoles.map((role) => (
+                <SelectItem key={role.value} value={role.value}>
+                  {role.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>{serviceMessages.fields.travelerScope}</Label>
+          <Select
+            value={state.travelerScope}
+            onValueChange={(value) =>
+              field("travelerScope")(value as ProductDayServiceTravelerScope)
+            }
+            items={travelerScopes}
+            disabled={isSubmitting}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {travelerScopes.map((scope) => (
+                <SelectItem key={scope.value} value={scope.value}>
+                  {scope.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">

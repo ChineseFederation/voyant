@@ -8,6 +8,7 @@ import { RequestValidationError } from "@voyant-travel/hono"
 import { and, asc, desc, eq, getTableColumns, gte, lt, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { AVAILABILITY_SLOT_CHANGED_EVENT, type AvailabilitySlotChangedEvent } from "./events.js"
+import { materializeDepartureServiceOperations } from "./materialize-departure-operations.js"
 import { productOptionsRef, productsRef, resolveCurrentProductVersionId } from "./products-ref.js"
 import { assertProductAllowsStaticAvailability } from "./service-product-guard.js"
 import type {
@@ -192,6 +193,11 @@ export async function createSlot(
     })
     .returning()
   if (!row) return row
+
+  // Materialize this departure's operable service lines from the frozen Product
+  // Version snapshot it was just bound to (voyant#4035). Idempotent, and a slot
+  // with no bound version or no snapshot is a no-op.
+  await materializeDepartureServiceOperations(db, row.id)
 
   // Emit on create so subscribers (catalog-plane bridge, channel-push)
   // see new departures the same way they see edits. Without this, a

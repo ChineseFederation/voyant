@@ -377,6 +377,8 @@ jobs:
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/materialize-template-defaults.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
+                tests/availability/integration/departure-service-operations.test.ts
+              pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/departure-summary.test.ts
               pnpm --filter @voyant-travel/operations exec vitest run \
                 tests/availability/integration/allocation-audit-atomicity.test.ts

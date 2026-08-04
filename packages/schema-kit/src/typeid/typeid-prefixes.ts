@@ -105,6 +105,7 @@ export const PREFIXES = {
   availability_closeouts: "avcl",
   allocation_resources: "alrs",
   allocation_audit_log: "alal",
+  departure_service_operations: "dsop",
   product_option_resource_templates: "port",
   availability_pickup_points: "avpp",
   availability_slot_pickups: "avsp",

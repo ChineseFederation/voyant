@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./content-shape": "./src/content-shape.ts",
+    "./product-version-snapshot": "./src/product-version-snapshot.ts",
     "./validation": "./src/validation.ts",
     "./validation-shared": "./src/validation-shared.ts",
     "./validation-core": "./src/validation-core.ts",
@@ -38,6 +39,11 @@
         "types": "./dist/content-shape.d.ts",
         "import": "./dist/content-shape.js",
         "default": "./dist/content-shape.js"
+      },
+      "./product-version-snapshot": {
+        "types": "./dist/product-version-snapshot.d.ts",
+        "import": "./dist/product-version-snapshot.js",
+        "default": "./dist/product-version-snapshot.js"
       },
       "./validation": {
         "types": "./dist/validation.d.ts",

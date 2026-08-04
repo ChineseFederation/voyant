@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm"
-import { boolean, integer, pgTable, text } from "drizzle-orm/pg-core"
+import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 /** Minimal reference to the products table for LEFT JOIN enrichment. */
@@ -22,6 +22,10 @@ export const productVersionsRef = pgTable("product_versions", {
   id: text("id").primaryKey(),
   productId: text("product_id").notNull(),
   versionNumber: integer("version_number").notNull(),
+  // The frozen definition a departure was sold against. Read (never written)
+  // by the multi-day tracer to materialize immutable departure operations from
+  // the version, not from live product rows (voyant#4035).
+  snapshot: jsonb("snapshot"),
 })
 
 /** Minimal reference to product_options for validating explicit slot option links. */
@@ -55,4 +59,22 @@ export async function resolveCurrentProductVersionId(
     .limit(1)
 
   return row?.id ?? null
+}
+
+/**
+ * Load the raw frozen snapshot for a Product Version. Returns `null` when the
+ * version does not exist or was written without a snapshot. The caller parses
+ * it through `parseProductVersionSnapshot` so a malformed blob fails loudly.
+ */
+export async function loadProductVersionSnapshot(
+  db: PostgresJsDatabase,
+  productVersionId: string,
+): Promise<unknown | null> {
+  const [row] = await db
+    .select({ snapshot: productVersionsRef.snapshot })
+    .from(productVersionsRef)
+    .where(eq(productVersionsRef.id, productVersionId))
+    .limit(1)
+
+  return row?.snapshot ?? null
 }
