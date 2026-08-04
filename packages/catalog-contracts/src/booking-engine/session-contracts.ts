@@ -47,6 +47,50 @@ export const bookingSessionOriginV1 = z.discriminatedUnion("kind", [
 ])
 export type BookingSessionOriginV1 = z.infer<typeof bookingSessionOriginV1>
 
+/**
+ * The commercial and presentation scope a Session is quoted in.
+ *
+ * Requirements labels are locale-derived and prices are market-derived, so a
+ * Session that cannot say which locale and market it belongs to quotes every
+ * shopper in the default market with English labels. Fixed at create: a
+ * Session's Quotes, Holds and Commit must all mean the same money, so PATCH
+ * carries no scope and a re-scope is a new Session.
+ *
+ * `audience` is deliberately NOT part of this contract. It is derived
+ * server-side from the Session's `actorKind` (see
+ * `bookingSessionAudienceForActorV1`), never taken from the request: audience
+ * selects staff-visible content and staff/partner price tiers, so accepting it
+ * on the wire would let any public caller ask for staff pricing by naming it.
+ * That derivation is the load-bearing security property of this scope.
+ */
+export const bookingSessionScopeV1 = z.object({
+  locale: z.string().min(2),
+  market: z.string().min(1),
+  currency: z.string().length(3).optional(),
+})
+export type BookingSessionScopeV1 = z.infer<typeof bookingSessionScopeV1>
+
+/** What existing and unscoped Sessions were quoted at before scope existed. */
+export const DEFAULT_BOOKING_SESSION_SCOPE: BookingSessionScopeV1 = {
+  locale: "en",
+  market: "default",
+}
+
+export const bookingSessionAudienceV1 = z.enum(["customer", "staff", "partner"])
+export type BookingSessionAudienceV1 = z.infer<typeof bookingSessionAudienceV1>
+
+/**
+ * The one derivation of quoting audience from who owns the Session. Kept here
+ * rather than at each call site so a new caller cannot invent a third answer.
+ */
+export function bookingSessionAudienceForActorV1(
+  actorKind: BookingSessionActorKindV1,
+): BookingSessionAudienceV1 {
+  if (actorKind === "staff") return "staff"
+  if (actorKind === "partner") return "partner"
+  return "customer"
+}
+
 export const bookingSessionStateV1 = z.enum([
   "active",
   "supplier_pending",
@@ -76,6 +120,12 @@ export const bookingSessionRecordV1 = z.object({
   actorKind: bookingSessionActorKindV1,
   state: bookingSessionStateV1,
   revision: z.number().int().positive(),
+  /**
+   * The commercial scope this Session quotes in. Always present — a Session
+   * that could not name its locale and market is what made every v1 quote
+   * land in the default market with English labels.
+   */
+  scope: bookingSessionScopeV1,
   /**
    * Server-owned Booking Requirements for this Session's target — what a
    * booking of it requires, and therefore which wizard steps a host renders.
@@ -120,6 +170,12 @@ export const createBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
   target: createBookingSessionTargetV1,
   selection: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * Commercial scope for the whole Session. Omitted falls back to
+   * `DEFAULT_BOOKING_SESSION_SCOPE`. There is no `audience` here on purpose —
+   * see `bookingSessionScopeV1`.
+   */
+  scope: bookingSessionScopeV1.optional(),
   capabilityScopes: z.array(bookingSessionCapabilityActionV1).min(1).optional(),
 })
 export type CreateBookingSessionV1 = z.input<typeof createBookingSessionV1>
@@ -131,11 +187,17 @@ export const createAcceptedProposalBookingSessionV1 = z.object({
   tripSnapshotId: z.string().min(1),
   tripEnvelopeId: z.string().min(1),
   selection: z.record(z.string(), z.unknown()).optional(),
+  scope: bookingSessionScopeV1.optional(),
 })
 export type CreateAcceptedProposalBookingSessionV1 = z.input<
   typeof createAcceptedProposalBookingSessionV1
 >
 
+/**
+ * Carries no `scope`: the Session's commercial scope is fixed at create so a
+ * Quote, its Hold, and the Commit that consumes them cannot end up meaning
+ * three different prices. Re-scoping is a new Session.
+ */
 export const updateBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
   expectedRevision: z.number().int().positive(),

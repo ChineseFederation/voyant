@@ -46,6 +46,9 @@ export function createDrizzleBookingSessionRepository(
           ownerOrganizationId: record.ownerOrganizationId ?? null,
           storefrontId: record.storefrontOrigin?.storefrontId ?? null,
           channelId: record.storefrontOrigin?.channelId ?? null,
+          locale: record.scope.locale,
+          market: record.scope.market,
+          currency: record.scope.currency ?? null,
           targetKind: record.target.kind,
           productId: record.target.kind === "product" ? record.target.productId : null,
           catalogItemId: record.target.kind === "catalog_item" ? record.target.catalogItemId : null,
@@ -108,6 +111,9 @@ export function createDrizzleBookingSessionRepository(
           ownerOrganizationId: record.ownerOrganizationId ?? null,
           storefrontId: record.storefrontOrigin?.storefrontId ?? null,
           channelId: record.storefrontOrigin?.channelId ?? null,
+          // `locale` / `market` / `currency` are deliberately absent: the
+          // Session's commercial scope is fixed at create, so no update path
+          // can move a live Session into another market.
           targetKind: record.target.kind,
           productId: record.target.kind === "product" ? record.target.productId : null,
           catalogItemId: record.target.kind === "catalog_item" ? record.target.catalogItemId : null,
@@ -477,6 +483,11 @@ function mapSession(row: SelectBookingSession): BookingSessionInternalRecord {
       row.storefrontId && row.channelId
         ? { storefrontId: row.storefrontId, channelId: row.channelId }
         : undefined,
+    scope: {
+      locale: row.locale,
+      market: row.market,
+      ...(row.currency ? { currency: row.currency } : {}),
+    },
     state: row.state as BookingSessionInternalRecord["state"],
     revision: row.revision,
     statePayload: row.statePayload,

@@ -453,6 +453,7 @@ function bookingSession(): BookingSessionInternalRecord {
     },
     actorKind: "staff",
     ownerPrincipalId: "staff_1",
+    scope: { locale: "en", market: "default" },
     state: "active",
     revision: 1,
     statePayload: {

@@ -137,7 +137,6 @@ describe("normalizeProductSelection", () => {
       ],
       accommodation: { travelerAssignments: { room_1: "trav_1", empty: "" }, nightlyRate: 100 },
       addons: [{ extraId: "extra_1", quantity: 1, cost: 123 }],
-      arbitrary: { nested: true },
     })
 
     expect(normalized).toEqual({
@@ -177,6 +176,17 @@ describe("normalizeProductSelection", () => {
     ["passport plaintext", { travelers: [{ firstName: "Ada", passportNumber: "123" }] }],
     ["document class plaintext", { travelers: [{ firstName: "Ada", document_class: "P" }] }],
   ])("rejects %s", (_label, selection) => {
+    expect(() => normalizeProductSelection(PRODUCT_TARGET, selection)).toThrow(
+      /booking_session_selection_forbidden_field/,
+    )
+  })
+
+  it.each([
+    ["an unknown top-level key", { arbitrary: { nested: true } }],
+    ["a field only a future release declares", { loyaltyTier: "gold" }],
+    ["an operator-only field a denylist would have to name", { saveAsDraft: true }],
+    ["an operator-only redemption", { travelCreditRedemption: { travelCreditId: "tc_1" } }],
+  ])("denies %s by default rather than admitting it until someone denies it", (_label, selection) => {
     expect(() => normalizeProductSelection(PRODUCT_TARGET, selection)).toThrow(
       /booking_session_selection_forbidden_field/,
     )

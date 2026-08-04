@@ -314,6 +314,7 @@ function cloneSession(record: BookingSessionInternalRecord): BookingSessionInter
     ...record,
     target: { ...record.target },
     storefrontOrigin: record.storefrontOrigin ? { ...record.storefrontOrigin } : undefined,
+    scope: { ...record.scope },
     capabilityScopes: [...record.capabilityScopes],
     statePayload: { ...record.statePayload },
     expiresAt: new Date(record.expiresAt),

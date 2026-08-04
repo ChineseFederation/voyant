@@ -12,6 +12,11 @@ import {
   paxBandBaseCode,
   paxBandsAllowedTotalFrom,
 } from "@voyant-travel/catalog-contracts/booking-engine/requirements-defaults"
+import {
+  BOOKING_SELECTION_PRIVILEGED_KEYS,
+  BOOKING_SELECTION_PUBLIC_KEYS,
+} from "@voyant-travel/catalog-contracts/booking-engine/selection-contracts"
+import { bookingSessionAudienceForActorV1 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 import {
   allocateBookingNumber,
@@ -33,6 +38,7 @@ import { pricingBreakdownV1 } from "./contracts.js"
 import type {
   ComputeQuoteRequest,
   OwnedBookingHandlerRegistry,
+  OwnedQuoteScope,
   SelfServiceBillingParty,
 } from "./owned-handler.js"
 import { engineParametersFromSelection } from "./quote-support.js"
@@ -296,7 +302,7 @@ async function composeSourcedQuote(
     {
       ids: [sourced.entityId],
       source_refs: { [sourced.entityId]: sourced.sourceRef },
-      scope: { locale: "en", audience: "customer", market: "default" },
+      scope: quotingScope(session),
       parameters: sourcedParameters(session.statePayload, sourced),
     },
   )
@@ -328,7 +334,7 @@ async function commitSourcedBooking(
     source_ref: sourced.sourceRef,
     parameters,
     party: supplierParty(input.session.statePayload),
-    scope: { locale: "en", audience: "customer", market: "default" },
+    scope: quotingScope(input.session),
   }
   const adapter = registry.resolveByConnection(sourced.sourceConnectionId)
   await deps.repository.withSessionTransaction(input.session.id, async (rawTx) => {
@@ -812,7 +818,25 @@ function ownedComputeRequest(
       entityModule,
       sourceKind: "owned",
     }),
-    scope: { locale: "en", audience: "customer", market: "default" },
+    scope: quotingScope(session),
+  }
+}
+
+/**
+ * The scope a Session quotes and reserves in.
+ *
+ * `locale`, `market` and `currency` come from the Session's own commercial
+ * scope, which the caller chose at create. `audience` does NOT: it is derived
+ * from who owns the Session, so a public caller cannot request staff-audience
+ * pricing or staff-visible content by putting `audience` on the wire. That
+ * derivation is why `bookingSessionScopeV1` has no `audience` field.
+ */
+function quotingScope(session: CommitOwnedBookingInput["session"]): OwnedQuoteScope {
+  return {
+    locale: session.scope.locale,
+    market: session.scope.market,
+    audience: bookingSessionAudienceForActorV1(session.actorKind),
+    ...(session.scope.currency ? { currency: session.scope.currency } : {}),
   }
 }
 
@@ -884,14 +908,41 @@ function pricingBasisFromBreakdown(
   }
 }
 
+/**
+ * Admit a client selection into the Session's server-owned state.
+ *
+ * Two gates, both derived from the selection contracts rather than from a
+ * list maintained here:
+ *
+ * 1. Default-deny on the public schema. A top-level key
+ *    `bookingSelectionPublicV1` does not declare is rejected, not dropped, so
+ *    a field nobody has admitted deliberately cannot ride in.
+ * 2. Privileged keys (`BOOKING_SELECTION_PRIVILEGED_KEYS` — the operator-only
+ *    and engine-owned schemas plus reserved commit-side vocabulary) are
+ *    rejected at any depth, because nesting is exactly how they would
+ *    otherwise reach the commit-side command merge.
+ *
+ * Operator choices are not banned, only re-routed: they arrive under
+ * `selection.staffBooking` and are parsed against finance's staff schema
+ * after the staff booking authority gate passes.
+ *
+ * The passport / `documentClass` rejection stays hand-written: it is a PII
+ * rule about plaintext travel documents, not a statement about selection
+ * shape, and no schema expresses it.
+ *
+ * Value shape stays lenient below the top level — the wizard PATCHes
+ * half-filled steps — so unknown *nested* keys are projected away rather than
+ * rejected. The schema is authoritative about which keys exist; the
+ * projection below is authoritative about what a value may look like.
+ */
 export function normalizeBookingSelection(
   _target: CommitOwnedBookingInput["session"]["target"],
   selection: Record<string, unknown>,
   access?: CommitOwnedBookingInput["access"],
 ): Record<string, unknown> {
   const source = asRecord(selection) ?? {}
-  const { staffBooking: rawStaffBooking, ...customerSelection } = source
-  rejectForbiddenSelection(customerSelection)
+  const { staffBooking: rawStaffBooking, ...publicSelection } = source
+  rejectNonPublicSelection(publicSelection)
   if (
     rawStaffBooking !== undefined &&
     (access?.actorKind !== "staff" || !access.staffBookingAuthority?.admitted)
@@ -1065,36 +1116,38 @@ function applyStaffSelection(
   return staffBooking ? applyBookingSessionStaffSelectionV1(baseCommand, staffBooking) : baseCommand
 }
 
-function rejectForbiddenSelection(value: unknown, path = "selection"): void {
+/**
+ * Default-deny against the public selection schema, then the recursive
+ * privileged / PII sweep. Adding a field to `bookingSelectionPublicV1` is the
+ * only way to widen what a Session admits.
+ */
+function rejectNonPublicSelection(selection: Record<string, unknown>): void {
+  for (const key of Object.keys(selection)) {
+    if (!BOOKING_SELECTION_PUBLIC_KEYS.has(key)) {
+      throw new InvalidBookingSessionSelectionError("forbidden_field", `selection.${key}`)
+    }
+  }
+  rejectPrivilegedSelection(selection)
+}
+
+function rejectPrivilegedSelection(value: unknown, path = "selection"): void {
   if (Array.isArray(value)) {
     for (const [index, item] of value.entries()) {
-      rejectForbiddenSelection(item, `${path}.${index}`)
+      rejectPrivilegedSelection(item, `${path}.${index}`)
     }
     return
   }
   if (!value || typeof value !== "object") return
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (FORBIDDEN_SELECTION_KEYS.has(key) || /passport|documentClass|document_class/i.test(key)) {
+    if (
+      BOOKING_SELECTION_PRIVILEGED_KEYS.has(key) ||
+      /passport|documentClass|document_class/i.test(key)
+    ) {
       throw new InvalidBookingSessionSelectionError("forbidden_field", `${path}.${key}`)
     }
-    rejectForbiddenSelection(item, `${path}.${key}`)
+    rejectPrivilegedSelection(item, `${path}.${key}`)
   }
 }
-
-const FORBIDDEN_SELECTION_KEYS = new Set([
-  "entity",
-  "source",
-  "status",
-  "priceOverride",
-  "supplierResult",
-  "internalNotes",
-  "suppressNotifications",
-  "documentGeneration",
-  "bookingNumber",
-  "sellAmountCentsOverride",
-  "manualPriceOverride",
-  "operatorOnly",
-])
 
 function normalizeOptionSelection(value: unknown): Record<string, unknown> | null {
   const record = asRecord(value)

@@ -8,6 +8,7 @@ import type {
   BookingSessionOriginV1,
   BookingSessionOutcomeV1,
   BookingSessionRecordV1,
+  BookingSessionScopeV1,
   BookingSessionStateV1,
   BookingSessionTargetV1,
   BookingSessionViewV1,
@@ -19,6 +20,7 @@ import type {
   RenewBookingSessionV1,
   UpdateBookingSessionV1,
 } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
+import { DEFAULT_BOOKING_SESSION_SCOPE } from "@voyant-travel/catalog-contracts/booking-engine/session-contracts"
 import { newId } from "@voyant-travel/db/lib/typeid"
 import type {
   BookingLifecycleCommitOutcomeV1,
@@ -55,6 +57,12 @@ export interface BookingSessionInternalRecord {
   ownerOrganizationId?: string
   /** Immutable server-derived public storefront provenance. Never serialized. */
   storefrontOrigin?: { storefrontId: string; channelId: string }
+  /**
+   * Immutable commercial scope. Fixed at create so a Quote, the Hold taken
+   * against it, and the Commit that consumes both all mean one price in one
+   * market. `audience` is not carried here — it is derived from `actorKind`.
+   */
+  scope: BookingSessionScopeV1
   state: BookingSessionStateV1
   revision: number
   statePayload: Record<string, unknown>
@@ -613,6 +621,7 @@ export function createBookingSessionModule(
       idempotencyKey: string
       target: BookingSessionTargetV1
       selection?: Record<string, unknown>
+      scope?: BookingSessionScopeV1
       capabilityScopes?: BookingSessionCapabilityActionV1[]
     },
     access: BookingSessionAccessContext,
@@ -632,6 +641,7 @@ export function createBookingSessionModule(
     const capabilityScopes =
       access.actorKind === "anonymous" ? normalizeCapabilityScopes(input.capabilityScopes) : []
     const capabilityHash = capability ? await hashCapability(capability) : undefined
+    const scope = resolveSessionScope(input.scope)
     const createIdempotencyKey = origin
       ? `accepted-proposal-version:${origin.proposalVersionId}`
       : await scopedCreateIdempotencyKey(input.idempotencyKey, access, capabilityHash)
@@ -644,6 +654,10 @@ export function createBookingSessionModule(
       capabilityScopes,
       target: input.target,
       ...(origin ? { origin } : {}),
+      // Scope is part of what a create request asked for: replaying the same
+      // idempotency key in another market is a different Session, not a
+      // replay of the first one.
+      scope,
       selection: input.selection ?? {},
     })
     const existing = await repository.getSessionByCreateIdempotency(createIdempotencyKey)
@@ -681,6 +695,7 @@ export function createBookingSessionModule(
       ownerPrincipalId: access.actorKind === "anonymous" ? undefined : access.principalId,
       ownerOrganizationId: access.actorKind === "anonymous" ? undefined : access.organizationId,
       storefrontOrigin: access.actorKind === "staff" ? undefined : access.storefront,
+      scope,
       state: "active",
       revision: 1,
       statePayload,
@@ -719,6 +734,7 @@ export function createBookingSessionModule(
             tripEnvelopeId: input.tripEnvelopeId,
           },
           selection: input.selection,
+          scope: input.scope,
         },
         access,
         {
@@ -2186,6 +2202,22 @@ function capacityKeyForTarget(target: BookingSessionTargetV1): string {
   throw new Error("Booking Session target does not identify capacity")
 }
 
+/**
+ * A create request may omit scope; a stored Session may not. Fall back to what
+ * the engine hardcoded before scope existed, so an unscoped caller keeps the
+ * behaviour it already had instead of silently changing market.
+ */
+function resolveSessionScope(scope: BookingSessionScopeV1 | undefined): BookingSessionScopeV1 {
+  const locale = scope?.locale?.trim()
+  const market = scope?.market?.trim()
+  const currency = scope?.currency?.trim().toUpperCase()
+  return {
+    locale: locale || DEFAULT_BOOKING_SESSION_SCOPE.locale,
+    market: market || DEFAULT_BOOKING_SESSION_SCOPE.market,
+    ...(currency ? { currency } : {}),
+  }
+}
+
 function serializeSession(
   session: BookingSessionInternalRecord,
   requirements?: BookingRequirementsV1,
@@ -2197,6 +2229,7 @@ function serializeSession(
     actorKind: session.actorKind,
     state: session.state,
     revision: session.revision,
+    scope: session.scope,
     ...(requirements ? { requirements } : {}),
     expiresAt: session.expiresAt.toISOString(),
     createdAt: session.createdAt.toISOString(),

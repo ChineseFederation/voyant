@@ -298,6 +298,7 @@ function session(revision: number) {
     id: "bses_demo",
     target: { kind: "product", productId: "prod_owned_1" },
     actorKind: "anonymous",
+    scope: { locale: "en", market: "default" },
     state: "active",
     revision,
     expiresAt: "2026-08-02T12:00:00.000Z",

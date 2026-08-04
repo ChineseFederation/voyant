@@ -29,6 +29,15 @@ export const bookingSessionsTable = pgTable(
     ownerOrganizationId: text("owner_organization_id"),
     storefrontId: text("storefront_id"),
     channelId: text("channel_id"),
+    /**
+     * Commercial scope, fixed at create. Requirements labels are
+     * locale-derived and prices are market-derived, so a Session without
+     * these quotes every shopper in the default market with English labels.
+     * Audience is not stored — it is derived from `actor_kind`.
+     */
+    locale: text("locale").notNull(),
+    market: text("market").notNull(),
+    currency: text("currency"),
     targetKind: text("target_kind").notNull(),
     productId: typeIdRef("product_id"),
     catalogItemId: text("catalog_item_id"),

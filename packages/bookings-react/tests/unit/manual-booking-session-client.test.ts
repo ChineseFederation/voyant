@@ -229,6 +229,7 @@ function session() {
     id: "bses_1",
     target: { kind: "product", productId: "prod_1" },
     actorKind: "staff",
+    scope: { locale: "en", market: "default" },
     state: "active",
     revision: 1,
     expiresAt: "2026-08-01T13:00:00.000Z",

@@ -1,10 +1,19 @@
 /**
  * Booking selection V1 schemas — what the buyer has chosen so far.
  *
- * `bookingSelectionV1` is the counterpart of `bookingRequirementsV1`:
- * requirements say what a booking of this target *needs*, the selection
- * says what has been *picked*. It is the state that survives across
- * journey step transitions.
+ * The selection is the counterpart of `bookingRequirementsV1`: requirements
+ * say what a booking of this target *needs*, the selection says what has been
+ * *picked*. It is the state that survives across journey step transitions.
+ *
+ * It is declared in three parts so that privilege is a property of the schema
+ * rather than of a denylist someone has to remember to extend:
+ *
+ * - `bookingSelectionPublicV1` — what any caller may send.
+ * - `bookingSelectionStaffOnlyV1` — operator-only commercial authority.
+ * - `bookingSelectionEngineOwnedV1` — what the engine writes, never a caller.
+ *
+ * `bookingSelectionV1` is the union of the three: the full draft an operator
+ * surface edits in place.
  */
 
 import { z } from "zod"
@@ -64,7 +73,14 @@ export type TravelerEntryV1 = z.infer<typeof travelerEntryV1>
 // Selection state — what survives across step transitions
 // ─────────────────────────────────────────────────────────────────
 
-export const bookingSelectionV1 = z.object({
+/**
+ * What the engine writes onto a selection, never the caller.
+ *
+ * A Booking Session derives the entity from its own target, so a Session
+ * selection that carries one is either stale or an attempt to book something
+ * other than what the Session was opened against.
+ */
+export const bookingSelectionEngineOwnedV1 = z.object({
   // What's being booked — populated from the catalog row, never mutated.
   entity: z.object({
     module: z.string(),
@@ -73,7 +89,17 @@ export const bookingSelectionV1 = z.object({
     sourceConnectionId: z.string().optional(),
     sourceRef: z.string().optional(),
   }),
+})
 
+/**
+ * The public selection — everything any caller may send.
+ *
+ * This is the authoritative list of selection keys, not a suggestion: the
+ * Booking Session rejects a top-level key this schema does not declare rather
+ * than dropping it, so a field added here is admitted deliberately and a field
+ * added anywhere else is denied by default.
+ */
+export const bookingSelectionPublicV1 = z.object({
   // Step 1 — Configure
   configure: z
     .object({
@@ -199,6 +225,47 @@ export const bookingSelectionV1 = z.object({
     .default({ intent: "hold" }),
 
   paymentSchedules: z.array(bookingPaymentScheduleV1).optional(),
+
+  /**
+   * Customer-typed promotion code. Validated case-insensitively against
+   * `promotional_offers.code` at quote time when the operator starter
+   * wires `evaluatePromotions` on `QuoteEntityDeps`. Surfaces as a
+   * `code_*` `invalidReason` on the quote when the code is bad.
+   *
+   * Per docs/architecture/promotions-architecture.md §7.0 — renamed
+   * from the original placeholder code field to avoid
+   * collision with Finance Travel Credits.
+   */
+  promotionCode: z.string().optional(),
+  /**
+   * Customer-facing notes — "anything we should know?" Free-text
+   * the customer fills on the storefront review step. Stored on
+   * the booking and visible to ops; treat as untrusted input.
+   */
+  customerNotes: z.string().optional(),
+
+  // Engine-controlled — written when /quote returns
+  quoteId: z.string().optional(),
+  quoteExpiresAt: z.string().optional(),
+})
+export type BookingSelectionPublicV1 = z.infer<typeof bookingSelectionPublicV1>
+
+/**
+ * Operator-only selection fields — commercial authority a buyer must never
+ * hold: overriding the price, redeeming an operator-held Travel Credit,
+ * silencing the confirmation email, choosing which documents are issued,
+ * writing notes the customer never sees, or landing the booking as a draft.
+ *
+ * They are not part of `bookingSelectionPublicV1` and are never accepted from
+ * a public payload at any depth. On the v1 Booking Session they arrive under
+ * `selection.staffBooking`, behind the staff booking authority gate; the
+ * authoritative shape of that payload is finance's
+ * `bookingSessionStaffSelectionV1`, which supersets these fields with the rest
+ * of the manual-booking operator input. They are declared here so the public
+ * schema can be stated as their complement and the Session's default-deny
+ * boundary can be derived from a schema instead of hand-maintained.
+ */
+export const bookingSelectionStaffOnlyV1 = z.object({
   documentGeneration: z
     .object({
       contractDocument: z.boolean().optional(),
@@ -209,18 +276,17 @@ export const bookingSelectionV1 = z.object({
     .optional(),
 
   /**
-   * Operator-only: when true, the booking-create commit suppresses
-   * post-commit notifications (e.g. the confirmation email). Set on the
-   * admin review step; the owned handler forwards it to booking-create.
+   * When true, the booking-create commit suppresses post-commit notifications
+   * (e.g. the confirmation email). Set on the admin review step; the owned
+   * handler forwards it to booking-create.
    */
   suppressNotifications: z.boolean().optional(),
 
   /**
-   * Operator-only manual price override (admin review step). The owned
-   * handler sends `amountCents` as `confirmedSellAmountCents` (which wins
-   * over the quote/promotion price), the quote total as
-   * `catalogSellAmountCents`, and the reason — booking-create requires a
-   * reason when the two differ.
+   * Manual price override (admin review step). The owned handler sends
+   * `amountCents` as `confirmedSellAmountCents` (which wins over the
+   * quote/promotion price), the quote total as `catalogSellAmountCents`, and
+   * the reason — booking-create requires a reason when the two differ.
    */
   priceOverride: z
     .object({
@@ -246,38 +312,64 @@ export const bookingSelectionV1 = z.object({
     .optional(),
 
   /**
-   * Customer-typed promotion code. Validated case-insensitively against
-   * `promotional_offers.code` at quote time when the operator starter
-   * wires `evaluatePromotions` on `QuoteEntityDeps`. Surfaces as a
-   * `code_*` `invalidReason` on the quote when the code is bad.
-   *
-   * Per docs/architecture/promotions-architecture.md §7.0 — renamed
-   * from the original placeholder code field to avoid
-   * collision with Finance Travel Credits.
-   */
-  promotionCode: z.string().optional(),
-  /**
-   * Operator-only notes — never shown to the customer. Set on
-   * admin-surface review steps (operator dashboard) and surfaced on
-   * the booking detail's notes panel.
+   * Notes never shown to the customer. Set on admin-surface review steps
+   * (operator dashboard) and surfaced on the booking detail's notes panel.
    */
   internalNotes: z.string().optional(),
+
   /**
-   * Operator-only: land the booking as a draft instead of a live booking.
-   * When false (default), the commit picks `confirmed` if the payment is
-   * marked paid, else `awaiting_payment`.
+   * Land the booking as a draft instead of a live booking. When false
+   * (default), the commit picks `confirmed` if the payment is marked paid,
+   * else `awaiting_payment`.
    */
   saveAsDraft: z.boolean().optional(),
-  /**
-   * Customer-facing notes — "anything we should know?" Free-text
-   * the customer fills on the storefront review step. Stored on
-   * the booking and visible to ops; treat as untrusted input.
-   */
-  customerNotes: z.string().optional(),
-
-  // Engine-controlled — written when /quote returns
-  quoteId: z.string().optional(),
-  quoteExpiresAt: z.string().optional(),
 })
+export type BookingSelectionStaffOnlyV1 = z.infer<typeof bookingSelectionStaffOnlyV1>
+
+/**
+ * The full journey draft an operator surface edits in place: the public
+ * selection plus the engine-owned entity plus the operator-only fields.
+ *
+ * This is the client-side draft type, not what a Booking Session accepts —
+ * the Session takes `bookingSelectionPublicV1` and receives operator choices
+ * only under `selection.staffBooking`.
+ */
+export const bookingSelectionV1 = bookingSelectionPublicV1
+  .extend(bookingSelectionEngineOwnedV1.shape)
+  .extend(bookingSelectionStaffOnlyV1.shape)
 
 export type BookingSelectionV1 = z.infer<typeof bookingSelectionV1>
+
+/**
+ * Selection keys any caller may write. Derived from the public schema so that
+ * adding a field there — and only there — widens what a Session admits.
+ */
+export const BOOKING_SELECTION_PUBLIC_KEYS: ReadonlySet<string> = new Set(
+  Object.keys(bookingSelectionPublicV1.shape),
+)
+
+/**
+ * Selection keys a public caller may never write, at any depth.
+ *
+ * The engine-owned and operator-only entries are derived from the two schemas
+ * that own them, so extending either schema extends the boundary without
+ * anyone remembering to also deny the new field — the inversion this replaces
+ * a hand-maintained denylist for.
+ *
+ * The reserved tail is Booking-record and supplier-result vocabulary that no
+ * selection schema describes (there is no shape to derive from). Reserving the
+ * names keeps a nested payload from smuggling one through into the commit-side
+ * command merge, where a stray `status` or `sellAmountCentsOverride` would be
+ * read as authoritative.
+ */
+export const BOOKING_SELECTION_PRIVILEGED_KEYS: ReadonlySet<string> = new Set([
+  ...Object.keys(bookingSelectionEngineOwnedV1.shape),
+  ...Object.keys(bookingSelectionStaffOnlyV1.shape),
+  "source",
+  "status",
+  "supplierResult",
+  "bookingNumber",
+  "sellAmountCentsOverride",
+  "manualPriceOverride",
+  "operatorOnly",
+])
