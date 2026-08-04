@@ -1,14 +1,30 @@
-# External Cruise Adapter Contract
+# Cruise Adapter Contract
 
 Status: active architecture note
-Audience: developers implementing an external adapter package for
-`@voyant-travel/cruises`.
+Audience: **first-party** developers composing a cruise adapter into the
+operator. This is not the third-party integration path — see the note below.
 
 This contract keeps the cruises framework provider-neutral. The framework owns
 the normalized cruise shapes, route behavior, SourceRef encoding, search-index
 projection shape, booking snapshot shape, and compatibility tests. Adapter
 packages own upstream clients, credentials, polling, retries, throttling, and
 provider-specific mappings.
+
+## This is not the third-party path
+
+This note originally addressed *"developers implementing an external adapter
+package"*, and predates the deploy-and-use pivot. In-process registration is
+not reachable for a third party: the operator ships as a sealed image digest,
+so there is no install step through which external code enters the runtime. The
+only registrations in the tree come from
+`packages/cruises/src/catalog-runtime-extension.ts`.
+
+A third party integrating a cruise source builds a **connector** — a separately
+deployed Worker speaking the connector worker protocol, declaring compatibility
+against the protocol version rather than against any package. See
+[ADR-0022](../adr/0022-connector-compatibility-axis.md).
+
+Everything below governs first-party composition.
 
 ## Boundary
 
@@ -19,7 +35,7 @@ types, helpers, and compatibility tests.
 
 ```ts
 import { memoizeCruiseAdapter, registerCruiseAdapter } from "@voyant-travel/cruises/adapters"
-import { createCruiseAdapter } from "external-cruise-adapter"
+import { createCruiseAdapter } from "some-cruise-adapter"
 
 const adapter = createCruiseAdapter({
   token: process.env.CRUISE_ADAPTER_TOKEN,
