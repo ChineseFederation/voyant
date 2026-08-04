@@ -5,12 +5,14 @@
  *
  * This runs *after* publish, because it asks a question only the registry can
  * answer: can an outside consumer install what we just shipped and import it?
- * It installs every non-private workspace package at the version in the
- * repository into a scratch directory and exercises each declared entry point.
+ * It installs every non-private workspace package at the version the checked-out
+ * commit declares into a scratch directory and exercises each declared entry
+ * point.
  *
  * Usage: node scripts/verify-published-surface.mjs [--keep] [--attempts <n>]
+ *        node scripts/verify-published-surface.mjs [--tree <commit-ish>]
  */
-import { execFile } from "node:child_process"
+import { execFile, execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -23,37 +25,40 @@ import {
   formatMissingVersion,
   importProbeSpecifiers,
   parseAttempts,
+  parseTree,
   REGISTRY,
   registryHasVersion,
   selectPublishedPackages,
   unappliedPublishConfigViolations,
   unresolvedProtocolViolations,
+  workspaceManifestPaths,
 } from "./lib/published-surface.mjs"
 
 const execFileAsync = promisify(execFile)
 
 const KEEP = process.argv.includes("--keep")
 const ATTEMPTS = parseAttempts(process.argv)
+const TREE = parseTree(process.argv)
 /** The registry is read-your-writes only eventually; a fresh publish can 404 briefly. */
 const RETRY_DELAY_MS = 10_000
 
+const git = (args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+
+const readFromTree = (file) => git(["show", `${TREE}:${file}`])
+
+/**
+ * The manifests as `TREE` committed them, not as they sit on disk. See
+ * `workspaceManifestPaths` for why the working directory is the wrong source:
+ * the release job rewrites every releasable version before this gate runs.
+ */
 function workspaceManifests() {
-  const workspace = parseYaml(fs.readFileSync("pnpm-workspace.yaml", "utf8"))
-  const directories = (workspace.packages ?? [])
+  const patterns = parseYaml(readFromTree("pnpm-workspace.yaml")).packages ?? []
+  const roots = patterns
     .filter((pattern) => pattern.endsWith("/*"))
     .map((pattern) => pattern.slice(0, -2))
 
-  const manifests = []
-  for (const directory of directories) {
-    if (!fs.existsSync(directory)) continue
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue
-      const file = path.join(directory, entry.name, "package.json")
-      if (!fs.existsSync(file)) continue
-      manifests.push(JSON.parse(fs.readFileSync(file, "utf8")))
-    }
-  }
-  return manifests
+  const treePaths = git(["ls-tree", "-r", "--name-only", TREE, "--", ...roots]).split("\n")
+  return workspaceManifestPaths(patterns, treePaths).map((file) => JSON.parse(readFromTree(file)))
 }
 
 /**
@@ -226,7 +231,10 @@ async function main() {
     return
   }
 
-  console.log(`verify:published-surface: ${packages.length} publishable packages.`)
+  console.log(
+    `verify:published-surface: ${packages.length} publishable packages at ` +
+      `${TREE} (${git(["rev-parse", "--short", TREE]).trim()}).`,
+  )
 
   const unpublished = await awaitRegistry(packages)
   if (unpublished.length > 0) {

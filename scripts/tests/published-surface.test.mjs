@@ -3,14 +3,19 @@ import { test } from "node:test"
 
 import {
   DEFAULT_ATTEMPTS,
+  DEFAULT_TREE,
   expandExportPattern,
   importProbeSpecifiers,
   parseAttempts,
+  parseTree,
   registryHasVersion,
   selectPublishedPackages,
   unappliedPublishConfigViolations,
   unresolvedProtocolViolations,
+  workspaceManifestPaths,
 } from "../lib/published-surface.mjs"
+
+const WORKSPACE_PATTERNS = ["packages/*", "apps/*", "examples/*"]
 
 function registryResponse({ status = 200, statusText = "OK", body = {} }) {
   return async () => ({
@@ -92,6 +97,71 @@ test("refuses to call a registry failure an unpublished version", async () => {
       },
     }),
     /ECONNRESET/,
+  )
+})
+
+test("defaults to the checked-out commit when no tree is named", () => {
+  assert.equal(parseTree(["/usr/bin/node", "/repo/scripts/verify.mjs"]), DEFAULT_TREE)
+})
+
+test("reads an explicit tree", () => {
+  assert.equal(
+    parseTree(["/usr/bin/node", "/repo/scripts/verify.mjs", "--tree", "origin/main"]),
+    "origin/main",
+  )
+})
+
+test("refuses a tree flag carrying no commit-ish", () => {
+  for (const argv of [["--tree"], ["--tree", "--keep"]]) {
+    assert.throws(
+      () => parseTree(["/usr/bin/node", "/repo/scripts/verify.mjs", ...argv]),
+      /--tree requires a commit-ish/,
+    )
+  }
+})
+
+test("takes manifests from the commit, not from the working directory", () => {
+  // The defect this replaced: `pnpm version-packages` runs before this gate in
+  // the release job and rewrites every releasable package.json on disk, so a
+  // disk read asked the registry for versions that only publish once the
+  // pending release PR merges.
+  assert.deepEqual(
+    workspaceManifestPaths(WORKSPACE_PATTERNS, [
+      "packages/catalog-contracts/package.json",
+      "apps/operator/package.json",
+      "examples/storefront/package.json",
+    ]),
+    [
+      "apps/operator/package.json",
+      "examples/storefront/package.json",
+      "packages/catalog-contracts/package.json",
+    ],
+  )
+})
+
+test("covers only the one level the workspace globs reach", () => {
+  assert.deepEqual(
+    workspaceManifestPaths(WORKSPACE_PATTERNS, [
+      "package.json",
+      "packages/package.json",
+      "packages/ui/package.json",
+      "packages/plugins/legacy/package.json",
+      "packages/ui/src/fixtures/package.json",
+      "docs/package.json",
+    ]),
+    ["packages/ui/package.json"],
+  )
+})
+
+test("ignores everything in the tree that is not a manifest", () => {
+  assert.deepEqual(
+    workspaceManifestPaths(WORKSPACE_PATTERNS, [
+      "packages/ui/package.json",
+      "packages/ui/tsconfig.json",
+      "packages/ui/src/index.ts",
+      "packages/ui/my-package.json",
+    ]),
+    ["packages/ui/package.json"],
   )
 })
 

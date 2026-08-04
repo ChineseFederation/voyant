@@ -229,6 +229,12 @@ jobs:
       # A failed publish is exactly when the surface is split between what
       # shipped and what did not, so this must still run and say which. Running
       # it last keeps a broken surface from also blocking the release PR.
+      #
+      # Safe in that position because the gate reads manifests out of the
+      # commit, not the working directory: the release-PR step above runs
+      # `pnpm version-packages`, which rewrites every releasable version on disk
+      # to what the *pending* PR will publish. Keep it commit-scoped if this
+      # moves.
       - name: Verify the published surface installs
         if: ${{ !cancelled() }}
         run: pnpm verify:published-surface

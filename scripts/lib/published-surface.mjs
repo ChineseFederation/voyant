@@ -48,6 +48,27 @@ export function parseAttempts(argv) {
   return attempts
 }
 
+export const DEFAULT_TREE = "HEAD"
+
+/**
+ * Which commit the gate speaks for. Defaults to the checked-out commit; a
+ * commit-ish is accepted so a release can be re-verified after the fact.
+ *
+ * Parsed with the explicit index check `parseAttempts` explains, and validated
+ * so a flag with no value reads as an error rather than silently checking a
+ * tree named `--keep`.
+ */
+export function parseTree(argv) {
+  const index = argv.indexOf("--tree")
+  if (index === -1) return DEFAULT_TREE
+
+  const tree = argv[index + 1]
+  if (!tree || tree.startsWith("--")) {
+    throw new Error(`--tree requires a commit-ish, received "${tree ?? ""}"`)
+  }
+  return tree
+}
+
 export const REGISTRY = "https://registry.npmjs.org"
 
 /**
@@ -90,6 +111,36 @@ const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependen
 
 /** Node resolution conditions, most specific first, as a consumer would hit them. */
 const IMPORT_CONDITIONS = ["import", "node", "default", "require"]
+
+/**
+ * Manifest paths the workspace globs cover, chosen from a listing of a
+ * *committed* tree rather than from the working directory.
+ *
+ * The release job runs `pnpm version-packages` before this gate, which rewrites
+ * every releasable package.json on disk to the version the pending release PR
+ * will carry. Reading those files made the gate wait for versions that only
+ * publish once that PR merges, so it failed on every push to `main` that
+ * carried a releasable changeset — naming five healthy packages as missing from
+ * the registry. The commit is what `main` actually says is published, and it is
+ * the one view no later step in the job can perturb.
+ *
+ * `pnpm-workspace.yaml` globs one level (`packages/*`), so a manifest qualifies
+ * when it sits exactly one directory below a globbed root.
+ */
+export function workspaceManifestPaths(workspacePatterns, treePaths) {
+  const directories = workspacePatterns
+    .filter((pattern) => pattern.endsWith("/*"))
+    .map((pattern) => pattern.slice(0, -2))
+
+  const covered = (candidate) =>
+    directories.some(
+      (directory) =>
+        candidate.startsWith(`${directory}/`) &&
+        candidate.slice(directory.length + 1).split("/").length === 2,
+    )
+
+  return treePaths.filter((path) => path.endsWith("/package.json") && covered(path)).sort()
+}
 
 export function selectPublishedPackages(manifests) {
   return manifests
