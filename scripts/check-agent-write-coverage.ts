@@ -38,6 +38,13 @@ const ALLOWLIST = new Map<string, { rationale: string }>([
     },
   ],
   [
+    "@voyant-travel/catalog:catalog/offer",
+    {
+      rationale:
+        "Offer Preview is POST-shaped because its input is a nested selection, but it is a read: it mints no identifier and persists nothing, enforced by its port type rather than by convention. An agent that wants a priced, bindable offer opens a Booking Session and quotes it, which is already a Tool.",
+    },
+  ],
+  [
     "@voyant-travel/auth:storefront/channel-binding",
     {
       rationale:

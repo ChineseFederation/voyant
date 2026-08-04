@@ -165,6 +165,7 @@ export const createBookingSessionTargetV1 = z.discriminatedUnion("kind", [
     })
     .strict(),
 ])
+export type CreateBookingSessionTargetV1 = z.infer<typeof createBookingSessionTargetV1>
 
 export const createBookingSessionV1 = z.object({
   idempotencyKey: z.string().min(8).max(128),
@@ -295,6 +296,21 @@ export const renewBookingSessionV1 = z.object({
 })
 export type RenewBookingSessionV1 = z.input<typeof renewBookingSessionV1>
 
+/**
+ * Why a target could not be priced. Named rather than inlined because the
+ * stateless Offer Preview reports the same set (`offerPreviewResultV1`) — a
+ * preview and a Session Quote of the same target must fail for the same
+ * reasons under the same names.
+ */
+export const bookingQuoteUnavailableReasonV1 = z.enum([
+  "target_not_found",
+  "target_not_bookable",
+  "price_unavailable",
+  "policy_unavailable",
+  "selection_unavailable",
+])
+export type BookingQuoteUnavailableReasonV1 = z.infer<typeof bookingQuoteUnavailableReasonV1>
+
 export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("revision_conflict"),
@@ -324,13 +340,7 @@ export const bookingSessionLifecycleErrorV1 = z.discriminatedUnion("kind", [
      * itself failed to resolve.
      */
     requirements: bookingRequirementsV1.optional(),
-    reason: z.enum([
-      "target_not_found",
-      "target_not_bookable",
-      "price_unavailable",
-      "policy_unavailable",
-      "selection_unavailable",
-    ]),
+    reason: bookingQuoteUnavailableReasonV1,
     nextAction: z.enum(["select_alternative_inventory", "contact_operator", "update_selection"]),
   }),
   z.object({

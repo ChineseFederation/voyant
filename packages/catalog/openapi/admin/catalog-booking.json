@@ -10608,6 +10608,2017 @@
           }
         ]
       },
+      "OfferPreviewOutcomeV1": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["offer_preview"]
+              },
+              "preview": {
+                "type": "object",
+                "properties": {
+                  "binding": {
+                    "type": "boolean",
+                    "enum": [false]
+                  },
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "requirements": {
+                    "type": "object",
+                    "properties": {
+                      "showsConfigure": {
+                        "type": "boolean"
+                      },
+                      "showsBilling": {
+                        "type": "boolean"
+                      },
+                      "showsTravelers": {
+                        "type": "boolean"
+                      },
+                      "showsAccommodation": {
+                        "type": "boolean"
+                      },
+                      "showsAddons": {
+                        "type": "boolean"
+                      },
+                      "showsPayment": {
+                        "type": "boolean"
+                      },
+                      "showsReview": {
+                        "type": "boolean",
+                        "enum": [true]
+                      },
+                      "configureSubSteps": {
+                        "type": "array",
+                        "items": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["departure"]
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                  "enum": [true]
+                                }
+                              },
+                              "required": ["kind", "required"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["product-option"]
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "isDefault": {
+                                        "type": "boolean"
+                                      },
+                                      "units": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": ["string", "null"]
+                                            },
+                                            "unitType": {
+                                              "type": ["string", "null"]
+                                            },
+                                            "minQuantity": {
+                                              "type": ["integer", "null"],
+                                              "minimum": 0
+                                            },
+                                            "maxQuantity": {
+                                              "type": ["integer", "null"],
+                                              "minimum": 0
+                                            }
+                                          },
+                                          "required": ["id", "name"]
+                                        }
+                                      }
+                                    },
+                                    "required": ["id", "name"]
+                                  }
+                                }
+                              },
+                              "required": ["kind", "options"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["option-units"]
+                                }
+                              },
+                              "required": ["kind"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["cabin-category"]
+                                },
+                                "categories": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "type": "string"
+                                      },
+                                      "capacityMin": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "capacityMax": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "description": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["id", "name"]
+                                  }
+                                }
+                              },
+                              "required": ["kind", "categories"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["cabin-number"]
+                                },
+                                "perCategory": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "capacity": {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        "hasAccessibilityFeatures": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": ["id", "label"]
+                                    }
+                                  }
+                                }
+                              },
+                              "required": ["kind", "perCategory"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["date-range"]
+                                },
+                                "minNights": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                },
+                                "maxNights": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0
+                                }
+                              },
+                              "required": ["kind", "minNights", "maxNights"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["occupancy"]
+                                },
+                                "bands": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "minAge": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "maxAge": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "minCount": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      },
+                                      "maxCount": {
+                                        "type": "integer",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["code", "label", "minCount", "maxCount"]
+                                  }
+                                }
+                              },
+                              "required": ["kind", "bands"]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["air-arrangement"]
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["kind"]
+                            }
+                          ]
+                        }
+                      },
+                      "paxBands": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "minAge": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "maxAge": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "minCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "maxCount": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": ["code", "label", "minCount", "maxCount"]
+                        }
+                      },
+                      "paxBandsAllowedTotal": {
+                        "type": "object",
+                        "properties": {
+                          "min": {
+                            "type": "integer"
+                          },
+                          "max": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": ["min", "max"]
+                      },
+                      "paxBandDependencies": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "dependentCode": {
+                              "type": "string"
+                            },
+                            "masterCode": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string",
+                              "enum": ["requires", "limits_per_master", "limits_sum", "excludes"]
+                            },
+                            "maxPerMaster": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "maxDependentSum": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "required": ["dependentCode", "masterCode", "type"]
+                        }
+                      },
+                      "travelerFields": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            },
+                            "options": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "value": {
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": ["value", "label"]
+                              }
+                            },
+                            "appliesToBands": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": ["key", "label", "type", "required"]
+                        }
+                      },
+                      "bookingFields": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "key": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            },
+                            "group": {
+                              "type": "string",
+                              "enum": ["billing", "company", "preferences"]
+                            }
+                          },
+                          "required": ["key", "label", "type", "required", "group"]
+                        }
+                      },
+                      "accommodation": {
+                        "type": "object",
+                        "properties": {
+                          "roomOptions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": ["string", "null"]
+                                },
+                                "capacity": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                },
+                                "baseRateHint": {
+                                  "type": ["number", "null"]
+                                },
+                                "ratePlans": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "chargeFrequency": {
+                                        "type": "string",
+                                        "enum": ["per_night", "per_stay"]
+                                      },
+                                      "cancellationPolicy": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "inclusions": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "currency": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["id", "name"]
+                                  }
+                                }
+                              },
+                              "required": ["id", "name"]
+                            }
+                          },
+                          "sharedRoomAllowed": {
+                            "type": "boolean"
+                          },
+                          "subSteps": {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["rooms"]
+                                    },
+                                    "options": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "capacity": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 0
+                                          },
+                                          "baseRateHint": {
+                                            "type": ["number", "null"]
+                                          },
+                                          "ratePlans": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "chargeFrequency": {
+                                                  "type": "string",
+                                                  "enum": ["per_night", "per_stay"]
+                                                },
+                                                "cancellationPolicy": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "inclusions": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "currency": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": ["id", "name"]
+                                            }
+                                          }
+                                        },
+                                        "required": ["id", "name"]
+                                      }
+                                    },
+                                    "sharedRoomAllowed": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["kind", "options", "sharedRoomAllowed"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["extensions"]
+                                    },
+                                    "options": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "city": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "side": {
+                                            "type": "string",
+                                            "enum": ["pre", "post"]
+                                          },
+                                          "nights": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 0
+                                          },
+                                          "pricePerPersonHint": {
+                                            "type": ["number", "null"]
+                                          }
+                                        },
+                                        "required": ["id", "name", "side"]
+                                      }
+                                    },
+                                    "allowsPre": {
+                                      "type": "boolean"
+                                    },
+                                    "allowsPost": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["kind", "options", "allowsPre", "allowsPost"]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": ["sharedRoomAllowed"]
+                      },
+                      "addons": {
+                        "type": "object",
+                        "properties": {
+                          "catalog": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": ["string", "null"]
+                                },
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["extras", "excursions", "insurance"]
+                                },
+                                "groupKey": {
+                                  "type": ["string", "null"]
+                                },
+                                "pricingMode": {
+                                  "type": ["string", "null"]
+                                },
+                                "unitAmountCents": {
+                                  "type": ["integer", "null"]
+                                },
+                                "currency": {
+                                  "type": ["string", "null"]
+                                },
+                                "pricedPerPerson": {
+                                  "type": ["boolean", "null"]
+                                },
+                                "selectionType": {
+                                  "type": ["string", "null"],
+                                  "enum": [
+                                    "optional",
+                                    "required",
+                                    "default_selected",
+                                    "unavailable",
+                                    null
+                                  ]
+                                },
+                                "minQuantity": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                },
+                                "maxQuantity": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                },
+                                "defaultQuantity": {
+                                  "type": ["integer", "null"],
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["id", "name", "kind"]
+                            }
+                          },
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": ["extras", "excursions", "insurance"]
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "groupBy": {
+                                  "type": "string",
+                                  "enum": ["port", "day"]
+                                },
+                                "perGuestSelection": {
+                                  "type": "boolean"
+                                },
+                                "items": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "description": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": ["extras", "excursions", "insurance"]
+                                      },
+                                      "groupKey": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "pricingMode": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "unitAmountCents": {
+                                        "type": ["integer", "null"]
+                                      },
+                                      "currency": {
+                                        "type": ["string", "null"]
+                                      },
+                                      "pricedPerPerson": {
+                                        "type": ["boolean", "null"]
+                                      },
+                                      "selectionType": {
+                                        "type": ["string", "null"],
+                                        "enum": [
+                                          "optional",
+                                          "required",
+                                          "default_selected",
+                                          "unavailable",
+                                          null
+                                        ]
+                                      },
+                                      "minQuantity": {
+                                        "type": ["integer", "null"],
+                                        "minimum": 0
+                                      },
+                                      "maxQuantity": {
+                                        "type": ["integer", "null"],
+                                        "minimum": 0
+                                      },
+                                      "defaultQuantity": {
+                                        "type": ["integer", "null"],
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "required": ["id", "name", "kind"]
+                                  }
+                                }
+                              },
+                              "required": ["kind", "label", "perGuestSelection", "items"]
+                            }
+                          }
+                        }
+                      },
+                      "paymentIntents": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": ["hold", "card", "bank_transfer", "ticket_on_credit", "inquiry"]
+                        }
+                      }
+                    },
+                    "required": [
+                      "showsConfigure",
+                      "showsBilling",
+                      "showsTravelers",
+                      "showsAccommodation",
+                      "showsAddons",
+                      "showsPayment",
+                      "showsReview",
+                      "paxBands",
+                      "paxBandsAllowedTotal",
+                      "travelerFields",
+                      "bookingFields",
+                      "paymentIntents"
+                    ]
+                  },
+                  "pricing": {
+                    "type": "object",
+                    "properties": {
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      },
+                      "lines": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "base",
+                                "addon",
+                                "accommodation",
+                                "supplement",
+                                "discount",
+                                "fee"
+                              ]
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "unitAmount": {
+                              "type": "integer"
+                            },
+                            "totalAmount": {
+                              "type": "integer"
+                            },
+                            "taxIncluded": {
+                              "type": "boolean"
+                            },
+                            "pricingBasis": {
+                              "type": "string",
+                              "enum": ["per_person", "per_unit", "per_booking"]
+                            },
+                            "componentId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "authority": {
+                              "type": "string",
+                              "enum": ["booking_quote", "accepted_proposal_manual"]
+                            }
+                          },
+                          "required": ["kind", "label", "unitAmount", "totalAmount"]
+                        }
+                      },
+                      "taxes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "rate": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "base": {
+                              "type": "integer"
+                            },
+                            "includedInPrice": {
+                              "type": "boolean"
+                            },
+                            "scope": {
+                              "type": "string",
+                              "enum": ["included", "excluded", "withheld"]
+                            },
+                            "componentId": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["code", "label", "rate", "amount", "base"]
+                        }
+                      },
+                      "subtotal": {
+                        "type": "integer"
+                      },
+                      "taxTotal": {
+                        "type": "integer"
+                      },
+                      "total": {
+                        "type": "integer"
+                      },
+                      "policyEvidence": {
+                        "type": "object",
+                        "properties": {
+                          "cancellation": {},
+                          "bookingTerms": {}
+                        }
+                      },
+                      "componentPolicies": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "cancellation": {},
+                            "bookingTerms": {},
+                            "componentId": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": ["componentId"]
+                        }
+                      }
+                    },
+                    "required": ["currency", "lines", "taxes", "subtotal", "taxTotal", "total"]
+                  },
+                  "unavailableReason": {
+                    "type": "string",
+                    "enum": [
+                      "target_not_found",
+                      "target_not_bookable",
+                      "price_unavailable",
+                      "policy_unavailable",
+                      "selection_unavailable"
+                    ]
+                  }
+                },
+                "required": ["binding", "available", "requirements"]
+              }
+            },
+            "required": ["kind", "preview"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["rejected"]
+              },
+              "error": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["revision_conflict"]
+                      },
+                      "expectedRevision": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "actualRevision": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "actualState": {
+                        "type": "string",
+                        "enum": [
+                          "active",
+                          "supplier_pending",
+                          "component_pending",
+                          "consumed",
+                          "expired",
+                          "abandoned"
+                        ]
+                      }
+                    },
+                    "required": ["kind", "expectedRevision", "actualRevision", "actualState"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["session_expired"]
+                      }
+                    },
+                    "required": ["kind"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["session_consumed"]
+                      }
+                    },
+                    "required": ["kind"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["capability_required"]
+                      }
+                    },
+                    "required": ["kind"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["capability_scope_required"]
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "read",
+                          "update",
+                          "quote",
+                          "hold",
+                          "commit",
+                          "abandon",
+                          "adopt",
+                          "renew"
+                        ]
+                      }
+                    },
+                    "required": ["kind", "action"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["not_authorized"]
+                      }
+                    },
+                    "required": ["kind"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["idempotency_conflict"]
+                      }
+                    },
+                    "required": ["kind"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["supplier_operation_active"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["reconcile_supplier_operation"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["quote_unavailable"]
+                      },
+                      "requirements": {
+                        "type": "object",
+                        "properties": {
+                          "showsConfigure": {
+                            "type": "boolean"
+                          },
+                          "showsBilling": {
+                            "type": "boolean"
+                          },
+                          "showsTravelers": {
+                            "type": "boolean"
+                          },
+                          "showsAccommodation": {
+                            "type": "boolean"
+                          },
+                          "showsAddons": {
+                            "type": "boolean"
+                          },
+                          "showsPayment": {
+                            "type": "boolean"
+                          },
+                          "showsReview": {
+                            "type": "boolean",
+                            "enum": [true]
+                          },
+                          "configureSubSteps": {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["departure"]
+                                    },
+                                    "required": {
+                                      "type": "boolean",
+                                      "enum": [true]
+                                    }
+                                  },
+                                  "required": ["kind", "required"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["product-option"]
+                                    },
+                                    "options": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "code": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "isDefault": {
+                                            "type": "boolean"
+                                          },
+                                          "units": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "unitType": {
+                                                  "type": ["string", "null"]
+                                                },
+                                                "minQuantity": {
+                                                  "type": ["integer", "null"],
+                                                  "minimum": 0
+                                                },
+                                                "maxQuantity": {
+                                                  "type": ["integer", "null"],
+                                                  "minimum": 0
+                                                }
+                                              },
+                                              "required": ["id", "name"]
+                                            }
+                                          }
+                                        },
+                                        "required": ["id", "name"]
+                                      }
+                                    }
+                                  },
+                                  "required": ["kind", "options"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["option-units"]
+                                    }
+                                  },
+                                  "required": ["kind"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["cabin-category"]
+                                    },
+                                    "categories": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "code": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "type": {
+                                            "type": "string"
+                                          },
+                                          "capacityMin": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "capacityMax": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "description": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["id", "name"]
+                                      }
+                                    }
+                                  },
+                                  "required": ["kind", "categories"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["cabin-number"]
+                                    },
+                                    "perCategory": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "capacity": {
+                                              "type": "integer",
+                                              "minimum": 0
+                                            },
+                                            "hasAccessibilityFeatures": {
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": ["id", "label"]
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "required": ["kind", "perCategory"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["date-range"]
+                                    },
+                                    "minNights": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0
+                                    },
+                                    "maxNights": {
+                                      "type": "integer",
+                                      "exclusiveMinimum": 0
+                                    }
+                                  },
+                                  "required": ["kind", "minNights", "maxNights"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["occupancy"]
+                                    },
+                                    "bands": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "code": {
+                                            "type": "string"
+                                          },
+                                          "label": {
+                                            "type": "string"
+                                          },
+                                          "minAge": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "maxAge": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "minCount": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          "maxCount": {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          }
+                                        },
+                                        "required": ["code", "label", "minCount", "maxCount"]
+                                      }
+                                    }
+                                  },
+                                  "required": ["kind", "bands"]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["air-arrangement"]
+                                    },
+                                    "required": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "required": ["kind"]
+                                }
+                              ]
+                            }
+                          },
+                          "paxBands": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "minAge": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "maxAge": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "minCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "maxCount": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["code", "label", "minCount", "maxCount"]
+                            }
+                          },
+                          "paxBandsAllowedTotal": {
+                            "type": "object",
+                            "properties": {
+                              "min": {
+                                "type": "integer"
+                              },
+                              "max": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["min", "max"]
+                          },
+                          "paxBandDependencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "dependentCode": {
+                                  "type": "string"
+                                },
+                                "masterCode": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "requires",
+                                    "limits_per_master",
+                                    "limits_sum",
+                                    "excludes"
+                                  ]
+                                },
+                                "maxPerMaster": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "maxDependentSum": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["dependentCode", "masterCode", "type"]
+                            }
+                          },
+                          "travelerFields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "options": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["value", "label"]
+                                  }
+                                },
+                                "appliesToBands": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": ["key", "label", "type", "required"]
+                            }
+                          },
+                          "bookingFields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                },
+                                "group": {
+                                  "type": "string",
+                                  "enum": ["billing", "company", "preferences"]
+                                }
+                              },
+                              "required": ["key", "label", "type", "required", "group"]
+                            }
+                          },
+                          "accommodation": {
+                            "type": "object",
+                            "properties": {
+                              "roomOptions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "capacity": {
+                                      "type": ["integer", "null"],
+                                      "minimum": 0
+                                    },
+                                    "baseRateHint": {
+                                      "type": ["number", "null"]
+                                    },
+                                    "ratePlans": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "chargeFrequency": {
+                                            "type": "string",
+                                            "enum": ["per_night", "per_stay"]
+                                          },
+                                          "cancellationPolicy": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "inclusions": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "currency": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": ["id", "name"]
+                                      }
+                                    }
+                                  },
+                                  "required": ["id", "name"]
+                                }
+                              },
+                              "sharedRoomAllowed": {
+                                "type": "boolean"
+                              },
+                              "subSteps": {
+                                "type": "array",
+                                "items": {
+                                  "oneOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": ["rooms"]
+                                        },
+                                        "options": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "type": "string"
+                                              },
+                                              "description": {
+                                                "type": ["string", "null"]
+                                              },
+                                              "capacity": {
+                                                "type": ["integer", "null"],
+                                                "minimum": 0
+                                              },
+                                              "baseRateHint": {
+                                                "type": ["number", "null"]
+                                              },
+                                              "ratePlans": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "name": {
+                                                      "type": "string"
+                                                    },
+                                                    "description": {
+                                                      "type": ["string", "null"]
+                                                    },
+                                                    "chargeFrequency": {
+                                                      "type": "string",
+                                                      "enum": ["per_night", "per_stay"]
+                                                    },
+                                                    "cancellationPolicy": {
+                                                      "type": ["string", "null"]
+                                                    },
+                                                    "inclusions": {
+                                                      "type": "array",
+                                                      "items": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "currency": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": ["id", "name"]
+                                                }
+                                              }
+                                            },
+                                            "required": ["id", "name"]
+                                          }
+                                        },
+                                        "sharedRoomAllowed": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": ["kind", "options", "sharedRoomAllowed"]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "type": "string",
+                                          "enum": ["extensions"]
+                                        },
+                                        "options": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "type": "string"
+                                              },
+                                              "city": {
+                                                "type": ["string", "null"]
+                                              },
+                                              "side": {
+                                                "type": "string",
+                                                "enum": ["pre", "post"]
+                                              },
+                                              "nights": {
+                                                "type": ["integer", "null"],
+                                                "minimum": 0
+                                              },
+                                              "pricePerPersonHint": {
+                                                "type": ["number", "null"]
+                                              }
+                                            },
+                                            "required": ["id", "name", "side"]
+                                          }
+                                        },
+                                        "allowsPre": {
+                                          "type": "boolean"
+                                        },
+                                        "allowsPost": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": ["kind", "options", "allowsPre", "allowsPost"]
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": ["sharedRoomAllowed"]
+                          },
+                          "addons": {
+                            "type": "object",
+                            "properties": {
+                              "catalog": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["extras", "excursions", "insurance"]
+                                    },
+                                    "groupKey": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "pricingMode": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "unitAmountCents": {
+                                      "type": ["integer", "null"]
+                                    },
+                                    "currency": {
+                                      "type": ["string", "null"]
+                                    },
+                                    "pricedPerPerson": {
+                                      "type": ["boolean", "null"]
+                                    },
+                                    "selectionType": {
+                                      "type": ["string", "null"],
+                                      "enum": [
+                                        "optional",
+                                        "required",
+                                        "default_selected",
+                                        "unavailable",
+                                        null
+                                      ]
+                                    },
+                                    "minQuantity": {
+                                      "type": ["integer", "null"],
+                                      "minimum": 0
+                                    },
+                                    "maxQuantity": {
+                                      "type": ["integer", "null"],
+                                      "minimum": 0
+                                    },
+                                    "defaultQuantity": {
+                                      "type": ["integer", "null"],
+                                      "minimum": 0
+                                    }
+                                  },
+                                  "required": ["id", "name", "kind"]
+                                }
+                              },
+                              "groups": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "type": "string",
+                                      "enum": ["extras", "excursions", "insurance"]
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "groupBy": {
+                                      "type": "string",
+                                      "enum": ["port", "day"]
+                                    },
+                                    "perGuestSelection": {
+                                      "type": "boolean"
+                                    },
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "description": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": ["extras", "excursions", "insurance"]
+                                          },
+                                          "groupKey": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "pricingMode": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "unitAmountCents": {
+                                            "type": ["integer", "null"]
+                                          },
+                                          "currency": {
+                                            "type": ["string", "null"]
+                                          },
+                                          "pricedPerPerson": {
+                                            "type": ["boolean", "null"]
+                                          },
+                                          "selectionType": {
+                                            "type": ["string", "null"],
+                                            "enum": [
+                                              "optional",
+                                              "required",
+                                              "default_selected",
+                                              "unavailable",
+                                              null
+                                            ]
+                                          },
+                                          "minQuantity": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 0
+                                          },
+                                          "maxQuantity": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 0
+                                          },
+                                          "defaultQuantity": {
+                                            "type": ["integer", "null"],
+                                            "minimum": 0
+                                          }
+                                        },
+                                        "required": ["id", "name", "kind"]
+                                      }
+                                    }
+                                  },
+                                  "required": ["kind", "label", "perGuestSelection", "items"]
+                                }
+                              }
+                            }
+                          },
+                          "paymentIntents": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "hold",
+                                "card",
+                                "bank_transfer",
+                                "ticket_on_credit",
+                                "inquiry"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "showsConfigure",
+                          "showsBilling",
+                          "showsTravelers",
+                          "showsAccommodation",
+                          "showsAddons",
+                          "showsPayment",
+                          "showsReview",
+                          "paxBands",
+                          "paxBandsAllowedTotal",
+                          "travelerFields",
+                          "bookingFields",
+                          "paymentIntents"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "target_not_found",
+                          "target_not_bookable",
+                          "price_unavailable",
+                          "policy_unavailable",
+                          "selection_unavailable"
+                        ]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": [
+                          "select_alternative_inventory",
+                          "contact_operator",
+                          "update_selection"
+                        ]
+                      }
+                    },
+                    "required": ["kind", "reason", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["commit_rejected"]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "entity_not_found",
+                          "entity_not_bookable",
+                          "incomplete_draft",
+                          "price_changed"
+                        ]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": [
+                          "select_alternative_inventory",
+                          "update_selection",
+                          "request_fresh_quote"
+                        ]
+                      }
+                    },
+                    "required": ["kind", "reason", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["invalid_selection"]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": ["unsupported_target", "forbidden_field"]
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["kind", "reason"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["renewal_not_allowed"]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "session_not_active",
+                          "extension_too_large",
+                          "absolute_lifetime_exceeded"
+                        ]
+                      }
+                    },
+                    "required": ["kind", "reason"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["quote_required"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["request_fresh_quote"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["quote_expired", "quote_superseded"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["request_fresh_quote"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["hold_required", "hold_expired", "availability_changed"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["request_new_hold"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["hold_quantity_mismatch"]
+                      },
+                      "requestedQuantity": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "expectedQuantity": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["request_new_hold"]
+                      }
+                    },
+                    "required": ["kind", "requestedQuantity", "expectedQuantity", "nextAction"]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["commit_already_consumed"]
+                      },
+                      "nextAction": {
+                        "type": "string",
+                        "enum": ["return_idempotent_result"]
+                      }
+                    },
+                    "required": ["kind", "nextAction"]
+                  }
+                ]
+              }
+            },
+            "required": ["kind", "error"]
+          }
+        ]
+      },
       "SupplierOperationRecordV1": {
         "type": "object",
         "properties": {
@@ -11592,6 +13603,511 @@
           },
           "403": {
             "description": "Active storefront channel context is required for public booking sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/catalog/offers/preview": {
+      "post": {
+        "x-voyant-api-id": "@voyant-travel/catalog#booking-engine.api.admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["product"]
+                          },
+                          "productId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "productId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["catalog_item"]
+                          },
+                          "catalogItemId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "catalogItemId"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "minLength": 2
+                      },
+                      "market": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "currency": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      }
+                    },
+                    "required": ["locale", "market"]
+                  },
+                  "selection": {
+                    "type": "object",
+                    "properties": {
+                      "configure": {
+                        "type": "object",
+                        "properties": {
+                          "departureSlotId": {
+                            "type": "string"
+                          },
+                          "departureDate": {
+                            "type": "string"
+                          },
+                          "departureTime": {
+                            "type": "string"
+                          },
+                          "pax": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "default": {}
+                          },
+                          "variantId": {
+                            "type": "string"
+                          },
+                          "optionSelections": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "optionId": {
+                                  "type": "string"
+                                },
+                                "optionName": {
+                                  "type": "string"
+                                },
+                                "optionUnitId": {
+                                  "type": "string"
+                                },
+                                "optionUnitName": {
+                                  "type": "string"
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "required": ["optionId", "quantity"]
+                            }
+                          },
+                          "cabinCategoryId": {
+                            "type": "string"
+                          },
+                          "cabinNumberId": {
+                            "type": "string"
+                          },
+                          "roomTypeId": {
+                            "type": "string"
+                          },
+                          "ratePlanId": {
+                            "type": "string"
+                          },
+                          "board": {
+                            "type": "string"
+                          },
+                          "dateRange": {
+                            "type": "object",
+                            "properties": {
+                              "checkIn": {
+                                "type": "string"
+                              },
+                              "checkOut": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["checkIn", "checkOut"]
+                          },
+                          "airArrangement": {
+                            "type": "string",
+                            "enum": ["cruise_line", "independent", "none"]
+                          }
+                        },
+                        "default": {
+                          "pax": {}
+                        }
+                      },
+                      "billing": {
+                        "type": "object",
+                        "properties": {
+                          "buyerType": {
+                            "type": "string",
+                            "enum": ["B2C", "B2B"],
+                            "default": "B2C"
+                          },
+                          "organizationId": {
+                            "type": "string"
+                          },
+                          "contact": {
+                            "type": "object",
+                            "properties": {
+                              "firstName": {
+                                "type": "string",
+                                "default": ""
+                              },
+                              "lastName": {
+                                "type": "string",
+                                "default": ""
+                              },
+                              "email": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [""]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "format": "email"
+                                  }
+                                ],
+                                "default": ""
+                              },
+                              "phone": {
+                                "type": "string"
+                              },
+                              "personId": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "address": {
+                            "type": "object",
+                            "properties": {
+                              "line1": {
+                                "type": "string"
+                              },
+                              "line2": {
+                                "type": "string"
+                              },
+                              "city": {
+                                "type": "string"
+                              },
+                              "postal": {
+                                "type": "string"
+                              },
+                              "country": {
+                                "type": "string"
+                              }
+                            },
+                            "default": {}
+                          },
+                          "company": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "vatId": {
+                                "type": "string"
+                              },
+                              "registrationNumber": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["name"]
+                          },
+                          "saveAsDefault": {
+                            "type": "boolean"
+                          }
+                        },
+                        "default": {
+                          "buyerType": "B2C",
+                          "contact": {
+                            "firstName": "",
+                            "lastName": "",
+                            "email": ""
+                          },
+                          "address": {}
+                        },
+                        "required": ["contact"]
+                      },
+                      "travelers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "rowId": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "firstName": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "lastName": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 255
+                            },
+                            "email": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [""]
+                                },
+                                {
+                                  "type": "string",
+                                  "format": "email"
+                                }
+                              ]
+                            },
+                            "phone": {
+                              "type": "string",
+                              "maxLength": 50
+                            },
+                            "personId": {
+                              "type": "string"
+                            },
+                            "band": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "default": "adult"
+                            },
+                            "dateOfBirth": {
+                              "type": "string"
+                            },
+                            "documents": {
+                              "type": "object",
+                              "additionalProperties": {}
+                            },
+                            "preferredLanguage": {
+                              "type": "string",
+                              "maxLength": 35
+                            },
+                            "specialRequests": {
+                              "type": "string"
+                            },
+                            "isPrimary": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["firstName", "lastName"]
+                        },
+                        "default": []
+                      },
+                      "accommodation": {
+                        "type": "object",
+                        "properties": {
+                          "rooms": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "optionUnitId": {
+                                  "type": "string"
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "ratePlanId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["optionUnitId", "quantity"]
+                            }
+                          },
+                          "travelerAssignments": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "default": {}
+                          },
+                          "sharedRoom": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": ["create", "join"]
+                              },
+                              "groupId": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["mode"]
+                          }
+                        },
+                        "required": ["rooms"]
+                      },
+                      "addons": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "extraId": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "integer",
+                              "minimum": 1
+                            }
+                          },
+                          "required": ["extraId", "quantity"]
+                        },
+                        "default": []
+                      },
+                      "payment": {
+                        "type": "object",
+                        "properties": {
+                          "intent": {
+                            "type": "string",
+                            "enum": [
+                              "hold",
+                              "card",
+                              "bank_transfer",
+                              "ticket_on_credit",
+                              "inquiry"
+                            ],
+                            "default": "hold"
+                          },
+                          "schedule": {}
+                        },
+                        "default": {
+                          "intent": "hold"
+                        }
+                      },
+                      "paymentSchedules": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "scheduleType": {
+                              "type": "string",
+                              "enum": ["deposit", "installment", "balance", "hold", "other"]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": ["pending", "due", "paid", "waived", "cancelled", "expired"]
+                            },
+                            "dueDate": {
+                              "type": "string"
+                            },
+                            "currency": {
+                              "type": "string",
+                              "minLength": 3,
+                              "maxLength": 3
+                            },
+                            "amountCents": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "notes": {
+                              "type": ["string", "null"]
+                            }
+                          },
+                          "required": [
+                            "scheduleType",
+                            "status",
+                            "dueDate",
+                            "currency",
+                            "amountCents"
+                          ]
+                        }
+                      },
+                      "promotionCode": {
+                        "type": "string"
+                      },
+                      "customerNotes": {
+                        "type": "string"
+                      },
+                      "quoteId": {
+                        "type": "string"
+                      },
+                      "quoteExpiresAt": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "required": ["target", "scope"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Non-binding Offer Preview — no identifier, nothing persisted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferPreviewOutcomeV1"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Active storefront channel context is required for public offer previews",
             "content": {
               "application/json": {
                 "schema": {

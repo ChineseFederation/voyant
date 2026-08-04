@@ -220,8 +220,8 @@ describe("mountCatalogBookingRoutes", () => {
 
     expect(descriptor.module).toEqual({ name: "catalog-booking" })
     expect(descriptor.publicPath).toBe("catalog")
-    expect(descriptor.anonymous).toEqual(["/booking-sessions"])
-    expect(descriptor.optionalCustomerAuth).toEqual(["/booking-sessions"])
+    expect(descriptor.anonymous).toEqual(["/booking-sessions", "/offers"])
+    expect(descriptor.optionalCustomerAuth).toEqual(["/booking-sessions", "/offers"])
     expect(descriptor.lazyRoutes?.paths).toBe(catalogBookingRoutePaths)
     expect(descriptor.transactionalPaths).toBe(catalogBookingTransactionalPaths)
 

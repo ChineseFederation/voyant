@@ -201,8 +201,13 @@ function createProductionCompositeLeafRuntime(
   return {
     composeRequirements,
     async composeQuote({ session, now, tx }) {
+      // The stateless Offer Preview quotes without a Session row, so there is
+      // no open Session transaction to borrow. Quoting only reads, so falling
+      // back to the module's connection is safe — the same fallback
+      // `composeRequirements` already makes for Session creation.
+      const db = (tx as PostgresJsDatabase | undefined) ?? deps.db
       if (session.target.kind === "catalog_item") {
-        return composeSourcedQuote(deps, session, tx as PostgresJsDatabase)
+        return composeSourcedQuote(deps, session, db)
       }
       if (session.target.kind === "trip_snapshot") {
         return unavailableQuoteResult("unsupported_target")
@@ -217,7 +222,7 @@ function createProductionCompositeLeafRuntime(
         }
       }
       const result = await handler.computeQuote(
-        { db: tx as PostgresJsDatabase, adapterContext: {} as never },
+        { db, adapterContext: {} as never },
         ownedComputeRequest(handler.entityModule, session),
       )
       // The handler builds the descriptor unconditionally, precisely so a

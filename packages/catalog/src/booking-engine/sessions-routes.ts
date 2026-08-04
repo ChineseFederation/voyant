@@ -1,5 +1,9 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi"
 import {
+  offerPreviewOutcomeV1,
+  offerPreviewRequestV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import {
   abandonBookingSessionV1,
   adoptBookingSessionV1,
   type BookingSessionActorKindV1,
@@ -48,6 +52,39 @@ const bookingSessionOutcomeOpenApiSchema = z
 const supplierOperationRecordOpenApiSchema = z
   .lazy(() => supplierOperationRecordV1)
   .openapi("SupplierOperationRecordV1")
+const offerPreviewOutcomeOpenApiSchema = z
+  .lazy(() => offerPreviewOutcomeV1)
+  .openapi("OfferPreviewOutcomeV1")
+
+/**
+ * The non-binding read a storefront detail page uses before any Booking
+ * Session exists. Deliberately not under `/booking-sessions`: it creates none,
+ * and nesting it there would invite a host to believe it had one.
+ */
+const previewOfferRoute = createRoute({
+  method: "post",
+  path: "/offers/preview",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: offerPreviewRequestV1 } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Non-binding Offer Preview — no identifier, nothing persisted",
+      content: { "application/json": { schema: offerPreviewOutcomeOpenApiSchema } },
+    },
+    400: {
+      description: "Invalid request",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    403: {
+      description: "Active storefront channel context is required for public offer previews",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+})
 
 const createSessionRoute = createRoute({
   method: "post",
@@ -499,6 +536,15 @@ export function createBookingSessionRoutes(options: BookingSessionRoutesOptions)
               c.req.valid("json"),
               resolveAccess(options, c),
             ),
+        ),
+      ),
+    )
+    .openapi(previewOfferRoute, async (c) =>
+      asRouteResponse(
+        c.json(
+          await options
+            .resolveModule(c)
+            .previewOffer(c.req.valid("json"), resolveAccess(options, c)),
         ),
       ),
     )

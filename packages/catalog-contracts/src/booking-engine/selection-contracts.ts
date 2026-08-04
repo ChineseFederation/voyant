@@ -243,10 +243,6 @@ export const bookingSelectionPublicV1 = z.object({
    * the booking and visible to ops; treat as untrusted input.
    */
   customerNotes: z.string().optional(),
-
-  // Engine-controlled — written when /quote returns
-  quoteId: z.string().optional(),
-  quoteExpiresAt: z.string().optional(),
 })
 export type BookingSelectionPublicV1 = z.infer<typeof bookingSelectionPublicV1>
 

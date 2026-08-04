@@ -393,6 +393,7 @@ export const catalogBookingRoutePaths = [
   "/v1/admin/catalog/booking-sessions/:sessionId/hold",
   "/v1/admin/catalog/booking-sessions/:sessionId/abandon",
   "/v1/admin/catalog/booking-sessions/:sessionId/commit",
+  "/v1/admin/catalog/offers/preview",
   "/v1/admin/catalog/booking-sessions/maintenance/expire",
   "/v1/admin/catalog/booking-sessions/maintenance/purge",
   "/v1/admin/catalog/supplier-operations",
@@ -412,6 +413,7 @@ export const catalogBookingRoutePaths = [
   "/v1/public/catalog/booking-sessions/:sessionId/hold",
   "/v1/public/catalog/booking-sessions/:sessionId/abandon",
   "/v1/public/catalog/booking-sessions/:sessionId/commit",
+  "/v1/public/catalog/offers/preview",
   "/v1/public/catalog/slots",
 ] as const
 
@@ -514,8 +516,12 @@ export function createCatalogBookingEngineApiModule(
   return {
     module: { name: "catalog-booking" },
     publicPath: "catalog",
-    anonymous: ["/booking-sessions"],
-    optionalCustomerAuth: ["/booking-sessions"],
+    // `/offers/preview` is anonymous for the same reason `/booking-sessions`
+    // is: a shopper reads a price before they have any session at all. Its
+    // storefront-channel admission is enforced inside the route bundle, the
+    // same middleware the public Session routes sit behind.
+    anonymous: ["/booking-sessions", "/offers"],
+    optionalCustomerAuth: ["/booking-sessions", "/offers"],
     lazyRoutes: {
       paths: catalogBookingRoutePaths,
       load: async () => {

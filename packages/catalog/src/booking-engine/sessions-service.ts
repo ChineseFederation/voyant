@@ -1,4 +1,8 @@
 import type {
+  OfferPreviewOutcomeV1,
+  OfferPreviewRequestV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import type {
   AbandonBookingSessionV1,
   AdoptBookingSessionV1,
   BookingHoldRecordV1,
@@ -27,6 +31,8 @@ import type {
   BookingRequirementsV1,
   PricingBreakdownV1,
 } from "./contracts.js"
+import { InvalidBookingSessionSelectionError } from "./errors.js"
+import { previewOffer } from "./offer-preview.js"
 
 const DEFAULT_SESSION_TTL_MS = 24 * 60 * 60 * 1000
 const DEFAULT_QUOTE_TTL_MS = 10 * 60 * 1000
@@ -458,6 +464,12 @@ export interface BookingSessionModulePorts {
    * is read-only either way.
    */
   composeRequirements(input: ComposeBookingQuoteInput): Promise<ComposeBookingRequirementsResult>
+  /**
+   * Price the target. Read-only, and — like `composeRequirements` — must
+   * accept a nullish `tx`: the stateless Offer Preview quotes an ephemeral
+   * session-shaped value that has no Session row and therefore no open Session
+   * transaction to borrow.
+   */
   composeQuote(input: ComposeBookingQuoteInput): Promise<ComposeBookingQuoteResult>
   placeCapacityHold(input: {
     session: BookingSessionInternalRecord
@@ -497,14 +509,13 @@ export interface BookingSessionModuleOptions {
   maxSessionLifetimeMs?: number
 }
 
-export class InvalidBookingSessionSelectionError extends Error {
-  constructor(
-    readonly reason: "unsupported_target" | "forbidden_field",
-    readonly path?: string,
-  ) {
-    super(`booking_session_selection_${reason}${path ? `:${path}` : ""}`)
-  }
-}
+/**
+ * Re-exported from `errors.js`, which is where it is now declared: the
+ * stateless Offer Preview has to recognise the same rejection, and importing
+ * it from here would put a runtime edge back from `offer-preview.ts` into this
+ * module, which imports `offer-preview.ts` in turn.
+ */
+export { InvalidBookingSessionSelectionError }
 
 export class BookingSessionCommitRejectedError extends Error {
   constructor(readonly reason: BookingSessionCommitRejectionReason) {
@@ -521,6 +532,16 @@ export interface BookingSessionModule {
     input: CreateBookingSessionV1,
     access: BookingSessionAccessContext,
   ): Promise<BookingSessionOutcomeV1>
+  /**
+   * Stateless, non-binding read of what a target would cost and what booking
+   * it would require. Mints no identifier and writes nothing — see
+   * `offer-preview.ts`. A storefront detail page uses this so that adjusting a
+   * pax stepper does not open a Session.
+   */
+  previewOffer(
+    input: OfferPreviewRequestV1,
+    access: BookingSessionAccessContext,
+  ): Promise<OfferPreviewOutcomeV1>
   resumeSession(
     sessionId: string,
     access: BookingSessionAccessContext,
@@ -722,6 +743,19 @@ export function createBookingSessionModule(
   return {
     createSession(input, access) {
       return createSessionRecord(input, access)
+    },
+
+    previewOffer(input, access) {
+      // Handed only the three derivation ports — no repository — so a preview
+      // is structurally incapable of writing a Session, Quote, Hold, operation
+      // claim or audit row.
+      const { normalizeSelection, composeRequirements, composeQuote } = options.ports
+      return previewOffer(
+        { normalizeSelection, composeRequirements, composeQuote },
+        input,
+        access,
+        now(),
+      )
     },
 
     createAcceptedProposalSession(input, access) {

@@ -37,6 +37,24 @@ export type BookingEngineErrorCode =
   | typeof ORDER_NOT_FOUND
   | typeof ORDER_ALREADY_CANCELLED
 
+/**
+ * A selection payload the Booking Session plane refuses to derive from —
+ * either the target does not take a selection at all, or the payload carried a
+ * key only the engine or an operator may write.
+ *
+ * Lives here rather than beside the Session service because both the Session
+ * lifecycle and the stateless Offer Preview raise and recognise it, and a
+ * shared error class must not make those two modules import each other.
+ */
+export class InvalidBookingSessionSelectionError extends Error {
+  constructor(
+    readonly reason: "unsupported_target" | "forbidden_field",
+    readonly path?: string,
+  ) {
+    super(`booking_session_selection_${reason}${path ? `:${path}` : ""}`)
+  }
+}
+
 export class BookingEngineError extends Error {
   constructor(
     public readonly code: BookingEngineErrorCode,
