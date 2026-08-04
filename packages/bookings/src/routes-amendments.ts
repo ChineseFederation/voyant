@@ -30,7 +30,26 @@ const errorSchema = z.object({
   bookingItemId: z.string().optional(),
   reason: z.string().optional(),
 })
-const bookingAmendmentOpenApiSchema = bookingAmendmentSchema.openapi("BookingAmendment")
+/**
+ * Named through zod's own registry, not `.openapi()`.
+ *
+ * `.openapi()` is grafted on by `extendZodWithOpenApi`, which assigns to
+ * `ZodType.prototype` when `@hono/zod-openapi` is first imported. Zod v4 copies
+ * its methods onto each instance at construction time, so that graft only ever
+ * reaches schemas built *after* that import. `bookingAmendmentSchema` is built
+ * by `@voyant-travel/bookings-contracts`, which depends on `zod` alone
+ * (ADR-0002) and is therefore constructed first whenever an importer reaches
+ * the contracts package before it reaches Hono — leaving the schema without the
+ * method and throwing `bookingAmendmentSchema.openapi is not a function`.
+ *
+ * Whether that happened was pure import-order luck: it broke
+ * `@voyant-travel/storefront`'s unit suite while every Bookings entrypoint kept
+ * working. `.meta({ id })` is native zod v4 and writes to the same
+ * `z.globalRegistry` the OpenAPI generator reads, so it produces an identical
+ * `#/components/schemas/BookingAmendment` reference with no ordering
+ * requirement at all. Do not "simplify" this back to `.openapi()`.
+ */
+const bookingAmendmentOpenApiSchema = bookingAmendmentSchema.meta({ id: "BookingAmendment" })
 const amendmentDataSchema = z.object({ data: bookingAmendmentOpenApiSchema })
 const amendmentListDataSchema = z.object({ data: z.array(bookingAmendmentOpenApiSchema) })
 const amendmentOkDataSchema = z
