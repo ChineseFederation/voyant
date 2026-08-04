@@ -1,5 +1,106 @@
 # @voyant-travel/catalog-contracts
 
+## 0.124.0
+
+### Minor Changes
+
+- 9ef6a65: Add a non-binding Offer Preview read.
+
+  Storefront detail pages — product, accommodation, cruise — have to show a live
+  price and render the right configuration controls _before_ any Booking Session
+  exists. Beta served that with `POST /catalog/quote`, which v1 deleted, and the
+  only v1 replacement was to open a Session. That is the wrong trade: Sessions are
+  persisted, revisioned, capability-bearing, expiring rows that a sweep has to
+  reap, and a shopper nudging a pax stepper is not yet an attempt to book. One
+  Session per keystroke floods `booking_sessions` at real traffic.
+
+  `POST /v1/{admin,public}/catalog/offers/preview` answers the same question
+  statelessly. `offerPreviewRequestV1` takes the Session create target union, the
+  Session commercial scope and the public selection schema;
+  `offerPreviewResultV1` returns `binding: false`, `available`, the Booking
+  Requirements, and `pricing` only when there is a price.
+
+  `requirements` is required and `pricing` is the optional half, which is the
+  load-bearing part of the shape: a sold-out or unpriced target must still render
+  a wizard, or the shopper cannot change the selection that made it unavailable.
+
+  Four structural invariants keep this from becoming beta's `/quote` under a new
+  name. It mints no identifier — no `id`, `quoteId` or token, so nothing can be
+  presented later as authority. It persists nothing: the preview is handed only
+  `normalizeSelection`, `composeRequirements` and `composeQuote`, never the
+  repository, so it cannot write a Session, Quote, Hold, operation claim or audit
+  row. It says `binding: false` explicitly. And because it has no id at all, the
+  result is not assignable where `commitBookingSessionV1` or `placeBookingHoldV1`
+  require a `quoteId` — asserted in `preview-contracts.test.ts` so a later field
+  addition cannot quietly undo it.
+
+  The preview reuses the same `composeRequirements` / `composeQuote` ports the
+  Session lifecycle uses, over an ephemeral in-memory session-shaped value, rather
+  than adding a third derivation path — the price a detail page shows and the
+  price the wizard quotes come from one place. Quoting audience is derived from
+  the caller's `actorKind` exactly as on the Session path, so a storefront visitor
+  cannot preview at staff or partner price tiers, and the public route sits behind
+  the same active-storefront-channel admission as the public Session routes.
+
+  `composeQuote` now falls back to the module's read connection when there is no
+  open Session transaction, matching what `composeRequirements` already did.
+
+- 9ef6a65: Price storefront detail pages through the non-binding Offer Preview.
+
+  The product, accommodation and cruise detail pages still called
+  `useBookingQuote`, which POSTs to `/v1/{surface}/catalog/quote` — a route v1
+  deleted. All three have been 404ing in production: no price, no availability,
+  a sidebar stuck on "pricing pending". They now call
+  `POST /v1/{surface}/catalog/offers/preview`.
+
+  **Why not just open a Booking Session.** A shopper nudging a pax stepper has
+  not attempted to book anything. Sessions are persisted, revisioned,
+  capability-bearing, expiring rows that a sweep has to reap; minting one per
+  keystroke floods `booking_sessions` at real traffic, and it also asserts
+  something untrue — that this shopper has started a booking. A price probe is a
+  read. The preview mints no identifier, persists nothing, and says
+  `binding: false`.
+
+  **The preview target union is wider than the Session-create one, deliberately.**
+  `offerPreviewTargetV1` admits `product | catalog_item | owned_entity`;
+  `createBookingSessionTargetV1` still admits only `product | catalog_item`. A
+  preview is a read, so it admits any bookable target. Creating a Session is a
+  write that allocates capability and capacity, so it stays narrower. The
+  practical consequence: accommodations and cruises are `owned_entity` targets,
+  and without the widening two of the three shipped detail pages could not ask
+  what anything costs. The members are reused from `bookingSessionTargetV1`
+  rather than redeclared so the two unions cannot drift field by field;
+  `trip_snapshot` is excluded, being composed server-side from an accepted
+  Proposal and never what a detail page points at.
+
+  **`useOfferPreview`** (`@voyant-travel/catalog-react/booking-engine`) is the
+  client. It keeps the parts of `useBookingQuote` that encode fixed bugs: the
+  250ms debounce, the pricing-significant signature so a cosmetic edit costs no
+  round trip, `placeholderData` so the price swaps in place instead of blanking,
+  and — the voyant#2643 case — dropping the previous result on a scope change, so
+  a stale-market price can never be shown while the re-scoped read is in flight.
+  A rejected outcome raises `OfferPreviewRejectedError` rather than arriving as
+  data, keeping "there is no preview" distinct from "here is a preview that says
+  unavailable"; the latter is a normal renderable result.
+
+  **Detail pages now render the server's requirements, not their own guesses.**
+  The preview returns `requirements` even when there is no price, so `PaxBlock`
+  takes each band's real `minCount`/`maxCount` from `requirements.paxBands`
+  instead of the hardcoded "8 adults, 6 children, 4 infants" that was true of no
+  product in particular, and the cruise occupancy stepper takes its bounds from
+  the sailing's adult band. Tier-qualified band codes
+  (`"child:pricing_categories_…"`) collapse onto their canonical code. The
+  hardcoded values survive only as the fallback covering the moment before the
+  first preview lands.
+
+  `BookingSidebar` takes `preview` / `isPreviewing` in place of `quoteData` /
+  `isQuoting`, and translates the preview's five-member `unavailableReason`
+  vocabulary (en + ro) instead of beta's open per-vertical strings — which would
+  otherwise have reached shoppers as raw enum members.
+
+  `useBookingQuote`, `useBookingDraft` and `useBookingHold` are untouched; two
+  other hosts still use them.
+
 ## 0.123.0
 
 ### Minor Changes
