@@ -116,6 +116,31 @@ describe("Offer Preview", () => {
   })
 
   /**
+   * Accommodations and cruises are `owned_entity` targets, which
+   * `createBookingSessionTargetV1` refuses. The preview admits them because it
+   * is a read (voyant#4188); the composition ports then route them to the owned
+   * handler registry by `entityModule`, exactly as the Session path does.
+   */
+  it("takes an owned_entity target and hands it to the composition ports intact", async () => {
+    const harness = createHarness()
+
+    const outcome = await harness.module.previewOffer(
+      {
+        ...REQUEST,
+        target: { kind: "owned_entity", entityModule: "accommodations", entityId: "acc_1" },
+      },
+      { actorKind: "anonymous" },
+    )
+
+    expect(outcome.kind).toBe("offer_preview")
+    expect(harness.composeQuote.mock.calls[0]?.[0].session.target).toEqual({
+      kind: "owned_entity",
+      entityModule: "accommodations",
+      entityId: "acc_1",
+    })
+  })
+
+  /**
    * The load-bearing case: a sold-out or unpriced target still has to render a
    * wizard, or the shopper cannot change the selection that made it
    * unavailable.

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
-import {
-  type BookingSelectionV1,
-  bookingSelectionV1,
-} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
+import type {
+  OfferPreviewRequestV1,
+  OfferPreviewTargetV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import { useOfferPreview } from "@voyant-travel/catalog-react/booking-engine"
 import { type ContentResolution, fetchContent } from "@voyant-travel/catalog-react/storefront"
 import type { CruiseContent } from "@voyant-travel/cruises/content-shape"
 import {
@@ -16,6 +16,7 @@ import {
   formatSailingDate,
   HeroImage,
   PaxStepper,
+  paxBandBounds,
   useStorefrontUi,
 } from "@voyant-travel/storefront-react/storefront"
 import { Badge } from "@voyant-travel/ui/components/badge"
@@ -48,26 +49,41 @@ export function CruiseDetailPage({ entityId }: { entityId: string }): React.Reac
     if (firstSailingId && !selectedSailingId) setSelectedSailingId(firstSailingId)
   }, [firstSailingId, selectedSailingId])
 
-  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
+  // A cruise is an `owned_entity` target — the preview admits it because a
+  // preview is a read; Session creation would not (voyant#4188).
+  const previewTarget = useMemo<OfferPreviewTargetV1>(
+    () => ({ kind: "owned_entity", entityModule: "cruises", entityId }),
+    [entityId],
+  )
+
+  const probeSelection = useMemo<OfferPreviewRequestV1["selection"] | null>(() => {
     if (!selectedSailingId || !selectedCabinCategoryId) return null
-    return bookingSelectionV1.parse({
-      entity: { module: "cruises", id: entityId, sourceKind: "" },
+    return {
       configure: {
         departureSlotId: selectedSailingId,
         cabinCategoryId: selectedCabinCategoryId,
         pax: { adult: occupancy },
       },
-    })
-  }, [entityId, selectedSailingId, selectedCabinCategoryId, occupancy])
+    }
+  }, [selectedSailingId, selectedCabinCategoryId, occupancy])
 
-  const quote = useBookingQuote({
+  // A price probe, not a booking attempt: this opens no Booking Session.
+  const preview = useOfferPreview({
     surface: "public",
-    draft: probeDraft,
+    target: previewTarget,
+    selection: probeSelection,
+    enabled: probeSelection !== null,
     // Honor the selected storefront scope (voyant#2643).
     scope: { market: scope.marketId, locale: scope.locale, currency: scope.currency },
   })
-  const totalCents = quote.data?.pricing?.total ?? 0
-  const currency = quote.data?.pricing?.currency
+  const totalCents = preview.data?.pricing?.total ?? 0
+  const currency = preview.data?.pricing?.currency
+  // Cabin occupancy bounds come from the target's Booking Requirements once the
+  // preview lands; 1-4 is only the guess that covers the gap before it does.
+  const occupancyBounds = paxBandBounds(preview.data?.requirements.paxBands, "adult", {
+    min: 1,
+    max: 4,
+  })
 
   return (
     <DetailLayout
@@ -97,10 +113,10 @@ export function CruiseDetailPage({ entityId }: { entityId: string }): React.Reac
             totalPax={occupancy}
             totalCents={totalCents}
             currency={currency ?? undefined}
-            isQuoting={quote.isQuoting}
-            quoteData={quote.data}
+            isPreviewing={preview.isPreviewing}
+            preview={preview.data}
             disabled={
-              !selectedSailingId || !selectedCabinCategoryId || quote.data?.available === false
+              !selectedSailingId || !selectedCabinCategoryId || preview.data?.available === false
             }
           >
             <div className="space-y-3">
@@ -110,8 +126,8 @@ export function CruiseDetailPage({ entityId }: { entityId: string }): React.Reac
                 hint={t.perPaxPricing}
                 value={occupancy}
                 setValue={setOccupancy}
-                min={1}
-                max={4}
+                min={occupancyBounds.min}
+                max={occupancyBounds.max}
               />
             </div>
           </BookingSidebar>

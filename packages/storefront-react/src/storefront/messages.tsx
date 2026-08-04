@@ -129,14 +129,12 @@ export const storefrontMessagesEn = {
     nightsShort: "{count}n",
     daysShort: "{count}d",
     detailUnavailable: "Detail content isn't available for this item yet.",
-    invalidUnavailable: "This product is currently unavailable.",
-    invalidDepartureNotFound: "This departure is no longer available. Choose another departure.",
-    invalidDepartureUnavailable: "This departure is sold out or closed. Choose another departure.",
-    invalidNoSellAmount: "Pricing isn't configured for this item yet.",
-    invalidProductNotFound: "Product not found.",
-    invalidCruiseNotFound: "Cruise not found.",
-    invalidPropertyNotFound: "Property not found.",
-    invalidNoPriceForOccupancy: "No price for the chosen cabin and occupancy.",
+    unavailableTargetNotFound: "This item is no longer available. Choose another.",
+    unavailableTargetNotBookable: "This item can't be booked online right now.",
+    unavailablePriceUnavailable:
+      "No price for the chosen dates and travelers. Try a different selection.",
+    unavailablePolicyUnavailable: "Booking terms couldn't be confirmed for this selection.",
+    unavailableSelectionUnavailable: "This selection isn't available. Try changing your choices.",
   },
   shopDetailAccommodations: {
     checkIn: "Check-in",
@@ -349,14 +347,14 @@ export const storefrontMessagesRo: StorefrontMessages = {
     nightsShort: "{count}n",
     daysShort: "{count}z",
     detailUnavailable: "Continutul detaliat nu este inca disponibil pentru acest produs.",
-    invalidUnavailable: "Acest produs este momentan indisponibil.",
-    invalidDepartureNotFound: "Aceasta plecare nu mai este disponibila. Alege alta plecare.",
-    invalidDepartureUnavailable: "Aceasta plecare este epuizata sau inchisa. Alege alta plecare.",
-    invalidNoSellAmount: "Preturile nu sunt inca configurate pentru acest produs.",
-    invalidProductNotFound: "Produs negasit.",
-    invalidCruiseNotFound: "Croaziera negasita.",
-    invalidPropertyNotFound: "Proprietate negasita.",
-    invalidNoPriceForOccupancy: "Niciun pret pentru cabina si ocuparea alese.",
+    unavailableTargetNotFound: "Acest produs nu mai este disponibil. Alege altul.",
+    unavailableTargetNotBookable: "Acest produs nu poate fi rezervat online acum.",
+    unavailablePriceUnavailable:
+      "Niciun pret pentru datele si calatorii alesi. Incearca o alta selectie.",
+    unavailablePolicyUnavailable:
+      "Conditiile de rezervare nu au putut fi confirmate pentru aceasta selectie.",
+    unavailableSelectionUnavailable:
+      "Aceasta selectie nu este disponibila. Incearca sa schimbi optiunile.",
   },
   shopDetailAccommodations: {
     checkIn: "Check-in",

@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
-import {
-  type BookingSelectionV1,
-  bookingSelectionV1,
-} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
+import type {
+  OfferPreviewRequestV1,
+  OfferPreviewTargetV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import { useOfferPreview } from "@voyant-travel/catalog-react/booking-engine"
 import {
   buildPublicCatalogSlotsUrl,
   type ContentResolution,
@@ -90,28 +90,41 @@ export function ProductDetailPageProducts({
     }
   }, [slotRows, selectedSlotId])
 
-  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
+  // `products` is its own target kind; any other module this page is pointed at
+  // is an `owned_entity`. Both resolve to the same owned handler server-side —
+  // naming the kind keeps a non-products module from being priced as a Product.
+  const previewTarget = useMemo<OfferPreviewTargetV1>(
+    () =>
+      entityModule === "products"
+        ? { kind: "product", productId: entityId }
+        : { kind: "owned_entity", entityModule, entityId },
+    [entityModule, entityId],
+  )
+
+  const probeSelection = useMemo<OfferPreviewRequestV1["selection"] | null>(() => {
     if (!selectedSlotId) return null
-    return bookingSelectionV1.parse({
-      entity: { module: entityModule, id: entityId, sourceKind: "" },
+    return {
       configure: {
         departureSlotId: selectedSlotId,
         pax: { adult: adultCount, child: childCount, infant: infantCount },
       },
-    })
-  }, [entityModule, entityId, selectedSlotId, adultCount, childCount, infantCount])
+    }
+  }, [selectedSlotId, adultCount, childCount, infantCount])
 
-  const quote = useBookingQuote({
+  // A price probe, not a booking attempt: this opens no Booking Session.
+  const preview = useOfferPreview({
     surface: "public",
-    draft: probeDraft,
-    // Honor the selected storefront scope (voyant#2643) so quotes price in the
+    target: previewTarget,
+    selection: probeSelection,
+    enabled: probeSelection !== null,
+    // Honor the selected storefront scope (voyant#2643) so previews price in the
     // shopper's market/currency and resolve content in their locale.
     scope: { market: scope.marketId, locale: scope.locale, currency: scope.currency },
   })
 
   const totalPax = adultCount + childCount + infantCount
-  const totalCents = quote.data?.pricing?.total ?? 0
-  const currency = quote.data?.pricing?.currency
+  const totalCents = preview.data?.pricing?.total ?? 0
+  const currency = preview.data?.pricing?.currency
 
   return (
     <>
@@ -131,9 +144,9 @@ export function ProductDetailPageProducts({
             totalPax={totalPax}
             totalCents={totalCents}
             currency={currency}
-            isQuoting={quote.isQuoting}
-            quoteData={quote.data}
-            disabled={!selectedSlotId || totalPax < 1 || quote.data?.available === false}
+            isPreviewing={preview.isPreviewing}
+            preview={preview.data}
+            disabled={!selectedSlotId || totalPax < 1 || preview.data?.available === false}
           >
             <DepartureSelect
               slots={slotRows ?? []}
@@ -149,6 +162,9 @@ export function ProductDetailPageProducts({
               setAdult={setAdultCount}
               setChild={setChildCount}
               setInfant={setInfantCount}
+              // The server's description of what this product's booking needs,
+              // in place of the page's hardcoded guesses.
+              bands={preview.data?.requirements.paxBands}
             />
           </BookingSidebar>
         }

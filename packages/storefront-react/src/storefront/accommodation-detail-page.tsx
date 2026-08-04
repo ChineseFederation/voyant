@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import type { AccommodationContent } from "@voyant-travel/accommodations/content-shape"
-import {
-  type BookingSelectionV1,
-  bookingSelectionV1,
-} from "@voyant-travel/catalog-contracts/booking-engine/contracts"
-import { useBookingQuote } from "@voyant-travel/catalog-react/booking-engine"
+import type {
+  OfferPreviewRequestV1,
+  OfferPreviewTargetV1,
+} from "@voyant-travel/catalog-contracts/booking-engine/preview-contracts"
+import { useOfferPreview } from "@voyant-travel/catalog-react/booking-engine"
 import { type ContentResolution, fetchContent } from "@voyant-travel/catalog-react/storefront"
 import { Card, CardContent, CardHeader, CardTitle } from "@voyant-travel/ui/components/card"
 import { DatePicker } from "@voyant-travel/ui/components/date-picker"
@@ -87,10 +87,16 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
     }
   }, [ratePlansForRoom, selectedRatePlanId, selectedRoomId])
 
-  const probeDraft = useMemo<BookingSelectionV1 | null>(() => {
+  // An accommodation is an `owned_entity` target — the preview admits it
+  // because a preview is a read; Session creation would not (voyant#4188).
+  const previewTarget = useMemo<OfferPreviewTargetV1>(
+    () => ({ kind: "owned_entity", entityModule: "accommodations", entityId }),
+    [entityId],
+  )
+
+  const probeSelection = useMemo<OfferPreviewRequestV1["selection"] | null>(() => {
     if (!selectedRoomId || !selectedRatePlanId || !checkIn || !checkOut) return null
-    return bookingSelectionV1.parse({
-      entity: { module: "accommodations", id: entityId, sourceKind: "" },
+    return {
       configure: {
         dateRange: { checkIn, checkOut },
         pax: { adult: adultCount, child: childCount },
@@ -105,17 +111,20 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
         ],
         travelerAssignments: {},
       },
-    })
-  }, [entityId, checkIn, checkOut, selectedRoomId, selectedRatePlanId, adultCount, childCount])
+    }
+  }, [checkIn, checkOut, selectedRoomId, selectedRatePlanId, adultCount, childCount])
 
-  const quote = useBookingQuote({
+  // A price probe, not a booking attempt: this opens no Booking Session.
+  const preview = useOfferPreview({
     surface: "public",
-    draft: probeDraft,
+    target: previewTarget,
+    selection: probeSelection,
+    enabled: probeSelection !== null,
     // Honor the selected storefront scope (voyant#2643).
     scope: { market: scope.marketId, locale: scope.locale, currency: scope.currency },
   })
-  const totalCents = quote.data?.pricing?.total ?? 0
-  const currency = quote.data?.pricing?.currency
+  const totalCents = preview.data?.pricing?.total ?? 0
+  const currency = preview.data?.pricing?.currency
 
   const totalPax = adultCount + childCount
   const datesValid = checkIn && checkOut && new Date(checkOut) > new Date(checkIn)
@@ -136,21 +145,21 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
       <AccommodationUnavailableSidebar reason="noRooms" />
     ) : !selectedRatePlanId ? (
       <AccommodationUnavailableSidebar reason="noRatePlan" />
-    ) : quote.error ? (
+    ) : preview.error ? (
       <AccommodationUnavailableSidebar reason="quoteFailed" />
     ) : (
       <BookingSidebar
         totalPax={totalPax}
         totalCents={totalCents}
         currency={currency}
-        isQuoting={quote.isQuoting}
-        quoteData={quote.data}
+        isPreviewing={preview.isPreviewing}
+        preview={preview.data}
         disabled={
           !datesValid ||
           totalPax < 1 ||
-          quote.isQuoting ||
-          !quote.data ||
-          quote.data.available === false
+          preview.isPreviewing ||
+          !preview.data ||
+          preview.data.available === false
         }
       >
         <div className="grid grid-cols-2 gap-2">
@@ -182,6 +191,9 @@ export function AccommodationDetailPage({ entityId }: { entityId: string }): Rea
           setChild={setChildCount}
           setInfant={() => {}}
           showInfants={false}
+          // The server's description of what this stay's booking needs, in
+          // place of the page's hardcoded guesses.
+          bands={preview.data?.requirements.paxBands}
         />
       </BookingSidebar>
     )

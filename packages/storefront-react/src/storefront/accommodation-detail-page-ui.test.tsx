@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
-  useBookingQuote: vi.fn(),
+  useOfferPreview: vi.fn(),
   useQuery: vi.fn(),
 }))
 
@@ -13,7 +13,7 @@ vi.mock("@tanstack/react-query", () => ({
 }))
 
 vi.mock("@voyant-travel/catalog-react/booking-engine", () => ({
-  useBookingQuote: mocks.useBookingQuote,
+  useOfferPreview: mocks.useOfferPreview,
 }))
 
 import { AccommodationDetailPage } from "./accommodation-detail-page.js"
@@ -29,9 +29,15 @@ describe("AccommodationDetailPage", () => {
     document.body.appendChild(host)
     root = createRoot(host)
     mocks.useQuery.mockReset()
-    mocks.useBookingQuote.mockReset()
+    mocks.useOfferPreview.mockReset()
     mocks.navigate.mockReset()
-    mocks.useBookingQuote.mockReturnValue({ data: null, isQuoting: false })
+    mocks.useOfferPreview.mockReturnValue({
+      data: null,
+      isPreviewing: false,
+      isSettling: false,
+      error: null,
+      refresh: vi.fn(),
+    })
   })
 
   afterEach(() => {

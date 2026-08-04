@@ -5,6 +5,9 @@
  * Per `docs/architecture/booking-journey-architecture.md` §8.1.
  *
  * Hooks:
+ *   - `useOfferPreview`        — debounced, non-binding price probe for a
+ *                                storefront detail page. Opens no Booking
+ *                                Session; see `use-offer-preview.ts`.
  *   - `useBookingDraft`        — local draft state with server sync
  *   - `useBookingQuote`        — debounced live quote on draft change
  *   - `useBookingRequirements` — convenience accessor on the latest quote
@@ -39,3 +42,10 @@ export {
   type UseBookingRequirementsOptions,
   useBookingRequirements,
 } from "./use-booking-requirements.js"
+export {
+  OfferPreviewRejectedError,
+  type OfferPreviewScope,
+  type UseOfferPreviewOptions,
+  type UseOfferPreviewResult,
+  useOfferPreview,
+} from "./use-offer-preview.js"

@@ -42,13 +42,21 @@ export function DetailLayout({
   )
 }
 
+/**
+ * The price panel on a detail page.
+ *
+ * It is fed by the non-binding Offer Preview (voyant#4188), not by a Quote:
+ * nothing on a detail page has committed to booking yet, so no Booking Session
+ * exists to quote against. `preview` is therefore a preview result, and
+ * `unavailableReason` is the preview's vocabulary for "there is no price".
+ */
 export function BookingSidebar({
   children,
   totalPax,
   totalCents,
   currency,
-  isQuoting,
-  quoteData,
+  isPreviewing,
+  preview,
   disabled,
   onBook,
 }: {
@@ -56,8 +64,8 @@ export function BookingSidebar({
   totalPax: number
   totalCents: number
   currency: string | undefined
-  isQuoting: boolean
-  quoteData: { available?: boolean; invalidReason?: string } | null | undefined
+  isPreviewing: boolean
+  preview: { available?: boolean; unavailableReason?: string } | null | undefined
   disabled: boolean
   onBook?: () => void
 }): React.ReactElement {
@@ -65,7 +73,7 @@ export function BookingSidebar({
   const priceLabel =
     totalCents > 0 && currency
       ? t.priceFrom.replace("{amount}", formatMoney(totalCents, currency))
-      : quoteData?.invalidReason
+      : preview?.unavailableReason
         ? "—"
         : t.pricePending
   const guestsLabel = totalPax === 1 ? t.guestSingular : t.guestPlural
@@ -85,15 +93,15 @@ export function BookingSidebar({
             <span className="text-muted-foreground">
               {totalPax} {guestsLabel}
             </span>
-            {isQuoting && !quoteData ? <Skeleton className="h-4 w-20" /> : null}
+            {isPreviewing && !preview ? <Skeleton className="h-4 w-20" /> : null}
           </div>
           <div className="flex items-baseline justify-between">
             <span className="font-medium">{t.subtotal}</span>
             <span className="font-medium text-xl">{priceLabel}</span>
           </div>
-          {quoteData?.invalidReason ? (
+          {preview?.unavailableReason ? (
             <p className="text-amber-600 text-xs">
-              {humanizeInvalidReason(quoteData.invalidReason, t)}
+              {humanizeUnavailableReason(preview.unavailableReason, t)}
             </p>
           ) : null}
           {onBook ? (
@@ -168,6 +176,19 @@ export function DepartureSelect({
   )
 }
 
+/**
+ * Fallback pax bounds, used only until the server says otherwise.
+ *
+ * They are guesses — "8 adults, 6 children, 4 infants" is true of no product in
+ * particular. `bands` below replaces them with the target's real Booking
+ * Requirements as soon as the Offer Preview returns them.
+ */
+const FALLBACK_PAX_BOUNDS: Record<string, { min: number; max: number }> = {
+  adult: { min: 1, max: 8 },
+  child: { min: 0, max: 6 },
+  infant: { min: 0, max: 4 },
+}
+
 export function PaxBlock({
   adult,
   child,
@@ -176,6 +197,7 @@ export function PaxBlock({
   setChild,
   setInfant,
   showInfants = true,
+  bands,
 }: {
   adult: number
   child: number
@@ -184,8 +206,17 @@ export function PaxBlock({
   setChild: (n: number) => void
   setInfant: (n: number) => void
   showInfants?: boolean
+  /**
+   * The server's `requirements.paxBands` from the Offer Preview. When present,
+   * each band's own `minCount`/`maxCount` bounds its stepper instead of the
+   * hardcoded guess — a product that sells at most two adults stops offering a
+   * third. Absent (no preview yet) falls back to {@link FALLBACK_PAX_BOUNDS},
+   * so the steppers are usable before the first price lands.
+   */
+  bands?: ReadonlyArray<{ code: string; minCount: number; maxCount: number }>
 }): React.ReactElement {
   const t = useStorefrontUi().messages.shopDetailShared
+  const bound = (code: string) => paxBandBounds(bands, code)
   return (
     <div className="space-y-3">
       <Label>{t.travelers}</Label>
@@ -194,16 +225,16 @@ export function PaxBlock({
         hint={t.adultsHint}
         value={adult}
         setValue={setAdult}
-        min={1}
-        max={8}
+        min={bound("adult").min}
+        max={bound("adult").max}
       />
       <PaxStepper
         label={t.children}
         hint={t.childrenHint}
         value={child}
         setValue={setChild}
-        min={0}
-        max={6}
+        min={bound("child").min}
+        max={bound("child").max}
       />
       {showInfants ? (
         <PaxStepper
@@ -211,12 +242,34 @@ export function PaxBlock({
           hint={t.infantsHint}
           value={infant}
           setValue={setInfant}
-          min={0}
-          max={4}
+          min={bound("infant").min}
+          max={bound("infant").max}
         />
       ) : null}
     </div>
   )
+}
+
+/**
+ * Bounds for one canonical band.
+ *
+ * Band codes arrive either canonical (`"child"`) or tier-qualified
+ * (`"child:pricing_categories_01j…"`) for a product selling several tiers of one
+ * category, so match on the base code and take the widest window across the
+ * tiers — the stepper counts the category as a whole.
+ */
+export function paxBandBounds(
+  bands: ReadonlyArray<{ code: string; minCount: number; maxCount: number }> | undefined,
+  code: string,
+  /** What to use before the first preview lands. Defaults per canonical code. */
+  fallback: { min: number; max: number } = FALLBACK_PAX_BOUNDS[code] ?? { min: 0, max: 8 },
+): { min: number; max: number } {
+  const matching = (bands ?? []).filter((band) => band.code.split(":")[0] === code)
+  if (matching.length === 0) return fallback
+  return {
+    min: Math.min(...matching.map((band) => band.minCount)),
+    max: Math.max(...matching.map((band) => band.maxCount)),
+  }
 }
 
 export function PaxStepper({
@@ -392,25 +445,26 @@ function formatMoney(cents: number, currency: string): string {
   }
 }
 
-function humanizeInvalidReason(reason: string, t: DetailSharedMessages): string {
+/**
+ * The Offer Preview reports why there is no price with
+ * `bookingQuoteUnavailableReasonV1` — five reasons, not the open per-vertical
+ * strings beta's `/quote` returned. Every member is translated, so a shopper
+ * can never be shown a raw enum member; the fallback exists only for a reason
+ * added to the contract before this switch catches up.
+ */
+function humanizeUnavailableReason(reason: string, t: DetailSharedMessages): string {
   switch (reason) {
-    case "unavailable":
-      return t.invalidUnavailable
-    case "departure_not_found":
-      return t.invalidDepartureNotFound
-    case "departure_unavailable":
-      return t.invalidDepartureUnavailable
-    case "no_sell_amount_configured":
-      return t.invalidNoSellAmount
-    case "product_not_found":
-      return t.invalidProductNotFound
-    case "cruise_not_found":
-      return t.invalidCruiseNotFound
-    case "property_not_found":
-      return t.invalidPropertyNotFound
-    case "no_price_for_occupancy":
-      return t.invalidNoPriceForOccupancy
+    case "target_not_found":
+      return t.unavailableTargetNotFound
+    case "target_not_bookable":
+      return t.unavailableTargetNotBookable
+    case "price_unavailable":
+      return t.unavailablePriceUnavailable
+    case "policy_unavailable":
+      return t.unavailablePolicyUnavailable
+    case "selection_unavailable":
+      return t.unavailableSelectionUnavailable
     default:
-      return reason
+      return t.unavailableTargetNotBookable
   }
 }

@@ -54,6 +54,7 @@ export {
   HeroImage,
   PaxBlock,
   PaxStepper,
+  paxBandBounds,
 } from "./detail-shared.js"
 export { StorefrontMarketSelector } from "./market-selector.js"
 export {

@@ -13,7 +13,11 @@ import {
   defaultTravelerFields,
   paxBandsAllowedTotalFrom,
 } from "./requirements-defaults.js"
-import { commitBookingSessionV1, placeBookingHoldV1 } from "./session-contracts.js"
+import {
+  commitBookingSessionV1,
+  createBookingSessionTargetV1,
+  placeBookingHoldV1,
+} from "./session-contracts.js"
 
 const REQUIREMENTS = {
   ...defaultRequirementsFlags(),
@@ -86,17 +90,40 @@ describe("offerPreviewResultV1", () => {
 })
 
 describe("offerPreviewRequestV1", () => {
-  it("takes only the targets a Booking Session can be opened against", () => {
-    expect(
-      offerPreviewRequestV1.safeParse({
-        target: { kind: "product", productId: "prod_1" },
-        scope: { locale: "en", market: "default" },
-      }).success,
-    ).toBe(true)
+  /**
+   * A preview is a read, so it admits any bookable target — including the
+   * `owned_entity` targets `createBookingSessionTargetV1` refuses. Accommodation
+   * and cruise detail pages are `owned_entity`, and they have to show a price.
+   */
+  it("takes every bookable target, not just the ones a Session can be created against", () => {
+    for (const target of [
+      { kind: "product", productId: "prod_1" },
+      { kind: "catalog_item", catalogItemId: "ci_1" },
+      { kind: "owned_entity", entityModule: "accommodations", entityId: "acc_1" },
+      { kind: "owned_entity", entityModule: "cruises", entityId: "cru_1" },
+    ]) {
+      expect(
+        offerPreviewRequestV1.safeParse({ target, scope: { locale: "en", market: "default" } })
+          .success,
+      ).toBe(true)
+    }
+  })
+
+  it("still refuses a trip snapshot — never what a detail page is pointed at", () => {
     expect(
       offerPreviewRequestV1.safeParse({
         target: { kind: "trip_snapshot", tripSnapshotId: "t_1", tripEnvelopeId: "e_1" },
         scope: { locale: "en", market: "default" },
+      }).success,
+    ).toBe(false)
+  })
+
+  it("keeps Session creation narrower than the preview it widened past", () => {
+    expect(
+      createBookingSessionTargetV1.safeParse({
+        kind: "owned_entity",
+        entityModule: "accommodations",
+        entityId: "acc_1",
       }).success,
     ).toBe(false)
   })

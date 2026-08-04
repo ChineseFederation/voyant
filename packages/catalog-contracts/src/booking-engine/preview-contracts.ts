@@ -33,16 +33,45 @@ import {
   bookingQuoteUnavailableReasonV1,
   bookingSessionLifecycleErrorV1,
   bookingSessionScopeV1,
-  createBookingSessionTargetV1,
+  bookingSessionTargetV1,
 } from "./session-contracts.js"
+
+const [productTarget, catalogItemTarget, ownedEntityTarget] = bookingSessionTargetV1.options
+
+/**
+ * What a preview may be taken of.
+ *
+ * Wider than `createBookingSessionTargetV1` on purpose, and the asymmetry is
+ * the decision rather than an oversight. **A preview is a read, so it admits
+ * any bookable target.** Session creation stays deliberately narrower because
+ * creating a Session is a *write*: it allocates capability and capacity, mints
+ * a persisted revisioned row and starts an expiry clock. Reads and writes are
+ * allowed to disagree about their input surface, and the cost of being wrong
+ * differs by orders of magnitude.
+ *
+ * Concretely: accommodations and cruises are `owned_entity` targets, and their
+ * storefront detail pages have to show a price. Restricting the preview to the
+ * Session create union would have left two of the three shipped detail pages
+ * unable to ask what anything costs.
+ *
+ * Members are reused from `bookingSessionTargetV1` rather than redeclared, so
+ * the two unions cannot drift field by field. `trip_snapshot` is left out: it
+ * is composed server-side from an accepted Proposal and is never what a
+ * storefront detail page is pointed at.
+ */
+export const offerPreviewTargetV1 = z.discriminatedUnion("kind", [
+  productTarget,
+  catalogItemTarget,
+  ownedEntityTarget,
+])
+export type OfferPreviewTargetV1 = z.infer<typeof offerPreviewTargetV1>
 
 /**
  * What a detail page asks about.
  *
- * The target union, the commercial scope and the public selection schema are
- * the same ones the Session create path takes — a preview that could describe
- * a target the Session plane cannot open would be quoting something the
- * shopper can never buy.
+ * The commercial scope and the public selection schema are the same ones the
+ * Session create path takes — a preview whose selection the Session plane
+ * could not accept would be quoting something the shopper can never buy.
  *
  * There is no `audience` here for the same reason `bookingSessionScopeV1` has
  * none: audience selects staff/partner price tiers and staff-visible content,
@@ -50,7 +79,7 @@ import {
  * the wire would let any storefront visitor ask for staff pricing by name.
  */
 export const offerPreviewRequestV1 = z.object({
-  target: createBookingSessionTargetV1,
+  target: offerPreviewTargetV1,
   scope: bookingSessionScopeV1,
   selection: bookingSelectionPublicV1.optional(),
 })

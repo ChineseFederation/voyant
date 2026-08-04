@@ -12,7 +12,7 @@ import type { StorefrontMarketRecord } from "../schemas.js"
  * from the packaged `useStorefrontMarkets` hook.
  *
  * `marketId` is the catalog-search scope key — the shop page threads it into
- * `useCatalogSearch({ market })` and detail pages into `useBookingQuote({
+ * `useCatalogSearch({ market })` and detail pages into `useOfferPreview({
  * scope })`. When nothing is selected the fields are `undefined` and the
  * backend's default scope applies, so the default experience is unchanged.
  */

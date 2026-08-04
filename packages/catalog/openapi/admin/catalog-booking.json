@@ -13748,6 +13748,25 @@
                         },
                         "required": ["kind", "catalogItemId"],
                         "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": ["owned_entity"]
+                          },
+                          "entityModule": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "entityId": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "entityModule", "entityId"],
+                        "additionalProperties": false
                       }
                     ]
                   },
@@ -14144,12 +14163,6 @@
                         "type": "string"
                       },
                       "customerNotes": {
-                        "type": "string"
-                      },
-                      "quoteId": {
-                        "type": "string"
-                      },
-                      "quoteExpiresAt": {
                         "type": "string"
                       }
                     }
