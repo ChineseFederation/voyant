@@ -6,6 +6,8 @@ export const profitability = {
   noDate: "Fara data",
   noProduct: "Fara produs",
   exportCsv: "Exporta CSV",
+  openDeparture: "Deschide plecarea {departure}",
+  openProduct: "Deschide produsul {product}",
   unconvertibleNote: "Fara curs valutar pentru {currencies} — excluse din total.",
   filters: {
     currency: "Moneda",

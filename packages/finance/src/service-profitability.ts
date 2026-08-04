@@ -19,6 +19,10 @@ import {
 } from "./schema.js"
 import { executeBoundaryRows, normalizeDateOnly, sqlList } from "./service-boundary-sql.js"
 import { type DeparturePlannedCost, resolveDeparturePlannedCosts } from "./service-planned-cost.js"
+import {
+  evaluateProfitabilityIssues,
+  type ProfitabilityIssue,
+} from "./service-profitability-issues.js"
 
 /**
  * FX runtime for the profitability read model. Carries the operator FX settings
@@ -92,6 +96,25 @@ export interface ProfitabilityPlannedCostCaveat {
   linesMissingCostBlock: number
 }
 
+/**
+ * How complete the report's cost picture is (voyant#4037, item 6). Fed by two
+ * gaps the report already surfaces separately: `unallocated` (recorded supplier
+ * cost with no allocation row) and missing planned cost (version-bound lines
+ * that declared no cost block, plus departures still on the `booking_items`
+ * fallback). A report is `complete` only when neither gap exists — a consumer
+ * can then trust that no margin is silently overstated by an unrecorded cost.
+ */
+export interface ProfitabilityCostCompleteness {
+  /** Under-allocated supplier cost, per currency (mirrors `unallocated`). */
+  unallocated: ProfitabilityUnallocated[]
+  /** Version-bound operation lines whose frozen day service declared no cost block. */
+  linesMissingCostBlock: number
+  /** Departures still costed from the mutable `booking_items` fallback. */
+  fallbackDepartureCount: number
+  /** True when nothing is unallocated and no planned cost is missing. */
+  complete: boolean
+}
+
 export interface DepartureProfitabilityRow {
   departureId: string
   departureLabel: string | null
@@ -102,9 +125,20 @@ export interface DepartureProfitabilityRow {
   revenueCents: number
   actualCostCents: number
   plannedCostCents: number
+  /** Confirmed supplier commitment (`booking_supplier_statuses`) for this departure. */
+  committedCostCents: number
   profitCents: number
   marginPercent: number | null
   varianceCents: number
+  /**
+   * Revenue at which this departure breaks even, at its realized per-pax price
+   * and its frozen fixed/variable cost split. Null unless the calculation is
+   * unambiguous — a misleading break-even is worse than none. See
+   * {@link resolveBreakEven}.
+   */
+  breakEvenRevenueCents: number | null
+  /** Booked pax ÷ authored capacity, as a percentage. Null when capacity is unknown. */
+  loadFactorPercent: number | null
 }
 
 export interface DepartureProfitabilityBaseRollup {
@@ -123,6 +157,9 @@ export interface DepartureProfitabilityReport {
   unattributed: ProfitabilityUnattributed[]
   unallocated: ProfitabilityUnallocated[]
   plannedCostCaveat?: ProfitabilityPlannedCostCaveat
+  costCompleteness: ProfitabilityCostCompleteness
+  /** Departure-scoped attention issues (stable codes; no hrefs). */
+  issues: ProfitabilityIssue[]
   base?: DepartureProfitabilityBaseRollup
 }
 
@@ -134,9 +171,19 @@ export interface ProductProfitabilityRow {
   revenueCents: number
   actualCostCents: number
   plannedCostCents: number
+  /** Confirmed supplier commitment rolled up across the product's departures. */
+  committedCostCents: number
   profitCents: number
   marginPercent: number | null
   varianceCents: number
+  /**
+   * Break-even revenue is not defined for a product rollup — it aggregates
+   * departures with different prices and cost shapes, where a single figure
+   * would mislead. Always null; kept for row-shape symmetry with departures.
+   */
+  breakEvenRevenueCents: number | null
+  /** Σ booked pax ÷ Σ capacity across the product's departures. Null when capacity is unknown. */
+  loadFactorPercent: number | null
 }
 
 export interface ProductProfitabilityBaseRollup {
@@ -154,6 +201,7 @@ export interface ProductProfitabilityReport {
   unattributed: ProfitabilityUnattributed[]
   unallocated: ProfitabilityUnallocated[]
   plannedCostCaveat?: ProfitabilityPlannedCostCaveat
+  costCompleteness: ProfitabilityCostCompleteness
   base?: ProductProfitabilityBaseRollup
 }
 
@@ -161,6 +209,12 @@ interface CurrencyTotals {
   revenue: number
   actual: number
   planned: number
+  /** Confirmed supplier commitment (`booking_supplier_statuses`). */
+  committed: number
+}
+
+function emptyTotals(): CurrencyTotals {
+  return { revenue: 0, actual: 0, planned: 0, committed: 0 }
 }
 
 interface DepartureAcc {
@@ -179,6 +233,18 @@ interface DepartureAcc {
    */
   base: CurrencyTotals
   residual: Map<string, CurrencyTotals>
+  /** Booked pax on the departure (from `availability_slots`), or null when unknown. */
+  bookedPax: number | null
+  /** Authored capacity on the departure, or null when unknown. */
+  capacityPax: number | null
+  /** True when planned cost came from the frozen Product Version, not the fallback. */
+  versionResolved: boolean
+  /** Version-bound lines whose day service declared no cost block. */
+  linesMissingCostBlock: number
+  /** Fixed (non-pax-driven) planned cost per currency — the break-even fixed term. */
+  plannedFixed: Map<string, number>
+  /** Per-pax variable planned rate per currency — the break-even variable term. */
+  plannedPerPaxRate: Map<string, number>
 }
 
 /** Snapshot/residual split for the aggregate (non-departure) cost breakdowns. */
@@ -192,7 +258,7 @@ const num = (value: unknown): number => Number(value ?? 0)
 function bucket(map: Map<string, CurrencyTotals>, currency: string): CurrencyTotals {
   let entry = map.get(currency)
   if (!entry) {
-    entry = { revenue: 0, actual: 0, planned: 0 }
+    entry = emptyTotals()
     map.set(currency, entry)
   }
   return entry
@@ -228,6 +294,52 @@ function resolveBaseSplit(
 function margin(profitCents: number, revenueCents: number): number | null {
   if (revenueCents <= 0) return null
   return Math.round((profitCents / revenueCents) * 1000) / 10
+}
+
+/**
+ * Load factor as a percentage (voyant#4037, item 7): booked pax over authored
+ * capacity. Returns null unless capacity is a positive known number and booked
+ * pax is known — an unknown or zero-capacity departure has no defined load
+ * factor, and a guessed one would mislead.
+ */
+function loadFactorPercent(bookedPax: number | null, capacityPax: number | null): number | null {
+  if (bookedPax == null || capacityPax == null || capacityPax <= 0) return null
+  return Math.round((bookedPax / capacityPax) * 1000) / 10
+}
+
+/**
+ * Break-even revenue (voyant#4037, item 7): the revenue at which a departure's
+ * profit is zero, at its realized per-pax price and its frozen fixed/variable
+ * cost split. Derived from the contribution-margin identity — with fixed cost
+ * `F`, variable cost per pax `v`, and price per pax `p`, break-even pax is
+ * `F / (p − v)` and break-even revenue is that times `p`.
+ *
+ * Returns null unless the calculation is UNAMBIGUOUS, because a misleading
+ * break-even is worse than none. That requires, all in one currency:
+ *   - a known cost basis: the departure was costed from the frozen Product
+ *     Version (`versionResolved`), so fixed vs per-pax variable is real, not a
+ *     `booking_items` lump we cannot decompose;
+ *   - a known price basis: positive revenue and positive booked pax give a
+ *     realized price per pax `p = revenue / pax`;
+ *   - a positive contribution margin `p − v` (otherwise the departure never
+ *     breaks even and the figure is undefined, not infinite).
+ */
+export function resolveBreakEven(input: {
+  versionResolved: boolean
+  revenueCents: number
+  bookedPax: number | null
+  fixedCents: number
+  perPaxRateCents: number
+}): number | null {
+  if (!input.versionResolved) return null
+  const pax = input.bookedPax
+  if (pax == null || pax <= 0) return null
+  if (input.revenueCents <= 0) return null
+  const pricePerPax = input.revenueCents / pax
+  const contributionPerPax = pricePerPax - input.perPaxRateCents
+  if (contributionPerPax <= 0) return null
+  const breakEvenPax = input.fixedCents / contributionPerPax
+  return Math.round(breakEvenPax * pricePerPax)
 }
 
 interface LoadedAccumulators {
@@ -289,6 +401,7 @@ async function loadDepartureAccumulators(
     serviceTypeRows,
     unattributedRows,
     unallocatedRows,
+    committedStatusRows,
   ] = await Promise.all([
     // Booked sell + planned cost per (departure, booking), with display snapshots.
     db
@@ -445,6 +558,26 @@ async function loadDepartureAccumulators(
       .from(supplierInvoices)
       .where(and(ne(supplierInvoices.status, "void"), isNull(supplierInvoices.deletedAt)))
       .groupBy(supplierInvoices.currency),
+    // Committed cost — CONFIRMED supplier commitments (`booking_supplier_statuses`
+    // with `confirmed_at` set). The commitment → invoice variance the column
+    // comment promised: what the operator has agreed to pay a supplier, before
+    // the bill arrives. Read through the boundary seam (raw SQL, no cross-module
+    // table symbol) exactly like the planned-cost resolver, so this stays
+    // invisible to the table-privacy ratchet. Rolled to departures in JS below.
+    // agent-quality: raw-sql reviewed -- owner: finance; bookings is a read-only committed-cost source, no interpolation.
+    executeBoundaryRows<{
+      booking_id: string
+      supplier_service_id: string | null
+      cost_currency: string
+      cost_amount_cents: number
+    }>(
+      db,
+      sql`
+        SELECT booking_id, supplier_service_id, cost_currency, cost_amount_cents
+        FROM booking_supplier_statuses
+        WHERE confirmed_at IS NOT NULL
+      `,
+    ),
   ])
 
   const departures = new Map<string, DepartureAcc>()
@@ -458,8 +591,14 @@ async function loadDepartureAccumulators(
         departureLabel: null,
         departureDate: null,
         byCurrency: new Map(),
-        base: { revenue: 0, actual: 0, planned: 0 },
+        base: emptyTotals(),
         residual: new Map(),
+        bookedPax: null,
+        capacityPax: null,
+        versionResolved: false,
+        linesMissingCostBlock: 0,
+        plannedFixed: new Map(),
+        plannedPerPaxRate: new Map(),
       }
       departures.set(departureId, acc)
     }
@@ -468,7 +607,7 @@ async function loadDepartureAccumulators(
   const ensureResidual = (acc: DepartureAcc, currency: string): CurrencyTotals => {
     let entry = acc.residual.get(currency)
     if (!entry) {
-      entry = { revenue: 0, actual: 0, planned: 0 }
+      entry = emptyTotals()
       acc.residual.set(currency, entry)
     }
     return entry
@@ -560,22 +699,40 @@ async function loadDepartureAccumulators(
   // Resolve friendly labels from availability_slots (+ product name) for every
   // departure — fills cost-only departures that have no booking-item snapshot.
   const departureIds = [...departures.keys()]
+  // Operation lines that carry a supplier service, keyed `slotId|supplierServiceId`,
+  // so a confirmed commitment can be pinned to the exact departure whose planned
+  // service it commits against (the #4035 spine grain). Filled below.
+  const operationSupplierKeys = new Set<string>()
   if (departureIds.length > 0) {
-    const slotRows = await executeBoundaryRows<{
-      id: string
-      date_local: Date | string
-      product_id: string | null
-      product_name: string | null
-    }>(
-      db,
-      // agent-quality: raw-sql reviewed -- owner: finance; Availability/Product are read-only profitability label sources and ids are parameter-bound.
-      sql`
-        SELECT avs.id, avs.date_local, avs.product_id, p.name AS product_name
+    const [slotRows, operationRows] = await Promise.all([
+      executeBoundaryRows<{
+        id: string
+        date_local: Date | string
+        product_id: string | null
+        product_name: string | null
+        initial_pax: number | null
+        remaining_pax: number | null
+      }>(
+        db,
+        // agent-quality: raw-sql reviewed -- owner: finance; Availability/Product are read-only profitability label/quantity sources and ids are parameter-bound.
+        sql`
+        SELECT avs.id, avs.date_local, avs.product_id, p.name AS product_name,
+               avs.initial_pax, avs.remaining_pax
         FROM availability_slots avs
         LEFT JOIN products p ON avs.product_id = p.id
         WHERE avs.id IN (${sqlList(departureIds)})
       `,
-    )
+      ),
+      // agent-quality: raw-sql reviewed -- owner: finance; operations is a read-only join source and ids are parameter-bound.
+      executeBoundaryRows<{ slot_id: string; supplier_service_id: string | null }>(
+        db,
+        sql`
+        SELECT slot_id, supplier_service_id
+        FROM departure_service_operations
+        WHERE slot_id IN (${sqlList(departureIds)}) AND supplier_service_id IS NOT NULL
+      `,
+      ),
+    ])
     for (const slot of slotRows) {
       const acc = departures.get(slot.id)
       if (!acc) continue
@@ -584,6 +741,61 @@ async function loadDepartureAccumulators(
       acc.departureDate ??= dateLocal
       acc.productId ??= slot.product_id
       acc.productName ??= slot.product_name
+      // Load factor inputs. Capacity is the authored `initial_pax`; booked pax is
+      // what has been consumed from it (`initial − remaining`). Both must be
+      // known and capacity positive for the factor to be defined downstream.
+      if (slot.initial_pax != null) {
+        acc.capacityPax = slot.initial_pax
+        acc.bookedPax =
+          slot.remaining_pax != null
+            ? Math.max(slot.initial_pax - slot.remaining_pax, 0)
+            : acc.bookedPax
+      }
+    }
+    for (const row of operationRows) {
+      if (row.supplier_service_id)
+        operationSupplierKeys.add(`${row.slot_id}|${row.supplier_service_id}`)
+    }
+  }
+
+  // Committed cost (voyant#4037, item 5). Roll each confirmed supplier
+  // commitment to a departure. Distinct departures a booking touches, with their
+  // summed sell, drive the split — the same proportional attribution revenue
+  // uses. Where the commitment names a supplier service that a departure's
+  // operation line commits against, it pins to that departure precisely.
+  const addCommitted = (acc: DepartureAcc, currency: string, cents: number): void => {
+    if (cents === 0) return
+    bucket(acc.byCurrency, currency).committed += cents
+    // No recorded FX on booking_supplier_statuses, so committed cost always
+    // routes through the fallback conversion, exactly like planned cost.
+    ensureResidual(acc, currency).committed += cents
+  }
+  const bookingDepartureSell = new Map<string, Map<string, number>>()
+  for (const [bookingId, slots] of bookingSlotSell) {
+    const byDeparture = new Map<string, number>()
+    for (const slot of slots) {
+      byDeparture.set(slot.departureId, (byDeparture.get(slot.departureId) ?? 0) + slot.sellCents)
+    }
+    bookingDepartureSell.set(bookingId, byDeparture)
+  }
+  for (const row of committedStatusRows) {
+    const cents = num(row.cost_amount_cents)
+    if (cents === 0 || !row.cost_currency) continue
+    const byDeparture = bookingDepartureSell.get(row.booking_id)
+    if (!byDeparture || byDeparture.size === 0) continue // no slotted item → not departure-attributable
+    let candidates = [...byDeparture.entries()]
+    if (row.supplier_service_id) {
+      const pinned = candidates.filter(([departureId]) =>
+        operationSupplierKeys.has(`${departureId}|${row.supplier_service_id}`),
+      )
+      if (pinned.length > 0) candidates = pinned
+    }
+    const totalSell = candidates.reduce((sum, [, sell]) => sum + sell, 0)
+    for (const [departureId, sell] of candidates) {
+      const acc = departures.get(departureId)
+      if (!acc) continue
+      const portion = totalSell > 0 ? cents * (sell / totalSell) : cents / candidates.length
+      addCommitted(acc, row.cost_currency, portion)
     }
   }
 
@@ -615,6 +827,13 @@ async function loadDepartureAccumulators(
       // booking_items (which would silently mix sources).
       plannedCostCaveat.versionResolvedCount += 1
       plannedCostCaveat.linesMissingCostBlock += resolved.linesMissingCostBlock
+      acc.versionResolved = true
+      acc.linesMissingCostBlock = resolved.linesMissingCostBlock
+      // Keep the fixed/per-pax split only for version-bound departures — the
+      // fallback booking_items figure is a lump we cannot decompose, so its
+      // break-even is deliberately never emitted.
+      acc.plannedFixed = resolved.fixedByCurrency
+      acc.plannedPerPaxRate = resolved.perPaxRateByCurrency
       for (const [currency, cents] of resolved.byCurrency) addPlanned(acc, currency, cents)
     } else {
       const stash = bookingItemsPlanned.get(departureId)
@@ -731,6 +950,7 @@ export async function getDepartureProfitability(
       const revenueCents = Math.round(totals.revenue)
       const actualCostCents = Math.round(totals.actual)
       const plannedCostCents = Math.round(totals.planned)
+      const committedCostCents = Math.round(totals.committed)
       const profitCents = revenueCents - actualCostCents
       rows.push({
         departureId: acc.departureId,
@@ -742,9 +962,18 @@ export async function getDepartureProfitability(
         revenueCents,
         actualCostCents,
         plannedCostCents,
+        committedCostCents,
         profitCents,
         marginPercent: margin(profitCents, revenueCents),
         varianceCents: plannedCostCents - actualCostCents,
+        breakEvenRevenueCents: resolveBreakEven({
+          versionResolved: acc.versionResolved,
+          revenueCents,
+          bookedPax: acc.bookedPax,
+          fixedCents: acc.plannedFixed.get(currency) ?? 0,
+          perPaxRateCents: acc.plannedPerPaxRate.get(currency) ?? 0,
+        }),
+        loadFactorPercent: loadFactorPercent(acc.bookedPax, acc.capacityPax),
       })
     }
   }
@@ -777,6 +1006,7 @@ export async function getDepartureProfitability(
       const revenueCents = Math.round(totals.revenue)
       const actualCostCents = Math.round(totals.actual)
       const plannedCostCents = Math.round(totals.planned)
+      const committedCostCents = Math.round(totals.committed)
       const profitCents = revenueCents - actualCostCents
       return {
         departureId: acc.departureId,
@@ -788,9 +1018,15 @@ export async function getDepartureProfitability(
         revenueCents,
         actualCostCents,
         plannedCostCents,
+        committedCostCents,
         profitCents,
         marginPercent: margin(profitCents, revenueCents),
         varianceCents: plannedCostCents - actualCostCents,
+        // Break-even is deliberately null on the base rollup: it mixes currencies
+        // through FX, which is exactly the case where a single figure would
+        // mislead. Load factor is unit-based (FX-free), so it carries through.
+        breakEvenRevenueCents: null,
+        loadFactorPercent: loadFactorPercent(acc.bookedPax, acc.capacityPax),
       }
     })
     .sort(
@@ -799,12 +1035,46 @@ export async function getDepartureProfitability(
         a.departureId.localeCompare(b.departureId),
     )
 
+  // Departure-scoped attention issues (item 8). Facts are summed across a
+  // departure's per-currency totals; a residual currency with no fallback rate
+  // is what makes it drop out of the base rollup (rollup_disagreement).
+  const issues: ProfitabilityIssue[] = filtered.flatMap((acc) => {
+    let hasRevenue = false
+    let actualCostCents = 0
+    let plannedCostCents = 0
+    let committedCostCents = 0
+    for (const totals of acc.byCurrency.values()) {
+      if (totals.revenue > 0) hasRevenue = true
+      actualCostCents += totals.actual
+      plannedCostCents += totals.planned
+      committedCostCents += totals.committed
+    }
+    const hasUnconvertibleAmount = [...acc.residual.keys()].some(
+      (currency) => currency !== baseCurrency && rates.get(currency) == null,
+    )
+    return evaluateProfitabilityIssues({
+      departureId: acc.departureId,
+      hasRevenue,
+      actualCostCents: Math.round(actualCostCents),
+      plannedCostCents: Math.round(plannedCostCents),
+      committedCostCents: Math.round(committedCostCents),
+      versionResolved: acc.versionResolved,
+      linesMissingCostBlock: acc.linesMissingCostBlock,
+      hasUnconvertibleAmount,
+    })
+  })
+
   return {
     rows,
     costByServiceType: filterCostByCurrency(costByServiceType, query.currency),
     unattributed: filterCostByCurrency(unattributed, query.currency),
     unallocated: filterCostByCurrency(unallocated, query.currency),
     plannedCostCaveat,
+    costCompleteness: buildCostCompleteness(
+      filterCostByCurrency(unallocated, query.currency),
+      plannedCostCaveat,
+    ),
+    issues,
     base: {
       currency: baseCurrency,
       rows: baseRows,
@@ -843,6 +1113,10 @@ export async function getProductProfitability(
     base: CurrencyTotals
     residual: Map<string, CurrencyTotals>
     baseDepartures: Set<string>
+    /** Σ booked pax and Σ capacity across departures where BOTH are known. */
+    bookedPaxSum: number
+    capacitySum: number
+    hasCapacity: boolean
   }
   const products = new Map<string, ProductAcc>()
   const ensureProduct = (productId: string): ProductAcc => {
@@ -852,9 +1126,12 @@ export async function getProductProfitability(
         productId,
         productName: null,
         byCurrency: new Map(),
-        base: { revenue: 0, actual: 0, planned: 0 },
+        base: emptyTotals(),
         residual: new Map(),
         baseDepartures: new Set(),
+        bookedPaxSum: 0,
+        capacitySum: 0,
+        hasCapacity: false,
       }
       products.set(productId, acc)
     }
@@ -863,7 +1140,7 @@ export async function getProductProfitability(
   const productBucket = (acc: ProductAcc, currency: string) => {
     let entry = acc.byCurrency.get(currency)
     if (!entry) {
-      entry = { revenue: 0, actual: 0, planned: 0, departures: new Set() }
+      entry = { ...emptyTotals(), departures: new Set<string>() }
       acc.byCurrency.set(currency, entry)
     }
     return entry
@@ -871,7 +1148,7 @@ export async function getProductProfitability(
   const productResidual = (acc: ProductAcc, currency: string) => {
     let entry = acc.residual.get(currency)
     if (!entry) {
-      entry = { revenue: 0, actual: 0, planned: 0 }
+      entry = emptyTotals()
       acc.residual.set(currency, entry)
     }
     return entry
@@ -888,18 +1165,29 @@ export async function getProductProfitability(
       entry.revenue += totals.revenue
       entry.actual += totals.actual
       entry.planned += totals.planned
+      entry.committed += totals.committed
       entry.departures.add(dep.departureId)
     }
     // Base rollup aggregates across currencies (no currency filter).
     acc.base.revenue += dep.base.revenue
     acc.base.actual += dep.base.actual
     acc.base.planned += dep.base.planned
+    acc.base.committed += dep.base.committed
     acc.baseDepartures.add(dep.departureId)
+    // Load factor rolls up only over departures whose capacity AND booked pax
+    // are both known, so a product with one uncounted departure never reports a
+    // deceptively low factor.
+    if (dep.capacityPax != null && dep.capacityPax > 0 && dep.bookedPax != null) {
+      acc.capacitySum += dep.capacityPax
+      acc.bookedPaxSum += dep.bookedPax
+      acc.hasCapacity = true
+    }
     for (const [currency, res] of dep.residual) {
       const entry = productResidual(acc, currency)
       entry.revenue += res.revenue
       entry.actual += res.actual
       entry.planned += res.planned
+      entry.committed += res.committed
     }
   }
 
@@ -918,10 +1206,14 @@ export async function getProductProfitability(
 
   const rows: ProductProfitabilityRow[] = []
   for (const acc of products.values()) {
+    const productLoadFactor = acc.hasCapacity
+      ? loadFactorPercent(acc.bookedPaxSum, acc.capacitySum)
+      : null
     for (const [currency, totals] of acc.byCurrency) {
       const revenueCents = Math.round(totals.revenue)
       const actualCostCents = Math.round(totals.actual)
       const plannedCostCents = Math.round(totals.planned)
+      const committedCostCents = Math.round(totals.committed)
       const profitCents = revenueCents - actualCostCents
       rows.push({
         productId: acc.productId,
@@ -931,9 +1223,12 @@ export async function getProductProfitability(
         revenueCents,
         actualCostCents,
         plannedCostCents,
+        committedCostCents,
         profitCents,
         marginPercent: margin(profitCents, revenueCents),
         varianceCents: plannedCostCents - actualCostCents,
+        breakEvenRevenueCents: null,
+        loadFactorPercent: productLoadFactor,
       })
     }
   }
@@ -961,6 +1256,7 @@ export async function getProductProfitability(
       const revenueCents = Math.round(totals.revenue)
       const actualCostCents = Math.round(totals.actual)
       const plannedCostCents = Math.round(totals.planned)
+      const committedCostCents = Math.round(totals.committed)
       const profitCents = revenueCents - actualCostCents
       return {
         productId: acc.productId,
@@ -970,9 +1266,14 @@ export async function getProductProfitability(
         revenueCents,
         actualCostCents,
         plannedCostCents,
+        committedCostCents,
         profitCents,
         marginPercent: margin(profitCents, revenueCents),
         varianceCents: plannedCostCents - actualCostCents,
+        breakEvenRevenueCents: null,
+        loadFactorPercent: acc.hasCapacity
+          ? loadFactorPercent(acc.bookedPaxSum, acc.capacitySum)
+          : null,
       }
     })
     .sort((a, b) => a.productId.localeCompare(b.productId))
@@ -983,6 +1284,10 @@ export async function getProductProfitability(
     unattributed: filterCostByCurrency(unattributed, query.currency),
     unallocated: filterCostByCurrency(unallocated, query.currency),
     plannedCostCaveat,
+    costCompleteness: buildCostCompleteness(
+      filterCostByCurrency(unallocated, query.currency),
+      plannedCostCaveat,
+    ),
     base: {
       currency: baseCurrency,
       rows: baseRows,
@@ -1224,6 +1529,7 @@ function baseFromAcc(
     revenue: snapshot.revenue,
     actual: snapshot.actual,
     planned: snapshot.planned,
+    committed: snapshot.committed,
   }
   for (const [currency, res] of residual) {
     const rate = rates.get(currency)
@@ -1231,8 +1537,30 @@ function baseFromAcc(
     out.revenue += res.revenue * rate
     out.actual += res.actual * rate
     out.planned += res.planned * rate
+    out.committed += res.committed * rate
   }
   return out
+}
+
+/**
+ * Build the cost-completeness block (voyant#4037, item 6) from the two gaps the
+ * report already surfaces: under-allocated supplier cost and missing planned
+ * cost. Pure over already-loaded figures.
+ */
+function buildCostCompleteness(
+  unallocated: ProfitabilityUnallocated[],
+  caveat: ProfitabilityPlannedCostCaveat,
+): ProfitabilityCostCompleteness {
+  const hasUnallocated = unallocated.some((entry) => entry.amountCents !== 0)
+  return {
+    unallocated,
+    linesMissingCostBlock: caveat.linesMissingCostBlock,
+    fallbackDepartureCount: caveat.fallbackDepartureIds.length,
+    complete:
+      !hasUnallocated &&
+      caveat.linesMissingCostBlock === 0 &&
+      caveat.fallbackDepartureIds.length === 0,
+  }
 }
 
 /** Resolve the cost-by-category breakdown into the accounting base currency. */
@@ -1290,7 +1618,9 @@ function unaccountedCostRows(report: {
   ]
 }
 
-export function buildDepartureProfitabilityCsv(report: DepartureProfitabilityReport): string {
+export function buildDepartureProfitabilityCsv(
+  report: Pick<DepartureProfitabilityReport, "rows" | "unattributed" | "unallocated">,
+): string {
   const header = [
     "departure_id",
     "departure",
@@ -1301,9 +1631,12 @@ export function buildDepartureProfitabilityCsv(report: DepartureProfitabilityRep
     "revenue",
     "actual_cost",
     "planned_cost",
+    "committed_cost",
     "profit",
     "margin_percent",
     "variance",
+    "break_even_revenue",
+    "load_factor_percent",
   ]
   const rows = report.rows.map((r) =>
     csvRow([
@@ -1316,15 +1649,20 @@ export function buildDepartureProfitabilityCsv(report: DepartureProfitabilityRep
       major(r.revenueCents),
       major(r.actualCostCents),
       major(r.plannedCostCents),
+      major(r.committedCostCents),
       major(r.profitCents),
       marginCell(r.marginPercent),
       major(r.varianceCents),
+      r.breakEvenRevenueCents == null ? "" : major(r.breakEvenRevenueCents),
+      marginCell(r.loadFactorPercent),
     ]),
   )
   return csvDocument([csvRow(header), ...rows, ...unaccountedCostRows(report)])
 }
 
-export function buildProductProfitabilityCsv(report: ProductProfitabilityReport): string {
+export function buildProductProfitabilityCsv(
+  report: Pick<ProductProfitabilityReport, "rows" | "unattributed" | "unallocated">,
+): string {
   const header = [
     "product_id",
     "product",
@@ -1333,9 +1671,11 @@ export function buildProductProfitabilityCsv(report: ProductProfitabilityReport)
     "revenue",
     "actual_cost",
     "planned_cost",
+    "committed_cost",
     "profit",
     "margin_percent",
     "variance",
+    "load_factor_percent",
   ]
   const rows = report.rows.map((r) =>
     csvRow([
@@ -1346,9 +1686,11 @@ export function buildProductProfitabilityCsv(report: ProductProfitabilityReport)
       major(r.revenueCents),
       major(r.actualCostCents),
       major(r.plannedCostCents),
+      major(r.committedCostCents),
       major(r.profitCents),
       marginCell(r.marginPercent),
       major(r.varianceCents),
+      marginCell(r.loadFactorPercent),
     ]),
   )
   return csvDocument([csvRow(header), ...rows, ...unaccountedCostRows(report)])

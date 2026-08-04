@@ -65,6 +65,10 @@ export interface ProfitabilityPageProps {
   onExportDepartures?: (filters: ProfitabilityExportFilters) => void
   /** Wire to download the product CSV for the active date range. */
   onExportProducts?: (filters: ProfitabilityExportFilters) => void
+  /** Deep-link a departure row to the Departure workspace (host supplies navigation). */
+  onOpenDeparture?: (departureId: string) => void
+  /** Deep-link a product row to the Product workspace (host supplies navigation). */
+  onOpenProduct?: (productId: string) => void
 }
 
 function marginText(value: number | null): string {
@@ -112,6 +116,8 @@ export function ProfitabilityPage({
   className,
   onExportDepartures,
   onExportProducts,
+  onOpenDeparture,
+  onOpenProduct,
 }: ProfitabilityPageProps = {}) {
   const i18n = useFinanceUiI18nOrDefault()
   const t = i18n.messages.profitability
@@ -550,6 +556,7 @@ export function ProfitabilityPage({
                           label: row.departureLabel ?? row.departureId,
                         })
                 }
+                onOpenDeparture={onOpenDeparture}
               />
             </CardContent>
           </Card>
@@ -569,7 +576,11 @@ export function ProfitabilityPage({
               ) : null}
             </CardHeader>
             <CardContent className="min-w-0">
-              <ProductTable rows={productRows} currency={activeCurrency} />
+              <ProductTable
+                rows={productRows}
+                currency={activeCurrency}
+                onOpenProduct={onOpenProduct}
+              />
             </CardContent>
           </Card>
         </>

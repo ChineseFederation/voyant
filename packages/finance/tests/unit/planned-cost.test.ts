@@ -49,6 +49,42 @@ describe("aggregateDeparturePlannedCost", () => {
     expect(entry?.linesMissingCostBlock).toBe(0)
   })
 
+  it("splits planned cost into a fixed term and a per-pax variable rate (break-even inputs)", () => {
+    const blocks: BlocksByVersion = new Map([
+      [
+        "pv_1",
+        new Map<string, SnapshotPlannedCost>([
+          ["svc_pax", block({ driver: "pax", rateCents: 5000 })],
+          ["svc_room", block({ basis: "per_room", driver: "rooms", rateCents: 8000 })],
+        ]),
+      ],
+    ])
+    const quantities = new Map<string, DepartureQuantities>([["avsl_1", { pax: 3, rooms: 2 }]])
+    const lines: PlannedCostLine[] = [
+      { departureId: "avsl_1", productVersionId: "pv_1", sourceDayServiceId: "svc_pax" },
+      { departureId: "avsl_1", productVersionId: "pv_1", sourceDayServiceId: "svc_room" },
+    ]
+    const entry = aggregateDeparturePlannedCost(lines, blocks, quantities).get("avsl_1")
+    // Room cost is fixed relative to load (8000×2 = 16000); pax cost is variable
+    // at 5000 per pax. Total reconstructs: 16000 + 5000×3 = 31000.
+    expect(entry?.fixedByCurrency.get("EUR")).toBe(16000)
+    expect(entry?.perPaxRateByCurrency.get("EUR")).toBe(5000)
+    expect(entry?.byCurrency.get("EUR")).toBe(31000)
+  })
+
+  it("records a per-pax rate even when the departure has zero booked pax", () => {
+    const blocks: BlocksByVersion = new Map([
+      ["pv_1", new Map([["svc_pax", block({ driver: "pax", rateCents: 4000 })]])],
+    ])
+    const lines: PlannedCostLine[] = [
+      { departureId: "avsl_1", productVersionId: "pv_1", sourceDayServiceId: "svc_pax" },
+    ]
+    // No quantities → pax 0 → total 0, but the marginal per-pax rate is still known.
+    const entry = aggregateDeparturePlannedCost(lines, blocks, new Map()).get("avsl_1")
+    expect(entry?.byCurrency.size).toBe(0)
+    expect(entry?.perPaxRateByCurrency.get("EUR")).toBe(4000)
+  })
+
   it("keeps distinct cost currencies apart — never sums across FX", () => {
     const blocks: BlocksByVersion = new Map([
       [

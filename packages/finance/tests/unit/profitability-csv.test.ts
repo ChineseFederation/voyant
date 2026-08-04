@@ -25,9 +25,12 @@ const departureRow: DepartureProfitabilityReport["rows"][number] = {
   revenueCents: 500000,
   actualCostCents: 300000,
   plannedCostCents: 320000,
+  committedCostCents: 310000,
   profitCents: 200000,
   marginPercent: 40,
   varianceCents: 20000,
+  breakEvenRevenueCents: null,
+  loadFactorPercent: null,
 }
 
 const productRow: ProductProfitabilityReport["rows"][number] = {
@@ -38,9 +41,12 @@ const productRow: ProductProfitabilityReport["rows"][number] = {
   revenueCents: 1500000,
   actualCostCents: 900000,
   plannedCostCents: 960000,
+  committedCostCents: 930000,
   profitCents: 600000,
   marginPercent: 40,
   varianceCents: 60000,
+  breakEvenRevenueCents: null,
+  loadFactorPercent: null,
 }
 
 describe("profitability CSV exports", () => {

@@ -40,7 +40,10 @@ async function seedSupplierCost(
     serviceType: "transport" | "flight" | "guide" | "other"
     amountCents: number
     costCategoryId?: string
-    target: { targetType: "departure"; departureId: string } | { targetType: "unattributed" }
+    target:
+      | { targetType: "departure"; departureId: string }
+      | { targetType: "product"; productId: string }
+      | { targetType: "unattributed" }
     /**
      * Allocate less than the invoice total. `validateAllocations` permits this
      * and stores nothing for the leftover, so the remainder only exists as
@@ -81,11 +84,18 @@ async function seedSupplierCost(
               supplierInvoiceLineId: lineId,
               amountCents: allocateCents,
             }
-          : {
-              targetType: "unattributed",
-              supplierInvoiceLineId: lineId,
-              amountCents: allocateCents,
-            },
+          : opts.target.targetType === "product"
+            ? {
+                targetType: "product",
+                productId: opts.target.productId,
+                supplierInvoiceLineId: lineId,
+                amountCents: allocateCents,
+              }
+            : {
+                targetType: "unattributed",
+                supplierInvoiceLineId: lineId,
+                amountCents: allocateCents,
+              },
       ],
     })
   }
@@ -744,5 +754,381 @@ describe.skipIf(!DB_AVAILABLE)("profitability read model", () => {
       })
       expect(row.marginPercent).toBeCloseTo(25, 1)
     }
+  })
+
+  // -------------------------------------------------------------------------
+  // Version-bound planned cost from the frozen day-service contract (item 11).
+  // The prior suite exercised only the booking_items FALLBACK; this seeds a real
+  // product_versions row, a slot bound to it, and a materialized operation line,
+  // and proves the resolver costs from the FROZEN snapshot — immune to edits of
+  // the live product_day_services row.
+  // -------------------------------------------------------------------------
+  async function seedVersionBoundScenario() {
+    // A frozen snapshot whose one day service declares a per-night planned cost
+    // of 10000/night. The departure has 3 nights, so planned cost = 30000 EUR.
+    const snapshot = {
+      id: "prod_pv",
+      itineraries: [
+        {
+          id: "pit_1",
+          productId: "prod_pv",
+          isDefault: true,
+          days: [
+            {
+              id: "pday_1",
+              itineraryId: "pit_1",
+              dayNumber: 1,
+              services: [
+                {
+                  id: "pds_1",
+                  dayId: "pday_1",
+                  serviceType: "guide",
+                  name: "Frozen guide",
+                  plannedCost: {
+                    version: 1,
+                    basis: "per_night",
+                    driver: "nights",
+                    quantity: 1,
+                    rateCents: 10000,
+                    currency: "EUR",
+                    fxRates: null,
+                    resolvedAt: null,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    // Live product chain. The live day-service cost (99999) is deliberately WRONG
+    // — if the resolver ever read it instead of the frozen block, planned cost
+    // would jump, and the assertions below would catch it.
+    await db.execute(
+      sql`insert into products (id, name, sell_currency) values ('prod_pv', 'Version Tour', 'EUR')`,
+    )
+    await db.execute(
+      sql`insert into product_itineraries (id, product_id, name) values ('pit_1', 'prod_pv', 'Default')`,
+    )
+    await db.execute(
+      sql`insert into product_days (id, itinerary_id, day_number) values ('pday_1', 'pit_1', 1)`,
+    )
+    await db.execute(
+      sql`insert into product_day_services (id, day_id, service_type, name, cost_currency, cost_amount_cents)
+          values ('pds_1', 'pday_1', 'guide', 'Live guide', 'EUR', 99999)`,
+    )
+    await db.execute(
+      sql`insert into product_versions (id, product_id, version_number, snapshot, author_id)
+          values ('pv_1', 'prod_pv', 1, ${JSON.stringify(snapshot)}::jsonb, 'staff_test')`,
+    )
+    // Slot bound to the version, 3 nights, capacity 20 with 5 consumed.
+    await db.execute(
+      sql`insert into availability_slots
+            (id, product_id, product_version_id, date_local, starts_at, timezone, status, unlimited, initial_pax, remaining_pax, nights)
+          values
+            ('avsl_pv', 'prod_pv', 'pv_1', '2026-07-01', '2026-07-01T09:00:00Z', 'UTC', 'open', false, 20, 15, 3)`,
+    )
+    // Materialized operation line keyed (slot_id, source_day_service_id).
+    await db.execute(
+      sql`insert into departure_service_operations
+            (id, slot_id, product_version_id, source_day_id, source_day_service_id, day_number, date_local, timezone, name)
+          values
+            ('dso_1', 'avsl_pv', 'pv_1', 'pday_1', 'pds_1', 1, '2026-07-01', 'UTC', 'Frozen guide')`,
+    )
+    // A booking on the slot with a booking_items planned cost of 77777 — the
+    // fallback figure that MUST be ignored for a version-bound departure.
+    await db.insert(bookings).values({
+      id: "book_pv",
+      bookingNumber: "BKG-PV",
+      status: "confirmed",
+      sellCurrency: "EUR",
+      startDate: "2026-07-01",
+      pax: 5,
+    })
+    await db.insert(bookingItems).values({
+      bookingId: "book_pv",
+      title: "Version Tour",
+      status: "confirmed",
+      availabilitySlotId: "avsl_pv",
+      productId: "prod_pv",
+      productNameSnapshot: "Version Tour",
+      startsAt: new Date("2026-07-01T09:00:00Z"),
+      quantity: 1,
+      sellCurrency: "EUR",
+      totalSellAmountCents: 100000,
+      costCurrency: "EUR",
+      totalCostAmountCents: 77777,
+    })
+    await db.insert(invoices).values({
+      invoiceNumber: "INV-PV",
+      invoiceType: "invoice",
+      status: "issued",
+      bookingId: "book_pv",
+      currency: "EUR",
+      totalCents: 100000,
+      paidCents: 0,
+      balanceDueCents: 100000,
+      issueDate: "2026-06-15",
+      dueDate: "2026-06-30",
+    })
+  }
+
+  it("resolves planned cost from the frozen Product Version, not booking_items or the live day service", async () => {
+    await seedVersionBoundScenario()
+    const report = await financeService.getDepartureProfitability(db, {})
+    const row = report.rows.find((r) => r.departureId === "avsl_pv" && r.currency === "EUR")
+
+    // 10000/night × 3 nights = 30000 — the FROZEN block, not 77777 (booking_items)
+    // and not 99999 (the live product_day_services row).
+    expect(row?.plannedCostCents).toBe(30000)
+    expect(row?.plannedCostCents).not.toBe(77777)
+    expect(row?.plannedCostCents).not.toBe(99999)
+
+    // Version-bound, so this departure is NOT named as a fallback.
+    expect(report.plannedCostCaveat?.fallbackDepartureIds).not.toContain("avsl_pv")
+    expect(report.plannedCostCaveat?.versionResolvedCount).toBeGreaterThanOrEqual(1)
+
+    // Load factor from authored capacity: 5 booked of 20 = 25%.
+    expect(row?.loadFactorPercent).toBeCloseTo(25, 1)
+
+    // Break-even: the frozen fixed cost (per-night, no per-pax term) is 30000, and
+    // with a positive contribution margin it breaks even exactly at that cost.
+    expect(row?.breakEvenRevenueCents).toBe(30000)
+  })
+
+  it("keeps version-bound planned cost frozen when the live product_day_services row is edited", async () => {
+    await seedVersionBoundScenario()
+    const before = await financeService.getDepartureProfitability(db, {})
+    const beforeRow = before.rows.find((r) => r.departureId === "avsl_pv" && r.currency === "EUR")
+    expect(beforeRow?.plannedCostCents).toBe(30000)
+
+    // Edit the LIVE day service well away from the frozen figure.
+    await db.execute(
+      sql`update product_day_services set cost_amount_cents = 88888, cost_currency = 'USD' where id = 'pds_1'`,
+    )
+
+    const after = await financeService.getDepartureProfitability(db, {})
+    const afterRow = after.rows.find((r) => r.departureId === "avsl_pv" && r.currency === "EUR")
+    // Unchanged: the resolver reads the frozen snapshot, never the mutable row.
+    expect(afterRow?.plannedCostCents).toBe(30000)
+  })
+
+  // -------------------------------------------------------------------------
+  // Rollup exactness (item 10). Σ departure rows + product-only allocations +
+  // unattributed + unallocated == the product rollup, per currency AND in the
+  // accounting base — any difference enumerated explicitly, never tolerated.
+  // -------------------------------------------------------------------------
+  const PRODUCT_ONLY_EUR = 15000
+  const UNATTRIBUTED_EUR = 5000
+  const UNALLOCATED_EUR = 20000
+  const COMMITTED_EUR = 25000
+
+  async function seedRollupScenario() {
+    await db.insert(bookings).values([
+      {
+        id: "book_r1",
+        bookingNumber: "BKG-R1",
+        status: "confirmed",
+        sellCurrency: "EUR",
+        startDate: "2026-07-01",
+      },
+      {
+        id: "book_r2",
+        bookingNumber: "BKG-R2",
+        status: "confirmed",
+        sellCurrency: "EUR",
+        startDate: "2026-07-01",
+      },
+    ])
+    await db.insert(bookingItems).values([
+      {
+        bookingId: "book_r1",
+        title: "Rollup Tour",
+        status: "confirmed",
+        availabilitySlotId: "avsl_r1",
+        productId: "prod_r",
+        productNameSnapshot: "Rollup Tour",
+        startsAt: new Date("2026-07-01T09:00:00Z"),
+        quantity: 1,
+        sellCurrency: "EUR",
+        totalSellAmountCents: 100000,
+        costCurrency: "EUR",
+        totalCostAmountCents: 60000,
+      },
+      {
+        bookingId: "book_r2",
+        title: "Rollup Tour",
+        status: "confirmed",
+        availabilitySlotId: "avsl_r2",
+        productId: "prod_r",
+        productNameSnapshot: "Rollup Tour",
+        startsAt: new Date("2026-07-08T09:00:00Z"),
+        quantity: 1,
+        sellCurrency: "EUR",
+        totalSellAmountCents: 100000,
+        costCurrency: "EUR",
+        totalCostAmountCents: 40000,
+      },
+    ])
+    await db.insert(invoices).values([
+      {
+        invoiceNumber: "INV-R1",
+        invoiceType: "invoice",
+        status: "issued",
+        bookingId: "book_r1",
+        currency: "EUR",
+        totalCents: 100000,
+        paidCents: 0,
+        balanceDueCents: 100000,
+        issueDate: "2026-06-15",
+        dueDate: "2026-06-30",
+      },
+      {
+        invoiceNumber: "INV-R2",
+        invoiceType: "invoice",
+        status: "issued",
+        bookingId: "book_r2",
+        currency: "EUR",
+        totalCents: 100000,
+        paidCents: 0,
+        balanceDueCents: 100000,
+        issueDate: "2026-06-15",
+        dueDate: "2026-06-30",
+      },
+    ])
+    // Departure-targeted actual costs (fully allocated).
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 60000,
+      target: { targetType: "departure", departureId: "avsl_r1" },
+    })
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "guide",
+      amountCents: 40000,
+      target: { targetType: "departure", departureId: "avsl_r2" },
+    })
+    // A product-only allocation (cost attributed to the product, not a departure).
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "other",
+      amountCents: PRODUCT_ONLY_EUR,
+      target: { targetType: "product", productId: "prod_r" },
+    })
+    // Deliberately unattributed cost.
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "other",
+      amountCents: UNATTRIBUTED_EUR,
+      target: { targetType: "unattributed" },
+    })
+    // Under-allocated invoice: 50000 total, 30000 to avsl_r1 → 20000 remainder.
+    await seedSupplierCost(db, {
+      currency: "EUR",
+      serviceType: "transport",
+      amountCents: 50000,
+      allocateCents: 30000,
+      target: { targetType: "departure", departureId: "avsl_r1" },
+    })
+    // Confirmed supplier commitment on book_r1 (25000) plus an UNconfirmed one
+    // that must be excluded from committed cost entirely.
+    await db.execute(
+      sql`insert into booking_supplier_statuses (id, booking_id, service_name, status, cost_currency, cost_amount_cents, confirmed_at)
+          values ('bss_conf', 'book_r1', 'Confirmed coach', 'confirmed', 'EUR', ${COMMITTED_EUR}, now())`,
+    )
+    await db.execute(
+      sql`insert into booking_supplier_statuses (id, booking_id, service_name, status, cost_currency, cost_amount_cents, confirmed_at)
+          values ('bss_pending', 'book_r1', 'Pending flight', 'pending', 'EUR', 999999, null)`,
+    )
+  }
+
+  const sumBy = <T>(rows: T[], pick: (r: T) => number): number =>
+    rows.reduce((s, r) => s + pick(r), 0)
+
+  it("proves the product rollup equals Σ departures + product-only + unattributed + unallocated, per currency", async () => {
+    await seedRollupScenario()
+    const dep = await financeService.getDepartureProfitability(db, {})
+    const prod = await financeService.getProductProfitability(db, {})
+
+    const depEur = dep.rows.filter((r) => r.currency === "EUR")
+    const prodEur = prod.rows.filter((r) => r.currency === "EUR")
+
+    // Revenue / planned / committed roll up verbatim (no product-level source).
+    expect(sumBy(prodEur, (r) => r.revenueCents)).toBe(sumBy(depEur, (r) => r.revenueCents))
+    expect(sumBy(prodEur, (r) => r.plannedCostCents)).toBe(sumBy(depEur, (r) => r.plannedCostCents))
+    expect(sumBy(prodEur, (r) => r.committedCostCents)).toBe(
+      sumBy(depEur, (r) => r.committedCostCents),
+    )
+
+    // Committed reflects ONLY the confirmed status, attributed to avsl_r1's booking.
+    expect(sumBy(depEur, (r) => r.committedCostCents)).toBe(COMMITTED_EUR)
+
+    // Actual cost: the product rollup is departures PLUS product-only allocations.
+    // Enumerate the difference explicitly rather than tolerate it.
+    const prodActual = sumBy(prodEur, (r) => r.actualCostCents)
+    const depActual = sumBy(depEur, (r) => r.actualCostCents)
+    expect(prodActual - depActual).toBe(PRODUCT_ONLY_EUR)
+
+    // Full AP partition: everything recorded lands in exactly one bucket.
+    const unattributedEur = dep.unattributed.find((u) => u.currency === "EUR")?.amountCents ?? 0
+    const unallocatedEur = dep.unallocated.find((u) => u.currency === "EUR")?.amountCents ?? 0
+    expect(unattributedEur).toBe(UNATTRIBUTED_EUR)
+    expect(unallocatedEur).toBe(UNALLOCATED_EUR)
+    // Total recorded AP (60000+40000+30000 departure + 15000 product + 5000 unattributed + 20000 remainder = 170000).
+    const totalRecorded = depActual + PRODUCT_ONLY_EUR + unattributedEur + unallocatedEur
+    expect(totalRecorded).toBe(170000)
+    // The product report reports the same two unaccounted buckets.
+    expect(prod.unattributed.find((u) => u.currency === "EUR")?.amountCents ?? 0).toBe(
+      UNATTRIBUTED_EUR,
+    )
+    expect(prod.unallocated.find((u) => u.currency === "EUR")?.amountCents ?? 0).toBe(
+      UNALLOCATED_EUR,
+    )
+  })
+
+  it("proves the same rollup identity in the accounting base currency", async () => {
+    await seedRollupScenario()
+    // EUR→RON = 5, seeded after the costs so EUR rows take the fallback rate.
+    await db.execute(
+      sql`insert into fx_rate_sets (id, base_currency, effective_at) values ('fxrs_rollup', 'EUR', now())`,
+    )
+    await db.insert(exchangeRatesRef).values({
+      fxRateSetId: "fxrs_rollup",
+      baseCurrency: "RON",
+      quoteCurrency: "EUR",
+      rateDecimal: "0.2",
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    })
+
+    const dep = await financeService.getDepartureProfitability(db, {})
+    const prod = await financeService.getProductProfitability(db, {})
+    expect(dep.base?.currency).toBe("RON")
+    expect(dep.base?.unconvertibleCurrencies).toEqual([])
+
+    const depBase = dep.base?.rows ?? []
+    const prodBase = prod.base?.rows ?? []
+
+    // Revenue / planned / committed roll up verbatim in base too.
+    expect(sumBy(prodBase, (r) => r.revenueCents)).toBe(sumBy(depBase, (r) => r.revenueCents))
+    expect(sumBy(prodBase, (r) => r.plannedCostCents)).toBe(
+      sumBy(depBase, (r) => r.plannedCostCents),
+    )
+    expect(sumBy(prodBase, (r) => r.committedCostCents)).toBe(
+      sumBy(depBase, (r) => r.committedCostCents),
+    )
+
+    // Actual: product rollup − departures == product-only allocation × the rate.
+    const prodActual = sumBy(prodBase, (r) => r.actualCostCents)
+    const depActual = sumBy(depBase, (r) => r.actualCostCents)
+    expect(prodActual - depActual).toBe(PRODUCT_ONLY_EUR * 5)
+
+    // The two unaccounted buckets convert at the same rate on both reports.
+    expect(dep.base?.unattributedCents).toBe(UNATTRIBUTED_EUR * 5)
+    expect(dep.base?.unallocatedCents).toBe(UNALLOCATED_EUR * 5)
+    expect(prod.base?.unattributedCents).toBe(UNATTRIBUTED_EUR * 5)
+    expect(prod.base?.unallocatedCents).toBe(UNALLOCATED_EUR * 5)
+    // Committed base = 25000 × 5.
+    expect(sumBy(depBase, (r) => r.committedCostCents)).toBe(COMMITTED_EUR * 5)
   })
 })

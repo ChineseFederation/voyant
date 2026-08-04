@@ -1,6 +1,6 @@
 "use client"
 
-import { useAdminBreadcrumbs } from "@voyant-travel/admin"
+import { useAdminBreadcrumbs, useAdminNavigate } from "@voyant-travel/admin"
 
 import {
   type ProfitabilityExportFilters,
@@ -34,6 +34,7 @@ export default function FinanceProfitabilityRoutePage() {
   const messages = useFinanceUiMessagesOrDefault()
   useAdminBreadcrumbs([{ label: messages.profitability.title }])
   const { baseUrl } = useVoyantFinanceContext()
+  const navigateTo = useAdminNavigate()
 
   const openExport = (kind: "departures" | "products", filters: ProfitabilityExportFilters) => {
     if (typeof window === "undefined") return
@@ -44,6 +45,13 @@ export default function FinanceProfitabilityRoutePage() {
     <ProfitabilityPage
       onExportDepartures={(filters) => openExport("departures", filters)}
       onExportProducts={(filters) => openExport("products", filters)}
+      // Deep-link report rows to the operator workspaces. `departureId` is the
+      // availability-slot id the Departure workspace keys on; `productId` maps
+      // straight to the Product workspace.
+      onOpenDeparture={(departureId) =>
+        navigateTo("availabilitySlot.detail", { slotId: departureId })
+      }
+      onOpenProduct={(productId) => navigateTo("product.detail", { productId })}
     />
   )
 }

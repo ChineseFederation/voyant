@@ -6,6 +6,10 @@ export type ProfitabilityMessages = {
   noDate: string
   noProduct: string
   exportCsv: string
+  /** Accessible label for a departure row's deep-link; `{departure}` = its label. */
+  openDeparture: string
+  /** Accessible label for a product row's deep-link; `{product}` = its name. */
+  openProduct: string
   /** Note shown in base-currency mode; `{currencies}` = comma list. */
   unconvertibleNote: string
   filters: {

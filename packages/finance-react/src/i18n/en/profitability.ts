@@ -6,6 +6,8 @@ export const profitability = {
   noDate: "No date",
   noProduct: "No product",
   exportCsv: "Export CSV",
+  openDeparture: "Open departure {departure}",
+  openProduct: "Open product {product}",
   unconvertibleNote: "No FX rate for {currencies} — excluded from the rollup.",
   filters: {
     currency: "Currency",

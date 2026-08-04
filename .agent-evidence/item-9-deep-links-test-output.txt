@@ -1,0 +1,9 @@
+
+ RUN  v4.1.9 /home/mihai/work/jobs/claude-finish-voyant-travel-voy-201153/packages/finance-react
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  18:02:27
+   Duration  4.30s (transform 842ms, setup 0ms, import 3.63s, tests 56ms, environment 512ms)
+

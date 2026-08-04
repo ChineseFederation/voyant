@@ -1,5 +1,6 @@
 import { formatMessage } from "@voyant-travel/i18n"
 import {
+  Button,
   Card,
   CardDescription,
   CardHeader,
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from "@voyant-travel/ui/components/table"
 import { cn } from "@voyant-travel/ui/lib/utils"
+import { ExternalLink } from "lucide-react"
 import { useFinanceUiI18nOrDefault } from "../../i18n/index.js"
 import type { DepartureProfitabilityRow, ProductProfitabilityRow } from "../../index.js"
 import { useTravelerProfitability } from "../../index.js"
@@ -157,10 +159,13 @@ export function DepartureTable({
   rows,
   currency,
   onSelect,
+  onOpenDeparture,
 }: {
   rows: DepartureProfitabilityRow[]
   currency: string
   onSelect?: (row: DepartureProfitabilityRow) => void
+  /** Deep-link a departure row to its workspace (see the profitability page wiring). */
+  onOpenDeparture?: (departureId: string) => void
 }) {
   const i18n = useFinanceUiI18nOrDefault()
   const t = i18n.messages.profitability
@@ -178,12 +183,13 @@ export function DepartureTable({
           <TableHead className="text-right">{t.departures.columns.profit}</TableHead>
           <TableHead className="text-right">{t.departures.columns.margin}</TableHead>
           <TableHead className="text-right">{t.departures.columns.variance}</TableHead>
+          <TableHead className="w-10" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={9} className="text-center text-muted-foreground">
+            <TableCell colSpan={10} className="text-center text-muted-foreground">
               {t.departures.none}
             </TableCell>
           </TableRow>
@@ -224,6 +230,24 @@ export function DepartureTable({
               >
                 {money(row.varianceCents)}
               </TableCell>
+              <TableCell className="text-right">
+                {onOpenDeparture ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={formatMessage(t.openDeparture, {
+                      departure: row.departureLabel ?? row.departureId,
+                    })}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onOpenDeparture(row.departureId)
+                    }}
+                  >
+                    <ExternalLink className="size-4" />
+                  </Button>
+                ) : null}
+              </TableCell>
             </TableRow>
           ))
         )}
@@ -235,9 +259,12 @@ export function DepartureTable({
 export function ProductTable({
   rows,
   currency,
+  onOpenProduct,
 }: {
   rows: ProductProfitabilityRow[]
   currency: string
+  /** Deep-link a product row to its workspace (see the profitability page wiring). */
+  onOpenProduct?: (productId: string) => void
 }) {
   const i18n = useFinanceUiI18nOrDefault()
   const t = i18n.messages.profitability
@@ -254,12 +281,13 @@ export function ProductTable({
           <TableHead className="text-right">{t.products.columns.profit}</TableHead>
           <TableHead className="text-right">{t.products.columns.margin}</TableHead>
           <TableHead className="text-right">{t.products.columns.variance}</TableHead>
+          <TableHead className="w-10" />
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={8} className="text-center text-muted-foreground">
+            <TableCell colSpan={9} className="text-center text-muted-foreground">
               {t.products.none}
             </TableCell>
           </TableRow>
@@ -290,6 +318,21 @@ export function ProductTable({
                 )}
               >
                 {money(row.varianceCents)}
+              </TableCell>
+              <TableCell className="text-right">
+                {onOpenProduct ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={formatMessage(t.openProduct, {
+                      product: row.productName ?? row.productId,
+                    })}
+                    onClick={() => onOpenProduct(row.productId)}
+                  >
+                    <ExternalLink className="size-4" />
+                  </Button>
+                ) : null}
               </TableCell>
             </TableRow>
           ))

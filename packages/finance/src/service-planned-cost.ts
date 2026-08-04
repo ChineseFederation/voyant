@@ -47,6 +47,19 @@ export interface PlannedCostLine {
 export interface DeparturePlannedCost {
   /** Cost currency → summed planned cents. Never crosses currencies (no FX). */
   byCurrency: Map<string, number>
+  /**
+   * Cost currency → the fixed (non-pax-driven) portion of planned cost. A cost
+   * whose driver does not scale with pax (`fixed`, `rooms`, `nights`,
+   * `vehicles`, `service_units`) is fixed relative to load, so it is the fixed
+   * term in a break-even calculation (voyant#4037, item 7).
+   */
+  fixedByCurrency: Map<string, number>
+  /**
+   * Cost currency → the per-pax variable rate (blocks whose `driver` is `pax`).
+   * This is the marginal cost of one more traveller — the variable term in a
+   * break-even calculation — and is independent of the departure's current pax.
+   */
+  perPaxRateByCurrency: Map<string, number>
   /** Operation/day-service lines the resolver costed. */
   lineCount: number
   /** Lines whose source day service carried no declared cost block. */
@@ -59,7 +72,18 @@ export type BlocksByVersion = Map<string, Map<string, SnapshotPlannedCost>>
 const num = (value: unknown): number => Number(value ?? 0)
 
 function emptyResult(): DeparturePlannedCost {
-  return { byCurrency: new Map(), lineCount: 0, linesMissingCostBlock: 0 }
+  return {
+    byCurrency: new Map(),
+    fixedByCurrency: new Map(),
+    perPaxRateByCurrency: new Map(),
+    lineCount: 0,
+    linesMissingCostBlock: 0,
+  }
+}
+
+function addTo(map: Map<string, number>, currency: string, cents: number): void {
+  if (cents === 0) return
+  map.set(currency, (map.get(currency) ?? 0) + cents)
 }
 
 /**
@@ -91,11 +115,15 @@ export function aggregateDeparturePlannedCost(
       continue
     }
     const resolved = resolvePlannedCost(block, quantitiesByDeparture.get(line.departureId) ?? {})
-    if (resolved.amountCents === 0) continue
-    entry.byCurrency.set(
-      resolved.currency,
-      (entry.byCurrency.get(resolved.currency) ?? 0) + resolved.amountCents,
-    )
+    addTo(entry.byCurrency, resolved.currency, resolved.amountCents)
+    // Break-even split: a `pax`-driven cost is variable in load (record its
+    // per-pax rate, even when current pax is 0); everything else is fixed
+    // relative to load. The two always reconstruct the total: fixed + rate·pax.
+    if (block.driver === "pax") {
+      addTo(entry.perPaxRateByCurrency, resolved.currency, block.rateCents)
+    } else {
+      addTo(entry.fixedByCurrency, resolved.currency, resolved.amountCents)
+    }
   }
 
   return out

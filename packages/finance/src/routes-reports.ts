@@ -112,9 +112,27 @@ const departureProfitabilityRowSchema = z.object({
   revenueCents: z.number().int(),
   actualCostCents: z.number().int(),
   plannedCostCents: z.number().int(),
+  committedCostCents: z.number().int(),
   profitCents: z.number().int(),
   marginPercent: z.number().nullable(),
   varianceCents: z.number().int(),
+  breakEvenRevenueCents: z.number().int().nullable(),
+  loadFactorPercent: z.number().nullable(),
+})
+
+const profitabilityCostCompletenessSchema = z.object({
+  unallocated: z.array(profitabilityUnallocatedSchema),
+  linesMissingCostBlock: z.number().int(),
+  fallbackDepartureCount: z.number().int(),
+  complete: z.boolean(),
+})
+
+const profitabilityIssueSchema = z.object({
+  code: z.string(),
+  severity: z.enum(["critical", "warning"]),
+  subjectType: z.literal("departure"),
+  subjectId: z.string(),
+  message: z.string(),
 })
 
 const departureProfitabilityReportSchema = z.object({
@@ -122,6 +140,8 @@ const departureProfitabilityReportSchema = z.object({
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
   unallocated: z.array(profitabilityUnallocatedSchema),
+  costCompleteness: profitabilityCostCompletenessSchema,
+  issues: z.array(profitabilityIssueSchema),
   base: z
     .object({
       currency: z.string(),
@@ -142,9 +162,12 @@ const productProfitabilityRowSchema = z.object({
   revenueCents: z.number().int(),
   actualCostCents: z.number().int(),
   plannedCostCents: z.number().int(),
+  committedCostCents: z.number().int(),
   profitCents: z.number().int(),
   marginPercent: z.number().nullable(),
   varianceCents: z.number().int(),
+  breakEvenRevenueCents: z.number().int().nullable(),
+  loadFactorPercent: z.number().nullable(),
 })
 
 const productProfitabilityReportSchema = z.object({
@@ -152,6 +175,7 @@ const productProfitabilityReportSchema = z.object({
   costByServiceType: z.array(profitabilityCostByServiceTypeSchema),
   unattributed: z.array(profitabilityUnattributedSchema),
   unallocated: z.array(profitabilityUnallocatedSchema),
+  costCompleteness: profitabilityCostCompletenessSchema,
   base: z
     .object({
       currency: z.string(),
