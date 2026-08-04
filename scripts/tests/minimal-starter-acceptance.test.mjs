@@ -30,7 +30,15 @@ const frontendSingletonRoots = [
 test("packaged minimal starter serves project API and SSR routes", {
   timeout: 420_000,
 }, async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "voyant-minimal-starter-acceptance-"))
+  const keepArtifacts = process.env.VOYANT_KEEP_ARTIFACTS === "1"
+  const keepRoot = join(tmpdir(), "voyant-minimal-starter-acceptance-keep")
+  if (keepArtifacts) {
+    rmSync(keepRoot, { recursive: true, force: true })
+    mkdirSync(keepRoot, { recursive: true })
+  }
+  const root = keepArtifacts
+    ? keepRoot
+    : mkdtempSync(join(tmpdir(), "voyant-minimal-starter-acceptance-"))
   const out = join(root, "out")
   const app = join(root, "app")
   try {
@@ -197,7 +205,8 @@ test("packaged minimal starter serves project API and SSR routes", {
       await assertVoyantServerMode(app, "develop", modeTest)
     })
   } finally {
-    rmSync(root, { recursive: true, force: true })
+    if (!keepArtifacts) rmSync(root, { recursive: true, force: true })
+    else console.log(`VOYANT_KEEP_ARTIFACTS: retained fixture at ${root}`)
   }
 })
 
@@ -553,7 +562,9 @@ async function assertBrowserHydration(app, port, t, serverOutput, { hmr }) {
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(`console: ${message.text()}`)
   })
-  page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`))
+  page.on("pageerror", (error) =>
+    browserErrors.push(`pageerror: ${error.message}\n${error.stack ?? "(no stack)"}`),
+  )
   page.on("requestfailed", (request) => {
     browserErrors.push(
       `requestfailed: ${request.url()} (${request.failure()?.errorText ?? "unknown error"})`,

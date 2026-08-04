@@ -61,6 +61,11 @@ jobs:
             exit 1
           fi
 
+      # Starter packaging derives the TanStack pin set from the workspace's
+      # resolved install, so the store must exist before packaging (#4233).
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Package starter archives
         run: pnpm package:starters -- --version "$RELEASE_VERSION" --out-dir .release/starters
 
