@@ -6499,6 +6499,39 @@
                               "capacity": {
                                 "type": "integer"
                               },
+                              "occupancyMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "roomTypeId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "bedConfiguration": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "accessible": {
+                                "type": "boolean"
+                              },
+                              "minAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "maxAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
                               "flags": {
                                 "type": "object",
                                 "additionalProperties": {}
@@ -6527,6 +6560,12 @@
                               "refId",
                               "label",
                               "capacity",
+                              "occupancyMin",
+                              "roomTypeId",
+                              "bedConfiguration",
+                              "accessible",
+                              "minAge",
+                              "maxAge",
                               "flags",
                               "parentId",
                               "sortOrder",
@@ -6681,6 +6720,47 @@
                     "type": "integer",
                     "minimum": 1
                   },
+                  "occupancyMin": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "roomTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "bedConfiguration": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "accessible": {
+                    "type": "boolean"
+                  },
+                  "minAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "maxAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
                   "flags": {
                     "type": "object",
                     "additionalProperties": {},
@@ -6746,6 +6826,39 @@
                         "capacity": {
                           "type": "integer"
                         },
+                        "occupancyMin": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "roomTypeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bedConfiguration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accessible": {
+                          "type": "boolean"
+                        },
+                        "minAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "maxAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
                         "flags": {
                           "type": "object",
                           "additionalProperties": {}
@@ -6774,6 +6887,12 @@
                         "refId",
                         "label",
                         "capacity",
+                        "occupancyMin",
+                        "roomTypeId",
+                        "bedConfiguration",
+                        "accessible",
+                        "minAge",
+                        "maxAge",
                         "flags",
                         "parentId",
                         "sortOrder",
@@ -6924,6 +7043,47 @@
                     "type": "integer",
                     "minimum": 1
                   },
+                  "occupancyMin": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "roomTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "bedConfiguration": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "accessible": {
+                    "type": "boolean"
+                  },
+                  "minAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "maxAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
                   "flags": {
                     "type": "object",
                     "additionalProperties": {},
@@ -6990,6 +7150,39 @@
                         "capacity": {
                           "type": "integer"
                         },
+                        "occupancyMin": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "roomTypeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bedConfiguration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accessible": {
+                          "type": "boolean"
+                        },
+                        "minAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "maxAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
                         "flags": {
                           "type": "object",
                           "additionalProperties": {}
@@ -7018,6 +7211,12 @@
                         "refId",
                         "label",
                         "capacity",
+                        "occupancyMin",
+                        "roomTypeId",
+                        "bedConfiguration",
+                        "accessible",
+                        "minAge",
+                        "maxAge",
                         "flags",
                         "parentId",
                         "sortOrder",
@@ -7311,6 +7510,19 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "override": {
+                    "type": "object",
+                    "properties": {
+                      "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "reason"
+                    ]
                   }
                 },
                 "required": [
@@ -7343,12 +7555,71 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "blocking",
+                                  "advisory"
+                                ]
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "expected": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "actual": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "severity",
+                              "message"
+                            ]
+                          }
                         }
                       },
                       "required": [
                         "travelerId",
                         "kind",
-                        "resourceId"
+                        "resourceId",
+                        "violations"
                       ]
                     }
                   },
@@ -7438,6 +7709,186 @@
         },
         "operationId": "patchAdminOperationsAvailabilitySlotsByIdAllocationTravelersByTravelerId",
         "summary": "PATCH /v1/admin/operations/availability/slots/{id}/allocation/travelers/{travelerId}",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/travelers/{travelerId}/rooming-preferences": {
+      "patch": {
+        "description": "Set the traveler's bed preference and booked room type. A field the caller omits keeps its stored value; an explicit `null` clears it.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "travelerId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bedPreference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "single",
+                      "twin",
+                      "double",
+                      "no-preference",
+                      null
+                    ]
+                  },
+                  "roomTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The traveler's resolved rooming preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "travelerId": {
+                          "type": "string"
+                        },
+                        "bedPreference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "roomTypeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "travelerId",
+                        "bedPreference",
+                        "roomTypeId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminOperationsAvailabilitySlotsByIdAllocationTravelersByTravelerIdRoomingPreferences",
+        "summary": "PATCH /v1/admin/operations/availability/slots/{id}/allocation/travelers/{travelerId}/rooming-preferences",
         "tags": [
           "operations"
         ],
@@ -8352,6 +8803,85 @@
                         "skipped": {
                           "type": "integer"
                         },
+                        "unplaced": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "no_resources",
+                                  "no_capacity"
+                                ]
+                              },
+                              "largestFreeCapacity": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "reason",
+                              "largestFreeCapacity"
+                            ]
+                          }
+                        },
+                        "compromises": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "resourceId": {
+                                "type": "string"
+                              },
+                              "relaxed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "resourceId",
+                              "relaxed"
+                            ]
+                          }
+                        },
                         "created": {
                           "type": "integer"
                         },
@@ -8393,6 +8923,39 @@
                               "capacity": {
                                 "type": "integer"
                               },
+                              "occupancyMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "roomTypeId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "bedConfiguration": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "accessible": {
+                                "type": "boolean"
+                              },
+                              "minAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "maxAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
                               "flags": {
                                 "type": "object",
                                 "additionalProperties": {}
@@ -8421,6 +8984,12 @@
                               "refId",
                               "label",
                               "capacity",
+                              "occupancyMin",
+                              "roomTypeId",
+                              "bedConfiguration",
+                              "accessible",
+                              "minAge",
+                              "maxAge",
                               "flags",
                               "parentId",
                               "sortOrder",
@@ -8708,6 +9277,85 @@
                         "skipped": {
                           "type": "integer"
                         },
+                        "unplaced": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "no_resources",
+                                  "no_capacity"
+                                ]
+                              },
+                              "largestFreeCapacity": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "reason",
+                              "largestFreeCapacity"
+                            ]
+                          }
+                        },
+                        "compromises": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "resourceId": {
+                                "type": "string"
+                              },
+                              "relaxed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "resourceId",
+                              "relaxed"
+                            ]
+                          }
+                        },
                         "created": {
                           "type": "integer"
                         },
@@ -8749,6 +9397,39 @@
                               "capacity": {
                                 "type": "integer"
                               },
+                              "occupancyMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "roomTypeId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "bedConfiguration": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "accessible": {
+                                "type": "boolean"
+                              },
+                              "minAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "maxAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
                               "flags": {
                                 "type": "object",
                                 "additionalProperties": {}
@@ -8777,6 +9458,12 @@
                               "refId",
                               "label",
                               "capacity",
+                              "occupancyMin",
+                              "roomTypeId",
+                              "bedConfiguration",
+                              "accessible",
+                              "minAge",
+                              "maxAge",
                               "flags",
                               "parentId",
                               "sortOrder",
@@ -8884,6 +9571,463 @@
         "x-voyant-surface": "admin"
       }
     },
+    "/v1/admin/operations/availability/slots/{id}/allocation/room-blocks/materialize": {
+      "post": {
+        "description": "Materialise room positions from a contracted room block and take the matching nightly pickup. Idempotent at (kind, block) granularity: a repeat creates nothing and takes no second pickup. Omit `rooms` to take the block's whole remaining hold for the departure's nights.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blockId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "rooms": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 500
+                  },
+                  "namePattern": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160,
+                    "default": "Room {sequence}"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80,
+                    "default": "room"
+                  }
+                },
+                "required": [
+                  "blockId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The positions created and the rooms taken off the block",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "blockId": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "created": {
+                          "type": "integer"
+                        },
+                        "skippedExisting": {
+                          "type": "integer"
+                        },
+                        "roomsPickedUp": {
+                          "type": "integer"
+                        },
+                        "pickupId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "remainingAfter": {
+                          "type": "integer"
+                        },
+                        "resources": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "slotId": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "refType": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "refId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "label": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "capacity": {
+                                "type": "integer"
+                              },
+                              "occupancyMin": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "roomTypeId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "bedConfiguration": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "accessible": {
+                                "type": "boolean"
+                              },
+                              "minAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "maxAge": {
+                                "type": [
+                                  "integer",
+                                  "null"
+                                ]
+                              },
+                              "flags": {
+                                "type": "object",
+                                "additionalProperties": {}
+                              },
+                              "parentId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "sortOrder": {
+                                "type": "integer"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "slotId",
+                              "kind",
+                              "refType",
+                              "refId",
+                              "label",
+                              "capacity",
+                              "occupancyMin",
+                              "roomTypeId",
+                              "bedConfiguration",
+                              "accessible",
+                              "minAge",
+                              "maxAge",
+                              "flags",
+                              "parentId",
+                              "sortOrder",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "blockId",
+                        "kind",
+                        "created",
+                        "skippedExisting",
+                        "roomsPickedUp",
+                        "pickupId",
+                        "remainingAfter",
+                        "resources"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminOperationsAvailabilitySlotsByIdAllocationRoomBlocksMaterialize",
+        "summary": "POST /v1/admin/operations/availability/slots/{id}/allocation/room-blocks/materialize",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/operations/availability/slots/{id}/allocation/room-blocks/{blockId}": {
+      "delete": {
+        "description": "Give the departure's block rooms back: remove the positions, clear the traveler allocations that pointed at them, and reverse the pickup so another departure can draw the same rooms.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "blockId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "default": "room"
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The positions removed and the rooms handed back",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "blockId": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "removed": {
+                          "type": "integer"
+                        },
+                        "roomsReleased": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "blockId",
+                        "kind",
+                        "removed",
+                        "roomsReleased"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request, or an allocation invariant was violated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The slot, traveler, resource, sharing group, or template was not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Resource over capacity, a revision precondition failed, or the fleet resource is double-booked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The allocation operation could not be completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {}
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "deleteAdminOperationsAvailabilitySlotsByIdAllocationRoomBlocksByBlockId",
+        "summary": "DELETE /v1/admin/operations/availability/slots/{id}/allocation/room-blocks/{blockId}",
+        "tags": [
+          "operations"
+        ],
+        "x-voyant-module": "operations",
+        "x-voyant-surface": "admin"
+      }
+    },
     "/v1/admin/operations/availability/products/{productId}/allocation/resource-templates": {
       "get": {
         "parameters": [
@@ -8965,6 +10109,45 @@
                                 "capacity": {
                                   "type": "integer"
                                 },
+                                "occupancyMin": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ]
+                                },
+                                "occupancyMax": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ]
+                                },
+                                "minAge": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ]
+                                },
+                                "maxAge": {
+                                  "type": [
+                                    "integer",
+                                    "null"
+                                  ]
+                                },
+                                "roomTypeId": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "bedConfiguration": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "accessible": {
+                                  "type": "boolean"
+                                },
                                 "namePattern": {
                                   "type": "string"
                                 },
@@ -8998,6 +10181,13 @@
                                 "refType",
                                 "refId",
                                 "capacity",
+                                "occupancyMin",
+                                "occupancyMax",
+                                "minAge",
+                                "maxAge",
+                                "roomTypeId",
+                                "bedConfiguration",
+                                "accessible",
                                 "namePattern",
                                 "layout",
                                 "defaultCount",
@@ -9076,6 +10266,54 @@
                   "capacity": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "occupancyMin": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "occupancyMax": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  },
+                  "minAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "maxAge": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "roomTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1
+                  },
+                  "bedConfiguration": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "accessible": {
+                    "type": "boolean"
                   },
                   "namePattern": {
                     "type": "string",
@@ -9159,6 +10397,45 @@
                         "capacity": {
                           "type": "integer"
                         },
+                        "occupancyMin": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "occupancyMax": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "minAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "maxAge": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        },
+                        "roomTypeId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "bedConfiguration": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "accessible": {
+                          "type": "boolean"
+                        },
                         "namePattern": {
                           "type": "string"
                         },
@@ -9192,6 +10469,13 @@
                         "refType",
                         "refId",
                         "capacity",
+                        "occupancyMin",
+                        "occupancyMax",
+                        "minAge",
+                        "maxAge",
+                        "roomTypeId",
+                        "bedConfiguration",
+                        "accessible",
                         "namePattern",
                         "layout",
                         "defaultCount",
@@ -9645,6 +10929,39 @@
                           "capacity": {
                             "type": "integer"
                           },
+                          "occupancyMin": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "roomTypeId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "bedConfiguration": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "accessible": {
+                            "type": "boolean"
+                          },
+                          "minAge": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "maxAge": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
                           "flags": {
                             "type": "object",
                             "additionalProperties": {}
@@ -9673,6 +10990,12 @@
                           "refId",
                           "label",
                           "capacity",
+                          "occupancyMin",
+                          "roomTypeId",
+                          "bedConfiguration",
+                          "accessible",
+                          "minAge",
+                          "maxAge",
                           "flags",
                           "parentId",
                           "sortOrder",
@@ -9806,6 +11129,39 @@
                             "capacity": {
                               "type": "integer"
                             },
+                            "occupancyMin": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "roomTypeId": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "bedConfiguration": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "accessible": {
+                              "type": "boolean"
+                            },
+                            "minAge": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
+                            "maxAge": {
+                              "type": [
+                                "integer",
+                                "null"
+                              ]
+                            },
                             "flags": {
                               "type": "object",
                               "additionalProperties": {}
@@ -9834,6 +11190,12 @@
                             "refId",
                             "label",
                             "capacity",
+                            "occupancyMin",
+                            "roomTypeId",
+                            "bedConfiguration",
+                            "accessible",
+                            "minAge",
+                            "maxAge",
                             "flags",
                             "parentId",
                             "sortOrder",
@@ -10171,6 +11533,19 @@
                     },
                     "minItems": 1,
                     "maxItems": 200
+                  },
+                  "override": {
+                    "type": "object",
+                    "properties": {
+                      "reason": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "reason"
+                    ]
                   }
                 },
                 "required": [
@@ -10209,6 +11584,64 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "violations": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "blocking",
+                                  "advisory"
+                                ]
+                              },
+                              "message": {
+                                "type": "string"
+                              },
+                              "expected": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "actual": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "severity",
+                              "message"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -10216,7 +11649,8 @@
                         "assigned",
                         "unassigned",
                         "unchanged",
-                        "travelerIds"
+                        "travelerIds",
+                        "violations"
                       ]
                     }
                   },
@@ -10364,6 +11798,93 @@
                         "skipped": {
                           "type": "integer"
                         },
+                        "unplaced": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "no_resources",
+                                  "no_capacity"
+                                ]
+                              },
+                              "largestFreeCapacity": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "reason",
+                              "largestFreeCapacity"
+                            ]
+                          }
+                        },
+                        "compromises": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "groupKey": {
+                                "type": "string"
+                              },
+                              "sharingGroupId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "travelerIds": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "resourceId": {
+                                "type": "string"
+                              },
+                              "relaxed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "enum": [
+                                    "bed_preference",
+                                    "room_type",
+                                    "option",
+                                    "option_unit",
+                                    "age_band",
+                                    "accessibility"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "groupKey",
+                              "sharingGroupId",
+                              "travelerIds",
+                              "resourceId",
+                              "relaxed"
+                            ]
+                          }
+                        },
                         "entries": {
                           "type": "array",
                           "items": {
@@ -10458,6 +11979,8 @@
                         "kind",
                         "assigned",
                         "skipped",
+                        "unplaced",
+                        "compromises",
                         "entries",
                         "violations"
                       ]
