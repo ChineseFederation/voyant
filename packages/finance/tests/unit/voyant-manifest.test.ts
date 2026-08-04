@@ -426,6 +426,7 @@ describe("finance deployment manifest", () => {
       unitId: "@voyant-travel/finance",
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: [{ id: "finance.admin", surface: "admin" }],
       hasPort: () => true,
       getPort: async <TProvider>(port: { id: string }) => {

@@ -217,6 +217,7 @@ describe("bookings deployment manifest", () => {
       unitId: "@voyant-travel/bookings",
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: [{ id: "bookings.public", surface: "public" as const }],
       graph: {
         providerSelections: {},

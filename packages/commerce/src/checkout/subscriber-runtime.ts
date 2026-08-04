@@ -171,7 +171,7 @@ export const createAcceptanceSignatureSubscriberGraphRuntime = defineGraphRuntim
 
 /** Selected-graph factory for inline payment finalization. */
 export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFactory(
-  async ({ getPort }) => {
+  async ({ getPort, hostOptions }) => {
     const database = await getPort(catalogCheckoutDatabaseRuntimePort)
     return {
       id: COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
@@ -179,6 +179,11 @@ export const createCheckoutFinalizeSubscriberGraphRuntime = defineGraphRuntimeFa
       register: async (context: BootstrapContext) => {
         const descriptor = createCheckoutFinalizeSubscriberRuntime({
           ...database,
+          // Finalizing a checkout accepts a booking, so this path draws on the
+          // same monthly quota as the booking and finance routes. Before host
+          // options existed this factory took none, which left the seam
+          // reachable only through the direct constructor.
+          ...(hostOptions as Partial<CheckoutFinalizeSubscriberRuntimeOptions>),
         })
         await descriptor.register(context)
       },

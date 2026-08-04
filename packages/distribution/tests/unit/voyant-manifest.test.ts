@@ -346,6 +346,7 @@ describe("distribution deployment manifests", () => {
       unitId: distributionChannelPushVoyantPlugin.id,
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: distributionChannelPushVoyantPlugin.api ?? [],
       graph: {
         providerSelections: {},

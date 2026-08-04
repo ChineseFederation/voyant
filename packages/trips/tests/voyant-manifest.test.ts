@@ -389,6 +389,7 @@ describe("trips deployment manifest", () => {
       unitId: tripsVoyantModule.id,
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: tripsVoyantModule.api!.filter(({ surface }) =>
         selection === "both" ? true : surface === selection,
       ),

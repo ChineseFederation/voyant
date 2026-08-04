@@ -180,6 +180,7 @@ describe("relationships deployment manifest", () => {
       unitId: relationshipsVoyantModule.id,
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: relationshipsVoyantModule.api ?? [],
       graph: {
         providerSelections: {},

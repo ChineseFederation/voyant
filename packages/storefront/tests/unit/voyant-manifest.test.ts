@@ -98,6 +98,7 @@ describe("storefront deployment manifest", () => {
       unitId: "@voyant-travel/storefront",
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: [{ id: "storefront.public", surface: "public" }],
       graph: {
         providerSelections: {},

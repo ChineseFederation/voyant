@@ -216,6 +216,7 @@ describe("flights deployment manifest", () => {
       unitId: "@voyant-travel/flights",
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: flightsVoyantModule.api ?? [],
       graph: {
         providerSelections: {},

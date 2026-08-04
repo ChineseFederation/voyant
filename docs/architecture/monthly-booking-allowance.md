@@ -51,6 +51,32 @@ next.
 
 Omit the option and behaviour is identical to a configured-only deployment.
 
+### A host that constructs modules itself
+
+Pass the option directly to the composition site.
+
+### A host that composes a graph
+
+A graph-composed host — the operator image, and so every managed deployment —
+never calls those constructors. It supplies the option per unit and the
+selected factory merges it into the module options it was going to build
+anyway:
+
+```ts
+await loadVoyantNodeRuntime({
+  graphRuntime,
+  hostOptions: {
+    "@voyant-travel/bookings": { resolveMonthlyBookingLimit },
+    "@voyant-travel/finance": { resolveMonthlyBookingLimit },
+    "@voyant-travel/commerce#catalog-checkout-extension": { resolveMonthlyBookingLimit },
+  },
+})
+```
+
+Keys are stable graph unit ids. Options for a unit the selected graph does not
+contain are ignored, so one host can compose several profiles from one map.
+See [host options](./graph-host-options.md) for the general seam.
+
 ## Reading `monthlyBookingLimit`
 
 Where a resolver is installed, `runtime.monthlyBookingLimit` is an accessor.

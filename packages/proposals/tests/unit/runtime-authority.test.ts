@@ -26,6 +26,7 @@ function factoryContext<T>(
     unitId: "proposals-test",
     projectConfig: {},
     getUnitProjectConfig: () => undefined,
+    hostOptions: {},
     api,
     graph: {
       providerSelections: {},

@@ -1,4 +1,4 @@
-import type { EventEnvelope } from "@voyant-travel/core"
+import type { EventEnvelope, SubscriberRuntimeDescriptor } from "@voyant-travel/core"
 import { createContainer, createEventBus } from "@voyant-travel/core"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import { describe, expect, it, vi } from "vitest"
@@ -8,6 +8,7 @@ import {
   COMMERCE_ACCEPTANCE_SIGNATURE_SUBSCRIBER_ID,
   COMMERCE_CHECKOUT_FINALIZE_SUBSCRIBER_ID,
   createAcceptanceSignatureSubscriberRuntime,
+  createCheckoutFinalizeSubscriberGraphRuntime,
   createCheckoutFinalizeSubscriberRuntime,
 } from "../../src/checkout/subscriber-runtime.js"
 
@@ -155,6 +156,45 @@ describe("catalog-checkout subscriber runtimes", () => {
 
     expect(finalize.mock.calls.map(([params]) => params.monthlyBookingLimit)).toEqual([
       10, 250, 100,
+    ])
+  })
+
+  it("takes the monthly booking limit resolver from deployment host options", async () => {
+    // Until host options existed this factory accepted none, so the seam was
+    // reachable only through the direct constructor — never from the graph.
+    let live: number | null | undefined = 10
+    const finalize = vi.fn(async () => undefined)
+    const withDb = vi.fn(async (_bindings, operation) => operation({} as PostgresJsDatabase))
+    const { eventBus, subscriptions } = recordingEventBus()
+
+    const descriptor = await createCheckoutFinalizeSubscriberGraphRuntime({
+      unitId: "@voyant-travel/commerce",
+      hostOptions: { finalize, resolveMonthlyBookingLimit: () => live },
+      getPort: async () => ({ withDb }),
+    } as never)
+
+    await (descriptor as SubscriberRuntimeDescriptor).register({
+      bindings: { VOYANT_BOOKINGS_MONTHLY_LIMIT: "100" },
+      container: createContainer(),
+      eventBus,
+    })
+
+    const deliver = async () => {
+      await subscriptions[0]?.handler(
+        event("payment.completed", { bookingId: "booking_1", paymentSessionId: "session_1" }),
+      )
+    }
+
+    await deliver()
+    live = null
+    await deliver()
+    live = undefined
+    await deliver()
+
+    expect(finalize.mock.calls.map(([params]) => params.monthlyBookingLimit)).toEqual([
+      10,
+      null,
+      100,
     ])
   })
 

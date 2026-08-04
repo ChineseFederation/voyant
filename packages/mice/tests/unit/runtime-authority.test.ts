@@ -23,6 +23,7 @@ describe("MICE deployment authority", () => {
       unitId: miceVoyantModule.id,
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: miceVoyantModule.api ?? [],
       graph: {
         providerSelections: {},

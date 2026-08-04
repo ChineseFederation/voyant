@@ -44,6 +44,7 @@ function context(
       ...(managedAuth ? { [appsManagedAuthRuntimePort.id]: managedAuth } : {}),
       ...(managedMarketplace ? { [appsManagedMarketplaceRuntimePort.id]: managedMarketplace } : {}),
     },
+    hostOptions: {},
     hasPort: (port) =>
       (port.id === appsManagedAuthRuntimePort.id && managedAuth !== undefined) ||
       (port.id === appsManagedMarketplaceRuntimePort.id && managedMarketplace !== undefined),

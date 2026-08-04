@@ -220,9 +220,9 @@ export function createFinanceApiModule(options: FinanceApiModuleOptions = {}): A
 export const financeApiModule: ApiModule = createFinanceApiModule()
 
 export const createFinanceVoyantRuntime = defineGraphRuntimeFactory(
-  async ({ api, getPort, getPorts, hasPort }) => {
-    const configured = createFinanceApiModule(
-      createFinanceRuntime(
+  async ({ api, getPort, getPorts, hasPort, hostOptions }) => {
+    const configured = createFinanceApiModule({
+      ...createFinanceRuntime(
         await getPort(financeHostRuntimePort),
         await getPort(customFieldsRuntimePort),
         await getPort(financeNotificationsRuntimePort),
@@ -234,7 +234,11 @@ export const createFinanceVoyantRuntime = defineGraphRuntimeFactory(
           ? await getPort<PaymentAdapter>(paymentAdapterRuntimePort)
           : undefined,
       ),
-    )
+      // Finance accepts bookings too, so it consumes the same monthly booking
+      // quota. A host that installs a live allowance on bookings alone would
+      // serve one cap from the booking routes and another from these.
+      ...(hostOptions as Partial<FinanceApiModuleOptions>),
+    })
     const bootstrap = configured.module.bootstrap
     const selected: ApiModule = {
       module: {

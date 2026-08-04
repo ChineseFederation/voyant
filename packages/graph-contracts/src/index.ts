@@ -208,6 +208,22 @@ export interface VoyantGraphRuntimeFactoryContext {
   readonly graph: VoyantGraphRuntimeFactoryGraph
   /** Selected deployment providers keyed by their declared runtime-port id. */
   readonly runtimePorts: Readonly<Record<string, unknown>>
+  /**
+   * Options the composing deployment supplied for this unit.
+   *
+   * Ports carry behaviour a package declares it needs. This carries the
+   * remainder: values a host knows and the graph cannot — a live plan
+   * entitlement, a per-request allowance — that a package already accepts as a
+   * runtime option but has no declared port for. It is merged into the default
+   * factory invocation rather than replacing it, so a host contributing one
+   * option keeps every other default and stays on the default path as the
+   * package evolves.
+   *
+   * Empty when the deployment supplied nothing. A factory that accepts host
+   * options should apply them last, after port-derived wiring: the deployment
+   * composes the graph and is the authority over what it composed.
+   */
+  readonly hostOptions: Readonly<Record<string, unknown>>
   hasPort<TProvider>(port: VoyantPort<TProvider>): boolean
   getPort<TProvider>(port: VoyantPort<TProvider>): Promise<TProvider>
   getPorts<TProvider>(port: VoyantPort<TProvider>): Promise<readonly TProvider[]>

@@ -18,6 +18,14 @@ export interface VoyantGraphRuntimeBindingContext<TCapabilities> {
   capabilities: TCapabilities
   unit: VoyantGraphRuntimeUnitLoader
   runtimeExports: readonly unknown[]
+  /**
+   * The context the default path would have passed to this unit's runtime
+   * export. A binding replaces that call, so a unit whose export is a
+   * `defineGraphRuntimeFactory` is unreachable without it — ports resolve
+   * through this context and it cannot be reconstructed outside composition.
+   * Pass it straight through when re-invoking such an export.
+   */
+  factoryContext: VoyantGraphRuntimeFactoryContext
 }
 
 export type VoyantGraphRuntimeBinding<TCapabilities> = (
@@ -35,6 +43,14 @@ export type VoyantGraphRuntimeBindings<TCapabilities> = Readonly<
 >
 
 export type VoyantGraphRuntimePorts = Readonly<Record<string, unknown>>
+
+/**
+ * Deployment-owned runtime options for graph units, keyed by stable unit id.
+ * See `docs/architecture/graph-host-options.md`.
+ */
+export type VoyantGraphRuntimeHostOptions = Readonly<
+  Record<string, Readonly<Record<string, unknown>>>
+>
 
 /** Typed access to the shared record populated by statically selected contributors. */
 export interface VoyantGraphRuntimePortResolver {
@@ -219,6 +235,21 @@ export interface ComposeVoyantGraphRuntimeInput<TCapabilities> {
   bindings?: VoyantGraphRuntimeBindings<TCapabilities>
   /** Deployment implementations keyed by package-declared port id. */
   ports?: VoyantGraphRuntimePorts
+  /**
+   * Deployment-owned runtime options keyed by stable graph unit id, merged
+   * into each unit's default factory invocation rather than replacing it.
+   *
+   * This is the seam for host knowledge a package accepts as a runtime option
+   * but declares no port for — the canonical case being an allowance that is a
+   * property of the request rather than of the container. Unlike a `binding`,
+   * the host contributes options and keeps the default composition, so it does
+   * not take ownership of invoking the unit correctly.
+   *
+   * Options for a unit the selected graph does not contain are ignored, which
+   * matches `bindings` and lets one host compose several profiles from one
+   * option map. Options for a unit that cannot receive them are an error.
+   */
+  hostOptions?: VoyantGraphRuntimeHostOptions
   /** Node-owned durable boundary for graph-selected outbound webhook events. */
   outboundWebhooks?: {
     enqueue: (event: EventEnvelope, bindings: unknown) => Promise<unknown>
@@ -271,9 +302,13 @@ export async function invokeVoyantGraphJob(
 export async function composeVoyantGraphRuntimeFacetModules(
   runtime: VoyantGraphRuntime,
   ports?: VoyantGraphRuntimePorts,
+  hostOptions?: VoyantGraphRuntimeHostOptions,
 ): Promise<ApiModule[]> {
   assertConditionalActionRuntimeActivated(runtime, ports, true)
-  return composeRuntimeFacetModules(runtime, createRuntimeFactoryContexts(runtime, ports))
+  return composeRuntimeFacetModules(
+    runtime,
+    createRuntimeFactoryContexts(runtime, ports, hostOptions),
+  )
 }
 
 async function composeRuntimeFacetModules(
@@ -302,7 +337,11 @@ export async function composeVoyantGraphRuntime<TCapabilities>(
   assertConditionalActionRuntimeActivated(input.runtime, input.ports, true)
   const modules: ApiModule[] = []
   const extensions: ApiExtension[] = []
-  const factoryContexts = createRuntimeFactoryContexts(input.runtime, input.ports)
+  const factoryContexts = createRuntimeFactoryContexts(
+    input.runtime,
+    input.ports,
+    input.hostOptions,
+  )
 
   for (const unit of input.runtime.modules) {
     const outputs = await resolveRuntimeUnit(
@@ -684,26 +723,62 @@ async function resolveRuntimeUnit<TCapabilities>(
   const binding = input.bindings?.[unit.id]
   if (binding) {
     return normalizeRuntimeOutputs(
-      await binding({ capabilities: input.capabilities, unit, runtimeExports }),
+      await binding({ capabilities: input.capabilities, unit, runtimeExports, factoryContext }),
     )
   }
+
+  const hostOptions = suppliedHostOptions(input, unit)
+  assertHostOptionsDeliverable(unit, runtimeExports, hostOptions)
 
   const outputs: unknown[] = []
   for (const runtimeExport of runtimeExports) {
     const output = isGraphRuntimeFactory(runtimeExport)
       ? await runtimeExport(factoryContext)
       : typeof runtimeExport === "function"
-        ? await runtimeExport()
+        ? // Only when the deployment supplied options: an option-bearing
+          // factory reads them from its own parameter rather than from a
+          // factory context it never receives. Absent options the call stays
+          // argument-free, so the default path is unchanged.
+          await (hostOptions ? runtimeExport(hostOptions) : runtimeExport())
         : runtimeExport
     outputs.push(...normalizeRuntimeOutputs(output))
   }
   return outputs
 }
 
+/** The deployment's options for this unit, or undefined when it supplied none. */
+function suppliedHostOptions<TCapabilities>(
+  input: ComposeVoyantGraphRuntimeInput<TCapabilities>,
+  unit: VoyantGraphRuntimeUnitLoader,
+): Readonly<Record<string, unknown>> | undefined {
+  const options = input.hostOptions?.[unit.id]
+  return options && Object.keys(options).length > 0 ? options : undefined
+}
+
+/**
+ * A unit whose runtime export is a plain value takes neither a factory context
+ * nor a parameter, so options addressed to it would be dropped in silence —
+ * the host believing it installed something that is not there. Fail composition
+ * instead.
+ */
+function assertHostOptionsDeliverable(
+  unit: VoyantGraphRuntimeUnitLoader,
+  runtimeExports: readonly unknown[],
+  hostOptions: Readonly<Record<string, unknown>> | undefined,
+): void {
+  if (!hostOptions) return
+  if (runtimeExports.some((runtimeExport) => typeof runtimeExport === "function")) return
+
+  throw new Error(
+    `composeVoyantGraphRuntime: ${unit.kind} "${unit.id}" was given host options but its runtime export is not callable, so they cannot reach it.`,
+  )
+}
+
 function createRuntimeFactoryContext(
   runtime: VoyantGraphRuntime,
   ports: VoyantGraphRuntimePorts | undefined,
   unit: VoyantGraphRuntimeUnitLoader,
+  hostOptions?: VoyantGraphRuntimeHostOptions,
 ): VoyantGraphRuntimeFactoryContext {
   return {
     unitId: unit.id,
@@ -713,6 +788,7 @@ function createRuntimeFactoryContext(
     api: unit.routes.map(({ route }) => ({ id: route.id, surface: route.surface })),
     graph: runtime,
     runtimePorts: ports ?? {},
+    hostOptions: hostOptions?.[unit.id] ?? {},
     hasPort: <TProvider>(port: VoyantPort<TProvider>): boolean => {
       assertDeclaredRuntimePort(unit, port)
       return Object.hasOwn(ports ?? {}, port.id)
@@ -766,11 +842,12 @@ function createRuntimeFactoryContext(
 function createRuntimeFactoryContexts(
   runtime: VoyantGraphRuntime,
   ports: VoyantGraphRuntimePorts | undefined,
+  hostOptions?: VoyantGraphRuntimeHostOptions,
 ): ReadonlyMap<VoyantGraphRuntimeUnitLoader, VoyantGraphRuntimeFactoryContext> {
   return new Map(
     allRuntimeUnits(runtime).map((unit) => [
       unit,
-      createRuntimeFactoryContext(runtime, ports, unit),
+      createRuntimeFactoryContext(runtime, ports, unit, hostOptions),
     ]),
   )
 }

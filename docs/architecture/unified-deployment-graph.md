@@ -283,6 +283,12 @@ Generated composition loads contributors from selected packages, runs port
 conformance checks, and passes only the declared providers to each package
 factory.
 
+Ports carry behaviour one graph unit needs from another. A host may also
+contribute per-unit runtime options that the graph cannot supply, because they
+are a property of its own runtime state rather than of the composed image — see
+`docs/architecture/graph-host-options.md`. Those options are merged into the
+default factory invocation and are never a substitute for a declarable port.
+
 The host binds implementations by typed port ID, never by first-party package
 ID. The host must not choose Bookings, Finance, Catalog, or any other product
 implementation. Conversely, packages must not reach into a deployment container

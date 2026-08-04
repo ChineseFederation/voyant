@@ -47,6 +47,7 @@ describe("public document delivery deployment manifest", () => {
       unitId: "@voyant-travel/public-document-delivery",
       projectConfig: {},
       getUnitProjectConfig: () => undefined,
+      hostOptions: {},
       api: [{ id: PUBLIC_DOCUMENT_DELIVERY_OPENAPI_API_ID, surface: "public" }],
       graph: {
         providerSelections: {},

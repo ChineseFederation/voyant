@@ -213,6 +213,21 @@ export interface VoyantNodeRuntimeOptions {
   deploymentRequirements: VoyantGraphDeploymentRequirements
   runtimePorts?: import("./runtime-composition.js").VoyantGraphRuntimePorts
   /**
+   * Deployment-owned runtime options keyed by graph unit id, merged into each
+   * unit's default factory invocation. The seam for host knowledge a package
+   * accepts as a runtime option but declares no port for — a live plan
+   * allowance, for instance, which is a property of the request rather than of
+   * the container this process booted with.
+   */
+  hostOptions?: import("./runtime-composition.js").VoyantGraphRuntimeHostOptions
+  /**
+   * Deployment-owned option wiring and local units keyed by graph unit id. A
+   * binding replaces the default invocation for its unit, so the host takes
+   * ownership of composing that unit correctly and stops tracking changes to
+   * the default path. Prefer `hostOptions` to contribute options and keep it.
+   */
+  bindings?: import("./runtime-composition.js").ComposeVoyantGraphRuntimeInput<VoyantNodeRuntimeResources>["bindings"]
+  /**
    * Binds graph-contributed durable event delivery to the composed application
    * bus after boot. The caller owns the concrete runtime port; the generic Node
    * host owns only the event-delivery lifecycle.
@@ -327,6 +342,8 @@ export async function loadVoyantNodeRuntime(
     runtime: options.graphRuntime,
     capabilities: resources,
     ports: runtimePorts,
+    ...(options.hostOptions ? { hostOptions: options.hostOptions } : {}),
+    ...(options.bindings ? { bindings: options.bindings } : {}),
     outboundWebhooks: options.outboundWebhooks,
     appWebhooks: options.appWebhooks,
   })

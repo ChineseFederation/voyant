@@ -191,7 +191,7 @@ export const bookingsApiModule: ApiModule = createBookingsApiModule()
 
 /** Package-owned adapter from graph ports to the complete Bookings runtime. */
 export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
-  async ({ api, getPort, hasPort }) => {
+  async ({ api, getPort, hasPort, hostOptions }) => {
     const [accommodation, customFields, finance, relationships] = await Promise.all([
       getPort(bookingsAccommodationRuntimePort),
       getPort(customFieldsRuntimePort),
@@ -217,6 +217,12 @@ export const createBookingsVoyantRuntime = defineGraphRuntimeFactory(
       amendmentFinance: finance,
       ...(amendmentSupplier ? { amendmentSupplier } : {}),
       ...(bookingActions ? { bookingActions } : {}),
+      // Last: the deployment composing this graph is the authority over what
+      // it composed. This is how a graph-composed host installs options the
+      // graph cannot supply — `resolveMonthlyBookingLimit` above all, whose
+      // whole point is that the allowance is a property of the request rather
+      // than of the container this process booted with.
+      ...(hostOptions as Partial<BookingsApiModuleOptions>),
     })
 
     const bootstrap = configured.module.bootstrap
