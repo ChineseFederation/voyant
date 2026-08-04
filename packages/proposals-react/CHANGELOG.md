@@ -1,5 +1,11 @@
 # @voyant-travel/proposals-react
 
+## 0.245.0
+
+### Patch Changes
+
+- @voyant-travel/relationships-react@0.247.0
+
 ## 0.244.0
 
 ### Patch Changes
