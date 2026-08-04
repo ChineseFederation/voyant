@@ -72,7 +72,27 @@ async function buildProductVersionSnapshot(db: PostgresJsDatabase, productId: st
             .where(eq(productDayServices.dayId, day.id))
             .orderBy(asc(productDayServices.sortOrder))
 
-          return { ...day, services }
+          // Emit the declared, versioned planned-cost block (voyant#4037)
+          // alongside the raw columns so a departure can restate this service's
+          // cost against its own quantities without reading the mutable product.
+          // Deterministic by construction — every field is a frozen column, so
+          // an unchanged product still de-dupes on re-publish. `fxRates`/
+          // `resolvedAt` are null: Finance restates at its issue-date rate.
+          const servicesWithPlannedCost = services.map((service) => ({
+            ...service,
+            plannedCost: {
+              version: 1 as const,
+              basis: service.plannedCostBasis,
+              driver: service.quantityDriver,
+              quantity: service.quantity,
+              rateCents: service.costAmountCents,
+              currency: service.costCurrency,
+              fxRates: null,
+              resolvedAt: null,
+            },
+          }))
+
+          return { ...day, services: servicesWithPlannedCost }
         }),
       )
 

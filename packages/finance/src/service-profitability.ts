@@ -18,6 +18,7 @@ import {
   supplierInvoices,
 } from "./schema.js"
 import { executeBoundaryRows, normalizeDateOnly, sqlList } from "./service-boundary-sql.js"
+import { type DeparturePlannedCost, resolveDeparturePlannedCosts } from "./service-planned-cost.js"
 
 /**
  * FX runtime for the profitability read model. Carries the operator FX settings
@@ -36,7 +37,11 @@ export type ProfitabilityFxRuntime = InvoiceFxOptions
  *   to the departures' booked sell amounts (`booking_items`). Credit notes net
  *   the revenue down.
  * - Actual cost = `supplier_cost_allocations` targeted at the departure/product.
- * - Planned cost = `booking_items.totalCostAmountCents` (what we expected to pay).
+ * - Planned cost = the frozen day-service resolver (voyant#4037) for any
+ *   version-bound departure; `booking_items.totalCostAmountCents` remains a
+ *   documented fallback for departures with no `product_version_id`. The two are
+ *   never mixed within a departure, and which departures used the fallback is
+ *   surfaced as `plannedCostCaveat` rather than silently blended.
  * - Profit = revenue − actual cost. Variance = planned − actual cost.
  *
  * Two further figures account for supplier cost that reaches no departure, and
@@ -72,6 +77,21 @@ export interface ProfitabilityUnallocated {
   amountCents: number
 }
 
+/**
+ * Planned-cost provenance for the report (voyant#4037). Version-bound departures
+ * take the frozen day-service resolver; the rest fall back to `booking_items`.
+ * This names the fallback departures explicitly so a consumer can show the
+ * report is only as complete as its cost sources, instead of trusting a blended
+ * figure. `versionResolvedCount` is how many departures the resolver costed;
+ * `linesMissingCostBlock` counts resolved lines whose day service carried no
+ * declared cost block (a `missing_planned_cost` signal).
+ */
+export interface ProfitabilityPlannedCostCaveat {
+  fallbackDepartureIds: string[]
+  versionResolvedCount: number
+  linesMissingCostBlock: number
+}
+
 export interface DepartureProfitabilityRow {
   departureId: string
   departureLabel: string | null
@@ -102,6 +122,7 @@ export interface DepartureProfitabilityReport {
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributed: ProfitabilityUnattributed[]
   unallocated: ProfitabilityUnallocated[]
+  plannedCostCaveat?: ProfitabilityPlannedCostCaveat
   base?: DepartureProfitabilityBaseRollup
 }
 
@@ -132,6 +153,7 @@ export interface ProductProfitabilityReport {
   costByServiceType: ProfitabilityCostByServiceType[]
   unattributed: ProfitabilityUnattributed[]
   unallocated: ProfitabilityUnallocated[]
+  plannedCostCaveat?: ProfitabilityPlannedCostCaveat
   base?: ProductProfitabilityBaseRollup
 }
 
@@ -219,6 +241,7 @@ interface LoadedAccumulators {
   unattributedBase: BaseSplit
   unallocated: ProfitabilityUnallocated[]
   unallocatedBase: BaseSplit
+  plannedCostCaveat: ProfitabilityPlannedCostCaveat
 }
 
 /**
@@ -455,6 +478,19 @@ async function loadDepartureAccumulators(
   const bookingTotalSell = new Map<string, number>()
   const bookingSlotSell = new Map<string, Array<{ departureId: string; sellCents: number }>>()
 
+  // booking_items planned cost, stashed per (departure, currency) rather than
+  // added to the accumulator here: the source switch below decides, per
+  // departure, whether the frozen resolver or this fallback wins (voyant#4037).
+  const bookingItemsPlanned = new Map<string, Map<string, number>>()
+  const stashBookingItemsPlanned = (departureId: string, currency: string, cents: number): void => {
+    let byCurrency = bookingItemsPlanned.get(departureId)
+    if (!byCurrency) {
+      byCurrency = new Map()
+      bookingItemsPlanned.set(departureId, byCurrency)
+    }
+    byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + cents)
+  }
+
   for (const row of itemRows) {
     const departureId = row.departureId
     if (!departureId) continue
@@ -467,10 +503,7 @@ async function loadDepartureAccumulators(
     const sellCents = num(row.sellCents)
     const plannedCost = num(row.plannedCostCents)
     if (row.costCurrency && plannedCost !== 0) {
-      bucket(acc.byCurrency, row.costCurrency).planned += plannedCost
-      // Planned cost is a budget snapshot with no recorded FX, so it always
-      // routes through the fallback conversion (latest rate for that currency).
-      ensureResidual(acc, row.costCurrency).planned += plannedCost
+      stashBookingItemsPlanned(departureId, row.costCurrency, plannedCost)
     }
 
     bookingTotalSell.set(row.bookingId, (bookingTotalSell.get(row.bookingId) ?? 0) + sellCents)
@@ -554,6 +587,44 @@ async function loadDepartureAccumulators(
     }
   }
 
+  // Planned-cost source switch (voyant#4037). A departure bound to a Product
+  // Version takes the frozen day-service resolver — the whole point of the
+  // tracer; every other departure keeps its stashed `booking_items` figure as a
+  // documented fallback. Sources are never mixed within a departure. The
+  // resolver fires no cross-module query when nothing is version-bound.
+  const versionResolved = await resolveDeparturePlannedCosts(db, departureIds)
+  const plannedCostCaveat: ProfitabilityPlannedCostCaveat = {
+    fallbackDepartureIds: [],
+    versionResolvedCount: 0,
+    linesMissingCostBlock: 0,
+  }
+  const addPlanned = (acc: DepartureAcc, currency: string, cents: number): void => {
+    if (cents === 0) return
+    bucket(acc.byCurrency, currency).planned += cents
+    // Planned cost is a budget figure with no recorded FX, so it always routes
+    // through the fallback conversion (latest rate for that currency).
+    ensureResidual(acc, currency).planned += cents
+  }
+  for (const departureId of departureIds) {
+    const acc = departures.get(departureId)
+    if (!acc) continue
+    const resolved: DeparturePlannedCost | undefined = versionResolved.get(departureId)
+    if (resolved) {
+      // Version-bound: authoritative, even when partial. A missing declared
+      // block leaves that line uncosted and is reported, not back-filled from
+      // booking_items (which would silently mix sources).
+      plannedCostCaveat.versionResolvedCount += 1
+      plannedCostCaveat.linesMissingCostBlock += resolved.linesMissingCostBlock
+      for (const [currency, cents] of resolved.byCurrency) addPlanned(acc, currency, cents)
+    } else {
+      const stash = bookingItemsPlanned.get(departureId)
+      if (stash) {
+        for (const [currency, cents] of stash) addPlanned(acc, currency, cents)
+        plannedCostCaveat.fallbackDepartureIds.push(departureId)
+      }
+    }
+  }
+
   const productActualCost: Array<{ productId: string; currency: string; amountCents: number }> = []
   const productActualCostBase = new Map<string, BaseSplit>()
   for (const row of productCostRows) {
@@ -617,6 +688,7 @@ async function loadDepartureAccumulators(
     unattributedBase,
     unallocated,
     unallocatedBase,
+    plannedCostCaveat,
   }
 }
 
@@ -643,6 +715,7 @@ export async function getDepartureProfitability(
     unattributedBase,
     unallocated,
     unallocatedBase,
+    plannedCostCaveat,
   } = loaded
 
   const rows: DepartureProfitabilityRow[] = []
@@ -731,6 +804,7 @@ export async function getDepartureProfitability(
     costByServiceType: filterCostByCurrency(costByServiceType, query.currency),
     unattributed: filterCostByCurrency(unattributed, query.currency),
     unallocated: filterCostByCurrency(unallocated, query.currency),
+    plannedCostCaveat,
     base: {
       currency: baseCurrency,
       rows: baseRows,
@@ -759,6 +833,7 @@ export async function getProductProfitability(
     unattributedBase,
     unallocated,
     unallocatedBase,
+    plannedCostCaveat,
   } = loaded
 
   interface ProductAcc {
@@ -907,6 +982,7 @@ export async function getProductProfitability(
     costByServiceType: filterCostByCurrency(costByServiceType, query.currency),
     unattributed: filterCostByCurrency(unattributed, query.currency),
     unallocated: filterCostByCurrency(unallocated, query.currency),
+    plannedCostCaveat,
     base: {
       currency: baseCurrency,
       rows: baseRows,

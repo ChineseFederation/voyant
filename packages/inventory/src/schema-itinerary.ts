@@ -34,6 +34,44 @@ export const dayServiceTravelerScopeEnum = pgEnum("day_service_traveler_scope", 
   "children",
 ])
 
+/**
+ * How a day service's planned-cost rate (`cost_amount_cents`) is expressed — the
+ * unit it is priced per. The profitability tracer (voyant#4037) needs a declared
+ * basis so a departure can restate the frozen cost against its own quantities
+ * instead of guessing. Reuses the supplier `rate_unit` vocabulary
+ * (`packages/distribution/src/suppliers/schema.ts`) verbatim where it maps —
+ * `per_person`, `per_night`, `per_vehicle`, `flat` — rather than minting a
+ * parallel enum, and adds the two bases day services need that `rate_unit` lacks:
+ * `per_room` and `per_service_unit`. The paired {@link dayServiceQuantityDriverEnum}
+ * names which authoritative departure quantity multiplies the rate.
+ */
+export const dayServicePlannedCostBasisEnum = pgEnum("day_service_planned_cost_basis", [
+  "flat",
+  "per_person",
+  "per_room",
+  "per_night",
+  "per_vehicle",
+  "per_service_unit",
+])
+
+/**
+ * Which authoritative departure quantity multiplies the planned-cost rate when a
+ * departure resolves this service. `fixed` multiplies by one; `service_units`
+ * multiplies by the configured `quantity`; the rest are read from the departure:
+ * `pax` from booked travellers, `rooms`/`vehicles` from `allocation_resources`,
+ * `nights` from `availability_slots.nights`. Kept separate from the basis so an
+ * author can, e.g., price a `flat` rate that a departure still applies once per
+ * `service_units`.
+ */
+export const dayServiceQuantityDriverEnum = pgEnum("day_service_quantity_driver", [
+  "fixed",
+  "pax",
+  "rooms",
+  "nights",
+  "vehicles",
+  "service_units",
+])
+
 export const productItineraries = pgTable(
   "product_itineraries",
   {
@@ -166,6 +204,17 @@ export const productDayServices = pgTable(
     costCurrency: text("cost_currency").notNull(),
     costAmountCents: integer("cost_amount_cents").notNull(),
     quantity: integer("quantity").notNull().default(1),
+    // Planned-cost basis + quantity driver (voyant#4037). The default pair
+    // (`per_service_unit` / `service_units`) reproduces the legacy costing —
+    // `cost_amount_cents` × `quantity` — so a service authored before this
+    // migration resolves to the same planned figure; authors opt into a
+    // departure-driven basis (per person/room/night/vehicle) explicitly.
+    plannedCostBasis: dayServicePlannedCostBasisEnum("planned_cost_basis")
+      .notNull()
+      .default("per_service_unit"),
+    quantityDriver: dayServiceQuantityDriverEnum("quantity_driver")
+      .notNull()
+      .default("service_units"),
     sortOrder: integer("sort_order"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

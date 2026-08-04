@@ -35,10 +35,78 @@ import {
 } from "./validation-shared.js"
 
 /**
+ * How a day service's planned-cost rate is expressed — the unit `rateCents` is
+ * priced per. Mirrors the inventory `day_service_planned_cost_basis` enum and,
+ * through it, the supplier `rate_unit` vocabulary it reuses where they map
+ * (`per_person`, `per_night`, `per_vehicle`, `flat`). See voyant#4037.
+ */
+export const plannedCostBasisSchema = z.enum([
+  "flat",
+  "per_person",
+  "per_room",
+  "per_night",
+  "per_vehicle",
+  "per_service_unit",
+])
+
+export type PlannedCostBasis = z.infer<typeof plannedCostBasisSchema>
+
+/**
+ * Which authoritative departure quantity multiplies the planned-cost rate.
+ * Mirrors the inventory `day_service_quantity_driver` enum. A departure resolver
+ * reads the driver to pick the multiplier: `fixed` → 1, `service_units` → the
+ * frozen `quantity`, and `pax`/`rooms`/`nights`/`vehicles` from the departure.
+ */
+export const costQuantityDriverSchema = z.enum([
+  "fixed",
+  "pax",
+  "rooms",
+  "nights",
+  "vehicles",
+  "service_units",
+])
+
+export type CostQuantityDriver = z.infer<typeof costQuantityDriverSchema>
+
+/**
+ * The declared, versioned planned-cost contract frozen for one day service —
+ * the whole point of voyant#4037. It carries the rate and the two things a
+ * departure needs to restate it against its own scale without guessing: the
+ * `basis` (what the rate is priced per) and the `driver` (which departure
+ * quantity multiplies it). `fxRates`/`resolvedAt` are the optional frozen-FX
+ * carrier; they are null when the version was minted without an FX runtime, in
+ * which case the reader restates at its own issue-date rate (Finance's
+ * deliberate design) rather than a stale build-time rate. `version` lets the
+ * block evolve without breaking older snapshots.
+ */
+export const snapshotPlannedCostSchema = z
+  .object({
+    version: z.literal(1),
+    basis: plannedCostBasisSchema,
+    driver: costQuantityDriverSchema,
+    /** The service's configured quantity — the multiplier for `service_units`. */
+    quantity: z.number().int(),
+    /** The rate, in minor units of `currency`, priced per the `basis` unit. */
+    rateCents: z.number().int(),
+    /** The day-service cost currency — NOT the product sell currency. */
+    currency: z.string(),
+    /** Frozen FX rate set (source currency → base rate), or null. */
+    fxRates: z.record(z.string(), z.number()).nullable().default(null),
+    /** ISO instant the FX set was resolved at, or null. */
+    resolvedAt: z.string().nullable().default(null),
+  })
+  .passthrough()
+
+export type SnapshotPlannedCost = z.infer<typeof snapshotPlannedCostSchema>
+
+/**
  * One day service as frozen in a version snapshot. Costing columns
  * (`costCurrency`, `costAmountCents`, …) are tolerated but not required here;
  * the tracer reads the operational columns. `inclusionRole` / `travelerScope`
  * default so a snapshot taken before those columns existed still parses.
+ * `plannedCost` is the voyant#4037 declared cost block; it is `nullish` so a
+ * snapshot minted before the block existed still parses (the reader treats a
+ * missing block as "no version-based planned cost" and falls back).
  */
 export const snapshotDayServiceSchema = z
   .object({
@@ -55,6 +123,7 @@ export const snapshotDayServiceSchema = z
     inclusionRole: dayServiceInclusionRoleSchema.default("included"),
     travelerScope: dayServiceTravelerScopeSchema.default("all"),
     sortOrder: z.number().int().nullish(),
+    plannedCost: snapshotPlannedCostSchema.nullish(),
   })
   .passthrough()
 
@@ -141,4 +210,76 @@ export function defaultItineraryDaysFromSnapshot(snapshot: ProductVersionSnapsho
 
   const days = defaultItinerary?.days ?? snapshot.days ?? []
   return [...days].sort((a, b) => a.dayNumber - b.dayNumber)
+}
+
+// ---------- planned-cost resolution (voyant#4037) ----------
+
+/**
+ * The authoritative departure quantities a planned-cost driver reads. Supplied
+ * by the caller from the departure itself — pax from booked travellers, rooms
+ * and vehicles from `allocation_resources`, nights from `availability_slots`.
+ * Null/absent quantities are treated as zero so a driver pointed at a quantity
+ * the departure has not established resolves to zero cost, never a guess.
+ */
+export interface DepartureQuantities {
+  pax?: number | null
+  rooms?: number | null
+  vehicles?: number | null
+  nights?: number | null
+}
+
+/** One resolved planned-cost figure for a day service, in its own currency. */
+export interface ResolvedPlannedCost {
+  currency: string
+  amountCents: number
+  /** The multiplier the driver selected — surfaced so callers can explain it. */
+  multiplier: number
+}
+
+const nonNegative = (value: number | null | undefined): number =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0
+
+/**
+ * The multiplier a driver applies. `fixed` is one; `service_units` is the
+ * service's frozen configured quantity; the rest read the departure. Kept pure
+ * and total so it is exhaustively unit-testable without a database.
+ */
+export function departureQuantityForDriver(
+  driver: CostQuantityDriver,
+  quantities: DepartureQuantities,
+  serviceQuantity: number,
+): number {
+  switch (driver) {
+    case "fixed":
+      return 1
+    case "service_units":
+      return nonNegative(serviceQuantity)
+    case "pax":
+      return nonNegative(quantities.pax)
+    case "rooms":
+      return nonNegative(quantities.rooms)
+    case "vehicles":
+      return nonNegative(quantities.vehicles)
+    case "nights":
+      return nonNegative(quantities.nights)
+  }
+}
+
+/**
+ * Resolve a frozen planned-cost block against a departure's authoritative
+ * quantities. The rate (`rateCents`, priced per the basis unit) is multiplied by
+ * the quantity the `driver` selects. Pure — no FX, no database. Multi-currency
+ * is preserved by returning the block's own `currency`; the reader (Finance)
+ * restates it into the accounting base at its own issue-date rate.
+ */
+export function resolvePlannedCost(
+  block: SnapshotPlannedCost,
+  quantities: DepartureQuantities,
+): ResolvedPlannedCost {
+  const multiplier = departureQuantityForDriver(block.driver, quantities, block.quantity)
+  return {
+    currency: block.currency,
+    amountCents: Math.round(block.rateCents * multiplier),
+    multiplier,
+  }
 }
