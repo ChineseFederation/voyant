@@ -39,6 +39,22 @@ describe("Booking v1 status cutover migration", () => {
     expect(migration).toContain(`WHEN slot."status" = 'sold_out' THEN 'open'`)
   })
 
+  it("stops only on payment effects, not on opening a checkout", () => {
+    for (const startedButUncharged of [
+      'OR payment_session."provider_session_id" IS NOT NULL',
+      'OR payment_session."provider_payment_id" IS NOT NULL',
+    ]) {
+      expect(migration).not.toContain(startedButUncharged)
+    }
+    for (const effect of [
+      'payment_session."payment_authorization_id" IS NOT NULL',
+      'OR payment_session."payment_capture_id" IS NOT NULL',
+      'OR payment_session."payment_id" IS NOT NULL',
+    ]) {
+      expect(migration).toContain(effect)
+    }
+  })
+
   it("preserves real finance and legal records", () => {
     for (const evidence of [
       "invoice_record",

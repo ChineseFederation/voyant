@@ -18,6 +18,26 @@ const migrations = [
 const readMigration = (filename: (typeof migrations)[number]) =>
   readFileSync(new URL(filename, migrationDirectory), "utf8")
 
+/**
+ * Finance is an optional deployment module, so the cutover only reaches
+ * `payment_sessions` when the table exists. Model the columns the guard reads.
+ */
+const paymentSessionsTable = `
+  CREATE TABLE "payment_sessions" (
+    "id" text PRIMARY KEY NOT NULL,
+    "booking_id" text,
+    "status" text NOT NULL,
+    "provider_session_id" text,
+    "provider_payment_id" text,
+    "payment_authorization_id" text,
+    "payment_capture_id" text,
+    "payment_id" text,
+    "expires_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+  );
+`
+
 describe("Booking v1 status cutover data migration", () => {
   let client: PGlite | undefined
 
@@ -175,6 +195,132 @@ describe("Booking v1 status cutover data migration", () => {
       ORDER BY column_name
     `)
     expect(bookingColumns.rows).toEqual([{ columnDefault: null, columnName: "status" }])
+  })
+
+  it("removes attempts whose checkout was opened but never charged", async () => {
+    client = new PGlite()
+    for (const migration of migrations.slice(0, -1)) {
+      await client.exec(readMigration(migration))
+    }
+
+    await client.exec(`
+      ${paymentSessionsTable}
+
+      INSERT INTO "bookings" (
+        "id", "booking_number", "status", "sell_currency"
+      ) VALUES
+        ('booking_redirected', 'BOOK-REDIRECTED', 'draft', 'EUR'),
+        ('booking_expired_session', 'BOOK-EXPIRED-SESSION', 'draft', 'EUR');
+
+      INSERT INTO "payment_sessions" (
+        "id",
+        "booking_id",
+        "status",
+        "provider_session_id",
+        "provider_payment_id",
+        "expires_at",
+        "updated_at"
+      ) VALUES
+        (
+          'pmss_stale_redirect',
+          'booking_redirected',
+          'requires_redirect',
+          'provider-session-stale',
+          NULL,
+          now() - interval '30 days',
+          now() - interval '30 days'
+        ),
+        (
+          'pmss_expired',
+          'booking_expired_session',
+          'expired',
+          'provider-session-expired',
+          'provider-payment-expired',
+          now() - interval '60 days',
+          now() - interval '60 days'
+        );
+    `)
+
+    await client.exec(readMigration("20260802200000_booking_v1_status_cutover.sql"))
+
+    const bookings = await client.query<{ id: string }>(`
+      SELECT "id" FROM "bookings" ORDER BY "id"
+    `)
+    expect(bookings.rows).toEqual([])
+
+    // The provider link is the only record that a checkout was opened, so it
+    // outlives the Booking rather than being deleted or blanked.
+    const sessions = await client.query<{ bookingId: string; id: string }>(`
+      SELECT "id", "booking_id" AS "bookingId"
+      FROM "payment_sessions"
+      ORDER BY "id"
+    `)
+    expect(sessions.rows).toEqual([
+      { bookingId: "booking_expired_session", id: "pmss_expired" },
+      { bookingId: "booking_redirected", id: "pmss_stale_redirect" },
+    ])
+  })
+
+  it("fails before mutation when an attempt carries a real payment effect", async () => {
+    client = new PGlite()
+    for (const migration of migrations.slice(0, -1)) {
+      await client.exec(readMigration(migration))
+    }
+
+    await client.exec(`
+      ${paymentSessionsTable}
+
+      INSERT INTO "bookings" (
+        "id", "booking_number", "status", "sell_currency"
+      ) VALUES ('booking_charged', 'BOOK-CHARGED', 'draft', 'EUR');
+
+      INSERT INTO "payment_sessions" (
+        "id", "booking_id", "status", "payment_id"
+      ) VALUES ('pmss_charged', 'booking_charged', 'failed', 'pay_recorded');
+    `)
+
+    await expect(
+      client.exec(readMigration("20260802200000_booking_v1_status_cutover.sql")),
+    ).rejects.toThrow(/unresolved external payment effect/)
+
+    const booking = await client.query<{ status: string }>(`
+      SELECT "status"::text AS "status" FROM "bookings" WHERE "id" = 'booking_charged'
+    `)
+    expect(booking.rows).toEqual([{ status: "draft" }])
+  })
+
+  it("fails before mutation when an attempt has a checkout still in flight", async () => {
+    client = new PGlite()
+    for (const migration of migrations.slice(0, -1)) {
+      await client.exec(readMigration(migration))
+    }
+
+    await client.exec(`
+      ${paymentSessionsTable}
+
+      INSERT INTO "bookings" (
+        "id", "booking_number", "status", "sell_currency"
+      ) VALUES ('booking_in_flight', 'BOOK-IN-FLIGHT', 'draft', 'EUR');
+
+      INSERT INTO "payment_sessions" (
+        "id", "booking_id", "status", "provider_session_id", "expires_at"
+      ) VALUES (
+        'pmss_in_flight',
+        'booking_in_flight',
+        'processing',
+        'provider-session-live',
+        now() + interval '20 minutes'
+      );
+    `)
+
+    await expect(
+      client.exec(readMigration("20260802200000_booking_v1_status_cutover.sql")),
+    ).rejects.toThrow(/unresolved external payment effect/)
+
+    const booking = await client.query<{ status: string }>(`
+      SELECT "status"::text AS "status" FROM "bookings" WHERE "id" = 'booking_in_flight'
+    `)
+    expect(booking.rows).toEqual([{ status: "draft" }])
   })
 
   it("fails before mutation when an attempt has an ambiguous supplier effect", async () => {

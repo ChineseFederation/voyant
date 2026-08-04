@@ -279,12 +279,22 @@ BEGIN
         ON payment_session."booking_id" = classification."booking_id"
       WHERE classification."classification" = 'abandoned_attempt'
         AND (
-          payment_session."status" IN ('requires_redirect', 'processing')
-          OR payment_session."provider_session_id" IS NOT NULL
-          OR payment_session."provider_payment_id" IS NOT NULL
-          OR payment_session."payment_authorization_id" IS NOT NULL
+          -- A recorded authorization, capture, or payment is money that moved.
+          -- Only these are effects an operator can actually reconcile.
+          payment_session."payment_authorization_id" IS NOT NULL
           OR payment_session."payment_capture_id" IS NOT NULL
           OR payment_session."payment_id" IS NOT NULL
+          -- A checkout still inside its provider window may yet settle, so the
+          -- migration must not delete the Booking underneath it. Past that
+          -- window an unsettled session is an abandoned attempt by definition,
+          -- which is exactly how the classifier already labelled the Booking.
+          OR (
+            payment_session."status" IN ('requires_redirect', 'processing')
+            AND coalesce(
+              payment_session."expires_at",
+              payment_session."updated_at" + interval '24 hours'
+            ) > now()
+          )
         )
       ORDER BY classification."booking_id"
       LIMIT 1
@@ -478,7 +488,11 @@ END $$;
 --> statement-breakpoint
 
 -- Remove harmless Finance attempt state before deleting the abandoned Booking.
--- External or settled payment evidence was preserved or rejected above.
+-- Settled payment evidence was preserved as a commitment, and unreconciled
+-- payment effects were rejected above. A session that only carries provider
+-- identifiers is deliberately left in place: it is the sole record that this
+-- deployment opened a checkout with the provider, so it keeps its `booking_id`
+-- and survives the Booking it names rather than being erased or blanked.
 DO $$
 BEGIN
   IF to_regclass('public.payment_sessions') IS NOT NULL THEN
