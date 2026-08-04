@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/navigation-preferences",
-  "version": "0.24.2",
+  "version": "0.24.3",
   "description": "Organization and member admin navigation visibility preferences for Voyant.",
   "license": "Apache-2.0",
   "type": "module",

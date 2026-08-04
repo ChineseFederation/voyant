@@ -1,5 +1,41 @@
 # @voyant-travel/runtime
 
+## 0.21.17
+
+### Patch Changes
+
+- 3552f14: Wake the expired-hold reaper instead of polling for it.
+
+  An availability hold records the instant it becomes reapable, so nothing has to
+  poll to discover that work. `operations.release-expired-availability-holds` is
+  now `wakeup: true`: placing or extending a hold reports the new expiry, the
+  reaper re-arms itself from the earliest outstanding expiry after every run, and
+  the cron drops to a six-hourly backstop for a wake lost to a restart.
+
+  Hosts gain a target-neutral way to carry that request.
+  `VoyantRuntimeHostPrimitives.jobs.wakeAt(jobId, at)` asks the deployment to
+  invoke a wakeable job at an instant; the Node host arms one in-process timer per
+  job, keeps the earliest pending instant, and declines anything past its horizon.
+  A requested wake is a prompt and never durable — the declared cadence stays the
+  recovery authority, as it already is for a wake arriving over
+  `POST /__voyant/jobs/:id`.
+
+  On a managed deployment this is what stops an idle tenant from paying for its
+  database. A tenant with no live holds now arms nothing and never wakes its
+  compute for this job; one with holds wakes exactly when there is capacity to
+  give back, which is sooner than the fifteen-minute sweep it replaces.
+
+- Updated dependencies [3552f14]
+  - @voyant-travel/core@0.138.0
+  - @voyant-travel/framework@0.75.0
+  - @voyant-travel/apps@0.14.6
+  - @voyant-travel/auth@0.150.14
+  - @voyant-travel/db@0.120.2
+  - @voyant-travel/hono@0.140.1
+  - @voyant-travel/storage@0.115.2
+  - @voyant-travel/webhook-delivery@0.5.14
+  - @voyant-travel/admin-host@0.95.0
+
 ## 0.21.16
 
 ### Patch Changes

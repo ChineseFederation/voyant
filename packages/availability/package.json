@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/availability",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Availability domain schema — bookable slots, rules, start times, holds, pickups and capacity. The foundational owner consumed by bookings, operations and accommodations.",
   "license": "Apache-2.0",
   "type": "module",
