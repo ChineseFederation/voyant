@@ -20,6 +20,16 @@ export const VEHICLE_SEAT_KIND = "vehicle_seat"
  */
 export const STANDARD_OPERATIONAL_KINDS = [ROOM_KIND, VEHICLE_KIND, VEHICLE_SEAT_KIND] as const
 
+/**
+ * Multi-select state threaded through the resource view so a whole sharing
+ * group can be picked up wherever its members currently sit and moved in one
+ * atomic batch, instead of N independent single-traveler PATCHes.
+ */
+export interface AllocationSelection {
+  selectedIds: ReadonlySet<string>
+  onToggle: (travelerId: string) => void
+}
+
 export type AllocationOccupants = {
   byResource: Map<string, AllocationManifestTraveler[]>
   byTravelerId: Map<string, AllocationManifestTraveler>
@@ -211,6 +221,58 @@ export function validateVehicleSeatDesignation({
     (seat) => seat.parentId === parentId && seatDesignation(seat)?.toLowerCase() === normalized,
   )
   return duplicate ? "duplicate" : null
+}
+
+/**
+ * Fleet `resources.kind` values that can back each departure workspace kind.
+ * Mirrors `WORKSPACE_KIND_BY_RESOURCE_KIND` in
+ * `service-allocation-resource-link.ts`, read the other way round: the attach
+ * always names its workspace `kind` explicitly, so this only decides what the
+ * picker is allowed to offer.
+ */
+export const FLEET_KINDS_BY_ALLOCATION_KIND: Readonly<Record<string, readonly string[]>> = {
+  [ROOM_KIND]: ["room"],
+  [VEHICLE_KIND]: ["vehicle", "boat"],
+}
+
+/** A seat is a child row, never a fleet record; a room or a coach can be one. */
+export function canAttachFleetResource(kind: string): boolean {
+  return Object.hasOwn(FLEET_KINDS_BY_ALLOCATION_KIND, kind)
+}
+
+export function fleetResourcesForKind<T extends { kind: string }>(
+  resources: readonly T[],
+  kind: string,
+): T[] {
+  const allowed = FLEET_KINDS_BY_ALLOCATION_KIND[kind]
+  if (!allowed) return []
+  return resources.filter((resource) => allowed.includes(resource.kind))
+}
+
+/**
+ * The `detail.reason` an `AllocationServiceError` carries, when it carries one.
+ * `VoyantApiError` keeps the parsed error body on `.body`; the allocation
+ * routes serialize `{ error, detail }`.
+ */
+export function allocationErrorReason(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null
+  const body = (error as { body?: unknown }).body
+  if (typeof body !== "object" || body === null) return null
+  const detail = (body as { detail?: unknown }).detail
+  if (typeof detail !== "object" || detail === null) return null
+  const reason = (detail as { reason?: unknown }).reason
+  return typeof reason === "string" ? reason : null
+}
+
+/**
+ * A coach already committed to an overlapping departure is the one attach
+ * failure an operator can act on, so it gets its own copy rather than the raw
+ * server sentence.
+ */
+export function describeFleetAttachError(error: unknown, messages: AllocationUiMessages): string {
+  if (allocationErrorReason(error) === "resource_double_booked") return messages.fleet.doubleBooked
+  if (error instanceof Error && error.message) return error.message
+  return messages.fleet.attachFailed
 }
 
 export function parentKindFor(kind: string) {

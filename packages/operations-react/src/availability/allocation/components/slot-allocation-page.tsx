@@ -13,15 +13,19 @@ import {
   useVoyantAvailabilityContext,
 } from "@voyant-travel/operations-react/availability"
 import { Button, cn, Tabs, TabsList, TabsTrigger } from "@voyant-travel/ui/components"
-import { Armchair, ArrowLeft, Bed, Bus, Plus, Sparkles, Users, Wand2 } from "lucide-react"
-import { type FormEvent, type ReactNode, useMemo, useState } from "react"
+import { Armchair, ArrowLeft, Bed, Bus, Users } from "lucide-react"
+import { type ReactNode, useMemo, useState } from "react"
 
-import { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
+import { useAllocationUiI18nOrDefault } from "../i18n/index.js"
 import { AddResourceDialog } from "./slot-allocation-add-resource-dialog.js"
+import { useAddResourceForm } from "./slot-allocation-add-resource-state.js"
+import { AllocationBulkBar } from "./slot-allocation-bulk-bar.js"
+import { AllocationConflictsPanel } from "./slot-allocation-conflicts-panel.js"
+import { AllocationFleetPanel } from "./slot-allocation-fleet-panel.js"
 import {
+  canAttachFleetResource,
   collectOccupants,
   collectVehicleOccupants,
-  defaultCapacityFor,
   deriveAllocationKinds,
   isTravelerAllocatableKind,
   kindDescription,
@@ -32,11 +36,14 @@ import {
   summarizeResourceCapacity,
   VEHICLE_KIND,
   VEHICLE_SEAT_KIND,
-  validateVehicleSeatDesignation,
 } from "./slot-allocation-model.js"
 import { CapacitySummaryBadges, PassengerListPanel } from "./slot-allocation-page-panels.js"
+import { useSlotAllocationPlanning } from "./slot-allocation-planning-state.js"
+import { AllocationPreviewDialog } from "./slot-allocation-preview-dialog.js"
+import { AllocationPrintView } from "./slot-allocation-print-view.js"
 import { ResourceColumnsView } from "./slot-allocation-resource-view.js"
 import { VehicleSeatsView } from "./slot-allocation-seat-view.js"
+import { AllocationToolbarActions } from "./slot-allocation-toolbar-actions.js"
 
 export interface SlotAllocationPageRenderContext {
   slotId: string
@@ -79,6 +86,8 @@ export interface SlotAllocationPageProps {
    * still self-sufficient when embedded.
    */
   embed?: boolean
+  /** Human departure label for the printed manifest header. */
+  departureLabel?: string | null
 }
 
 export function SlotAllocationPage({
@@ -93,8 +102,9 @@ export function SlotAllocationPage({
   renderAfter,
   extraTabs = [],
   embed = false,
+  departureLabel = null,
 }: SlotAllocationPageProps) {
-  const messages = useAllocationUiMessagesOrDefault()
+  const { messages, formatDateTime } = useAllocationUiI18nOrDefault()
   const availabilityClient = useVoyantAvailabilityContext()
   const allocation = useSlotAllocation({ slotId })
   const slotRowQuery = useQuery(getSlotQueryOptions(availabilityClient, slotId))
@@ -104,10 +114,6 @@ export function SlotAllocationPage({
   const automationMutation = useAllocationAutomationMutation(slotId)
   const [selectedKind, setSelectedKind] = useState(ROOM_KIND)
   const [addingResource, setAddingResource] = useState(false)
-  const [resourceLabel, setResourceLabel] = useState("")
-  const [resourceCapacity, setResourceCapacity] = useState(2)
-  const [resourceOptionId, setResourceOptionId] = useState<string | null>(null)
-  const [resourceParentId, setResourceParentId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const data = allocation.data?.data
@@ -156,10 +162,37 @@ export function SlotAllocationPage({
   const hasAllocationView = Boolean(activeAllocationKind)
   const hasTabs = allocationKinds.length > 0 || visibleExtraTabs.length > 0
   const hasPassengerOnlyView = allocationKinds.length === 0 && visibleExtraTabs.length === 0
+  const canAttachFleet = canAttachFleetResource(activeKind)
+
+  const planning = useSlotAllocationPlanning({
+    slotId,
+    activeKind,
+    travelers,
+    messages,
+    canAttachFleet,
+    enabled: hasAllocationView,
+    fleetPickerOpen: addingResource,
+    onError: setError,
+  })
+
   const resources = useMemo(
     () => (data?.resources ?? []).filter((resource) => resource.kind === activeKind),
     [data?.resources, activeKind],
   )
+  const attachedFleetResources = useMemo(
+    () =>
+      (data?.resources ?? []).filter(
+        (resource) => resource.refType === "resource" && resource.kind === activeKind,
+      ),
+    [data?.resources, activeKind],
+  )
+  const parentIdsWithChildren = useMemo(() => {
+    const ids = new Set<string>()
+    for (const resource of data?.resources ?? []) {
+      if (resource.parentId) ids.add(resource.parentId)
+    }
+    return ids
+  }, [data?.resources])
   const parentResources = useMemo(
     () => (data?.resources ?? []).filter((resource) => resource.kind === parentKindFor(activeKind)),
     [data?.resources, activeKind],
@@ -189,41 +222,30 @@ export function SlotAllocationPage({
       }),
     [resources, slotRow?.initialPax, slotRow?.remainingPax, slotRow?.unlimited],
   )
-  const projectedSummary = useMemo<ResourceCapacitySummary | null>(() => {
-    if (!addingResource) return null
-    const capacityNumber = Number.isFinite(resourceCapacity) ? Math.max(0, resourceCapacity) : 0
-    return summarizeResourceCapacity({
-      resources: [
-        ...resources,
-        {
-          id: "__projected__",
-          slotId,
-          kind: activeKind,
-          label: null,
-          refType: null,
-          refId: null,
-          capacity: capacityNumber,
-          flags: {},
-          parentId: null,
-          sortOrder: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-      slotInitialPax: slotRow?.initialPax ?? null,
-      slotRemainingPax: slotRow?.remainingPax ?? null,
-      unlimited: slotRow?.unlimited ?? false,
-    })
-  }, [
-    addingResource,
-    resourceCapacity,
-    resources,
+  const addResourceForm = useAddResourceForm({
+    open: addingResource,
+    setOpen: setAddingResource,
     slotId,
     activeKind,
-    slotRow?.initialPax,
-    slotRow?.remainingPax,
-    slotRow?.unlimited,
-  ])
+    resources,
+    vehicleSeatResources,
+    slotInitialPax: slotRow?.initialPax,
+    slotRemainingPax: slotRow?.remainingPax,
+    slotUnlimited: slotRow?.unlimited ?? false,
+    canAttachFleet,
+    fleetCatalogue: planning.fleetCatalogue,
+    messages,
+    onError: setError,
+    createResource: (input) => resourceMutation.create.mutateAsync(input),
+    attachFleetResource: planning.attachFleetResource,
+  })
+  const resourceLabelById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const resource of data?.resources ?? []) {
+      if (resource.label) map.set(resource.id, resource.label)
+    }
+    return map
+  }, [data?.resources])
 
   async function assignTraveler(travelerId: string, resourceId: string | null) {
     setError(null)
@@ -231,43 +253,6 @@ export function SlotAllocationPage({
       await assignMutation.mutateAsync({ travelerId, kind: activeKind, resourceId })
     } catch (err) {
       setError(err instanceof Error ? err.message : messages.allocationFailed)
-    }
-  }
-
-  async function createResource(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    if (activeKind === VEHICLE_SEAT_KIND) {
-      const issue = validateVehicleSeatDesignation({
-        label: resourceLabel,
-        parentId: resourceParentId,
-        seats: vehicleSeatResources,
-      })
-      if (issue) {
-        setError(
-          issue === "duplicate"
-            ? messages.seatDesignationDuplicate
-            : messages.seatDesignationRequired,
-        )
-        return
-      }
-    }
-    try {
-      await resourceMutation.create.mutateAsync({
-        kind: activeKind,
-        label: resourceLabel.trim() || null,
-        capacity: resourceCapacity,
-        refType: resourceOptionId ? "option" : null,
-        refId: resourceOptionId,
-        parentId: activeKind === VEHICLE_SEAT_KIND ? resourceParentId : null,
-      })
-      setResourceLabel("")
-      setResourceCapacity(defaultCapacityFor(activeKind))
-      setResourceOptionId(null)
-      setResourceParentId(null)
-      setAddingResource(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : messages.createResourceFailed)
     }
   }
 
@@ -305,13 +290,18 @@ export function SlotAllocationPage({
     }
   }
 
-  async function autoAllocate() {
-    setError(null)
+  async function confirmAutoAllocate() {
+    planning.setPreviewError(null)
     try {
       await automationMutation.autoAllocate.mutateAsync({ kind: activeKind })
+      planning.closeAutoAllocatePreview()
     } catch (err) {
-      setError(err instanceof Error ? err.message : messages.autoAllocateFailed)
+      planning.setPreviewError(err instanceof Error ? err.message : messages.autoAllocateFailed)
     }
+  }
+
+  function printManifest() {
+    if (typeof window !== "undefined") window.print()
   }
 
   if (allocation.isPending) {
@@ -349,206 +339,243 @@ export function SlotAllocationPage({
     allocationKinds,
   }
 
-  const summaryLine = (
-    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      {selectedExtraTab || !hasAllocationView ? null : (
-        <CapacitySummaryBadges summary={capacitySummary} messages={messages} kind={activeKind} />
-      )}
-    </div>
-  )
+  const summaryLine =
+    selectedExtraTab || !hasAllocationView ? null : (
+      <CapacitySummaryBadges summary={capacitySummary} messages={messages} kind={activeKind} />
+    )
 
   const actionsCluster = (
-    <div className="flex flex-wrap items-center gap-2">
-      {selectedExtraTab || !hasAllocationView
-        ? null
-        : renderExtraActions?.({ slotId, kind: activeKind })}
-      {selectedExtraTab || !hasAllocationView || !isTravelerAssignable ? null : resources.length ===
-        0 ? (
-        (templates.data?.data ?? []).some((option) =>
-          option.templates.some((template) => template.kind === activeKind),
-        ) ? (
-          <Button
-            variant="outline"
-            onClick={() => void generateResources()}
-            disabled={automationMutation.materializeTemplates.isPending}
-          >
-            <Sparkles data-icon="inline-start" aria-hidden="true" />
-            {automationMutation.materializeTemplates.isPending
-              ? messages.generatingResources
-              : messages.generateResources}
-          </Button>
-        ) : null
-      ) : (
-        <Button
-          variant="outline"
-          onClick={() => void autoAllocate()}
-          disabled={automationMutation.autoAllocate.isPending}
-        >
-          <Wand2 data-icon="inline-start" aria-hidden="true" />
-          {automationMutation.autoAllocate.isPending
-            ? messages.autoAllocating
-            : messages.autoAllocate}
-        </Button>
+    <AllocationToolbarActions
+      slotId={slotId}
+      kind={activeKind}
+      messages={messages}
+      hidden={Boolean(selectedExtraTab) || !hasAllocationView}
+      isTravelerAssignable={isTravelerAssignable}
+      hasResources={resources.length > 0}
+      hasTemplatesForKind={(templates.data?.data ?? []).some((option) =>
+        option.templates.some((template) => template.kind === activeKind),
       )}
-      {!selectedExtraTab && hasAllocationView && canManuallyAddResource ? (
-        <Button
-          variant="outline"
-          onClick={() => {
-            setResourceLabel("")
-            setResourceCapacity(defaultCapacityFor(activeKind))
-            setResourceOptionId(null)
-            setResourceParentId(null)
-            setError(null)
-            setAddingResource(true)
-          }}
-        >
-          <Plus data-icon="inline-start" aria-hidden="true" />
-          {messages.addResource}
-        </Button>
-      ) : null}
-    </div>
+      materializePending={automationMutation.materializeTemplates.isPending}
+      autoAllocatePending={automationMutation.autoAllocate.isPending}
+      previewPending={planning.previewPending}
+      exportPending={planning.exportPending}
+      renderExtraActions={renderExtraActions}
+      onGenerateResources={() => void generateResources()}
+      onAutoAllocate={() => void planning.openAutoAllocatePreview()}
+      onExportPassengers={() => void planning.downloadExport("passengers")}
+      onExportResources={() => void planning.downloadExport("resources")}
+      onPrint={printManifest}
+      onAddResource={addResourceForm.beginAdd}
+    />
   )
 
   return (
-    <div className={cn("flex flex-col gap-4", embed ? null : "p-6", className)}>
-      {embed ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {summaryLine}
-          {actionsCluster}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="flex items-start gap-3">
-            {onBack ? (
-              <Button variant="ghost" size="icon" onClick={onBack} aria-label={messages.back}>
-                <ArrowLeft data-icon aria-hidden="true" />
-              </Button>
-            ) : null}
-            <div>
-              <h1 className="text-2xl font-semibold">{messages.pageTitle}</h1>
-              <div className="mt-1">{summaryLine}</div>
+    <>
+      <div
+        className={cn("voyant-print-hidden flex flex-col gap-4", embed ? null : "p-6", className)}
+      >
+        {embed ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
+              {summaryLine}
             </div>
-          </div>
-          <div className="flex flex-col gap-3 md:items-end">
-            {renderHeaderEnd?.(context)}
             {actionsCluster}
           </div>
-        </div>
-      )}
-
-      {renderBefore?.(context)}
-
-      {hasTabs ? (
-        <Tabs value={activeTabId} onValueChange={setSelectedKind}>
-          <TabsList className="flex h-auto w-fit flex-wrap justify-start">
-            {allocationKinds.map((kind) => (
-              <TabsTrigger key={kind} value={kind} className="gap-2">
-                {kind === VEHICLE_SEAT_KIND ? (
-                  <Armchair className="size-4" aria-hidden="true" />
-                ) : kind === VEHICLE_KIND ? (
-                  <Bus className="size-4" aria-hidden="true" />
-                ) : (
-                  <Bed className="size-4" aria-hidden="true" />
-                )}
-                {kindLabel(kind, messages)}
-              </TabsTrigger>
-            ))}
-            {visibleExtraTabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
-                {tab.icon}
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      ) : null}
-
-      {hasAllocationView && kindDescription(activeKind, messages) ? (
-        <p className="text-sm text-muted-foreground">{kindDescription(activeKind, messages)}</p>
-      ) : null}
-
-      {selectedExtraTab ? (
-        selectedExtraTab.render(context)
-      ) : hasPassengerOnlyView ? (
-        <PassengerListPanel
-          bookings={data.bookings}
-          sharingGroupLabels={data.sharingGroupLabels}
-          onBookingOpen={onBookingOpen}
-          renderTravelerActions={renderTravelerActions}
-          messages={messages}
-        />
-      ) : !hasAllocationView ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed p-8 text-center">
-          <Users className="size-6 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">{messages.noAllocationsToManage}</p>
-        </div>
-      ) : (
-        <>
-          {error ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
+        ) : (
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-3">
+              {onBack ? (
+                <Button variant="ghost" size="icon" onClick={onBack} aria-label={messages.back}>
+                  <ArrowLeft data-icon aria-hidden="true" />
+                </Button>
+              ) : null}
+              <div>
+                <h1 className="text-2xl font-semibold">{messages.pageTitle}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground text-sm">
+                  {summaryLine}
+                </div>
+              </div>
             </div>
-          ) : null}
+            <div className="flex flex-col gap-3 md:items-end">
+              {renderHeaderEnd?.(context)}
+              {actionsCluster}
+            </div>
+          </div>
+        )}
 
-          {canManuallyAddResource ? (
-            <AddResourceDialog
-              open={addingResource}
-              onOpenChange={setAddingResource}
-              onSubmit={createResource}
-              activeKind={activeKind}
-              resourceLabel={resourceLabel}
-              onResourceLabelChange={setResourceLabel}
-              resourceCapacity={resourceCapacity}
-              onResourceCapacityChange={setResourceCapacity}
-              resourceOptionId={resourceOptionId}
-              onResourceOptionIdChange={setResourceOptionId}
-              resourceParentId={resourceParentId}
-              onResourceParentIdChange={setResourceParentId}
-              parentResources={vehicleResources}
-              resourceOptions={templates.data?.data ?? []}
-              projectedSummary={projectedSummary}
-              createPending={resourceMutation.create.isPending}
+        {renderBefore?.(context)}
+
+        {hasTabs ? (
+          <Tabs value={activeTabId} onValueChange={setSelectedKind}>
+            <TabsList className="flex h-auto w-fit flex-wrap justify-start">
+              {allocationKinds.map((kind) => (
+                <TabsTrigger key={kind} value={kind} className="gap-2">
+                  {kind === VEHICLE_SEAT_KIND ? (
+                    <Armchair className="size-4" aria-hidden="true" />
+                  ) : kind === VEHICLE_KIND ? (
+                    <Bus className="size-4" aria-hidden="true" />
+                  ) : (
+                    <Bed className="size-4" aria-hidden="true" />
+                  )}
+                  {kindLabel(kind, messages)}
+                </TabsTrigger>
+              ))}
+              {visibleExtraTabs.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
+                  {tab.icon}
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        ) : null}
+
+        {hasAllocationView && kindDescription(activeKind, messages) ? (
+          <p className="text-sm text-muted-foreground">{kindDescription(activeKind, messages)}</p>
+        ) : null}
+
+        {selectedExtraTab ? (
+          selectedExtraTab.render(context)
+        ) : hasPassengerOnlyView ? (
+          <PassengerListPanel
+            bookings={data.bookings}
+            sharingGroupLabels={data.sharingGroupLabels}
+            onBookingOpen={onBookingOpen}
+            renderTravelerActions={renderTravelerActions}
+            messages={messages}
+          />
+        ) : !hasAllocationView ? (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed p-8 text-center">
+            <Users className="size-6 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm text-muted-foreground">{messages.noAllocationsToManage}</p>
+          </div>
+        ) : (
+          <>
+            {error ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+
+            <AllocationConflictsPanel
+              conflicts={planning.conflicts}
+              messages={messages}
+              loadFailed={planning.conflictsFailed}
+              resolveSubjectLabel={(conflict) =>
+                conflict.subjectType === "allocation_resource"
+                  ? (resourceLabelById.get(conflict.subjectId) ?? null)
+                  : conflict.subjectType === "sharing_group"
+                    ? (data.sharingGroupLabels[conflict.subjectId] ?? null)
+                    : null
+              }
+            />
+
+            {/* Attaching happens in the add-resource dialog; this panel exists
+                to show and release what is attached, so an empty one on every
+                rooming tab would be noise. */}
+            {canAttachFleet && attachedFleetResources.length > 0 ? (
+              <AllocationFleetPanel
+                attached={attachedFleetResources}
+                messages={messages}
+                onDetach={(input) => void planning.detachFleetResource(input)}
+                parentIdsWithChildren={parentIdsWithChildren}
+                detachPending={planning.detachPending}
+              />
+            ) : null}
+
+            {canManuallyAddResource ? (
+              <AddResourceDialog
+                {...addResourceForm.dialogProps({
+                  parentResources: vehicleResources,
+                  resourceOptions: templates.data?.data ?? [],
+                  fleetResourcesPending: planning.fleetCataloguePending,
+                  attachPending: planning.attachPending,
+                  createPending: resourceMutation.create.isPending,
+                })}
+              />
+            ) : null}
+
+            <AllocationPreviewDialog
+              open={planning.previewOpen}
+              onOpenChange={planning.setPreviewOpen}
+              plan={planning.previewPlan}
+              pending={planning.previewPending}
+              confirmPending={automationMutation.autoAllocate.isPending}
+              error={planning.previewError}
+              onConfirm={() => void confirmAutoAllocate()}
+              resolveResourceLabel={(resourceId) => resourceLabelById.get(resourceId) ?? null}
               messages={messages}
             />
-          ) : null}
 
-          {isSeatMap ? (
-            <VehicleSeatsView
-              seats={resources}
-              vehicles={parentResources}
-              occupants={occupants}
-              sharingGroupLabels={data.sharingGroupLabels}
-              onAssignTraveler={(travelerId, resourceId) =>
-                void assignTraveler(travelerId, resourceId)
-              }
-              onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
-              onRemoveResource={(resourceId) => void removeResource(resourceId)}
-              onBookingOpen={onBookingOpen}
-              renderTravelerActions={renderTravelerActions}
-            />
-          ) : (
-            <ResourceColumnsView
-              kind={activeKind}
-              assignable={isTravelerAssignable}
-              resources={resources}
-              travelers={travelers}
-              occupants={occupants}
-              sharingGroupLabels={data.sharingGroupLabels}
-              optionNamesById={optionNamesById}
-              onAssignTraveler={(travelerId, resourceId) =>
-                void assignTraveler(travelerId, resourceId)
-              }
-              onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
-              onRemoveResource={(resourceId) => void removeResource(resourceId)}
-              onEditResource={editResource}
-              onBookingOpen={onBookingOpen}
-              renderTravelerActions={renderTravelerActions}
-            />
-          )}
-        </>
-      )}
+            {isTravelerAssignable ? (
+              <AllocationBulkBar
+                kind={activeKind}
+                selected={planning.selectedTravelers}
+                resources={resources}
+                sharingGroupLabels={data.sharingGroupLabels}
+                messages={messages}
+                onClear={planning.clearSelection}
+                onMove={(resourceId) => void planning.moveSelected(resourceId)}
+                onGroupTogether={() => void planning.groupSelectedTravelers()}
+                onUngroup={() => void planning.ungroupSelectedTravelers()}
+                onRenameGroup={(input) => void planning.renameSharingGroup(input)}
+                onClearGroupLabel={(groupId) => void planning.clearSharingGroupLabel(groupId)}
+                movePending={planning.movePending}
+                groupPending={planning.groupPending}
+              />
+            ) : null}
 
-      {renderAfter?.(context)}
-    </div>
+            {isSeatMap ? (
+              <VehicleSeatsView
+                seats={resources}
+                vehicles={parentResources}
+                occupants={occupants}
+                sharingGroupLabels={data.sharingGroupLabels}
+                onAssignTraveler={(travelerId, resourceId) =>
+                  void assignTraveler(travelerId, resourceId)
+                }
+                onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
+                onRemoveResource={(resourceId) => void removeResource(resourceId)}
+                onBookingOpen={onBookingOpen}
+                renderTravelerActions={renderTravelerActions}
+              />
+            ) : (
+              <ResourceColumnsView
+                kind={activeKind}
+                assignable={isTravelerAssignable}
+                resources={resources}
+                travelers={travelers}
+                occupants={occupants}
+                sharingGroupLabels={data.sharingGroupLabels}
+                optionNamesById={optionNamesById}
+                onAssignTraveler={(travelerId, resourceId) =>
+                  void assignTraveler(travelerId, resourceId)
+                }
+                onUnassignTraveler={(travelerId) => void assignTraveler(travelerId, null)}
+                onRemoveResource={(resourceId) => void removeResource(resourceId)}
+                onEditResource={editResource}
+                onBookingOpen={onBookingOpen}
+                selection={isTravelerAssignable ? planning.selection : undefined}
+              />
+            )}
+          </>
+        )}
+
+        {renderAfter?.(context)}
+      </div>
+
+      {hasAllocationView ? (
+        <AllocationPrintView
+          kind={activeKind}
+          departureLabel={departureLabel}
+          resources={resources}
+          occupants={occupants}
+          travelers={travelers}
+          conflicts={planning.conflicts}
+          printedAt={formatDateTime(new Date().toISOString())}
+          messages={messages}
+        />
+      ) : null}
+    </>
   )
 }

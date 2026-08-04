@@ -37,6 +37,25 @@ export {
   useSlotAllocationAuditLog,
   useTravelerSharingGroupMutation,
 } from "./use-slot-allocation.js"
+export {
+  type AllocationExportInput,
+  type AllocationExportVariant,
+  type AttachDepartureResourceInput,
+  type BatchAssignTravelerAllocationsInput,
+  type DetachDepartureResourceInput,
+  downloadCsvDocument,
+  filenameFromContentDisposition,
+  type UseDepartureFleetResourcesOptions,
+  type UseFleetResourcesOptions,
+  type UseSlotAllocationConflictsOptions,
+  useAllocationExportMutation,
+  useAutoAllocatePreviewMutation,
+  useBatchAssignTravelerAllocationsMutation,
+  useDepartureFleetResourceMutation,
+  useDepartureFleetResources,
+  useFleetResources,
+  useSlotAllocationConflicts,
+} from "./use-slot-allocation-planning.js"
 export type { UseSlotUnitAvailabilityOptions } from "./use-slot-unit-availability.js"
 export { useSlotUnitAvailability } from "./use-slot-unit-availability.js"
 export type { UseSlotsOptions } from "./use-slots.js"

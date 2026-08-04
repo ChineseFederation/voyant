@@ -8,6 +8,7 @@ import type {
 import {
   Badge,
   Button,
+  Checkbox,
   Command,
   CommandEmpty,
   CommandGroup,
@@ -41,7 +42,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useState } from "react"
 
 import { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
-import { kindLabel } from "./slot-allocation-model.js"
+import { type AllocationSelection, kindLabel } from "./slot-allocation-model.js"
 import type { EditResourceInput } from "./slot-allocation-resource-view.js"
 import { paymentStatusChipClass, paymentStatusTooltip } from "./slot-allocation-shared.js"
 
@@ -63,6 +64,7 @@ export function ResourceRow({
   onUnassignTraveler,
   onRemoveResource,
   onBookingOpen,
+  selection,
 }: {
   kind: string
   assignable: boolean
@@ -81,6 +83,7 @@ export function ResourceRow({
   onUnassignTraveler: (travelerId: string) => void
   onRemoveResource: () => void
   onBookingOpen?: (bookingId: string) => void
+  selection?: AllocationSelection
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   const overCapacity = seated.length > resource.capacity
@@ -133,6 +136,7 @@ export function ResourceRow({
                 }
                 onUnassign={() => onUnassignTraveler(traveler.id)}
                 onBookingOpen={onBookingOpen}
+                selection={selection}
               />
             ))}
             {!isFull ? (
@@ -178,11 +182,13 @@ function TravelerChip({
   sharingGroupLabel,
   onUnassign,
   onBookingOpen,
+  selection,
 }: {
   traveler: AllocationManifestTraveler
   sharingGroupLabel: string | null
   onUnassign: () => void
   onBookingOpen?: (bookingId: string) => void
+  selection?: AllocationSelection
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   return (
@@ -192,7 +198,15 @@ function TravelerChip({
         paymentStatusChipClass(traveler.paymentStatus),
       )}
       title={paymentStatusTooltip(traveler.paymentStatus, messages)}
+      data-selected={selection?.selectedIds.has(traveler.id) ? "true" : undefined}
     >
+      {selection ? (
+        <Checkbox
+          checked={selection.selectedIds.has(traveler.id)}
+          onCheckedChange={() => selection.onToggle(traveler.id)}
+          aria-label={messages.bulk.selectTraveler.replace("{name}", traveler.fullName)}
+        />
+      ) : null}
       {traveler.bookingSequence > 0 ? (
         <span className="text-muted-foreground tabular-nums" aria-hidden="true">
           ({traveler.bookingSequence})
@@ -414,19 +428,37 @@ export function UnallocatedTravelersTable({
   sharingGroupLabels,
   onBookingOpen,
   renderActions,
+  selection,
 }: {
   travelers: AllocationManifestTraveler[]
   sharingGroupLabels: Record<string, string>
   onBookingOpen?: (bookingId: string) => void
   renderActions?: (traveler: AllocationManifestTraveler) => ReactNode
+  selection?: AllocationSelection
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   const hasActions = Boolean(renderActions)
+  const allSelected =
+    travelers.length > 0 && travelers.every((traveler) => selection?.selectedIds.has(traveler.id))
   return (
     <div className="overflow-hidden rounded-md border">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40">
+            {selection ? (
+              <TableHead className="w-8 px-3 py-1.5">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={() => {
+                    for (const traveler of travelers) {
+                      const isSelected = selection.selectedIds.has(traveler.id)
+                      if (allSelected ? isSelected : !isSelected) selection.onToggle(traveler.id)
+                    }
+                  }}
+                  aria-label={messages.bulk.selectAll}
+                />
+              </TableHead>
+            ) : null}
             <TableHead className="px-3 py-1.5 text-xs">{messages.travelers}</TableHead>
             <TableHead className="px-3 py-1.5 text-xs">&nbsp;</TableHead>
             {hasActions ? <TableHead className="w-12 px-3 py-1.5" /> : null}
@@ -435,6 +467,15 @@ export function UnallocatedTravelersTable({
         <TableBody>
           {travelers.map((traveler) => (
             <TableRow key={traveler.id}>
+              {selection ? (
+                <TableCell className="px-3 py-1.5">
+                  <Checkbox
+                    checked={selection.selectedIds.has(traveler.id)}
+                    onCheckedChange={() => selection.onToggle(traveler.id)}
+                    aria-label={messages.bulk.selectTraveler.replace("{name}", traveler.fullName)}
+                  />
+                </TableCell>
+              ) : null}
               <TableCell className="px-3 py-1.5">
                 <div className="flex items-center gap-1.5">
                   {traveler.isLeadTraveler ? (

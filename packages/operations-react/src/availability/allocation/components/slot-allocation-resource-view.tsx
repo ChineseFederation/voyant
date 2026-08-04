@@ -9,7 +9,11 @@ import { Users } from "lucide-react"
 import { type ReactNode, useState } from "react"
 
 import { useAllocationUiMessagesOrDefault } from "../i18n/index.js"
-import { type AllocationOccupants, groupResourcesBySubType } from "./slot-allocation-model.js"
+import {
+  type AllocationOccupants,
+  type AllocationSelection,
+  groupResourcesBySubType,
+} from "./slot-allocation-model.js"
 import { ResourceRow, UnallocatedTravelersTable } from "./slot-allocation-resource-view-rows.js"
 import { AllocationColumn } from "./slot-allocation-shared.js"
 
@@ -32,6 +36,7 @@ export function ResourceColumnsView({
   onEditResource,
   onBookingOpen,
   renderTravelerActions,
+  selection,
 }: {
   kind: string
   /** Parent resources such as vehicles are managed here but never receive travelers directly. */
@@ -59,6 +64,8 @@ export function ResourceColumnsView({
    */
   onBookingOpen?: (bookingId: string) => void
   renderTravelerActions?: (traveler: AllocationManifestTraveler) => ReactNode
+  /** Omit to render the view without multi-select affordances. */
+  selection?: AllocationSelection
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   return (
@@ -82,6 +89,7 @@ export function ResourceColumnsView({
               sharingGroupLabels={sharingGroupLabels}
               onBookingOpen={onBookingOpen}
               renderActions={renderTravelerActions}
+              selection={selection}
             />
           )}
         </AllocationColumn>
@@ -120,6 +128,7 @@ export function ResourceColumnsView({
                   onRemoveResource={onRemoveResource}
                   onEditResource={onEditResource}
                   onBookingOpen={onBookingOpen}
+                  selection={selection}
                 />
               </section>
             )
@@ -143,6 +152,7 @@ function ResourceGroupTable({
   onRemoveResource,
   onEditResource,
   onBookingOpen,
+  selection,
 }: {
   kind: string
   assignable: boolean
@@ -156,6 +166,7 @@ function ResourceGroupTable({
   onRemoveResource: (resourceId: string) => void
   onEditResource?: (resourceId: string, input: EditResourceInput) => Promise<void> | void
   onBookingOpen?: (bookingId: string) => void
+  selection?: AllocationSelection
 }) {
   const messages = useAllocationUiMessagesOrDefault()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -203,6 +214,7 @@ function ResourceGroupTable({
                 onUnassignTraveler={onUnassignTraveler}
                 onRemoveResource={() => onRemoveResource(resource.id)}
                 onBookingOpen={onBookingOpen}
+                selection={selection}
               />
             )
           })}

@@ -1,4 +1,5 @@
 export {
+  type AllocationConflictCodeMessage,
   type AllocationUiMessageOverrides,
   type AllocationUiMessages,
   AllocationUiMessagesProvider,

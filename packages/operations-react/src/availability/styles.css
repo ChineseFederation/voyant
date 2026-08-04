@@ -10,3 +10,83 @@
  */
 @source "./components/**/*.{ts,tsx}";
 @source "./allocation/**/*.{ts,tsx}";
+
+/* Print surfaces.
+ *
+ * The departure manifest is the first thing in this repository anyone prints,
+ * so the pattern is established here rather than inside one component:
+ *
+ *   - `voyant-print-only` marks a plain-HTML sheet that is absent on screen and
+ *     is the only thing on paper.
+ *   - `voyant-print-hidden` marks the interactive workspace, which has nothing
+ *     to say on paper (popovers, drag targets, action clusters).
+ *
+ * Plain class names rather than Tailwind `print:` variants, because the pair has
+ * to cooperate across two component trees and a consumer must be able to opt a
+ * page in without importing this package's components.
+ */
+.voyant-print-only {
+  display: none;
+}
+
+@media print {
+  /*
+   * The sheet is mounted deep inside the departure workspace, which itself sits
+   * inside the admin shell — hiding the sibling workspace is not enough, the
+   * page chrome above it would still print. Scoping the blanket rule behind
+   * `:has()` keeps it inert on every page that never mounts a print sheet, so
+   * importing this stylesheet can never turn someone else's print into a blank
+   * page.
+   */
+  body:has(.voyant-print-only) {
+    visibility: hidden;
+  }
+
+  body:has(.voyant-print-only) .voyant-print-only,
+  body:has(.voyant-print-only) .voyant-print-only * {
+    visibility: visible;
+  }
+
+  .voyant-print-hidden {
+    display: none !important;
+  }
+
+  .voyant-print-only {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .voyant-print-only table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .voyant-print-only th,
+  .voyant-print-only td {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #999;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  /* A rooming row that straddles a page break is unreadable on a clipboard. */
+  .voyant-print-only tr,
+  .voyant-print-only li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .voyant-print-only h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .voyant-print-only h2 {
+    margin-top: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}

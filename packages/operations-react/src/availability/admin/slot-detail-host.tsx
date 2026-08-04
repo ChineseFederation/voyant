@@ -156,6 +156,9 @@ export function AvailabilitySlotDetailHost({
           <SlotAllocationPage
             slotId={allocationSlotId}
             embed
+            // Names the printed manifest after the departure a driver would
+            // recognise, not after its slot id.
+            departureLabel={slot ? [productName, slot.dateLocal].filter(Boolean).join(" · ") : null}
             onBookingOpen={(bookingId) => setBookingPreviewId(bookingId)}
           />
         )}

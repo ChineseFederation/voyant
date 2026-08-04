@@ -9,9 +9,14 @@ import type { UseProductsOptions } from "./hooks/use-products.js"
 import type { UseRulesOptions } from "./hooks/use-rules.js"
 import type { UseSlotsOptions } from "./hooks/use-slots.js"
 import type { UseStartTimesOptions } from "./hooks/use-start-times.js"
-import { type AvailabilityOverviewFilters, availabilityQueryKeys } from "./query-keys.js"
+import {
+  type AvailabilityOverviewFilters,
+  availabilityQueryKeys,
+  type FleetResourceListFilters,
+} from "./query-keys.js"
 import {
   allocationAuditLogResponse,
+  allocationConflictsResponse,
   availabilityCloseoutListResponse,
   availabilityOverviewResponse,
   availabilityPickupPointListResponse,
@@ -22,7 +27,9 @@ import {
   availabilitySlotSingleResponse,
   availabilityStartTimeListResponse,
   bookingSummaryListResponse,
+  departureFleetResourcesResponse,
   departureSummaryResponse,
+  fleetResourceListResponse,
   productListResponse,
   productOptionResourceTemplatesListResponse,
   productSingleResponse,
@@ -280,6 +287,69 @@ export function getSlotAllocationAuditLogQueryOptions(
       return fetchWithValidation(
         `/v1/admin/operations/availability/slots/${slotId}/allocation/audit-log`,
         allocationAuditLogResponse,
+        client,
+      )
+    },
+  })
+}
+
+/**
+ * The server-side conflicts projection for one resource kind. The workspace,
+ * the CSV export and the printed manifest all read this one answer instead of
+ * each re-deriving "what is wrong with this rooming plan" client-side.
+ */
+export function getSlotAllocationConflictsQueryOptions(
+  client: FetchWithValidationOptions,
+  slotId: string | null | undefined,
+  kind: string,
+) {
+  return queryOptions({
+    queryKey: availabilityQueryKeys.slotAllocationConflicts(slotId ?? "", kind),
+    queryFn: async () => {
+      if (!slotId) throw new Error("getSlotAllocationConflictsQueryOptions requires a slotId")
+      return fetchWithValidation(
+        `/v1/admin/operations/availability/slots/${slotId}/allocation/conflicts?kind=${encodeURIComponent(kind)}`,
+        allocationConflictsResponse,
+        client,
+      )
+    },
+  })
+}
+
+/** Fleet `resources` records currently attached to this departure. */
+export function getDepartureFleetResourcesQueryOptions(
+  client: FetchWithValidationOptions,
+  slotId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: availabilityQueryKeys.slotAllocationFleetResources(slotId ?? ""),
+    queryFn: async () => {
+      if (!slotId) throw new Error("getDepartureFleetResourcesQueryOptions requires a slotId")
+      return fetchWithValidation(
+        `/v1/admin/operations/availability/slots/${slotId}/allocation/fleet-resources`,
+        departureFleetResourcesResponse,
+        client,
+      )
+    },
+  })
+}
+
+/** The operated-resource registry, filtered to what the attach picker offers. */
+export function getFleetResourcesQueryOptions(
+  client: FetchWithValidationOptions,
+  options: FleetResourceListFilters = {},
+) {
+  return queryOptions({
+    queryKey: availabilityQueryKeys.fleetResourcesList(options),
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (options.kind) params.set("kind", options.kind)
+      if (options.active !== undefined) params.set("active", String(options.active))
+      appendPagination(params, options)
+      const qs = params.toString()
+      return fetchWithValidation(
+        `/v1/admin/operations/resources${qs ? `?${qs}` : ""}`,
+        fleetResourceListResponse,
         client,
       )
     },

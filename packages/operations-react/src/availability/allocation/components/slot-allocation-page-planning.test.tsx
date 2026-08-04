@@ -281,13 +281,13 @@ vi.mock("@voyant-travel/ui/components", () => {
  * `.value` directly is invisible to it. Go through the prototype setter and
  * then dispatch, the standard React-testing workaround.
  */
-function _setSelectValue(select: HTMLSelectElement, value: string) {
+function setSelectValue(select: HTMLSelectElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")?.set
   setter?.call(select, value)
   select.dispatchEvent(new Event("change", { bubbles: true }))
 }
 
-describe("SlotAllocationPage", () => {
+describe("SlotAllocationPage planning", () => {
   let container: HTMLDivElement | null = null
   let root: Root | null = null
 
@@ -313,25 +313,145 @@ describe("SlotAllocationPage", () => {
     testState.downloadCsv.mockReset()
   })
 
-  it("shows booked travelers and standard logistics kinds without templates", () => {
+  it("moves a multi-traveler selection through the atomic batch leg", async () => {
+    testState.manifest.resources = [
+      {
+        id: "room_1",
+        slotId: "slot_1",
+        kind: "room",
+        refType: null,
+        refId: null,
+        label: "Room 101",
+        capacity: 2,
+        flags: {},
+        parentId: null,
+        sortOrder: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]
+    testState.batchAssign.mockResolvedValue({
+      kind: "room",
+      assigned: 1,
+      unassigned: 0,
+      unchanged: 0,
+      travelerIds: ["trav_1"],
+    })
     container = document.createElement("div")
     document.body.appendChild(container)
     root = createRoot(container)
 
-    act(() => {
+    await act(async () => {
       root?.render(<SlotAllocationPage slotId="slot_1" />)
     })
 
-    expect(container.textContent).toContain("Rooms")
-    expect(container.textContent).toContain("Vehicles")
-    expect(container.textContent).toContain("Seats")
-    expect(container.textContent).toContain("Add resource")
-    expect(container.textContent).toContain("BK-001")
-    expect(container.textContent).toContain("Ioana Iordache")
-    expect(container.textContent).not.toContain("This slot has no allocations to manage.")
+    // Nothing selected: no bulk bar.
+    expect(container.querySelector('[data-slot="allocation-bulk-bar"]')).toBeNull()
+
+    const checkbox = container.querySelector<HTMLInputElement>(
+      'input[type="checkbox"][aria-label="Select Ioana Iordache"]',
+    )
+    expect(checkbox).not.toBeNull()
+    await act(async () => {
+      checkbox?.click()
+    })
+
+    const bulkBar = container.querySelector('[data-slot="allocation-bulk-bar"]')
+    expect(bulkBar).not.toBeNull()
+    expect(bulkBar?.textContent).toContain("1 travelers selected")
+
+    const move = container.querySelector<HTMLButtonElement>('[data-slot="allocation-bulk-move"]')
+    expect(move?.disabled).toBe(true)
+
+    const target = container.querySelector<HTMLSelectElement>(
+      '[data-slot="allocation-bulk-target"] select',
+    )
+    expect(target).not.toBeNull()
+    await act(async () => {
+      setSelectValue(target!, "room_1")
+    })
+
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>('[data-slot="allocation-bulk-move"]')?.click()
+    })
+
+    expect(testState.batchAssign).toHaveBeenCalledTimes(1)
+    expect(testState.batchAssign).toHaveBeenCalledWith({
+      kind: "room",
+      assignments: [{ travelerId: "trav_1", resourceId: "room_1", expectedResourceId: null }],
+    })
+    // The selection clears once the batch lands, so a second click cannot
+    // replay the move against a manifest that has already moved.
+    expect(container.querySelector('[data-slot="allocation-bulk-bar"]')).toBeNull()
   })
 
-  it("surfaces resource removal failures in the workspace", async () => {
+  it("previews the auto-allocation plan and only writes once it is confirmed", async () => {
+    testState.manifest.resources = [
+      {
+        id: "room_1",
+        slotId: "slot_1",
+        kind: "room",
+        refType: null,
+        refId: null,
+        label: "Room 101",
+        capacity: 2,
+        flags: {},
+        parentId: null,
+        sortOrder: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]
+    testState.previewAutoAllocate.mockResolvedValue({
+      kind: "room",
+      assigned: 1,
+      skipped: 0,
+      entries: [
+        {
+          travelerId: "trav_1",
+          travelerName: "Ioana Iordache",
+          bookingId: "book_1",
+          bookingNumber: "BK-001",
+          sharingGroupId: null,
+          resourceId: "room_1",
+          resourceLabel: "Room 101",
+          currentResourceId: null,
+          unchanged: false,
+        },
+      ],
+      violations: [],
+    })
+    testState.autoAllocate.mockResolvedValue({ kind: "room", assigned: 1, skipped: 0 })
+    container = document.createElement("div")
+    document.body.appendChild(container)
+    root = createRoot(container)
+
+    await act(async () => {
+      root?.render(<SlotAllocationPage slotId="slot_1" />)
+    })
+
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>('[data-slot="allocation-auto-allocate"]')?.click()
+    })
+
+    expect(testState.previewAutoAllocate).toHaveBeenCalledWith({ kind: "room" })
+    // The dry run must not have written anything yet.
+    expect(testState.autoAllocate).not.toHaveBeenCalled()
+    const planRows = container.querySelectorAll('[data-slot="allocation-preview-entry"]')
+    expect(planRows).toHaveLength(1)
+    expect(container.textContent).toContain("1 to place, 0 skipped")
+    expect(container.textContent).toContain("Room 101")
+
+    await act(async () => {
+      container
+        ?.querySelector<HTMLButtonElement>('[data-slot="allocation-preview-confirm"]')
+        ?.click()
+    })
+
+    expect(testState.autoAllocate).toHaveBeenCalledWith({ kind: "room" })
+  })
+
+  it("refuses to confirm a plan the server says would exceed capacity", async () => {
     testState.manifest.resources = [
       {
         id: "room_1",
@@ -348,10 +468,22 @@ describe("SlotAllocationPage", () => {
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ]
-    testState.manifest.bookings[0]!.travelers[0]!.allocations = { room: "room_1" }
-    testState.removeResource.mockRejectedValueOnce(
-      new Error("Remove child resources before deleting their parent"),
-    )
+    testState.previewAutoAllocate.mockResolvedValue({
+      kind: "room",
+      assigned: 2,
+      skipped: 0,
+      entries: [],
+      violations: [
+        {
+          slotId: "slot_1",
+          resourceId: "room_1",
+          kind: "room",
+          capacity: 1,
+          existingAssigned: 1,
+          requested: 2,
+        },
+      ],
+    })
     container = document.createElement("div")
     document.body.appendChild(container)
     root = createRoot(container)
@@ -359,13 +491,85 @@ describe("SlotAllocationPage", () => {
     await act(async () => {
       root?.render(<SlotAllocationPage slotId="slot_1" />)
     })
-    const removeButton = container.querySelector<HTMLButtonElement>('button[aria-label="Remove"]')
-    expect(removeButton).not.toBeNull()
-
     await act(async () => {
-      removeButton?.click()
+      container?.querySelector<HTMLButtonElement>('[data-slot="allocation-auto-allocate"]')?.click()
     })
 
-    expect(container.textContent).toContain("Remove child resources before deleting their parent")
+    expect(container.querySelector('[data-slot="allocation-preview-violations"]')).not.toBeNull()
+    expect(
+      container.querySelector<HTMLButtonElement>('[data-slot="allocation-preview-confirm"]')
+        ?.disabled,
+    ).toBe(true)
+    expect(testState.autoAllocate).not.toHaveBeenCalled()
+  })
+
+  it("downloads the resource CSV for the active kind and prints the departure sheet", async () => {
+    testState.manifest.resources = [
+      {
+        id: "room_1",
+        slotId: "slot_1",
+        kind: "room",
+        refType: null,
+        refId: null,
+        label: "Room 101",
+        capacity: 2,
+        flags: {},
+        parentId: null,
+        sortOrder: 0,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]
+    testState.exportCsv.mockResolvedValue({ csv: "Resource\r\n", filename: "rooming-slot_1.csv" })
+    const print = vi.fn()
+    vi.stubGlobal("print", print)
+    container = document.createElement("div")
+    document.body.appendChild(container)
+    root = createRoot(container)
+
+    await act(async () => {
+      root?.render(<SlotAllocationPage slotId="slot_1" departureLabel="Sinaia · 2026-08-04" />)
+    })
+
+    const roomingItem = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Rooming",
+    )
+    expect(roomingItem).toBeDefined()
+    await act(async () => {
+      roomingItem?.click()
+    })
+
+    // The kind rides along, so the same menu entry exports a seating manifest
+    // on a coach tab — the route parameter the server slice added.
+    expect(testState.exportCsv).toHaveBeenCalledWith({ variant: "resources", kind: "room" })
+    expect(testState.downloadCsv).toHaveBeenCalledWith({
+      csv: "Resource\r\n",
+      filename: "rooming-slot_1.csv",
+    })
+
+    const passengersItem = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Passengers",
+    )
+    await act(async () => {
+      passengersItem?.click()
+    })
+    expect(testState.exportCsv).toHaveBeenCalledWith({ variant: "passengers", kind: "room" })
+
+    const printItem = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Print manifest",
+    )
+    await act(async () => {
+      printItem?.click()
+    })
+    expect(print).toHaveBeenCalled()
+
+    // The printed sheet names the departure and its rooms, never a typeid.
+    const sheet = container.querySelector('[data-slot="allocation-print-view"]')
+    expect(sheet).not.toBeNull()
+    expect(sheet?.textContent).toContain("Sinaia · 2026-08-04")
+    expect(sheet?.textContent).toContain("Room 101")
+    expect(sheet?.textContent).not.toContain("room_1")
+
+    vi.unstubAllGlobals()
   })
 })

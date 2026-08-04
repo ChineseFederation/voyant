@@ -16,6 +16,8 @@ import {
 import { listResponseSchema } from "@voyant-travel/types"
 import { z } from "zod"
 
+import { allocationResourceSchema } from "./allocation-schemas.js"
+
 export const paginatedEnvelope = listResponseSchema
 
 export const singleEnvelope = <T extends z.ZodTypeAny>(item: T) => z.object({ data: item })
@@ -245,23 +247,6 @@ export const availabilitySlotAssignmentListResponse = paginatedEnvelope(
 export const bookingSummaryListResponse = paginatedEnvelope(bookingSummarySchema)
 export const resourceSummaryListResponse = paginatedEnvelope(resourceSummarySchema)
 
-export const allocationResourceSchema = z.object({
-  id: z.string(),
-  slotId: z.string(),
-  kind: z.string(),
-  refType: z.string().nullable(),
-  refId: z.string().nullable(),
-  label: z.string().nullable(),
-  capacity: z.number().int(),
-  flags: z.record(z.string(), z.unknown()),
-  parentId: z.string().nullable(),
-  sortOrder: z.number().int(),
-  createdAt: z.string().or(z.date()),
-  updatedAt: z.string().or(z.date()),
-})
-
-export type AllocationResource = z.infer<typeof allocationResourceSchema>
-
 export const allocationPaymentStatusSchema = z.enum(["paid", "partial", "unpaid"])
 export type AllocationPaymentStatus = z.infer<typeof allocationPaymentStatusSchema>
 
@@ -398,6 +383,7 @@ export const allocationAutomationResponse = singleEnvelope(
     assigned: z.number().int().optional(),
     skipped: z.number().int().optional(),
     created: z.number().int().optional(),
+    skippedExisting: z.number().int().optional(),
     resources: z.array(allocationResourceSchema).optional(),
   }),
 )
@@ -429,6 +415,7 @@ export const allocationAuditLogResponse = z.object({
   data: z.array(allocationAuditLogEntrySchema),
 })
 
+export * from "./allocation-schemas.js"
 export * from "./departure-summary-schemas.js"
 
 export const slotUnitAvailabilityRecordSchema = z.object({

@@ -1,4 +1,19 @@
 export {
+  AllocationBulkBar,
+  type AllocationBulkBarProps,
+  AllocationConflictsPanel,
+  type AllocationConflictsPanelProps,
+  AllocationExportMenu,
+  type AllocationExportMenuProps,
+  AllocationFleetPanel,
+  type AllocationFleetPanelProps,
+  AllocationPreviewDialog,
+  type AllocationPreviewDialogProps,
+  AllocationPrintView,
+  type AllocationPrintViewProps,
+  AllocationToolbarActions,
+  type AllocationToolbarActionsProps,
+  isSeatingExportKind,
   SEAT_MAP_PRESETS,
   SeatMapBuilder,
   type SeatMapBuilderProps,
@@ -6,6 +21,7 @@ export {
   type SlotAllocationPageExtraTab,
   type SlotAllocationPageProps,
   type SlotAllocationPageRenderContext,
+  summarizeAllocationConflicts,
 } from "./allocation/index.js"
 export {
   type AvailabilityColumnsMessages,

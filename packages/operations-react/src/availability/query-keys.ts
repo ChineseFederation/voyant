@@ -46,6 +46,12 @@ export interface AvailabilitySlotDetailFilters extends PaginationFilters {
   slotId?: string | undefined
 }
 
+export interface FleetResourceListFilters extends PaginationFilters {
+  /** `resources.kind` — "vehicle", "boat", "room", … */
+  kind?: string | undefined
+  active?: boolean | undefined
+}
+
 export const availabilityQueryKeys = {
   all: ["voyant", "availability"] as const,
 
@@ -97,6 +103,19 @@ export const availabilityQueryKeys = {
     [...availabilityQueryKeys.slots(), "allocation", slotId] as const,
   slotAllocationAuditLog: (slotId: string) =>
     [...availabilityQueryKeys.slots(), "allocation", slotId, "audit-log"] as const,
+  /**
+   * Both of these sit *under* `slotAllocation(slotId)` on purpose: every
+   * mutation already invalidates that prefix, so the conflicts projection and
+   * the attached fleet list refresh with the manifest instead of needing their
+   * own invalidation in each mutation hook.
+   */
+  slotAllocationConflicts: (slotId: string, kind: string) =>
+    [...availabilityQueryKeys.slots(), "allocation", slotId, "conflicts", kind] as const,
+  slotAllocationFleetResources: (slotId: string) =>
+    [...availabilityQueryKeys.slots(), "allocation", slotId, "fleet-resources"] as const,
+  /** The global operated-resource registry, filtered for the attach picker. */
+  fleetResourcesList: (filters: FleetResourceListFilters) =>
+    [...availabilityQueryKeys.all, "fleet-resources", "list", filters] as const,
   product: (id: string) => [...availabilityQueryKeys.products(), "detail", id] as const,
   productResourceTemplates: (productId: string) =>
     [...availabilityQueryKeys.products(), "resource-templates", productId] as const,

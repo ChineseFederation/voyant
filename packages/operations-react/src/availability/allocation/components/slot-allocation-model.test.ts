@@ -4,10 +4,17 @@ import type {
 } from "@voyant-travel/operations-react/availability"
 import { describe, expect, it } from "vitest"
 
+import { allocationUiEn } from "../i18n/index.js"
+import { commonSharingGroupId } from "./slot-allocation-bulk-bar.js"
+import { isSeatingExportKind } from "./slot-allocation-export-menu.js"
 import {
+  allocationErrorReason,
+  canAttachFleetResource,
   collectVehicleOccupants,
   defaultCapacityFor,
   deriveAllocationKinds,
+  describeFleetAttachError,
+  fleetResourcesForKind,
   groupResourcesBySubType,
   isTravelerAllocatableKind,
   summarizeResourceCapacity,
@@ -263,5 +270,111 @@ describe("summarizeResourceCapacity", () => {
       unlimited: false,
     })
     expect(summary.status).toBe("unbounded")
+  })
+})
+
+describe("fleet resource attachment", () => {
+  it("offers a fleet source only for kinds a fleet record can be", () => {
+    expect(canAttachFleetResource("room")).toBe(true)
+    expect(canAttachFleetResource("vehicle")).toBe(true)
+    // A seat is a child row of a vehicle, never a `resources` record.
+    expect(canAttachFleetResource("vehicle_seat")).toBe(false)
+    expect(canAttachFleetResource("cabin")).toBe(false)
+  })
+
+  it("filters the registry to the fleet kinds that back the active kind", () => {
+    const registry = [
+      { id: "res_1", kind: "vehicle" },
+      { id: "res_2", kind: "boat" },
+      { id: "res_3", kind: "room" },
+      { id: "res_4", kind: "guide" },
+    ]
+
+    expect(fleetResourcesForKind(registry, "vehicle").map((entry) => entry.id)).toEqual([
+      "res_1",
+      "res_2",
+    ])
+    expect(fleetResourcesForKind(registry, "room").map((entry) => entry.id)).toEqual(["res_3"])
+    expect(fleetResourcesForKind(registry, "vehicle_seat")).toEqual([])
+  })
+
+  it("reads the allocation error reason off the parsed error body", () => {
+    expect(
+      allocationErrorReason({
+        body: {
+          error: "Resource is already committed",
+          detail: { reason: "resource_double_booked" },
+        },
+      }),
+    ).toBe("resource_double_booked")
+    expect(allocationErrorReason(new Error("boom"))).toBeNull()
+    expect(allocationErrorReason(null)).toBeNull()
+    expect(allocationErrorReason({ body: { error: "nope" } })).toBeNull()
+  })
+
+  it("turns a double-booking rejection into copy that says what to do", () => {
+    const doubleBooked = Object.assign(
+      new Error("Resource is already committed to an overlapping departure"),
+      {
+        body: {
+          error: "Resource is already committed to an overlapping departure",
+          detail: { reason: "resource_double_booked", conflictingSlotId: "slot_9" },
+        },
+      },
+    )
+
+    expect(describeFleetAttachError(doubleBooked, allocationUiEn)).toBe(
+      allocationUiEn.fleet.doubleBooked,
+    )
+    // Anything else keeps the server's own sentence, then the localized fallback.
+    expect(describeFleetAttachError(new Error("Resource not found"), allocationUiEn)).toBe(
+      "Resource not found",
+    )
+    expect(describeFleetAttachError({}, allocationUiEn)).toBe(allocationUiEn.fleet.attachFailed)
+  })
+})
+
+describe("commonSharingGroupId", () => {
+  function traveler(id: string, sharingGroupId: string | null): AllocationManifestTraveler {
+    return {
+      id,
+      bookingId: "book_1",
+      bookingNumber: "BK-001",
+      bookingStatus: "confirmed",
+      bookingSequence: 1,
+      paymentStatus: "paid",
+      firstName: id,
+      lastName: id,
+      fullName: id,
+      email: null,
+      phone: null,
+      isLeadTraveler: false,
+      isPrimary: false,
+      sharingGroupId,
+      roomTypeId: null,
+      bedPreference: null,
+      allocations: {},
+      travelerCategory: null,
+      participantType: "traveler",
+      hasAccessibilityNeeds: false,
+      hasDietaryRequirements: false,
+    }
+  }
+
+  it("names the group only when the whole selection shares it", () => {
+    expect(commonSharingGroupId([traveler("a", "grp_1"), traveler("b", "grp_1")])).toBe("grp_1")
+    expect(commonSharingGroupId([traveler("a", "grp_1"), traveler("b", "grp_2")])).toBeNull()
+    expect(commonSharingGroupId([traveler("a", "grp_1"), traveler("b", null)])).toBeNull()
+    expect(commonSharingGroupId([traveler("a", null)])).toBeNull()
+    expect(commonSharingGroupId([])).toBeNull()
+  })
+})
+
+describe("isSeatingExportKind", () => {
+  it("mirrors the server's allocationExportPrefixForKind split", () => {
+    expect(isSeatingExportKind("vehicle_seat")).toBe(true)
+    expect(isSeatingExportKind("flight_seat")).toBe(true)
+    expect(isSeatingExportKind("room")).toBe(false)
+    expect(isSeatingExportKind("cabin")).toBe(false)
   })
 })
