@@ -1,5 +1,13 @@
 # @voyant-travel/operator-standard
 
+## 0.20.5
+
+### Patch Changes
+
+- @voyant-travel/core@0.137.3
+- @voyant-travel/payments@0.9.3
+- @voyant-travel/plugin-voyant-connect@0.10.1
+
 ## 0.20.4
 
 ### Patch Changes
