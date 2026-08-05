@@ -30,9 +30,13 @@ export const voyantToolContextContribution = defineToolContextContribution({
       async search({ slice, request }) {
         const indexer = runtime.indexer
         if (!indexer) {
+          // voyant#3950: an unwired indexer is a deployment gap, not a provider
+          // failing. Both codes are terminal, but MISSING_SERVICE's remediation
+          // names the actual fix — ask the operator to wire the binding — where
+          // PROVIDER_ERROR pointed the agent at correcting its request.
           throw new ToolError(
             "Catalog search indexer is not configured for this deployment.",
-            "PROVIDER_ERROR",
+            "MISSING_SERVICE",
           )
         }
         if (request.mode === "keyword") return indexer.search(slice, request)

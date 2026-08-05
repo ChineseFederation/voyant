@@ -8,10 +8,11 @@ import {
 } from "@voyant-travel/bookings/runtime-port"
 import type { EventBus } from "@voyant-travel/core"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
-import type { ToolErrorCode, ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
+import type { ToolHandlerActionPolicyContext } from "@voyant-travel/tools"
 import { defineToolContextContribution, requireService, ToolError } from "@voyant-travel/tools"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
+import { allocationToolErrorCode } from "./allocation-tool-errors.js"
 import { availabilityService } from "./availability/service.js"
 import {
   type AssignTravelerAllocationsBatchInput,
@@ -258,11 +259,6 @@ async function withAllocationToolErrors<T>(run: () => Promise<T>): Promise<T> {
       { cause: error },
     )
   }
-}
-
-function allocationToolErrorCode(status: number): ToolErrorCode {
-  if (status === 404) return "NOT_FOUND"
-  return status >= 400 && status < 500 ? "INVALID_INPUT" : "PROVIDER_ERROR"
 }
 
 function jsonSafeValue(value: unknown): unknown {

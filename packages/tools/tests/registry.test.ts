@@ -145,6 +145,35 @@ describe("createToolRegistry", () => {
     })
   })
 
+  it("suggests the intended tool when the name is a near miss", async () => {
+    // voyant#3950: this error used to inline every registered name into its
+    // message — a directory listing charged to the agent's context at the moment
+    // it is already lost. Structured candidates instead, so the transport can
+    // present them and the one likely name is not buried.
+    const registry = createToolRegistry()
+    registry.register(echoTool)
+
+    await expect(registry.dispatch("ecoh", {}, ctx)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      candidates: ["echo"],
+      didYouMean: "echo",
+    })
+  })
+
+  it("does not enumerate the registry when nothing is close", async () => {
+    const registry = createToolRegistry()
+    registry.register(echoTool)
+
+    const error = await registry
+      .dispatch("completely_unrelated_zzz", {}, ctx)
+      .then(() => undefined)
+      .catch((err: ToolError) => err)
+
+    expect(error?.code).toBe("NOT_FOUND")
+    expect(error?.candidates).toBeUndefined()
+    expect(error?.message).not.toContain("echo")
+  })
+
   it("throws INVALID_INPUT when args fail the input schema", async () => {
     const registry = createToolRegistry()
     registry.register(echoTool)
