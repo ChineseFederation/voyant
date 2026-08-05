@@ -128,6 +128,124 @@ describe("agent write coverage", () => {
     )
   })
 
+  it("does not let a Tool for a qualified noun cover the bare noun it contains", () => {
+    // `fleet-resource` and `resource` are different entities that share a noun:
+    // one is a departure's attachment, the other the fleet record itself.
+    // Name matching reads the trailing noun and cannot tell them apart, so the
+    // attach Tool declares the endpoints it fronts and the global fleet CRUD
+    // stays visible as the gap it is.
+    const operations = [
+      { method: "post", path: "/v1/admin/operations/resources" },
+      { method: "patch", path: "/v1/admin/operations/resources/{id}" },
+      {
+        method: "post",
+        path: "/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources",
+      },
+    ]
+    const declaring = {
+      ...writeTool("attach_departure_fleet_resource", "operations:write"),
+      adminWrites: ["/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources"],
+    }
+
+    const { rows, diagnostics } = inspectAgentWriteCoverage([
+      {
+        packageName: "@voyant-travel/operations",
+        unitId: "@voyant-travel/operations",
+        tools: [declaring],
+        adminWriteOperations: operations,
+      },
+    ])
+    assert.deepEqual(diagnostics, [])
+    assert.deepEqual(
+      rows.map(({ resource, posture }) => [resource, posture]),
+      [
+        ["operation/availability/slot/allocation/fleet-resource", "covered"],
+        ["operation/resource", "uncovered"],
+      ],
+    )
+
+    // Without the declaration the same Tool name aliases both — the behaviour
+    // this replaces.
+    const inferred = inspectAgentWriteCoverage([
+      {
+        packageName: "@voyant-travel/operations",
+        unitId: "@voyant-travel/operations",
+        tools: [writeTool("attach_departure_fleet_resource", "operations:write")],
+        adminWriteOperations: operations,
+      },
+    ])
+    assert.deepEqual(
+      inferred.rows.map(({ resource, posture }) => [resource, posture]),
+      [
+        ["operation/availability/slot/allocation/fleet-resource", "covered"],
+        ["operation/resource", "covered"],
+      ],
+    )
+  })
+
+  it("treats a declaration as the Tool's whole write surface", () => {
+    // A declared Tool stops matching by name entirely: listing one endpoint and
+    // silently keeping the name match for the rest would put the collision back.
+    const { rows } = inspectAgentWriteCoverage([
+      {
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [
+          {
+            ...writeTool("add_proposal_product"),
+            adminWrites: ["/v1/admin/proposals/proposals/{id}/products"],
+          },
+          writeTool("create_proposal"),
+        ],
+        adminWriteOperations: operations,
+      },
+    ])
+    assert.deepEqual(
+      rows.map(({ resource, tools }) => [resource, tools]),
+      [
+        ["proposal", ["create_proposal"]],
+        ["proposal/product", ["add_proposal_product"]],
+      ],
+    )
+  })
+
+  it("rejects a declaration that names no admin write operation", () => {
+    const { diagnostics } = inspectAgentWriteCoverage([
+      {
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [
+          {
+            ...writeTool("add_proposal_product"),
+            adminWrites: ["/v1/admin/proposals/proposals/{id}/line-items"],
+          },
+        ],
+        adminWriteOperations: operations,
+      },
+    ])
+    assert.equal(diagnostics.length, 1)
+    assert.match(diagnostics[0], /add_proposal_product declares adminWrites/)
+    assert.match(diagnostics[0], /line-items/)
+  })
+
+  it("rejects a declaration on a Tool that asks for no write scope", () => {
+    const { diagnostics } = inspectAgentWriteCoverage([
+      {
+        packageName: "@voyant-travel/proposals",
+        unitId: "@voyant-travel/proposals",
+        tools: [
+          {
+            ...readTool("list_proposal_products"),
+            adminWrites: ["/v1/admin/proposals/proposals/{id}/products"],
+          },
+        ],
+        adminWriteOperations: operations,
+      },
+    ])
+    assert.equal(diagnostics.length, 1)
+    assert.match(diagnostics[0], /asks for no write scope/)
+  })
+
   it("rejects an allowlist entry that is stale or unexplained", () => {
     const modules = [
       {

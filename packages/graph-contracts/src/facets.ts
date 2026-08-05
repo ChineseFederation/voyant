@@ -352,6 +352,20 @@ export interface VoyantGraphToolDeclaration extends VoyantGraphFacetEntity {
   requiredScopes?: readonly string[]
   context?: readonly string[]
   risk?: "low" | "medium" | "high" | "critical"
+  /**
+   * The admin write endpoints this Tool is the agent surface for, written
+   * exactly as the paths appear in the owning module's admin OpenAPI document.
+   *
+   * Admin write coverage is otherwise inferred from the Tool's name, which
+   * matches a resource on its trailing noun. That inference cannot separate two
+   * resources whose noun is the same word: `/operations/resources` is the fleet
+   * record for a coach, while `/operations/availability/slots/{id}/allocation/
+   * fleet-resources` attaches an existing one to a departure, and a Tool named
+   * for the second satisfied the first. Declaring the paths replaces the
+   * inference for this Tool — it covers these endpoints and nothing else — so
+   * add every endpoint the Tool genuinely fronts, not only the narrowest one.
+   */
+  adminWrites?: readonly string[]
 }
 
 export interface VoyantGraphWebhookDeclaration extends VoyantGraphFacetEntity {

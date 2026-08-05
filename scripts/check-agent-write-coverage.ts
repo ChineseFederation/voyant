@@ -158,6 +158,8 @@ async function loadWorkspaceModules(root: string) {
             requiredScopes: Array.isArray(tool.requiredScopes)
               ? tool.requiredScopes.map(String)
               : [],
+            // Declared admin paths win over name matching for this Tool.
+            adminWrites: Array.isArray(tool.adminWrites) ? tool.adminWrites.map(String) : undefined,
           })
         }
       }

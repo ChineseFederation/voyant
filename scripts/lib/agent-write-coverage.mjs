@@ -12,6 +12,14 @@
  * would force a Tool for every incidental PATCH, and route shape is not a
  * capability boundary. What matters is that a resource an operator can create
  * or modify is reachable at all.
+ *
+ * A Tool is matched to a resource by name unless its manifest declaration lists
+ * the admin paths it fronts. Name matching reads the resource's trailing noun,
+ * so two resources whose noun is the same word are indistinguishable: an
+ * operations Tool named for a departure's `fleet-resources` attachment also
+ * satisfied `/operations/resources`, the fleet record itself, and hid genuine
+ * fleet CRUD. `adminWrites` on the Tool declaration replaces the inference for
+ * that Tool, which is the only way out when the colliding word *is* the noun.
  */
 
 const WRITE_METHODS = new Set(["post", "patch", "put", "delete"])
@@ -73,8 +81,10 @@ const ACTION_SEGMENTS = new Set([
 /**
  * Inspect admin write coverage across modules.
  *
- * @param modules Array of `{ packageName, unitId, tools: [{ id, name, risk }],
- *   adminWriteOperations: [{ method, path }] }`.
+ * @param modules Array of `{ packageName, unitId, tools: [{ id, name, risk,
+ *   requiredScopes, adminWrites }], adminWriteOperations: [{ method, path }] }`.
+ *   `adminWrites` is the Tool's own list of admin paths; when present it
+ *   replaces name matching for that Tool.
  * @param options.allowlist Map of `resourceKey` -> `{ rationale }` for
  *   resources that deliberately have no Tool.
  */
@@ -94,17 +104,38 @@ export function inspectAgentWriteCoverage(modules, options = {}) {
       resources.set(key, entry)
     }
 
+    const moduleTools = dedupeByName(module.tools ?? []).map((tool) => ({
+      name: tool.name,
+      write: isWriteTool(tool),
+      tokens: tokenize(tool.name),
+      declared: declaredResourceKeys(tool),
+    }))
+
+    for (const tool of moduleTools) {
+      if (!tool.declared) continue
+      if (!tool.write) {
+        diagnostics.push(
+          `${module.unitId}: ${tool.name} declares adminWrites but asks for no write scope — a read Tool covers no write resource, so the declaration is inert`,
+        )
+        continue
+      }
+      for (const [path, key] of tool.declared) {
+        if (key !== undefined && resources.has(key)) continue
+        diagnostics.push(
+          `${module.unitId}: ${tool.name} declares adminWrites ${path}, which is not an admin write operation in this module's OpenAPI documents — fix the path or drop it`,
+        )
+      }
+    }
+
     // Only write-capable Tools can cover a write resource. Counting reads was
     // the first version of this check, and it declared notification templates
     // "covered" by list/get — the precise gap it exists to catch.
-    const toolTokens = dedupeByName(module.tools ?? [])
-      .filter((tool) => isWriteTool(tool))
-      .map((tool) => ({ name: tool.name, tokens: tokenize(tool.name) }))
+    const toolMatchers = moduleTools.filter((tool) => tool.write)
 
     for (const resource of [...resources.values()].sort((a, b) => a.key.localeCompare(b.key))) {
       const allowKey = `${module.unitId}:${resource.key}`
       const allowed = allowlist.get(allowKey)
-      const covering = toolTokens.filter((tool) => coversResource(tool.tokens, resource.key))
+      const covering = toolMatchers.filter((tool) => coversResource(tool, resource.key))
 
       if (allowed) {
         usedAllowlistKeys.add(allowKey)
@@ -236,7 +267,24 @@ function dedupeByName(tools) {
   return [...seen.values()]
 }
 
-function coversResource(toolTokens, key) {
+/**
+ * Resource keys a Tool declaration names outright, or `undefined` when it
+ * declares nothing and coverage falls back to its name.
+ *
+ * @returns Map of declared admin path -> resource key.
+ */
+function declaredResourceKeys(tool) {
+  const paths = tool.adminWrites
+  if (!Array.isArray(paths) || paths.length === 0) return undefined
+  return new Map(paths.map((path) => [path, resourceKey(String(path))]))
+}
+
+function coversResource(tool, key) {
+  // A declaration is exhaustive: the Tool covers the resources behind the paths
+  // it names and no others. Falling back to the name for anything it left out
+  // would reinstate the collision the declaration exists to settle.
+  if (tool.declared) return [...tool.declared.values()].includes(key)
+
   // The resource's own noun is the last segment; a Tool covers the resource
   // when it names that noun. `/proposal/product` needs a Tool about products, not
   // merely one about proposals, or add_proposal_product's absence would hide behind
@@ -244,7 +292,7 @@ function coversResource(toolTokens, key) {
   const segments = key.split("/")
   const noun = segments[segments.length - 1]
   const nounTokens = noun.split("-").map(singularize).filter(Boolean)
-  return nounTokens.every((token) => toolTokens.includes(token))
+  return nounTokens.every((token) => tool.tokens.includes(token))
 }
 
 function tokenize(name) {

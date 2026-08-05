@@ -293,6 +293,16 @@ export const operationsVoyantModule = defineModule({
       requiredScopes: ["operations:write"],
       context: ["operations"],
       risk: "medium",
+      // Attaching writes the departure's allocation-resource container as well
+      // as the fleet link, so both endpoints are this Tool's surface. Declared
+      // rather than inferred because the fleet *record* at
+      // `/v1/admin/operations/resources` shares the noun `resource` and this
+      // Tool cannot create, rename or delete a coach — leaving it to the name
+      // match reported that global CRUD as covered.
+      adminWrites: [
+        "/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources",
+        "/v1/admin/operations/availability/slots/{id}/allocation/resources",
+      ],
     },
     {
       id: "@voyant-travel/operations#tool.detach-departure-fleet-resource",
@@ -309,6 +319,12 @@ export const operationsVoyantModule = defineModule({
       requiredScopes: ["operations:write"],
       context: ["operations"],
       risk: "high",
+      // Detaching removes the departure's allocation-resource container along
+      // with the fleet link; it does not touch the fleet record itself.
+      adminWrites: [
+        "/v1/admin/operations/availability/slots/{id}/allocation/fleet-resources/{fleetResourceId}",
+        "/v1/admin/operations/availability/slots/{id}/allocation/resources/{resourceId}",
+      ],
     },
     {
       id: "@voyant-travel/operations#tool.list-departure-fleet-resources",
