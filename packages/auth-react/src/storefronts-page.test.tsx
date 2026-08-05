@@ -21,7 +21,6 @@ import { createStorefrontsAdminApi, type StorefrontsAdminApi } from "./storefron
 
 const STOREFRONT: StorefrontDto = {
   id: "storefront_1",
-  organizationId: "org_1",
   name: "Web store",
   slug: "web",
   hostingKind: "external",

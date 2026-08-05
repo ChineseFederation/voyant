@@ -56,7 +56,6 @@ export const storefrontCustomerAccountPolicySchema = z
 export const storefrontSchema = z
   .object({
     id: z.string(),
-    organizationId: z.string(),
     name: z.string(),
     slug: z.string(),
     hostingKind: storefrontHostingKindSchema,

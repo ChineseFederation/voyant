@@ -750,13 +750,22 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
     // env allowlist so a cross-origin customer-auth call from any allowed
     // storefront origin is trusted by Better Auth (WORK: direct-client support).
     // Wildcard (`https://*.host`) entries pass through untouched — Better Auth
-    // matches them natively; every other entry must be a canonical origin.
-    const trustedOrigins = [...new Set([...context.trustedOrigins, ...getTrustedOrigins(env)])].map(
-      (origin) =>
-        isCustomerWildcardOrigin(origin)
-          ? origin
-          : requireCanonicalOrigin(origin, "customer auth trusted origin"),
-    )
+    // matches them natively; every other entry is narrowed to its origin.
+    //
+    // Narrowed, not rejected: the env allowlist is built from `APP_URL` /
+    // `DASH_BASE_URL` / `CORS_ALLOWLIST`, and `APP_URL` is documented (and
+    // shipped) as the API base — `http://host:3300/api`. An origin check only
+    // ever compares origins, so the trailing path carries no meaning here;
+    // throwing on it turned every public read into a 500 (voyant#4261).
+    const trustedOrigins = [
+      ...new Set(
+        [...context.trustedOrigins, ...getTrustedOrigins(env)].map((origin) =>
+          isCustomerWildcardOrigin(origin)
+            ? origin
+            : canonicalOriginOf(origin, "customer auth trusted origin"),
+        ),
+      ),
+    ]
     const invitationAcceptBaseURL = context.invitationAcceptBaseURL
       ? requireCanonicalOrigin(
           context.invitationAcceptBaseURL,
@@ -780,23 +789,33 @@ export function createOperatorAuthNodeRuntime<Env extends OperatorAuthNodeEnv>(
   }
 
   function requireCanonicalOrigin(value: string, label: string): string {
+    const parsed = parseHttpUrl(value, label)
+    if ((parsed.pathname !== "/" && parsed.pathname !== "") || parsed.search || parsed.hash) {
+      throw new Error(`${label} must be an absolute HTTP(S) origin`)
+    }
+    return parsed.origin
+  }
+
+  /**
+   * The origin of an absolute HTTP(S) URL. Unlike {@link requireCanonicalOrigin}
+   * this accepts a URL that carries a path/query/fragment and discards it, for
+   * the places where only the origin is ever compared.
+   */
+  function canonicalOriginOf(value: string, label: string): string {
+    return parseHttpUrl(value, label).origin
+  }
+
+  function parseHttpUrl(value: string, label: string): URL {
     let parsed: URL
     try {
       parsed = new URL(value)
     } catch {
       throw new Error(`${label} must be an absolute HTTP(S) origin`)
     }
-    if (
-      !["http:", "https:"].includes(parsed.protocol) ||
-      parsed.username ||
-      parsed.password ||
-      (parsed.pathname !== "/" && parsed.pathname !== "") ||
-      parsed.search ||
-      parsed.hash
-    ) {
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
       throw new Error(`${label} must be an absolute HTTP(S) origin`)
     }
-    return parsed.origin
+    return parsed
   }
 
   function requirePublicApiBaseUrl(value: string, baseURL: string): string {

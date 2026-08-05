@@ -19,7 +19,6 @@ import type {
 
 const STOREFRONT: StorefrontDto = {
   id: "sf_1",
-  organizationId: "org_1",
   name: "Shop",
   slug: "shop",
   hostingKind: "external",

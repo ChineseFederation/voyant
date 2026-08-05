@@ -25,7 +25,6 @@ type StorefrontEnv = {
   Bindings: Record<string, unknown>
   Variables: {
     userId?: string
-    organizationId?: string | null
     scopes?: string[] | null
     db: VoyantDb
     link?: StorefrontRequestContext["link"]
@@ -202,16 +201,15 @@ const clearChannelBindingRoute = storefrontRoute({
 })
 
 /**
- * Resolve the operator-scoped request context. The organization is derived from
- * the admin session — never a client parameter — so every write is bounded to
- * the acting operator's organization.
+ * Resolve the operator request context. The deployment is the tenant boundary
+ * (docs/adr/0001-tenant-scoping.md), so there is no organization to derive: the
+ * `/v1/admin/*` staff guard admits the caller and `storefronts:write` gates the
+ * writes.
  */
 function requestContext(c: StorefrontRouteContext): StorefrontRequestContext | Response {
   const userId = c.get("userId")
   if (!userId) return c.json({ error: "Unauthorized" }, 401)
-  const organizationId = c.get("organizationId")
-  if (!organizationId) return c.json({ error: "No active operator organization." }, 403)
-  return { bindings: c.env, db: c.get("db"), link: c.get("link"), organizationId }
+  return { bindings: c.env, db: c.get("db"), link: c.get("link") }
 }
 
 function canManageStorefronts(c: StorefrontRouteContext): boolean {
@@ -302,7 +300,6 @@ export function createStorefrontAdminRoutes(
 
   routes.openapi(capabilitiesRoute, (c) => {
     if (!c.get("userId")) return c.json({ error: "Unauthorized" }, 401)
-    if (!c.get("organizationId")) return c.json({ error: "No active operator organization." }, 403)
     const manageProviders = canManageStorefronts(c)
     return c.json({
       data: {

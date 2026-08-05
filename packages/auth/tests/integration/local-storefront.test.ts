@@ -1,7 +1,6 @@
 import { createDbClient } from "@voyant-travel/db"
 import type { KmsEnvelope } from "@voyant-travel/db/schema/iam"
 import { authOrganization, storefronts } from "@voyant-travel/db/schema/iam"
-import { eq } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it } from "vitest"
 import type { StorefrontCredentialCipher } from "../../src/storefront-credentials.js"
 import { createLocalStorefrontAdapter } from "../../src/storefront-local-adapter.js"
@@ -11,8 +10,6 @@ import type {
 } from "../../src/storefront-runtime-port.js"
 
 const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL
-const ORG_ID = "org_storefront_test"
-const OTHER_ORG_ID = "org_storefront_test_other"
 
 // Deterministic in-memory cipher: base64 stands in for KMS ciphertext so the
 // round-trip (encrypt → store envelope → decrypt) is exercised end-to-end.
@@ -33,31 +30,19 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
     timeouts: { connectMs: false, queryMs: false, statementMs: false },
   })
   const adapter = createLocalStorefrontAdapter({ resolveCipher: () => testCipher })
-  const context: StorefrontRequestContext = { bindings: {}, db, organizationId: ORG_ID }
+  const context: StorefrontRequestContext = { bindings: {}, db }
   const resolveContext: StorefrontResolveContext = { bindings: {}, db }
 
+  // No organization fixture: the operator auth realm never creates one, so a
+  // real deployment runs with `organization` empty. Storefronts must work there
+  // (voyant#4261) — the emptiness is the point, not an omission.
   beforeEach(async () => {
-    await db.delete(authOrganization).where(eq(authOrganization.id, OTHER_ORG_ID))
-    await db.delete(authOrganization).where(eq(authOrganization.id, ORG_ID))
-    await db.insert(authOrganization).values([
-      {
-        id: ORG_ID,
-        name: "Test Operator",
-        slug: `test-operator-${ORG_ID}`,
-        createdAt: new Date(),
-      },
-      {
-        id: OTHER_ORG_ID,
-        name: "Other Test Operator",
-        slug: `test-operator-${OTHER_ORG_ID}`,
-        createdAt: new Date(),
-      },
-    ])
+    await db.delete(storefronts)
+    await db.delete(authOrganization)
   })
 
   afterAll(async () => {
-    await db.delete(authOrganization).where(eq(authOrganization.id, OTHER_ORG_ID))
-    await db.delete(authOrganization).where(eq(authOrganization.id, ORG_ID))
+    await db.delete(storefronts)
   })
 
   async function createShop() {
@@ -78,7 +63,6 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
 
   it("creates, reads, lists, and updates a storefront (origins/methods/policy)", async () => {
     const created = await createShop()
-    expect(created.organizationId).toBe(ORG_ID)
     expect(created.allowedOrigins).toEqual(["https://shop.example.com"])
 
     expect(await adapter.getStorefront(context, created.id)).toMatchObject({ id: created.id })
@@ -132,10 +116,9 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
     expect(await adapter.resolveStorefrontByApiKey(resolveContext, rotated.token)).toBeNull()
   })
 
-  it("rejects an origin with cross-organization exact and wildcard matches", async () => {
+  it("rejects an origin that exact- and wildcard-matches two storefronts", async () => {
     await createShop()
     await db.insert(storefronts).values({
-      organizationId: OTHER_ORG_ID,
       name: "Other Shop",
       slug: "other-shop",
       hostingKind: "external",
@@ -195,15 +178,29 @@ describe.skipIf(!TEST_DATABASE_URL)("local storefront adapter", () => {
     ).rejects.toThrow(/facebook/)
   })
 
-  it("scopes every read/write to the acting organization", async () => {
-    const shop = await createShop()
-    const otherOrgContext: StorefrontRequestContext = {
-      bindings: {},
-      db,
-      organizationId: "org_intruder",
-    }
-    await expect(adapter.getStorefront(otherOrgContext, shop.id)).rejects.toThrow(/not found/i)
-    expect(await adapter.listStorefronts(otherOrgContext)).toHaveLength(0)
+  it("reports an unknown storefront id as not found", async () => {
+    await createShop()
+    await expect(adapter.getStorefront(context, "storefronts_missing")).rejects.toThrow(
+      /not found/i,
+    )
+  })
+
+  // The regression this suite exists for: with `organization` empty — which is
+  // every operator deployment, because the admin realm has no organization
+  // plugin — creating and listing a storefront must still work. Scoping the
+  // storefront tables by `organization_id` made the insert fail its foreign key
+  // and the list return nothing (voyant#4261).
+  it("creates and lists a storefront with no operator organization in the database", async () => {
+    expect(await db.select().from(authOrganization)).toHaveLength(0)
+
+    const created = await createShop()
+    const listed = await adapter.listStorefronts(context)
+
+    expect(listed.map((row) => row.id)).toEqual([created.id])
+    const issued = await adapter.issueApiKey(context, created.id, "publishable", "web")
+    expect(
+      (await adapter.resolveStorefrontByApiKey(resolveContext, issued.token))?.storefront.id,
+    ).toBe(created.id)
   })
 
   it("deletes a storefront", async () => {

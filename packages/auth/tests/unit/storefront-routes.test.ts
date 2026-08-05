@@ -13,7 +13,6 @@ import type {
 
 const STOREFRONT: StorefrontDto = {
   id: "storefront_1",
-  organizationId: "org_actor",
   name: "Web",
   slug: "web",
   hostingKind: "external",
@@ -95,7 +94,6 @@ function app(
   provider: StorefrontRuntimeProvider,
   options: {
     authenticated?: boolean
-    organizationId?: string | null
     scopes?: string[]
     businessAccounts?: boolean
     channelBinding?: StorefrontChannelBindingProvider | null
@@ -103,7 +101,6 @@ function app(
 ) {
   const {
     authenticated = true,
-    organizationId = "org_actor",
     scopes = ["storefronts:read", "storefronts:write"],
     businessAccounts = true,
     channelBinding = null,
@@ -112,14 +109,12 @@ function app(
     Bindings: Record<string, unknown>
     Variables: {
       userId?: string
-      organizationId?: string | null
       scopes?: string[] | null
       db: never
     }
   }>()
   hono.use("*", async (c, next) => {
     if (authenticated) c.set("userId", "user_actor")
-    c.set("organizationId", organizationId)
     c.set("scopes", scopes)
     c.set("db", {} as never)
     await next()
@@ -132,7 +127,11 @@ function app(
 }
 
 describe("storefront admin routes", () => {
-  it("lists storefronts scoped to the session organization", async () => {
+  // The operator auth realm has no organization plugin, so a self-host session
+  // never carries one. Demanding it here made every storefront request fail with
+  // "No active operator organization." and left the surface unreachable
+  // (voyant#4261). The deployment is the tenant boundary.
+  it("lists storefronts for a staff session that carries no organization", async () => {
     const provider = runtime()
     const response = await app(provider).request("/v1/admin/storefronts/storefronts")
 
@@ -141,8 +140,17 @@ describe("storefront admin routes", () => {
       data: [expect.objectContaining({ id: "storefront_1" })],
     })
     expect(provider.listStorefronts).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org_actor" }),
+      expect.objectContaining({ db: expect.anything() }),
     )
+  })
+
+  it("reports capabilities for a staff session that carries no organization", async () => {
+    const response = await app(runtime()).request("/v1/admin/storefronts/capabilities")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      data: { businessAccounts: true, manageProviders: true, channelBinding: false },
+    })
   })
 
   it("requires an authenticated user before calling the port", async () => {
@@ -152,16 +160,6 @@ describe("storefront admin routes", () => {
     )
 
     expect(response.status).toBe(401)
-    expect(provider.listStorefronts).not.toHaveBeenCalled()
-  })
-
-  it("rejects requests without an active operator organization", async () => {
-    const provider = runtime()
-    const response = await app(provider, { organizationId: null }).request(
-      "/v1/admin/storefronts/storefronts",
-    )
-
-    expect(response.status).toBe(403)
     expect(provider.listStorefronts).not.toHaveBeenCalled()
   })
 
@@ -236,7 +234,7 @@ describe("storefront admin routes", () => {
       data: [expect.objectContaining({ channelBinding: CHANNEL_BINDING })],
     })
     expect(binding.listStorefrontChannelBindings).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org_actor" }),
+      expect.objectContaining({ db: expect.anything() }),
       [STOREFRONT.id],
     )
   })
@@ -255,7 +253,7 @@ describe("storefront admin routes", () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ data: CHANNEL_BINDING })
     expect(binding.setStorefrontChannelBinding).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org_actor" }),
+      expect.objectContaining({ db: expect.anything() }),
       "storefront_1",
       { channelId: "channels_1" },
     )
@@ -307,7 +305,7 @@ describe("storefront admin routes", () => {
 
     expect(response.status).toBe(204)
     expect(provider.putProviderCredential).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org_actor" }),
+      expect.objectContaining({ db: expect.anything() }),
       "storefront_1",
       "google",
       { clientId: "id", clientSecret: "secret" },

@@ -344,11 +344,11 @@ describe("createOperatorAuthNodeRuntime", () => {
       },
     },
     {
-      label: "trusted origin with a path",
+      label: "trusted origin that is not an absolute HTTP(S) URL",
       context: {
         baseURL: "https://shop.example.com",
         publicApiBaseURL: "https://shop.example.com/api",
-        trustedOrigins: ["https://shop.example.com/path"],
+        trustedOrigins: ["shop.example.com"],
       },
     },
   ])("fails closed for a broker context with $label", async ({ context }) => {
@@ -373,6 +373,36 @@ describe("createOperatorAuthNodeRuntime", () => {
     )
 
     expect(response.status).toBe(500)
+  })
+
+  // `APP_URL` is documented (and shipped) as the API base — `http://host/api` —
+  // and it feeds the env trusted-origin allowlist. An origin check only compares
+  // origins, so the path is narrowed away rather than rejected; rejecting it
+  // turned every public read into a 500 (voyant#4261).
+  it("narrows a trusted origin that carries a path to its origin", async () => {
+    const runtime = createOperatorAuthNodeRuntime({
+      accessCatalog: { resources: [], presets: [] },
+      appName: "auth-test",
+      authMode: "voyant-cloud",
+      reporter: { captureException: vi.fn() },
+      resolveCustomerAuthContext: async () => ({
+        baseURL: "https://shop.example.com",
+        publicApiBaseURL: "https://shop.example.com/api",
+        trustedOrigins: ["https://shop.example.com/api", "https://shop.example.com"],
+        methods: { emailCode: true, emailPassword: true },
+      }),
+    })
+
+    const response = await runtime.handler.fetch(
+      new Request("https://runtime.internal/auth/customer/config"),
+      {
+        DATABASE_URL: "postgres://unused",
+        SESSION_CLAIMS_ADMIN_SECRET: "admin-session-claims-secret",
+      },
+      { waitUntil: vi.fn() } as never,
+    )
+
+    expect(response.status).toBe(200)
   })
 
   it("awaits managed customer auth context for public API session resolution", async () => {
@@ -506,7 +536,6 @@ describe("createOperatorAuthNodeRuntime", () => {
 describe("createOperatorAuthNodeRuntime storefront customer-auth failures", () => {
   const STOREFRONT: StorefrontDto = {
     id: "sf_1",
-    organizationId: "org_1",
     name: "Shop",
     slug: "shop",
     hostingKind: "external",
@@ -735,7 +764,6 @@ describe("isCustomerCorsSurface", () => {
 describe("createOperatorAuthNodeRuntime customer dynamic CORS", () => {
   const STOREFRONT: StorefrontDto = {
     id: "sf_cors",
-    organizationId: "org_1",
     name: "Shop",
     slug: "shop",
     hostingKind: "external",

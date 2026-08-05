@@ -1,8 +1,10 @@
 /**
  * Local storefront runtime provider — backs {@link storefrontRuntimePort} with
- * the deployment's own runtime DB (self-host). Mirrors the team-management
- * local adapter: every operator write is bounded to `context.organizationId`,
- * and request-time resolution (`resolveStorefrontByApiKey`) is org-agnostic.
+ * the deployment's own runtime DB (self-host). The deployment is the tenant
+ * boundary (docs/adr/0001-tenant-scoping.md), so storefronts are deployment-wide:
+ * operator writes are authorized by the `/v1/admin/*` staff guard and the
+ * `storefronts:*` scopes, and request-time resolution
+ * (`resolveStorefrontByApiKey`) selects by token.
  */
 import {
   type InsertStorefront,
@@ -50,7 +52,6 @@ export { isStorefrontOriginAllowed } from "./storefront-origins.js"
 function toStorefrontDto(row: SelectStorefront): StorefrontDto {
   return {
     id: row.id,
-    organizationId: row.organizationId,
     name: row.name,
     slug: row.slug,
     hostingKind: row.hostingKind,
@@ -98,20 +99,15 @@ export function createLocalStorefrontAdapter(options: {
 }): StorefrontRuntimeProvider {
   const { resolveCipher } = options
 
-  /** Load a storefront and prove it belongs to the acting organization. */
-  async function requireOwnedStorefront(
+  /** Load a storefront by id, or report it as missing. */
+  async function requireStorefront(
     context: StorefrontRequestContext,
     storefrontId: string,
   ): Promise<SelectStorefront> {
     const [row] = await context.db
       .select()
       .from(storefronts)
-      .where(
-        and(
-          eq(storefronts.id, storefrontId),
-          eq(storefronts.organizationId, context.organizationId),
-        ),
-      )
+      .where(eq(storefronts.id, storefrontId))
       .limit(1)
     if (!row) throw new StorefrontInputError("Storefront was not found.")
     return row
@@ -146,12 +142,7 @@ export function createLocalStorefrontAdapter(options: {
     const [row] = await context.db
       .update(storefronts)
       .set({ ...patch, updatedAt: new Date() })
-      .where(
-        and(
-          eq(storefronts.id, storefrontId),
-          eq(storefronts.organizationId, context.organizationId),
-        ),
-      )
+      .where(eq(storefronts.id, storefrontId))
       .returning()
     if (!row) throw new StorefrontInputError("Storefront was not found.")
     return toStorefrontDto(row)
@@ -166,13 +157,12 @@ export function createLocalStorefrontAdapter(options: {
     const rows = await context.db
       .select({ id: storefronts.id, allowedOrigins: storefronts.allowedOrigins })
       .from(storefronts)
-      .where(eq(storefronts.organizationId, context.organizationId))
     for (const row of rows) {
       if (storefrontId && row.id === storefrontId) continue
       for (const candidate of allowedOrigins) {
         if (row.allowedOrigins.some((existing) => originsOverlap(candidate, existing))) {
           throw new StorefrontInputError(
-            "Storefront allowed origin overlaps another storefront in this organization.",
+            "Storefront allowed origin overlaps another storefront in this deployment.",
           )
         }
       }
@@ -190,7 +180,6 @@ export function createLocalStorefrontAdapter(options: {
       .insert(storefrontApiKeys)
       .values({
         storefrontId: storefront.id,
-        organizationId: storefront.organizationId,
         kind,
         tokenHash: generated.tokenHash,
         tokenPreview: generated.tokenPreview,
@@ -203,16 +192,12 @@ export function createLocalStorefrontAdapter(options: {
 
   return {
     async listStorefronts(context) {
-      const rows = await context.db
-        .select()
-        .from(storefronts)
-        .where(eq(storefronts.organizationId, context.organizationId))
-        .orderBy(desc(storefronts.createdAt))
+      const rows = await context.db.select().from(storefronts).orderBy(desc(storefronts.createdAt))
       return rows.map(toStorefrontDto)
     },
 
     async getStorefront(context, storefrontId) {
-      return toStorefrontDto(await requireOwnedStorefront(context, storefrontId))
+      return toStorefrontDto(await requireStorefront(context, storefrontId))
     },
 
     async createStorefront(context, input) {
@@ -239,7 +224,6 @@ export function createLocalStorefrontAdapter(options: {
       const [row] = await context.db
         .insert(storefronts)
         .values({
-          organizationId: context.organizationId,
           name: input.name.trim(),
           slug,
           hostingKind: input.hostingKind,
@@ -255,7 +239,7 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async updateStorefront(context, storefrontId, patch) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const update: Partial<InsertStorefront> = {}
       if (patch.name !== undefined) update.name = patch.name.trim()
       if (patch.allowedOrigins !== undefined) {
@@ -274,19 +258,12 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async deleteStorefront(context, storefrontId) {
-      await requireOwnedStorefront(context, storefrontId)
-      await context.db
-        .delete(storefronts)
-        .where(
-          and(
-            eq(storefronts.id, storefrontId),
-            eq(storefronts.organizationId, context.organizationId),
-          ),
-        )
+      await requireStorefront(context, storefrontId)
+      await context.db.delete(storefronts).where(eq(storefronts.id, storefrontId))
     },
 
     async setAllowedOrigins(context, storefrontId, origins) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const allowedOrigins = normalizeStorefrontAllowedOrigins(origins)
       await assertNoOverlappingOrigins(context, storefrontId, allowedOrigins)
       return persistStorefrontPatch(context, storefrontId, {
@@ -295,7 +272,7 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async listApiKeys(context, storefrontId) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const rows = await context.db
         .select()
         .from(storefrontApiKeys)
@@ -305,12 +282,12 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async issueApiKey(context, storefrontId, kind, name) {
-      const storefront = await requireOwnedStorefront(context, storefrontId)
+      const storefront = await requireStorefront(context, storefrontId)
       return issueKeyRow(context, storefront, kind, name)
     },
 
     async rotateApiKey(context, storefrontId, keyId) {
-      const storefront = await requireOwnedStorefront(context, storefrontId)
+      const storefront = await requireStorefront(context, storefrontId)
       const [existing] = await context.db
         .select()
         .from(storefrontApiKeys)
@@ -327,7 +304,7 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async revokeApiKey(context, storefrontId, keyId) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       await context.db
         .update(storefrontApiKeys)
         .set({ revokedAt: new Date(), updatedAt: new Date() })
@@ -405,21 +382,21 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async updateAccountPolicy(context, storefrontId, policy) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       return persistStorefrontPatch(context, storefrontId, {
         accountPolicy: normalizeStorefrontCustomerAccountPolicy(policy),
       })
     },
 
     async updateMethods(context, storefrontId, methods) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const normalized = normalizeStorefrontCustomerAuthMethods(methods)
       await requireCredentialsForEnabledSocialMethods(context, storefrontId, normalized)
       return persistStorefrontPatch(context, storefrontId, { methods: normalized })
     },
 
     async listProviderCredentials(context, storefrontId) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const rows = await context.db
         .select()
         .from(storefrontCustomerAuthCredentials)
@@ -441,7 +418,7 @@ export function createLocalStorefrontAdapter(options: {
     },
 
     async putProviderCredential(context, storefrontId, provider, credentials) {
-      const storefront = await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       const bundle = validateStorefrontCredentialBundle(provider, credentials)
       const encrypted = await resolveCipher(context.bindings).encrypt(JSON.stringify(bundle))
       const [existing] = await context.db
@@ -463,14 +440,13 @@ export function createLocalStorefrontAdapter(options: {
       }
       await context.db.insert(storefrontCustomerAuthCredentials).values({
         storefrontId,
-        organizationId: storefront.organizationId,
         provider,
         encryptedCredentials: encrypted,
       })
     },
 
     async deleteProviderCredential(context, storefrontId, provider) {
-      await requireOwnedStorefront(context, storefrontId)
+      await requireStorefront(context, storefrontId)
       await context.db
         .delete(storefrontCustomerAuthCredentials)
         .where(

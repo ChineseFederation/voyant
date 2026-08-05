@@ -7,7 +7,6 @@ import {
 
 const STOREFRONT = {
   id: "storefront_1",
-  organizationId: "org_1",
   name: "Customer portal",
   slug: "customer-portal",
   hostingKind: "external",

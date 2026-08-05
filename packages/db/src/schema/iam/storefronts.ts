@@ -4,9 +4,11 @@
  * A storefront is the commerce-access identity for one frontend that talks to
  * this operator's public API and customer auth. Unlike the managed control
  * plane — where a storefront is scoped to a workload/environment — a self-host
- * deployment owns a single operator organization, so storefronts are scoped by
- * `organization_id` (the Better Auth operator org, `authOrganization`), the
- * same tenancy vocabulary the rest of the IAM schema uses.
+ * deployment IS the tenant boundary (ADR-0001), so a storefront belongs to the
+ * deployment rather than to a row-level owner. There is deliberately no
+ * `organization_id`: the operator realm never creates a Better Auth
+ * organization, so scoping storefronts by one made every write fail its foreign
+ * key and every read return nothing (voyant#4261).
  *
  * Access keys (`storefrontApiKeys`) and OAuth provider credentials
  * (`storefrontCustomerAuthCredentials`) hang off a storefront row. The keys are
@@ -17,7 +19,6 @@
 import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { typeId, typeIdRef } from "../../lib/typeid-column.js"
-import { authOrganization } from "./auth.js"
 import type { KmsEnvelope } from "./kms.js"
 
 export const STOREFRONT_CUSTOMER_AUTH_SOCIAL_PROVIDERS = ["google", "facebook", "apple"] as const
@@ -66,9 +67,6 @@ export const storefronts = pgTable(
   "storefronts",
   {
     id: typeId("storefronts"),
-    organizationId: typeIdRef("organization_id")
-      .notNull()
-      .references(() => authOrganization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     hostingKind: text("hosting_kind").$type<StorefrontHostingKind>().notNull().default("external"),
@@ -93,10 +91,7 @@ export const storefronts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    uniqueIndex("storefronts_org_slug_unique").on(table.organizationId, table.slug),
-    index("storefronts_org_idx").on(table.organizationId),
-  ],
+  (table) => [uniqueIndex("storefronts_slug_unique").on(table.slug)],
 )
 
 /**
@@ -111,9 +106,6 @@ export const storefrontApiKeys = pgTable(
     storefrontId: typeIdRef("storefront_id")
       .notNull()
       .references(() => storefronts.id, { onDelete: "cascade" }),
-    organizationId: typeIdRef("organization_id")
-      .notNull()
-      .references(() => authOrganization.id, { onDelete: "cascade" }),
     kind: text("kind").$type<StorefrontApiKeyKind>().notNull(),
     tokenHash: text("token_hash").notNull(),
     tokenPreview: text("token_preview").notNull(),
@@ -126,7 +118,6 @@ export const storefrontApiKeys = pgTable(
   (table) => [
     uniqueIndex("storefront_api_keys_token_hash_unique").on(table.tokenHash),
     index("storefront_api_keys_storefront_idx").on(table.storefrontId),
-    index("storefront_api_keys_org_idx").on(table.organizationId),
   ],
 )
 
@@ -142,9 +133,6 @@ export const storefrontCustomerAuthCredentials = pgTable(
     storefrontId: typeIdRef("storefront_id")
       .notNull()
       .references(() => storefronts.id, { onDelete: "cascade" }),
-    organizationId: typeIdRef("organization_id")
-      .notNull()
-      .references(() => authOrganization.id, { onDelete: "cascade" }),
     provider: text("provider").$type<StorefrontCustomerAuthSocialProvider>().notNull(),
     encryptedCredentials: jsonb("encrypted_credentials").$type<KmsEnvelope>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -155,7 +143,6 @@ export const storefrontCustomerAuthCredentials = pgTable(
       table.storefrontId,
       table.provider,
     ),
-    index("storefront_customer_auth_credentials_org_idx").on(table.organizationId),
   ],
 )
 

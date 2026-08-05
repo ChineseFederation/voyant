@@ -11,7 +11,6 @@ import type { VoyantDb } from "@voyant-travel/hono"
 
 export interface StorefrontDto {
   id: string
-  organizationId: string
   name: string
   slug: string
   hostingKind: StorefrontHostingKind
@@ -80,18 +79,23 @@ export interface UpdateStorefrontInput {
   accountPolicy?: StorefrontCustomerAccountPolicy
 }
 
-/** Operator-scoped admin context: every write is bounded to one organization. */
+/**
+ * Operator admin context. The deployment is the tenant boundary
+ * (docs/adr/0001-tenant-scoping.md), so a storefront belongs to the deployment
+ * and there is no in-process organization scope to bound a write to — the
+ * operator actor guard on `/v1/admin/*` and the `storefronts:*` scopes are the
+ * authorization.
+ */
 export interface StorefrontRequestContext {
   bindings: Record<string, unknown>
   db: VoyantDb
   link?: LinkService
-  organizationId: string
 }
 
 /**
  * Request-time resolve context. Customer-auth resolution runs without an
- * operator user, so no organization scope is present — a token selects its
- * storefront globally, then the declared-origin check authorizes it.
+ * operator user — a token selects its storefront, then the declared-origin
+ * check authorizes it.
  */
 export interface StorefrontResolveContext {
   bindings: Record<string, unknown>
