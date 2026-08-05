@@ -5,6 +5,7 @@ import type {
   PaymentSessionState,
   PaymentStatusResult,
 } from "@voyant-travel/payments"
+import { paymentCheckoutRedirectUrl } from "@voyant-travel/payments"
 import { eq } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import {
@@ -202,7 +203,7 @@ export async function applyPaymentAdapterInitiationResult(
       processorIdentity: result.processorIdentity,
       processorSessionId: result.processorSessionId,
       processorPaymentId: result.processorPaymentId,
-      redirectUrl: result.checkout?.url ?? null,
+      redirectUrl: paymentCheckoutRedirectUrl(result.checkout),
       idempotencyKey: result.idempotencyKey,
       initiationClaimedAt: claim.claimedAt,
     },

@@ -3,6 +3,8 @@ import type {
   PaymentAdapterRuntimeContext,
   PaymentCallbackEvent,
   PaymentCallbackRequest,
+  PaymentCheckoutHandoff,
+  PaymentHostedCheckout,
   PaymentInitiationInput,
   PaymentInitiationResult,
   PaymentMoney,
@@ -13,7 +15,13 @@ import type {
   PaymentStatusInput,
   PaymentStatusResult,
 } from "./index.js"
-import { isPaymentAdapterError, paymentAdapterRuntimePort } from "./index.js"
+import {
+  acceptedPaymentCheckoutHandoffs,
+  isEmbeddedPaymentCheckout,
+  isPaymentAdapterError,
+  paymentAdapterRuntimePort,
+  paymentCheckoutHandoff,
+} from "./index.js"
 
 export interface PaymentOperationConformanceFixture {
   input: PaymentOperationInput
@@ -59,6 +67,17 @@ export interface PaymentAdapterConformanceHarness {
    * It may stop at redirect/processing/authorized, but must never report paid.
    */
   manualCaptureInitiation?: PaymentInitiationInput
+  /**
+   * A separate initiation that accepts the embedded handoff. Required when
+   * `embeddedCheckout` is declared; it must return an `embedded` arm.
+   */
+  embeddedInitiation?: PaymentInitiationInput
+  /**
+   * The initiation used for the redirect-only downgrade probe. Defaults to
+   * `initiation`, re-keyed. Supply it only when the base fixture cannot be
+   * replayed under a fresh session/idempotency key.
+   */
+  redirectOnlyInitiation?: PaymentInitiationInput
   authorize?: PaymentOperationConformanceInput
   capture?: PaymentOperationConformanceInput
   void?: PaymentOperationConformanceInput
@@ -150,6 +169,14 @@ function buildCases(harness: PaymentAdapterConformanceHarness): ConformanceCase[
     },
     { name: "honors manual capture", run: () => assertManualCapture(harness) },
     {
+      name: "honors declared embedded checkout capability",
+      run: () => assertEmbeddedCheckout(harness),
+    },
+    {
+      name: "serves a caller that can only redirect",
+      run: () => assertRedirectOnlyCaller(harness),
+    },
+    {
       name: "enforces partial capture bounds",
       run: () => assertPartialOperationBound(harness, "capture"),
     },
@@ -186,6 +213,12 @@ async function assertAdapterPort(adapter: PaymentAdapter) {
       throw new Error(`Payment adapter capability ${capability} must be boolean.`)
     }
   }
+  if (
+    adapter.capabilities.embeddedCheckout !== undefined &&
+    typeof adapter.capabilities.embeddedCheckout !== "boolean"
+  ) {
+    throw new Error("Payment adapter capability embeddedCheckout must be boolean when declared.")
+  }
   if (!adapter.capabilities.idempotencyKeys || !adapter.capabilities.retrySafeInitiation) {
     throw new Error("Payment adapters must declare idempotent, retry-safe initiation.")
   }
@@ -218,8 +251,9 @@ async function assertInitiation(harness: PaymentAdapterConformanceHarness) {
   if (duplicate.idempotencyKey !== first.idempotencyKey) {
     throw new Error("Duplicate initiation must preserve idempotency identity.")
   }
-  assertInitiationResult(harness.adapter, first)
-  assertInitiationResult(harness.adapter, duplicate)
+  const accepted = acceptedPaymentCheckoutHandoffs(harness.initiation)
+  assertInitiationResult(harness.adapter, first, accepted)
+  assertInitiationResult(harness.adapter, duplicate, accepted)
   assertSame(
     initiationIdentity(first),
     initiationIdentity(duplicate),
@@ -422,10 +456,11 @@ async function assertManualCapture(harness: PaymentAdapterConformanceHarness) {
     throw new Error("Manual capture fixture must set captureMode to manual.")
   }
   await assertMoney(input.money)
+  const accepted = acceptedPaymentCheckoutHandoffs(input)
   const first = await harness.adapter.initiate(harness.context, input)
   const duplicate = await harness.adapter.initiate(harness.context, input)
-  assertInitiationResult(harness.adapter, first)
-  assertInitiationResult(harness.adapter, duplicate)
+  assertInitiationResult(harness.adapter, first, accepted)
+  assertInitiationResult(harness.adapter, duplicate, accepted)
   if (first.nextState === "paid" || duplicate.nextState === "paid") {
     throw new Error("Manual-capture initiation must not report payment as paid.")
   }
@@ -434,6 +469,52 @@ async function assertManualCapture(harness: PaymentAdapterConformanceHarness) {
     initiationIdentity(duplicate),
     "Manual-capture initiation must be idempotent.",
   )
+}
+
+async function assertEmbeddedCheckout(harness: PaymentAdapterConformanceHarness) {
+  if (!harness.adapter.capabilities.embeddedCheckout) return
+  const input = harness.embeddedInitiation
+  if (!input) {
+    throw new Error(
+      "Adapter declares embedded checkout but no embeddedInitiation fixture was supplied.",
+    )
+  }
+  const accepted = acceptedPaymentCheckoutHandoffs(input)
+  if (!accepted.includes("embedded")) {
+    throw new Error("Embedded initiation fixture must accept the embedded handoff.")
+  }
+  await assertMoney(input.money)
+  const first = await harness.adapter.initiate(harness.context, input)
+  const duplicate = await harness.adapter.initiate(harness.context, input)
+  assertInitiationResult(harness.adapter, first, accepted)
+  assertInitiationResult(harness.adapter, duplicate, accepted)
+  if (!first.checkout || !isEmbeddedPaymentCheckout(first.checkout)) {
+    throw new Error(
+      "Adapter declares embedded checkout but returned no embedded arm to a caller that accepts one.",
+    )
+  }
+  assertSame(
+    initiationIdentity(first),
+    initiationIdentity(duplicate),
+    "Embedded initiation must be idempotent.",
+  )
+}
+
+/**
+ * A storefront that only knows how to redirect must keep working after an
+ * adapter gains in-page support. Every adapter runs this, not just the
+ * embedded-capable ones, so the downgrade stays proven as capabilities grow.
+ */
+async function assertRedirectOnlyCaller(harness: PaymentAdapterConformanceHarness) {
+  const base = harness.redirectOnlyInitiation ?? harness.initiation
+  const input: PaymentInitiationInput = {
+    ...base,
+    paymentSessionId: `${base.paymentSessionId}:redirect-only`,
+    idempotencyKey: `${base.idempotencyKey}:redirect-only`,
+    acceptedCheckoutHandoffs: ["redirect"],
+  }
+  const result = await harness.adapter.initiate(harness.context, input)
+  assertInitiationResult(harness.adapter, result, ["redirect"])
 }
 
 async function assertPartialOperationBound(
@@ -479,30 +560,67 @@ async function assertPartialOperationBound(
   )
 }
 
-function assertInitiationResult(adapter: PaymentAdapter, result: PaymentInitiationResult) {
+function assertInitiationResult(
+  adapter: PaymentAdapter,
+  result: PaymentInitiationResult,
+  accepted: readonly PaymentCheckoutHandoff[],
+) {
   assertState(result.nextState)
   assertNonEmpty(result.idempotencyKey, "Initiation result idempotency key")
   assertIdentity(result.processorIdentity)
   if (!result.checkout) return
-  let url: URL
-  try {
-    url = new URL(result.checkout.url)
-  } catch {
-    throw new Error("Hosted checkout redirects must be absolute HTTP(S) URLs.")
+  assertCheckoutArm(adapter, result.checkout)
+  const handoff = paymentCheckoutHandoff(result.checkout)
+  if (!accepted.includes(handoff)) {
+    throw new Error(
+      `Adapter returned a ${handoff} checkout to a caller that only accepts ${accepted.join(", ")}.`,
+    )
   }
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw new Error("Hosted checkout redirects must be absolute HTTP(S) URLs.")
+}
+
+function assertCheckoutArm(adapter: PaymentAdapter, checkout: PaymentHostedCheckout) {
+  switch (checkout.kind) {
+    case "hosted_checkout":
+    case "redirect": {
+      let url: URL
+      try {
+        url = new URL(checkout.url)
+      } catch {
+        throw new Error("Hosted checkout redirects must be absolute HTTP(S) URLs.")
+      }
+      if (!["http:", "https:"].includes(url.protocol)) {
+        throw new Error("Hosted checkout redirects must be absolute HTTP(S) URLs.")
+      }
+      if (checkout.kind === "hosted_checkout" && !adapter.capabilities.hostedCheckout) {
+        throw new Error("Adapter returned hosted checkout without declaring the capability.")
+      }
+      if (checkout.kind === "redirect" && !adapter.capabilities.redirectCheckout) {
+        throw new Error("Adapter returned redirect checkout without declaring the capability.")
+      }
+      break
+    }
+    case "embedded": {
+      if (!adapter.capabilities.embeddedCheckout) {
+        throw new Error("Adapter returned embedded checkout without declaring the capability.")
+      }
+      assertNonEmpty(checkout.clientSecret, "Embedded checkout client secret")
+      assertNonEmpty(checkout.publishableKey, "Embedded checkout publishable key")
+      if (checkout.providerAccountId != null) {
+        assertNonEmpty(checkout.providerAccountId, "Embedded checkout provider account id")
+      }
+      // A URL on the embedded arm means the adapter is still redirecting and
+      // has only relabelled the handoff.
+      if ("url" in checkout) {
+        throw new Error("Embedded checkout must not carry a redirect url.")
+      }
+      break
+    }
+    default: {
+      const kind = (checkout as { kind?: unknown }).kind
+      throw new Error(`Adapter returned an unknown checkout handoff kind: ${String(kind)}.`)
+    }
   }
-  if (result.checkout.kind === "hosted_checkout" && !adapter.capabilities.hostedCheckout) {
-    throw new Error("Adapter returned hosted checkout without declaring the capability.")
-  }
-  if (result.checkout.kind === "redirect" && !adapter.capabilities.redirectCheckout) {
-    throw new Error("Adapter returned redirect checkout without declaring the capability.")
-  }
-  if (
-    !["hosted_checkout", "redirect"].includes(result.checkout.kind) ||
-    (result.checkout.expiresAt != null && !isIsoTimestamp(result.checkout.expiresAt))
-  ) {
+  if (checkout.expiresAt != null && !isIsoTimestamp(checkout.expiresAt)) {
     throw new Error("Adapter returned malformed hosted checkout diagnostics.")
   }
 }

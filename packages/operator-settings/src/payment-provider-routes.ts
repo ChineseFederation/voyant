@@ -64,6 +64,9 @@ function asRouteResponse(response: Promise<Response>): Promise<any> {
 const capabilitiesSchema = z.object({
   hostedCheckout: z.boolean(),
   redirectCheckout: z.boolean(),
+  // Optional for the same reason it is optional on the adapter contract: a
+  // descriptor written before in-page checkout existed means `false`.
+  embeddedCheckout: z.boolean().optional(),
   authorize: z.boolean(),
   capture: z.boolean(),
   void: z.boolean(),

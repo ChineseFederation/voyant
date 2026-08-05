@@ -22,6 +22,7 @@ describe("default payment provider catalog", () => {
       capabilities: {
         hostedCheckout: true,
         redirectCheckout: true,
+        embeddedCheckout: false,
         authorize: false,
         capture: false,
         void: false,

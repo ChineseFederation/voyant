@@ -4,11 +4,14 @@ import {
   runPaymentAdapterConformance,
 } from "./conformance.js"
 import {
+  acceptedPaymentCheckoutHandoffs,
   PAYMENT_ADAPTER_CONTRACT_VERSION,
   type PaymentAdapter,
   type PaymentAdapterErrorCode,
   type PaymentAdapterRuntimeContext,
   type PaymentCallbackRequest,
+  type PaymentHostedCheckout,
+  type PaymentInitiationInput,
   type PaymentOperationInput,
   type PaymentOperationResult,
   type PaymentStatusInput,
@@ -22,13 +25,20 @@ type BrokenBehavior =
   | "change-duplicate-operation"
   | "drop-operation-identity"
   | "drop-status-identity"
+  | "embed-without-capability"
+  | "embed-without-client-secret"
+  | "ignore-accepted-handoffs"
   | "malformed-health"
   | "manual-capture-pays"
+  | "never-embeds"
   | "remap-status-identity"
   | "untyped-conflict-error"
   | "verify-invalid-callback"
   | "verify-malformed-callback"
   | "verify-replayed-callback"
+
+/** Whether the fake adapter declares (and can serve) in-page checkout. */
+type FakeAdapterOptions = { embeddedCheckout?: boolean }
 
 const context: PaymentAdapterRuntimeContext = {
   env: {},
@@ -59,8 +69,69 @@ describe("payment adapter conformance", () => {
         "enforces partial capture bounds",
         "enforces partial refund bounds",
         "reports typed health diagnostics",
+        "honors declared embedded checkout capability",
+        "serves a caller that can only redirect",
       ]),
     )
+  })
+
+  it("passes an embedded-capable adapter across both checkout arms", async () => {
+    const results = await runPaymentAdapterConformance(
+      createHarness(undefined, { embeddedCheckout: true }),
+    )
+
+    expect(results.filter((result) => !result.passed)).toEqual([])
+    expect(results.map((result) => result.name)).toEqual(
+      expect.arrayContaining([
+        "honors declared embedded checkout capability",
+        "serves a caller that can only redirect",
+      ]),
+    )
+  })
+
+  it("fails when a declared embedded capability has no fixture", async () => {
+    const harness = createHarness(undefined, { embeddedCheckout: true })
+    harness.embeddedInitiation = undefined
+
+    expect(await failedCaseNames(harness)).toContain("honors declared embedded checkout capability")
+  })
+
+  it("skips the embedded case when the capability is not declared", async () => {
+    const harness = createHarness()
+    harness.embeddedInitiation = undefined
+
+    expect(await failedCaseNames(harness)).not.toContain(
+      "honors declared embedded checkout capability",
+    )
+  })
+
+  it("fails when the embedded fixture does not accept the embedded handoff", async () => {
+    const harness = createHarness(undefined, { embeddedCheckout: true })
+    harness.embeddedInitiation = {
+      ...(harness.embeddedInitiation as NonNullable<typeof harness.embeddedInitiation>),
+      acceptedCheckoutHandoffs: ["redirect"],
+    }
+
+    expect(await failedCaseNames(harness)).toContain("honors declared embedded checkout capability")
+  })
+
+  it.each([
+    ["never-embeds", "honors declared embedded checkout capability"],
+    ["embed-without-client-secret", "honors declared embedded checkout capability"],
+    ["ignore-accepted-handoffs", "serves a caller that can only redirect"],
+  ] satisfies ReadonlyArray<
+    readonly [BrokenBehavior, string]
+  >)("catches a %s embedded-capable adapter", async (behavior, failedCase) => {
+    const harness = createHarness(behavior, { embeddedCheckout: true })
+
+    expect(await failedCaseNames(harness)).toContain(failedCase)
+  })
+
+  it("catches an adapter that embeds without declaring the capability", async () => {
+    const harness = createHarness("embed-without-capability")
+
+    expect(harness.adapter.capabilities.embeddedCheckout).toBe(false)
+    expect(await failedCaseNames(harness)).toContain("initiates idempotently")
   })
 
   it("fails when a declared operation has no method", async () => {
@@ -121,11 +192,23 @@ async function failedCaseNames(harness: PaymentAdapterConformanceHarness) {
     .map((result) => result.name)
 }
 
-function createHarness(behavior?: BrokenBehavior): PaymentAdapterConformanceHarness {
+function createHarness(
+  behavior?: BrokenBehavior,
+  options: FakeAdapterOptions = {},
+): PaymentAdapterConformanceHarness {
   const identity = { providerId: "fake-pay", connectionId: "connection-1" }
   return {
-    adapter: createFakeAdapter(behavior),
+    adapter: createFakeAdapter(behavior, options),
     context,
+    embeddedInitiation: options.embeddedCheckout
+      ? {
+          paymentSessionId: "payment-embedded",
+          money: { amountMinor: 1_000, currency: "EUR" },
+          captureMode: "automatic",
+          acceptedCheckoutHandoffs: ["embedded", "redirect"],
+          idempotencyKey: "init-embedded",
+        }
+      : undefined,
     initiation: {
       paymentSessionId: "payment-1",
       money: { amountMinor: 1_000, currency: "EUR" },
@@ -183,7 +266,11 @@ function operation(idempotencyKey: string, amountMinor?: number): PaymentOperati
   }
 }
 
-function createFakeAdapter(behavior?: BrokenBehavior): PaymentAdapter {
+function createFakeAdapter(
+  behavior?: BrokenBehavior,
+  options: FakeAdapterOptions = {},
+): PaymentAdapter {
+  const embeddedCheckout = options.embeddedCheckout === true
   const initiationKeys = new Map<string, { payload: string; result: unknown }>()
   const operationKeys = new Map<string, { payload: string; result: PaymentOperationResult }>()
   let operationSequence = 0
@@ -203,6 +290,29 @@ function createFakeAdapter(behavior?: BrokenBehavior): PaymentAdapter {
       !/^[A-Z]{3}$/.test(money.currency)
     ) {
       fail("INVALID_REQUEST", "Invalid money")
+    }
+  }
+
+  const redirectCheckout: PaymentHostedCheckout = {
+    kind: "redirect",
+    url: "https://payments.example/checkout",
+  }
+
+  const chooseCheckout = (
+    acceptedCheckoutHandoffs: PaymentInitiationInput["acceptedCheckoutHandoffs"],
+  ): PaymentHostedCheckout => {
+    const forced =
+      behavior === "ignore-accepted-handoffs" || behavior === "embed-without-capability"
+    const wantsEmbedded =
+      forced || acceptedPaymentCheckoutHandoffs({ acceptedCheckoutHandoffs })[0] === "embedded"
+    const canEmbed =
+      (embeddedCheckout || behavior === "embed-without-capability") && behavior !== "never-embeds"
+    if (!wantsEmbedded || !canEmbed) return redirectCheckout
+    return {
+      kind: "embedded",
+      clientSecret: behavior === "embed-without-client-secret" ? "" : "session-secret-1",
+      publishableKey: "pk-test-fake-pay",
+      providerAccountId: "acct-1",
     }
   }
 
@@ -260,6 +370,7 @@ function createFakeAdapter(behavior?: BrokenBehavior): PaymentAdapter {
     capabilities: {
       hostedCheckout: true,
       redirectCheckout: true,
+      embeddedCheckout,
       authorize: true,
       capture: true,
       void: true,
@@ -283,10 +394,7 @@ function createFakeAdapter(behavior?: BrokenBehavior): PaymentAdapter {
         processorSessionId: "processor-session-1",
         processorPaymentId: "processor-payment-1",
         processorIdentity: { providerId: "fake-pay", connectionId: "connection-1" },
-        checkout: {
-          kind: "redirect" as const,
-          url: "https://payments.example/checkout",
-        },
+        checkout: chooseCheckout(input.acceptedCheckoutHandoffs),
         nextState:
           input.captureMode === "manual" && behavior !== "manual-capture-pays"
             ? ("authorized" as const)

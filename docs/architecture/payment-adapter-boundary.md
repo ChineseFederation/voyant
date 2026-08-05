@@ -44,7 +44,7 @@ matching provider facets for a concrete selected adapter.
 
 - the runtime adapter port;
 - declared processor capabilities;
-- hosted checkout / redirect initiation;
+- hosted checkout / redirect / embedded initiation (see below);
 - authorize, capture, void, refund, and status operation contracts;
 - callback signature verification and canonical event mapping;
 - idempotency and retry expectations;
@@ -59,6 +59,46 @@ matching provider facets for a concrete selected adapter.
   connection may be made the active default, and the authoritative registry
   enforces that gate. The default/self-host registry is read-only for activation
   and fails closed.
+
+## Checkout handoff
+
+`PaymentInitiationResult.checkout` is a discriminated union over how the shopper
+reaches the processor, not a URL with a label:
+
+| arm | `kind` | carries |
+|---|---|---|
+| redirect | `hosted_checkout`, `redirect` | `url` — the shopper leaves the storefront |
+| embedded | `embedded` | `clientSecret`, `publishableKey`, optional `providerAccountId` — the page mounts the provider's own form |
+
+Both arms carry an optional `expiresAt`. The embedded arm exists because
+in-page providers (Stripe Elements, Adyen Drop-in, Braintree Hosted Fields) hand
+back a per-session credential plus a publishable identifier, and a union that
+requires a `url` cannot express that — the shopper gets redirected off the
+storefront at the last step of the funnel no matter which adapter is configured.
+The runtime forwards those credentials opaquely and never learns what the front
+end does with them.
+
+The two sides negotiate, so gaining an arm never takes one away:
+
+- an adapter advertises `capabilities.embeddedCheckout` alongside the existing
+  `hostedCheckout` / `redirectCheckout` flags. It is optional, and absent means
+  `false`, so an adapter written against the earlier contract keeps its meaning;
+- a caller declares `PaymentInitiationInput.acceptedCheckoutHandoffs` — the arms
+  it can render, most-preferred first. **Omitting it means `["redirect"]`**: a
+  caller that has not opted in is never handed a form it cannot mount;
+- `negotiatePaymentCheckoutHandoff(capabilities, input)` resolves the pair, and
+  `paymentCheckoutRedirectUrl(checkout)` is how a redirect-only caller reads a
+  URL without narrowing the union itself.
+
+The conformance kit covers both arms and the downgrade: an adapter declaring
+`embeddedCheckout` must return a well-formed `embedded` arm to a caller that
+accepts one (`embeddedInitiation` fixture), and *every* adapter must keep serving
+a caller that only accepts `redirect`.
+
+Finance's `CardPaymentStarter` is a redirect-only caller today: it never requests
+the embedded arm, and `payment_sessions.redirect_url` stays the persisted
+projection. Persisting an embedded handoff so a storefront can mount a form is
+the follow-on work, not part of the port.
 
 The existing finance `CardPaymentStarter` seam remains as the checkout bridge.
 Deployments can adapt a selected `PaymentAdapter` through

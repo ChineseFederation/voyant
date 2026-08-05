@@ -12,6 +12,7 @@
  * callers fall back gracefully (bank-transfer paths still work).
  */
 import type { PaymentAdapter, PaymentAdapterRuntimeContext } from "@voyant-travel/payments"
+import { paymentCheckoutRedirectUrl } from "@voyant-travel/payments"
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import type { Context } from "hono"
@@ -224,7 +225,10 @@ export async function startPaymentAdapterCardPayment(
     throw error
   }
 
-  return { redirectUrl: result.checkout?.url ?? null }
+  // This starter has no way to mount an in-page form, so it never asks for the
+  // embedded handoff and an adapter must not hand it one. `null` here is the
+  // same "nothing to redirect to" the seam has always been able to return.
+  return { redirectUrl: paymentCheckoutRedirectUrl(result.checkout) }
 }
 
 export function createPaymentAdapterCardPaymentStarter(

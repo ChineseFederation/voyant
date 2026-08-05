@@ -34,9 +34,25 @@ export interface PaymentProcessorIdentity {
   connectionId: string
 }
 
+/**
+ * How the shopper is handed to the processor.
+ *
+ * `redirect` sends them somewhere else — a provider-hosted checkout page or an
+ * issuer/3DS redirect. `embedded` keeps them on the storefront and lets the
+ * page mount the provider's own payment form.
+ */
+export const PAYMENT_CHECKOUT_HANDOFFS = ["redirect", "embedded"] as const
+export type PaymentCheckoutHandoff = (typeof PAYMENT_CHECKOUT_HANDOFFS)[number]
+
 export interface PaymentAdapterCapabilities {
   hostedCheckout: boolean
   redirectCheckout: boolean
+  /**
+   * In-page checkout. Optional so an adapter written against an earlier
+   * revision of this contract keeps compiling and keeps its meaning: absent is
+   * the same fact as `false`.
+   */
+  embeddedCheckout?: boolean
   authorize: boolean
   capture: boolean
   void: boolean
@@ -47,10 +63,103 @@ export interface PaymentAdapterCapabilities {
   retrySafeInitiation: boolean
 }
 
-export interface PaymentHostedCheckout {
+/** The shopper leaves the storefront. `url` is where they go. */
+export interface PaymentRedirectCheckout {
   kind: "hosted_checkout" | "redirect"
   url: string
   expiresAt?: string | null
+}
+
+/**
+ * The shopper stays on the storefront and the page mounts the provider's own
+ * payment form (Stripe Elements, Adyen Drop-in, Braintree Hosted Fields, …).
+ *
+ * The runtime forwards opaque credentials and never learns what the front end
+ * does with them: `clientSecret` is whatever per-session token the provider
+ * issues, and `publishableKey` is the client-side identifier its SDK is
+ * initialized with. Neither is parsed here.
+ */
+export interface PaymentEmbeddedCheckout {
+  kind: "embedded"
+  clientSecret: string
+  publishableKey: string
+  /** Platform-scoped providers act on behalf of a connected account. */
+  providerAccountId?: string | null
+  expiresAt?: string | null
+}
+
+export type PaymentHostedCheckout = PaymentRedirectCheckout | PaymentEmbeddedCheckout
+
+export function isRedirectPaymentCheckout(
+  checkout: PaymentHostedCheckout,
+): checkout is PaymentRedirectCheckout {
+  return checkout.kind === "hosted_checkout" || checkout.kind === "redirect"
+}
+
+export function isEmbeddedPaymentCheckout(
+  checkout: PaymentHostedCheckout,
+): checkout is PaymentEmbeddedCheckout {
+  return checkout.kind === "embedded"
+}
+
+export function paymentCheckoutHandoff(checkout: PaymentHostedCheckout): PaymentCheckoutHandoff {
+  return isEmbeddedPaymentCheckout(checkout) ? "embedded" : "redirect"
+}
+
+/**
+ * The URL to send the shopper to, or null when the handoff carries no URL.
+ *
+ * Callers that can only redirect use this instead of reaching for `url`, so an
+ * embedded arm degrades to "nowhere to send them" rather than a type error.
+ */
+export function paymentCheckoutRedirectUrl(
+  checkout: PaymentHostedCheckout | null | undefined,
+): string | null {
+  if (!checkout || !isRedirectPaymentCheckout(checkout)) return null
+  return checkout.url
+}
+
+/** The handoffs an adapter's declared capabilities can actually produce. */
+export function supportedPaymentCheckoutHandoffs(
+  capabilities: PaymentAdapterCapabilities,
+): PaymentCheckoutHandoff[] {
+  const supported: PaymentCheckoutHandoff[] = []
+  if (capabilities.hostedCheckout || capabilities.redirectCheckout) supported.push("redirect")
+  if (capabilities.embeddedCheckout) supported.push("embedded")
+  return supported
+}
+
+/**
+ * The handoffs the caller declared it can render, in preference order.
+ *
+ * Omitting `acceptedCheckoutHandoffs` means `["redirect"]`. A caller that has
+ * not opted in must never be handed an arm it cannot mount, so silence is the
+ * conservative answer rather than "anything goes".
+ */
+export function acceptedPaymentCheckoutHandoffs(
+  input: Pick<PaymentInitiationInput, "acceptedCheckoutHandoffs">,
+): PaymentCheckoutHandoff[] {
+  const accepted = input.acceptedCheckoutHandoffs
+  if (!accepted || accepted.length === 0) return ["redirect"]
+  const seen = new Set<PaymentCheckoutHandoff>()
+  for (const handoff of accepted) {
+    if (PAYMENT_CHECKOUT_HANDOFFS.includes(handoff)) seen.add(handoff)
+  }
+  return accepted.filter((handoff) => seen.delete(handoff))
+}
+
+/**
+ * The handoff an adapter should produce for this caller: the caller's first
+ * preference the adapter can serve, or null when the two cannot agree.
+ */
+export function negotiatePaymentCheckoutHandoff(
+  capabilities: PaymentAdapterCapabilities,
+  input: Pick<PaymentInitiationInput, "acceptedCheckoutHandoffs">,
+): PaymentCheckoutHandoff | null {
+  const supported = supportedPaymentCheckoutHandoffs(capabilities)
+  return (
+    acceptedPaymentCheckoutHandoffs(input).find((handoff) => supported.includes(handoff)) ?? null
+  )
 }
 
 export interface PaymentAdapterDiagnostics {
@@ -95,6 +204,11 @@ export interface PaymentInitiationInput {
   returnUrl?: string
   cancelUrl?: string
   captureMode?: PaymentCaptureMode
+  /**
+   * The checkout handoffs this caller can render, most-preferred first.
+   * Omitted means `["redirect"]` — see `acceptedPaymentCheckoutHandoffs`.
+   */
+  acceptedCheckoutHandoffs?: readonly PaymentCheckoutHandoff[]
   idempotencyKey: string
   customer?: {
     email?: string | null
@@ -258,6 +372,12 @@ export const paymentAdapterRuntimePort = definePort<PaymentAdapter>({
     }
     if (!adapter.capabilities.callbackSignatureVerification) {
       throw new Error("Payment adapter callbacks must be signature-verified.")
+    }
+    if (
+      adapter.capabilities.embeddedCheckout !== undefined &&
+      typeof adapter.capabilities.embeddedCheckout !== "boolean"
+    ) {
+      throw new Error("Payment adapter capability embeddedCheckout must be boolean when declared.")
     }
   },
 })

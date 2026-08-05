@@ -16,6 +16,7 @@ import type { PaymentProviderDescriptor } from "./provider-catalog.js"
 const redirectProcessorCapabilities: PaymentAdapterCapabilities = {
   hostedCheckout: true,
   redirectCheckout: true,
+  embeddedCheckout: false,
   authorize: false,
   capture: false,
   void: false,
