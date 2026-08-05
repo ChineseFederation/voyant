@@ -1,5 +1,58 @@
 # @voyant-travel/operator-standard
 
+## 0.20.35
+
+### Patch Changes
+
+- Updated dependencies [1be6b76]
+  - @voyant-travel/payments@0.12.0
+  - @voyant-travel/finance@0.243.0
+  - @voyant-travel/finance-contracts@0.112.0
+  - @voyant-travel/finance-react@0.264.0
+  - @voyant-travel/bookings-react@0.264.0
+  - @voyant-travel/operator-settings@0.17.23
+  - @voyant-travel/storefront@0.252.0
+  - @voyant-travel/trips@0.232.6
+  - @voyant-travel/accommodations@0.204.1
+  - @voyant-travel/catalog@0.248.1
+  - @voyant-travel/commerce@0.48.5
+  - @voyant-travel/cruises@0.238.10
+  - @voyant-travel/distribution@0.227.17
+  - @voyant-travel/flights@0.236.20
+  - @voyant-travel/flights-react@0.264.0
+  - @voyant-travel/inventory@0.39.1
+  - @voyant-travel/inventory-react@0.146.0
+  - @voyant-travel/legal@0.248.1
+  - @voyant-travel/notifications@0.147.20
+  - @voyant-travel/operator-settings-react@0.121.0
+  - @voyant-travel/trips-react@0.257.0
+  - @voyant-travel/apps@0.14.11
+  - @voyant-travel/operations@0.22.3
+  - @voyant-travel/admin-app@0.157.0
+  - @voyant-travel/action-ledger-react@0.153.0
+  - @voyant-travel/distribution-react@0.254.0
+  - @voyant-travel/identity-react@0.264.0
+  - @voyant-travel/legal-react@0.264.0
+  - @voyant-travel/operations-react@0.145.0
+  - @voyant-travel/admin@0.134.5
+  - @voyant-travel/apps-react@0.10.4
+  - @voyant-travel/auth-react@0.150.15
+  - @voyant-travel/catalog-react@0.262.0
+  - @voyant-travel/commerce-react@0.146.0
+  - @voyant-travel/cruises-react@0.263.0
+  - @voyant-travel/custom-fields-react@0.10.4
+  - @voyant-travel/event-catalog-react@0.27.0
+  - @voyant-travel/media-react@0.10.4
+  - @voyant-travel/mice-react@0.132.0
+  - @voyant-travel/navigation-preferences-react@0.24.4
+  - @voyant-travel/notifications-react@0.147.6
+  - @voyant-travel/proposals-react@0.262.0
+  - @voyant-travel/relationships-react@0.264.0
+  - @voyant-travel/reporting-react@0.10.1
+  - @voyant-travel/setup-react@0.17.0
+  - @voyant-travel/storefront-react@0.266.0
+  - @voyant-travel/admin-host@0.115.0
+
 ## 0.20.34
 
 ### Patch Changes

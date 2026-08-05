@@ -1,5 +1,13 @@
 # @voyant-travel/crm-react
 
+## 0.264.0
+
+### Patch Changes
+
+- Updated dependencies [1be6b76]
+  - @voyant-travel/react@0.105.0
+  - @voyant-travel/identity-react@0.264.0
+
 ## 0.263.0
 
 ### Patch Changes
