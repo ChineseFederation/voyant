@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/admin",
-  "version": "0.134.5",
+  "version": "0.135.0",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

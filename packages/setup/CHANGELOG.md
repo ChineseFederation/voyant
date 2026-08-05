@@ -1,5 +1,14 @@
 # @voyant-travel/setup
 
+## 0.7.12
+
+### Patch Changes
+
+- Updated dependencies [7b8ef95]
+  - @voyant-travel/core@0.140.0
+  - @voyant-travel/db@0.120.6
+  - @voyant-travel/hono@0.142.1
+
 ## 0.7.11
 
 ### Patch Changes
