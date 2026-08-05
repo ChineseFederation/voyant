@@ -122,6 +122,32 @@ test imports a sibling package by relative path, because `rootDir: "src"` is
 inherited. Moving the emit geometry out of the shared project is what resolves
 it.
 
+### A checker that is not in the chain is not a checker
+
+`verify:architecture` is a hand-maintained `&&` string, so adding a check means
+writing its `verify:` entry **and** remembering to append it. Membership is a
+substring of a shell command, which means nothing can see it — a checker can
+have an entry, pass locally, and never run.
+
+Nine of the forty-six authority checkers were in that state, and **five of the
+nine were already failing**: unenforced long enough to rot against a tree that
+had legitimately moved on. One pinned a "workflow facet" after workflows were
+removed; another expected `13 starter src files` after `starters/` became
+`apps/operator`.
+
+`verify:chain-reachability` runs first in the chain and fails if any
+`scripts/check-*authority*.mjs` is unreachable from it. Reachability is
+transitive over `pnpm <script>` references, because a checker invoked by an
+aggregate that is itself chained does run — and because the inverse trap is
+real: a checker reachable through *two* references looks removable after
+deleting one ([#4320](https://github.com/voyant-travel/voyant/pull/4320)).
+
+If a checker genuinely runs elsewhere, record it in
+`scripts/checks/chain/runs-elsewhere.json` with a reason. That allowlist is
+itself checked: an entry for a checker that is chained, or that no longer
+exists, fails — otherwise an exemption outlives its reason and quietly makes
+the checker optional again.
+
 ### A checker reads the tracked tree, not the working directory
 
 A checker that walks the filesystem from the repository root sees whatever is on
