@@ -1,3 +1,4 @@
+import type { PaymentHostedCheckout } from "@voyant-travel/payments"
 import {
   assertPaymentAdapterProcessorIdentityForLockedSession,
   assertPaymentAdapterProcessorReferencesForLockedSession,
@@ -49,6 +50,7 @@ export interface PaymentSessionCompletionOptions {
   expectedPaymentAdapterStatusLeaseToken?: string
   sessionUpdate?: {
     redirectUrl?: string | null
+    checkout?: PaymentHostedCheckout | null
     idempotencyKey?: string
   }
 }
@@ -136,6 +138,9 @@ export const financePaymentSessionCompletionService = {
             metadata: mergeJsonbColumn(paymentSessions.metadata, data.metadata),
             notes: data.notes ?? session.notes ?? undefined,
             redirectUrl: data.status === "paid" ? null : options.sessionUpdate?.redirectUrl,
+            // A paid session has no handoff left to offer. Clearing it also
+            // drops the embedded arm's client secret once it is spent.
+            checkout: data.status === "paid" ? null : options.sessionUpdate?.checkout,
             idempotencyKey: options.sessionUpdate?.idempotencyKey,
             updatedAt: new Date(),
           })
@@ -362,6 +367,8 @@ export const financePaymentSessionCompletionService = {
             data.status === "paid"
               ? null
               : (options.sessionUpdate?.redirectUrl ?? session.redirectUrl),
+          checkout:
+            data.status === "paid" ? null : (options.sessionUpdate?.checkout ?? session.checkout),
           idempotencyKey: options.sessionUpdate?.idempotencyKey,
           failureCode: null,
           failureMessage: null,

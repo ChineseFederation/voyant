@@ -1,4 +1,5 @@
 import { typeId, typeIdRef } from "@voyant-travel/db/lib/typeid-column"
+import type { PaymentHostedCheckout } from "@voyant-travel/payments"
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 import { bookingGuarantees, bookingPaymentSchedules } from "./booking-billing.js"
 import {
@@ -58,6 +59,21 @@ export const paymentSessions = pgTable(
     payerEmail: text("payer_email"),
     payerName: text("payer_name"),
     redirectUrl: text("redirect_url"),
+    /**
+     * The processor handoff as the adapter returned it.
+     *
+     * `redirect_url` is the flattened projection of the redirect arm and stays
+     * the column every existing reader uses. This carries the whole
+     * discriminated union, because the embedded arm has no URL to flatten to —
+     * without it an in-page handoff cannot survive the round trip from
+     * initiation to the page that has to mount the form.
+     *
+     * The embedded arm's `clientSecret` is a per-session token the provider
+     * issues *for* the browser, not a credential at rest: it authorizes one
+     * payment and nothing else. Processor credentials still never touch this
+     * table — see ADR 0015.
+     */
+    checkout: jsonb("checkout").$type<PaymentHostedCheckout>(),
     returnUrl: text("return_url"),
     cancelUrl: text("cancel_url"),
     callbackUrl: text("callback_url"),

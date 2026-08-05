@@ -13,9 +13,14 @@ export type CheckoutUiMessages = {
     }
     card: {
       description: string
+      /** Shown instead of `description` when the form is mounted in place. */
+      embeddedDescription: string
       payAmount: string
       startFailed: string
       errorAdvice: string
+      /** The processor offered an in-page form this deployment cannot mount. */
+      embeddedUnavailableTitle: string
+      embeddedUnavailableBody: string
     }
     bank: {
       instructions: string

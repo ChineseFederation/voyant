@@ -38,6 +38,7 @@ import {
   refreshPaymentAdapterStatus,
 } from "@voyant-travel/finance"
 import { invoices, paymentSessions } from "@voyant-travel/finance/schema"
+import { paymentCheckoutSchema } from "@voyant-travel/finance/validation"
 import {
   openApiValidationHook,
   parseJsonBody,
@@ -46,8 +47,12 @@ import {
 } from "@voyant-travel/hono"
 import type { ApiModule } from "@voyant-travel/hono/module"
 import {
+  acceptedPaymentCheckoutHandoffs,
+  isEmbeddedPaymentCheckout,
   type PaymentAdapter,
   type PaymentCallbackRequest,
+  type PaymentCheckoutHandoff,
+  type PaymentHostedCheckout,
   paymentAdapterRuntimePort,
 } from "@voyant-travel/payments"
 import { and, asc, desc, eq, or } from "drizzle-orm"
@@ -143,6 +148,12 @@ export interface PaymentLinkStartCardPaymentInput {
   returnUrl?: string
   cancelUrl?: string
   shipping?: Record<string, unknown>
+  /**
+   * The handoffs the requesting page can render, most preferred first. Comes
+   * from the request body: only the page knows whether it has an in-page form
+   * to mount. Absent means redirect-only.
+   */
+  acceptedCheckoutHandoffs?: readonly PaymentCheckoutHandoff[]
 }
 
 /**
@@ -161,14 +172,18 @@ export interface PaymentLinkRoutesOptions {
   resolvePublicCheckoutBaseUrl(c: Context): string | null
   /**
    * Best-effort: ensure a fresh payment session can be started on the card
-   * provider, returning the redirect URL (or null). Returns `{ configured:
-   * false }` when no card processor is wired so the handler can 503. May throw
-   * — the handler maps the error to a 502.
+   * provider, returning the handoff it chose. `redirectUrl` is the redirect
+   * arm's projection and stays `null` for an embedded handoff. Returns
+   * `{ configured: false }` when no card processor is wired so the handler can
+   * 503. May throw — the handler maps the error to a 502.
    */
   startCardPayment(
     c: Context,
     session: PaymentLinkStartCardPaymentInput,
-  ): Promise<{ configured: true; redirectUrl: string | null } | { configured: false }>
+  ): Promise<
+    | { configured: true; redirectUrl: string | null; checkout?: PaymentHostedCheckout | null }
+    | { configured: false }
+  >
   /**
    * Verify an inbound processor IPN/webhook and apply its event (mark the
    * payment session paid → complete the booking). Absent when no payment
@@ -328,6 +343,14 @@ const startCardPaymentBodySchema = z
     billing: cardPaymentBillingSchema.optional(),
     description: z.string().min(1).optional(),
     shipping: z.record(z.string(), z.unknown()).optional(),
+    /**
+     * What the calling page can render. A page that omits this gets a redirect,
+     * which is what every client built before in-page checkout existed does.
+     */
+    acceptedCheckoutHandoffs: z
+      .array(z.enum(["redirect", "embedded"]))
+      .min(1)
+      .optional(),
   })
   .strict()
 
@@ -339,6 +362,7 @@ const startCardPaymentResponseSessionSchema = z.object({
   amountCents: z.number(),
   currency: z.string(),
   redirectUrl: z.string().nullable(),
+  checkout: paymentCheckoutSchema.nullable(),
 })
 
 const paymentLinkConfigRoute = createRoute({
@@ -406,12 +430,13 @@ const startCardPaymentLinkRoute = createRoute({
   request: { params: sessionParamsSchema },
   responses: {
     200: {
-      description: "The card-provider redirect URL for the session",
+      description: "The card-provider handoff for the session",
       content: {
         "application/json": {
           schema: z.object({
             data: z.object({
               redirectUrl: z.string().nullable(),
+              checkout: paymentCheckoutSchema.nullable(),
               session: startCardPaymentResponseSessionSchema.optional(),
             }),
           }),
@@ -520,8 +545,28 @@ function canStartCardPayment(status: string): boolean {
   return CARD_PAYMENT_STARTABLE_STATUSES.has(status)
 }
 
-function canReuseCardRedirect(status: string): boolean {
+function canReuseCardHandoff(status: string): boolean {
   return CARD_PAYMENT_CONTINUATION_STATUSES.has(status)
+}
+
+/**
+ * A stored handoff the caller can still act on.
+ *
+ * An embedded handoff is only reusable by a page that says it can mount one;
+ * handing it to a redirect-only caller would strand them on a session with
+ * nowhere to go, so that caller falls through and starts fresh.
+ */
+export function reusableStoredHandoff(
+  session: { status: string; redirectUrl: string | null; checkout: PaymentHostedCheckout | null },
+  accepted: readonly PaymentCheckoutHandoff[],
+): { redirectUrl: string | null; checkout: PaymentHostedCheckout | null } | null {
+  if (!canReuseCardHandoff(session.status)) return null
+  const stored = session.checkout
+  if (stored && isEmbeddedPaymentCheckout(stored)) {
+    return accepted.includes("embedded") ? { redirectUrl: null, checkout: stored } : null
+  }
+  if (session.redirectUrl) return { redirectUrl: session.redirectUrl, checkout: stored ?? null }
+  return null
 }
 
 function canUseCardContinuation(status: string): boolean {
@@ -545,6 +590,7 @@ function publicStartCardSession(session: {
   amountCents: number
   currency: string
   redirectUrl: string | null
+  checkout: PaymentHostedCheckout | null
 }) {
   return {
     id: session.id,
@@ -552,6 +598,9 @@ function publicStartCardSession(session: {
     amountCents: session.amountCents,
     currency: session.currency,
     redirectUrl: session.redirectUrl,
+    // Always emit the key: the response schema declares it nullable, not
+    // optional, so an absent handoff is `null` rather than a missing field.
+    checkout: session.checkout ?? null,
   }
 }
 
@@ -681,11 +730,19 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
         .where(eq(paymentSessions.id, sessionId))
         .limit(1)
       if (!session) return c.json({ error: "Session not found" }, 404)
-      if (session.redirectUrl && canReuseCardRedirect(session.status)) {
+      // Read the body before the reuse arms: what the caller can render decides
+      // whether a stored handoff is usable at all.
+      const body = await readStartCardPaymentBody(c)
+      const accepted = acceptedPaymentCheckoutHandoffs({
+        acceptedCheckoutHandoffs: body.acceptedCheckoutHandoffs,
+      })
+      const reusable = reusableStoredHandoff(session, accepted)
+      if (reusable) {
         return c.json(
           {
             data: {
-              redirectUrl: session.redirectUrl,
+              redirectUrl: reusable.redirectUrl,
+              checkout: reusable.checkout,
               session: publicStartCardSession(session),
             },
           },
@@ -699,13 +756,13 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
               redirectUrl: canUseCardContinuation(session.status)
                 ? (session.redirectUrl ?? session.returnUrl ?? null)
                 : null,
+              checkout: null,
               session: publicStartCardSession(session),
             },
           },
           200,
         )
       }
-      const body = await readStartCardPaymentBody(c)
       const paymentLinkUrl = buildPaymentLinkUrl(session.id, {
         baseUrl: options.resolvePublicCheckoutBaseUrl(c) ?? new URL(c.req.url).origin,
       })
@@ -723,6 +780,7 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           returnUrl,
           cancelUrl,
           shipping: body.shipping,
+          acceptedCheckoutHandoffs: accepted,
         })
         if (!started.configured) {
           return c.json({ error: "Card processor not configured" }, 503)
@@ -733,15 +791,22 @@ export function createPaymentLinkRoutes(options: PaymentLinkRoutesOptions): Open
           .where(eq(paymentSessions.id, sessionId))
           .limit(1)
         const responseSession = refreshedSession ?? session
-        const continuationUrl =
-          started.redirectUrl ??
-          (canUseCardContinuation(responseSession.status)
-            ? (responseSession.returnUrl ?? returnUrl)
-            : null)
+        const checkout = started.checkout ?? null
+        const embedded = checkout !== null && isEmbeddedPaymentCheckout(checkout)
+        // An embedded handoff is the destination, so there is nothing to send
+        // the shopper to. Falling back to the return URL here would bounce a
+        // page that was about to mount the form.
+        const continuationUrl = embedded
+          ? null
+          : (started.redirectUrl ??
+            (canUseCardContinuation(responseSession.status)
+              ? (responseSession.returnUrl ?? returnUrl)
+              : null))
         return c.json(
           {
             data: {
               redirectUrl: continuationUrl,
+              checkout,
               session: publicStartCardSession(responseSession),
             },
           },

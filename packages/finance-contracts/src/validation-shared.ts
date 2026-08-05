@@ -1,5 +1,41 @@
 import { z } from "zod"
 
+/**
+ * The processor checkout handoff, mirroring `PaymentHostedCheckout` from
+ * `@voyant-travel/payments`.
+ *
+ * It is mirrored rather than imported because contracts packages depend only on
+ * zod — they describe the wire, they do not pull in runtime packages. The
+ * mirror is pinned to the port by an annotated projection in
+ * `@voyant-travel/finance`'s public service, so a drifted arm fails the build
+ * rather than silently serving a shape the port no longer produces.
+ */
+export const paymentRedirectCheckoutSchema = z.object({
+  kind: z.enum(["hosted_checkout", "redirect"]),
+  url: z.string(),
+  expiresAt: z.string().nullable().optional(),
+})
+
+/**
+ * The in-page arm. `clientSecret` and `publishableKey` are opaque here on
+ * purpose: the runtime forwards them and never parses them, so no provider's
+ * token format is baked into the contract.
+ */
+export const paymentEmbeddedCheckoutSchema = z.object({
+  kind: z.literal("embedded"),
+  clientSecret: z.string(),
+  publishableKey: z.string(),
+  providerAccountId: z.string().nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+})
+
+export const paymentCheckoutSchema = z.discriminatedUnion("kind", [
+  paymentRedirectCheckoutSchema,
+  paymentEmbeddedCheckoutSchema,
+])
+
+export type PaymentCheckoutContract = z.infer<typeof paymentCheckoutSchema>
+
 export const ianaTimeZoneSchema = z
   .string()
   .trim()

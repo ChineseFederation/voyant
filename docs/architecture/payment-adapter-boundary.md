@@ -95,10 +95,42 @@ The conformance kit covers both arms and the downgrade: an adapter declaring
 accepts one (`embeddedInitiation` fixture), and *every* adapter must keep serving
 a caller that only accepts `redirect`.
 
-Finance's `CardPaymentStarter` is a redirect-only caller today: it never requests
-the embedded arm, and `payment_sessions.redirect_url` stays the persisted
-projection. Persisting an embedded handoff so a storefront can mount a form is
-the follow-on work, not part of the port.
+### Carrying the handoff to the page
+
+The handoff is negotiated by the surface that has to render it, and no hop in
+between decides on its behalf:
+
+```
+landing page ──acceptedCheckoutHandoffs──▶ POST /start-card ──▶ startCardPayment
+     ▲                                                              │
+     └────────────── checkout ◀── payment_sessions.checkout ◀── adapter.initiate
+```
+
+- **the page** sets `acceptedCheckoutHandoffs` only when a
+  `embeddedCheckoutClient` is wired into `<PaymentLinkLandingPage>`. Nothing
+  else about a deployment turns in-page checkout on;
+- **`payment_sessions.checkout`** (jsonb) stores the whole union.
+  `redirect_url` remains the redirect arm's flattened projection and the column
+  every existing reader uses. A paid session clears both, so a spent client
+  secret does not linger;
+- **the public session projection** carries `checkout` so the payer's browser
+  gets the token its provider SDK needs.
+
+Every hop treats an absent `acceptedCheckoutHandoffs` as `["redirect"]`, which
+is what makes the downgrade real rather than merely typed: a client built before
+in-page checkout existed keeps getting a redirect from a processor that has
+since gained the capability.
+
+The embedded form itself is **not** in this repo. `PaymentEmbeddedCheckoutClient`
+is a `ComponentType` the deployment supplies — the same prop-injection seam
+`PaymentEmbeddedOnboardingClient` uses in operator-settings — so no provider SDK
+enters the storefront bundle. The client secret reaches it through a
+`fetchClientSecret` callback rather than a prop.
+
+Two callers deliberately stay redirect-only: the commerce booking-engine
+checkout, and `POST /payment-sessions/{id}/requires-redirect`, which stamps a URL
+by name and by contract. Both are safe because of the redirect default, not
+because anything guards them.
 
 The existing finance `CardPaymentStarter` seam remains as the checkout bridge.
 Deployments can adapt a selected `PaymentAdapter` through

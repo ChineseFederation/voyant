@@ -4,6 +4,8 @@ export {
 } from "./checkout-components/collect-payment-dialog.js"
 export {
   type BankTransferInstructions,
+  type PaymentEmbeddedCheckoutClient,
+  type PaymentEmbeddedCheckoutClientProps,
   PaymentLinkLandingPage,
   type PaymentLinkLandingPageProps,
 } from "./checkout-components/payment-link-landing-page.js"

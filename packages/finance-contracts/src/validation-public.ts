@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { paymentProvenanceSchema, paymentTargetSchema } from "./validation-payments.js"
 import {
+  paymentCheckoutSchema,
   paymentInstrumentStatusSchema,
   paymentInstrumentTypeSchema,
   paymentMethodSchema,
@@ -179,6 +180,12 @@ export const publicPaymentSessionSchema = z
     payerEmail: z.string().nullable(),
     payerName: z.string().nullable(),
     redirectUrl: z.string().nullable(),
+    /**
+     * The processor handoff. The payer's own browser is the intended consumer:
+     * the redirect arm tells it where to go, the embedded arm gives it the
+     * per-session token its provider SDK needs to mount the form in place.
+     */
+    checkout: paymentCheckoutSchema.nullable(),
     returnUrl: z.string().nullable(),
     cancelUrl: z.string().nullable(),
     expiresAt: z.string().nullable(),

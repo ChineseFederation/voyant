@@ -64,6 +64,13 @@
       "when": 1785699900000,
       "tag": "20260802194500_booking_payment_schedule_timezones",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786035600000,
+      "tag": "20260805170000_payment_session_embedded_checkout",
+      "breakpoints": true
     }
   ]
 }

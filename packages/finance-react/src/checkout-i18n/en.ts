@@ -11,10 +11,14 @@ export const checkoutUiEn: CheckoutUiMessages = {
     },
     card: {
       description: "You'll be redirected to the secure payment page hosted by the card processor.",
+      embeddedDescription: "Enter your card details below. Your payment is processed securely.",
       payAmount: "Pay {amount}",
       startFailed: "Card payment couldn't be prepared.",
       errorAdvice:
         "{message} If the issue persists, please pay by bank transfer or contact your travel agent.",
+      embeddedUnavailableTitle: "Card form unavailable",
+      embeddedUnavailableBody:
+        "This page can't display the card form right now. Please pay by bank transfer or contact your travel agent.",
     },
     bank: {
       instructions:

@@ -7,7 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { VoyantFetcher } from "../client.js"
 import { VoyantFinanceProvider } from "../provider.js"
-import { PaymentLinkLandingPage } from "./payment-link-landing-page.js"
+import {
+  type PaymentEmbeddedCheckoutClientProps,
+  PaymentLinkLandingPage,
+} from "./payment-link-landing-page.js"
 
 ;(
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -37,6 +40,7 @@ const baseSession: PublicPaymentSession = {
   payerEmail: "traveler@example.com",
   payerName: "Traveler",
   redirectUrl: "https://pay.example.com/stale",
+  checkout: null,
   returnUrl: null,
   cancelUrl: null,
   expiresAt: null,
@@ -77,5 +81,91 @@ describe("PaymentLinkLandingPage", () => {
     })
 
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it("asks for redirect only when no embedded client is wired", async () => {
+    const pending = { ...baseSession, status: "pending" as const, redirectUrl: null }
+    fetcher.mockResolvedValue(
+      Response.json({ data: { redirectUrl: "https://pay.example.com/go", checkout: null } }),
+    )
+
+    await act(async () => {
+      root.render(
+        <VoyantFinanceProvider baseUrl="https://api.example.test/api/" fetcher={fetcher}>
+          <PaymentLinkLandingPage session={pending} />
+        </VoyantFinanceProvider>,
+      )
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click()
+    })
+
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))
+    expect(body.acceptedCheckoutHandoffs).toBeUndefined()
+  })
+
+  it("mounts the deployment's form instead of redirecting when one is wired", async () => {
+    const pending = { ...baseSession, status: "pending" as const, redirectUrl: null }
+    fetcher.mockResolvedValue(
+      Response.json({
+        data: {
+          redirectUrl: null,
+          checkout: {
+            kind: "embedded",
+            clientSecret: "seti_secret_1",
+            publishableKey: "pk_test_1",
+          },
+        },
+      }),
+    )
+    // Typed by its props so the assertions below see the real parameter, not
+    // an empty tuple under noUncheckedIndexedAccess.
+    const client = vi.fn((props: PaymentEmbeddedCheckoutClientProps) => (
+      <div data-testid="embedded-form">card form for {props.publishableKey}</div>
+    ))
+
+    await act(async () => {
+      root.render(
+        <VoyantFinanceProvider baseUrl="https://api.example.test/api/" fetcher={fetcher}>
+          <PaymentLinkLandingPage embeddedCheckoutClient={client} session={pending} />
+        </VoyantFinanceProvider>,
+      )
+    })
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click()
+    })
+
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))
+    expect(body.acceptedCheckoutHandoffs).toEqual(["embedded", "redirect"])
+    expect(container.querySelector("[data-testid=embedded-form]")).not.toBeNull()
+    // The secret is handed over behind a callback, never as a rendered prop.
+    expect(client.mock.calls[0]?.[0]).toMatchObject({ publishableKey: "pk_test_1" })
+    expect(client.mock.calls[0]?.[0]?.fetchClientSecret).toBeTypeOf("function")
+    expect(container.innerHTML).not.toContain("seti_secret_1")
+  })
+
+  it("falls back to a message rather than a blank panel when the client is missing", async () => {
+    const embedded = {
+      ...baseSession,
+      redirectUrl: null,
+      checkout: {
+        kind: "embedded" as const,
+        clientSecret: "seti_secret_1",
+        publishableKey: "pk_test_1",
+      },
+    }
+
+    await act(async () => {
+      root.render(
+        <VoyantFinanceProvider baseUrl="https://api.example.test/api/" fetcher={fetcher}>
+          <PaymentLinkLandingPage session={embedded} />
+        </VoyantFinanceProvider>,
+      )
+    })
+
+    // No client, so the stored embedded arm is ignored entirely and the page
+    // stays on its redirect path rather than rendering an empty form slot.
+    expect(container.innerHTML).not.toContain("seti_secret_1")
+    expect(container.querySelector("button")).not.toBeNull()
   })
 })

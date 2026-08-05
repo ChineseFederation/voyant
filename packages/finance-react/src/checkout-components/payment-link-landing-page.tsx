@@ -2,6 +2,7 @@
 
 import type { PublicPaymentSession } from "@voyant-travel/finance/public-validation"
 import { formatMessage } from "@voyant-travel/i18n"
+import { Alert, AlertDescription, AlertTitle } from "@voyant-travel/ui/components/alert"
 import { Button } from "@voyant-travel/ui/components/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@voyant-travel/ui/components/tabs"
 import { cn } from "@voyant-travel/ui/lib/utils"
@@ -13,8 +14,9 @@ import {
   CreditCard,
   ExternalLink,
   Loader2,
+  TriangleAlert,
 } from "lucide-react"
-import { type ReactNode, useState } from "react"
+import { type ComponentType, type ReactNode, useCallback, useRef, useState } from "react"
 
 import type { CheckoutUiMessages } from "../checkout-i18n/messages.js"
 import {
@@ -24,13 +26,140 @@ import {
 import type { VoyantFetcher } from "../client.js"
 import { useVoyantFinanceContext } from "../provider.js"
 
+/** The handoff arm the page can act on without leaving the storefront. */
+type EmbeddedCheckout = Extract<NonNullable<PublicPaymentSession["checkout"]>, { kind: "embedded" }>
+
 interface StartCardResponse {
-  data?: { redirectUrl: string | null }
+  data?: { redirectUrl: string | null; checkout?: PublicPaymentSession["checkout"] }
   error?: string
 }
 
 function shouldStartCardPayment(session: PublicPaymentSession) {
   return session.status === "pending"
+}
+
+function asEmbeddedCheckout(
+  checkout: PublicPaymentSession["checkout"] | undefined,
+): EmbeddedCheckout | null {
+  return checkout && checkout.kind === "embedded" ? checkout : null
+}
+
+/**
+ * What the page tells the server it can render.
+ *
+ * `undefined` — not an empty array — when it cannot mount a form: the server
+ * reads an absent field as redirect-only, and sending nothing is what keeps
+ * this request identical to the one older clients send.
+ */
+export function acceptedCheckoutHandoffsForPage(
+  canMountEmbeddedForm: boolean,
+): readonly ("embedded" | "redirect")[] | undefined {
+  return canMountEmbeddedForm ? ["embedded", "redirect"] : undefined
+}
+
+export type StartCardOutcome =
+  | { kind: "embedded"; checkout: EmbeddedCheckout }
+  | { kind: "redirect"; url: string }
+  | { kind: "error" }
+
+/**
+ * Read a start-card response into the one thing the page should do next.
+ *
+ * A page that cannot mount a form ignores an embedded arm entirely rather than
+ * trusting the server not to have sent one — the two ends negotiate, but only
+ * this side knows what it can actually render.
+ */
+export function resolveStartCardOutcome(
+  data: StartCardResponse["data"],
+  canMountEmbeddedForm: boolean,
+): StartCardOutcome {
+  const embedded = canMountEmbeddedForm ? asEmbeddedCheckout(data?.checkout) : null
+  if (embedded) return { kind: "embedded", checkout: embedded }
+  if (data?.redirectUrl) return { kind: "redirect", url: data.redirectUrl }
+  return { kind: "error" }
+}
+
+/**
+ * Integration seam for a provider's in-page payment form (Stripe Elements,
+ * Adyen Drop-in, Braintree Hosted Fields, ...).
+ *
+ * The deployment supplies the component; this package never imports a provider
+ * SDK, so the storefront bundle stays vendor-neutral. The secret arrives
+ * through `fetchClientSecret` rather than as a prop so it is not sitting in the
+ * rendered tree.
+ */
+export interface PaymentEmbeddedCheckoutClientProps {
+  publishableKey: string
+  providerAccountId?: string | null
+  fetchClientSecret: () => Promise<string>
+  amountCents: number
+  currency: string
+  /** Call when the provider reports the payment as submitted successfully. */
+  onComplete: () => void
+  onError: (message: string) => void
+}
+
+export type PaymentEmbeddedCheckoutClient = ComponentType<PaymentEmbeddedCheckoutClientProps>
+
+/**
+ * Renders the deployment's embedded form, or says so plainly when none is
+ * wired.
+ *
+ * Reaching the fallback means something upstream mis-negotiated: the page only
+ * asks for the embedded arm when it has a client to mount it with. It exists so
+ * that mistake shows as a message the payer can act on rather than a blank
+ * panel.
+ */
+function EmbeddedCheckoutBoundary({
+  checkout,
+  client: Client,
+  session,
+  onComplete,
+  onError,
+  fallbackTitle,
+  fallbackBody,
+}: {
+  checkout: EmbeddedCheckout
+  client?: PaymentEmbeddedCheckoutClient
+  session: PublicPaymentSession
+  onComplete: () => void
+  onError: (message: string) => void
+  fallbackTitle: string
+  fallbackBody: string
+}) {
+  const initialClientSecret = useRef<string | null>(checkout.clientSecret)
+  const fetchClientSecret = useCallback(async () => {
+    const initial = initialClientSecret.current
+    if (initial) {
+      initialClientSecret.current = null
+      return initial
+    }
+    // The token is single-use and the page holds no way to mint another;
+    // re-mounting the link is what issues a fresh session.
+    throw new Error(fallbackBody)
+  }, [fallbackBody])
+
+  if (!Client) {
+    return (
+      <Alert>
+        <TriangleAlert aria-hidden="true" />
+        <AlertTitle>{fallbackTitle}</AlertTitle>
+        <AlertDescription>{fallbackBody}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  return (
+    <Client
+      amountCents={session.amountCents}
+      currency={session.currency}
+      fetchClientSecret={fetchClientSecret}
+      onComplete={onComplete}
+      onError={onError}
+      providerAccountId={checkout.providerAccountId}
+      publishableKey={checkout.publishableKey}
+    />
+  )
 }
 
 /**
@@ -62,6 +191,12 @@ export interface PaymentLinkLandingPageProps {
    * redirects to `session.redirectUrl` (the processor's hosted checkout).
    */
   onPayByCard?: () => void
+  /**
+   * The deployment's in-page payment form. Supplying it is what makes this
+   * page ask the processor for an embedded handoff at all — without it the
+   * page requests a redirect, exactly as it always did.
+   */
+  embeddedCheckoutClient?: PaymentEmbeddedCheckoutClient
   /**
    * Optional human-readable description shown above the amount. Sourced
    * from the booking / invoice / vertical context (the session record
@@ -112,6 +247,7 @@ export function PaymentLinkLandingPage({
   bankTransferInstructions,
   brandHeader,
   brandFooter,
+  embeddedCheckoutClient,
   onPayByCard,
   onRetry,
   description,
@@ -129,6 +265,7 @@ export function PaymentLinkLandingPage({
       <Body
         session={session}
         bankTransferInstructions={bankTransferInstructions}
+        embeddedCheckoutClient={embeddedCheckoutClient}
         onPayByCard={onPayByCard}
         onRetry={onRetry}
         apiClient={apiClient}
@@ -182,6 +319,7 @@ function Header({
 
 function Body({
   session,
+  embeddedCheckoutClient,
   bankTransferInstructions,
   onPayByCard,
   onRetry,
@@ -189,6 +327,7 @@ function Body({
 }: {
   session: PublicPaymentSession
   bankTransferInstructions?: BankTransferInstructions
+  embeddedCheckoutClient?: PaymentEmbeddedCheckoutClient
   onPayByCard?: () => void
   onRetry?: () => Promise<void> | void
   apiClient: PaymentLinkApiClient
@@ -226,7 +365,14 @@ function Body({
 
   // Single method — render inline without tabs.
   if (cardAvailable && !bankAvailable) {
-    return <CardPanel session={session} onPayByCard={onPayByCard} apiClient={apiClient} />
+    return (
+      <CardPanel
+        session={session}
+        embeddedCheckoutClient={embeddedCheckoutClient}
+        onPayByCard={onPayByCard}
+        apiClient={apiClient}
+      />
+    )
   }
   if (bankAvailable && !cardAvailable && bankTransferInstructions) {
     return <BankTransferPanel session={session} instructions={bankTransferInstructions} />
@@ -246,7 +392,12 @@ function Body({
         </TabsTrigger>
       </TabsList>
       <TabsContent value="card" className="mt-4">
-        <CardPanel session={session} onPayByCard={onPayByCard} apiClient={apiClient} />
+        <CardPanel
+          session={session}
+          embeddedCheckoutClient={embeddedCheckoutClient}
+          onPayByCard={onPayByCard}
+          apiClient={apiClient}
+        />
       </TabsContent>
       <TabsContent value="bank" className="mt-4">
         {bankTransferInstructions && (
@@ -259,10 +410,12 @@ function Body({
 
 function CardPanel({
   session,
+  embeddedCheckoutClient,
   onPayByCard,
   apiClient,
 }: {
   session: PublicPaymentSession
+  embeddedCheckoutClient?: PaymentEmbeddedCheckoutClient
   onPayByCard?: () => void
   apiClient: PaymentLinkApiClient
 }) {
@@ -270,6 +423,11 @@ function CardPanel({
   const messages = i18n.messages.paymentLinkLandingPage
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A handoff already on the session is only mountable if this page has a form
+  // to mount it in; otherwise it is ignored and the redirect path runs.
+  const [embedded, setEmbedded] = useState<EmbeddedCheckout | null>(() =>
+    embeddedCheckoutClient ? asEmbeddedCheckout(session.checkout) : null,
+  )
 
   const handleClick = async () => {
     if (onPayByCard) {
@@ -280,9 +438,9 @@ function CardPanel({
       window.location.href = session.redirectUrl
       return
     }
-    // Lazy-start the configured processor. The template exposes a public
-    // endpoint that calls e.g. `netopia.startPaymentSession` on demand and
-    // returns the redirect URL.
+    // Lazy-start the configured processor. Asking for the embedded arm only
+    // when a client is wired is what keeps a redirect-only page working
+    // against a processor that supports in-page payment.
     setStarting(true)
     setError(null)
     try {
@@ -290,18 +448,54 @@ function CardPanel({
         joinUrl(apiClient.baseUrl, `/v1/public/payment-link/${session.id}/start-card`),
         {
           method: "POST",
-          headers: { Accept: "application/json" },
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            acceptedCheckoutHandoffs: acceptedCheckoutHandoffsForPage(
+              Boolean(embeddedCheckoutClient),
+            ),
+          }),
         },
       )
       const body = (await res.json()) as StartCardResponse
-      if (!res.ok || !body.data?.redirectUrl) {
-        throw new Error(body.error ?? messages.card.startFailed)
+      if (!res.ok) throw new Error(body.error ?? messages.card.startFailed)
+      const outcome = resolveStartCardOutcome(body.data, Boolean(embeddedCheckoutClient))
+      if (outcome.kind === "error") throw new Error(body.error ?? messages.card.startFailed)
+      if (outcome.kind === "embedded") {
+        setEmbedded(outcome.checkout)
+        setStarting(false)
+        return
       }
-      window.location.href = body.data.redirectUrl
+      window.location.href = outcome.url
     } catch (err) {
       setError((err as Error).message)
       setStarting(false)
     }
+  }
+
+  if (embedded) {
+    return (
+      <div className="rounded-md border bg-card p-6 shadow-sm">
+        <p className="mb-4 text-muted-foreground text-sm">{messages.card.embeddedDescription}</p>
+        <EmbeddedCheckoutBoundary
+          checkout={embedded}
+          client={embeddedCheckoutClient}
+          fallbackBody={messages.card.embeddedUnavailableBody}
+          fallbackTitle={messages.card.embeddedUnavailableTitle}
+          onComplete={() => {
+            // The provider confirms server-side through the processor callback;
+            // reloading is what re-reads the session in its settled state.
+            window.location.href = session.returnUrl ?? window.location.href
+          }}
+          onError={setError}
+          session={session}
+        />
+        {error && (
+          <p className="mt-3 text-destructive text-xs">
+            {formatMessage(messages.card.errorAdvice, { message: error })}
+          </p>
+        )}
+      </div>
+    )
   }
 
   return (

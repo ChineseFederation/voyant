@@ -1,5 +1,6 @@
 // agent-quality: file-size exception -- owner: finance; existing service module stays co-located until a dedicated split preserves behavior and tests.
 import { bookings } from "@voyant-travel/bookings/schema"
+import type { PaymentCheckoutContract } from "@voyant-travel/finance-contracts"
 import { and, asc, desc, eq, isNull, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -117,6 +118,10 @@ function toPublicPaymentTarget(
 function toPublicPaymentSession(
   session: NonNullable<Awaited<ReturnType<typeof financeService.getPaymentSessionById>>>,
 ) {
+  // The annotation is the guard: finance-contracts mirrors `PaymentHostedCheckout`
+  // in zod rather than importing it, and this assignment is what fails the build
+  // if the two ever describe different arms.
+  const checkout: PaymentCheckoutContract | null = session.checkout ?? null
   return {
     id: session.id,
     target: toPublicPaymentTarget(session),
@@ -141,6 +146,7 @@ function toPublicPaymentSession(
     payerEmail: session.payerEmail ?? null,
     payerName: session.payerName ?? null,
     redirectUrl: session.redirectUrl ?? null,
+    checkout,
     returnUrl: session.returnUrl ?? null,
     cancelUrl: session.cancelUrl ?? null,
     expiresAt: normalizeDateTime(session.expiresAt),

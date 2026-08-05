@@ -200,6 +200,7 @@ const paymentSession: PublicPaymentSession = {
   payerEmail: null,
   payerName: null,
   redirectUrl: null,
+  checkout: null,
   returnUrl: null,
   cancelUrl: null,
   expiresAt: null,

@@ -516,12 +516,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://pay.example.com/stale",
+        checkout: null,
         session: {
           id: "ps_1",
           status: "requires_redirect",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: "https://pay.example.com/stale",
+          checkout: null,
         },
       },
     })
@@ -554,14 +556,144 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://checkout.example.com/continue",
+        checkout: null,
         session: {
           id: "ps_processing",
           status: "processing",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: null,
+          checkout: null,
         },
       },
+    })
+    expect(startCardPayment).not.toHaveBeenCalled()
+  })
+
+  it("start-card returns an embedded handoff to a page that accepts one", async () => {
+    const embedded = {
+      kind: "embedded",
+      clientSecret: "seti_secret_1",
+      publishableKey: "pk_test_1",
+      providerAccountId: "acct_1",
+    } as const
+    const db = makeDb([
+      [
+        {
+          id: "ps_1",
+          status: "pending",
+          redirectUrl: null,
+          checkout: null,
+          returnUrl: "https://checkout.example.com/return",
+          amountCents: 12000,
+          currency: "RON",
+        },
+      ],
+      [
+        {
+          id: "ps_1",
+          status: "requires_redirect",
+          redirectUrl: null,
+          checkout: embedded,
+          returnUrl: "https://checkout.example.com/return",
+          amountCents: 12000,
+          currency: "RON",
+        },
+      ],
+    ])
+    const startCardPayment = vi.fn(
+      async () => ({ configured: true, redirectUrl: null, checkout: embedded }) as const,
+    )
+    const app = mountApp(stubOptions({ startCardPayment }), db)
+
+    const res = await app.request("/v1/public/payment-link/ps_1/start-card", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ acceptedCheckoutHandoffs: ["embedded", "redirect"] }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.data.checkout).toEqual(embedded)
+    // No continuation URL: the form is the destination, and falling back to the
+    // return URL would bounce a page that was about to mount it.
+    expect(body.data.redirectUrl).toBeNull()
+    expect(startCardPayment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ acceptedCheckoutHandoffs: ["embedded", "redirect"] }),
+    )
+  })
+
+  it("start-card asks for redirect only when the page says nothing", async () => {
+    const db = makeDb([
+      [
+        {
+          id: "ps_1",
+          status: "pending",
+          redirectUrl: null,
+          checkout: null,
+          returnUrl: null,
+          amountCents: 12000,
+          currency: "RON",
+        },
+      ],
+      [
+        {
+          id: "ps_1",
+          status: "requires_redirect",
+          redirectUrl: "https://pay.example.com/fresh",
+          checkout: { kind: "redirect", url: "https://pay.example.com/fresh" },
+          returnUrl: null,
+          amountCents: 12000,
+          currency: "RON",
+        },
+      ],
+    ])
+    const startCardPayment = vi.fn(
+      async () => ({ configured: true, redirectUrl: "https://pay.example.com/fresh" }) as const,
+    )
+    const app = mountApp(stubOptions({ startCardPayment }), db)
+
+    const res = await app.request("/v1/public/payment-link/ps_1/start-card", { method: "POST" })
+
+    expect(res.status).toBe(200)
+    expect((await res.json()).data.redirectUrl).toBe("https://pay.example.com/fresh")
+    expect(startCardPayment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ acceptedCheckoutHandoffs: ["redirect"] }),
+    )
+  })
+
+  it("start-card restarts rather than reusing an embedded handoff for a redirect-only page", async () => {
+    const db = makeDb([
+      [
+        {
+          id: "ps_1",
+          status: "requires_redirect",
+          redirectUrl: null,
+          checkout: {
+            kind: "embedded",
+            clientSecret: "seti_secret_1",
+            publishableKey: "pk_test_1",
+          },
+          returnUrl: "https://checkout.example.com/return",
+          amountCents: 12000,
+          currency: "RON",
+        },
+      ],
+    ])
+    const startCardPayment = vi.fn(async () => ({ configured: true, redirectUrl: null }) as const)
+    const app = mountApp(stubOptions({ startCardPayment }), db)
+
+    const res = await app.request("/v1/public/payment-link/ps_1/start-card", { method: "POST" })
+
+    expect(res.status).toBe(200)
+    // The stored arm is unusable here, and the session is past `pending`, so the
+    // handler falls to the continuation URL instead of stranding the payer on a
+    // handoff with no URL.
+    expect((await res.json()).data).toMatchObject({
+      redirectUrl: "https://checkout.example.com/return",
+      checkout: null,
     })
     expect(startCardPayment).not.toHaveBeenCalled()
   })
@@ -631,12 +763,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://pay.example.com/fresh",
+        checkout: null,
         session: {
           id: "ps_1",
           status: "requires_redirect",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: "https://pay.example.com/fresh",
+          checkout: null,
         },
       },
     })
@@ -790,12 +924,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://checkout.example.com/stored-return",
+        checkout: null,
         session: {
           id: "ps_1",
           status: "processing",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: null,
+          checkout: null,
         },
       },
     })
@@ -844,12 +980,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://checkout.example.com/stored-return",
+        checkout: null,
         session: {
           id: "ps_1",
           status: "authorized",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: null,
+          checkout: null,
         },
       },
     })
@@ -912,12 +1050,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: "https://pay.example.com/success",
+        checkout: null,
         session: {
           id: "ps_1",
           status: "paid",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: "https://pay.example.com/success",
+          checkout: null,
         },
       },
     })
@@ -951,12 +1091,14 @@ describe("createPaymentLinkRoutes", () => {
     expect(await res.json()).toEqual({
       data: {
         redirectUrl: null,
+        checkout: null,
         session: {
           id: "ps_1",
           status: "failed",
           amountCents: 12000,
           currency: "RON",
           redirectUrl: "https://pay.example.com/failed",
+          checkout: null,
         },
       },
     })

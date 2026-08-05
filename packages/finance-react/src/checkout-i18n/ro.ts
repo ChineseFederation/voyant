@@ -11,10 +11,14 @@ export const checkoutUiRo: CheckoutUiMessages = {
     },
     card: {
       description: "Vei fi redirectionat catre pagina securizata a procesatorului de carduri.",
+      embeddedDescription: "Introdu datele cardului mai jos. Plata este procesata in siguranta.",
       payAmount: "Plateste {amount}",
       startFailed: "Plata cu cardul nu a putut fi pregatita.",
       errorAdvice:
         "{message} Daca problema persista, plateste prin transfer bancar sau contacteaza agentul de turism.",
+      embeddedUnavailableTitle: "Formularul de card nu este disponibil",
+      embeddedUnavailableBody:
+        "Aceasta pagina nu poate afisa formularul de card acum. Plateste prin transfer bancar sau contacteaza agentul de turism.",
     },
     bank: {
       instructions:
