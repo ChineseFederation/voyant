@@ -1,5 +1,12 @@
 # @voyant-travel/products-contracts
 
+## 0.110.1
+
+### Patch Changes
+
+- Updated dependencies [6c77f7d]
+  - @voyant-travel/catalog-contracts@0.126.0
+
 ## 0.110.0
 
 ### Minor Changes

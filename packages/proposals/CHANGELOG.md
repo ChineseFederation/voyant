@@ -1,5 +1,16 @@
 # @voyant-travel/proposals
 
+## 0.137.28
+
+### Patch Changes
+
+- Updated dependencies [6c77f7d]
+- Updated dependencies [d98648a]
+  - @voyant-travel/catalog@0.248.0
+  - @voyant-travel/trips@0.232.5
+  - @voyant-travel/relationships@0.133.18
+  - @voyant-travel/operator-settings@0.17.22
+
 ## 0.137.27
 
 ### Patch Changes
