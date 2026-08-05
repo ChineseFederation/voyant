@@ -40,6 +40,25 @@ export const paymentSessionStatusEnum = pgEnum("payment_session_status", [
   "expired",
 ])
 
+/**
+ * Lifecycle of a contested card payment — a chargeback.
+ *
+ * Unrelated to `supplier_invoice_status.disputed`, which is an accounts-payable
+ * state for a bill the operator is contesting. This one runs the other way: a
+ * traveller contests a payment the operator received.
+ *
+ * `won`, `lost` and `withdrawn` are terminal and each names a resolution;
+ * `resolved_at` records when the record reached one. Nothing here names a
+ * processor — an adapter maps its own stage vocabulary onto these five.
+ */
+export const paymentDisputeStatusEnum = pgEnum("payment_dispute_status", [
+  "opened",
+  "under_review",
+  "won",
+  "lost",
+  "withdrawn",
+])
+
 export const paymentSessionTargetTypeEnum = pgEnum("payment_session_target_type", [
   "booking_session",
   "booking",

@@ -368,6 +368,8 @@ jobs:
                 tests/integration/booking-create.test.ts
               pnpm --filter @voyant-travel/finance exec vitest run \
                 tests/integration/profitability.test.ts
+              pnpm --filter @voyant-travel/finance exec vitest run \
+                tests/integration/payment-disputes.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \
                 tests/integration/booking-amendments.test.ts
               pnpm --filter @voyant-travel/bookings exec vitest run \

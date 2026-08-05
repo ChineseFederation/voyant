@@ -52,6 +52,25 @@ export const voyantToolContextContribution = defineToolContextContribution({
         }) {
           return executeInvoiceIssueTool({ db, c, ...input })
         },
+        async recordPaymentDispute(
+          input: Parameters<typeof financeService.paymentDisputes.recordPaymentDispute>[1],
+        ) {
+          const dispute = await financeService.paymentDisputes.recordPaymentDispute(
+            db as PostgresJsDatabase,
+            input,
+            {
+              ...getFinanceRouteRuntime(c),
+              actionLedgerContext: financeToolActionLedgerContext(c),
+              actionLedgerAuthorizationSource: "finance.payment_dispute.tool",
+            },
+          )
+          if (!dispute) {
+            throw new ToolError("Payment session was not found.", "NOT_FOUND", {
+              paymentSessionId: input.paymentSessionId,
+            })
+          }
+          return toJsonValue(dispute)
+        },
         async previewUnsyncedProformaFromBooking(input: { bookingId: string }) {
           const snapshot = await buildUnsyncedProformaApprovalSnapshot(
             db,

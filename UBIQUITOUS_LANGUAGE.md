@@ -188,6 +188,7 @@ explicit and reconcilable.
 | **Guarantee**         | A security hold (deposit, pre-auth, card-on-file, agency letter, or Service Voucher) ensuring eventual payment. When required by commercial policy, it is a Commit precondition; pay-later is allowed only when policy explicitly authorizes it. | *deposit (overloaded)* |
 | **Payment Session**   | An active payment attempt against a target (Booking, Invoice, Schedule line, Guarantee, Program, or explicit legacy/provider reference). | *checkout, intent*            |
 | **Collection Plan**   | A preview of what will be collected from the customer and when.                                  | *quote-of-collections (technical alias only)* |
+| **Dispute**           | A customer's chargeback against a Payment Session: a contested amount (possibly partial), a response deadline, and a lifecycle `opened → under_review → won / lost / withdrawn`. A booking with an open Dispute is not cleanly paid. Say **Dispute** only for this; a supplier bill the operator contests is a *disputed Supplier Invoice*. | *chargeback (use for the event, not the record), disputed invoice* |
 
 ## Distribution
 

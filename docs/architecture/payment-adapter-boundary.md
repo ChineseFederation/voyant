@@ -132,6 +132,41 @@ checkout, and `POST /payment-sessions/{id}/requires-redirect`, which stamps a UR
 by name and by contract. Both are safe because of the redirect default, not
 because anything guards them.
 
+## Disputes
+
+A chargeback is a generic commerce event, not a property of any one processor:
+every card processor produces them with the same shape — a payment is contested,
+funds are withdrawn or held, there is a window to respond, and it resolves for or
+against the merchant. So the **record** is the framework's and lives in finance
+as `payment_disputes`, bound to the payment session it contests and reachable
+from the booking. Nothing in it names a processor: `provider`,
+`processor_reference` and `reason_code` are opaque strings stored and handed back
+verbatim.
+
+`PaymentDisputeStatus` is the framework's vocabulary — `opened`, `under_review`,
+`won`, `lost`, `withdrawn` — and an adapter maps its own stage names onto it. The
+last three are terminal, each names the resolution, and they are absorbing: a
+processor that contests a payment again issues a **new** dispute rather than
+reviving a resolved one, which is also what makes a replayed callback safe.
+
+A dispute rides on `PaymentCallbackEvent.dispute` rather than in `nextState`.
+The payment's own lifecycle does not move when the money is contested — the
+session stays `paid`, which is precisely the problem the record exists to solve —
+so a dispute callback reports the session's current state and puts what changed
+in `dispute`. `processorDisputeId` is the idempotency key: a repeat advances the
+dispute already recorded, a different id opens a second one against the same
+payment.
+
+**Evidence assembly and submission stay behind this port.** They are genuinely
+processor-specific. All the framework records is `evidence_submitted_at` — that
+something was submitted, and when — without knowing what was in it.
+
+**Payouts are deliberately out of scope.** Money moving from a processor to the
+operator's bank is not the booking ledger's concern and acquires no model here.
+
+Not to be confused with `supplier_invoice_status.disputed`, which runs the other
+way: an accounts-payable state for a bill *the operator* is contesting.
+
 The existing finance `CardPaymentStarter` seam remains as the checkout bridge.
 Deployments can adapt a selected `PaymentAdapter` through
 `createPaymentAdapterCardPaymentStarter(...)`, and verified callback events are

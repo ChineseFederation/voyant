@@ -154,6 +154,7 @@ export const typeIdSchemas = {
   invoice: typeIdSchema("invoices"),
   paymentInstrument: typeIdSchema("payment_instruments"),
   paymentSession: typeIdSchema("payment_sessions"),
+  paymentDispute: typeIdSchema("payment_disputes"),
   paymentAuthorization: typeIdSchema("payment_authorizations"),
   paymentCapture: typeIdSchema("payment_captures"),
   bookingPaymentSchedule: typeIdSchema("booking_payment_schedules"),

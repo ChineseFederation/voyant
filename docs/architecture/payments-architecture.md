@@ -606,7 +606,7 @@ options like "Issue on agency credit" (flights) or "Charge to folio"
 ## Reference
 
 - `@voyant-travel/finance` — `payment_sessions`, `payment_instruments`,
-  `payments`, invoices, schedules. Authoritative state.
+  `payments`, `payment_disputes`, invoices, schedules. Authoritative state.
 - `@voyant-travel/finance-react` — public hooks (`usePublicPaymentSession`,
   `usePublicBookingPaymentOptions`, etc.). Single source of truth for the
   data the UI consumes.

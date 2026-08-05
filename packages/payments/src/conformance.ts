@@ -4,6 +4,7 @@ import type {
   PaymentCallbackEvent,
   PaymentCallbackRequest,
   PaymentCheckoutHandoff,
+  PaymentDisputeSignal,
   PaymentHostedCheckout,
   PaymentInitiationInput,
   PaymentInitiationResult,
@@ -19,6 +20,7 @@ import {
   acceptedPaymentCheckoutHandoffs,
   isEmbeddedPaymentCheckout,
   isPaymentAdapterError,
+  PAYMENT_DISPUTE_STATUSES,
   paymentAdapterRuntimePort,
   paymentCheckoutHandoff,
 } from "./index.js"
@@ -635,6 +637,27 @@ function assertCallbackEvent(event: PaymentCallbackEvent) {
   }
   assertIdentity(event.processorIdentity)
   if (event.money) assertMoney(event.money)
+  if (event.dispute) assertDisputeSignal(event.dispute)
+}
+
+function assertDisputeSignal(dispute: PaymentDisputeSignal) {
+  assertNonEmpty(dispute.processorDisputeId, "Callback dispute processor id")
+  if (!PAYMENT_DISPUTE_STATUSES.includes(dispute.status)) {
+    throw new Error("Adapter returned an invalid dispute status.")
+  }
+  assertMoney(dispute.money)
+  if (!isIsoTimestamp(dispute.openedAt)) {
+    throw new Error("Callback dispute openedAt must be an ISO timestamp.")
+  }
+  for (const [label, value] of [
+    ["respondBy", dispute.respondBy],
+    ["resolvedAt", dispute.resolvedAt],
+    ["evidenceSubmittedAt", dispute.evidenceSubmittedAt],
+  ] as const) {
+    if (value != null && !isIsoTimestamp(value)) {
+      throw new Error(`Callback dispute ${label} must be an ISO timestamp.`)
+    }
+  }
 }
 
 function assertOperationInput(input: PaymentOperationInput) {
@@ -732,6 +755,7 @@ function callbackIdentity(event: PaymentCallbackEvent) {
     processorPaymentId: event.processorPaymentId ?? null,
     processorIdentity: event.processorIdentity ?? null,
     money: event.money ?? null,
+    dispute: event.dispute ?? null,
     idempotencyKey: event.idempotencyKey,
   }
 }

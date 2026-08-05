@@ -51,6 +51,7 @@ import { BookingActivityTimeline, type TimelineEvent } from "./booking-activity-
 import { BookingBillingDialog } from "./booking-billing-dialog.js"
 import { BookingCancellationDialog } from "./booking-cancellation-dialog.js"
 import { BookingDialog } from "./booking-dialog.js"
+import { BookingDisputeBanner } from "./booking-dispute-banner.js"
 import { BookingGroupSection } from "./booking-group-section.js"
 import { BookingGuaranteeList } from "./booking-guarantee-list.js"
 import { BookingItemList, type BookingItemResourceKind } from "./booking-item-list.js"
@@ -464,6 +465,14 @@ export function BookingDetailPage({
           {formatDate(booking.createdAt, resolvedLocale, detailMessages.noValue)}
         </StatCard>
       </div>
+
+      {/*
+        Above the tabs, not inside the finance one. A contested payment leaves
+        every other reading of this booking saying `paid`, so an operator must
+        not have to open a particular tab to find out the money is being taken
+        back (voyant#4289). Renders nothing when the booking was never disputed.
+      */}
+      <BookingDisputeBanner bookingId={id} />
 
       {slots?.afterSummary?.(booking)}
 

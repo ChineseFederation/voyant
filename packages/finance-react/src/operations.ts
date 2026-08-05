@@ -3,6 +3,7 @@
 import { type FetchWithValidationOptions, fetchWithValidation, withQueryParams } from "./client.js"
 import type { FinanceActionLedgerListCursor } from "./query-keys.js"
 import {
+  bookingPaymentDisputesResponse,
   financeActionLedgerListResponse,
   invoiceFxRateResponse,
   type PublicFinanceDocumentLookupQuery,
@@ -102,6 +103,19 @@ export function getAdminBookingPayments(client: FetchWithValidationOptions, book
   return fetchWithValidation(
     `/v1/admin/finance/bookings/${bookingId}/payments`,
     publicBookingFinancePaymentsResponse,
+    client,
+  )
+}
+
+/**
+ * The booking's card disputes. A contested payment still reads `paid`, so this
+ * is the only read that can tell a cleanly paid booking from one whose money is
+ * being taken back (voyant#4289).
+ */
+export function getBookingPaymentDisputes(client: FetchWithValidationOptions, bookingId: string) {
+  return fetchWithValidation(
+    `/v1/admin/finance/bookings/${bookingId}/disputes`,
+    bookingPaymentDisputesResponse,
     client,
   )
 }

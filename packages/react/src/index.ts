@@ -1,5 +1,6 @@
 export {
   defaultFetcher,
+  useOptionalVoyantReactContext,
   useVoyantReactContext,
   type VoyantFetcher,
   type VoyantReactContextValue,

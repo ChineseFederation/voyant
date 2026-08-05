@@ -85,6 +85,17 @@ export const paymentSessionStatusSchema = z.enum([
   "cancelled",
   "expired",
 ])
+/**
+ * Card-dispute lifecycle (voyant#4289). Not to be confused with the
+ * `disputed` supplier-invoice status, which is an accounts-payable state.
+ */
+export const paymentDisputeStatusSchema = z.enum([
+  "opened",
+  "under_review",
+  "won",
+  "lost",
+  "withdrawn",
+])
 export const paymentSessionTargetTypeSchema = z.enum([
   "booking_session",
   "booking",

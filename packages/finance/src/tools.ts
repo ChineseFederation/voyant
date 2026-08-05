@@ -35,6 +35,8 @@ import {
   insertCreditNoteSchema,
   invoiceFromBookingSchema,
   invoiceListQuerySchema,
+  paymentDisputeRecordSchema,
+  recordPaymentDisputeSchema,
 } from "./validation.js"
 
 const voidInvoiceResultSchema = z.discriminatedUnion("status", [
@@ -85,6 +87,7 @@ export interface FinanceToolServices {
   issueInvoiceFromBooking(
     input: z.infer<typeof issueInvoiceFromBookingToolInputSchema>,
   ): Promise<unknown>
+  recordPaymentDispute(input: z.infer<typeof recordPaymentDisputeToolInputSchema>): Promise<unknown>
   previewUnsyncedProformaFromBooking(input: { bookingId: string }): Promise<unknown>
   issueUnsyncedProformaFromBooking(
     input: z.infer<typeof issueUnsyncedProformaFromBookingToolInputSchema>,
@@ -486,12 +489,53 @@ export const issueUnsyncedProformaFromBookingTool = defineTool<
   },
 })
 
+export const recordPaymentDisputeToolInputSchema = recordPaymentDisputeSchema
+
+/**
+ * A chargeback an agent found — reconciling a processor console, or reading a
+ * notification — put against the payment it contests (voyant#4289).
+ *
+ * Idempotent on `(paymentSessionId, processorReference)`, so an agent that runs
+ * the same reconciliation twice advances one dispute rather than opening two.
+ * Omitting `processorReference` always opens a new record, which is why an agent
+ * should carry the processor's own id whenever it has one.
+ */
+export const recordPaymentDisputeTool = defineTool<
+  z.infer<typeof recordPaymentDisputeToolInputSchema>,
+  unknown,
+  FinanceToolContext
+>({
+  name: "record_payment_dispute",
+  description:
+    "Record a card dispute (chargeback) against the payment session it contests, or advance one " +
+    "already recorded. The contested amount may be partial. Idempotent on the processor's own " +
+    "dispute reference; a different reference opens a second dispute rather than overwriting the " +
+    "first. Unrelated to the `disputed` supplier-invoice status.",
+  inputSchema: recordPaymentDisputeToolInputSchema,
+  outputSchema: paymentDisputeRecordSchema,
+  requiredScopes: ["finance:write"],
+  tier: "write",
+  riskPolicy: {
+    destructive: false,
+    reversible: false,
+    dryRunSupported: false,
+    confirmationRequired: true,
+  },
+  async handler(input, ctx) {
+    return parseJsonResult(
+      paymentDisputeRecordSchema,
+      await finance(ctx).recordPaymentDispute(input),
+    )
+  },
+})
+
 export const financeTools = [
   listInvoicesTool,
   getInvoiceTool,
   voidInvoiceTool,
   issueInvoiceRefundTool,
   issueInvoiceFromBookingTool,
+  recordPaymentDisputeTool,
   previewUnsyncedProformaFromBookingTool,
   issueUnsyncedProformaFromBookingTool,
 ] as const

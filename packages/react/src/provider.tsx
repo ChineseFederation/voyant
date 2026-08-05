@@ -32,6 +32,18 @@ export function VoyantReactProvider({ baseUrl, fetcher, children }: VoyantReactP
   return <VoyantReactContext.Provider value={value}>{children}</VoyantReactContext.Provider>
 }
 
+/**
+ * The context when a provider is mounted, `null` otherwise.
+ *
+ * For a component that is *additive* to a page it does not own — a banner a
+ * host app did not ask for — throwing would turn "this package is not wired"
+ * into a crash of somebody else's screen. Anything the page exists to show
+ * should keep using `useVoyantReactContext` and fail loudly.
+ */
+export function useOptionalVoyantReactContext(): VoyantReactContextValue | null {
+  return useContext(VoyantReactContext)
+}
+
 export function useVoyantReactContext(): VoyantReactContextValue {
   const context = useContext(VoyantReactContext)
   if (!context) {

@@ -16,6 +16,7 @@ import {
   PAYMENT_ADAPTER_STATUS_LEASE_TOKEN_KEY,
 } from "./payment-adapter-session-guard.js"
 import { paymentSessions } from "./schema/payment-sessions.js"
+import { financePaymentDisputeService } from "./service-payment-disputes.js"
 import { financePaymentSessionCompletionService } from "./service-payment-session-completion.js"
 import {
   type FinanceServiceRuntime,
@@ -244,7 +245,48 @@ export async function applyPaymentAdapterCallbackEvent(
     metadata: { paymentAdapterEventId: event.eventId, paymentAdapterOccurredAt: event.occurredAt },
   }
 
-  return applyPaymentAdapterStateUpdate(db, update, providerData, runtime)
+  const session = await applyPaymentAdapterStateUpdate(db, update, providerData, runtime)
+
+  // A dispute rides alongside the state rather than in it: the payment's own
+  // lifecycle does not move when the money is contested, so `nextState` stays
+  // whatever the session already was and this is what changed (voyant#4289).
+  if (event.dispute) {
+    await applyPaymentAdapterDisputeSignal(db, event, runtime)
+  }
+
+  return session
+}
+
+async function applyPaymentAdapterDisputeSignal(
+  db: PostgresJsDatabase,
+  event: PaymentCallbackEvent,
+  runtime: FinanceServiceRuntime,
+) {
+  const dispute = event.dispute
+  if (!dispute) return
+
+  await financePaymentDisputeService.recordPaymentDispute(
+    db,
+    {
+      paymentSessionId: event.paymentSessionId,
+      processorReference: dispute.processorDisputeId,
+      status: dispute.status,
+      amountCents: dispute.money.amountMinor,
+      currency: dispute.money.currency,
+      openedAt: dispute.openedAt,
+      respondBy: dispute.respondBy ?? null,
+      reasonCode: dispute.reasonCode ?? null,
+      resolvedAt: dispute.resolvedAt ?? null,
+      resolutionNote: null,
+      evidenceSubmittedAt: dispute.evidenceSubmittedAt ?? null,
+      provider: event.processorIdentity?.providerId ?? null,
+      providerConnectionId: event.processorIdentity?.connectionId ?? null,
+      notes: null,
+      providerPayload: { callbackEventId: event.eventId, occurredAt: event.occurredAt },
+      metadata: null,
+    },
+    runtime,
+  )
 }
 
 export async function applyPaymentAdapterStatusResult(

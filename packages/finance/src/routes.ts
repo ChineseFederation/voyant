@@ -10,6 +10,7 @@ import { financeBookingReadRoutes } from "./routes-booking-reads.js"
 import { financeInvoiceCoreRoutes } from "./routes-invoice-core.js"
 import { financeInvoiceDocumentRoutes } from "./routes-invoice-documents.js"
 import { financeInvoiceIssueRoutes } from "./routes-invoice-issue.js"
+import { financePaymentDisputeRoutes } from "./routes-payment-disputes.js"
 import { financePaymentProcessingRoutes } from "./routes-payment-processing.js"
 import { financePaymentRoutes } from "./routes-payments.js"
 import type { publicFinanceRoutes } from "./routes-public.js"
@@ -53,6 +54,7 @@ export const financeRoutes = new OpenAPIHono<Env>()
   .route("/", financeInvoiceDocumentRoutes)
   .route("/", financeTravelCreditRoutes)
   .route("/", financeBookingReadRoutes)
+  .route("/", financePaymentDisputeRoutes)
 
 export type FinanceRoutes = typeof financeRoutes
 export type PublicFinanceRoutes = typeof publicFinanceRoutes

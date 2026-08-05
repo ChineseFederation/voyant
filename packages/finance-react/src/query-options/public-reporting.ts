@@ -12,6 +12,7 @@ import type { UseTravelCreditOptions } from "../hooks/use-travel-credit.js"
 import type { UseTravelCreditsOptions } from "../hooks/use-travel-credits.js"
 import {
   getAdminBookingPayments,
+  getBookingPaymentDisputes,
   getPublicBookingDocuments,
   getPublicBookingPaymentOptions,
   getPublicBookingPayments,
@@ -123,6 +124,21 @@ export function getAdminBookingPaymentsQueryOptions(
         throw new Error("getAdminBookingPaymentsQueryOptions requires a bookingId")
       }
       return getAdminBookingPayments(client, bookingId)
+    },
+  })
+}
+
+export function getBookingPaymentDisputesQueryOptions(
+  client: FetchWithValidationOptions,
+  bookingId: string | null | undefined,
+) {
+  return queryOptions({
+    queryKey: financeQueryKeys.bookingPaymentDisputes(bookingId ?? ""),
+    queryFn: async () => {
+      if (!bookingId) {
+        throw new Error("getBookingPaymentDisputesQueryOptions requires a bookingId")
+      }
+      return getBookingPaymentDisputes(client, bookingId)
     },
   })
 }

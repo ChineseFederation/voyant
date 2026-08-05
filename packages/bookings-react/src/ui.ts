@@ -24,6 +24,10 @@ export {
 } from "./components/booking-detail-page.js"
 export { BookingDialog, type BookingDialogProps } from "./components/booking-dialog.js"
 export {
+  BookingDisputeBanner,
+  type BookingDisputeBannerProps,
+} from "./components/booking-dispute-banner.js"
+export {
   BookingDocumentDialog,
   type BookingDocumentDialogProps,
 } from "./components/booking-document-dialog.js"

@@ -50,6 +50,7 @@ export {
   invoiceTemplates,
   paymentAuthorizations,
   paymentCaptures,
+  paymentDisputes,
   paymentInstruments,
   paymentSessions,
   payments,

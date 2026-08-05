@@ -153,6 +153,23 @@ export const bookingsUiEnOperations = {
       },
     },
   },
+  bookingDisputeBanner: {
+    title: "Payment disputed",
+    description:
+      "The customer has contested a payment on this booking. The money is withdrawn or held until it resolves, so this booking is not cleanly paid.",
+    contested: "Contested",
+    respondBy: "Respond by",
+    noDeadline: "No deadline given",
+    statuses: {
+      opened: "Opened",
+      under_review: "Under review",
+      won: "Won",
+      lost: "Lost",
+      withdrawn: "Withdrawn",
+    },
+    resolvedTitle: "Past payment disputes",
+    resolvedDescription: "Every dispute on this booking has resolved. Nothing is contested now.",
+  },
   bookingPaymentReconciliationBanner: {
     title: "Payment reconciliation",
     loading: "Checking payment sources...",

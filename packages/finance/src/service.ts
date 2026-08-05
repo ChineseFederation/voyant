@@ -4,6 +4,7 @@ import { costCategoriesService } from "./service-cost-categories.js"
 import { financeInvoiceArtifactService } from "./service-invoice-artifacts.js"
 import { financeInvoiceNumberingService } from "./service-invoice-numbering.js"
 import { financeInvoiceService } from "./service-invoices.js"
+import { financePaymentDisputeService } from "./service-payment-disputes.js"
 import { financePaymentProcessingService } from "./service-payment-processing.js"
 import {
   getDepartureProfitability,
@@ -24,6 +25,7 @@ export const financeService = {
   getProductProfitability,
   getTravelerProfitability,
   costCategories: costCategoriesService,
+  paymentDisputes: financePaymentDisputeService,
   ...financePaymentProcessingService,
   ...financeBookingBillingService,
   ...financeReportService,

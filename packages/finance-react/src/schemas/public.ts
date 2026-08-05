@@ -12,6 +12,10 @@ import {
   publicTravelCreditValidationSchema,
   publicValidateTravelCreditSchema,
 } from "@voyant-travel/finance/public-validation"
+import {
+  bookingPaymentDisputesSchema,
+  paymentDisputeRecordSchema,
+} from "@voyant-travel/finance/validation"
 import type { z } from "zod"
 
 import { singleEnvelope } from "./common.js"
@@ -40,6 +44,8 @@ export const publicBookingFinancePaymentsResponse = singleEnvelope(
   publicBookingFinancePaymentsSchema,
 )
 export const publicPaymentSessionResponse = singleEnvelope(publicPaymentSessionSchema)
+export { bookingPaymentDisputesSchema, paymentDisputeRecordSchema }
+export const bookingPaymentDisputesResponse = singleEnvelope(bookingPaymentDisputesSchema)
 export const publicTravelCreditValidationResponse = singleEnvelope(
   publicTravelCreditValidationSchema,
 )
@@ -56,6 +62,8 @@ export type PublicBookingFinancePaymentsRecord = z.infer<typeof publicBookingFin
 export type PublicFinanceBookingDocumentRecord = z.infer<typeof publicFinanceBookingDocumentSchema>
 export type PublicFinanceBookingPaymentRecord = z.infer<typeof publicFinanceBookingPaymentSchema>
 export type PublicPaymentSessionRecord = z.infer<typeof publicPaymentSessionSchema>
+export type PaymentDisputeRecord = z.infer<typeof paymentDisputeRecordSchema>
+export type BookingPaymentDisputesRecord = z.infer<typeof bookingPaymentDisputesSchema>
 export type PublicStartPaymentSessionInput = z.input<typeof publicStartPaymentSessionSchema>
 export type PublicValidateTravelCreditInput = z.input<typeof publicValidateTravelCreditSchema>
 export type PublicTravelCreditValidationRecord = z.infer<typeof publicTravelCreditValidationSchema>

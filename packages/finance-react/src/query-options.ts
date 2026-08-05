@@ -475,6 +475,7 @@ export {
   getAccountantSharesQueryOptions,
   getAccountantSummaryQueryOptions,
   getAdminBookingPaymentsQueryOptions,
+  getBookingPaymentDisputesQueryOptions,
   getCostCategoriesQueryOptions,
   getDepartureProfitabilityQueryOptions,
   getProductProfitabilityQueryOptions,

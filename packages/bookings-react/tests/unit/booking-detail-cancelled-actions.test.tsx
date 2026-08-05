@@ -78,6 +78,11 @@ vi.mock("../../src/components/booking-cancellation-dialog.js", () => ({
   BookingCancellationDialog: () => null,
 }))
 vi.mock("../../src/components/booking-dialog.js", () => ({ BookingDialog: () => null }))
+// Mocked like every other child: the banner is a react-query consumer and this
+// suite renders the page bare, without a QueryClientProvider.
+vi.mock("../../src/components/booking-dispute-banner.js", () => ({
+  BookingDisputeBanner: () => <div />,
+}))
 vi.mock("../../src/components/booking-group-section.js", () => ({
   BookingGroupSection: () => <div />,
 }))

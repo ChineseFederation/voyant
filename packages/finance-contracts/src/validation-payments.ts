@@ -1,3 +1,4 @@
+import { booleanQueryParam } from "@voyant-travel/schema-kit/query-params"
 import { z } from "zod"
 
 import {
@@ -9,6 +10,7 @@ import {
   paymentAuthorizationStatusSchema,
   paymentCaptureStatusSchema,
   paymentCheckoutSchema,
+  paymentDisputeStatusSchema,
   paymentInstrumentOwnerTypeSchema,
   paymentInstrumentStatusSchema,
   paymentInstrumentTypeSchema,
@@ -508,3 +510,111 @@ export const paymentListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 })
+
+// ---------- card disputes (voyant#4289) ----------
+
+/**
+ * Recording a chargeback against the payment session it contests.
+ *
+ * `processorReference` is the processor's own opaque id for the dispute and is
+ * what makes a repeated report update the record it already made. Omitting it —
+ * an operator typing in a dispute they saw in a console — always opens a new
+ * record, which is the safe default: two rows are recoverable, a silently
+ * overwritten dispute is not.
+ *
+ * `currency` defaults to the contested session's currency. Supply it only when
+ * the processor states the contested sum in a different settlement currency.
+ */
+export const recordPaymentDisputeSchema = z.object({
+  paymentSessionId: z.string().min(1),
+  processorReference: z.string().max(255).optional().nullable(),
+  status: paymentDisputeStatusSchema.default("opened"),
+  amountCents: z.number().int().min(1),
+  currency: z.string().min(3).max(3).optional().nullable(),
+  openedAt: z.string().optional().nullable(),
+  respondBy: z.string().optional().nullable(),
+  reasonCode: z.string().max(255).optional().nullable(),
+  resolvedAt: z.string().optional().nullable(),
+  resolutionNote: z.string().max(2000).optional().nullable(),
+  evidenceSubmittedAt: z.string().optional().nullable(),
+  provider: z.string().max(255).optional().nullable(),
+  providerConnectionId: z.string().max(255).optional().nullable(),
+  notes: z.string().optional().nullable(),
+  providerPayload: z.record(z.string(), z.unknown()).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+})
+
+/**
+ * Advancing a dispute already on record. The contested amount and the session
+ * it is bound to are fixed at open time — a different amount is a different
+ * dispute.
+ */
+export const updatePaymentDisputeSchema = z.object({
+  status: paymentDisputeStatusSchema.optional(),
+  respondBy: z.string().optional().nullable(),
+  reasonCode: z.string().max(255).optional().nullable(),
+  resolvedAt: z.string().optional().nullable(),
+  resolutionNote: z.string().max(2000).optional().nullable(),
+  evidenceSubmittedAt: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional().nullable(),
+})
+
+export const paymentDisputeListQuerySchema = paginationSchema.extend({
+  bookingId: z.string().optional(),
+  paymentSessionId: z.string().optional(),
+  invoiceId: z.string().optional(),
+  status: paymentDisputeStatusSchema.optional(),
+  /** `true` narrows to unresolved disputes, `false` to resolved ones. */
+  open: booleanQueryParam.optional(),
+  provider: z.string().optional(),
+  processorReference: z.string().optional(),
+})
+
+/**
+ * The dispute row as it serializes over the wire. §17: timestamp columns become
+ * strings; `*Cents` columns stay numbers.
+ */
+export const paymentDisputeRecordSchema = z.object({
+  id: z.string(),
+  paymentSessionId: z.string(),
+  bookingId: z.string().nullable(),
+  invoiceId: z.string().nullable(),
+  paymentId: z.string().nullable(),
+  status: paymentDisputeStatusSchema,
+  amountCents: z.number().int(),
+  currency: z.string(),
+  openedAt: z.string(),
+  respondBy: z.string().nullable(),
+  processorReference: z.string().nullable(),
+  provider: z.string().nullable(),
+  providerConnectionId: z.string().nullable(),
+  reasonCode: z.string().nullable(),
+  resolvedAt: z.string().nullable(),
+  resolutionNote: z.string().nullable(),
+  evidenceSubmittedAt: z.string().nullable(),
+  notes: z.string().nullable(),
+  providerPayload: z.record(z.string(), z.unknown()).nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+/**
+ * What a booking's payments cannot say on their own. A contested payment still
+ * reads `paid`, so `hasOpenDispute` is how a caller tells a cleanly paid booking
+ * from one whose money is being taken back.
+ */
+export const bookingPaymentDisputesSchema = z.object({
+  bookingId: z.string(),
+  disputes: z.array(paymentDisputeRecordSchema),
+  hasOpenDispute: z.boolean(),
+  openContestedAmountsByCurrency: z.record(z.string(), z.number().int()),
+  nextRespondBy: z.string().nullable(),
+})
+
+export type PaymentDisputeRecord = z.infer<typeof paymentDisputeRecordSchema>
+export type BookingPaymentDisputes = z.infer<typeof bookingPaymentDisputesSchema>
+export type RecordPaymentDisputeInput = z.infer<typeof recordPaymentDisputeSchema>
+export type UpdatePaymentDisputeInput = z.infer<typeof updatePaymentDisputeSchema>
+export type PaymentDisputeListQuery = z.infer<typeof paymentDisputeListQuerySchema>

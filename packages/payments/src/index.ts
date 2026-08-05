@@ -24,9 +24,67 @@ export type PaymentSessionState =
   | "cancelled"
   | "expired"
 
+/**
+ * The lifecycle of a contested card payment.
+ *
+ * A chargeback is a generic commerce event: every card processor produces one,
+ * a payment is contested, funds are withdrawn or held, there is a window to
+ * respond, and it resolves for or against the merchant. The vocabulary here is
+ * the framework's, not any processor's — an adapter maps its own stage names
+ * onto these five values.
+ *
+ * `won`, `lost` and `withdrawn` are the resolutions; the other two are open.
+ */
+export const PAYMENT_DISPUTE_STATUSES = [
+  "opened",
+  "under_review",
+  "won",
+  "lost",
+  "withdrawn",
+] as const
+export type PaymentDisputeStatus = (typeof PAYMENT_DISPUTE_STATUSES)[number]
+
+export const PAYMENT_DISPUTE_RESOLUTIONS = ["won", "lost", "withdrawn"] as const
+export type PaymentDisputeResolution = (typeof PAYMENT_DISPUTE_RESOLUTIONS)[number]
+
+/** Whether a dispute status is terminal, and which resolution it names. */
+export function paymentDisputeResolution(
+  status: PaymentDisputeStatus,
+): PaymentDisputeResolution | null {
+  return (PAYMENT_DISPUTE_RESOLUTIONS as readonly string[]).includes(status)
+    ? (status as PaymentDisputeResolution)
+    : null
+}
+
 export interface PaymentMoney {
   amountMinor: number
   currency: string
+}
+
+/**
+ * A dispute against a payment, as an adapter observed it.
+ *
+ * The framework records this; it never assembles or submits evidence, which is
+ * processor-specific and stays behind the adapter. `evidenceSubmittedAt` is the
+ * whole of what it learns about that — that something was submitted, and when.
+ *
+ * `processorDisputeId` is opaque and is what makes a repeated callback update
+ * the dispute it already recorded instead of opening a second one. A genuinely
+ * second dispute against the same payment carries a different id and becomes a
+ * second record.
+ */
+export interface PaymentDisputeSignal {
+  processorDisputeId: string
+  status: PaymentDisputeStatus
+  /** The contested amount, which may be less than the payment. */
+  money: PaymentMoney
+  openedAt: string
+  /** The processor's deadline to respond, where it supplies one. */
+  respondBy?: string | null
+  /** The processor's own reason label. Recorded verbatim, never parsed. */
+  reasonCode?: string | null
+  resolvedAt?: string | null
+  evidenceSubmittedAt?: string | null
 }
 
 export interface PaymentProcessorIdentity {
@@ -306,6 +364,14 @@ export interface PaymentCallbackEvent {
   processorPaymentId?: string | null
   processorIdentity?: PaymentProcessorIdentity
   money?: PaymentMoney
+  /**
+   * A dispute this event opens or advances.
+   *
+   * A chargeback does not move the payment's own lifecycle — the money was
+   * taken and the session stays `paid` — so a dispute callback reports the
+   * session's current state in `nextState` and puts what changed here.
+   */
+  dispute?: PaymentDisputeSignal
   idempotencyKey: string
   raw?: unknown
 }

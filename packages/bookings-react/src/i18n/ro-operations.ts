@@ -152,6 +152,24 @@ export const bookingsUiRoOperations = {
       },
     },
   },
+  bookingDisputeBanner: {
+    title: "Plata contestata",
+    description:
+      "Clientul a contestat o plata de pe aceasta rezervare. Banii sunt retrasi sau blocati pana la solutionare, deci rezervarea nu este achitata curat.",
+    contested: "Contestat",
+    respondBy: "Raspunde pana la",
+    noDeadline: "Fara termen comunicat",
+    statuses: {
+      opened: "Deschisa",
+      under_review: "In analiza",
+      won: "Castigata",
+      lost: "Pierduta",
+      withdrawn: "Retrasa",
+    },
+    resolvedTitle: "Contestatii anterioare",
+    resolvedDescription:
+      "Toate contestatiile de pe aceasta rezervare s-au solutionat. Nimic nu este contestat acum.",
+  },
   bookingPaymentReconciliationBanner: {
     title: "Reconciliere plati",
     loading: "Se verifica sursele de plata...",

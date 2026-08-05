@@ -148,6 +148,22 @@ export type BookingsUiOperationsMessages = {
       }
     }
   }
+  bookingDisputeBanner: {
+    title: string
+    description: string
+    contested: string
+    respondBy: string
+    noDeadline: string
+    statuses: {
+      opened: string
+      under_review: string
+      won: string
+      lost: string
+      withdrawn: string
+    }
+    resolvedTitle: string
+    resolvedDescription: string
+  }
   bookingPaymentReconciliationBanner: {
     title: string
     loading: string

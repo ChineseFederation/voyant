@@ -418,6 +418,30 @@ export const financeVoyantModule = defineModule({
       risk: "high",
     },
     {
+      id: "@voyant-travel/finance#tool.record-payment-dispute",
+      name: "record_payment_dispute",
+      runtime: {
+        entry: "@voyant-travel/finance/tools",
+        export: "recordPaymentDisputeTool",
+      },
+      requiredScopes: ["finance:write"],
+      context: ["finance"],
+      // `medium`, not `high`: recording a chargeback is a factual record of
+      // something a processor already did. No money moves here — the money
+      // moved when the card issuer pulled it — so what this changes is what the
+      // booking honestly reports, which is the point.
+      risk: "medium",
+      // Declared rather than inferred: the trailing noun of `/finance/payments`
+      // and `/finance/invoices/{id}/payments` is also `payment`, so the name
+      // match reported recording a *payment* as covered by a Tool that only
+      // records a dispute against one. This Tool fronts the dispute endpoints
+      // and nothing else.
+      adminWrites: [
+        "/v1/admin/finance/payment-disputes",
+        "/v1/admin/finance/payment-disputes/{id}",
+      ],
+    },
+    {
       id: "@voyant-travel/finance#tool.preview-unsynced-proforma-from-booking",
       name: "preview_unsynced_proforma_from_booking",
       runtime: {
@@ -479,6 +503,30 @@ export const financeVoyantModule = defineModule({
       targetLifecycle: "existing",
       existingTarget: { durability: "handler-command-result-v1" },
       from: { tools: ["@voyant-travel/finance#tool.issue-invoice-refund"] },
+    },
+    {
+      id: "@voyant-travel/finance#action.record-payment-dispute",
+      capabilityId: "finance:payment-dispute-record",
+      version: "v1",
+      kind: "execute",
+      targetType: "payment_session",
+      commandTargetField: "paymentSessionId",
+      resource: "finance",
+      action: "write",
+      requiredScopes: ["finance:write"],
+      risk: "medium",
+      ledger: "required",
+      // `never`: the contest already happened at the processor and the record
+      // only catches up with it. Gating that behind an approval would stall a
+      // reconciliation sweep while the booking kept claiming money it no longer
+      // holds — the exact failure this record exists to end.
+      approval: "never",
+      reversible: false,
+      allowedActorTypes: ["staff", "system"],
+      availability: { status: "available" },
+      effectBoundary: "local",
+      targetLifecycle: "existing",
+      from: { tools: ["@voyant-travel/finance#tool.record-payment-dispute"] },
     },
     {
       id: "@voyant-travel/finance#action.issue-invoice-from-booking",

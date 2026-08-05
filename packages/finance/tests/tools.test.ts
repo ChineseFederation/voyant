@@ -118,8 +118,15 @@ describe("finance tools", () => {
       "issue_unsynced_proforma_from_booking",
       "list_invoices",
       "preview_unsynced_proforma_from_booking",
+      "record_payment_dispute",
       "void_invoice",
     ])
+    const disputeTool = list.find((t) => t.name === "record_payment_dispute")
+    expect(disputeTool).toMatchObject({
+      tier: "write",
+      requiredScopes: ["finance:write"],
+      riskPolicy: { destructive: false, confirmationRequired: true },
+    })
     const voidTool = list.find((t) => t.name === "void_invoice")
     expect(voidTool?.tier).toBe("destructive")
     expect(voidTool?.requiredScopes).toEqual(["finance:void"])

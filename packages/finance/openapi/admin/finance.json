@@ -36729,6 +36729,1336 @@
         "x-voyant-module": "finance",
         "x-voyant-surface": "admin"
       }
+    },
+    "/v1/admin/finance/payment-disputes": {
+      "get": {
+        "description": "Card disputes (chargebacks), newest first. Unrelated to the `disputed` supplier-invoice status, which is an accounts-payable state.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "bookingId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "paymentSessionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "invoiceId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "opened",
+                "under_review",
+                "won",
+                "lost",
+                "withdrawn"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "open",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "provider",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "processorReference",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card disputes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "paymentSessionId": {
+                            "type": "string"
+                          },
+                          "bookingId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "invoiceId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "paymentId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "opened",
+                              "under_review",
+                              "won",
+                              "lost",
+                              "withdrawn"
+                            ]
+                          },
+                          "amountCents": {
+                            "type": "integer"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "openedAt": {
+                            "type": "string"
+                          },
+                          "respondBy": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "processorReference": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "provider": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "providerConnectionId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reasonCode": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "resolvedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "resolutionNote": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "evidenceSubmittedAt": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "notes": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "providerPayload": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "metadata": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "paymentSessionId",
+                          "bookingId",
+                          "invoiceId",
+                          "paymentId",
+                          "status",
+                          "amountCents",
+                          "currency",
+                          "openedAt",
+                          "respondBy",
+                          "processorReference",
+                          "provider",
+                          "providerConnectionId",
+                          "reasonCode",
+                          "resolvedAt",
+                          "resolutionNote",
+                          "evidenceSubmittedAt",
+                          "notes",
+                          "providerPayload",
+                          "metadata",
+                          "createdAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "total",
+                    "limit",
+                    "offset"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminFinancePaymentDisputes",
+        "summary": "GET /v1/admin/finance/payment-disputes",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      },
+      "post": {
+        "description": "Record a chargeback against the payment session it contests. Idempotent on `(paymentSessionId, processorReference)`: a repeat report advances the dispute it already recorded, and a different reference opens a second one.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paymentSessionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "processorReference": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "opened",
+                      "under_review",
+                      "won",
+                      "lost",
+                      "withdrawn"
+                    ],
+                    "default": "opened"
+                  },
+                  "amountCents": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "currency": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 3,
+                    "maxLength": 3
+                  },
+                  "openedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "respondBy": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reasonCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "resolvedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "resolutionNote": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  },
+                  "evidenceSubmittedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "provider": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "providerConnectionId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "providerPayload": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "paymentSessionId",
+                  "amountCents"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The recorded dispute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "paymentSessionId": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "opened",
+                            "under_review",
+                            "won",
+                            "lost",
+                            "withdrawn"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "openedAt": {
+                          "type": "string"
+                        },
+                        "respondBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reasonCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolvedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolutionNote": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "evidenceSubmittedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "paymentSessionId",
+                        "bookingId",
+                        "invoiceId",
+                        "paymentId",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "openedAt",
+                        "respondBy",
+                        "processorReference",
+                        "provider",
+                        "providerConnectionId",
+                        "reasonCode",
+                        "resolvedAt",
+                        "resolutionNote",
+                        "evidenceSubmittedAt",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The contested payment session does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The contested amount exceeds the payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "code"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "postAdminFinancePaymentDisputes",
+        "summary": "POST /v1/admin/finance/payment-disputes",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/finance/payment-disputes/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The dispute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "paymentSessionId": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "opened",
+                            "under_review",
+                            "won",
+                            "lost",
+                            "withdrawn"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "openedAt": {
+                          "type": "string"
+                        },
+                        "respondBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reasonCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolvedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolutionNote": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "evidenceSubmittedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "paymentSessionId",
+                        "bookingId",
+                        "invoiceId",
+                        "paymentId",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "openedAt",
+                        "respondBy",
+                        "processorReference",
+                        "provider",
+                        "providerConnectionId",
+                        "reasonCode",
+                        "resolvedAt",
+                        "resolutionNote",
+                        "evidenceSubmittedAt",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminFinancePaymentDisputesById",
+        "summary": "GET /v1/admin/finance/payment-disputes/{id}",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      },
+      "patch": {
+        "description": "Advance a dispute. `won`, `lost` and `withdrawn` are terminal and stamp `resolvedAt`; a processor that contests the payment again issues a new dispute rather than reviving this one.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "opened",
+                      "under_review",
+                      "won",
+                      "lost",
+                      "withdrawn"
+                    ]
+                  },
+                  "respondBy": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reasonCode": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 255
+                  },
+                  "resolvedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "resolutionNote": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 2000
+                  },
+                  "evidenceSubmittedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "notes": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "metadata": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated dispute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "paymentSessionId": {
+                          "type": "string"
+                        },
+                        "bookingId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "invoiceId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "paymentId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "opened",
+                            "under_review",
+                            "won",
+                            "lost",
+                            "withdrawn"
+                          ]
+                        },
+                        "amountCents": {
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "openedAt": {
+                          "type": "string"
+                        },
+                        "respondBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "processorReference": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "provider": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerConnectionId": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reasonCode": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolvedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "resolutionNote": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "evidenceSubmittedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "notes": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "providerPayload": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "metadata": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "paymentSessionId",
+                        "bookingId",
+                        "invoiceId",
+                        "paymentId",
+                        "status",
+                        "amountCents",
+                        "currency",
+                        "openedAt",
+                        "respondBy",
+                        "processorReference",
+                        "provider",
+                        "providerConnectionId",
+                        "reasonCode",
+                        "resolvedAt",
+                        "resolutionNote",
+                        "evidenceSubmittedAt",
+                        "notes",
+                        "providerPayload",
+                        "metadata",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dispute not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The dispute cannot move to that status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "code"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "patchAdminFinancePaymentDisputesById",
+        "summary": "PATCH /v1/admin/finance/payment-disputes/{id}",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      }
+    },
+    "/v1/admin/finance/bookings/{bookingId}/disputes": {
+      "get": {
+        "description": "What a booking's payments cannot say on their own. A contested payment still reads `paid`, so `hasOpenDispute` is how a caller tells a cleanly paid booking from one whose money is being taken back.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "bookingId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The booking's disputes and what is still contested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookingId": {
+                          "type": "string"
+                        },
+                        "disputes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "paymentSessionId": {
+                                "type": "string"
+                              },
+                              "bookingId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "invoiceId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "paymentId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "opened",
+                                  "under_review",
+                                  "won",
+                                  "lost",
+                                  "withdrawn"
+                                ]
+                              },
+                              "amountCents": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "openedAt": {
+                                "type": "string"
+                              },
+                              "respondBy": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "processorReference": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "provider": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "providerConnectionId": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "reasonCode": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "resolvedAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "resolutionNote": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "evidenceSubmittedAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "notes": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "providerPayload": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              "metadata": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "additionalProperties": {}
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "paymentSessionId",
+                              "bookingId",
+                              "invoiceId",
+                              "paymentId",
+                              "status",
+                              "amountCents",
+                              "currency",
+                              "openedAt",
+                              "respondBy",
+                              "processorReference",
+                              "provider",
+                              "providerConnectionId",
+                              "reasonCode",
+                              "resolvedAt",
+                              "resolutionNote",
+                              "evidenceSubmittedAt",
+                              "notes",
+                              "providerPayload",
+                              "metadata",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "hasOpenDispute": {
+                          "type": "boolean"
+                        },
+                        "openContestedAmountsByCurrency": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "integer"
+                          }
+                        },
+                        "nextRespondBy": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "bookingId",
+                        "disputes",
+                        "hasOpenDispute",
+                        "openContestedAmountsByCurrency",
+                        "nextRespondBy"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "operationId": "getAdminFinanceBookingsByBookingIdDisputes",
+        "summary": "GET /v1/admin/finance/bookings/{bookingId}/disputes",
+        "tags": [
+          "finance"
+        ],
+        "x-voyant-module": "finance",
+        "x-voyant-surface": "admin"
+      }
     }
   },
   "webhooks": {}
