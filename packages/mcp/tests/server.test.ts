@@ -1254,6 +1254,38 @@ describe("createMcpApiRoutes", () => {
     expect(bothExposed).toContain("sensitive_record")
   })
 
+  it("accepts a client-namespaced tool name without costing a round trip", async () => {
+    // Models routinely emit `functions.<tool>` — an artifact of their own
+    // tool-calling layer, not of this surface. Measured against the real graph it
+    // cost a wasted call in nearly every write journey: dispatch failed, the agent
+    // read the "call it as X" hint, and repeated itself. Unambiguous to accept,
+    // because no tool name here contains a dot.
+    const app = appWithScopes(["products:read", "secrets:read"])
+    const res = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", {
+          name: "call_tool",
+          arguments: { name: "functions.test_query", arguments: { resource: "echoes" } },
+        }),
+      ),
+    )
+    expect((res.result as { isError?: boolean })?.isError).not.toBe(true)
+  })
+
+  it("still reports the name the caller actually sent when it cannot resolve", async () => {
+    // The hint is only useful if it echoes what was typed; resolving internally
+    // must not rewrite the error into a name the caller never used.
+    const app = appWithScopes(["products:read"])
+    const res = await readRpc(
+      await app.request(
+        "/",
+        rpc("tools/call", { name: "call_tool", arguments: { name: "functions.nope_at_all" } }),
+      ),
+    )
+    expect(JSON.stringify(res.result)).toContain("functions.nope_at_all")
+  })
+
   it("narrows a query descriptor to one resource when describe_tool is given one", () => {
     // Collapsing the reads (voyant#3932) moved the discovery bill rather than
     // removing it: a query descriptor is the union of every member's input schema,

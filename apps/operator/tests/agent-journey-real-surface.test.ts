@@ -234,6 +234,26 @@ function formatReport(scores: readonly DiscoveryScore[]): string {
  * when each journey discovered and described one FLAT read (`get_booking` alone
  * was ~12,700, dominated by its full Booking output schema).
  *
+ * LOWERED 56,000 → 48,000: measured 43,730. The ceiling went up for the search
+ * vocabulary and has come back down further than it rose, because the query
+ * projection stopped repeating the `_voyant` control object once per union
+ * branch — `bookings_query` was carrying it 22 times for a read-only tool that
+ * cannot use any of those controls. Ratchets only shrink; this one shrank.
+ *
+ * RAISED 45,000 → 56,000 when the search vocabulary landed (voyant#3921).
+ * Measured 38,587 → 48,184, a deliberate +25%: expanding a query through the
+ * ubiquitous-language aliases MATCHES MORE TOOLS, so every `search_tools`
+ * response is larger. That is the mechanism, not a side effect — before it, an
+ * agent asked to add a client got one irrelevant hit and reported the capability
+ * did not exist. Five of the six capability journeys go from failing or
+ * error-retrying to clean first-try completion on the back of it.
+ *
+ * This is the trade #3921 asks for in that order: capability first, then cost.
+ * The narrowed-describe column in the report shows 28,307 for the same set, so
+ * the per-call lever still works; what grew is discovery breadth. If this needs
+ * winning back, cap the default `search_tools` limit rather than narrowing the
+ * vocabulary — the vocabulary is what makes the surface findable at all.
+ *
  * The layered read projection (voyant#3932) then collapsed the ~133 reads into
  * ~24 `<domain>_query` tools: a journey now describes the query tool for the
  * record it wants, which advertises the union of its resources' compact INPUT
@@ -243,7 +263,7 @@ function formatReport(scores: readonly DiscoveryScore[]): string {
  * drift (a broad `search_tools` over the many booking WRITE tools is the largest
  * remaining line), while still tripping if a describe payload balloons again.
  */
-const DISCOVERY_TOKEN_CEILING = 45_000
+const DISCOVERY_TOKEN_CEILING = 48_000
 
 /**
  * This hook composes the whole selected graph and runs every journey, which

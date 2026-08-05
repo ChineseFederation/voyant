@@ -55,6 +55,7 @@ export {
   type HandlerAdmissionIdentityHint,
   withServerResolvedIdempotencyKey,
 } from "./handler-action-policy.js"
+export { boundedEditDistance, findNearMatches, type NearMatches } from "./near-matches.js"
 export {
   assertSingleToolsPackageInstance,
   DUPLICATE_TOOLS_INSTANCE_REMEDIATION,

@@ -20,6 +20,7 @@ import { z } from "@hono/zod-openapi"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import {
+  findNearMatches,
   type ToolContext,
   ToolError,
   type ToolManifestEntry,
@@ -41,6 +42,7 @@ import {
 import { toMcpMeta } from "./register.js"
 import { DEFAULT_RESPONSE_BUDGET_BYTES, isListShapedOutput } from "./response-budget.js"
 import { toMcpInputSchema, toMcpOutputContract } from "./schema-projection.js"
+import { expandSearchTerm } from "./vocabulary.js"
 
 export { toolDomain } from "./read-projection.js"
 
@@ -173,10 +175,11 @@ function registerSearchTools({ server, surface, projection }: RegisterMetaToolsI
     {
       description:
         "Find tools by keyword and/or domain. Reads are grouped into one " +
-        "`<domain>_query` tool per product area — search for the record you want " +
-        "(e.g. `products`, `bookings`) to find its query tool. Returns names and " +
-        "one-line descriptions only — call describe_tool for a tool's full input " +
-        "schema, then call_tool (or the flat tool name) to run it.",
+        "`<domain>_query` tool per product area — search for the KIND of record you " +
+        "want (e.g. `products`, `bookings`, not an individual record's name) to find " +
+        "its query tool, then call that tool to look up the individual record. " +
+        "Returns names and one-line descriptions only — call describe_tool for a " +
+        "tool's full input schema, then call_tool (or the flat tool name) to run it.",
       inputSchema: z.object({
         query: z.string().trim().optional(),
         domain: z.string().trim().optional(),
@@ -242,21 +245,54 @@ function searchTools(
   const domain = args.domain?.toLowerCase().trim()
   const limit = Math.min(args.limit ?? DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT)
 
+  // Expand each term through the ubiquitous-language aliases before matching, so
+  // a caller using the BUSINESS word reaches the tool named after the domain
+  // word. Without this, "add a client" found nothing while `create_person` sat
+  // in the registry — see vocabulary.ts. A term stays itself when unknown, and
+  // a term matches if ANY of its expansions appears, so this only ever widens.
+  const expanded = terms.map((term) => expandSearchTerm(term))
+
   const matches: Array<SearchCandidate & { score: number }> = []
   for (const candidate of discoverableCandidates(surface, projection)) {
     if (domain && candidate.domain.toLowerCase() !== domain) continue
-    const haystack = `${candidate.name} ${candidate.description} ${candidate.domain}`.toLowerCase()
-    if (terms.length > 0 && !terms.every((term) => haystack.includes(term))) continue
-    matches.push({ ...candidate, score: scoreCandidate(candidate, terms) })
+    const haystack =
+      `${candidate.name} ${candidate.description} ${candidate.domain} ${(candidate.keywords ?? []).join(" ")}`.toLowerCase()
+    if (
+      expanded.length > 0 &&
+      !expanded.every((forms) => forms.some((f) => haystack.includes(f)))
+    ) {
+      continue
+    }
+    matches.push({ ...candidate, score: scoreCandidate(candidate, expanded) })
   }
 
   matches.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
   const returned = matches.slice(0, limit)
+
+  // A zero-hit search used to return a bare `{ total: 0, tools: [] }`, which a
+  // model reads as "the thing you asked about does not exist".
+  //
+  // Observed in the live-client eval (voyant#3936): asked for one seeded product
+  // by name, the model searched three times with progressively shorter queries
+  // and then told the user there were "no available records for a Kyoto Cherry
+  // Blossom Tour in the system" — a false negative stated as fact, about a record
+  // that was right there. It had mistaken this for a search over DATA.
+  //
+  // Adding advisory prose was tried first and made it WORSE: the model persisted
+  // to nine calls, cycling the same queries, and still never read the advice. A
+  // dead end is not fixed by explaining the dead end. What a model acts on is
+  // TOOLS, in the field it already knows how to read — so a no-hit search falls
+  // back to the query tools, which is the answer to "where do I look for a
+  // record" in the only vocabulary the caller is already using.
+  const fellBack = matches.length === 0 && !args.domain
+  const fallback = fellBack ? queryToolCandidates(projection) : []
+
   const payload = {
     total: matches.length,
     returned: returned.length,
     truncated: matches.length > returned.length,
-    tools: returned.map(({ score: _score, ...tool }) => tool),
+    tools: fellBack ? fallback : returned.map(({ score: _score, ...tool }) => tool),
+    ...(fellBack ? { howToFindARecord: recordLookupGuidance() } : {}),
   }
   return {
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
@@ -264,12 +300,48 @@ function searchTools(
   }
 }
 
-/** Rank an exact/prefix name match above a substring match above a description-only hit. */
-function scoreMatch(name: string, terms: readonly string[]): number {
-  if (terms.length === 0) return 0
+/**
+ * The instruction a no-hit search returns alongside the query tools.
+ *
+ * Kept deliberately short. Three progressively more elaborate versions were tried
+ * against live models (voyant#3936) — an advisory `noMatch` block, an
+ * `exactMatch: false` flag, a worked example — and none of them changed what the
+ * model did. Prose in the response is not the lever; what measurably helped was
+ * putting usable TOOLS in `tools` where a caller already looks. So this says the
+ * one thing the payload cannot say structurally, and stops.
+ */
+function recordLookupGuidance(): Record<string, unknown> {
+  return {
+    instruction:
+      "Individual records are looked up through the query tools listed in `tools`, not by " +
+      "searching here. Pick the tool for the kind of record you want, set its `resource`, and " +
+      "use that resource's own filters (many accept a `search` or name filter).",
+  }
+}
+
+/** The per-domain query tools, as search candidates — the record-lookup entry points. */
+function queryToolCandidates(projection: ReadProjection): SearchCandidate[] {
+  return [...projection.queryTools.values()]
+    .map((queryTool) => ({
+      name: queryTool.name,
+      description: queryToolDescription(queryTool),
+      domain: queryTool.domain,
+      tier: "read",
+      keywords: queryTool.resources.map((member) => member.resource),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Rank an exact/prefix name match above a substring match above a
+ * description-only hit. Each entry of `termGroups` is one search term and its
+ * vocabulary expansions; the term counts as present when ANY form matches.
+ */
+function scoreMatch(name: string, termGroups: readonly (readonly string[])[]): number {
+  if (termGroups.length === 0) return 0
   const lowered = name.toLowerCase()
-  if (terms.every((term) => lowered === term)) return 3
-  if (terms.every((term) => lowered.includes(term))) return 2
+  if (termGroups.every((forms) => forms.some((f) => lowered === f))) return 3
+  if (termGroups.every((forms) => forms.some((f) => lowered.includes(f)))) return 2
   return 1
 }
 
@@ -278,10 +350,13 @@ function scoreMatch(name: string, terms: readonly string[]): number {
  * tool's resource names), so a search for a record noun ranks the query tool as
  * highly as a write tool that carries the noun in its own name.
  */
-function scoreCandidate(candidate: SearchCandidate, terms: readonly string[]): number {
-  let best = scoreMatch(candidate.name, terms)
+function scoreCandidate(
+  candidate: SearchCandidate,
+  termGroups: readonly (readonly string[])[],
+): number {
+  let best = scoreMatch(candidate.name, termGroups)
   for (const keyword of candidate.keywords ?? []) {
-    best = Math.max(best, scoreMatch(keyword, terms))
+    best = Math.max(best, scoreMatch(keyword, termGroups))
     if (best === 3) break
   }
   return best
@@ -366,11 +441,13 @@ function describeTool(
       return errorResult(err)
     }
   }
-  const binding = surface.get(name)
+  const resolvedName = resolveInvocationName(surface, name)
+  const binding = surface.get(resolvedName)
   // A flat read name is folded into its query tool and no longer describable.
-  if (!binding || projection.hiddenReadNames.has(name)) return unknownToolResult(name)
+  if (!binding || projection.hiddenReadNames.has(resolvedName))
+    return unknownToolResult(name, surface, projection)
   try {
-    const descriptor = advertiseTool(registry, binding.entry, name, binding.aliasFor)
+    const descriptor = advertiseTool(registry, binding.entry, resolvedName, binding.aliasFor)
     return {
       content: [{ type: "text", text: JSON.stringify(descriptor, null, 2) }],
       structuredContent: descriptor,
@@ -398,8 +475,16 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
       annotations: { openWorldHint: true },
     },
     async (args) => {
+      // Tolerate a client namespace prefix before anything else, so both the
+      // query-tool route and the flat route see the same resolved name.
+      const invocationName = resolveInvocationName(surface, args.name)
+      const queryToolName = projection.queryToolFor(args.name)
+        ? args.name
+        : projection.queryToolFor(invocationName)
+          ? invocationName
+          : args.name
       // A query tool routes through the projection to the underlying read.
-      const queryTool = projection.queryToolFor(args.name)
+      const queryTool = projection.queryToolFor(queryToolName)
       if (queryTool) {
         const startedAt = now()
         const { result, member } = await dispatchQueryTool({
@@ -423,16 +508,21 @@ function registerCallTool(input: RegisterMetaToolsInput): void {
         }
         return result
       }
-      const binding = surface.get(args.name)
+      const binding = surface.get(invocationName)
       // A flat read name is folded into its query tool and no longer callable.
-      if (!binding || projection.hiddenReadNames.has(args.name)) return unknownToolResult(args.name)
+      if (!binding || projection.hiddenReadNames.has(invocationName))
+        return unknownToolResult(args.name, surface, projection)
       const def = registry.get(binding.entry.name)
-      if (!def) return unknownToolResult(args.name)
+      if (!def) return unknownToolResult(args.name, surface, projection)
       const output = toMcpOutputContract(def.outputSchema)
       const startedAt = now()
       const result = await dispatchToResult(
         registry,
-        args.name,
+        // The RESOLVED name. Passing the caller's namespaced form here sent
+        // `functions.publish_product` all the way to the registry, which cannot
+        // find it and answers with its own unknown-tool error — deeper, less
+        // helpful, and after the binding had already been resolved correctly.
+        invocationName,
         binding.entry,
         args.arguments ?? {},
         ctx,
@@ -470,11 +560,92 @@ function classifyDispatchResult(result: CallToolResult): {
 }
 
 /** The result for a name that is unknown OR filtered by the caller's scopes/audience. */
-function unknownToolResult(name: string): CallToolResult {
+/**
+ * The error a caller gets for a tool name that is not on its surface.
+ *
+ * Two recoveries are offered, because both failures were observed against a real
+ * model driving the real graph:
+ *
+ * 1. A NAMESPACED name. Asked to book a product, the model called
+ *    `functions.book_product` and `functions.inventory_query` — an artifact of
+ *    how its own tool-calling layer names things. Both are exact matches once the
+ *    prefix is dropped, but edit distance cannot see that: "functions." is ten
+ *    edits away, far outside any sane typo tolerance. So strip a leading
+ *    `segment.` and check for an exact hit first.
+ * 2. A near miss. Handled by the shared vocabulary-free matcher, which is the
+ *    right tool for a genuine typo.
+ *
+ * Without either, the caller gets "does not exist" and stops — which is what
+ * happened: the booking journey failed twice on names that were one prefix away
+ * from correct.
+ */
+
+/**
+ * Resolve a caller-supplied tool name against the surface, tolerating a client
+ * namespace prefix.
+ *
+ * Models routinely emit `functions.book_product` — an artifact of their own
+ * tool-calling layer, not of this surface. Measured against the real graph it
+ * cost a wasted round trip in nearly every write journey: the call failed, the
+ * agent read the "call it as X" hint, and repeated itself.
+ *
+ * Accepting the prefixed form is unambiguous because no tool name here contains
+ * a dot, so `a.b` can only ever be a namespaced `b`. The error path still exists
+ * for names that genuinely do not resolve — this just stops charging a round trip
+ * for a naming convention the caller cannot help.
+ */
+function resolveInvocationName(surface: AuthorizedSurface, name: string): string {
+  if (surface.has(name) || !name.includes(".")) return name
+  const unprefixed = name.split(".").pop() ?? name
+  return unprefixed.length > 0 ? unprefixed : name
+}
+
+function unknownToolResult(
+  name: string,
+  surface?: AuthorizedSurface,
+  projection?: ReadProjection,
+): CallToolResult {
+  // Meta-tool names belong in the candidate set too. The model namespaced
+  // `call_tool` itself — `functions.call_tool` — and the prefix strip found no
+  // match because the surface map holds only DOMAIN tools, so it got the generic
+  // "use search_tools" hint for a tool it was already holding correctly.
+  // The `<domain>_query` tools have to be in here too. They are the names an
+  // agent uses most, and they exist only in the projection — not in the surface
+  // map, which holds the raw reads they replace. Without them
+  // `functions.inventory_query` fell through to the generic "use search_tools"
+  // hint and the agent retried the identical call four times in a row.
+  const known = [
+    ...META_TOOL_NAMES,
+    ...(projection ? [...projection.queryTools.keys()] : []),
+    ...(surface ? [...surface.keys()] : []),
+  ]
+  const afterPrefix = name.includes(".") ? (name.split(".").pop() ?? "") : ""
+  const exactAfterPrefix = afterPrefix && known.includes(afterPrefix) ? afterPrefix : undefined
+  const near = exactAfterPrefix ? undefined : findNearMatches(name, known)
+
+  const suggestion =
+    exactAfterPrefix ??
+    near?.didYouMean ??
+    (near?.candidates.length ? near.candidates[0] : undefined)
+  const hint = exactAfterPrefix
+    ? ` Call it as "${exactAfterPrefix}" — this surface does not namespace tool names.`
+    : near?.didYouMean
+      ? ` Did you mean "${near.didYouMean}"?`
+      : near?.candidates.length
+        ? ` Close matches: ${near.candidates.join(", ")}.`
+        : " Use search_tools to find the tool you need."
+
   return errorResult(
     new ToolError(
-      `Tool "${name}" is not available. It does not exist or your grant does not authorize it.`,
+      `Tool "${name}" is not available. It does not exist or your grant does not authorize it.${hint}`,
       "NOT_FOUND",
+      undefined,
+      undefined,
+      {
+        ...(suggestion ? { didYouMean: suggestion } : {}),
+        ...(near?.candidates.length ? { candidates: near.candidates } : {}),
+        ...(exactAfterPrefix ? { candidates: [exactAfterPrefix] } : {}),
+      },
     ),
   )
 }

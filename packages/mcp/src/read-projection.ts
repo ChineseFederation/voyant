@@ -141,9 +141,16 @@ export function queryToolInputSchema(
     if (resource !== undefined && member.resource !== resource) continue
     const def = registry.get(member.entry.name)
     if (!def) continue
+    // Project WITHOUT the member's action metadata. `toMcpInputSchema` appends the
+    // `_voyant` control object, and in a discriminated union that object is
+    // repeated once per branch — `bookings_query` paid for it 22 times. A query
+    // tool is read-only and dispatches reads, so none of those controls apply to
+    // it; carrying them multiplied a constant across every member for no caller
+    // benefit. Dispatch is unaffected: the registry still validates each read's
+    // own untouched domain schema.
     const memberObject = toMcpInputSchema(
       def.inputSchema,
-      member.entry,
+      { ...member.entry, actionPolicy: undefined },
       isListShapedOutput(def.outputSchema),
     )
     branches.push(
@@ -168,10 +175,24 @@ export function queryToolInputSchema(
 export function queryToolDescription(queryTool: QueryTool, resource?: string): string {
   const resources = queryTool.resources.map((member) => member.resource).join(", ")
   if (resource !== undefined) {
+    // Narrowing hides the sibling resources' FIELDS, which is the point — but it
+    // also hid the one affordance an agent needs most. Measured against the real
+    // graph: asked to find a client by name, the agent narrowed to `person`
+    // (get-by-id), passed the name as an id, and reported the client did not
+    // exist — while `people` carried a `search` filter documented as "Search CRM
+    // people by name". The collection sibling is where lookup-by-anything lives,
+    // so when one exists, say so in the narrowed view rather than making the
+    // agent re-describe the whole union to discover it.
+    const collection = collectionSiblingOf(queryTool, resource)
     return (
       `Query ${queryTool.domain} read data for resource "${resource}". The input ` +
       `schema below is narrowed to this resource; pass "resource": "${resource}" ` +
-      `alongside its arguments. Other resources: ${resources}.`
+      `alongside its arguments.` +
+      (collection
+        ? ` To look a record up by name or any other filter rather than by id, ` +
+          `use resource "${collection}" instead.`
+        : "") +
+      ` Other resources: ${resources}.`
     )
   }
   return (
@@ -185,6 +206,31 @@ export function queryToolDescription(queryTool: QueryTool, resource?: string): s
 /** True when `resource` names a member of this query tool. */
 export function hasQueryResource(queryTool: QueryTool, resource: string): boolean {
   return queryTool.resources.some((member) => member.resource === resource)
+}
+
+/**
+ * The collection resource that lists what `resource` reads one of, when the pair
+ * exists — `person` → `people`, `booking` → `bookings`, `product` → `products`.
+ *
+ * Derived from the naming convention rather than declared, because the convention
+ * is what the projection already relies on: a read is `get_person` or
+ * `list_people` and the resource is the verb stripped off. Anything that does not
+ * match a known plural is left alone; a wrong suggestion is worse than none.
+ */
+export function collectionSiblingOf(queryTool: QueryTool, resource: string): string | undefined {
+  const names = new Set(queryTool.resources.map((member) => member.resource))
+  if (!names.has(resource)) return undefined
+  const candidates = [
+    `${resource}s`,
+    `${resource}es`,
+    resource.endsWith("y") ? `${resource.slice(0, -1)}ies` : undefined,
+    // Irregulars that actually occur in this domain.
+    resource === "person" ? "people" : undefined,
+  ]
+  for (const candidate of candidates) {
+    if (candidate && candidate !== resource && names.has(candidate)) return candidate
+  }
+  return undefined
 }
 
 /**
