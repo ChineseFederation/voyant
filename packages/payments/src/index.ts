@@ -200,7 +200,19 @@ export function isPaymentAdapterError(error: unknown): error is PaymentAdapterEr
 export interface PaymentInitiationInput {
   paymentSessionId: string
   money: PaymentMoney
+  /**
+   * What the shopper is being asked to pay for, in `locale`. A hosted-checkout
+   * provider renders this as the line item, and it is the only product-shaped
+   * field on this contract — a caller that sends an internal identifier here
+   * leaves the provider nothing else to show.
+   */
   description?: string
+  /**
+   * BCP 47 tag for the language the shopper has been reading the funnel in.
+   * A hosted provider renders its page in this language instead of guessing
+   * from the browser. Absent when the caller has no locale to state.
+   */
+  locale?: string
   returnUrl?: string
   cancelUrl?: string
   captureMode?: PaymentCaptureMode
@@ -211,6 +223,18 @@ export interface PaymentInitiationInput {
   acceptedCheckoutHandoffs?: readonly PaymentCheckoutHandoff[]
   idempotencyKey: string
   customer?: {
+    /**
+     * Opaque, stable reference to the runtime's own customer record. A
+     * provider binds a stored customer — and therefore a stored payment
+     * method — to this rather than to `email`, which is neither unique to a
+     * person nor stable when it is corrected. Not addressable, not parseable,
+     * and carries no personal data, so a provider may retain it without
+     * retaining the rest of `customer`.
+     *
+     * Stable for a given customer across payment sessions. The remaining
+     * fields are prefill a provider may forget.
+     */
+    reference?: string | null
     email?: string | null
     phone?: string | null
     firstName?: string | null

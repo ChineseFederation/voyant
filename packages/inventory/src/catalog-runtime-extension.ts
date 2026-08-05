@@ -11,7 +11,12 @@ import { productPricingCatalogPolicy } from "./catalog-policy-pricing.js"
 import { productPromotionsCatalogPolicy } from "./catalog-policy-promotions.js"
 import { productTaxonomyCatalogPolicy } from "./catalog-policy-taxonomy.js"
 import { extrasCatalogPolicy } from "./extras.js"
-import { productCategories, productCategoryProducts, products } from "./schema.js"
+import {
+  productCategories,
+  productCategoryProducts,
+  products,
+  productTranslations,
+} from "./schema.js"
 import { productsService } from "./service.js"
 import {
   buildProductSnapshotInput,
@@ -78,10 +83,11 @@ export const catalogInventoryRuntimeExtension = {
       .limit(1)
     return product ?? null
   },
-  async loadProductPaymentPolicyContext(db, productId) {
-    const [[product], [category]] = await Promise.all([
+  async loadProductPaymentPolicyContext(db, productId, options) {
+    const [[product], [category], translations] = await Promise.all([
       db
         .select({
+          name: products.name,
           listingPolicy: products.customerPaymentPolicy,
           supplierId: products.supplierId,
           departureDate: products.startDate,
@@ -101,6 +107,15 @@ export const catalogInventoryRuntimeExtension = {
         )
         .orderBy(asc(productCategoryProducts.sortOrder), asc(productCategoryProducts.createdAt))
         .limit(1),
+      options?.locale
+        ? db
+            .select({
+              languageTag: productTranslations.languageTag,
+              name: productTranslations.name,
+            })
+            .from(productTranslations)
+            .where(eq(productTranslations.productId, productId))
+        : Promise.resolve([]),
     ])
     if (!product) return null
     return {
@@ -108,7 +123,29 @@ export const catalogInventoryRuntimeExtension = {
       categoryPolicy: (category?.categoryPolicy as PaymentPolicy | null | undefined) ?? null,
       supplierId: product.supplierId,
       departureDate: product.departureDate,
+      name: pickTranslatedName(translations, options?.locale) ?? product.name,
     }
   },
   buildSnapshotInput: (db, productId, options) => buildProductSnapshotInput(db, productId, options),
 } satisfies CatalogInventoryRuntimeExtension
+
+/**
+ * Resolve a product's name in `locale` from its translation rows.
+ *
+ * Exact tag, then case-insensitive, then the language subtag — the same
+ * precedence the storefront-card projection uses. Unlike that projection this
+ * does **not** fall back to an arbitrary translation: the caller is building a
+ * checkout line item, where the product's base `name` is a better answer than
+ * a language the shopper did not ask for.
+ */
+function pickTranslatedName(
+  rows: ReadonlyArray<{ languageTag: string; name: string }>,
+  locale: string | undefined,
+): string | null {
+  if (!locale) return null
+  const match =
+    rows.find((row) => row.languageTag === locale) ??
+    rows.find((row) => row.languageTag.toLowerCase() === locale.toLowerCase()) ??
+    rows.find((row) => row.languageTag.split("-")[0] === locale.split("-")[0])
+  return match?.name.trim() || null
+}

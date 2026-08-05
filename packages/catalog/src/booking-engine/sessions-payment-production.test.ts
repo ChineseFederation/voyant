@@ -1,6 +1,30 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createProductionBookingSessionPaymentPorts } from "./sessions-payment-production.js"
+
+const startPaymentAdapterCardPayment = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null))
+
+vi.mock("@voyant-travel/finance", () => ({
+  computePaymentSchedule: () => [
+    { amountCents: 10_000, currency: "EUR", scheduleType: "deposit", dueDate: "2026-08-05" },
+  ],
+  createOrReuseBookingSessionPayment: async () => ({
+    id: "pmts_1",
+    status: "pending",
+    amountCents: 10_000,
+    currency: "EUR",
+    redirectUrl: null,
+    expiresAt: null,
+  }),
+  expirePendingBookingSessionPayments: vi.fn(),
+  financeService: { getPaymentSessionById: async () => null },
+  findEstablishedBookingSessionPayment: async () => null,
+  noDepositPolicy: { kind: "no_deposit" },
+  resolveEffectivePaymentPolicy: () => ({ policy: { kind: "deposit" }, source: "operator" }),
+  resolvePaymentCallbackUrl: () => undefined,
+  startPaymentAdapterCardPayment,
+  transferBookingSessionPaymentToBooking: vi.fn(),
+}))
 
 describe("production Booking Session staff payment policy", () => {
   it("does not create a customer checkout when staff supplied a collection schedule", async () => {
@@ -44,3 +68,137 @@ describe("production Booking Session staff payment policy", () => {
     expect(loadProductPaymentPolicyContext).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * A hosted-checkout provider renders the initiation payload to the shopper, so
+ * what is in it has to mean something to them. Nothing downstream can repair a
+ * line item that names a Session, a page rendered in a guessed language, or a
+ * customer that can only be keyed on their email address.
+ */
+describe("production Booking Session hosted-checkout initiation", () => {
+  beforeEach(() => {
+    startPaymentAdapterCardPayment.mockClear()
+  })
+
+  it("names the product and its departure in the Session locale", async () => {
+    await prepare({ locale: "en-GB", departureDate: "2026-09-12" })
+
+    expect(startArgs().description).toBe("Danube Delta tour — 12 September 2026")
+  })
+
+  it("renders the departure in the Session's own locale", async () => {
+    await prepare({ locale: "ro-RO", departureDate: "2026-09-12", name: "Tur în Delta Dunării" })
+
+    expect(startArgs().description).toBe("Tur în Delta Dunării — 12 septembrie 2026")
+  })
+
+  it("names the product alone when the target has no departure", async () => {
+    await prepare({ locale: "en-GB", departureDate: null })
+
+    expect(startArgs().description).toBe("Danube Delta tour")
+  })
+
+  it("never sends the Session id as the line item", async () => {
+    await prepare({ locale: "en-GB", departureDate: "2026-09-12" })
+
+    expect(startArgs().description).not.toContain("bses_")
+  })
+
+  it("carries the Session locale so the provider does not guess from the browser", async () => {
+    await prepare({ locale: "ro-RO", departureDate: null })
+
+    expect(startArgs().locale).toBe("ro-RO")
+  })
+
+  it("references the CRM person the buyer was identified as", async () => {
+    await prepare({ locale: "en-GB", departureDate: null, personId: "per_01k" })
+
+    expect(startArgs().customerReference).toBe("per_01k")
+  })
+
+  it("falls back to the owning principal for a customer-actor Session", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      actorKind: "customer",
+      ownerPrincipalId: "usr_shopper",
+    })
+
+    expect(startArgs().customerReference).toBe("usr_shopper")
+  })
+
+  it("does not reference the agent's principal on a staff-created Session", async () => {
+    await prepare({
+      locale: "en-GB",
+      departureDate: null,
+      actorKind: "staff",
+      ownerPrincipalId: "usr_agent",
+    })
+
+    expect(startArgs().customerReference).toBeUndefined()
+  })
+})
+
+async function prepare(input: {
+  locale: string
+  departureDate: string | null
+  name?: string
+  personId?: string
+  actorKind?: string
+  ownerPrincipalId?: string
+}) {
+  const payments = createProductionBookingSessionPaymentPorts({
+    db: {} as never,
+    inventory: {
+      loadProductPaymentPolicyContext: async () => ({
+        listingPolicy: null,
+        categoryPolicy: null,
+        supplierId: null,
+        departureDate: input.departureDate,
+        name: input.name ?? "Danube Delta tour",
+      }),
+    },
+    distribution: { loadSupplierPaymentPolicy: async () => null },
+    settings: { resolveOperatorDefaultPaymentPolicy: async () => null },
+    resolvePaymentAdapter: () => ({ id: "test" }) as never,
+  })
+
+  return payments.prepare({
+    session: {
+      id: "bses_01k",
+      actorKind: input.actorKind ?? "anonymous",
+      ownerPrincipalId: input.ownerPrincipalId,
+      scope: { locale: input.locale, market: "default" },
+      target: { kind: "product", productId: "prod_1" },
+      expiresAt: new Date("2026-08-06T00:00:00Z"),
+      statePayload: {
+        billing: {
+          contact: {
+            firstName: "Ana",
+            lastName: "Pop",
+            email: "ana@example.com",
+            ...(input.personId ? { personId: input.personId } : {}),
+          },
+        },
+      },
+    },
+    quote: {
+      id: "bqot_01k",
+      pricing: { total: 10_000, currency: "EUR" },
+      expiresAt: new Date("2026-08-06T00:00:00Z"),
+    },
+    commit: { idempotencyKey: "commit-1" },
+    access: { actorKind: input.actorKind ?? "anonymous" },
+    now: new Date("2026-08-05T00:00:00Z"),
+  } as never)
+}
+
+function startArgs() {
+  const call = startPaymentAdapterCardPayment.mock.calls.at(-1)
+  if (!call) throw new Error("the card-payment starter was never called")
+  return call[1] as {
+    description?: string
+    locale?: string
+    customerReference?: string
+  }
+}

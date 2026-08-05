@@ -51,6 +51,7 @@ export function createProductionBookingSessionPaymentPorts(
       const context = await deps.inventory.loadProductPaymentPolicyContext(
         deps.db,
         session.target.productId,
+        { locale: session.scope.locale },
       )
       if (!context) throw new Error("booking_session_payment_product_not_found")
       const [supplierPolicy, operatorDefault] = await Promise.all([
@@ -117,6 +118,7 @@ export function createProductionBookingSessionPaymentPorts(
 
       const adapter = await deps.resolvePaymentAdapter?.()
       if (adapter && paymentSession.status === "pending" && contact.email && contact.firstName) {
+        const reference = customerReference(session)
         await startPaymentAdapterCardPayment(
           adapter,
           {
@@ -129,7 +131,13 @@ export function createProductionBookingSessionPaymentPorts(
               ...(contact.phone ? { phone: contact.phone } : {}),
               ...(contact.country ? { country: contact.country } : {}),
             },
-            description: `Booking Session ${session.id}`,
+            description: checkoutLineItem({
+              productName: context.name,
+              departureDate: context.departureDate,
+              locale: session.scope.locale,
+            }),
+            locale: session.scope.locale,
+            ...(reference ? { customerReference: reference } : {}),
             returnUrl: commit.payment?.returnUrl,
             cancelUrl: commit.payment?.cancelUrl,
             metadata: {
@@ -161,6 +169,64 @@ export function createProductionBookingSessionPaymentPorts(
       await expirePendingBookingSessionPayments(tx as PostgresJsDatabase, bookingSessionId, at)
     },
   }
+}
+
+/**
+ * What the shopper is asked to pay for on the hosted checkout page.
+ *
+ * `description` is the only product-shaped field on `PaymentInitiationInput`,
+ * so whatever is put here is the whole of what a provider can render — nothing
+ * downstream can repair an identifier sent in its place. Names the product and,
+ * where the target has one, its departure, in the Session's locale.
+ *
+ * Undefined when the product has no name: finance then falls back to the
+ * payment session's own notes, which is still better than an id.
+ */
+function checkoutLineItem(input: {
+  productName: string | null
+  departureDate: string | null
+  locale: string
+}): string | undefined {
+  const name = input.productName?.trim()
+  if (!name) return undefined
+  const departure = formatDepartureDate(input.departureDate, input.locale)
+  return departure ? `${name} — ${departure}` : name
+}
+
+/**
+ * Render a date-only departure in the Session's locale. The column is a plain
+ * calendar date, so it is formatted in UTC — resolving it against the server's
+ * zone would move it a day for a shopper west of the meridian.
+ */
+function formatDepartureDate(departureDate: string | null, locale: string): string | null {
+  if (!departureDate) return null
+  const parsed = new Date(`${departureDate}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return null
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(parsed)
+  } catch {
+    // An unparseable locale tag must not fail a checkout; the ISO date still
+    // tells the shopper which departure they are paying for.
+    return departureDate
+  }
+}
+
+/**
+ * The opaque, stable customer reference a hosted provider binds a stored
+ * customer to. Prefers the CRM person the buyer was identified as; falls back
+ * to the owning principal only for a customer-actor Session, because on a
+ * staff-created Session the principal is the agent, not the shopper.
+ */
+function customerReference(session: {
+  actorKind: string
+  ownerPrincipalId?: string
+  statePayload: Record<string, unknown>
+}): string | undefined {
+  const billing = record(session.statePayload.billing)
+  const personId = stringValue(record(billing?.contact)?.personId)
+  if (personId) return personId
+  if (session.actorKind !== "customer") return undefined
+  return stringValue(session.ownerPrincipalId) ?? undefined
 }
 
 function hasStaffPaymentSchedule(payload: Record<string, unknown>): boolean {

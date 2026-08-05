@@ -179,14 +179,26 @@ export interface CatalogInventoryRuntimeExtension {
     db: AnyDrizzleDb,
     productId: string,
   ): Promise<{ supplierId: string | null; reservationTimeoutMinutes: number | null } | null>
+  /**
+   * Read what pricing a customer checkout for this product owes and what the
+   * shopper is being asked to pay for. `locale` selects the language `name` is
+   * returned in — the checkout line item a hosted provider renders is built
+   * from it, so it has to be the shopper's language, not the operator's.
+   */
   loadProductPaymentPolicyContext(
     db: AnyDrizzleDb,
     productId: string,
+    options?: { locale?: string },
   ): Promise<{
     listingPolicy: PaymentPolicy | null
     categoryPolicy: PaymentPolicy | null
     supplierId: string | null
     departureDate: string | null
+    /**
+     * The product's name in the requested locale, falling back to its base
+     * `name` when that language has no translation.
+     */
+    name: string | null
   } | null>
   buildSnapshotInput(
     db: AnyDrizzleDb,

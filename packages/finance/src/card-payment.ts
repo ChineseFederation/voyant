@@ -48,7 +48,20 @@ export interface CardPaymentStartArgs {
   db: PostgresJsDatabase
   sessionId: string
   billing: CardPaymentBilling
+  /**
+   * What the shopper is paying for, in `locale`. A hosted-checkout provider
+   * renders it as the line item, so it names the product — never an internal
+   * identifier.
+   */
   description?: string
+  /** BCP 47 tag for the language the checkout page should be rendered in. */
+  locale?: string
+  /**
+   * Opaque, stable reference to the caller's own customer record, so a
+   * provider can bind a stored customer without keying on the email address.
+   * See `PaymentInitiationInput["customer"].reference`.
+   */
+  customerReference?: string
   returnUrl?: string
   cancelUrl?: string
   shipping?: Record<string, unknown>
@@ -177,10 +190,12 @@ export async function startPaymentAdapterCardPayment(
       paymentSessionId: session.id,
       money: { amountMinor: session.amountCents, currency: session.currency },
       description: args.description ?? session.notes ?? undefined,
+      locale: args.locale,
       returnUrl: args.returnUrl ?? session.returnUrl ?? undefined,
       cancelUrl: args.cancelUrl ?? session.cancelUrl ?? undefined,
       idempotencyKey,
       customer: {
+        reference: args.customerReference ?? null,
         email: args.billing.email,
         phone: args.billing.phone ?? null,
         firstName: args.billing.firstName,
