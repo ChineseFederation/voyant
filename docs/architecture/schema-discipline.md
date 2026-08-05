@@ -191,4 +191,33 @@ Rules:
   resolvability, schema parity, generated-manifest freshness, duplicate prefixes
   (vs the baseline), and that every link table is in the latest snapshot.
 
+### Source order between independent packages is not a contract
+
+Migration sources apply deps-first over `voyant.requiresSchemas`. Sources with
+**no declared edge between them** are ordered by an arbitrary tie-break, and that
+tie-break is not stable — it changes when a package is added, renamed, or
+absorbed into another.
+
+So a migration that reads another package's table must not rely on that package
+having run. Two rules follow:
+
+- **Declare the dependency** in `requiresSchemas` when your schema genuinely
+  needs another package's tables to exist first. That is what orders the plan.
+- **Guard on the column, not the table**, when you cannot declare it — for
+  example when the target sits outside your package's allowed dependency set.
+  The frozen framework bundle materialises many tables *without* the columns
+  later increments add, so `to_regclass('public.x') IS NOT NULL` is not evidence
+  that `x.some_column` exists.
+
+PL/pgSQL parses a statement only when its branch is reached, so an unreached arm
+may safely reference a column that does not exist. That is what makes a
+column-existence branch work where a single static statement would fail.
+
+`verify:migration-replay-parity` replays the upgrade path a second time against a
+**different valid topological order**, with the tie-break between independent
+sources reversed. A migration that depends on an undeclared ordering fails there
+immediately, rather than the next time someone moves a package. See
+[#4279](https://github.com/voyant-travel/voyant/issues/4279), which was latent on
+`main` for exactly as long as `availability` happened to sort before `catalog`.
+
 Generated project artifacts live only under `.voyant/` and are disposable.

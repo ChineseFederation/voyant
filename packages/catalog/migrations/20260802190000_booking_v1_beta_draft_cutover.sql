@@ -36,7 +36,18 @@ BEGIN
       HINT = 'Restore or reconcile the Booking before rerunning; the migration will not guess whether a commitment exists.';
   END IF;
 
-  IF to_regclass('public.availability_holds') IS NOT NULL THEN
+  -- The hold-conversion columns arrive with a later increment than the frozen
+  -- framework bundle that materialises availability_holds, so the table can
+  -- exist without them. No hold can have been converted before those columns
+  -- exist, so the probe is vacuously false and skipping it is exact.
+  IF to_regclass('public.availability_holds') IS NOT NULL
+     AND EXISTS (
+       SELECT 1 FROM "information_schema"."columns"
+       WHERE "table_schema" = 'public'
+         AND "table_name" = 'availability_holds'
+         AND "column_name" = 'converted_at'
+     )
+  THEN
     EXECUTE $query$
       SELECT EXISTS (
         SELECT 1
@@ -89,12 +100,31 @@ BEGIN
     RAISE EXCEPTION 'Booking v1 draft cutover found availability_holds without availability_slots.';
   END IF;
 
-  INSERT INTO "booking_v1_legacy_holds_to_release" ("id", "slot_id", "pax_count")
-  SELECT hold."id", hold."slot_id", hold."pax_count"
-  FROM "availability_holds" hold
-  JOIN "booking_drafts" draft ON draft."id" = hold."draft_id"
-  WHERE hold."released_at" IS NULL
-    AND hold."converted_at" IS NULL;
+  -- This selects which legacy holds get RELEASED, so it must not be skipped when
+  -- converted_at is absent — that would leave them held forever. Without the
+  -- column no hold can be converted, so `converted_at IS NULL` is true for every
+  -- row and dropping the term selects exactly the same set. PL/pgSQL parses a
+  -- branch only when it is reached, so the unreached arm never resolves the
+  -- missing column.
+  IF EXISTS (
+    SELECT 1 FROM "information_schema"."columns"
+    WHERE "table_schema" = 'public'
+      AND "table_name" = 'availability_holds'
+      AND "column_name" = 'converted_at'
+  ) THEN
+    INSERT INTO "booking_v1_legacy_holds_to_release" ("id", "slot_id", "pax_count")
+    SELECT hold."id", hold."slot_id", hold."pax_count"
+    FROM "availability_holds" hold
+    JOIN "booking_drafts" draft ON draft."id" = hold."draft_id"
+    WHERE hold."released_at" IS NULL
+      AND hold."converted_at" IS NULL;
+  ELSE
+    INSERT INTO "booking_v1_legacy_holds_to_release" ("id", "slot_id", "pax_count")
+    SELECT hold."id", hold."slot_id", hold."pax_count"
+    FROM "availability_holds" hold
+    JOIN "booking_drafts" draft ON draft."id" = hold."draft_id"
+    WHERE hold."released_at" IS NULL;
+  END IF;
 END $$;
 --> statement-breakpoint
 DO $$

@@ -276,6 +276,37 @@ function equivalenceClosure(
   return hashes.map((hash) => [`${key}/${hash}`, new Set(hashes.filter((other) => other !== hash))])
 }
 
+// `catalog/20260802190000_booking_v1_beta_draft_cutover`: two guards were widened
+// from "the availability_holds TABLE exists" to "the table exists AND carries
+// converted_at" (#4279). The frozen framework bundle materialises
+// availability_holds WITHOUT the hold-conversion columns — an `availability`
+// increment adds them — so on a database holding the bundle but not yet that
+// increment, the original guards passed and then resolved a column that was not
+// there. It only ever worked because "availability" sorts before "catalog" among
+// sources with no declared dependency between them; nothing declared the order.
+//
+// Equivalence is sound here without a companion increment.
+//
+//   • On any database where the ORIGINAL applied, converted_at existed — it
+//     resolves the column unconditionally, so absent it the migration ERRORED and
+//     recorded no ledger row. The widened guards therefore take the same branch
+//     the original took, over the same rows.
+//   • The probe guard is read-only; it computes has_ambiguous_conversion, which is
+//     vacuously false with no conversion columns.
+//   • The hold-selection guard is NOT a skip, deliberately: it chooses which legacy
+//     holds are released. Without converted_at no hold can be converted, so
+//     `converted_at IS NULL` holds for every row and the shortened predicate
+//     selects exactly the same set. Skipping it instead would leave those holds
+//     unreleased — a divergence, not an equivalence.
+//
+// Both generations therefore reach the same end state on any database where either
+// applied. Every other statement in the file is byte-identical.
+const CATALOG_BOOKING_V1_DRAFT_CUTOVER_HASHES = [
+  // original: guarded on to_regclass('public.availability_holds') alone.
+  "fb264e967dd9b6c2220e65c71c05fe83b0c1be3b64ca642d82999bf65bbe51f5",
+  // widened to require the converted_at column too (#4279).
+  "c0ae3e358e5238b0056724c6134cbbc35d25544ede9f838876e6bc90601ec26e",
+] as const
 const EQUIVALENT_MIGRATION_HASHES = new Map<string, ReadonlySet<string>>([
   ...equivalenceClosure("db/0001_db_baseline", DB_0001_HASHES),
   ...equivalenceClosure("framework/0004_framework_baseline", FRAMEWORK_0004_HASHES),
@@ -283,6 +314,10 @@ const EQUIVALENT_MIGRATION_HASHES = new Map<string, ReadonlySet<string>>([
   ...equivalenceClosure(
     "bookings/20260802200000_booking_v1_status_cutover",
     BOOKING_V1_STATUS_CUTOVER_HASHES,
+  ),
+  ...equivalenceClosure(
+    "catalog/20260802190000_booking_v1_beta_draft_cutover",
+    CATALOG_BOOKING_V1_DRAFT_CUTOVER_HASHES,
   ),
   ...PROPOSAL_RENAME_EDITED_HASHES.flatMap(([key, hashes]) => equivalenceClosure(key, hashes)),
 ])

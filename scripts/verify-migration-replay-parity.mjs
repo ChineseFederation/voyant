@@ -124,6 +124,54 @@ function discoverPackageSources() {
   return sources
 }
 
+/**
+ * A SECOND VALID topological order over the same sources, tie-broken the other way.
+ *
+ * The migration plan orders sources deps-first over `voyant.requiresSchemas`, and
+ * breaks ties between independent sources by plan order (effectively alphabetical).
+ * That tie-break is arbitrary, so a migration may depend on it WITHOUT declaring
+ * anything — and it keeps working until someone moves a package and the tie-break
+ * lands differently.
+ *
+ * That is not hypothetical: `catalog`'s booking-v1 draft cutover reads
+ * `availability_holds.converted_at`, a column an `availability` increment adds, and
+ * was correct only because "availability" sorts before "catalog" (voyant#4279).
+ * Absorbing availability into operations moved it after and broke the upgrade path.
+ *
+ * Replaying against a different valid order turns "we find out when we move a
+ * package" into "we find out now", for every source at once.
+ */
+function alternateSourceOrder(sources) {
+  const byName = new Map(sources.map((s) => [s.name, s]))
+  const deps = new Map()
+  for (const source of sources) {
+    const manifestPath = join(ROOT, "packages", source.name, "package.json")
+    const declared = existsSync(manifestPath)
+      ? (JSON.parse(readFileSync(manifestPath, "utf8")).voyant?.requiresSchemas ?? [])
+      : []
+    deps.set(
+      source.name,
+      new Set(declared.map((n) => n.replace(/^@[^/]+\//, "")).filter((n) => byName.has(n))),
+    )
+  }
+
+  // Kahn, taking the LAST ready source each round — the reverse of the plan's
+  // tie-break. Declared edges are still honoured, so this order is just as valid.
+  const remaining = new Set(sources.map((s) => s.name))
+  const ordered = []
+  while (remaining.size > 0) {
+    const ready = [...remaining].filter((name) =>
+      [...deps.get(name)].every((dep) => !remaining.has(dep)),
+    )
+    if (ready.length === 0) break // cycle: leave the rest in plan order
+    const pick = ready[ready.length - 1]
+    remaining.delete(pick)
+    ordered.push(byName.get(pick))
+  }
+  for (const name of remaining) ordered.push(byName.get(name))
+  return ordered
+}
+
 async function applyFolders(client, folders) {
   for (const folder of folders) {
     for (const stmt of loadFolder(folder)) {
@@ -289,10 +337,35 @@ async function main() {
       })
     })
 
+    // Order robustness: the same upgrade path, replayed against a DIFFERENT valid
+    // topological order. Any migration that depends on the plan's arbitrary
+    // tie-break between independent sources fails here rather than the next time
+    // a package moves.
+    const alternate = alternateSourceOrder(packageSources)
+    const reordered = alternate.map((s) => s.name).join(", ")
+    const alternateFp = await withFreshDb(admin, "voyant_replay_alt_order", async () => {
+      const cutline = loadCutline()
+      console.log(`  sources: alternate valid order — ${reordered}`)
+      return onDb("voyant_replay_alt_order", async (c) => {
+        await applyFolders(c, [FRAMEWORK_BUNDLE])
+        await applyFolders(c, [LEGACY_DEPLOYMENT_MIGRATIONS])
+        for (const source of alternate) {
+          if (!source.hasMigrations) {
+            throw new Error(`schema source ${source.name} has no migrations folder`)
+          }
+          for (const stmt of loadFolderAfterCutline(source.migrationsDir, source.name, cutline)) {
+            await c.query(stmt)
+          }
+        }
+        return fingerprint(c)
+      })
+    })
+
     const sections = ["columns", "enums", "indexes", "constraints"]
     const lanes = [
       { label: "upgrade path", fingerprint: newFp },
       { label: "pre-rename history", fingerprint: preRenameFp },
+      { label: "alternate source order", fingerprint: alternateFp },
     ]
     let ok = true
     for (const lane of lanes) {

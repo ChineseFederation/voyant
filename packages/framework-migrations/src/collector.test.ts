@@ -103,6 +103,75 @@ describe("compatibility preflight migrations", () => {
 })
 
 describe("migration hash compatibility", () => {
+  it("accepts the catalog draft-cutover guard widening as equivalent (#4279)", async () => {
+    // The real migration file, so the registered hash cannot drift from the bytes
+    // it claims to describe — the failure mode an inline fixture would hide.
+    const sql = readFileSync(
+      new URL(
+        "../../catalog/migrations/20260802190000_booking_v1_beta_draft_cutover.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    )
+    const client: MigrationClient = {
+      async query(query: string) {
+        if (query.includes(`SELECT "content_hash"`)) {
+          // A database that applied the ORIGINAL, table-only guard.
+          return {
+            rows: [
+              { content_hash: "fb264e967dd9b6c2220e65c71c05fe83b0c1be3b64ca642d82999bf65bbe51f5" },
+            ],
+          }
+        }
+        return { rows: [] }
+      },
+    }
+
+    const result = await applyMigrations(
+      client,
+      [
+        {
+          name: "catalog",
+          priority: 0,
+          migrations: [{ tag: "20260802190000_booking_v1_beta_draft_cutover", sql }],
+        },
+      ],
+      ledgerOpts,
+    )
+    expect(result).toEqual({ executed: [], baselined: [] })
+  })
+
+  it("still rejects genuinely changed SQL under the same tag", async () => {
+    // Equivalence is registered per (source, tag, contentHash). Registering one
+    // must not turn the tag into a hole the immutability gate ignores.
+    const client: MigrationClient = {
+      async query(query: string) {
+        if (query.includes(`SELECT "content_hash"`)) {
+          return {
+            rows: [
+              { content_hash: "fb264e967dd9b6c2220e65c71c05fe83b0c1be3b64ca642d82999bf65bbe51f5" },
+            ],
+          }
+        }
+        return { rows: [] }
+      },
+    }
+
+    await expect(
+      applyMigrations(
+        client,
+        [
+          {
+            name: "catalog",
+            priority: 0,
+            migrations: [{ tag: "20260802190000_booking_v1_beta_draft_cutover", sql: "SELECT 1;" }],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).rejects.toBeInstanceOf(MigrationImmutabilityError)
+  })
+
   it("accepts the db cloud-auth scopes idempotency rewrite as equivalent", async () => {
     const queries: string[] = []
     const client: MigrationClient = {
