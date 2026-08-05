@@ -1,9 +1,5 @@
 // agent-quality: file-size exception -- owner: relationships; existing service module stays co-located until a dedicated split preserves behavior and tests.
-import {
-  identityAddresses,
-  identityContactPoints,
-  identityNamedContacts,
-} from "@voyant-travel/identity/schema"
+import { identityService } from "@voyant-travel/identity/service"
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm"
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
@@ -236,53 +232,18 @@ async function dedupeOptionalPersonJoinTable(
   `)
 }
 
+/**
+ * Identity records for a merged entity move through identity's own service:
+ * the rows are its, and so is the rule for what counts as a duplicate contact
+ * point. See identityService.reassignEntityRecords.
+ */
 async function mergeIdentityRows(
   db: PostgresJsDatabase,
   entityType: string,
   keepId: string,
   mergeId: string,
 ) {
-  await db.delete(identityContactPoints).where(
-    and(
-      eq(identityContactPoints.entityType, entityType),
-      eq(identityContactPoints.entityId, mergeId),
-      sql`EXISTS (
-          SELECT 1
-          FROM identity_contact_points keep_point
-          WHERE keep_point.entity_type = ${entityType}
-            AND keep_point.entity_id = ${keepId}
-            AND keep_point.kind = ${identityContactPoints.kind}
-            AND keep_point.value = ${identityContactPoints.value}
-        )`,
-    ),
-  )
-
-  await db
-    .update(identityContactPoints)
-    .set({ entityId: keepId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(identityContactPoints.entityType, entityType),
-        eq(identityContactPoints.entityId, mergeId),
-      ),
-    )
-
-  await db
-    .update(identityAddresses)
-    .set({ entityId: keepId, updatedAt: new Date() })
-    .where(
-      and(eq(identityAddresses.entityType, entityType), eq(identityAddresses.entityId, mergeId)),
-    )
-
-  await db
-    .update(identityNamedContacts)
-    .set({ entityId: keepId, updatedAt: new Date() })
-    .where(
-      and(
-        eq(identityNamedContacts.entityType, entityType),
-        eq(identityNamedContacts.entityId, mergeId),
-      ),
-    )
+  await identityService.reassignEntityRecords(db, { entityType, keepId, mergeId })
 }
 
 async function mergeEntityLinks(

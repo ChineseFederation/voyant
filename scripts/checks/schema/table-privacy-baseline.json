@@ -38,7 +38,7 @@
     "notifications->finance": 14,
     "notifications->legal": 2,
     "operations->identity": 3,
-    "relationships->identity": 5,
+    "relationships->identity": 2,
     "storefront->bookings": 9,
     "storefront->commerce": 5,
     "storefront->finance": 6,
@@ -54,8 +54,6 @@
     "finance->bookings": 12,
     "inventory->commerce": 16,
     "inventory->operations": 4,
-    "legal->bookings": 5,
-    "relationships->identity": 4,
-    "storefront->relationships": 1
+    "legal->bookings": 5
   }
 }

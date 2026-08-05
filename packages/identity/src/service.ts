@@ -279,6 +279,70 @@ export const identityService = {
     return row ?? null
   },
 
+  /**
+   * Repoint every identity record for `entityType` from `mergeId` onto `keepId`.
+   *
+   * Account merge lives in `relationships`, but the rows being moved are
+   * identity's, and so is the rule for what counts as a duplicate: a contact
+   * point is the same contact point when its `kind` and `value` match. Keeping
+   * that here means relationships asks for a merge rather than reaching into
+   * three tables to perform one, and the dedupe rule stays with the module that
+   * defines it.
+   *
+   * Call inside the caller's transaction — this is several statements and a
+   * partial application would leave records split across both entities.
+   */
+  async reassignEntityRecords(
+    db: PostgresJsDatabase,
+    input: { entityType: string; keepId: string; mergeId: string },
+  ) {
+    const { entityType, keepId, mergeId } = input
+
+    // Drop merge-side contact points the keep side already has, so the repoint
+    // below cannot create a duplicate pair.
+    await db.delete(identityContactPoints).where(
+      and(
+        eq(identityContactPoints.entityType, entityType),
+        eq(identityContactPoints.entityId, mergeId),
+        sql`EXISTS (
+          SELECT 1
+          FROM identity_contact_points keep_point
+          WHERE keep_point.entity_type = ${entityType}
+            AND keep_point.entity_id = ${keepId}
+            AND keep_point.kind = ${identityContactPoints.kind}
+            AND keep_point.value = ${identityContactPoints.value}
+        )`,
+      ),
+    )
+
+    await db
+      .update(identityContactPoints)
+      .set({ entityId: keepId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(identityContactPoints.entityType, entityType),
+          eq(identityContactPoints.entityId, mergeId),
+        ),
+      )
+
+    await db
+      .update(identityAddresses)
+      .set({ entityId: keepId, updatedAt: new Date() })
+      .where(
+        and(eq(identityAddresses.entityType, entityType), eq(identityAddresses.entityId, mergeId)),
+      )
+
+    await db
+      .update(identityNamedContacts)
+      .set({ entityId: keepId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(identityNamedContacts.entityType, entityType),
+          eq(identityNamedContacts.entityId, mergeId),
+        ),
+      )
+  },
+
   async listNamedContacts(db: PostgresJsDatabase, query: NamedContactListQuery) {
     const conditions = []
     if (query.entityType) conditions.push(eq(identityNamedContacts.entityType, query.entityType))

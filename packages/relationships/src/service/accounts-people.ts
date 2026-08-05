@@ -252,6 +252,37 @@ export const peopleAccountsService = {
     return this.getPersonById(db, row.id)
   },
 
+  /**
+   * Write the encrypted person-level PII slots.
+   *
+   * Separate from {@link updatePerson} on purpose. Those slots are not part of
+   * the CRM person update surface — putting them there would expose encrypted
+   * PII fields to every caller of it — but the columns are relationships', so
+   * the write belongs here rather than in the customer portal.
+   *
+   * The caller keeps the encryption seam and passes sealed envelopes; this only
+   * stores what it is given. An empty patch is a no-op.
+   */
+  async updatePersonEncryptedProfile(
+    db: PostgresJsDatabase,
+    id: string,
+    patch: Partial<
+      Record<
+        "accessibilityEncrypted" | "dietaryEncrypted" | "loyaltyEncrypted" | "insuranceEncrypted",
+        unknown
+      >
+    >,
+  ) {
+    const updates = Object.fromEntries(
+      Object.entries(patch).filter(([, value]) => value !== undefined),
+    ) as PgUpdateSetSource<typeof people>
+    if (Object.keys(updates).length === 0) return
+    await db
+      .update(people)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(people.id, id))
+  },
+
   async updatePerson(db: PostgresJsDatabase, id: string, data: UpdatePersonInput) {
     const existing = await this.getPersonById(db, id)
     if (!existing) return null

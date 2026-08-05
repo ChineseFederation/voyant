@@ -1813,10 +1813,8 @@ export const publicCustomerPortalService = {
     }
     if (Object.keys(piiUpdates).length > 0) {
       const personId = await ensureLinkedPerson(db, userId, authProfile)
-      await db
-        .update(people)
-        .set({ ...piiUpdates, updatedAt: new Date() })
-        .where(eq(people.id, personId))
+      // The columns are relationships'; the portal keeps only the encryption seam.
+      await relationshipsService.updatePersonEncryptedProfile(db, personId, piiUpdates)
     }
 
     await db
