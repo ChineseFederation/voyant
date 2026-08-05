@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/graph-contracts",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Declare a module, adapter, extension, or provider into a Voyant deployment graph, without the runtime kernel.",
   "license": "Apache-2.0",
   "type": "module",
