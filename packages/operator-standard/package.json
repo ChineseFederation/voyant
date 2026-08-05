@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/operator-standard",
-  "version": "0.20.25",
+  "version": "0.20.26",
   "description": "Versioned standard Voyant Operator product distribution and dependency BOM.",
   "license": "Apache-2.0",
   "type": "module",

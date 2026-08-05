@@ -1,5 +1,59 @@
 # @voyant-travel/products-contracts
 
+## 0.110.0
+
+### Minor Changes
+
+- 3f5ea82: feat(inventory): resolve one operator-facing schedule term (Session/Occurrence/Departure)
+
+  The same Product/Departure model runs sixty-minute recurring Sessions and
+  multi-day Departures, so the operator needs to _see_ the right noun without the
+  domain forking under it. This adds a single resolver that decides the noun once
+  and a localized label the UI reads.
+
+  - **One decision, in one place.** `resolveScheduleTerm` maps a Product's
+    already-resolved duration to a `session | occurrence | departure` token: an
+    explicit sub-day duration is a **Session** (the 60-minute whale-watch Boat
+    Tour, a timed Activity, a scheduled transfer), an explicit full-day-or-longer
+    duration or an itinerary-derived day span is a **Departure** (a Day Tour, a
+    Multi-day Tour), and an unresolved duration — a single Event date or an
+    opening-hours Attraction Admission — is an **Occurrence**. It reads no mutable
+    Product truth to decide.
+  - **Every surface agrees.** `resolveProductClassification` now carries
+    `scheduleTerm`, so the product list/detail read paths, the catalog-plane
+    projection, and the legacy Catalog search document all emit it from the same
+    resolver. The classification schemas in `products-contracts`,
+    `admin-contracts` and the `inventory-react` mirror gain the field.
+  - **Presentation only.** A Session, an Occurrence and a Departure are the same
+    `availability_slots` row bound to the same Product Version. The operator UI
+    maps the token to a localized label (`common.scheduleTermLabels`, en + ro) and
+    the product list renders the plural under the family; the domain never forks.
+
+- 3f5ea82: feat(inventory): conservatively backfill legacy families and expose an operator-review queue
+
+  Ambiguous legacy Products must be resolved by a human, not guessed. This adds
+  the queue that makes them discoverable and a migration that only classifies what
+  is unambiguous.
+
+  - **Discoverable review queue.** The product list read accepts
+    `classificationReview=pending | missing_family | unresolved_duration`. The
+    predicates are expressed as row-level SQL that mirrors
+    `resolveProductClassification` exactly (missing/dangling family; no explicit
+    duration and no dated default-itinerary day), so the queue and the rendered
+    review badge never disagree.
+  - **Conservative backfill migration.** A product with authored itinerary days
+    but no family is unambiguously a Tour; the migration assigns the standard
+    `tour` family to exactly those rows. It never overwrites an existing family,
+    only fires on a strong positive signal, joins to the seeded family (so a
+    deployment without it is a no-op), and is idempotent. Duration is not
+    materialized — the resolver derives itinerary-derived duration live.
+  - **Ambiguous rows are left alone.** A product with neither a family nor a
+    resolvable duration is untouched and surfaces in the review queue rather than
+    being guessed.
+  - Migration-test coverage over a representative beta dataset that includes
+    ambiguous rows proves no Product disappears, no capacity claim (availability
+    slot) is lost, and only the unambiguous rows are classified.
+
 ## 0.109.5
 
 ### Patch Changes

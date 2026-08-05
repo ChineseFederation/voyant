@@ -1,5 +1,59 @@
 # @voyant-travel/core
 
+## 0.139.0
+
+### Minor Changes
+
+- 3f5ea82: feat: compatibility redirects with usage counting and acceptance dashboard metrics
+
+  Instrument the transitional surfaces so their removal can later be gated on
+  evidence rather than assumption. Nothing is deleted here.
+
+  - **Compatibility redirects (`@voyant-travel/core`).** `resolveLegacyRedirect`
+    maps the four superseded deep-link families — Extras, scheduled Catalog,
+    Product detail, and operator Availability — to their canonical successors for
+    the measured compatibility period. `resolveAndCountLegacyRedirect` resolves
+    and counts a hit in one call for a route middleware, and never fails the
+    redirect if the counter does.
+  - **Usage counting.** `LegacyPathUsageStore` counts hits per stable route key;
+    the in-memory store seeds every known key at zero so "usage is zero" is an
+    explicit, checkable fact for the release review rather than a missing row.
+  - **Acceptance metrics (`@voyant-travel/operations`).**
+    `computeAcceptanceMetrics` reports readiness failures, reconciliation drift,
+    unassigned travelers, missing costs, legacy-path usage, and rollup
+    disagreement over injectable providers. Every field is a count or a
+    route-keyed usage row — no traveler PII is read or emitted.
+
+- 3f5ea82: feat: serve the compatibility redirects and the acceptance metrics
+
+  The redirect table and the metrics aggregator were built and unit-tested but
+  nothing called either, so the redirects redirected nothing and the usage counter
+  read zero because no request could ever reach it — the one reading that would
+  have licensed deleting the surfaces it exists to protect. Both are now wired to
+  a request.
+
+  - **`legacyRedirects` (`@voyant-travel/hono/middleware/legacy-redirects`)** is
+    the HTTP edge for `resolveAndCountLegacyRedirect`: a superseded deep link
+    answers `308` to its canonical successor, carries its query string across, and
+    records the hit. It is mounted unconditionally by `serveAdminHost`, ahead of
+    static serving and auth — the only seam that sees these origin-root UI paths —
+    and deliberately not by the framework app, where a storefront's `/catalog/*`
+    content would collide with the compatibility table.
+  - **`getLegacyPathUsageStore` / `setLegacyPathUsageStore`
+    (`@voyant-travel/core`)** bind one usage store per process, so the counter the
+    middleware writes is the counter the dashboard reads. A multi-process
+    deployment binds a durable store; until it does, "usage is zero" is only that
+    process's zero.
+  - **`GET /v1/admin/operations/acceptance/aggregates`** serves
+    `computeAcceptanceMetrics` over `createAcceptanceMetricsProviders`, following
+    the existing `/aggregates` dashboard convention. Readiness failures,
+    reconciliation drift and unassigned travelers are single raw-SQL counts; the
+    two money signals come from the departure-profitability port that already
+    backs the departure workspace, and the envelope reports whether that provider
+    was bound so an unmeasured zero is not read as a measured one. The response is
+    uncached: legacy-path usage gates a deletion review and must not answer from a
+    snapshot. No traveler column is projected by any statement.
+
 ## 0.138.0
 
 ### Minor Changes

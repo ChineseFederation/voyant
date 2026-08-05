@@ -1,5 +1,12 @@
 # @voyant-travel/admin-react
 
+## 0.135.1
+
+### Patch Changes
+
+- Updated dependencies [3f5ea82]
+  - @voyant-travel/admin-contracts@0.107.0
+
 ## 0.135.0
 
 ### Minor Changes

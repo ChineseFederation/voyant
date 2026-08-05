@@ -1,5 +1,57 @@
 # @voyant-travel/inventory-react
 
+## 0.141.0
+
+### Minor Changes
+
+- 3f5ea82: feat(inventory): resolve one operator-facing schedule term (Session/Occurrence/Departure)
+
+  The same Product/Departure model runs sixty-minute recurring Sessions and
+  multi-day Departures, so the operator needs to _see_ the right noun without the
+  domain forking under it. This adds a single resolver that decides the noun once
+  and a localized label the UI reads.
+
+  - **One decision, in one place.** `resolveScheduleTerm` maps a Product's
+    already-resolved duration to a `session | occurrence | departure` token: an
+    explicit sub-day duration is a **Session** (the 60-minute whale-watch Boat
+    Tour, a timed Activity, a scheduled transfer), an explicit full-day-or-longer
+    duration or an itinerary-derived day span is a **Departure** (a Day Tour, a
+    Multi-day Tour), and an unresolved duration — a single Event date or an
+    opening-hours Attraction Admission — is an **Occurrence**. It reads no mutable
+    Product truth to decide.
+  - **Every surface agrees.** `resolveProductClassification` now carries
+    `scheduleTerm`, so the product list/detail read paths, the catalog-plane
+    projection, and the legacy Catalog search document all emit it from the same
+    resolver. The classification schemas in `products-contracts`,
+    `admin-contracts` and the `inventory-react` mirror gain the field.
+  - **Presentation only.** A Session, an Occurrence and a Departure are the same
+    `availability_slots` row bound to the same Product Version. The operator UI
+    maps the token to a localized label (`common.scheduleTermLabels`, en + ro) and
+    the product list renders the plural under the family; the domain never forks.
+
+- 3f5ea82: feat(inventory-react): organize Product authoring around seven deep-linkable groups
+
+  Product authoring is reorganized around seven ordered groups — Overview &
+  readiness, Content, Plan, Options & pricing, Availability, Distribution and
+  History. `ProductAuthoringNav` renders them as a sticky, contextual deep-link
+  navigation, and each group on the detail page anchors to a stable id
+  (`/products/:id#authoring-plan`) so a link can land the operator directly on a
+  concern. The grouping is presentation only — the section components are
+  unchanged, just gathered under a stable, ordered set of headings, with en + ro
+  labels.
+
+### Patch Changes
+
+- Updated dependencies [3f5ea82]
+- Updated dependencies [3f5ea82]
+- Updated dependencies [3f5ea82]
+- Updated dependencies [3f5ea82]
+  - @voyant-travel/inventory@0.36.0
+  - @voyant-travel/operations@0.21.0
+  - @voyant-travel/catalog-react@0.257.0
+  - @voyant-travel/finance-react@0.259.0
+  - @voyant-travel/storefront-react@0.261.0
+
 ## 0.140.0
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@voyant-travel/mice",
-  "version": "0.95.12",
+  "version": "0.95.13",
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
