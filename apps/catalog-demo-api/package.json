@@ -1,6 +1,6 @@
 {
   "name": "catalog-demo-api",
-  "version": "0.20.147",
+  "version": "0.20.148",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",

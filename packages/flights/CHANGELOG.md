@@ -1,5 +1,15 @@
 # @voyant-travel/flights
 
+## 0.236.17
+
+### Patch Changes
+
+- Updated dependencies [e8bd000]
+  - @voyant-travel/catalog@0.246.0
+  - @voyant-travel/finance@0.240.0
+  - @voyant-travel/hono@0.142.0
+  - @voyant-travel/action-ledger@0.115.14
+
 ## 0.236.16
 
 ### Patch Changes

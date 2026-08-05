@@ -1,5 +1,16 @@
 # @voyant-travel/crm
 
+## 0.133.17
+
+### Patch Changes
+
+- Updated dependencies [e8bd000]
+  - @voyant-travel/bookings@0.239.0
+  - @voyant-travel/hono@0.142.0
+  - @voyant-travel/action-ledger@0.115.14
+  - @voyant-travel/custom-fields@0.2.29
+  - @voyant-travel/identity@0.236.5
+
 ## 0.133.16
 
 ### Patch Changes

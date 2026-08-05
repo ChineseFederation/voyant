@@ -1,5 +1,18 @@
 # @voyant-travel/distribution
 
+## 0.227.14
+
+### Patch Changes
+
+- Updated dependencies [e8bd000]
+  - @voyant-travel/bookings@0.239.0
+  - @voyant-travel/catalog@0.246.0
+  - @voyant-travel/finance@0.240.0
+  - @voyant-travel/hono@0.142.0
+  - @voyant-travel/action-ledger@0.115.14
+  - @voyant-travel/identity@0.236.5
+  - @voyant-travel/webhook-delivery@0.5.16
+
 ## 0.227.13
 
 ### Patch Changes
