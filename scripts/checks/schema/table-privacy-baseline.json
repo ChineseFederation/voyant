@@ -2,7 +2,13 @@
   "$comment": [
     "Cross-module table reach-ins, by importer->owner. ADR-0016 decision 6.",
     "A pair may shrink, never grow; a new pair fails. Regenerate with --update-baseline",
-    "ONLY when tightening. Foundation packages (db, core, utils, types, schema-kit) are exempt."
+    "ONLY when tightening. Foundation packages (db, core, utils, types, schema-kit) are exempt.",
+    "",
+    "`writePairs` counts the subset that MUTATE another module's tables. A read has",
+    "two answers — the owner's service, or a local *Ref mirror. A write has one: a",
+    "mirror is read-only by construction. Writes bypass whatever the owner does on",
+    "its own writes (revision bumps, validation, events), so they should reach zero",
+    "rather than merely stop growing."
   ],
   "pairs": {
     "accommodations->bookings": 2,
@@ -40,5 +46,16 @@
     "storefront->legal": 2,
     "storefront->relationships": 3,
     "trips->inventory": 2
+  },
+  "writePairs": {
+    "apps->custom-fields": 2,
+    "commerce->bookings": 2,
+    "commerce->finance": 2,
+    "finance->bookings": 12,
+    "inventory->commerce": 16,
+    "inventory->operations": 4,
+    "legal->bookings": 5,
+    "relationships->identity": 4,
+    "storefront->relationships": 1
   }
 }

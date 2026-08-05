@@ -65,22 +65,38 @@ Three run as ratchets, holding a line rather than demanding it be clean today:
 baselines may only shrink.** Regenerate one only when tightening it; never to
 make a failure go away.
 
-`verify:table-privacy` carries **225 reach-ins across 37 module pairs**, and
-that is recorded as **debt with a target, not an acceptable steady state**
+`verify:table-privacy` carries **190 reach-ins across 35 module pairs**, recorded
+as **debt with a target, not an acceptable steady state**
 ([#4273](https://github.com/voyant-travel/voyant/issues/4273)). `bookings` is
 reached into by 8 modules; that coupling is why "modules are separately
 shippable" is not true of this repo.
 
-**The mechanism for paying it down is consolidation — merging modules — not
-extracting service calls.** ADR-0016 decision 7 is explicit that there are no
-ports for business modules, so replacing a direct table read with a service hop
-is the ADR-0007 refactor under a new name and is not wanted. Merging
-`availability` into `operations` alone removes ~41 reach-ins, which is more than
-any plausible refactor of the same seams
-([#4271](https://github.com/voyant-travel/voyant/issues/4271)).
+**48 of those 190 are cross-module WRITES**, counted separately in the baseline's
+`writePairs`. The split is not cosmetic — the remedies differ:
 
-So: do not add a pair, do not "fix" a pair with an indirection layer, and expect
-the number to fall in steps when modules merge rather than continuously.
+| | remedy |
+|---|---|
+| read | the owning module's service, **or** a local `*Ref` mirror |
+| **write** | the owning module's service, and nothing else |
+
+A `*Ref` mirror is a read-only partial view by construction, so it is not
+available for a write, and a write bypasses whatever the owner does on its own
+writes — revision bumps, validation, events. Reads are debt to pay down; **writes
+should reach zero.**
+
+**On the mechanism.** An earlier revision of this section said the way to pay this
+down is consolidation rather than service calls. That was right for
+`availability`, which was schema-only with its services already in `operations` —
+there was no module there, only a schema split from its owner. It is **wrong for
+real modules**: `finance` and `bookings` are 87k and 51k lines with their own
+route surfaces, and merging them is not on the table. For those the answer is the
+one this checker's own doc gives — the owning module's service, or a mirror.
+ADR-0016 decision 7 rules out *ports* for business modules; it does not rule out
+calling a sibling's service in-process.
+
+So: do not add a pair, do not "fix" one with an indirection layer, never add a
+write, and expect reads to fall through a mix of mirrors, service calls, and the
+occasional consolidation where a package turns out not to be a module at all.
 
 `verify:typecheck-coverage` enforces that every test file is typechecked by some
 CI job. A package whose tsconfig includes only `src/**` gets no typecheck job at

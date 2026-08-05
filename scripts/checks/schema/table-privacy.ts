@@ -30,6 +30,67 @@ export interface ImportSite {
 
 export type Baseline = Readonly<Record<string, number>>
 
+/**
+ * A cross-module WRITE: `.update(x)` / `.insert(x)` / `.delete(x)` where `x` is
+ * another module's table.
+ *
+ * The reach-in count flattens a read and a write into the same unit, and they
+ * are not the same thing. A read has two sanctioned answers — the owning
+ * module's service, or a local `*Ref` mirror. A write has only one: a mirror is
+ * a read-only partial view by construction, so writing through it is not
+ * available. A cross-module write mutates another module's aggregate directly,
+ * bypassing whatever the owner does on its own writes — revision bumps,
+ * validation, events.
+ *
+ * That difference is worth measuring separately, and the target is different
+ * too: reads are debt to pay down, writes should reach zero.
+ */
+export interface WriteSite {
+  /** Package directory name performing the write. */
+  importer: string
+  /** Table const names mutated in this file, from imported bindings only. */
+  names: readonly string[]
+}
+
+export function countWriteReachIns(sites: readonly WriteSite[], ownership: TableOwnership) {
+  const counts = new Map<string, number>()
+  for (const site of sites) {
+    for (const name of site.names) {
+      const owner = ownership.owners.get(name)
+      if (owner === undefined) continue
+      if (name.endsWith("Ref")) continue
+      if (owner === site.importer) continue
+      if (FOUNDATION_PACKAGES.has(owner)) continue
+      const key = `${site.importer}->${owner}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+/** Write violations name the remedy, which is narrower than for a read. */
+export function checkWritesAgainstBaseline(
+  counts: ReadonlyMap<string, number>,
+  baseline: Baseline,
+) {
+  const violations: string[] = []
+  for (const [pair, count] of [...counts].sort()) {
+    const allowed = baseline[pair]
+    if (allowed === undefined) {
+      violations.push(
+        `${pair}: ${count} cross-module WRITE(s) in a pair with no baseline. A module may not ` +
+          `mutate another module's tables — call the owning module's service. A *Ref mirror is ` +
+          `read-only and is not an option here.`,
+      )
+    } else if (count > allowed) {
+      violations.push(
+        `${pair}: ${count} cross-module writes, baseline allows ${allowed}. This number may only fall.`,
+      )
+    }
+  }
+  return violations
+}
+
 export function countReachIns(sites: readonly ImportSite[], ownership: TableOwnership) {
   const counts = new Map<string, number>()
   for (const site of sites) {
