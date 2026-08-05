@@ -10,7 +10,10 @@ const contentMocks = vi.hoisted(() => ({
 vi.mock("@voyant-travel/catalog/services/overlay", () => overlayMocks)
 vi.mock("../../src/service-content.js", () => contentMocks)
 
-import { readProductEditorialOverlayState } from "../../src/service-editorial-overlay-state.js"
+import {
+  OwnedProductNotOverlayableError,
+  readProductEditorialOverlayState,
+} from "../../src/service-editorial-overlay-state.js"
 
 const SCOPE = {
   preferredLocales: ["ro-RO"],
@@ -109,6 +112,22 @@ describe("readProductEditorialOverlayState", () => {
       { nodeKind: "root", nodeKey: "root", dayNumber: null, label: null },
       { nodeKind: "itinerary-day", nodeKey: "day_1", dayNumber: 1, label: "Day one" },
     ])
+  })
+
+  // The read model exists to compare provider copy against an operator's
+  // restatement of it. An owned product is both sides of that comparison, so
+  // there is nothing to compare and no overlay collection to return.
+  it("refuses an owned product instead of returning an empty comparison", async () => {
+    contentMocks.getProductContent.mockResolvedValue({
+      ...makeResolved(makeContent()),
+      source: "owned",
+      provenance: { source_kind: "owned" },
+    })
+
+    await expect(
+      readProductEditorialOverlayState(makeDb(), "prod_1", SCOPE, { registry: makeRegistry() }),
+    ).rejects.toThrow(OwnedProductNotOverlayableError)
+    expect(overlayMocks.fetchOverlayRowsForEntity).not.toHaveBeenCalled()
   })
 
   it("marks locale-fallback source fields so admin can see what was served", async () => {

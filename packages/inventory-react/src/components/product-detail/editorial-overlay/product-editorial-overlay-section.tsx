@@ -38,7 +38,7 @@ import {
 
 export interface ProductEditorialOverlaySectionProps {
   productId: string
-  /** False for owned products — the backend has no provider source to compare. */
+  /** Lets a host defer the fetch until it knows the subject is sourced. */
   enabled?: boolean
 }
 
@@ -46,6 +46,11 @@ export interface ProductEditorialOverlaySectionProps {
  * Operator authoring surface for localized editorial overlays on sourced
  * products (RFC #3666 phase 2). Provider source is read-only; the overlay is
  * the only editable column; effective content is what customers receive.
+ *
+ * **Sourced products only.** An owned product authors its copy directly in the
+ * products tables, so it has no overlay collection at all and the API answers
+ * 404 for one. `/products/:id` is the owned authoring surface and does not
+ * mount this section; a host for sourced product detail is where it belongs.
  */
 export function ProductEditorialOverlaySection({
   productId,
@@ -114,9 +119,7 @@ export function ProductEditorialOverlaySection({
     for (const field of overlayFields) clearField(field)
   }
 
-  // Owned products author content in their own tables; the compare editor is
-  // for provider-sourced content only.
-  if (!enabled || (state && !state.sourced)) return null
+  if (!enabled) return null
 
   return (
     <Section

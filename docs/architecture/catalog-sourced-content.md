@@ -589,6 +589,17 @@ catalog plane what was actually served.
 
 ### 3.5.4. Editorial overlays compose on top — content-shape-aware merger
 
+**Sourced entities only.** An overlay restates content the operator does not
+control. An owned entity's copy lives in that vertical's own tables
+(`product_translations`, `product_day_translations`, and the option/service
+equivalents), which the operator edits directly, so an overlay there is a second
+authoring surface for the same field — and the one that silently wins. The
+owned branch of `getContent` therefore serves the projection as authored and
+never reads the overlay store, and the product overlay routes answer `404
+not_overlayable` for an owned subject on every verb. Question 3 in §7 recorded
+that "editorial overlays already exist for owned content"; that was descriptive
+of the pre-content-cache cruise pattern, not a rule to preserve.
+
 The existing `catalog_overlay` table now keys logically on `(entity, node_kind, node_key, field_path, locale, audience, market)`. **Overlays already work per-locale.** Existing flat rows are `root/root`. For sourced rows, an operator can curate a `ro-RO` overlay on top of what the adapter served (or didn't serve) — same machinery. Overlay merge happens at read time after locale resolution: pick the best content row, then layer locale-matching overlays on top.
 
 But the existing `resolveOverlay` (`packages/catalog/src/overlay/resolver.ts`) is field-policy-bound — it walks only the fields declared in the field-policy registry, which are flat indexed fields like `title` and `cancellation_policy_rules`. Content blobs are nested (`days[3].description`, `media[0].caption`, `cabinCategories[]`) and not addressable by the current resolver. We need a richer merge engine for content.

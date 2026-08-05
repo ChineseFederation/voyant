@@ -8,8 +8,6 @@ export const operatorAdminProductsMessagesRoEditorial = {
   loadFailed: "Conținutul editorial nu a putut fi încărcat.",
   retry: "Reîncearcă",
   loading: "Se încarcă conținutul editorial…",
-  unavailable:
-    "Suprapunerile editoriale sunt disponibile doar pentru produsele preluate din surse.",
   readOnly: "Nu ai permisiunea de a edita conținutul editorial.",
 
   columnSource: "Sursă furnizor",

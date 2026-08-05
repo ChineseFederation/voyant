@@ -15,6 +15,9 @@ const serviceMocks = vi.hoisted(() => ({
   OverlayVersionConflictError: class OverlayVersionConflictError extends Error {
     currentVersion = null
   },
+  OwnedProductNotOverlayableError: class OwnedProductNotOverlayableError extends Error {
+    productId = "prod_1"
+  },
 }))
 
 vi.mock("../../src/service-editorial-overlays.js", () => serviceMocks)
@@ -187,5 +190,64 @@ describe("createProductEditorialOverlayRoutes", () => {
 
     expect(res.status).toBe(401)
     expect(serviceMocks.writeProductEditorialOverlay).not.toHaveBeenCalled()
+  })
+
+  // An owned product authors its copy directly, so it has no overlay
+  // collection. Every verb has to say that the same way — a 500, or a silent
+  // 200 with an empty comparison, is what put a broken card on the operator's
+  // owned product page in the first place.
+  it("answers 404 not_overlayable on reads of an owned product", async () => {
+    serviceMocks.readProductEditorialOverlayState.mockRejectedValueOnce(
+      new serviceMocks.OwnedProductNotOverlayableError("owned"),
+    )
+    const app = buildApp("usr_editor")
+
+    const res = await app.request("/prod_1/editorial-overlays?locale=ro-RO")
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toMatchObject({ error: "not_overlayable" })
+  })
+
+  it("answers 404 not_overlayable on writes to an owned product", async () => {
+    serviceMocks.writeProductEditorialOverlay.mockRejectedValueOnce(
+      new serviceMocks.OwnedProductNotOverlayableError("owned"),
+    )
+    const app = buildApp("usr_editor")
+
+    const res = await app.request("/prod_1/editorial-overlays", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fieldPath: "name",
+        locale: "ro-RO",
+        audience: "customer",
+        market: "RO",
+        value: "Nume",
+      }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toMatchObject({ error: "not_overlayable" })
+  })
+
+  it("answers 404 not_overlayable on clears and history for an owned product", async () => {
+    serviceMocks.clearProductEditorialOverlay.mockRejectedValueOnce(
+      new serviceMocks.OwnedProductNotOverlayableError("owned"),
+    )
+    serviceMocks.listProductEditorialOverlayHistory.mockRejectedValueOnce(
+      new serviceMocks.OwnedProductNotOverlayableError("owned"),
+    )
+    const app = buildApp("usr_editor")
+    const scope = "locale=ro-RO&audience=customer&market=RO"
+
+    const cleared = await app.request(`/prod_1/editorial-overlays?fieldPath=name&${scope}`, {
+      method: "DELETE",
+    })
+    const history = await app.request(`/prod_1/editorial-overlays/history?${scope}`)
+
+    expect(cleared.status).toBe(404)
+    expect(await cleared.json()).toMatchObject({ error: "not_overlayable" })
+    expect(history.status).toBe(404)
+    expect(await history.json()).toMatchObject({ error: "not_overlayable" })
   })
 })

@@ -8,7 +8,6 @@ export const operatorAdminProductsMessagesEnEditorial = {
   loadFailed: "Failed to load editorial content.",
   retry: "Retry",
   loading: "Loading editorial content…",
-  unavailable: "Editorial overlays are available for sourced products only.",
   readOnly: "You do not have permission to edit editorial content.",
 
   columnSource: "Provider source",

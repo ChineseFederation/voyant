@@ -16,6 +16,11 @@
  * service. Phase D ships sourced + synthesizer; owned dispatch
  * narrows when first sourced template adopts.
  *
+ * Editorial overlays apply to the sourced branches only. Owned products
+ * author their copy in their own tables, so an overlay there would be a
+ * second authoring surface for the same field rather than a restatement
+ * of someone else's content.
+ *
  * See `docs/architecture/catalog-sourced-content.md` §3.3, §3.4, §3.6.
  */
 
@@ -108,8 +113,9 @@ export interface GetProductContentOptions {
    */
   forceFresh?: boolean
   /**
-   * Admin comparison reads set this false to see locale-resolved provider/owned
-   * source content without applying editorial overlays.
+   * Admin comparison reads set this false to see locale-resolved provider
+   * source content without applying editorial overlays. No effect on owned
+   * products, which never carry overlays.
    */
   applyOverlays?: boolean
 }
@@ -142,9 +148,9 @@ export interface ResolvedProductContentProvenance {
 
 /**
  * Read the rich product content for one entity, resolving locale
- * preference, applying overlays, and refreshing in the background when
- * stale. Returns `null` only when the entity is unknown (no
- * sourced-entry row, no owned row).
+ * preference, applying overlays (sourced entities only), and refreshing
+ * in the background when stale. Returns `null` only when the entity is
+ * unknown (no sourced-entry row, no owned row).
  */
 export async function getProductContent(
   db: AnyDrizzleDb,
@@ -159,27 +165,23 @@ export async function getProductContent(
     // and project to ProductContent — locale resolution against
     // product_translations + product_option_translations uses the
     // same pickBestCachedLocale scoring the sourced cache reads use.
-    // Overlay merge applies the same way it does for sourced rows.
+    //
+    // Editorial overlays are deliberately NOT merged here. An overlay
+    // exists to restate copy an operator does not control; an owned
+    // product's copy lives in `product_translations` and friends, which
+    // the operator edits directly. Layering an overlay on top of that
+    // would give one product two authoring surfaces for the same field,
+    // with the overlay silently winning.
     const owned = await buildOwnedProductContent(db, entityId, {
       preferredLocales: scope.preferredLocales,
     })
     if (!owned) return null
-    const overlayResult = await applyProductEditorialOverlays(
-      db,
-      entityId,
-      owned.content,
-      scope,
-      options,
-    )
     return {
-      content: overlayResult.content,
+      content: owned.content,
       resolution: {
-        candidate: {
-          locale: effectiveServedLocale(owned.servedLocale, scope, overlayResult),
-          payload: overlayResult.content,
-        },
-        served_locale: effectiveServedLocale(owned.servedLocale, scope, overlayResult),
-        match_kind: effectiveMatchKind(owned.matchKind, scope, overlayResult),
+        candidate: { locale: owned.servedLocale, payload: owned.content },
+        served_locale: owned.servedLocale,
+        match_kind: owned.matchKind,
       },
       provenance: { source_kind: "owned" },
       source: "owned",

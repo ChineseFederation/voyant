@@ -1,6 +1,10 @@
 /**
  * Admin read model for product editorial overlays.
  *
+ * Sourced products only — an owned product has no provider baseline to compare
+ * against and authors its copy directly, so this read throws
+ * `OwnedProductNotOverlayableError` rather than returning an empty comparison.
+ *
  * Returns provider source content, active overlays, and effective content for
  * one locale scope, plus a per-field state map covering **every eligible
  * target** — not just the ones that already carry an overlay. The operator
@@ -81,6 +85,27 @@ export interface ProductEditorialOverlayServiceOptions {
   registry: SourceAdapterRegistry
 }
 
+/**
+ * Thrown when an editorial-overlay operation names an owned product.
+ *
+ * Overlays restate content the operator does not control. An owned product's
+ * copy is authored in `product_translations` and friends, so it has no
+ * provider baseline to overlay and no need for one — the operator edits the
+ * real row instead. Routes map this to 404: the overlay collection does not
+ * exist for that subject.
+ */
+export class OwnedProductNotOverlayableError extends Error {
+  readonly productId: string
+
+  constructor(productId: string) {
+    super(
+      `Product ${productId} is owned; editorial overlays apply to provider-sourced products only`,
+    )
+    this.name = "OwnedProductNotOverlayableError"
+    this.productId = productId
+  }
+}
+
 export async function readProductEditorialOverlayState(
   db: AnyDrizzleDb,
   productId: string,
@@ -92,6 +117,7 @@ export async function readProductEditorialOverlayState(
     applyOverlays: false,
   })
   if (!source) return null
+  if (source.source === "owned") throw new OwnedProductNotOverlayableError(productId)
 
   const effective = await getProductContent(db, productId, scope, {
     registry: options.registry,
@@ -165,8 +191,6 @@ export async function readProductEditorialOverlayState(
 
   return {
     subject: { module: "products", id: productId },
-    /** Owned products have no provider baseline to compare against. */
-    sourced: source.source !== "owned",
     contentSource: source.source,
     locale: {
       requestedLocale: scope.preferredLocales[0] ?? "en-GB",

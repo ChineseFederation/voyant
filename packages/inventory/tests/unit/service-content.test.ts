@@ -409,7 +409,11 @@ describe("getProductContent cache ownership", () => {
     expect(result?.source).toBe("sourced-fresh")
   })
 
-  it("reports fallback_chain when requested-locale overlays augment owned fallback content", async () => {
+  // An owned product's copy lives in product_translations, which the operator
+  // edits directly. Merging an overlay on top would give one field two
+  // authoring surfaces and let the overlay win silently, so the owned branch
+  // serves the projection as-authored and never reads the overlay store.
+  it("serves owned content as authored and ignores overlay rows", async () => {
     const db = makeDb()
     const adapter = makeAdapter(false)
     catalogMocks.readSourcedEntry.mockResolvedValue(null)
@@ -438,9 +442,10 @@ describe("getProductContent cache ownership", () => {
       { registry: makeRegistry(adapter) },
     )
 
-    expect(result?.content.product.name).toBe("Nume romanesc")
-    expect(result?.resolution.served_locale).toBe("ro-RO")
-    expect(result?.resolution.match_kind).toBe("fallback_chain")
+    expect(result?.content.product.name).toBe("Owned English")
+    expect(result?.resolution.served_locale).toBe("en-GB")
+    expect(result?.resolution.match_kind).toBe("any")
     expect(result?.source).toBe("owned")
+    expect(catalogMocks.fetchOverlaysForEntity).not.toHaveBeenCalled()
   })
 })

@@ -11,6 +11,7 @@ import {
   clearProductEditorialOverlay,
   listProductEditorialOverlayHistory,
   OverlayVersionConflictError,
+  OwnedProductNotOverlayableError,
   readProductEditorialOverlayState,
   writeProductEditorialOverlay,
 } from "./service-editorial-overlays.js"
@@ -65,7 +66,7 @@ const readEditorialOverlayRoute = createRoute({
       content: { "application/json": { schema: z.object({ data: z.unknown() }) } },
     },
     404: {
-      description: "Product not found",
+      description: "Product not found, or owned and therefore not overlayable",
       content: { "application/json": { schema: errorSchema } },
     },
   },
@@ -90,6 +91,10 @@ const writeEditorialOverlayRoute = createRoute({
       description: "Invalid overlay target or value",
       content: { "application/json": { schema: errorSchema } },
     },
+    404: {
+      description: "Owned product — editorial overlays are sourced-only",
+      content: { "application/json": { schema: errorSchema } },
+    },
     409: {
       description: "Overlay version conflict",
       content: { "application/json": { schema: errorSchema } },
@@ -106,6 +111,10 @@ const clearEditorialOverlayRoute = createRoute({
       description: "Editorial overlay cleared",
       content: { "application/json": { schema: z.object({ data: z.unknown() }) } },
     },
+    404: {
+      description: "Owned product — editorial overlays are sourced-only",
+      content: { "application/json": { schema: errorSchema } },
+    },
     409: {
       description: "Overlay version conflict",
       content: { "application/json": { schema: errorSchema } },
@@ -121,6 +130,10 @@ const overlayHistoryRoute = createRoute({
     200: {
       description: "Editorial overlay audit history",
       content: { "application/json": { schema: z.object({ data: z.array(z.unknown()) }) } },
+    },
+    404: {
+      description: "Owned product — editorial overlays are sourced-only",
+      content: { "application/json": { schema: errorSchema } },
     },
   },
 })
@@ -143,21 +156,28 @@ export function createProductEditorialOverlayRoutes(
   return new OpenAPIHono<ProductEditorialOverlayRoutesEnv>({ defaultHook: openApiValidationHook })
     .openapi(readEditorialOverlayRoute, async (c) => {
       const query = c.req.valid("query")
-      const data = await readProductEditorialOverlayState(
-        c.var.db,
-        c.req.valid("param").id,
-        {
-          preferredLocales: [query.locale],
-          audience: query.audience === OVERLAY_DEFAULT_SCOPE ? "customer" : query.audience,
-          market: query.market,
-          acceptMachineTranslated: false,
-        },
-        { registry: options.resolveRegistry(c) },
-      )
-      if (!data) {
-        return c.json({ error: "not_found", detail: "Product not found" }, 404)
+      try {
+        const data = await readProductEditorialOverlayState(
+          c.var.db,
+          c.req.valid("param").id,
+          {
+            preferredLocales: [query.locale],
+            audience: query.audience === OVERLAY_DEFAULT_SCOPE ? "customer" : query.audience,
+            market: query.market,
+            acceptMachineTranslated: false,
+          },
+          { registry: options.resolveRegistry(c) },
+        )
+        if (!data) {
+          return c.json({ error: "not_found", detail: "Product not found" }, 404)
+        }
+        return c.json({ data }, 200)
+      } catch (err) {
+        if (err instanceof OwnedProductNotOverlayableError) {
+          return c.json({ error: "not_overlayable", detail: err.message }, 404)
+        }
+        throw err
       }
-      return c.json({ data }, 200)
     })
     .openapi(writeEditorialOverlayRoute, async (c) => {
       const body = c.req.valid("json")
@@ -192,6 +212,9 @@ export function createProductEditorialOverlayRoutes(
         })
         return c.json({ data: row }, 200)
       } catch (err) {
+        if (err instanceof OwnedProductNotOverlayableError) {
+          return c.json({ error: "not_overlayable", detail: err.message }, 404)
+        }
         if (err instanceof OverlayVersionConflictError) {
           return c.json(
             {
@@ -235,6 +258,9 @@ export function createProductEditorialOverlayRoutes(
         }
         return c.json({ data: { cleared: row != null, overlay: row } }, 200)
       } catch (err) {
+        if (err instanceof OwnedProductNotOverlayableError) {
+          return c.json({ error: "not_overlayable", detail: err.message }, 404)
+        }
         if (err instanceof OverlayVersionConflictError) {
           return c.json(
             {
@@ -250,15 +276,22 @@ export function createProductEditorialOverlayRoutes(
     })
     .openapi(overlayHistoryRoute, async (c) => {
       const query = c.req.valid("query")
-      const rows = await listProductEditorialOverlayHistory(c.var.db, c.req.valid("param").id, {
-        node_kind: query.nodeKind,
-        node_key: query.nodeKey,
-        field_path: query.fieldPath,
-        locale: query.locale,
-        audience: query.audience,
-        market: query.market,
-      })
-      return c.json({ data: rows }, 200)
+      try {
+        const rows = await listProductEditorialOverlayHistory(c.var.db, c.req.valid("param").id, {
+          node_kind: query.nodeKind,
+          node_key: query.nodeKey,
+          field_path: query.fieldPath,
+          locale: query.locale,
+          audience: query.audience,
+          market: query.market,
+        })
+        return c.json({ data: rows }, 200)
+      } catch (err) {
+        if (err instanceof OwnedProductNotOverlayableError) {
+          return c.json({ error: "not_overlayable", detail: err.message }, 404)
+        }
+        throw err
+      }
     })
 }
 

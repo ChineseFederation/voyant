@@ -104,24 +104,14 @@ export async function getAccommodationContent(
       preferredLocales: scope.preferredLocales,
     })
     if (!owned) return null
-    const overlays = await fetchOverlaysForEntity(db, "accommodations", entityId)
-    const merged = mergeOverlaysIntoAccommodationContent(
-      owned.content,
-      overlays.map((o) => ({ field_path: o.field_path, value: o.value })),
-      {
-        onOverlayError: options.onOverlayError
-          ? (e) =>
-              options.onOverlayError!({
-                field_path: e.overlay.field_path,
-                reason: e.reason,
-              })
-          : undefined,
-      },
-    )
+    // Editorial overlays restate content the operator does not control. An
+    // owned accommodation authors its copy in its own tables, so an overlay
+    // there would be a second authoring surface for the same field — and the
+    // silent winner. Sourced branches below still merge.
     return {
-      content: merged,
+      content: owned.content,
       resolution: {
-        candidate: { locale: owned.servedLocale, payload: merged },
+        candidate: { locale: owned.servedLocale, payload: owned.content },
         served_locale: owned.servedLocale,
         match_kind: owned.matchKind,
       },

@@ -68,7 +68,6 @@ function statePayload(overrides: Record<string, unknown> = {}) {
   return {
     data: {
       subject: { module: "products", id: "prod_1" },
-      sourced: true,
       contentSource: "sourced-cache",
       locale: {
         requestedLocale: "ro-RO",
@@ -438,11 +437,12 @@ describe("ProductEditorialOverlaySection", () => {
     expect(byTestId("editorial-overlay-preview").textContent).toContain("Nume efectiv")
   })
 
-  it("renders nothing for owned products", async () => {
-    const { api } = makeApi(() => statePayload({ sourced: false, contentSource: "owned" }))
-    await render(<ProductEditorialOverlaySection productId="prod_1" />, api)
+  it("renders nothing, and issues no read, when the host disables it", async () => {
+    const { api, calls } = makeApi(() => statePayload())
+    await render(<ProductEditorialOverlaySection productId="prod_1" enabled={false} />, api)
 
     expect(container.textContent).not.toContain(editorial.sectionTitle)
+    expect(calls.get).toHaveLength(0)
   })
 
   it("hides write controls when the host cannot issue overlay writes", async () => {

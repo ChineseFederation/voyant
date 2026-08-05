@@ -56,7 +56,6 @@ export const editorialOverlayNodeSchema = z.object({
 export const editorialOverlayStateSchema = z.object({
   data: z.object({
     subject: z.object({ module: z.string(), id: z.string() }),
-    sourced: z.boolean(),
     contentSource: z.string(),
     locale: z.object({
       requestedLocale: z.string(),

@@ -14,6 +14,10 @@ import {
   OverlayVersionConflictError,
   writeOverlay,
 } from "@voyant-travel/catalog/services/overlay"
+// Deep subpath, not the `@voyant-travel/catalog` barrel: this module is reached
+// from the admin route graph, and the barrel drags the whole catalog plane in
+// with it.
+import { readSourcedEntry } from "@voyant-travel/catalog/services/sourced-entry"
 import type { AnyDrizzleDb } from "@voyant-travel/db"
 
 import {
@@ -31,7 +35,10 @@ import {
   ROOT_FIELDS,
 } from "./editorial-overlay-fields.js"
 import { getProductContent, type ProductContentScope } from "./service-content.js"
-import type { ProductEditorialOverlayServiceOptions } from "./service-editorial-overlay-state.js"
+import {
+  OwnedProductNotOverlayableError,
+  type ProductEditorialOverlayServiceOptions,
+} from "./service-editorial-overlay-state.js"
 
 export type {
   ProductEditorialFieldKind,
@@ -77,6 +84,7 @@ export async function writeProductEditorialOverlay(
     applyOverlays: false,
   })
   if (!source) throw new Error(`Product ${productId} not found`)
+  if (source.source === "owned") throw new OwnedProductNotOverlayableError(productId)
 
   const target = normalizeTarget(input)
   validateTarget(source.content, target)
@@ -127,6 +135,7 @@ export async function clearProductEditorialOverlay(
   productId: string,
   input: ProductEditorialOverlayClearInput,
 ): Promise<SelectCatalogOverlay | null> {
+  await requireSourcedProduct(db, productId)
   const overlayScope = normalizeOverlayScope(input.scope)
   const target = normalizeTarget(input)
   return clearOverlayByTarget(db, {
@@ -147,6 +156,7 @@ export async function listProductEditorialOverlayHistory(
   productId: string,
   target?: Partial<ProductEditorialOverlayTarget & ProductEditorialOverlayScope>,
 ): Promise<SelectCatalogOverlayHistory[]> {
+  await requireSourcedProduct(db, productId)
   return listOverlayHistoryForTarget(db, {
     entity_module: "products",
     entity_id: productId,
@@ -167,6 +177,7 @@ export async function listProductEditorialOverlayHistory(
 }
 
 export {
+  OwnedProductNotOverlayableError,
   type ProductEditorialFieldState,
   type ProductEditorialFieldView,
   type ProductEditorialNodeView,
@@ -174,6 +185,17 @@ export {
 } from "./service-editorial-overlay-state.js"
 
 export { OverlayVersionConflictError }
+
+/**
+ * Overlays address provider-sourced products. Ownership is the absence of a
+ * sourced-entry row, so this doubles as the existence check for the clear and
+ * history paths — neither reads content, and an unknown id has no overlay
+ * collection either way.
+ */
+async function requireSourcedProduct(db: AnyDrizzleDb, productId: string): Promise<void> {
+  const entry = await readSourcedEntry(db, "products", productId)
+  if (!entry) throw new OwnedProductNotOverlayableError(productId)
+}
 
 function validateTarget(
   content: ProductContent,
