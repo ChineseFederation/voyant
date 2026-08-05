@@ -289,6 +289,38 @@ PostgreSQL 18 as well as 16 — 18 is the only version on which the NOT NULL
 constraint names exist to be compared — and reports which of the two it saw so a
 green run is not read as coverage it does not have.
 
+## Editing an already-applied migration (voyant#4247)
+
+The rename above is the elaborate case. The ordinary one is a bug fix to a
+migration that has already shipped, and it has a rule of its own: **the edit and
+its equivalence entry are one change**. An edit landing without the entry does
+not fail where it is written — it fails later, on exactly the deployments that
+were already current, and everything after the edited migration in collector
+order becomes unreachable.
+
+The payment-effect guard in `bookings/20260802200000_booking_v1_status_cutover`
+shipped that way (#4199 fixed real damage; #4247 is its missing companion). Two
+things generalise from it:
+
+- **Both directions of the split are affected populations.** Once an edit ships,
+  some deployments hold the old hash and some the new. Reverting the file
+  strands the second group exactly as the edit stranded the first, so "restore
+  the original and ship a new increment" still needs the equivalence entry — it
+  is not the cheaper escape it looks like. `equivalenceClosure` is symmetric for
+  this reason.
+- **Not every equivalence needs a companion increment.** The rename ones do,
+  because equivalence marks a migration applied and something must still perform
+  the rename. A guard that only ever *raises* leaves nothing unfinished, and
+  narrowing its predicate is sound on its own: a database that recorded the
+  original had zero rows matching it, so it has zero matching the subset. State
+  the containment argument in the comment beside the hashes — that argument, not
+  the size of the diff, is what makes an entry legitimate.
+
+A partial run is the reason this is worth stating loudly. Each migration commits
+in its own transaction, so a run that fails at the gate leaves the schema
+advanced up to that point and the retry starts from a different schema than the
+attempt before it.
+
 ## References
 
 - `docs/architecture/migration-collector-d1.md` — the collector primitive + ledger D.2 reuses; the `assertSchemaAtBaseline` parity pattern.

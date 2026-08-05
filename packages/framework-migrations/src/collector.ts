@@ -174,6 +174,29 @@ const ACTION_LEDGER_0000_HASHES = [
   "d63e6a73b58f985888e258b318255eba5181db307438b25f3d262350f837b2ce",
   "2c1f05738aedd395ffdecc7d5000144a41e6af7e7a85b85563302e89bb1f4f6c",
 ] as const
+// `bookings/20260802200000_booking_v1_status_cutover`: the payment-effect guard
+// was NARROWED in place (#4199). The original tripped on any provider-linked
+// payment session — including a checkout that was merely opened — which no
+// operator action could clear; the current one trips on a recorded
+// authorization, capture or payment, or on a checkout still inside its provider
+// expiry window.
+//
+// Equivalence is sound here without a companion increment, unlike the rename
+// pairs below. The guard is abort-only: it raises, it never writes. The current
+// predicate is a strict subset of the original, so a database that recorded the
+// original necessarily had ZERO rows matching it and therefore zero matching the
+// narrowed one — the two generations reach the same end state on any database
+// where either applied. Every other statement in the file is byte-identical.
+//
+// The class the edit was written for (provider-linked sessions with no payment
+// effect) is exactly the class that made the ORIGINAL abort, so it never
+// recorded a ledger row to diverge from. See voyant#4247.
+const BOOKING_V1_STATUS_CUTOVER_HASHES = [
+  // original: any provider identifier or in-flight status trips the guard.
+  "f1d9f275271c117792ddb0a9f13a41b48f65b4fc60a4a752d06f42bd132437da",
+  // narrowed to settled payment effects plus unexpired checkouts (#4199).
+  "1651c727ee4d02c269c4f104695a3c871999ab49cbefc9b7af3ec676a3211be4",
+] as const
 // The quotes → proposals module rename (#4004) followed the new vocabulary into
 // eight already-shipped migrations owned by OTHER sources, renaming the shared
 // objects they declare: `booking_origins.proposal_version_id` and its index and
@@ -257,6 +280,10 @@ const EQUIVALENT_MIGRATION_HASHES = new Map<string, ReadonlySet<string>>([
   ...equivalenceClosure("db/0001_db_baseline", DB_0001_HASHES),
   ...equivalenceClosure("framework/0004_framework_baseline", FRAMEWORK_0004_HASHES),
   ...equivalenceClosure("action-ledger/0000_action_ledger_baseline", ACTION_LEDGER_0000_HASHES),
+  ...equivalenceClosure(
+    "bookings/20260802200000_booking_v1_status_cutover",
+    BOOKING_V1_STATUS_CUTOVER_HASHES,
+  ),
   ...PROPOSAL_RENAME_EDITED_HASHES.flatMap(([key, hashes]) => equivalenceClosure(key, hashes)),
 ])
 

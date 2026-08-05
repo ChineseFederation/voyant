@@ -220,6 +220,129 @@ describe("migration hash compatibility", () => {
     ).rejects.toBeInstanceOf(MigrationImmutabilityError)
   })
 
+  // The v1 status cutover's payment-effect guard was narrowed in place (#4199),
+  // stranding every deployment that had already applied the original. The
+  // original bytes are reconstructed from the shipped file by undoing that edit,
+  // so the pinned hashes below fail loudly if either generation drifts again.
+  const currentBookingCutover = readFileSync(
+    new URL(
+      "../../bookings/migrations/20260802200000_booking_v1_status_cutover.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  )
+  const narrowedGuard = `          -- A recorded authorization, capture, or payment is money that moved.
+          -- Only these are effects an operator can actually reconcile.
+          payment_session."payment_authorization_id" IS NOT NULL
+          OR payment_session."payment_capture_id" IS NOT NULL
+          OR payment_session."payment_id" IS NOT NULL
+          -- A checkout still inside its provider window may yet settle, so the
+          -- migration must not delete the Booking underneath it. Past that
+          -- window an unsettled session is an abandoned attempt by definition,
+          -- which is exactly how the classifier already labelled the Booking.
+          OR (
+            payment_session."status" IN ('requires_redirect', 'processing')
+            AND coalesce(
+              payment_session."expires_at",
+              payment_session."updated_at" + interval '24 hours'
+            ) > now()
+          )
+`
+  const originalGuard = `          payment_session."status" IN ('requires_redirect', 'processing')
+          OR payment_session."provider_session_id" IS NOT NULL
+          OR payment_session."provider_payment_id" IS NOT NULL
+          OR payment_session."payment_authorization_id" IS NOT NULL
+          OR payment_session."payment_capture_id" IS NOT NULL
+          OR payment_session."payment_id" IS NOT NULL
+`
+  const narrowedCleanupNote = `-- Settled payment evidence was preserved as a commitment, and unreconciled
+-- payment effects were rejected above. A session that only carries provider
+-- identifiers is deliberately left in place: it is the sole record that this
+-- deployment opened a checkout with the provider, so it keeps its \`booking_id\`
+-- and survives the Booking it names rather than being erased or blanked.
+`
+  const originalCleanupNote = `-- External or settled payment evidence was preserved or rejected above.
+`
+  const originalBookingCutover = currentBookingCutover
+    .replace(narrowedGuard, originalGuard)
+    .replace(narrowedCleanupNote, originalCleanupNote)
+
+  const bookingCutoverHashes = {
+    original: "f1d9f275271c117792ddb0a9f13a41b48f65b4fc60a4a752d06f42bd132437da",
+    narrowed: "1651c727ee4d02c269c4f104695a3c871999ab49cbefc9b7af3ec676a3211be4",
+  } as const
+
+  it("reconstructs the pre-#4199 cutover bytes from the shipped migration", () => {
+    expect(currentBookingCutover).toContain(narrowedGuard)
+    expect(currentBookingCutover).toContain(narrowedCleanupNote)
+    expect(originalBookingCutover).not.toBe(currentBookingCutover)
+  })
+
+  it.each([
+    {
+      direction: "original ledger to narrowed migration",
+      sql: currentBookingCutover,
+      expectedCurrentHash: bookingCutoverHashes.narrowed,
+      ledgerHash: bookingCutoverHashes.original,
+    },
+    {
+      direction: "narrowed ledger to original migration",
+      sql: originalBookingCutover,
+      expectedCurrentHash: bookingCutoverHashes.original,
+      ledgerHash: bookingCutoverHashes.narrowed,
+    },
+  ])("accepts the booking v1 status cutover guard narrowing from $direction", async (testCase) => {
+    const queries: string[] = []
+    const client: MigrationClient = {
+      async query(sql: string) {
+        queries.push(sql)
+        if (sql.includes(`SELECT "content_hash"`)) {
+          return { rows: [{ content_hash: testCase.ledgerHash, source: "bookings" }] }
+        }
+        return { rows: [] }
+      },
+    }
+    const source: MigrationSource = {
+      name: "bookings",
+      priority: 0,
+      migrations: [{ tag: "20260802200000_booking_v1_status_cutover", sql: testCase.sql }],
+    }
+
+    expect(planMigrations([source])[0]?.contentHash).toBe(testCase.expectedCurrentHash)
+    await expect(applyMigrations(client, [source], ledgerOpts)).resolves.toEqual({
+      executed: [],
+      baselined: [],
+    })
+    expect(queries).not.toContain("BEGIN")
+  })
+
+  it("still rejects an unrelated hash for the booking v1 status cutover", async () => {
+    const client: MigrationClient = {
+      async query(sql: string) {
+        if (sql.includes(`SELECT "content_hash"`)) {
+          return { rows: [{ content_hash: "unrelated-hash", source: "bookings" }] }
+        }
+        return { rows: [] }
+      },
+    }
+
+    await expect(
+      applyMigrations(
+        client,
+        [
+          {
+            name: "bookings",
+            priority: 0,
+            migrations: [
+              { tag: "20260802200000_booking_v1_status_cutover", sql: currentBookingCutover },
+            ],
+          },
+        ],
+        ledgerOpts,
+      ),
+    ).rejects.toBeInstanceOf(MigrationImmutabilityError)
+  })
+
   const relationshipsBaseline = readFileSync(
     new URL("../../relationships/migrations/0000_relationships_baseline.sql", import.meta.url),
     "utf8",
